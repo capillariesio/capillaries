@@ -1,0 +1,74 @@
+package main
+
+import (
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/kleineshertz/capillaries/pkg/custom"
+	"github.com/kleineshertz/capillaries/pkg/env"
+	"github.com/kleineshertz/capillaries/pkg/l"
+	"github.com/kleineshertz/capillaries/pkg/sc"
+	"github.com/kleineshertz/capillaries/pkg/wf"
+)
+
+// https://stackoverflow.com/questions/25927660/how-to-get-the-current-function-name
+// func trc() string {
+// 	pc := make([]uintptr, 15)
+// 	n := runtime.Callers(2, pc)
+// 	frames := runtime.CallersFrames(pc[:n])
+// 	frame, _ := frames.Next()
+// 	return fmt.Sprintf("%s:%d %s\n", frame.File, frame.Line, frame.Function)
+// }
+
+type StandardDaemonProcessorDefFactory struct {
+}
+
+func (f *StandardDaemonProcessorDefFactory) Create(processorType string) (sc.CustomProcessorDef, bool) {
+	// All processors to be supported by this 'stock' binary (daemon/toolbelt).
+	// If you develop your own processor(s), use your own ProcessorDefFactory that lists all processors,
+	// they all must implement CustomProcessorRunner interface
+	switch processorType {
+	case custom.ProcessorPyCalcName:
+		return &custom.PyCalcProcessorDef{}, true
+	case custom.ProcessorTagAndDenormalizeName:
+		return &custom.TagAndDenormalizeProcessorDef{}, true
+	default:
+		return nil, false
+	}
+}
+
+func main() {
+
+	envConfig, err := env.ReadEnvConfigFile("env_config.json")
+	if err != nil {
+		log.Fatalf(err.Error())
+		os.Exit(1)
+	}
+	envConfig.CustomProcessorDefFactoryInstance = &StandardDaemonProcessorDefFactory{}
+
+	logger, err := l.NewLoggerFromEnvConfig(envConfig)
+	if err != nil {
+		log.Fatalf(err.Error())
+		os.Exit(1)
+	}
+	defer logger.Close()
+
+	logger.PushF("main")
+	defer logger.PopF()
+
+	osSignalChannel := make(chan os.Signal, 1)
+	signal.Notify(osSignalChannel, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+	for {
+		daemonCmd := wf.AmqpFullReconnectCycle(envConfig, logger, osSignalChannel)
+		if daemonCmd == wf.DaemonCmdQuit {
+			logger.Info("got quit cmd, shut down is supposed to be complete by now")
+			break
+		}
+		logger.Info("got %d, waiting before reconnect...", daemonCmd)
+		time.Sleep(10 * time.Second)
+	}
+}

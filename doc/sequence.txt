@@ -1,0 +1,30 @@
+lifelinestyle :1
+fontawesome5solid f007 Operator
+participantgroup #lightgray RabbitMQ
+fontawesome5solid f5fd Queue
+end
+participantgroup #lightgray Servers
+fontawesome5solid f085 Capillaries Processor
+end
+participantgroup #lightgray Cassandra
+fontawesome5solid f1c0 Data/Index Tables
+fontawesome5solid f1c0 Workflow Tables
+end
+Operator->Queue:Start run (splits data space into batches,\nfor all nodes affected by run)
+
+Queue->Capillaries Processor:Accept batch for processing
+
+
+Capillaries Processor<-Data/Index Tables:read source data batch
+Capillaries Processor->Data/Index Tables:write result data batch
+
+Capillaries Processor->Workflow Tables:Marks batch as complete
+Capillaries Processor->Workflow Tables:If all batches for this node are complete, mark node as complete 
+Capillaries Processor->Workflow Tables:If all nodes affected by this run are complete, mark run as complete 
+
+Queue<-Capillaries Processor:Confirm batch processing
+
+Operator->Workflow Tables:Check run status, wait for completion
+Operator->Data/Index Tables:Validate run results
+Operator->Queue:Start next run that uses the results \n of the first run saved in data tables
+

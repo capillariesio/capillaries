@@ -1,0 +1,42 @@
+{
+    "handler_executable_type":"capi_daemon",
+    "cassandra":{
+      "hosts": ["....cassandra.cosmos.azure.com"],
+      "port": 10350,
+      "username": "...",
+      "password": "...",
+      "keyspace_replication_config": "{ 'class' : 'NetworkTopologyStrategy', 'datacenter1' : 1 }",
+      "ssl_opts":{ "enable_host_verification": false },
+      "writer_workers": 5,
+      "num_conns": 2,
+      "timeout": 5000,
+      "connect_timeout": 1000
+    },
+    "amqp":{
+      "url": "amqp://guest:guest@127.0.0.1/",
+      "exchange": "capillaries",
+      "prefetch_count": 20,
+      "prefetch_size": 0
+    },
+    "custom_processors":{
+      "py_calc":{
+        "python_interpreter_path":"python",
+        "python_interpreter_params":["-u", "-"]
+      },
+      "tag_and_denormalize":{}
+    },
+    "thread_pool_size": 5,
+    "zap_config":{
+          "level": "debug",
+          "outputPaths": ["stdout"],
+          "errorOutputPaths": ["stderr"],
+          "encoding": "json",
+          "encoderConfig": {
+        "timeKey": "ts",
+        "timeEncoder":"iso8601",
+              "messageKey": "m",
+              "levelKey": "l",
+              "levelEncoder": "lowercase"
+          }
+      }
+  }

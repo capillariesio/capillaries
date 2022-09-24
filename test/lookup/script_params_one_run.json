@@ -1,0 +1,10 @@
+{
+    "start_date": "2016-01-01 00:00:00",
+    "end_date": "2018-12-31 23:23:59",
+    "default_shipping_limit_date": "1980-02-03T04:05:06.777+00:00",
+    "default_order_item_id": "999",
+    "default_order_item_value": "999.00",
+    "lookup_node_batches_total": 10,
+    "lookup_start_policy": "auto",
+    "test_root_dir": "../../../test/lookup"
+}

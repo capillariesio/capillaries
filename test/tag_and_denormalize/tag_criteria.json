@@ -1,0 +1,6 @@
+{
+    "boys":"re.MatchString(`\"k\":\"Ideal For\",\"v\":\"[\\w ,]*Boys[\\w ,]*\"`, r.product_spec)",
+    "diving":"re.MatchString(`\"k\":\"Water Resistance Depth\",\"v\":\"(100|200) m\"`, r.product_spec)",
+    "casualfootwear":"re.MatchString(`Footwear >>[\\w ,]*`, r.category_tree) && re.MatchString(`\"k\":\"Occasion\",\"v\":\"[\\w ,]*(Casual|Festive)[\\w ,]*\"`, r.product_spec)",
+    "engagement":"re.MatchString(`\"k\":\"Occasion\",\"v\":\"[\\w ,]*Engagement[\\w ,]*\"`, r.product_spec) && re.MatchString(`\"k\":\"Gemstone\",\"v\":\"Diamond\"`, r.product_spec) && r.price > 5000"
+}
