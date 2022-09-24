@@ -148,7 +148,7 @@
 <text text-anchor="middle" x="250.869" y="-139.5" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">file_tag_totals</text>
 <polyline fill="none" stroke="#000000" points="0,-129.5 501.738,-129.5 "/>
 <text text-anchor="middle" x="250.869" y="-107.5" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">creates file:</text>
-<text text-anchor="middle" x="250.869" y="-83.5" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">../../../test/tag_and_denormalize/data/out/tag_totals.csv</text>
+<text text-anchor="middle" x="250.869" y="-83.5" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">../../../test/tag_and_denormalize/data/out/tag_totals.tsv</text>
 </a>
 </g>
 </g>
@@ -159,20 +159,20 @@
 <polygon fill="#000000" stroke="#000000" points="286.2009,-168.2685 277.9809,-161.584 280.2383,-171.9355 286.2009,-168.2685"/>
 <text text-anchor="middle" x="403.8785" y="-185.4" font-family="Helvetica,sans-Serif" font-size="18.00" fill="#000000">tag_totals (no parallelism)</text>
 </g>
-<!-- ../../../test/tag_and_denormalize/data/out/tag_totals.csv -->
+<!-- ../../../test/tag_and_denormalize/data/out/tag_totals.tsv -->
 <g id="node10" class="node">
-<title>../../../test/tag_and_denormalize/data/out/tag_totals.csv</title>
+<title>../../../test/tag_and_denormalize/data/out/tag_totals.tsv</title>
 <g id="a_node10"><a xlink:title="Target data file(s)">
 <polygon fill="none" stroke="#000000" points="495.6071,-36 .1309,-36 .1309,0 501.6071,0 501.6071,-30 495.6071,-36"/>
 <polyline fill="none" stroke="#000000" points="495.6071,-36 495.6071,-30 "/>
 <polyline fill="none" stroke="#000000" points="501.6071,-30 495.6071,-30 "/>
-<text text-anchor="middle" x="250.869" y="-12" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">../../../test/tag_and_denormalize/data/out/tag_totals.csv</text>
+<text text-anchor="middle" x="250.869" y="-12" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">../../../test/tag_and_denormalize/data/out/tag_totals.tsv</text>
 </a>
 </g>
 </g>
-<!-- file_tag_totals&#45;&gt;../../../test/tag_and_denormalize/data/out/tag_totals.csv -->
+<!-- file_tag_totals&#45;&gt;../../../test/tag_and_denormalize/data/out/tag_totals.tsv -->
 <g id="edge9" class="edge">
-<title>file_tag_totals-&gt;../../../test/tag_and_denormalize/data/out/tag_totals.csv</title>
+<title>file_tag_totals-&gt;../../../test/tag_and_denormalize/data/out/tag_totals.tsv</title>
 <path fill="none" stroke="#000000" stroke-dasharray="1,5" d="M250.869,-73.2784C250.869,-64.082 250.869,-54.6304 250.869,-46.2016"/>
 <polygon fill="#000000" stroke="#000000" points="254.3691,-46.1684 250.869,-36.1685 247.3691,-46.1685 254.3691,-46.1684"/>
 </g>
