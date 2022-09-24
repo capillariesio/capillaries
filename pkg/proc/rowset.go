@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kleineshertz/capillaries/pkg/eval"
-	"github.com/kleineshertz/capillaries/pkg/sc"
+	"github.com/capillariesio/capillaries/pkg/eval"
+	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/shopspring/decimal"
 	"gopkg.in/inf.v0"
 )

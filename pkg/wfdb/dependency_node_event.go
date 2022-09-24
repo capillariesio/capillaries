@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kleineshertz/capillaries/pkg/ctx"
-	"github.com/kleineshertz/capillaries/pkg/l"
-	"github.com/kleineshertz/capillaries/pkg/wfmodel"
+	"github.com/capillariesio/capillaries/pkg/ctx"
+	"github.com/capillariesio/capillaries/pkg/l"
+	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
 func BuildDependencyNodeEventLists(logger *l.Logger, pCtx *ctx.MessageProcessingContext, depNodeNames []string) (map[string][]wfmodel.DependencyNodeEvent, error) {

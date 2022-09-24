@@ -14,11 +14,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kleineshertz/capillaries/pkg/ctx"
-	"github.com/kleineshertz/capillaries/pkg/eval"
-	"github.com/kleineshertz/capillaries/pkg/l"
-	"github.com/kleineshertz/capillaries/pkg/proc"
-	"github.com/kleineshertz/capillaries/pkg/sc"
+	"github.com/capillariesio/capillaries/pkg/ctx"
+	"github.com/capillariesio/capillaries/pkg/eval"
+	"github.com/capillariesio/capillaries/pkg/l"
+	"github.com/capillariesio/capillaries/pkg/proc"
+	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/shopspring/decimal"
 )
 

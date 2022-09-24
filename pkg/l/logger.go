@@ -6,8 +6,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/kleineshertz/capillaries/pkg/ctx"
-	"github.com/kleineshertz/capillaries/pkg/env"
+	"github.com/capillariesio/capillaries/pkg/ctx"
+	"github.com/capillariesio/capillaries/pkg/env"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )

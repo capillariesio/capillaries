@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/capillariesio/capillaries/pkg/cql"
+	"github.com/capillariesio/capillaries/pkg/l"
+	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/gocql/gocql"
-	"github.com/kleineshertz/capillaries/pkg/cql"
-	"github.com/kleineshertz/capillaries/pkg/l"
-	"github.com/kleineshertz/capillaries/pkg/wfmodel"
 )
 
 func GetRunHistory(logger *l.Logger, cqlSession *gocql.Session, keyspace string) ([]*wfmodel.RunHistory, error) {

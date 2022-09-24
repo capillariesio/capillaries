@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kleineshertz/capillaries/pkg/sc"
+	"github.com/capillariesio/capillaries/pkg/sc"
 )
 
 type IfNotExistsType int

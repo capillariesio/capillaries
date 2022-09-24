@@ -9,13 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kleineshertz/capillaries/pkg/api"
-	"github.com/kleineshertz/capillaries/pkg/cql"
-	"github.com/kleineshertz/capillaries/pkg/custom"
-	"github.com/kleineshertz/capillaries/pkg/env"
-	"github.com/kleineshertz/capillaries/pkg/l"
-	"github.com/kleineshertz/capillaries/pkg/sc"
-	"github.com/kleineshertz/capillaries/pkg/wfmodel"
+	"github.com/capillariesio/capillaries/pkg/api"
+	"github.com/capillariesio/capillaries/pkg/cql"
+	"github.com/capillariesio/capillaries/pkg/custom"
+	"github.com/capillariesio/capillaries/pkg/env"
+	"github.com/capillariesio/capillaries/pkg/l"
+	"github.com/capillariesio/capillaries/pkg/sc"
+	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 

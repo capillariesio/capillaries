@@ -5,12 +5,12 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/capillariesio/capillaries/pkg/cql"
+	"github.com/capillariesio/capillaries/pkg/l"
+	"github.com/capillariesio/capillaries/pkg/proc"
+	"github.com/capillariesio/capillaries/pkg/sc"
+	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/gocql/gocql"
-	"github.com/kleineshertz/capillaries/pkg/cql"
-	"github.com/kleineshertz/capillaries/pkg/l"
-	"github.com/kleineshertz/capillaries/pkg/proc"
-	"github.com/kleineshertz/capillaries/pkg/sc"
-	"github.com/kleineshertz/capillaries/pkg/wfmodel"
 )
 
 func GetTablesCql(script *sc.ScriptDef, keyspace string, runId int16, startNodeNames []string) string {

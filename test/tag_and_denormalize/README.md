@@ -46,7 +46,7 @@ This test mimics the "operator validation" scenario.
 
 ## Possible edits
 
-In the script, reference tag_criteria.json directly in github.com: `"tag_criteria_uri": "https://github.com/kleineshertz/capillaries/blob/main/test/tag_and_denormalize/tag_criteria.json?raw=1"`; just make sure that test/ca/ directory contains a valid CA certificate for github.com.
+In the script, reference tag_criteria.json directly in github.com: `"tag_criteria_uri": "https://github.com/capillariesio/capillaries/blob/main/test/tag_and_denormalize/tag_criteria.json?raw=1"`; just make sure that test/ca/ directory contains a valid CA certificate for github.com.
 
 ## References:
 

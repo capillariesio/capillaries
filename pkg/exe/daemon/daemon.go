@@ -7,11 +7,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/kleineshertz/capillaries/pkg/custom"
-	"github.com/kleineshertz/capillaries/pkg/env"
-	"github.com/kleineshertz/capillaries/pkg/l"
-	"github.com/kleineshertz/capillaries/pkg/sc"
-	"github.com/kleineshertz/capillaries/pkg/wf"
+	"github.com/capillariesio/capillaries/pkg/custom"
+	"github.com/capillariesio/capillaries/pkg/env"
+	"github.com/capillariesio/capillaries/pkg/l"
+	"github.com/capillariesio/capillaries/pkg/sc"
+	"github.com/capillariesio/capillaries/pkg/wf"
 )
 
 // https://stackoverflow.com/questions/25927660/how-to-get-the-current-function-name

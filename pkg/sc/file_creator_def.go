@@ -6,7 +6,7 @@ import (
 	"go/ast"
 	"strings"
 
-	"github.com/kleineshertz/capillaries/pkg/eval"
+	"github.com/capillariesio/capillaries/pkg/eval"
 )
 
 type WriteFileColumnDef struct {

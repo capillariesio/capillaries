@@ -3,14 +3,14 @@ package wf
 import (
 	"fmt"
 
-	"github.com/kleineshertz/capillaries/pkg/cql"
-	"github.com/kleineshertz/capillaries/pkg/ctx"
-	"github.com/kleineshertz/capillaries/pkg/env"
-	"github.com/kleineshertz/capillaries/pkg/l"
-	"github.com/kleineshertz/capillaries/pkg/proc"
-	"github.com/kleineshertz/capillaries/pkg/sc"
-	"github.com/kleineshertz/capillaries/pkg/wfdb"
-	"github.com/kleineshertz/capillaries/pkg/wfmodel"
+	"github.com/capillariesio/capillaries/pkg/cql"
+	"github.com/capillariesio/capillaries/pkg/ctx"
+	"github.com/capillariesio/capillaries/pkg/env"
+	"github.com/capillariesio/capillaries/pkg/l"
+	"github.com/capillariesio/capillaries/pkg/proc"
+	"github.com/capillariesio/capillaries/pkg/sc"
+	"github.com/capillariesio/capillaries/pkg/wfdb"
+	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
 func checkDependencyNodesReady(logger *l.Logger, pCtx *ctx.MessageProcessingContext) (sc.ReadyToRunNodeCmdType, int16, int16, error) {

@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/capillariesio/capillaries/pkg/cql"
+	"github.com/capillariesio/capillaries/pkg/env"
+	"github.com/capillariesio/capillaries/pkg/sc"
+	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/gocql/gocql"
-	"github.com/kleineshertz/capillaries/pkg/cql"
-	"github.com/kleineshertz/capillaries/pkg/env"
-	"github.com/kleineshertz/capillaries/pkg/sc"
-	"github.com/kleineshertz/capillaries/pkg/wfmodel"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )

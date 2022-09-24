@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kleineshertz/capillaries/pkg/eval"
+	"github.com/capillariesio/capillaries/pkg/eval"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 )

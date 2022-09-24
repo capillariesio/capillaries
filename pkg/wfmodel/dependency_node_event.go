@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kleineshertz/capillaries/pkg/eval"
+	"github.com/capillariesio/capillaries/pkg/eval"
 )
 
 const DependencyNodeEventTableName string = "e"
