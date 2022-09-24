@@ -15,6 +15,13 @@ const (
 	ThrowIfExists  IfNotExistsType = 0
 )
 
+type QuotePolicyType int
+
+const (
+	LeaveQuoteAsIs QuotePolicyType = iota
+	ForceUnquote
+)
+
 /*
 Data/idx table name for each run needs run id as a suffix
 */
@@ -29,16 +36,16 @@ func runIdSuffix(runId int16) string {
 /*
 Helper used in query builder
 */
-func valueToString(value interface{}, forceUnquote bool) string {
+func valueToString(value interface{}, quotePolicy QuotePolicyType) string {
 	switch v := value.(type) {
 	case string:
-		if forceUnquote {
+		if quotePolicy == ForceUnquote {
 			return strings.ReplaceAll(v, "'", "''")
 		} else {
 			return fmt.Sprintf("'%s'", strings.ReplaceAll(v, "'", "''"))
 		}
 	case time.Time:
-		if forceUnquote {
+		if quotePolicy == ForceUnquote {
 			return v.Format(sc.CassandraDatetimeFormat)
 		} else {
 			return v.Format(fmt.Sprintf("'%s'", sc.CassandraDatetimeFormat))
@@ -81,8 +88,8 @@ type queryBuilderColumnData struct {
 	Len     int
 }
 
-func (cd *queryBuilderColumnData) add(column string, value interface{}, forceUnquote bool) {
-	cd.Values[cd.Len] = valueToString(value, forceUnquote)
+func (cd *queryBuilderColumnData) add(column string, value interface{}, quotePolicy QuotePolicyType) {
+	cd.Values[cd.Len] = valueToString(value, quotePolicy)
 	cd.Columns[cd.Len] = column
 	cd.Len++
 }
@@ -95,7 +102,7 @@ type queryBuilderConditions struct {
 func (cc *queryBuilderConditions) addIn(column string, values []interface{}) {
 	inValues := make([]string, len(values))
 	for i, v := range values {
-		inValues[i] = valueToString(v, false)
+		inValues[i] = valueToString(v, LeaveQuoteAsIs)
 	}
 	cc.Items[cc.Len] = fmt.Sprintf("%s IN ( %s )", column, strings.Join(inValues, ", "))
 	cc.Len++
@@ -125,7 +132,7 @@ func (cc *queryBuilderConditions) addInString(column string, values []string) {
 }
 
 func (cc *queryBuilderConditions) addSimple(column string, op string, value interface{}) {
-	cc.Items[cc.Len] = fmt.Sprintf("%s %s %s", column, op, valueToString(value, false))
+	cc.Items[cc.Len] = fmt.Sprintf("%s %s %s", column, op, valueToString(value, LeaveQuoteAsIs))
 	cc.Len++
 }
 
@@ -181,7 +188,7 @@ func (qb *QueryBuilder) Limit(limit int) *QueryBuilder {
 Write - add a column for INSERT or UPDATE
 */
 func (qb *QueryBuilder) Write(column string, value interface{}) *QueryBuilder {
-	qb.ColumnData.add(column, value, false)
+	qb.ColumnData.add(column, value, LeaveQuoteAsIs)
 	return qb
 }
 
@@ -189,7 +196,7 @@ func (qb *QueryBuilder) Write(column string, value interface{}) *QueryBuilder {
 WriteForceUnquote - add a column for INSERT or UPDATE
 */
 func (qb *QueryBuilder) WriteForceUnquote(column string, value interface{}) *QueryBuilder {
-	qb.ColumnData.add(column, value, true)
+	qb.ColumnData.add(column, value, ForceUnquote)
 	return qb
 }
 

@@ -17,7 +17,7 @@ func assertEqual(t *testing.T, expString string, expectedResult interface{}, var
 		t.Error(fmt.Errorf("%s: %s", expString, err1.Error()))
 		return
 	}
-	eCtx := NewPlainEvalCtxWithVars(false, &varValuesMap)
+	eCtx := NewPlainEvalCtxWithVars(AggFuncDisabled, &varValuesMap)
 	result, err2 := eCtx.Eval(exp)
 	if err2 != nil {
 		t.Error(fmt.Errorf("%s: %s", expString, err2.Error()))
@@ -33,7 +33,7 @@ func assertFloatNan(t *testing.T, expString string, varValuesMap VarValuesMap) {
 		t.Error(fmt.Errorf("%s: %s", expString, err1.Error()))
 		return
 	}
-	eCtx := NewPlainEvalCtxWithVars(false, &varValuesMap)
+	eCtx := NewPlainEvalCtxWithVars(AggFuncDisabled, &varValuesMap)
 	result, err2 := eCtx.Eval(exp)
 	if err2 != nil {
 		t.Error(fmt.Errorf("%s: %s", expString, err2.Error()))
@@ -49,7 +49,7 @@ func assertEvalError(t *testing.T, expString string, expectedErrorMsg string, va
 		assert.Equal(t, expectedErrorMsg, err1.Error(), fmt.Sprintf("Unmatched: %v = %v: %s ", expectedErrorMsg, err1.Error(), expString))
 		return
 	}
-	eCtx := NewPlainEvalCtxWithVars(false, &varValuesMap)
+	eCtx := NewPlainEvalCtxWithVars(AggFuncDisabled, &varValuesMap)
 	_, err2 := eCtx.Eval(exp)
 
 	assert.Equal(t, expectedErrorMsg, err2.Error(), fmt.Sprintf("Unmatched: %v = %v: %s ", expectedErrorMsg, err2.Error(), expString))

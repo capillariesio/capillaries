@@ -209,7 +209,11 @@ func (creatorDef *TableCreatorDef) GetFieldDefaultReadyForDb(fieldName string) (
 }
 
 func CalculateFieldValue(fieldName string, fieldDef *WriteTableFieldDef, srcVars eval.VarValuesMap, canUseAggFunc bool) (interface{}, error) {
-	eCtx := eval.NewPlainEvalCtxWithVars(canUseAggFunc && eval.IsRootAggFunc(fieldDef.ParsedExpression), &srcVars)
+	calcWithAggFunc := eval.IsRootAggFunc(fieldDef.ParsedExpression)
+	if !canUseAggFunc {
+		calcWithAggFunc = eval.AggFuncDisabled
+	}
+	eCtx := eval.NewPlainEvalCtxWithVars(calcWithAggFunc, &srcVars)
 	valVolatile, err := eCtx.Eval(fieldDef.ParsedExpression)
 	if err != nil {
 		return nil, fmt.Errorf("cannot evaluate expression for field %s: [%s]", fieldName, err.Error())
@@ -253,7 +257,7 @@ func (creatorDef *TableCreatorDef) CheckTableRecordHavingCondition(tableRecord m
 		vars[CreatorAlias][fieldName] = fieldValue
 	}
 
-	eCtx := eval.NewPlainEvalCtxWithVars(false, &vars)
+	eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, &vars)
 	valVolatile, err := eCtx.Eval(creatorDef.Having)
 	if err != nil {
 		return false, fmt.Errorf("cannot evaluate 'having' expression: [%s]", err.Error())

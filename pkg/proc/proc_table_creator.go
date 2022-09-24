@@ -499,7 +499,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 				rowid := *((*rsLeft.Rows[rowIdx])[rsLeft.FieldsByFieldName["rowid"]].(*int64))
 				eCtxMap[rowid] = map[string]*eval.EvalCtx{}
 				for fieldName, _ := range node.TableCreator.Fields {
-					newCtx := eval.NewPlainEvalCtx(true)
+					newCtx := eval.NewPlainEvalCtx(eval.AggFuncEnabled)
 					eCtxMap[rowid][fieldName] = &newCtx
 				}
 			}
@@ -717,7 +717,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 						}
 
 						for fieldName, fieldDef := range node.TableCreator.Fields {
-							if eval.IsRootAggFunc(fieldDef.ParsedExpression) {
+							if eval.IsRootAggFunc(fieldDef.ParsedExpression) == eval.AggFuncEnabled {
 								// Aggregate func is used in field expression - ignore the expression and produce default
 								tableRecord[fieldName], err = node.TableCreator.GetFieldDefaultReadyForDb(fieldName)
 								if err != nil {
