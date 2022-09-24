@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/kleineshertz/capillaries/pkg/eval"
-	"github.com/kleineshertz/capillaries/pkg/l"
-	"github.com/kleineshertz/capillaries/pkg/sc"
-	"github.com/kleineshertz/capillaries/pkg/wfmodel"
+	"github.com/capillariesio/capillaries/pkg/eval"
+	"github.com/capillariesio/capillaries/pkg/l"
+	"github.com/capillariesio/capillaries/pkg/sc"
+	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
 func CheckDependencyPolicyAgainstNodeEventList(logger *l.Logger, targetNodeDepPol *sc.DependencyPolicyDef, events wfmodel.DependencyNodeEvents) (sc.ReadyToRunNodeCmdType, int16, error) {

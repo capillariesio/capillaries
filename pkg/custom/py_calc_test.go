@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kleineshertz/capillaries/pkg/sc"
+	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/stretchr/testify/assert"
 )
 

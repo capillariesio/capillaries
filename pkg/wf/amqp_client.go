@@ -5,9 +5,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/kleineshertz/capillaries/pkg/env"
-	"github.com/kleineshertz/capillaries/pkg/l"
-	"github.com/kleineshertz/capillaries/pkg/wfmodel"
+	"github.com/capillariesio/capillaries/pkg/env"
+	"github.com/capillariesio/capillaries/pkg/l"
+	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 

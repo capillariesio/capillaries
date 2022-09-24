@@ -3,7 +3,7 @@ package cql
 import (
 	"testing"
 
-	"github.com/kleineshertz/capillaries/pkg/sc"
+	"github.com/capillariesio/capillaries/pkg/sc"
 )
 
 func TestInsert(t *testing.T) {

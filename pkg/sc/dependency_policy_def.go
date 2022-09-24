@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"go/ast"
 
-	"github.com/kleineshertz/capillaries/pkg/eval"
-	"github.com/kleineshertz/capillaries/pkg/wfmodel"
+	"github.com/capillariesio/capillaries/pkg/eval"
+	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
 type ReadyToRunNodeCmdType string

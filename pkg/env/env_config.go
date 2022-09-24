@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/kleineshertz/capillaries/pkg/sc"
+	"github.com/capillariesio/capillaries/pkg/sc"
 	"go.uber.org/zap"
 )
 

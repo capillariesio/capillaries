@@ -8,8 +8,8 @@ scriptFile=$scriptDir/script.json
 paramsFile=$scriptDir/script_params_two_runs.json
 
 # HTTP(S) script URIs are supported. They slow down things a lot.
-#scriptFile=https://github.com/kleineshertz/capillaries/blob/main/test/tag_and_denormalize/script.json?raw=1
-#paramsFile=https://github.com/kleineshertz/capillaries/blob/main/test/tag_and_denormalize/script_params_two_runs.json?raw=1
+#scriptFile=https://github.com/capillariesio/capillaries/blob/main/test/tag_and_denormalize/script.json?raw=1
+#paramsFile=https://github.com/capillariesio/capillaries/blob/main/test/tag_and_denormalize/script_params_two_runs.json?raw=1
 
 SECONDS=0
 [ ! -d "./data/out" ] && mkdir ./data/out

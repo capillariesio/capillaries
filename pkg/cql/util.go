@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/capillariesio/capillaries/pkg/env"
+	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/gocql/gocql"
-	"github.com/kleineshertz/capillaries/pkg/env"
-	"github.com/kleineshertz/capillaries/pkg/wfmodel"
 )
 
 const ErrorPrefixDb string = "dberror:"

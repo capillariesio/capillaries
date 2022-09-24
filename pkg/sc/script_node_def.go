@@ -7,7 +7,7 @@ import (
 	"math"
 	"strings"
 
-	"github.com/kleineshertz/capillaries/pkg/eval"
+	"github.com/capillariesio/capillaries/pkg/eval"
 )
 
 const (

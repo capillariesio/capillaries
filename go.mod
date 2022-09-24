@@ -1,4 +1,4 @@
-module github.com/kleineshertz/capillaries
+module github.com/capillariesio/capillaries
 
 go 1.19
 

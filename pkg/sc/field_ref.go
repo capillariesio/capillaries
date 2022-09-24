@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kleineshertz/capillaries/pkg/eval"
+	"github.com/capillariesio/capillaries/pkg/eval"
 	"github.com/shopspring/decimal"
 )
 
