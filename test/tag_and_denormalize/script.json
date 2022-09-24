@@ -208,7 +208,7 @@
                     "order": "tag(asc)"
                 },
                 "separator": "\t",
-                "url_template": "{test_root_dir}/data/out/tag_totals.csv",
+                "url_template": "{test_root_dir}/data/out/tag_totals.tsv",
                 "columns": [
                     {
                         "name": "tag",
