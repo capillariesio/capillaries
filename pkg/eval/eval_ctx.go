@@ -12,6 +12,13 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+type AggEnabledType int
+
+const (
+	AggFuncDisabled AggEnabledType = iota
+	AggFuncEnabled
+)
+
 type EvalCtx struct {
 	Vars       *VarValuesMap
 	AggFunc    AggFuncType
@@ -23,7 +30,7 @@ type EvalCtx struct {
 	Min        MinCollector
 	Max        MaxCollector
 	Value      interface{}
-	AggEnabled bool
+	AggEnabled AggEnabledType
 }
 
 // Not ready to make these limits/defaults public
@@ -47,7 +54,7 @@ func defaultDecimal() decimal.Decimal {
 	return decimal.NewFromInt(0)
 }
 
-func NewPlainEvalCtx(aggEnabled bool) EvalCtx {
+func NewPlainEvalCtx(aggEnabled AggEnabledType) EvalCtx {
 	return EvalCtx{
 		AggFunc:    AggUnknown,
 		AggType:    AggTypeUnknown,
@@ -58,7 +65,7 @@ func NewPlainEvalCtx(aggEnabled bool) EvalCtx {
 		Max:        MaxCollector{Int: minSupportedInt, Float: minSupportedFloat, Dec: minSupportedDecimal(), Str: ""}}
 }
 
-func NewPlainEvalCtxWithVars(aggEnabled bool, vars *VarValuesMap) EvalCtx {
+func NewPlainEvalCtxWithVars(aggEnabled AggEnabledType, vars *VarValuesMap) EvalCtx {
 	return EvalCtx{
 		AggFunc:    AggUnknown,
 		Vars:       vars,

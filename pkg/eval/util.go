@@ -20,12 +20,12 @@ func StringSetToStringSlice(m map[string]struct{}) []string {
 	return slice
 }
 
-func IsRootAggFunc(exp ast.Expr) bool {
-	isAgg := false
+func IsRootAggFunc(exp ast.Expr) AggEnabledType {
+	isAgg := AggFuncDisabled
 	if callExp, ok := exp.(*ast.CallExpr); ok {
 		funName := callExp.Fun.(*ast.Ident).Name
 		if StringToAggFunc(funName) != AggUnknown {
-			isAgg = true
+			isAgg = AggFuncEnabled
 		}
 	}
 	return isAgg
