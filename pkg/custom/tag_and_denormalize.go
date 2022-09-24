@@ -94,7 +94,7 @@ func (procDef *TagAndDenormalizeProcessorDef) Run(logger *l.Logger, pCtx *ctx.Me
 		}
 
 		for tag, tagCriteria := range procDef.ParsedTagCriteria {
-			eCtx := eval.NewPlainEvalCtxWithVars(false, &vars)
+			eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, &vars)
 			valVolatile, err := eCtx.Eval(tagCriteria)
 			if err != nil {
 				return fmt.Errorf("cannot evaluate expression for tag %s criteria: [%s]", tag, err.Error())

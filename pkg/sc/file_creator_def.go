@@ -127,7 +127,7 @@ func (creatorDef *FileCreatorDef) CalculateFileRecordFromSrcVars(srcVars eval.Va
 	fileRecord := make([]interface{}, len(creatorDef.Columns))
 
 	for colIdx := 0; colIdx < len(creatorDef.Columns); colIdx++ {
-		eCtx := eval.NewPlainEvalCtxWithVars(false, &srcVars)
+		eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, &srcVars)
 		valVolatile, err := eCtx.Eval(creatorDef.Columns[colIdx].ParsedExpression)
 		if err != nil {
 			errors = append(errors, fmt.Sprintf("cannot evaluate expression for column %s: [%s]", creatorDef.Columns[colIdx].Name, err.Error()))
@@ -160,7 +160,7 @@ func (creatorDef *FileCreatorDef) CheckFileRecordHavingCondition(fileRecord []in
 		vars[CreatorAlias][fieldName] = fieldValue
 	}
 
-	eCtx := eval.NewPlainEvalCtxWithVars(false, &vars)
+	eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, &vars)
 	valVolatile, err := eCtx.Eval(creatorDef.Having)
 	if err != nil {
 		return false, fmt.Errorf("cannot evaluate 'having' expression: [%s]", err.Error())

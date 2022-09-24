@@ -145,7 +145,7 @@ func (polDef *DependencyPolicyDef) parseEventPriorityOrderString() error {
 
 func (polDef *DependencyPolicyDef) evalRuleExpressionsAndCheckType() error {
 	vars := wfmodel.NewVarsFromDepCtx(0, wfmodel.DependencyNodeEvent{})
-	eCtx := eval.NewPlainEvalCtxWithVars(false, &vars)
+	eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, &vars)
 	for ruleIdx, rule := range polDef.Rules {
 		result, err := eCtx.Eval(rule.ParsedExpression)
 		if err != nil {
