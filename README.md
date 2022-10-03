@@ -2,7 +2,11 @@
 
 # Capillaries
 
-Capillaries is a distributed batch data processing framework
+Capillaries is a distributed batch data processing framework.
+
+**ATTENTION developers**
+
+**Here is a quick project overview you are probably looking for - [What Capillaries is and what it is not, with a use case discussion](doc/what.md)**
 
 # Highlights
 
