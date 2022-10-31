@@ -43,6 +43,10 @@ A. As of this writing (2022), no. The [Toolbelt](glossary.md#toolbelt):
   
 but that's it. UI requirements tend to be very business-specific, it's not an easy task to come up with a cookie-cutter UI framework that would be flexible enough. Solution developers are encouraged to develop their own UI for Capillaries workflows using Capillaries [API](api.md).
 
+## Can Capillaries run in a Docker container?
+
+Yes. See details in [Docker testing](testing.md#docker-testing).
+
 ## Cassandra in the cloud?
 
 Q. Can I run Capillaries against cloud-based Cassandra?
