@@ -29,9 +29,13 @@ Run [test_exec_nodes.sh](test_exec_nodes.sh)  - the [Toolbelt](../../doc/glossar
 
 ### Using RabbitMQ workflow (single run)
 
+Make sure the [Daemon](../../doc/glossary.md#daemon) is running (run `go run daemon.go` to start it in pkg/exe/daemon).
+
 Run [test_one_run.sh](test_one_run.sh) - the [Toolbelt](../../doc/glossary.md#toolbelt) publishes [batch messages](../../doc/glossary.md#data-batch) to RabbitMQ and the [Daemon](../../doc/glossary.md#daemon) consumes them and executes all [script](script.json) [nodes](../../doc/glossary.md#script-node) in parallel as part of a single [run](../../doc/glossary.md#run).
 
 ### Using RabbitMQ workflow (two runs)
+
+Make sure the [Daemon](../../doc/glossary.md#daemon) is running (run `go run daemon.go` to start it in pkg/exe/daemon).
 
 Run [test_two_runs.sh](test_two_runs.sh) - the [Toolbelt](../../doc/glossary.md#toolbelt) publishes [batch messages](../../doc/glossary.md#data-batch) to RabbitMQ and the [Daemon](../../doc/glossary.md#daemon) consumes them and executes [script](script.json) [nodes](../../doc/glossary.md#script-node) that load data from files as part of the first [run](../../doc/glossary.md#run).
 
