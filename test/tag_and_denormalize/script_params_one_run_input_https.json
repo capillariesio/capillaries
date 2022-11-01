@@ -1,0 +1,7 @@
+{
+    "totals_start_policy": "auto",
+    "cfg_uri": "https://github.com/capillariesio/capillaries/blob/main/test/tag_and_denormalize/",
+    "uri_suffix": "?raw=1",
+    "data_in_uri": "https://github.com/capillariesio/capillaries/blob/main/test/tag_and_denormalize/data/in",
+    "data_out_dir": "../../../test/tag_and_denormalize/data/out"
+}

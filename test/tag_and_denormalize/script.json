@@ -4,7 +4,7 @@
             "type": "file_table",
             "desc": "Load tags from file",
             "r": {
-                "urls": ["{test_root_dir}/data/in/tags.csv"],
+                "urls": ["{data_in_uri}/tags.csv{uri_suffix}"],
                 "first_data_line_idx": 0,
                 "columns": {
                     "col_tag": {
@@ -28,7 +28,7 @@
             "desc": "Load product data from CSV files to a table, one input file - one batch",
             "explicit_run_only": true,
             "r": {
-                "urls": ["{test_root_dir}/data/in/flipcart_products.tsv"],
+                "urls": ["{data_in_uri}/flipcart_products.tsv{uri_suffix}"],
                 "separator": "\t",
                 "hdr_line_idx": 0,
                 "first_data_line_idx": 1,
@@ -93,7 +93,7 @@
             },
             "p": {
                 "tag_field_name": "tag",
-                "tag_criteria_uri": "{test_root_dir}/tag_criteria.json"
+                "tag_criteria_uri": "{cfg_uri}/tag_criteria.json{uri_suffix}"
             },
             "w": {
                 "name": "tagged_products",
@@ -127,7 +127,7 @@
                     "order": "product_id(asc),tag(asc)"
                 },
                 "separator": "\t",
-                "url_template": "{test_root_dir}/data/out/tagged_products_for_operator_review.csv",
+                "url_template": "{data_out_dir}/tagged_products_for_operator_review.csv",
                 "columns": [
                     {
                         "name": "tag",
@@ -208,7 +208,7 @@
                     "order": "tag(asc)"
                 },
                 "separator": "\t",
-                "url_template": "{test_root_dir}/data/out/tag_totals.tsv",
+                "url_template": "{data_out_dir}/tag_totals.tsv",
                 "columns": [
                     {
                         "name": "tag",

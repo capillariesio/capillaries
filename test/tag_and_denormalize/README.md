@@ -48,9 +48,13 @@ After the first [run](../../doc/glossary.md#run) is complete, the [Toolbelt](../
 
 This test mimics the "operator validation" scenario.
 
-## Possible edits
+### Using RabbitMQ workflow (single run, HTTPS inputs)
 
-In the script, reference tag_criteria.json directly in github.com: `"tag_criteria_uri": "https://github.com/capillariesio/capillaries/blob/main/test/tag_and_denormalize/tag_criteria.json?raw=1"`; just make sure that test/ca/ directory contains a valid CA certificate for github.com.
+Make sure the [Daemon](../../doc/glossary.md#daemon) is running (run `go run daemon.go` to start it in pkg/exe/daemon).
+
+Same as `test_one_run.sh`, but uses GitHub as the source of configuration and input data.
+
+Run [test_one_run_input_https.sh](test_one_run_input_https.sh) - the [Toolbelt](../../doc/glossary.md#toolbelt) publishes [batch messages](../../doc/glossary.md#data-batch) to RabbitMQ and the [Daemon](../../doc/glossary.md#daemon) consumes them and executes all [script](script.json) [nodes](../../doc/glossary.md#script-node) in parallel as part of a single [run](../../doc/glossary.md#run).
 
 ## References:
 

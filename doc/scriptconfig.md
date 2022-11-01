@@ -102,7 +102,7 @@ Table reader only. The number of data rows to read from the source table at once
 Default: 1000
 
 #### r.urls
-File reader only. List of files to read from. One file - one batch.
+File reader only. List of files to read from. One file - one batch. Supports file and http/https URLs. Most Capillaries integration tests use file URLS. [tag_and_denormalize test](../test/tag_and_denormalize/README.md) has an option to run against test data stored in GitHub.
 
 #### r.columns
 File reader only. Array of file reader [column definitions](glossary.md#file-reader-column-definition)

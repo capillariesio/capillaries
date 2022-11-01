@@ -6,10 +6,6 @@ outDir="../../../test/tag_and_denormalize/data/out"
 scriptFile=$scriptDir/script.json
 paramsFile=$scriptDir/script_params_one_run.json
 
-# HTTP(S) script URIs are supported. They slow down things a lot.
-#scriptFile=https://github.com/capillariesio/capillaries/blob/main/test/tag_and_denormalize/script.json?raw=1
-#paramsFile=https://github.com/capillariesio/capillaries/blob/main/test/tag_and_denormalize/script_params_one_run.json?raw=1
-
 SECONDS=0
 [ ! -d "./data/out" ] && mkdir ./data/out
 pushd ../../pkg/exe/toolbelt
