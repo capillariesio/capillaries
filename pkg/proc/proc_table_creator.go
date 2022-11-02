@@ -192,6 +192,10 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 	logger.PushF("RunCreateTableForCustomProcessorForBatch")
 	defer logger.PopF()
 
+	if readerNodeRunId == 0 {
+		return fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
+	}
+
 	node := pCtx.CurrentScriptNode
 
 	if !node.HasTableReader() {
@@ -318,6 +322,10 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 	logger.PushF("RunCreateTableForBatch")
 	defer logger.PopF()
 
+	if readerNodeRunId == 0 {
+		return fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
+	}
+
 	node := pCtx.CurrentScriptNode
 
 	if !node.HasTableReader() {
@@ -437,6 +445,14 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 
 	logger.PushF("RunCreateTableRelForBatch")
 	defer logger.PopF()
+
+	if readerNodeRunId == 0 {
+		return fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
+	}
+
+	if lookupNodeRunId == 0 {
+		return fmt.Errorf("this node has a dependency node to lookup data at that was never started in this keyspace (lookupNodeRunId == 0)")
+	}
 
 	node := pCtx.CurrentScriptNode
 
