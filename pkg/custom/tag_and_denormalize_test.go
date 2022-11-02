@@ -183,7 +183,7 @@ func TestTagAndDenormalizeDef(t *testing.T) {
 
 	re := regexp.MustCompile(`"tag_criteria": \{[^\}]+\}`)
 	if err = newScript.Deserialize(
-		[]byte(re.ReplaceAllString(script, `"tag_criteria_uri": "../../test/tag_and_denormalize/tag_criteria.json"`)),
+		[]byte(re.ReplaceAllString(script, `"tag_criteria_uri": "../../test/data/cfg/tag_and_denormalize/tag_criteria.json"`)),
 		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, ""); err != nil {
 		t.Error(err)
 	}
