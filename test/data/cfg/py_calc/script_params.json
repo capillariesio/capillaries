@@ -1,0 +1,5 @@
+{
+    "dir_in": "../../../test/data/in/py_calc",
+    "dir_out": "../../../test/data/out/py_calc",
+    "dir_py": "../../../test/data/cfg/py_calc/py"
+}

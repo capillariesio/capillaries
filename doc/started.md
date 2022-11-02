@@ -28,7 +28,7 @@ More about Cassandra setup [here](binconfig.md#cassandra) and [here](glossary.md
 
 ## Run lookup integration test
 
-This section may help you get started with [lookup integration test](../test/lookup/README.md).
+This section may help you get started with [lookup integration test](../test/code/lookup/README.md).
 
 All settings in pkg/exe/daemon/env_config.json and pkg/exe/toolbelt/env_config.json use default RabbitMQ and Cassandra settings. If you have changed your Cassandra or RabbitMQ setup, modify both env_config.json files accordingly. More about database and queue settings:
 - Cassandra [settings](binconfig.md#cassandra), general Cassandra setup [considerations](glossary.md#cassandra-setup)

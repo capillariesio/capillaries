@@ -26,7 +26,7 @@ and not like this:
 Supported parameter types are "string" (default), "number", "bool".
 
 Also, there is a small set of built-in parameters used internally, but should be paid attention to:
-`{batch_idx|string}` and `{run_id|string}`. [Processors](glossary.md#processor) get values for these parameters from the execution context (execution context always has some specific run id and batch id) and write them as `fmt.Sprintf("%05d", runId)` and `fmt.Sprintf("%05d", batchIdx)`. As of this writing, this functionality is present in the [file writer](glossary.md#table_file) and covers the scenario when the user wants run id or batch id to be present in the result file name. For example, [py_calc integration test](../test/py_calc/README.md) script uses `batchIdx`.
+`{batch_idx|string}` and `{run_id|string}`. [Processors](glossary.md#processor) get values for these parameters from the execution context (execution context always has some specific run id and batch id) and write them as `fmt.Sprintf("%05d", runId)` and `fmt.Sprintf("%05d", batchIdx)`. As of this writing, this functionality is present in the [file writer](glossary.md#table_file) and covers the scenario when the user wants run id or batch id to be present in the result file name. For example, [py_calc integration test](../test/code/py_calc/README.md) script uses `batchIdx`.
 
 ## nodes
 [Script node](glossary.md#script-node) map, in no particular order
@@ -102,7 +102,7 @@ Table reader only. The number of data rows to read from the source table at once
 Default: 1000
 
 #### r.urls
-File reader only. List of files to read from. One file - one batch. Supports file and http/https URLs. Most Capillaries integration tests use file URLS. [tag_and_denormalize test](../test/tag_and_denormalize/README.md) has an option to run against test data stored in GitHub.
+File reader only. List of files to read from. One file - one batch. Supports file and http/https URLs. Most Capillaries integration tests use file URLS. [tag_and_denormalize test](../test/code/tag_and_denormalize/README.md) has an option to run against test data stored in GitHub.
 
 #### r.columns
 File reader only. Array of file reader [column definitions](glossary.md#file-reader-column-definition)

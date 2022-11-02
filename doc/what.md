@@ -14,7 +14,7 @@ Capillaries is a distributed data-processing framework that:
 
 # Sample use
 
-For example, this Capillaries [script](glossary.md#script) - [test/tag_and_denormalize/script.json](../test/tag_and_denormalize/script.json) - for the [tag_and_denormalize integration test](../test/tag_and_denormalize/README.md) can be described with this [DAG](glossary.md#DAG) diagram (open it the SVG in a separate browser window to see node tooltips, they may be helpful):
+For example, this Capillaries [script](glossary.md#script) - [test/tag_and_denormalize/script.json](../test/tag_and_denormalize/script.json) - for the [tag_and_denormalize integration test](../test/code/tag_and_denormalize/README.md) can be described with this [DAG](glossary.md#DAG) diagram (open it the SVG in a separate browser window to see node tooltips, they may be helpful):
 
 ![dot-lookup](dot-tag-and-denormalize.svg)
 
