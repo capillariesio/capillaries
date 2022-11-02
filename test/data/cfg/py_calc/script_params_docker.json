@@ -1,0 +1,5 @@
+{
+    "dir_in": "/capillaries_docker_test_in/py_calc",
+    "dir_out": "/capillaries_docker_test_out/py_calc",
+    "dir_py": "/capillaries_docker_test_cfg/py_calc/py"
+}

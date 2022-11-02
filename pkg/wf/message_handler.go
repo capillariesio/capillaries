@@ -49,9 +49,14 @@ func checkDependencyNodesReady(logger *l.Logger, pCtx *ctx.MessageProcessingCont
 		return sc.NodeNone, 0, 0, err
 	}
 
+	logger.DebugCtx(pCtx, "nodeEventListMap %v", nodeEventListMap)
+
 	dependencyNodeCmds := make([]sc.ReadyToRunNodeCmdType, len(depNodeNames))
 	dependencyRunIds := make([]int16, len(depNodeNames))
 	for nodeIdx, depNodeName := range depNodeNames {
+		if len(nodeEventListMap[depNodeName]) == 0 {
+			return sc.NodeNogo, 0, 0, fmt.Errorf("target node %s, dep node %s not started yet, whoever started this run, failed to specify %s (or at least one of its dependencies) as start node", pCtx.CurrentScriptNode.Name, depNodeName, depNodeName)
+		}
 		dependencyNodeCmds[nodeIdx], dependencyRunIds[nodeIdx], err = CheckDependencyPolicyAgainstNodeEventList(logger, pCtx.CurrentScriptNode.DepPolDef, nodeEventListMap[depNodeName])
 		if err != nil {
 			return sc.NodeNone, 0, 0, err
@@ -66,8 +71,7 @@ func checkDependencyNodesReady(logger *l.Logger, pCtx *ctx.MessageProcessingCont
 		finalRunIdLookup = dependencyRunIds[1]
 		if dependencyNodeCmds[0] == sc.NodeNogo || dependencyNodeCmds[1] == sc.NodeNogo {
 			finalCmd = sc.NodeNogo
-		}
-		if dependencyNodeCmds[0] == sc.NodeWait || dependencyNodeCmds[1] == sc.NodeWait {
+		} else if dependencyNodeCmds[0] == sc.NodeWait || dependencyNodeCmds[1] == sc.NodeWait {
 			finalCmd = sc.NodeWait
 		} else {
 			finalCmd = sc.NodeGo

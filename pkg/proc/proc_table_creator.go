@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"time"
 
@@ -70,12 +71,31 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.M
 	}
 	filePath := node.FileReader.SrcFileUrls[srcFileIdx]
 
-	csvFile, err := os.Open(filePath)
+	u, err := url.Parse(filePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot parse file uri %s: %s", filePath, err.Error())
 	}
 
-	r := csv.NewReader(bufio.NewReader(csvFile))
+	var csvFile *os.File
+	var fileReader io.Reader
+	if u.Scheme == sc.UriSchemeFile || len(u.Scheme) == 0 {
+		csvFile, err = os.Open(filePath)
+		if err != nil {
+			return err
+		}
+		fileReader = bufio.NewReader(csvFile)
+	} else if u.Scheme == sc.UriSchemeHttp || u.Scheme == sc.UriSchemeHttps {
+		readCloser, err := sc.GetHttpReadCloser(filePath, u.Scheme, envConfig.CaPath)
+		if err != nil {
+			return err
+		}
+		fileReader = readCloser
+		defer readCloser.Close()
+	} else {
+		return fmt.Errorf("uri scheme %s not supported: %s", u.Scheme, filePath)
+	}
+
+	r := csv.NewReader(fileReader)
 	r.Comma = rune(node.FileReader.Separator[0])
 
 	// To avoid bare \" error: https://stackoverflow.com/questions/31326659/golang-csv-error-bare-in-non-quoted-field
@@ -171,6 +191,10 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 
 	logger.PushF("RunCreateTableForCustomProcessorForBatch")
 	defer logger.PopF()
+
+	if readerNodeRunId == 0 {
+		return fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
+	}
 
 	node := pCtx.CurrentScriptNode
 
@@ -298,6 +322,10 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 	logger.PushF("RunCreateTableForBatch")
 	defer logger.PopF()
 
+	if readerNodeRunId == 0 {
+		return fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
+	}
+
 	node := pCtx.CurrentScriptNode
 
 	if !node.HasTableReader() {
@@ -417,6 +445,14 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 
 	logger.PushF("RunCreateTableRelForBatch")
 	defer logger.PopF()
+
+	if readerNodeRunId == 0 {
+		return fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
+	}
+
+	if lookupNodeRunId == 0 {
+		return fmt.Errorf("this node has a dependency node to lookup data at that was never started in this keyspace (lookupNodeRunId == 0)")
+	}
 
 	node := pCtx.CurrentScriptNode
 

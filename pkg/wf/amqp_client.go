@@ -128,6 +128,7 @@ func AmqpFullReconnectCycle(envConfig *env.EnvConfig, logger *l.Logger, osSignal
 			chanErr := <-chanErrors
 			logger.Info("consuming amqp error to avoid close deadlock: %v", chanErr)
 		}
+		logger.Info("consumed amqp errors, closing")
 		amqpChannel.Close()
 	}
 	amqpConnection.Close()

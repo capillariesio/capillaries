@@ -43,6 +43,10 @@ func RunCreateFile(logger *l.Logger,
 	logger.PushF("RunCreateFile")
 	defer logger.PopF()
 
+	if readerNodeRunId == 0 {
+		return fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
+	}
+
 	node := pCtx.CurrentScriptNode
 
 	if !node.HasFileCreator() {

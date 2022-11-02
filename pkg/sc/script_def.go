@@ -148,7 +148,7 @@ const UriSchemeFile string = "file"
 const UriSchemeHttp string = "http"
 const UriSchemeHttps string = "https"
 
-func readHttpFile(uri string, scheme string, certDir string) ([]byte, error) {
+func GetHttpReadCloser(uri string, scheme string, certDir string) (io.ReadCloser, error) {
 	caCertPool := x509.NewCertPool()
 	if scheme == UriSchemeHttps {
 		files, err := ioutil.ReadDir(certDir)
@@ -171,13 +171,23 @@ func readHttpFile(uri string, scheme string, certDir string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot get %s: %s", uri, err.Error())
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
 		return nil, fmt.Errorf("cannot get %s, bad status: %s", uri, resp.Status)
 	}
 
-	bytes, err := io.ReadAll(resp.Body)
+	return resp.Body, nil
+}
+
+func readHttpFile(uri string, scheme string, certDir string) ([]byte, error) {
+	r, err := GetHttpReadCloser(uri, scheme, certDir)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+
+	bytes, err := io.ReadAll(r)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read body of %s, bad status: %s", uri, err.Error())
 	}

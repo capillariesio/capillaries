@@ -311,7 +311,7 @@ func (qb *QueryBuilder) DeleteRun(tableName string, runId int16) string {
 		runIdSuffix(runId),
 		strings.Join(qb.Conditions.Items[:qb.Conditions.Len], " AND "))
 	if runId == 0 {
-		q = "INVALID runId: " + q
+		q = "DEV ERROR, INVALID runId: " + q
 	}
 
 	return q
