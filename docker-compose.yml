@@ -1,0 +1,15 @@
+version: '3'
+services:
+  daemon:
+    container_name: capillaries_daemon
+    build:
+      context: .
+      dockerfile: ./pkg/exe/daemon/docker/Dockerfile
+    volumes:
+      - /capillaries_docker_test_cfg:/capillaries_docker_test_cfg:ro
+      - /capillaries_docker_test_in:/capillaries_docker_test_in:ro
+      - /capillaries_docker_test_out:/capillaries_docker_test_out
+    environment:
+      AMQP_URL: amqp://guest:guest@172.17.0.2/
+      CASSANDRA_HOSTS: '["172.17.0.3"]'
+    network_mode: bridge
