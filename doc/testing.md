@@ -15,9 +15,15 @@ go tool cover -html=/var/tmp/capillaries.p -o=/var/tmp/capillaries.html
 and open /var/tmp/capillaries.html in a web browser.
 
 ## Integration tests
+
 There is a number of extensive integration tests that cover a big part of Capillaries script, database, and workflow functionality:
+
 - [lookup](../test/code/lookup/README.md): comprehensive [lookup](glossary.md#lookup) test
 - [py_calc](../test/code/py_calc/README.md): focuses on [custom processor](glossary.md#table_custom_tfm_table) implementation - [py_calc](glossary.md#py_calc-processor)
 - [tag_and_denormalize](../test/code/tag_and_denormalize/README.md): focuses on [custom processor](glossary.md#table_custom_tfm_table) implementation - [tag_and_denormalize](glossary.md#tag_and_denormalize-processor)
 
 All tests require running Cassandra and RabbitMQ containers (see [Getting started](started.md) for details)
+
+## Docker testing
+
+Some integration tests ([py_calc](../test/code/py_calc/README.md), at the moment) may provide setup for Capillaries [Daemon](glossary.md#daemon) running in Docker container. See corresponding test docs for details. 

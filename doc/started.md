@@ -2,24 +2,24 @@
 
 ## Dev machine pre-requisites
 
-1. Install Docker desktop
+1. Install Docker desktop with Docker Compose
 
-2. If you are running Windows, make sure Ubuntu WSL is functional and Docker has "Use the WSL 2 based engine" and "Enable integration with my default WSL distro" settings on. All commands referenced in this document should be run from WSL. 
+2. If you are running Windows, make sure Ubuntu WSL is functional and Docker has "Use the WSL 2 based engine" and "Enable integration with my default WSL distro" settings on. **All commands referenced in this document should be run from WSL**. 
    
 3. Install [Go](https://go.dev)
 
-4. Run RabbitMQ Docker container:
+4. Run RabbitMQ Docker container using default bridge network:
 ```
 docker pull rabbitmq:3-management 
-docker run -d --hostname my-rabbit -p 15672:15672 -p 5672:5672 rabbitmq:3-management
+docker run -d --hostname my-rabbit -p 15672:15672 -p 5672:5672 --ip 172.17.0.2 rabbitmq:3-management
 ```
 
 More about RabbitMQ setup [here](binconfig.md#amqp) and [here](glossary.md#rabbitmq-setup).
 
-5. Run Cassandra container:
+5. Run Cassandra container using default bridge network:
 ```
 docker pull cassandra 
-docker run -d --hostname my-cassandra -p 9042:9042 cassandra
+docker run -d --hostname my-cassandra -p 9042:9042 --ip 172.17.0.3 cassandra
 ```
 
 More about Cassandra setup [here](binconfig.md#cassandra) and [here](glossary.md#cassandra-setup).
@@ -38,7 +38,7 @@ All settings in pkg/exe/daemon/env_config.json and pkg/exe/toolbelt/env_config.j
 Start with the test that executes [script nodes](glossary.md#script-node) directly, without involving RabbitMQ or Capillaries [Daemon](glossary.md#daemon):
 
 ```
-cd test/lookup
+cd test/code/lookup
 ./test_exec_nodes.sh
 ```
 
@@ -53,10 +53,12 @@ cd pkg/exe/daemon
 go run daemon.go
 ```
 
+Check out its stdout- make sure it successfully connected to RabbitMQ.
+
 In another command line session, run the test:
 
 ```
-cd test/lookup
+cd test/code/lookup
 ./test_two_runs.sh
 ```
 
