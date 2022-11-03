@@ -12,7 +12,7 @@ COPY ./pkg/exe/daemon/env_config.json /usr/local/bin/
 RUN sed -i -e 's~"python_interpreter_path":[ ]*"[a-zA-Z0-9@\.:\/\-_$ ]*"~"python_interpreter_path": "python3"~g' /usr/local/bin/env_config.json
 
 # We use startup script that replaces some env_config.json setting with supplied env variables
-COPY ./docker-startup.sh /usr/local/bin/
+COPY ./pkg/exe/daemon/docker/docker-startup.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-startup.sh
 
 # Build daemon binary

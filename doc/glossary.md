@@ -148,10 +148,10 @@ One of the main purposes of the toolbelt is to give system integrators easy acce
 
 ```
 # Can be executed anytime
-go run toolbelt.go validate_script -script_file=../../../test/lookup/script.json -params_file=../../../test/lookup/script_params_two_runs.json -idx_dag=true
+go run toolbelt.go validate_script -script_file=../../../test/data/cfg/lookup/script.json -params_file=../../../test/data/cfg/lookup/script_params_two_runs.json -idx_dag=true
 
 # Can be executed when the lookup script is running using two runs
-go run toolbelt.go get_run_status_diagram -script_file=../../../test/lookup/script.json -params_file=../../../test/lookup/script_params_two_runs.json -keyspace=test_lookup -run_id=1
+go run toolbelt.go get_run_status_diagram -script_file=../../../test/data/cfg/lookup/script.json -params_file=../../../test/data/cfg/lookup/script_params_two_runs.json -keyspace=test_lookup -run_id=1
 ```
 
 ## Daemon
