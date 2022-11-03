@@ -8,13 +8,13 @@ User-supplied formulas are expected to reside in test/data/cfg/py_calc/py direct
 
 ## Workflow
 
-The [DOT diagram](../../doc/glossary.md#dot-diagrams) generated with
+The [DOT diagram](../../../doc/glossary.md#dot-diagrams) generated with
 ```
 go run toolbelt.go validate_script -script_file=../../../test/data/cfg/py_calc/script.json -params_file=../../../test/data/cfg/py_calc/script_params.json -idx_dag=true
 ```
 and rendered in https://dreampuf.github.io/GraphvizOnline :
 
-![drawing](../../doc/dot-pycalc.svg)
+![drawing](../../../doc/dot-pycalc.svg)
 
 ## What's tested:
 
@@ -28,13 +28,13 @@ and rendered in https://dreampuf.github.io/GraphvizOnline :
 
 ### Direct node execution
 
-Run [test_exec_nodes.sh](test_exec_nodes.sh) - the [Toolbelt](../../doc/glossary.md#toolbelt) executes [script](script.json) [nodes](../../doc/glossary.md#script-node) one by one, without invoking RabbitMQ workflow.
+Run [test_exec_nodes.sh](test_exec_nodes.sh) - the [Toolbelt](../../../doc/glossary.md#toolbelt) executes [script](../../data/cfg/py_calc/script.json) [nodes](../../../doc/glossary.md#script-node) one by one, without invoking RabbitMQ workflow.
 
 ### Using RabbitMQ workflow
 
-Make sure the [Daemon](../../doc/glossary.md#daemon) is running (run `go run daemon.go` to start it in pkg/exe/daemon).
+Make sure the [Daemon](../../../doc/glossary.md#daemon) is running (run `go run daemon.go` to start it in pkg/exe/daemon).
 
-Run [test_one_run.sh](test_one_run.sh) - the [Toolbelt](../../doc/glossary.md#toolbelt) publishes [batch messages](../../doc/glossary.md#data-batch) to RabbitMQ and the [Daemon](../../doc/glossary.md#daemon) consumes them and executes all [script](script.json) [nodes](../../doc/glossary.md#script-node) in parallel as part of a single [run](../../doc/glossary.md#run).
+Run [test_one_run.sh](test_one_run.sh) - the [Toolbelt](../../../doc/glossary.md#toolbelt) publishes [batch messages](../../../doc/glossary.md#data-batch) to RabbitMQ and the [Daemon](../../../doc/glossary.md#daemon) consumes them and executes all [script](../../data/cfg/py_calc/script.json) [nodes](../../../doc/glossary.md#script-node) in parallel as part of a single [run](../../../doc/glossary.md#run).
 
 ### Use dockerized daemon
 
