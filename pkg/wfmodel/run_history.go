@@ -54,10 +54,10 @@ func (m RunStatusMap) ToString() string {
 
 // Object model with tags that allow to create cql CREATE TABLE queries and to print object
 type RunHistory struct {
-	Ts      time.Time     `header:"ts" format:"%-33v" column:"ts" type:"timestamp"`
-	RunId   int16         `header:"run_id" format:"%6d" column:"run_id" type:"int" key:"true"`
-	Status  RunStatusType `header:"sts" format:"%3v" column:"status" type:"tinyint" key:"true"`
-	Comment string        `header:"comment" format:"%v" column:"comment" type:"text"`
+	Ts      time.Time     `header:"ts" format:"%-33v" column:"ts" type:"timestamp" json:"ts"`
+	RunId   int16         `header:"run_id" format:"%6d" column:"run_id" type:"int" key:"true" json:"run_id"`
+	Status  RunStatusType `header:"sts" format:"%3v" column:"status" type:"tinyint" key:"true" json:"status"`
+	Comment string        `header:"comment" format:"%v" column:"comment" type:"text" json:"comment"`
 }
 
 func RunHistoryAllFields() []string {

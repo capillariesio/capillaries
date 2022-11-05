@@ -324,7 +324,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		nodes, err := api.GetNodeHistory(logger, cqlSession, *keyspace, runIds)
+		nodes, err := api.GetRunsNodeHistory(logger, cqlSession, *keyspace, runIds)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
@@ -415,7 +415,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		nodes, err := api.GetNodeHistory(logger, cqlSession, *keyspace, []int16{int16(runId)})
+		nodes, err := api.GetRunsNodeHistory(logger, cqlSession, *keyspace, []int16{int16(runId)})
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)

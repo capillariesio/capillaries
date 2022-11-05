@@ -20,12 +20,20 @@ func StopRun(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId
 	logger.PushF("StopRun")
 	defer logger.PopF()
 
+	if err := CheckKeyspaceName(keyspace); err != nil {
+		return err
+	}
+
 	return wfdb.SetRunStatus(logger, cqlSession, keyspace, runId, wfmodel.RunStop, comment, cql.IgnoreIfExists)
 }
 
 func StartRun(envConfig *env.EnvConfig, logger *l.Logger, amqpChannel *amqp.Channel, scriptFilePath string, paramsFilePath string, cqlSession *gocql.Session, keyspace string, startNodes []string) (int16, error) {
 	logger.PushF("StartRun")
 	defer logger.PopF()
+
+	if err := CheckKeyspaceName(keyspace); err != nil {
+		return 0, err
+	}
 
 	script, err := sc.NewScriptFromFiles(envConfig.CaPath, scriptFilePath, paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
 	if err != nil {
@@ -41,7 +49,7 @@ func StartRun(envConfig *env.EnvConfig, logger *l.Logger, amqpChannel *amqp.Chan
 
 	// Write affected nodes
 	affectedNodes := script.GetAffectedNodes(startNodes)
-	if err := wfdb.WriteAffectedNodes(logger, cqlSession, keyspace, runId, affectedNodes); err != nil {
+	if err := wfdb.WriteAffectedNodes(logger, cqlSession, keyspace, runId, startNodes, affectedNodes, scriptFilePath, paramsFilePath); err != nil {
 		return 0, err
 	}
 
@@ -134,7 +142,7 @@ func RunNode(envConfig *env.EnvConfig, logger *l.Logger, nodeName string, runId 
 
 	// Write affected nodes
 	affectedNodes := script.GetAffectedNodes([]string{nodeName})
-	if err := wfdb.WriteAffectedNodes(logger, cqlSession, keyspace, runId, affectedNodes); err != nil {
+	if err := wfdb.WriteAffectedNodes(logger, cqlSession, keyspace, runId, []string{nodeName}, affectedNodes, scriptFilePath, paramsFilePath); err != nil {
 		return 0, err
 	}
 

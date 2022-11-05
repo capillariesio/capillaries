@@ -12,6 +12,15 @@
             "cwd":"${workspaceFolder}/pkg/exe/daemon",
             "program": "${workspaceFolder}/pkg/exe/daemon/daemon.go",
             "args": []
+        },
+        {
+            "name": "Webapi",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/webapi",
+            "program": "${workspaceFolder}/pkg/exe/webapi/webapi.go",
+            "args": []
         }
    ]
 }

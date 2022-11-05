@@ -35,7 +35,7 @@ func GetRunHistory(logger *l.Logger, cqlSession *gocql.Session, keyspace string)
 	return result, nil
 }
 
-func GetNodeHistory(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runIds []int16) ([]*wfmodel.NodeHistory, error) {
+func GetRunsNodeHistory(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runIds []int16) ([]*wfmodel.NodeHistory, error) {
 	logger.PushF("GetNodeHistory")
 	defer logger.PopF()
 

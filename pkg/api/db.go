@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
@@ -12,6 +13,17 @@ import (
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/gocql/gocql"
 )
+
+const ProhibitedKeyspaceNameRegex = "^system"
+
+func CheckKeyspaceName(keyspace string) error {
+	re := regexp.MustCompile(ProhibitedKeyspaceNameRegex)
+	invalidNamePieceFound := re.FindString(keyspace)
+	if len(invalidNamePieceFound) > 0 {
+		return fmt.Errorf("invalid keyspace name [%s]: prohibited regex is [%s]", keyspace, ProhibitedKeyspaceNameRegex)
+	}
+	return nil
+}
 
 func GetTablesCql(script *sc.ScriptDef, keyspace string, runId int16, startNodeNames []string) string {
 	sb := strings.Builder{}
@@ -41,6 +53,10 @@ func GetTablesCql(script *sc.ScriptDef, keyspace string, runId int16, startNodeN
 func DropKeyspace(logger *l.Logger, cqlSession *gocql.Session, keyspace string) error {
 	logger.PushF("DropKeyspace")
 	defer logger.PopF()
+
+	if err := CheckKeyspaceName(keyspace); err != nil {
+		return err
+	}
 
 	qb := cql.QueryBuilder{}
 	q := qb.

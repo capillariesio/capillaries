@@ -22,15 +22,15 @@ const TableNameBatchHistory = "wf_batch_history"
 
 // Object model with tags that allow to create cql CREATE TABLE queries and to print object
 type BatchHistory struct {
-	Ts           time.Time           `header:"ts" format:"%-33v" column:"ts" type:"timestamp"`
-	RunId        int16               `header:"run_id" format:"%6d" column:"run_id" type:"int" key:"true"`
-	ScriptNode   string              `header:"script_node" format:"%20v" column:"script_node" type:"text" key:"true"`
-	BatchIdx     int16               `header:"bnum" format:"%5v" column:"batch_idx" type:"int" key:"true"`
-	BatchesTotal int16               `header:"tbtchs" format:"%6v" column:"batches_total" type:"int"`
-	Status       NodeBatchStatusType `header:"sts" format:"%3v" column:"status" type:"tinyint" key:"true"`
-	FirstToken   int64               `header:"ftoken" format:"%21v" column:"first_token" type:"bigint"`
-	LastToken    int64               `header:"ltoken" format:"%21v" column:"last_token" type:"bigint"`
-	Comment      string              `header:"comment" format:"%v" column:"comment" type:"text"`
+	Ts           time.Time           `header:"ts" format:"%-33v" column:"ts" type:"timestamp" json:"ts"`
+	RunId        int16               `header:"run_id" format:"%6d" column:"run_id" type:"int" key:"true" json:"run_id"`
+	ScriptNode   string              `header:"script_node" format:"%20v" column:"script_node" type:"text" key:"true" json:"script_node"`
+	BatchIdx     int16               `header:"bnum" format:"%5v" column:"batch_idx" type:"int" key:"true" json:"batch_idx"`
+	BatchesTotal int16               `header:"tbtchs" format:"%6v" column:"batches_total" type:"int" json:"batches_total"`
+	Status       NodeBatchStatusType `header:"sts" format:"%3v" column:"status" type:"tinyint" key:"true" json:"status"`
+	FirstToken   int64               `header:"ftoken" format:"%21v" column:"first_token" type:"bigint" json:"first_token"`
+	LastToken    int64               `header:"ltoken" format:"%21v" column:"last_token" type:"bigint" json:"last_token"`
+	Comment      string              `header:"comment" format:"%v" column:"comment" type:"text" json:"comment"`
 }
 
 func BatchHistoryAllFields() []string {
@@ -69,7 +69,7 @@ func NewBatchHistoryFromMap(r map[string]interface{}, fields []string) (*BatchHi
 	return res, nil
 }
 
-//ToSpacedString - prints formatted field values, uses reflection, shoud not be used in prod
+// ToSpacedString - prints formatted field values, uses reflection, shoud not be used in prod
 func (n BatchHistory) ToSpacedString() string {
 	t := reflect.TypeOf(n)
 	formats := GetObjectModelFieldFormats(t)

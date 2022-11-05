@@ -2,12 +2,14 @@ package wfdb
 
 import (
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
+	"github.com/gocql/gocql"
 )
 
 func HarvestLastStatusForBatch(logger *l.Logger, pCtx *ctx.MessageProcessingContext) (wfmodel.NodeBatchStatusType, error) {
@@ -42,6 +44,34 @@ func HarvestLastStatusForBatch(logger *l.Logger, pCtx *ctx.MessageProcessingCont
 
 	logger.DebugCtx(pCtx, "batch %s, status %s", pCtx.BatchInfo.FullBatchId(), lastStatus.ToString())
 	return lastStatus, nil
+}
+
+func GetRunNodeBatchHistory(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId int16, nodeName string) ([]*wfmodel.BatchHistory, error) {
+	logger.PushF("GetRunNodeBatchHistory")
+	defer logger.PopF()
+
+	q := (&cql.QueryBuilder{}).
+		Keyspace(keyspace).
+		Cond("run_id", "=", runId).
+		Cond("script_node", "=", nodeName).
+		Select(wfmodel.TableNameBatchHistory, wfmodel.BatchHistoryAllFields())
+	rows, err := cqlSession.Query(q).Iter().SliceMap()
+	if err != nil {
+		return []*wfmodel.BatchHistory{}, cql.WrapDbErrorWithQuery("GetRunNodeBatchHistory: cannot get node batch history", q, err)
+	}
+
+	result := make([]*wfmodel.BatchHistory, len(rows))
+	for rowIdx, row := range rows {
+		rec, err := wfmodel.NewBatchHistoryFromMap(row, wfmodel.BatchHistoryAllFields())
+		if err != nil {
+			return []*wfmodel.BatchHistory{}, fmt.Errorf("cannot deserialize batch node history row %s, %s", err.Error(), q)
+		}
+		result[rowIdx] = rec
+	}
+
+	sort.Slice(result, func(i, j int) bool { return result[i].Ts.Before(result[j].Ts) })
+
+	return result, nil
 }
 
 func HarvestBatchStatusesForNode(logger *l.Logger, pCtx *ctx.MessageProcessingContext) (wfmodel.NodeBatchStatusType, error) {

@@ -10,8 +10,11 @@ const TableNameRunAffectedNodes = "wf_run_affected_nodes"
 
 // Object model with tags that allow to create cql CREATE TABLE queries and to print object
 type RunAffectedNodes struct {
-	RunId         int16  `header:"run_id" format:"%6d" column:"run_id" type:"int" key:"true"`
-	AffectedNodes string `header:"affected_nodes" format:"%20v" column:"affected_nodes" type:"text"`
+	RunId           int16  `header:"run_id" format:"%6d" column:"run_id" type:"int" key:"true" json:"run_id"`
+	StartNodes      string `header:"start_nodes" format:"%20v" column:"start_nodes" type:"text" json:"start_nodes"`
+	AffectedNodes   string `header:"affected_nodes" format:"%20v" column:"affected_nodes" type:"text" json:"affected_nodes"`
+	ScriptUri       string `header:"script_uri" format:"%20v" column:"script_uri" type:"text" json:"script_uri"`
+	ScriptParamsUri string `header:"script_params_uri" format:"%20v" column:"script_params_uri" type:"text" json:"script_params_uri"`
 }
 
 func NewRunAffectedNodesFromMap(r map[string]interface{}, fields []string) (*RunAffectedNodes, error) {
@@ -21,8 +24,14 @@ func NewRunAffectedNodesFromMap(r map[string]interface{}, fields []string) (*Run
 		switch fieldName {
 		case "run_id":
 			res.RunId, err = ReadInt16FromRow(fieldName, r)
+		case "start_nodes":
+			res.StartNodes, err = ReadStringFromRow(fieldName, r)
 		case "affected_nodes":
 			res.AffectedNodes, err = ReadStringFromRow(fieldName, r)
+		case "script_uri":
+			res.ScriptUri, err = ReadStringFromRow(fieldName, r)
+		case "script_params_uri":
+			res.ScriptParamsUri, err = ReadStringFromRow(fieldName, r)
 		default:
 			return nil, fmt.Errorf("unknown %s field %s", fieldName, TableNameRunAffectedNodes)
 		}

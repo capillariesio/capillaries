@@ -2,6 +2,7 @@ package wfdb
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
@@ -12,26 +13,45 @@ import (
 )
 
 func GetRunAffectedNodes(cqlSession *gocql.Session, keyspace string, runId int16) ([]string, error) {
-	fields := []string{"affected_nodes"}
-	q := (&cql.QueryBuilder{}).
-		Keyspace(keyspace).
-		Cond("run_id", "=", runId).
-		Select(wfmodel.TableNameRunAffectedNodes, fields)
+	runPropsList, err := getRunsProperties(cqlSession, keyspace, runId)
+	if err != nil {
+		return []string{}, err
+	}
+	if len(runPropsList) != 1 {
+		return []string{}, fmt.Errorf("run affected nodes for ks %s, run id %d returned wrong number of rows (%d), expected 1", keyspace, runId, len(runPropsList))
+	}
+	return strings.Split(runPropsList[0].AffectedNodes, ","), nil
+}
+
+func GetAllRunsProperties(cqlSession *gocql.Session, keyspace string) ([]*wfmodel.RunAffectedNodes, error) {
+	return getRunsProperties(cqlSession, keyspace, 0)
+}
+
+func getRunsProperties(cqlSession *gocql.Session, keyspace string, runId int16) ([]*wfmodel.RunAffectedNodes, error) {
+	fields := []string{"run_id", "start_nodes", "affected_nodes", "script_uri", "script_params_uri"}
+	qb := cql.QueryBuilder{}
+	qb.Keyspace(keyspace)
+	if runId > 0 {
+		qb.Cond("run_id", "=", runId)
+	}
+	q := qb.Select(wfmodel.TableNameRunAffectedNodes, fields)
 	rows, err := cqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		return []string{}, cql.WrapDbErrorWithQuery("cannot get run affected nodes", q, err)
+		return []*wfmodel.RunAffectedNodes{}, cql.WrapDbErrorWithQuery("cannot get all runs properties", q, err)
 	}
 
-	if len(rows) != 1 {
-		return []string{}, fmt.Errorf("run affected nodes returned wrong number of rows (%d): %s", len(rows), q)
+	runs := make([]*wfmodel.RunAffectedNodes, len(rows))
+	for rowIdx, row := range rows {
+		rec, err := wfmodel.NewRunAffectedNodesFromMap(row, fields)
+		if err != nil {
+			return []*wfmodel.RunAffectedNodes{}, fmt.Errorf("%s, %s", err.Error(), q)
+		}
+		runs[rowIdx] = rec
 	}
 
-	rec, err := wfmodel.NewRunAffectedNodesFromMap(rows[0], fields)
-	if err != nil {
-		return []string{}, fmt.Errorf("%s, %s", err.Error(), q)
-	}
+	sort.Slice(runs, func(i, j int) bool { return runs[i].RunId < runs[j].RunId })
 
-	return strings.Split(rec.AffectedNodes, ","), nil
+	return runs, nil
 }
 
 func HarvestRunIdsByAffectedNodes(logger *l.Logger, pCtx *ctx.MessageProcessingContext, nodeNames []string) ([]int16, map[string][]int16, error) {
@@ -74,11 +94,14 @@ func HarvestRunIdsByAffectedNodes(logger *l.Logger, pCtx *ctx.MessageProcessingC
 	return runIds, nodeAffectingRunIdsMap, nil
 }
 
-func WriteAffectedNodes(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId int16, affectedNodes []string) error {
+func WriteAffectedNodes(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId int16, startNodes []string, affectedNodes []string, scriptUri string, scriptParamsUri string) error {
 	q := (&cql.QueryBuilder{}).
 		Keyspace(keyspace).
 		Write("run_id", runId).
+		Write("start_nodes", strings.Join(startNodes, ",")).
 		Write("affected_nodes", strings.Join(affectedNodes, ",")).
+		Write("script_uri", scriptUri).
+		Write("script_params_uri", scriptParamsUri).
 		Insert(wfmodel.TableNameRunAffectedNodes, cql.IgnoreIfExists) // If not exists. First one wins.
 	err := cqlSession.Query(q).Exec()
 	if err != nil {
