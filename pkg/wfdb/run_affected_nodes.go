@@ -13,7 +13,7 @@ import (
 )
 
 func GetRunAffectedNodes(cqlSession *gocql.Session, keyspace string, runId int16) ([]string, error) {
-	runPropsList, err := getRunsProperties(cqlSession, keyspace, runId)
+	runPropsList, err := GetRunProperties(cqlSession, keyspace, runId)
 	if err != nil {
 		return []string{}, err
 	}
@@ -23,11 +23,11 @@ func GetRunAffectedNodes(cqlSession *gocql.Session, keyspace string, runId int16
 	return strings.Split(runPropsList[0].AffectedNodes, ","), nil
 }
 
-func GetAllRunsProperties(cqlSession *gocql.Session, keyspace string) ([]*wfmodel.RunAffectedNodes, error) {
-	return getRunsProperties(cqlSession, keyspace, 0)
-}
+// func GetAllRunsProperties(cqlSession *gocql.Session, keyspace string) ([]*wfmodel.RunAffectedNodes, error) {
+// 	return getRunProperties(cqlSession, keyspace, 0)
+// }
 
-func getRunsProperties(cqlSession *gocql.Session, keyspace string, runId int16) ([]*wfmodel.RunAffectedNodes, error) {
+func GetRunProperties(cqlSession *gocql.Session, keyspace string, runId int16) ([]*wfmodel.RunAffectedNodes, error) {
 	fields := []string{"run_id", "start_nodes", "affected_nodes", "script_uri", "script_params_uri"}
 	qb := cql.QueryBuilder{}
 	qb.Keyspace(keyspace)
