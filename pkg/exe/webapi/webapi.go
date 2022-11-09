@@ -20,6 +20,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/wfdb"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 const port = 6543 // Python Pyramid rules
@@ -314,18 +315,31 @@ func (h *UrlHandler) ksRunNodeBatches(w http.ResponseWriter, r *http.Request) {
 	WriteApiSuccess(h.L, w, result)
 }
 
-func (h *UrlHandler) ksStartRun(w http.ResponseWriter, r *http.Request) {
-	// keyspace := getField(r, 0)
-	// cqlSession, err := cql.NewSession(h.Env, keyspace)
-	// if err != nil {
-	// 	WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
-	// 	return
-	// }
+type StartRunInfo struct {
+	RunId int16 `json:"run_id"`
+}
 
-	// TODO:
-	// - open ampq
-	// - get scriptfile, params from the body
-	//api.StartRun(h.Env, h.L, ampq, scriptFileUri, scriptParamsUri, cqlSession, keyspace, startNodes)
+func (h *UrlHandler) ksStartRun(w http.ResponseWriter, r *http.Request) {
+	keyspace := getField(r, 0)
+	cqlSession, err := cql.NewSession(h.Env, keyspace)
+	if err != nil {
+		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		return
+	}
+
+	amqpConnection, err := amqp.Dial(h.Env.Amqp.URL)
+	if err != nil {
+		WriteApiError(h.L, w, r.URL.Path, fmt.Errorf("cannot dial RabbitMQ at %v, will reconnect: %v\n", h.Env.Amqp.URL, err), http.StatusInternalServerError)
+		return
+	}
+	defer amqpConnection.Close()
+
+	amqpChannel, err := amqpConnection.Channel()
+	if err != nil {
+		WriteApiError(h.L, w, r.URL.Path, fmt.Errorf("cannot create amqp channel: %v\n", err), http.StatusInternalServerError)
+		return
+	}
+	defer amqpChannel.Close()
 
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -339,22 +353,50 @@ func (h *UrlHandler) ksStartRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	WriteApiSuccess(h.L, w, runProps)
+	runId, err := api.StartRun(h.Env, h.L, amqpChannel, runProps.ScriptUri, runProps.ScriptParamsUri, cqlSession, keyspace, strings.Split(runProps.StartNodes, ","))
+	if err != nil {
+		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		return
+	}
+
+	WriteApiSuccess(h.L, w, StartRunInfo{RunId: runId})
+}
+
+type StopRunInfo struct {
+	Comment string `json:"comment"`
 }
 
 func (h *UrlHandler) ksStopRun(w http.ResponseWriter, r *http.Request) {
-	// keyspace := getField(r, 0)
-	// cqlSession, err := cql.NewSession(h.Env, keyspace)
-	// if err != nil {
-	// 	WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
-	// 	return
-	// }
+	keyspace := getField(r, 0)
+	cqlSession, err := cql.NewSession(h.Env, keyspace)
+	if err != nil {
+		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		return
+	}
 
-	// runId := getField(r, 1)
+	bodyBytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		return
+	}
 
-	// TODO:
-	// - get comment from the body
-	//api.StopRun(h.L, cqlSession, keyspace, runId, comment)
+	stopRunInfo := StopRunInfo{}
+	if err = json.Unmarshal(bodyBytes, &stopRunInfo); err != nil {
+		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		return
+	}
+
+	runId, err := strconv.Atoi(getField(r, 1))
+	if err != nil {
+		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		return
+	}
+
+	if err = api.StopRun(h.L, cqlSession, keyspace, int16(runId), stopRunInfo.Comment); err != nil {
+		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		return
+	}
+	WriteApiSuccess(h.L, w, nil)
 }
 
 type UrlHandler struct {
