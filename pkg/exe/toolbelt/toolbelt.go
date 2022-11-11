@@ -273,7 +273,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		cqlSession, err := cql.NewSession(envConfig, *keyspace)
+		cqlSession, err := cql.NewSession(envConfig, *keyspace, cql.DoNotCreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
@@ -290,7 +290,7 @@ func main() {
 		keyspace := getRunsCmd.String("keyspace", "", "Keyspace (session id)")
 		getRunsCmd.Parse(os.Args[2:])
 
-		cqlSession, err := cql.NewSession(envConfig, *keyspace)
+		cqlSession, err := cql.NewSession(envConfig, *keyspace, cql.DoNotCreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
@@ -312,7 +312,7 @@ func main() {
 		runIdsString := getNodeHistoryCmd.String("run_ids", "", "Limit results to specific run ids (optional), comma-separated list")
 		getNodeHistoryCmd.Parse(os.Args[2:])
 
-		cqlSession, err := cql.NewSession(envConfig, *keyspace)
+		cqlSession, err := cql.NewSession(envConfig, *keyspace, cql.DoNotCreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
@@ -341,7 +341,7 @@ func main() {
 		nodeNamesString := getBatchHistoryCmd.String("nodes", "", "Limit results to specific node names (optional), comma-separated list")
 		getBatchHistoryCmd.Parse(os.Args[2:])
 
-		cqlSession, err := cql.NewSession(envConfig, *keyspace)
+		cqlSession, err := cql.NewSession(envConfig, *keyspace, cql.DoNotCreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
@@ -409,7 +409,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		cqlSession, err := cql.NewSession(envConfig, *keyspace)
+		cqlSession, err := cql.NewSession(envConfig, *keyspace, cql.DoNotCreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
@@ -433,7 +433,7 @@ func main() {
 		keyspace := dropKsCmd.String("keyspace", "", "Keyspace (session id)")
 		dropKsCmd.Parse(os.Args[2:])
 
-		cqlSession, err := cql.NewSession(envConfig, *keyspace)
+		cqlSession, err := cql.NewSession(envConfig, *keyspace, cql.DoNotCreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
@@ -455,7 +455,7 @@ func main() {
 
 		startNodes := strings.Split(*startNodesString, ",")
 
-		cqlSession, err := cql.NewSession(envConfig, *keyspace)
+		cqlSession, err := cql.NewSession(envConfig, *keyspace, cql.CreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
@@ -497,7 +497,7 @@ func main() {
 
 		startTime := time.Now()
 
-		cqlSession, err := cql.NewSession(envConfig, *keyspace)
+		cqlSession, err := cql.NewSession(envConfig, *keyspace, cql.CreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
