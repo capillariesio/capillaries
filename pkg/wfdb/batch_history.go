@@ -156,7 +156,9 @@ func SetBatchStatus(logger *l.Logger, pCtx *ctx.MessageProcessingContext, status
 		Write("batches_total", pCtx.BatchInfo.BatchesTotal).
 		Write("status", status).
 		Write("first_token", pCtx.BatchInfo.FirstToken).
-		Write("last_token", pCtx.BatchInfo.LastToken)
+		Write("last_token", pCtx.BatchInfo.LastToken).
+		Write("instance", logger.ZapMachine.String).
+		Write("thread", logger.ZapThread.Integer)
 	if len(comment) > 0 {
 		qb.Write("comment", comment)
 	}

@@ -30,11 +30,13 @@ type BatchHistoryEvent struct {
 	Status       NodeBatchStatusType `header:"sts" format:"%3v" column:"status" type:"tinyint" key:"true" json:"status"`
 	FirstToken   int64               `header:"ftoken" format:"%21v" column:"first_token" type:"bigint" json:"first_token"`
 	LastToken    int64               `header:"ltoken" format:"%21v" column:"last_token" type:"bigint" json:"last_token"`
+	Instance     string              `header:"instance" format:"%21v" column:"instance" type:"text" json:"instance"`
+	Thread       int64               `header:"thread" format:"%4v" column:"thread" type:"bigint" json:"thread"`
 	Comment      string              `header:"comment" format:"%v" column:"comment" type:"text" json:"comment"`
 }
 
 func BatchHistoryEventAllFields() []string {
-	return []string{"ts", "run_id", "script_node", "batch_idx", "batches_total", "status", "first_token", "last_token", "comment"}
+	return []string{"ts", "run_id", "script_node", "batch_idx", "batches_total", "status", "first_token", "last_token", "instance", "thread", "comment"}
 }
 func NewBatchHistoryEventFromMap(r map[string]interface{}, fields []string) (*BatchHistoryEvent, error) {
 	res := &BatchHistoryEvent{}
@@ -57,6 +59,10 @@ func NewBatchHistoryEventFromMap(r map[string]interface{}, fields []string) (*Ba
 			res.FirstToken, err = ReadInt64FromRow(fieldName, r)
 		case "last_token":
 			res.LastToken, err = ReadInt64FromRow(fieldName, r)
+		case "instance":
+			res.Instance, err = ReadStringFromRow(fieldName, r)
+		case "thread":
+			res.Thread, err = ReadInt64FromRow(fieldName, r)
 		case "comment":
 			res.Comment, err = ReadStringFromRow(fieldName, r)
 		default:
