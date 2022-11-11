@@ -59,40 +59,41 @@ func NewSession(envConfig *env.EnvConfig, keyspace string, createKeyspace Create
 	}
 	// Create keyspace if needed
 	if len(keyspace) > 0 {
+		dataCluster.Keyspace = keyspace
+
 		if createKeyspace == CreateKeyspaceOnConnect {
 			createKsQuery := fmt.Sprintf("CREATE KEYSPACE IF NOT EXISTS %s WITH REPLICATION = %s", keyspace, envConfig.Cassandra.KeyspaceReplicationConfig)
 			if err := cqlSession.Query(createKsQuery).Exec(); err != nil {
 				return nil, WrapDbErrorWithQuery("failed to create keyspace", createKsQuery, err)
 			}
-		}
-		dataCluster.Keyspace = keyspace
 
-		// Create WF tables if needed
-		if err = createWfTable(cqlSession, keyspace, reflect.TypeOf(wfmodel.BatchHistoryEvent{}), wfmodel.TableNameBatchHistory); err != nil {
-			return nil, err
-		}
-		if err = createWfTable(cqlSession, keyspace, reflect.TypeOf(wfmodel.NodeHistoryEvent{}), wfmodel.TableNameNodeHistory); err != nil {
-			return nil, err
-		}
-		if err = createWfTable(cqlSession, keyspace, reflect.TypeOf(wfmodel.RunHistoryEvent{}), wfmodel.TableNameRunHistory); err != nil {
-			return nil, err
-		}
-		if err = createWfTable(cqlSession, keyspace, reflect.TypeOf(wfmodel.RunProperties{}), wfmodel.TableNameRunAffectedNodes); err != nil {
-			return nil, err
-		}
-		if err = createWfTable(cqlSession, keyspace, reflect.TypeOf(wfmodel.RunCounter{}), wfmodel.TableNameRunCounter); err != nil {
-			return nil, err
-		}
+			// Create WF tables if needed
+			if err = createWfTable(cqlSession, keyspace, reflect.TypeOf(wfmodel.BatchHistoryEvent{}), wfmodel.TableNameBatchHistory); err != nil {
+				return nil, err
+			}
+			if err = createWfTable(cqlSession, keyspace, reflect.TypeOf(wfmodel.NodeHistoryEvent{}), wfmodel.TableNameNodeHistory); err != nil {
+				return nil, err
+			}
+			if err = createWfTable(cqlSession, keyspace, reflect.TypeOf(wfmodel.RunHistoryEvent{}), wfmodel.TableNameRunHistory); err != nil {
+				return nil, err
+			}
+			if err = createWfTable(cqlSession, keyspace, reflect.TypeOf(wfmodel.RunProperties{}), wfmodel.TableNameRunAffectedNodes); err != nil {
+				return nil, err
+			}
+			if err = createWfTable(cqlSession, keyspace, reflect.TypeOf(wfmodel.RunCounter{}), wfmodel.TableNameRunCounter); err != nil {
+				return nil, err
+			}
 
-		qb := QueryBuilder{}
-		qb.
-			Keyspace(keyspace).
-			Write("ks", keyspace).
-			Write("last_run", 0)
-		q := qb.Insert(wfmodel.TableNameRunCounter, IgnoreIfExists) // If not exists. Insert only once.
-		err = cqlSession.Query(q).Exec()
-		if err != nil {
-			return nil, WrapDbErrorWithQuery("cannot initialize run counter", q, err)
+			qb := QueryBuilder{}
+			qb.
+				Keyspace(keyspace).
+				Write("ks", keyspace).
+				Write("last_run", 0)
+			q := qb.Insert(wfmodel.TableNameRunCounter, IgnoreIfExists) // If not exists. Insert only once.
+			err = cqlSession.Query(q).Exec()
+			if err != nil {
+				return nil, WrapDbErrorWithQuery("cannot initialize run counter", q, err)
+			}
 		}
 	}
 	return cqlSession, nil
