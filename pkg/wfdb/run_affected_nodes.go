@@ -27,7 +27,7 @@ func GetRunAffectedNodes(cqlSession *gocql.Session, keyspace string, runId int16
 // 	return getRunProperties(cqlSession, keyspace, 0)
 // }
 
-func GetRunProperties(cqlSession *gocql.Session, keyspace string, runId int16) ([]*wfmodel.RunAffectedNodes, error) {
+func GetRunProperties(cqlSession *gocql.Session, keyspace string, runId int16) ([]*wfmodel.RunProperties, error) {
 	fields := []string{"run_id", "start_nodes", "affected_nodes", "script_uri", "script_params_uri"}
 	qb := cql.QueryBuilder{}
 	qb.Keyspace(keyspace)
@@ -37,14 +37,14 @@ func GetRunProperties(cqlSession *gocql.Session, keyspace string, runId int16) (
 	q := qb.Select(wfmodel.TableNameRunAffectedNodes, fields)
 	rows, err := cqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		return []*wfmodel.RunAffectedNodes{}, cql.WrapDbErrorWithQuery("cannot get all runs properties", q, err)
+		return []*wfmodel.RunProperties{}, cql.WrapDbErrorWithQuery("cannot get all runs properties", q, err)
 	}
 
-	runs := make([]*wfmodel.RunAffectedNodes, len(rows))
+	runs := make([]*wfmodel.RunProperties, len(rows))
 	for rowIdx, row := range rows {
-		rec, err := wfmodel.NewRunAffectedNodesFromMap(row, fields)
+		rec, err := wfmodel.NewRunPropertiesFromMap(row, fields)
 		if err != nil {
-			return []*wfmodel.RunAffectedNodes{}, fmt.Errorf("%s, %s", err.Error(), q)
+			return []*wfmodel.RunProperties{}, fmt.Errorf("%s, %s", err.Error(), q)
 		}
 		runs[rowIdx] = rec
 	}
@@ -71,7 +71,7 @@ func HarvestRunIdsByAffectedNodes(logger *l.Logger, pCtx *ctx.MessageProcessingC
 	nodeAffectingRunIdsMap := map[string][]int16{}
 	for runIdx, r := range rows {
 
-		rec, err := wfmodel.NewRunAffectedNodesFromMap(r, fields)
+		rec, err := wfmodel.NewRunPropertiesFromMap(r, fields)
 		if err != nil {
 			return nil, nil, fmt.Errorf("%s, %s", err.Error(), q)
 		}

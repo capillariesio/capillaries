@@ -301,7 +301,7 @@ func main() {
 			log.Fatalf(err.Error())
 			os.Exit(1)
 		}
-		fmt.Println(strings.Join(wfmodel.RunHistoryAllFields(), ","))
+		fmt.Println(strings.Join(wfmodel.RunHistoryEventAllFields(), ","))
 		for _, r := range runs {
 			fmt.Printf("%s,%d,%d,%s\n", r.Ts.Format(LogTsFormatUnquoted), r.RunId, r.Status, strings.ReplaceAll(r.Comment, ",", ";"))
 		}
@@ -329,7 +329,7 @@ func main() {
 			log.Fatalf(err.Error())
 			os.Exit(1)
 		}
-		fmt.Println(strings.Join(wfmodel.NodeHistoryAllFields(), ","))
+		fmt.Println(strings.Join(wfmodel.NodeHistoryEventAllFields(), ","))
 		for _, n := range nodes {
 			fmt.Printf("%s,%d,%s,%d,%s\n", n.Ts.Format(LogTsFormatUnquoted), n.RunId, n.ScriptNode, n.Status, strings.ReplaceAll(n.Comment, ",", ";"))
 		}
@@ -365,7 +365,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		fmt.Println(strings.Join(wfmodel.BatchHistoryAllFields(), ","))
+		fmt.Println(strings.Join(wfmodel.BatchHistoryEventAllFields(), ","))
 		for _, r := range runs {
 			fmt.Printf("%s,%d,%s,%d,%d,%d,%d,%d,%s\n", r.Ts.Format(LogTsFormatUnquoted), r.RunId, r.ScriptNode, r.BatchIdx, r.BatchesTotal, r.Status, r.FirstToken, r.LastToken, strings.ReplaceAll(r.Comment, ",", ";"))
 		}

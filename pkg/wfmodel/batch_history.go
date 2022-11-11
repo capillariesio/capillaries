@@ -21,7 +21,7 @@ const (
 const TableNameBatchHistory = "wf_batch_history"
 
 // Object model with tags that allow to create cql CREATE TABLE queries and to print object
-type BatchHistory struct {
+type BatchHistoryEvent struct {
 	Ts           time.Time           `header:"ts" format:"%-33v" column:"ts" type:"timestamp" json:"ts"`
 	RunId        int16               `header:"run_id" format:"%6d" column:"run_id" type:"int" key:"true" json:"run_id"`
 	ScriptNode   string              `header:"script_node" format:"%20v" column:"script_node" type:"text" key:"true" json:"script_node"`
@@ -33,11 +33,11 @@ type BatchHistory struct {
 	Comment      string              `header:"comment" format:"%v" column:"comment" type:"text" json:"comment"`
 }
 
-func BatchHistoryAllFields() []string {
+func BatchHistoryEventAllFields() []string {
 	return []string{"ts", "run_id", "script_node", "batch_idx", "batches_total", "status", "first_token", "last_token", "comment"}
 }
-func NewBatchHistoryFromMap(r map[string]interface{}, fields []string) (*BatchHistory, error) {
-	res := &BatchHistory{}
+func NewBatchHistoryEventFromMap(r map[string]interface{}, fields []string) (*BatchHistoryEvent, error) {
+	res := &BatchHistoryEvent{}
 	for _, fieldName := range fields {
 		var err error
 		switch fieldName {
@@ -70,7 +70,7 @@ func NewBatchHistoryFromMap(r map[string]interface{}, fields []string) (*BatchHi
 }
 
 // ToSpacedString - prints formatted field values, uses reflection, shoud not be used in prod
-func (n BatchHistory) ToSpacedString() string {
+func (n BatchHistoryEvent) ToSpacedString() string {
 	t := reflect.TypeOf(n)
 	formats := GetObjectModelFieldFormats(t)
 	values := make([]string, t.NumField())

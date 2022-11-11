@@ -68,16 +68,16 @@ func NewSession(envConfig *env.EnvConfig, keyspace string, createKeyspace Create
 		dataCluster.Keyspace = keyspace
 
 		// Create WF tables if needed
-		if err = createWfTable(cqlSession, keyspace, reflect.TypeOf(wfmodel.BatchHistory{}), wfmodel.TableNameBatchHistory); err != nil {
+		if err = createWfTable(cqlSession, keyspace, reflect.TypeOf(wfmodel.BatchHistoryEvent{}), wfmodel.TableNameBatchHistory); err != nil {
 			return nil, err
 		}
-		if err = createWfTable(cqlSession, keyspace, reflect.TypeOf(wfmodel.NodeHistory{}), wfmodel.TableNameNodeHistory); err != nil {
+		if err = createWfTable(cqlSession, keyspace, reflect.TypeOf(wfmodel.NodeHistoryEvent{}), wfmodel.TableNameNodeHistory); err != nil {
 			return nil, err
 		}
-		if err = createWfTable(cqlSession, keyspace, reflect.TypeOf(wfmodel.RunHistory{}), wfmodel.TableNameRunHistory); err != nil {
+		if err = createWfTable(cqlSession, keyspace, reflect.TypeOf(wfmodel.RunHistoryEvent{}), wfmodel.TableNameRunHistory); err != nil {
 			return nil, err
 		}
-		if err = createWfTable(cqlSession, keyspace, reflect.TypeOf(wfmodel.RunAffectedNodes{}), wfmodel.TableNameRunAffectedNodes); err != nil {
+		if err = createWfTable(cqlSession, keyspace, reflect.TypeOf(wfmodel.RunProperties{}), wfmodel.TableNameRunAffectedNodes); err != nil {
 			return nil, err
 		}
 		if err = createWfTable(cqlSession, keyspace, reflect.TypeOf(wfmodel.RunCounter{}), wfmodel.TableNameRunCounter); err != nil {

@@ -31,7 +31,7 @@ func HarvestNodeStatusesForRun(logger *l.Logger, pCtx *ctx.MessageProcessingCont
 	}
 
 	for _, r := range rows {
-		rec, err := wfmodel.NewNodeHistoryFromMap(r, fields)
+		rec, err := wfmodel.NewNodeHistoryEventFromMap(r, fields)
 		if err != nil {
 			return wfmodel.NodeBatchNone, "", fmt.Errorf("cannot deserialize node history row %s, %s", err.Error(), q)
 		}
@@ -89,7 +89,7 @@ func HarvestNodeLifespans(logger *l.Logger, pCtx *ctx.MessageProcessingContext, 
 	}
 
 	for _, r := range rows {
-		rec, err := wfmodel.NewNodeHistoryFromMap(r, fields)
+		rec, err := wfmodel.NewNodeHistoryEventFromMap(r, fields)
 		if err != nil {
 			return nil, fmt.Errorf("%s, %s", err.Error(), q)
 		}

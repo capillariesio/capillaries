@@ -53,19 +53,19 @@ func (m RunStatusMap) ToString() string {
 }
 
 // Object model with tags that allow to create cql CREATE TABLE queries and to print object
-type RunHistory struct {
+type RunHistoryEvent struct {
 	Ts      time.Time     `header:"ts" format:"%-33v" column:"ts" type:"timestamp" json:"ts"`
 	RunId   int16         `header:"run_id" format:"%6d" column:"run_id" type:"int" key:"true" json:"run_id"`
 	Status  RunStatusType `header:"sts" format:"%3v" column:"status" type:"tinyint" key:"true" json:"status"`
 	Comment string        `header:"comment" format:"%v" column:"comment" type:"text" json:"comment"`
 }
 
-func RunHistoryAllFields() []string {
+func RunHistoryEventAllFields() []string {
 	return []string{"ts", "run_id", "status", "comment"}
 }
 
-func NewRunHistoryFromMap(r map[string]interface{}, fields []string) (*RunHistory, error) {
-	res := &RunHistory{}
+func NewRunHistoryEventFromMap(r map[string]interface{}, fields []string) (*RunHistoryEvent, error) {
+	res := &RunHistoryEvent{}
 	for _, fieldName := range fields {
 		var err error
 		switch fieldName {
@@ -88,7 +88,7 @@ func NewRunHistoryFromMap(r map[string]interface{}, fields []string) (*RunHistor
 }
 
 // ToSpacedString - prints formatted field values, uses reflection, shoud not be used in prod
-func (n RunHistory) ToSpacedString() string {
+func (n RunHistoryEvent) ToSpacedString() string {
 	t := reflect.TypeOf(n)
 	formats := GetObjectModelFieldFormats(t)
 	values := make([]string, t.NumField())

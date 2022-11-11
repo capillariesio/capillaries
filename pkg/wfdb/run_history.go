@@ -29,7 +29,7 @@ func GetCurrentRunStatus(logger *l.Logger, pCtx *ctx.MessageProcessingContext) (
 	lastStatus := wfmodel.RunNone
 	lastTs := time.Unix(0, 0)
 	for _, r := range rows {
-		rec, err := wfmodel.NewRunHistoryFromMap(r, fields)
+		rec, err := wfmodel.NewRunHistoryEventFromMap(r, fields)
 		if err != nil {
 			return wfmodel.RunNone, fmt.Errorf("%s, %s", err.Error(), q)
 		}
@@ -67,7 +67,7 @@ func HarvestRunLifespans(logger *l.Logger, pCtx *ctx.MessageProcessingContext, r
 	}
 
 	for _, r := range rows {
-		rec, err := wfmodel.NewRunHistoryFromMap(r, fields)
+		rec, err := wfmodel.NewRunHistoryEventFromMap(r, fields)
 		if err != nil {
 			return nil, fmt.Errorf("%s, %s", err.Error(), q)
 		}

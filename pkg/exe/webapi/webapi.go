@@ -100,8 +100,8 @@ func (h *UrlHandler) ks(w http.ResponseWriter, r *http.Request) {
 }
 
 type FullRunInfo struct {
-	Props   *wfmodel.RunAffectedNodes `json:"props"`
-	History []*wfmodel.RunHistory     `json:"history"`
+	Props   *wfmodel.RunProperties     `json:"props"`
+	History []*wfmodel.RunHistoryEvent `json:"history"`
 }
 
 // func (h *UrlHandler) ksRuns(w http.ResponseWriter, r *http.Request) {
@@ -283,8 +283,8 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 // }
 
 type RunNodeBatchesInfo struct {
-	RunProps            *wfmodel.RunAffectedNodes `json:"run_props"`
-	RunNodeBatchHistory []*wfmodel.BatchHistory   `json:"batch_history"`
+	RunProps            *wfmodel.RunProperties       `json:"run_props"`
+	RunNodeBatchHistory []*wfmodel.BatchHistoryEvent `json:"batch_history"`
 }
 
 func (h *UrlHandler) ksRunNodeBatchHistory(w http.ResponseWriter, r *http.Request) {
@@ -356,7 +356,7 @@ func (h *UrlHandler) ksStartRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	runProps := wfmodel.RunAffectedNodes{}
+	runProps := wfmodel.RunProperties{}
 	if err = json.Unmarshal(bodyBytes, &runProps); err != nil {
 		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
 		return

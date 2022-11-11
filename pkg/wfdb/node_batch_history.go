@@ -31,7 +31,7 @@ func HarvestLastStatusForBatch(logger *l.Logger, pCtx *ctx.MessageProcessingCont
 	lastStatus := wfmodel.NodeBatchNone
 	lastTs := time.Unix(0, 0)
 	for _, r := range rows {
-		rec, err := wfmodel.NewBatchHistoryFromMap(r, fields)
+		rec, err := wfmodel.NewBatchHistoryEventFromMap(r, fields)
 		if err != nil {
 			return wfmodel.NodeBatchNone, fmt.Errorf("HarvestLastStatusForBatch: : cannot deserialize batch history row: %s, %s", err.Error(), q)
 		}
@@ -46,7 +46,7 @@ func HarvestLastStatusForBatch(logger *l.Logger, pCtx *ctx.MessageProcessingCont
 	return lastStatus, nil
 }
 
-func GetRunNodeBatchHistory(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId int16, nodeName string) ([]*wfmodel.BatchHistory, error) {
+func GetRunNodeBatchHistory(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId int16, nodeName string) ([]*wfmodel.BatchHistoryEvent, error) {
 	logger.PushF("GetRunNodeBatchHistory")
 	defer logger.PopF()
 
@@ -54,17 +54,17 @@ func GetRunNodeBatchHistory(logger *l.Logger, cqlSession *gocql.Session, keyspac
 		Keyspace(keyspace).
 		Cond("run_id", "=", runId).
 		Cond("script_node", "=", nodeName).
-		Select(wfmodel.TableNameBatchHistory, wfmodel.BatchHistoryAllFields())
+		Select(wfmodel.TableNameBatchHistory, wfmodel.BatchHistoryEventAllFields())
 	rows, err := cqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		return []*wfmodel.BatchHistory{}, cql.WrapDbErrorWithQuery("GetRunNodeBatchHistory: cannot get node batch history", q, err)
+		return []*wfmodel.BatchHistoryEvent{}, cql.WrapDbErrorWithQuery("GetRunNodeBatchHistory: cannot get node batch history", q, err)
 	}
 
-	result := make([]*wfmodel.BatchHistory, len(rows))
+	result := make([]*wfmodel.BatchHistoryEvent, len(rows))
 	for rowIdx, row := range rows {
-		rec, err := wfmodel.NewBatchHistoryFromMap(row, wfmodel.BatchHistoryAllFields())
+		rec, err := wfmodel.NewBatchHistoryEventFromMap(row, wfmodel.BatchHistoryEventAllFields())
 		if err != nil {
-			return []*wfmodel.BatchHistory{}, fmt.Errorf("cannot deserialize batch node history row %s, %s", err.Error(), q)
+			return []*wfmodel.BatchHistoryEvent{}, fmt.Errorf("cannot deserialize batch node history row %s, %s", err.Error(), q)
 		}
 		result[rowIdx] = rec
 	}
@@ -95,7 +95,7 @@ func HarvestBatchStatusesForNode(logger *l.Logger, pCtx *ctx.MessageProcessingCo
 	failFound := false
 	stopReceivedFound := false
 	for _, r := range rows {
-		rec, err := wfmodel.NewBatchHistoryFromMap(r, fields)
+		rec, err := wfmodel.NewBatchHistoryEventFromMap(r, fields)
 		if err != nil {
 			return wfmodel.NodeBatchNone, fmt.Errorf("harvestBatchStatusesForNode: cannot deserialize batch history row %s, %s", err.Error(), q)
 		}

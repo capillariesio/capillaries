@@ -73,7 +73,7 @@ func (m NodeRunBatchStatusMap) ToString() string {
 }
 
 // Object model with tags that allow to create cql CREATE TABLE queries and to print object
-type NodeHistory struct {
+type NodeHistoryEvent struct {
 	Ts         time.Time           `header:"ts" format:"%-33v" column:"ts" type:"timestamp" json:"ts"`
 	RunId      int16               `header:"run_id" format:"%6d" column:"run_id" type:"int" key:"true" json:"run_id"`
 	ScriptNode string              `header:"script_node" format:"%20v" column:"script_node" type:"text" key:"true" json:"script_node"`
@@ -81,11 +81,11 @@ type NodeHistory struct {
 	Comment    string              `header:"comment" format:"%v" column:"comment" type:"text" json:"comment"`
 }
 
-func NodeHistoryAllFields() []string {
+func NodeHistoryEventAllFields() []string {
 	return []string{"ts", "run_id", "script_node", "status", "comment"}
 }
-func NewNodeHistoryFromMap(r map[string]interface{}, fields []string) (*NodeHistory, error) {
-	res := &NodeHistory{}
+func NewNodeHistoryEventFromMap(r map[string]interface{}, fields []string) (*NodeHistoryEvent, error) {
+	res := &NodeHistoryEvent{}
 	for _, fieldName := range fields {
 		var err error
 		switch fieldName {
@@ -110,7 +110,7 @@ func NewNodeHistoryFromMap(r map[string]interface{}, fields []string) (*NodeHist
 }
 
 // ToSpacedString - prints formatted field values, uses reflection, shoud not be used in prod
-func (n NodeHistory) ToSpacedString() string {
+func (n NodeHistoryEvent) ToSpacedString() string {
 	t := reflect.TypeOf(n)
 	formats := GetObjectModelFieldFormats(t)
 	values := make([]string, t.NumField())

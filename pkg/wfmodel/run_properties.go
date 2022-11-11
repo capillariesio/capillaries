@@ -9,7 +9,7 @@ import (
 const TableNameRunAffectedNodes = "wf_run_affected_nodes"
 
 // Object model with tags that allow to create cql CREATE TABLE queries and to print object
-type RunAffectedNodes struct {
+type RunProperties struct {
 	RunId           int16  `header:"run_id" format:"%6d" column:"run_id" type:"int" key:"true" json:"run_id"`
 	StartNodes      string `header:"start_nodes" format:"%20v" column:"start_nodes" type:"text" json:"start_nodes"`
 	AffectedNodes   string `header:"affected_nodes" format:"%20v" column:"affected_nodes" type:"text" json:"affected_nodes"`
@@ -17,8 +17,8 @@ type RunAffectedNodes struct {
 	ScriptParamsUri string `header:"script_params_uri" format:"%20v" column:"script_params_uri" type:"text" json:"script_params_uri"`
 }
 
-func NewRunAffectedNodesFromMap(r map[string]interface{}, fields []string) (*RunAffectedNodes, error) {
-	res := &RunAffectedNodes{}
+func NewRunPropertiesFromMap(r map[string]interface{}, fields []string) (*RunProperties, error) {
+	res := &RunProperties{}
 	for _, fieldName := range fields {
 		var err error
 		switch fieldName {
@@ -43,7 +43,7 @@ func NewRunAffectedNodesFromMap(r map[string]interface{}, fields []string) (*Run
 }
 
 // ToSpacedString - prints formatted field values, uses reflection, shoud not be used in prod
-func (n RunAffectedNodes) ToSpacedString() string {
+func (n RunProperties) ToSpacedString() string {
 	t := reflect.TypeOf(n)
 	formats := GetObjectModelFieldFormats(t)
 	values := make([]string, t.NumField())
