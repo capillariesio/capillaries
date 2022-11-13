@@ -1,7 +1,11 @@
 <script>
     import { onDestroy, onMount } from "svelte";
+	import Breadcrumbs from "../panels/Breadcrumbs.svelte";
 
-	import { handleResponse } from './Common.svelte';
+	let breadcrumbsPathElements = [];
+
+	import Common , { handleResponse } from '../Common.svelte';
+	let common;
 
     let webapiData = [];
 
@@ -19,6 +23,7 @@
 	}
 
 	onMount(async () => {
+		breadcrumbsPathElements = [{ title:"Keyspaces" } ];
     	fetchData();
 		timer = setInterval(fetchData, 500);
     });
@@ -27,16 +32,18 @@
     });
 </script>
 
-<h1>All keyspaces: {webapiData.length}</h1>
+
+<Breadcrumbs bind:pathElements={breadcrumbsPathElements}/>
+<Common bind:this={common} />
 
 <table>
 	<thead>
-		<th>Keyspace name</th>
+		<th>Keyspaces ({webapiData.length})</th>
 	</thead>
 	<tbody>
 		{#each webapiData as ks}
     		<tr>
-	    		<td><a href="/#/ks/{ks}/matrix">{ks}</a></td>
+	    		<td><a href={common.ksMatrixLink(ks)}>{ks}</a></td>
 	    	</tr>
 	    {/each}
 	</tbody>

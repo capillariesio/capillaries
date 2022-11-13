@@ -2,13 +2,22 @@
 	export function handleResponse(responseJson, setWebapiDataFunc) {
 		if (!!responseJson.error.msg) {
 			console.log (responseJson.error.msg);
-			setWebapiDataFunc(null);
+			setWebapiDataFunc(null, responseJson.error.msg);
 		} else {
-            setWebapiDataFunc(responseJson.data);
+            setWebapiDataFunc(responseJson.data, null);
 		}
 	}
 </script>
 <script>
+	export function rootLink(ksName) {
+		return "/#/";
+	}
+	export function ksMatrixLink(ksName) {
+		return "/#/ks/" + ksName + "/matrix";
+	}
+	export function ksRunNodeBatchHistoryLink(ksName, runId, nodeName) {
+		return "/#/ks/" + ksName + "/run/" + runId + "/node/" + nodeName + "/batch_history";
+	}
 	export function runStatusToIcon(runStatus) {
 		switch (runStatus) {
 			case 0:

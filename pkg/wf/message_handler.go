@@ -326,7 +326,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.Logger, msgTs int64
 	}
 
 	if nodeReady == sc.NodeNogo {
-		comment := fmt.Sprintf("some dependency nodes for %s are in bad state, will not run this node", pCtx.BatchInfo.FullBatchId())
+		comment := fmt.Sprintf("some dependency nodes for %s are in bad state, or runs executing dependency nodes were stopped, will not run this node; for details, check rules in dependency_policies and previous runs history", pCtx.BatchInfo.FullBatchId())
 		logger.ErrorCtx(pCtx, comment)
 		if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeFail, comment); err != nil {
 			return DaemonCmdReconnectDb

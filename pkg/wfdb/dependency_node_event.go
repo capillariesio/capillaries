@@ -18,7 +18,7 @@ func BuildDependencyNodeEventLists(logger *l.Logger, pCtx *ctx.MessageProcessing
 		return nil, err
 	}
 
-	runLifespanMap, err := HarvestRunLifespans(logger, pCtx, affectingRunIds)
+	runLifespanMap, err := HarvestRunLifespans(logger, pCtx.CqlSession, pCtx.BatchInfo.DataKeyspace, affectingRunIds)
 	if err != nil {
 		return nil, err
 	}
@@ -37,19 +37,20 @@ func BuildDependencyNodeEventLists(logger *l.Logger, pCtx *ctx.MessageProcessing
 			if !ok {
 				return nil, fmt.Errorf("unexpectedly, cannot find run lifespan map for run %d: %s", affectingRunId, runLifespanMap.ToString())
 			}
-			if runLifespan.StartTs == time.Unix(0, 0) || runLifespan.LastStatus == wfmodel.RunNone || runLifespan.LastStatusTs == time.Unix(0, 0) {
+			if runLifespan.StartTs == time.Unix(0, 0) || runLifespan.FinalStatus == wfmodel.RunNone {
 				return nil, fmt.Errorf("unexpectedly, run lifespan %d looks like the run never started: %s", affectingRunId, runLifespanMap.ToString())
 			}
 			e := wfmodel.DependencyNodeEvent{
-				RunId:         affectingRunId,
-				RunIsCurrent:  affectingRunId == pCtx.BatchInfo.RunId,
-				RunStartTs:    runLifespan.StartTs,
-				RunStatus:     runLifespan.LastStatus,
-				RunStatusTs:   runLifespan.LastStatusTs,
-				NodeIsStarted: false,
-				NodeStartTs:   time.Time{},
-				NodeStatus:    wfmodel.NodeBatchNone,
-				NodeStatusTs:  time.Time{}}
+				RunId:          affectingRunId,
+				RunIsCurrent:   affectingRunId == pCtx.BatchInfo.RunId,
+				RunStartTs:     runLifespan.StartTs,
+				RunFinalStatus: runLifespan.FinalStatus,
+				RunCompletedTs: runLifespan.CompletedTs,
+				RunStoppedTs:   runLifespan.StoppedTs,
+				NodeIsStarted:  false,
+				NodeStartTs:    time.Time{},
+				NodeStatus:     wfmodel.NodeBatchNone,
+				NodeStatusTs:   time.Time{}}
 
 			nodeLifespanMap, ok := runNodeLifespanMap[affectingRunId]
 			if !ok {

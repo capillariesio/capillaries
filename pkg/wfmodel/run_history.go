@@ -102,16 +102,20 @@ func (n RunHistoryEvent) ToSpacedString() string {
 }
 
 type RunLifespan struct {
-	StartTs      time.Time
-	LastStatus   RunStatusType
-	LastStatusTs time.Time
+	RunId       int16         `json:"run_id"`
+	StartTs     time.Time     `json:"start_ts"`
+	FinalStatus RunStatusType `json:"final_status"`
+	CompletedTs time.Time     `json:"completed_ts"`
+	StoppedTs   time.Time     `json:"stopped_ts"`
 }
 
 func (ls RunLifespan) ToString() string {
-	return fmt.Sprintf("{start_ts:%s, last_status:%s, last_status_ts:%s}",
+	return fmt.Sprintf("{run_id: %d, start_ts:%s, final_status:%s, completed_ts:%s, stopped_ts:%s}",
+		ls.RunId,
 		ls.StartTs.Format(LogTsFormatQuoted),
-		ls.LastStatus.ToString(),
-		ls.LastStatusTs.Format(LogTsFormatQuoted))
+		ls.FinalStatus.ToString(),
+		ls.CompletedTs.Format(LogTsFormatQuoted),
+		ls.StoppedTs.Format(LogTsFormatQuoted))
 }
 
 type RunLifespanMap map[int16]*RunLifespan

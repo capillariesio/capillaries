@@ -165,11 +165,11 @@ type FullRunInfo struct {
 // 	WriteApiSuccess(h.L, w, result)
 // }
 
-type WebapiRunStatus struct {
-	RunId  int16                 `json:"run_id"`
-	Status wfmodel.RunStatusType `json:"status"`
-	Ts     string                `json:"ts"`
-}
+// type WebapiRunStatus struct {
+// 	RunId  int16                 `json:"run_id"`
+// 	Status wfmodel.RunStatusType `json:"status"`
+// 	Ts     string                `json:"ts"`
+// }
 
 type WebapiNodeStatus struct {
 	RunId  int16                       `json:"run_id"`
@@ -182,8 +182,8 @@ type WebapiNodeRunMatrixRow struct {
 	NodeStatuses []WebapiNodeStatus `json:"node_statuses"`
 }
 type WebapiNodeRunMatrix struct {
-	RunStatuses []WebapiRunStatus        `json:"run_statuses"`
-	Nodes       []WebapiNodeRunMatrixRow `json:"nodes"`
+	RunLifespans []*wfmodel.RunLifespan   `json:"run_lifespans"`
+	Nodes        []WebapiNodeRunMatrixRow `json:"nodes"`
 }
 
 func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
@@ -196,26 +196,20 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 	defer cqlSession.Close()
 
 	// Retrieve all runs that happened in this ks and find their current statuses
-	runHistory, err := api.GetRunHistory(h.L, cqlSession, keyspace)
+	runLifespanMap, err := wfdb.HarvestRunLifespans(h.L, cqlSession, keyspace, []int16{})
 	if err != nil {
 		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
-	// For each run, harvest current run status, latest wins
-	runStatusMap := map[int16]WebapiRunStatus{}
-	for _, runEvent := range runHistory {
-		runStatusMap[runEvent.RunId] = WebapiRunStatus{RunId: runEvent.RunId, Status: runEvent.Status, Ts: runEvent.Ts.Format("2006-01-02T15:04:05.000-0700")}
-	}
-
 	// Arrange run statuses for the matrix header
-	mx := WebapiNodeRunMatrix{RunStatuses: make([]WebapiRunStatus, len(runStatusMap))}
+	mx := WebapiNodeRunMatrix{RunLifespans: make([]*wfmodel.RunLifespan, len(runLifespanMap))}
 	runCount := 0
-	for _, runStatus := range runStatusMap {
-		mx.RunStatuses[runCount] = runStatus
+	for _, runLifespan := range runLifespanMap {
+		mx.RunLifespans[runCount] = runLifespan
 		runCount++
 	}
-	sort.Slice(mx.RunStatuses, func(i, j int) bool { return mx.RunStatuses[i].RunId < mx.RunStatuses[j].RunId })
+	sort.Slice(mx.RunLifespans, func(i, j int) bool { return mx.RunLifespans[i].RunId < mx.RunLifespans[j].RunId })
 
 	// Retireve all node events for this ks, for all runs
 	nodeHistory, err := api.GetRunsNodeHistory(h.L, cqlSession, keyspace, []int16{})
@@ -242,9 +236,9 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 	mx.Nodes = make([]WebapiNodeRunMatrixRow, len(nodeRunStatusMap))
 	nodeCount := 0
 	for nodeName, runNodeStatusMap := range nodeRunStatusMap {
-		mx.Nodes[nodeCount] = WebapiNodeRunMatrixRow{NodeName: nodeName, NodeStatuses: make([]WebapiNodeStatus, len(mx.RunStatuses))}
-		for runIdx, matrixRunStatus := range mx.RunStatuses {
-			if nodeStatus, ok := runNodeStatusMap[matrixRunStatus.RunId]; ok {
+		mx.Nodes[nodeCount] = WebapiNodeRunMatrixRow{NodeName: nodeName, NodeStatuses: make([]WebapiNodeStatus, len(mx.RunLifespans))}
+		for runIdx, matrixRunLifespan := range mx.RunLifespans {
+			if nodeStatus, ok := runNodeStatusMap[matrixRunLifespan.RunId]; ok {
 				mx.Nodes[nodeCount].NodeStatuses[runIdx] = nodeStatus
 			}
 		}
@@ -284,6 +278,7 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 
 type RunNodeBatchesInfo struct {
 	RunProps            *wfmodel.RunProperties       `json:"run_props"`
+	RunLs               *wfmodel.RunLifespan         `json:"run_lifespan"`
 	RunNodeBatchHistory []*wfmodel.BatchHistoryEvent `json:"batch_history"`
 }
 
@@ -302,6 +297,9 @@ func (h *UrlHandler) ksRunNodeBatchHistory(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// Static run properties
+	// TODO: consider caching
+
 	allRunsProps, err := wfdb.GetRunProperties(cqlSession, keyspace, int16(runId))
 	if err != nil {
 		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
@@ -314,6 +312,21 @@ func (h *UrlHandler) ksRunNodeBatchHistory(w http.ResponseWriter, r *http.Reques
 	}
 
 	result := RunNodeBatchesInfo{RunProps: allRunsProps[0]}
+
+	// Run status
+
+	runLifeSpans, err := wfdb.HarvestRunLifespans(h.L, cqlSession, keyspace, []int16{int16(runId)})
+	if err != nil {
+		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		return
+	}
+	if len(runLifeSpans) != 1 {
+		WriteApiError(h.L, w, r.URL.Path, fmt.Errorf("invalid number of run life spans (%d), expected 1 ", len(runLifeSpans)), http.StatusInternalServerError)
+		return
+	}
+	result.RunLs = runLifeSpans[int16(runId)]
+
+	// Batch history
 
 	nodeName := getField(r, 2)
 	result.RunNodeBatchHistory, err = wfdb.GetRunNodeBatchHistory(h.L, cqlSession, keyspace, int16(runId), nodeName)
@@ -373,6 +386,11 @@ func (h *UrlHandler) ksStartRun(w http.ResponseWriter, r *http.Request) {
 
 type StopRunInfo struct {
 	Comment string `json:"comment"`
+}
+
+func (h *UrlHandler) ksStopRunOptions(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Methods", "OPTIONS,DELETE")
+	WriteApiSuccess(h.L, w, nil)
 }
 
 func (h *UrlHandler) ksStopRun(w http.ResponseWriter, r *http.Request) {
@@ -473,6 +491,7 @@ func main() {
 		newRoute("GET", "/ks/([a-zA-Z0-9_]+)/run/([0-9]+)/node/([a-zA-Z0-9_]+)/batch_history[/]*", h.ksRunNodeBatchHistory),
 		newRoute("POST", "/ks/([a-zA-Z0-9_]+)/run[/]*", h.ksStartRun),
 		newRoute("DELETE", "/ks/([a-zA-Z0-9_]+)/run/([0-9]+)[/]*", h.ksStopRun),
+		newRoute("OPTIONS", "/ks/([a-zA-Z0-9_]+)/run/([0-9]+)[/]*", h.ksStopRunOptions),
 	}
 
 	mux.Handle("/", h)
