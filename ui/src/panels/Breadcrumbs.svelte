@@ -1,5 +1,5 @@
 <script>
-	export let pathElements =[{ title:"Empty!" } ];
+	export let pathElements =[{ title:"Empty breadcrumbs" } ];
 </script>
 
 <style>

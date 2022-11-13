@@ -1,4 +1,5 @@
 <script context="module">
+	export function webapiUrl() {return "http://localhost:6543";};
 	export function handleResponse(responseJson, setWebapiDataFunc) {
 		if (!!responseJson.error.msg) {
 			console.log (responseJson.error.msg);
@@ -70,7 +71,7 @@
 			case 0:
 				return "Not started" 
 			case 1:
-				return "Running" 
+				return "Started" 
 			case 2:
 				return "Success" 
 			case 3:

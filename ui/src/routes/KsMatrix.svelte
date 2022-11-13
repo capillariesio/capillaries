@@ -1,31 +1,32 @@
 <script>
     import { onDestroy, onMount } from "svelte";
 	import dayjs from "dayjs";
-
 	import Breadcrumbs from "../panels/Breadcrumbs.svelte";
-	let breadcrumbsPathElements = [];
-	
-	import Common, { handleResponse } from '../Common.svelte';
-	let common;
+	import Util, { webapiUrl, handleResponse } from '../Util.svelte';
+	let util;
 
+    // Route params
     export let params; 
 
+	// Breadcrumbs
+	let breadcrumbsPathElements = [];
+
+    // Webapi data
 	let webapiData = {run_lifespans:[], nodes:[]};
 	function setWebapiData(dataFromJson) {
 		webapiData = ( !!dataFromJson ? dataFromJson : {run_lifespans:[], nodes:[]});
 	}
 
-	var timer;
-
 	function fetchData() {
-		fetch("http://localhost:6543/ks/"+params.ks_name)
+		fetch(webapiUrl() + "/ks/" + params.ks_name)
       		.then(response => response.json())
       		.then(responseJson => { handleResponse(responseJson, setWebapiData);})
       		.catch(error => {console.log(error);});
 	}
 
+	var timer;
 	onMount(async () => {
-		breadcrumbsPathElements = [{ title:"Keyspaces", link:common.rootLink() },{ title:params.ks_name + " matrix" }  ];
+		breadcrumbsPathElements = [{ title:"Keyspaces", link:util.rootLink() },{ title:params.ks_name + " matrix" }  ];
 		fetchData();
 		timer = setInterval(fetchData, 500);
     });
@@ -39,7 +40,7 @@
 	img { width: 20px;	}
 </style>
 
-<Common bind:this={common} />
+<Util bind:this={util} />
 <Breadcrumbs bind:pathElements={breadcrumbsPathElements}/>
 
 <table>
@@ -47,7 +48,7 @@
 		<th>Nodes ({webapiData.nodes.length}) \ Runs ({webapiData.run_lifespans.length})</th>
 		{#each webapiData.run_lifespans as ls}
 		  <th>
-			{ls.run_id} <img src={common.runStatusToIcon(ls.final_status)} title={common.runStatusToText(ls.final_status)} alt=""/>
+			{ls.run_id} <img src={util.runStatusToIcon(ls.final_status)} title={util.runStatusToText(ls.final_status)} alt=""/>
 		  </th>
 		{/each}
 	</thead>
@@ -58,8 +59,8 @@
 			{#each node.node_statuses as ns}
 			<td>
 				{#if ns.status > 0}
-					<a href={common.ksRunNodeBatchHistoryLink(params.ks_name, ns.run_id, node.node_name)}>
-						<img src={common.nodeStatusToIcon(ns.status)} title={common.nodeStatusToText(ns.status) + " - " + dayjs(ns.ts).format()} alt=""/>
+					<a href={util.ksRunNodeBatchHistoryLink(params.ks_name, ns.run_id, node.node_name)}>
+						<img src={util.nodeStatusToIcon(ns.status)} title={util.nodeStatusToText(ns.status) + " - " + dayjs(ns.ts).format()} alt=""/>
 					</a>
 				{/if}
 			</td>

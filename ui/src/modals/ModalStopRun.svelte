@@ -1,9 +1,11 @@
 <script>
     import { closeModal } from 'svelte-modals'
-    import { handleResponse } from '../Common.svelte';
+    import Util, { handleResponse } from '../Util.svelte';
 
     // provided by Modals
     export let isOpen
+
+    // Component parameters
     export let run_id
     export let keyspace
 
@@ -17,10 +19,10 @@
         }
     }
 
-    let stopComment = "Stopped from UI";
+    let stopComment = "Stopped using capillaries-ui";
 
     function stopAndCloseModal() {
-		fetch(new Request("http://localhost:6543/ks/" + keyspace + "/run/" + run_id, {method: 'DELETE', body: '{"comment": "' + stopComment +'"}'}))
+		fetch(new Request(Util.webapiUrl + "/ks/" + keyspace + "/run/" + run_id, {method: 'DELETE', body: '{"comment": "' + stopComment +'"}'}))
       		.then(response => response.json())
       		.then(responseJson => { handleResponse(responseJson, setWebapiData);})
       		.catch(error => {console.log(error);});

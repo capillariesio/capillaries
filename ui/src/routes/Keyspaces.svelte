@@ -1,27 +1,26 @@
 <script>
     import { onDestroy, onMount } from "svelte";
 	import Breadcrumbs from "../panels/Breadcrumbs.svelte";
+	import Util, { webapiUrl, handleResponse } from '../Util.svelte';
+	let util;
 
+	// Breadcrumbs
 	let breadcrumbsPathElements = [];
-
-	import Common , { handleResponse } from '../Common.svelte';
-	let common;
-
-    let webapiData = [];
-
+    
+    // Webapi data
+	let webapiData = [];
     function setWebapiData(dataFromJson) {
 		webapiData = ( !!dataFromJson ? dataFromJson : []);
 	}
 
-	var timer;
-
 	function fetchData() {
-		fetch("http://localhost:6543/ks/")
+		fetch(webapiUrl() + "/ks/")
       		.then(response => response.json())
       		.then(responseJson => { handleResponse(responseJson, setWebapiData);})
       		.catch(error => {console.log(error);});
 	}
 
+	var timer;
 	onMount(async () => {
 		breadcrumbsPathElements = [{ title:"Keyspaces" } ];
     	fetchData();
@@ -32,9 +31,8 @@
     });
 </script>
 
-
+<Util bind:this={util} />
 <Breadcrumbs bind:pathElements={breadcrumbsPathElements}/>
-<Common bind:this={common} />
 
 <table>
 	<thead>
@@ -43,7 +41,7 @@
 	<tbody>
 		{#each webapiData as ks}
     		<tr>
-	    		<td><a href={common.ksMatrixLink(ks)}>{ks}</a></td>
+	    		<td><a href={util.ksMatrixLink(ks)}>{ks}</a></td>
 	    	</tr>
 	    {/each}
 	</tbody>
