@@ -337,6 +337,60 @@ func (h *UrlHandler) ksRunNodeBatchHistory(w http.ResponseWriter, r *http.Reques
 	WriteApiSuccess(h.L, w, result)
 }
 
+type RunNodesInfo struct {
+	RunProps *wfmodel.RunProperties `json:"run_props"`
+	RunLs    *wfmodel.RunLifespan   `json:"run_lifespan"`
+}
+
+func (h *UrlHandler) ksRunNodeHistory(w http.ResponseWriter, r *http.Request) {
+	keyspace := getField(r, 0)
+	cqlSession, err := cql.NewSession(h.Env, keyspace, cql.DoNotCreateKeyspaceOnConnect)
+	if err != nil {
+		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		return
+	}
+	defer cqlSession.Close()
+
+	runId, err := strconv.Atoi(getField(r, 1))
+	if err != nil {
+		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		return
+	}
+
+	// Static run properties
+	// TODO: consider caching
+
+	allRunsProps, err := wfdb.GetRunProperties(cqlSession, keyspace, int16(runId))
+	if err != nil {
+		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		return
+	}
+
+	if len(allRunsProps) != 1 {
+		WriteApiError(h.L, w, r.URL.Path, fmt.Errorf("invalid number of matching runs (%d), expected 1 ", len(allRunsProps)), http.StatusInternalServerError)
+		return
+	}
+
+	result := RunNodesInfo{RunProps: allRunsProps[0]}
+
+	// Run status
+
+	runLifeSpans, err := wfdb.HarvestRunLifespans(h.L, cqlSession, keyspace, []int16{int16(runId)})
+	if err != nil {
+		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		return
+	}
+	if len(runLifeSpans) != 1 {
+		WriteApiError(h.L, w, r.URL.Path, fmt.Errorf("invalid number of run life spans (%d), expected 1 ", len(runLifeSpans)), http.StatusInternalServerError)
+		return
+	}
+	result.RunLs = runLifeSpans[int16(runId)]
+
+	// TODO: node history
+
+	WriteApiSuccess(h.L, w, result)
+}
+
 type StartRunInfo struct {
 	RunId int16 `json:"run_id"`
 }
@@ -489,6 +543,7 @@ func main() {
 		//newRoute("GET", "/ks/([a-zA-Z0-9_]+)/node[/]*", h.ksNodes),
 		//newRoute("GET", "/ks/([a-zA-Z0-9_]+)/run/([0-9]+)/node[/]*", h.ksRunNodes),
 		newRoute("GET", "/ks/([a-zA-Z0-9_]+)/run/([0-9]+)/node/([a-zA-Z0-9_]+)/batch_history[/]*", h.ksRunNodeBatchHistory),
+		newRoute("GET", "/ks/([a-zA-Z0-9_]+)/run/([0-9]+)/node_history[/]*", h.ksRunNodeHistory),
 		newRoute("POST", "/ks/([a-zA-Z0-9_]+)/run[/]*", h.ksStartRun),
 		newRoute("DELETE", "/ks/([a-zA-Z0-9_]+)/run/([0-9]+)[/]*", h.ksStopRun),
 		newRoute("OPTIONS", "/ks/([a-zA-Z0-9_]+)/run/([0-9]+)[/]*", h.ksStopRunOptions),

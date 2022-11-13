@@ -48,7 +48,10 @@
 		<th>Nodes ({webapiData.nodes.length}) \ Runs ({webapiData.run_lifespans.length})</th>
 		{#each webapiData.run_lifespans as ls}
 		  <th>
-			{ls.run_id} <img src={util.runStatusToIcon(ls.final_status)} title={util.runStatusToText(ls.final_status)} alt=""/>
+			{ls.run_id}
+			<a href={util.ksRunNodeHistoryLink(params.ks_name, ls.run_id)}>
+				<img src={util.runStatusToIcon(ls.final_status)} title={util.runStatusToText(ls.final_status)} alt=""/>
+			</a>
 		  </th>
 		{/each}
 	</thead>

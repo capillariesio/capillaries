@@ -19,6 +19,9 @@
 	export function ksRunNodeBatchHistoryLink(ksName, runId, nodeName) {
 		return "/#/ks/" + ksName + "/run/" + runId + "/node/" + nodeName + "/batch_history";
 	}
+	export function ksRunNodeHistoryLink(ksName, runId) {
+		return "/#/ks/" + ksName + "/run/" + runId + "/node_history";
+	}
 	export function runStatusToIcon(runStatus) {
 		switch (runStatus) {
 			case 0:
