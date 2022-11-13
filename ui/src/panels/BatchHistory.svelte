@@ -61,7 +61,7 @@
         <tr>
             <td style="white-space: nowrap;">{dayjs(e.ts).format("MMM D, YYYY HH:mm:ss.SSS Z")}</td>
             <td>{e.batch_idx} / {e.batches_total}</td>
-            <td><img src={util.nodeStatusToIcon(e.status)} title={util.nodeStatusToText(e.status)} alt=""/></td>
+            <td><img src={util.nodeStatusToIconStatic(e.status)} title={util.nodeStatusToText(e.status)} alt=""/></td>
             <td>{#if e.elapsed > 0} {e.elapsed} {/if}</td>
             <td>{e.first_token}</td>
             <td>{e.last_token}</td>

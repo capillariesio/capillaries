@@ -58,7 +58,7 @@
         <tr>
             <td style="white-space: nowrap;">{dayjs(e.ts).format("MMM D, YYYY HH:mm:ss.SSS Z")}</td>
             <td><a href={util.ksRunNodeBatchHistoryLink(ks_name, e.run_id, e.script_node)}>{e.script_node}</a></td>
-            <td><img src={util.nodeStatusToIcon(e.status)} title={util.nodeStatusToText(e.status)} alt=""/></td>
+            <td><img src={util.nodeStatusToIconStatic(e.status)} title={util.nodeStatusToText(e.status)} alt=""/></td>
             <td>{#if e.elapsed > 0} {e.elapsed} {/if}</td>
             <td>{e.comment}</td>
         </tr>

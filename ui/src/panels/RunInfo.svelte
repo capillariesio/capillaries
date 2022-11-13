@@ -8,11 +8,10 @@
     // Component parameters
     export let run_lifespan = {};
     export let run_props = {};
-    export let keyspace = "";
-    export let run_id = 0;
+    export let ks_name = "";
 
     function onStop() {
-        openModal(ModalStopRun, { keyspace: keyspace, run_id: run_id });
+        openModal(ModalStopRun, { keyspace: ks_name, run_id: run_lifespan.run_id });
     }
 
     function calculateElapsed(ls) {
@@ -46,8 +45,8 @@
                 <td>{dayjs(run_lifespan.completed_ts).valueOf() > 0 ? dayjs(run_lifespan.completed_ts).format("MMM D, YYYY HH:mm:ss.SSS Z") : "never"}</td>
                 <td>{dayjs(run_lifespan.stopped_ts).valueOf() > 0 ? dayjs(run_lifespan.stopped_ts).format("MMM D, YYYY HH:mm:ss.SSS Z") : "never"}</td>
                 <td>{calculateElapsed(run_lifespan)}</td>
-                <td><img src={util.runStatusToIcon(run_lifespan.final_status)} title={util.runStatusToText(run_lifespan.final_status)} alt=""/></td>
-                <td>{#if run_lifespan.final_status === 1}<button on:click={onStop}>Stop</button>{:else}&nbsp;{/if}</td>
+                <td><img src={util.runStatusToIconStatic(run_lifespan.final_status)} title={util.runStatusToText(run_lifespan.final_status)} alt=""/></td>
+                <td>{#if run_lifespan.final_status >= 1}<button on:click={onStop}>Stop</button>{:else}&nbsp;{/if}</td>
             </tr>
         </tbody>
     </table>

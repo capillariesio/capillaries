@@ -13,12 +13,15 @@
 	let breadcrumbsPathElements = [];
 
     // Webapi data
+	var timer;
     let webapiData = {run_props:{}, run_lifespan:{}, batch_history: []};
     function setWebapiData(dataFromJson) {
 		webapiData = ( !!dataFromJson ? dataFromJson : {run_props:{}, run_lifespan:{}, batch_history: []});
         if (webapiData.run_lifespan.final_status > 1) {
-            clearInterval(timer);
-        }
+            timer = setTimeout(fetchData, 3000);
+        } else {
+			timer = setTimeout(fetchData, 500);
+		}
 	}
 
 	function fetchData() {
@@ -28,21 +31,19 @@
       		.catch(error => {console.log(error);});
 	}
 
-	var timer;
 	onMount(async () => {
         breadcrumbsPathElements = [
             { title:"Keyspaces", link:util.rootLink() },
             { title:params.ks_name + " matrix", link:util.ksMatrixLink(params.ks_name) },
             { title:params.ks_name + "/" + params.run_id + "/" + params.node_name +" batch history" }  ];
     	fetchData();
-		timer = setInterval(fetchData, 500);
     });
 	onDestroy(async () => {
-    	clearInterval(timer);
+    	clearTimeout(timer);
     });
 </script>
 
 <Util bind:this={util} />
 <Breadcrumbs bind:pathElements={breadcrumbsPathElements}/>
-<RunInfo bind:run_lifespan={webapiData.run_lifespan} bind:run_props={webapiData.run_props}/>
+<RunInfo bind:run_lifespan={webapiData.run_lifespan} bind:run_props={webapiData.run_props} bind:ks_name={params.ks_name}/>
 <BatchHistory bind:batch_history={webapiData.batch_history}/>

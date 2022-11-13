@@ -1,6 +1,6 @@
 <script>
     import { closeModal } from 'svelte-modals'
-    import Util, { handleResponse } from '../Util.svelte';
+    import Util, { webapiUrl, handleResponse } from '../Util.svelte';
 
     // provided by Modals
     export let isOpen
@@ -22,10 +22,10 @@
     let stopComment = "Stopped using capillaries-ui";
 
     function stopAndCloseModal() {
-		fetch(new Request(Util.webapiUrl + "/ks/" + keyspace + "/run/" + run_id, {method: 'DELETE', body: '{"comment": "' + stopComment +'"}'}))
+		fetch(new Request(webapiUrl() + "/ks/" + keyspace + "/run/" + run_id, {method: 'DELETE', body: '{"comment": "' + stopComment +'"}'}))
       		.then(response => response.json())
       		.then(responseJson => { handleResponse(responseJson, setWebapiData);})
-      		.catch(error => {console.log(error);});
+      		.catch(error => {responseError = error;});
         
     }
   </script>
@@ -33,10 +33,10 @@
   {#if isOpen}
   <div role="dialog" class="modal">
     <div class="contents">
-      <h2>Stop {keyspace}/{run_id}?</h2>
-      <h4>Comment:</h4>
+      <p>You are about to stop run {run_id} in {keyspace}</p>
+      Comment (will be stored in run history):
       <input value={stopComment}>
-      <h4>{responseError}</h4>
+      <p style="color:red;">{responseError}</p>
 
       <div class="actions">
         <button on:click="{closeModal}">Cancel</button>
@@ -62,7 +62,7 @@
     }
   
     .contents {
-      min-width: 240px;
+      min-width: 80%;
       border-radius: 6px;
       padding: 16px;
       background: white;
@@ -72,12 +72,6 @@
       pointer-events: auto;
     }
   
-    h2 {
-      text-align: center;
-      font-size: 24px;
-    }
-  
- 
     .actions {
       margin-top: 32px;
       display: flex;

@@ -48,9 +48,9 @@
 		<th>Nodes ({webapiData.nodes.length}) \ Runs ({webapiData.run_lifespans.length})</th>
 		{#each webapiData.run_lifespans as ls}
 		  <th>
-			{ls.run_id}
 			<a href={util.ksRunNodeHistoryLink(params.ks_name, ls.run_id)}>
-				<img src={util.runStatusToIcon(ls.final_status)} title={util.runStatusToText(ls.final_status)} alt=""/>
+				{ls.run_id}
+				<img src={util.runStatusToIconLink(ls.final_status)} title={util.runStatusToText(ls.final_status)} alt=""/>
 			</a>
 		  </th>
 		{/each}
@@ -63,7 +63,7 @@
 			<td>
 				{#if ns.status > 0}
 					<a href={util.ksRunNodeBatchHistoryLink(params.ks_name, ns.run_id, node.node_name)}>
-						<img src={util.nodeStatusToIcon(ns.status)} title={util.nodeStatusToText(ns.status) + " - " + dayjs(ns.ts).format()} alt=""/>
+						<img src={util.nodeStatusToIconLink(ns.status)} title={util.nodeStatusToText(ns.status) + " - " + dayjs(ns.ts).format()} alt=""/>
 					</a>
 				{/if}
 			</td>

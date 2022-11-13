@@ -22,25 +22,33 @@
 	export function ksRunNodeHistoryLink(ksName, runId) {
 		return "/#/ks/" + ksName + "/run/" + runId + "/node_history";
 	}
-	export function runStatusToIcon(runStatus) {
+	export function runStatusToIconStatic(runStatus) {
 		switch (runStatus) {
-			case 0:
-				return "i/schedule-svgrepo-com.svg" 
 			case 1:
-				return "i/running-run-svgrepo-com.svg" 
+				return "i/black-run.svg" 
 			case 2:
-				return "i/finish-line-flag-svgrepo-com.svg" 
+				return "i/black-finish.svg" 
 			case 3:
-				return "i/error-alt-svgrepo-com.svg" 
+				return "i/black-stop.svg" 
 			default:
-				return "i/question-svgrepo-com.svg" 
+				return "i/black-question.svg" 
+		}
+	}
+	export function runStatusToIconLink(runStatus) {
+		switch (runStatus) {
+			case 1:
+				return "i/blue-run.svg" 
+			case 2:
+				return "i/blue-finish.svg" 
+			case 3:
+				return "i/blue-stop.svg" 
+			default:
+				return "i/blue-question.svg" 
 		}
 	}
 
 	export function runStatusToText(runStatus) {
 		switch (runStatus) {
-			case 0:
-				return "Not started" 
 			case 1:
 				return "Running" 
 			case 2:
@@ -52,27 +60,38 @@
 		}
 	}     
 
-	export function nodeStatusToIcon(nodeStatus) {
+	export function nodeStatusToIconStatic(nodeStatus) {
 		switch (nodeStatus) {
-			case 0:
-				return "i/schedule-svgrepo-com.svg" 
 			case 1:
-				return "i/running-run-svgrepo-com.svg" 
+				return "i/black-run.svg" 
 			case 2:
-				return "i/success-svgrepo-com.svg" 
+				return "i/black-check.svg" 
 			case 3:
-				return "i/error-svgrepo-com.svg" 
+				return "i/black-triangle.svg" 
 			case 104:
-				return "i/error-alt-svgrepo-com.svg" 
+				return "i/black-stop.svg" 
 			default:
-				return "i/question-svgrepo-com.svg" 
+				return "i/black-question.svg" 
+		}
+	} 
+
+	export function nodeStatusToIconLink(nodeStatus) {
+		switch (nodeStatus) {
+			case 1:
+				return "i/blue-run.svg" 
+			case 2:
+				return "i/blue-check.svg" 
+			case 3:
+				return "i/blue-triangle.svg" 
+			case 104:
+				return "i/blue-stop.svg" 
+			default:
+				return "i/blue-question.svg" 
 		}
 	} 
 
 	export function nodeStatusToText(nodeStatus) {
 		switch (nodeStatus) {
-			case 0:
-				return "Not started" 
 			case 1:
 				return "Started" 
 			case 2:
