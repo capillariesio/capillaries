@@ -20,6 +20,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/wfdb"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
+	"github.com/gocql/gocql"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -276,6 +277,32 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 // 	WriteApiSuccess(h.L, w, result)
 // }
 
+func getRunPropsAndLifespans(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId int16) (*wfmodel.RunProperties, *wfmodel.RunLifespan, error) {
+	// Static run properties
+	// TODO: consider caching
+
+	allRunsProps, err := wfdb.GetRunProperties(cqlSession, keyspace, int16(runId))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if len(allRunsProps) != 1 {
+		return nil, nil, fmt.Errorf("invalid number of matching runs (%d), expected 1 ", len(allRunsProps))
+	}
+
+	// Run status
+
+	runLifeSpans, err := wfdb.HarvestRunLifespans(logger, cqlSession, keyspace, []int16{int16(runId)})
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(runLifeSpans) != 1 {
+		return nil, nil, fmt.Errorf("invalid number of run life spans (%d), expected 1 ", len(runLifeSpans))
+	}
+
+	return allRunsProps[0], runLifeSpans[int16(runId)], nil
+}
+
 type RunNodeBatchesInfo struct {
 	RunProps            *wfmodel.RunProperties       `json:"run_props"`
 	RunLs               *wfmodel.RunLifespan         `json:"run_lifespan"`
@@ -297,34 +324,12 @@ func (h *UrlHandler) ksRunNodeBatchHistory(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Static run properties
-	// TODO: consider caching
-
-	allRunsProps, err := wfdb.GetRunProperties(cqlSession, keyspace, int16(runId))
+	result := RunNodeBatchesInfo{}
+	result.RunProps, result.RunLs, err = getRunPropsAndLifespans(h.L, cqlSession, keyspace, int16(runId))
 	if err != nil {
 		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
-
-	if len(allRunsProps) != 1 {
-		WriteApiError(h.L, w, r.URL.Path, fmt.Errorf("invalid number of matching runs (%d), expected 1 ", len(allRunsProps)), http.StatusInternalServerError)
-		return
-	}
-
-	result := RunNodeBatchesInfo{RunProps: allRunsProps[0]}
-
-	// Run status
-
-	runLifeSpans, err := wfdb.HarvestRunLifespans(h.L, cqlSession, keyspace, []int16{int16(runId)})
-	if err != nil {
-		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
-		return
-	}
-	if len(runLifeSpans) != 1 {
-		WriteApiError(h.L, w, r.URL.Path, fmt.Errorf("invalid number of run life spans (%d), expected 1 ", len(runLifeSpans)), http.StatusInternalServerError)
-		return
-	}
-	result.RunLs = runLifeSpans[int16(runId)]
 
 	// Batch history
 
@@ -338,8 +343,9 @@ func (h *UrlHandler) ksRunNodeBatchHistory(w http.ResponseWriter, r *http.Reques
 }
 
 type RunNodesInfo struct {
-	RunProps *wfmodel.RunProperties `json:"run_props"`
-	RunLs    *wfmodel.RunLifespan   `json:"run_lifespan"`
+	RunProps       *wfmodel.RunProperties      `json:"run_props"`
+	RunLs          *wfmodel.RunLifespan        `json:"run_lifespan"`
+	RunNodeHistory []*wfmodel.NodeHistoryEvent `json:"node_history"`
 }
 
 func (h *UrlHandler) ksRunNodeHistory(w http.ResponseWriter, r *http.Request) {
@@ -357,36 +363,21 @@ func (h *UrlHandler) ksRunNodeHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Static run properties
-	// TODO: consider caching
-
-	allRunsProps, err := wfdb.GetRunProperties(cqlSession, keyspace, int16(runId))
+	result := RunNodesInfo{}
+	result.RunProps, result.RunLs, err = getRunPropsAndLifespans(h.L, cqlSession, keyspace, int16(runId))
 	if err != nil {
 		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
-	if len(allRunsProps) != 1 {
-		WriteApiError(h.L, w, r.URL.Path, fmt.Errorf("invalid number of matching runs (%d), expected 1 ", len(allRunsProps)), http.StatusInternalServerError)
-		return
-	}
+	// Node history
 
-	result := RunNodesInfo{RunProps: allRunsProps[0]}
-
-	// Run status
-
-	runLifeSpans, err := wfdb.HarvestRunLifespans(h.L, cqlSession, keyspace, []int16{int16(runId)})
+	result.RunNodeHistory, err = wfdb.GetNodeHistoryForRun(h.L, cqlSession, keyspace, int16(runId))
 	if err != nil {
 		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
-	if len(runLifeSpans) != 1 {
-		WriteApiError(h.L, w, r.URL.Path, fmt.Errorf("invalid number of run life spans (%d), expected 1 ", len(runLifeSpans)), http.StatusInternalServerError)
-		return
-	}
-	result.RunLs = runLifeSpans[int16(runId)]
-
-	// TODO: node history
+	sort.Slice(result.RunNodeHistory, func(i, j int) bool { return result.RunNodeHistory[i].Ts.Before(result.RunNodeHistory[j].Ts) })
 
 	WriteApiSuccess(h.L, w, result)
 }

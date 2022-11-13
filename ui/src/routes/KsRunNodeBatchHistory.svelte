@@ -1,6 +1,5 @@
 <script>
     import { onDestroy, onMount } from "svelte";
-    import dayjs from "dayjs";
     import RunInfo from "../panels/RunInfo.svelte";
     import BatchHistory from "../panels/BatchHistory.svelte";
     import Breadcrumbs from "../panels/Breadcrumbs.svelte";
@@ -17,6 +16,9 @@
     let webapiData = {run_props:{}, run_lifespan:{}, batch_history: []};
     function setWebapiData(dataFromJson) {
 		webapiData = ( !!dataFromJson ? dataFromJson : {run_props:{}, run_lifespan:{}, batch_history: []});
+        if (webapiData.run_lifespan.final_status > 1) {
+            clearInterval(timer);
+        }
 	}
 
 	function fetchData() {

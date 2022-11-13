@@ -1,8 +1,8 @@
 <script>
     import { onDestroy, onMount } from "svelte";
-    import dayjs from "dayjs";
     import RunInfo from "../panels/RunInfo.svelte";
     import Breadcrumbs from "../panels/Breadcrumbs.svelte";
+    import NodeHistory from "../panels/NodeHistory.svelte";
 	import Util, { webapiUrl, handleResponse } from '../Util.svelte';
 	let util;
 
@@ -13,9 +13,12 @@
 	let breadcrumbsPathElements = [];
 
     // Webapi data
-    let webapiData = {run_props:{}, run_lifespan:{}};
+    let webapiData = {run_props:{}, run_lifespan:{}, node_history:[]};
     function setWebapiData(dataFromJson) {
-		webapiData = ( !!dataFromJson ? dataFromJson : {run_props:{}, run_lifespan:{}});
+		webapiData = ( !!dataFromJson ? dataFromJson : {run_props:{}, run_lifespan:{}, node_history:[]});
+        if (webapiData.run_lifespan.final_status > 1) {
+            clearInterval(timer);
+        }
 	}
 
 	function fetchData() {
@@ -42,3 +45,4 @@
 <Util bind:this={util} />
 <Breadcrumbs bind:pathElements={breadcrumbsPathElements}/>
 <RunInfo bind:run_lifespan={webapiData.run_lifespan} bind:run_props={webapiData.run_props}/>
+<NodeHistory bind:node_history={webapiData.node_history} bind:ks_name={params.ks_name}/>

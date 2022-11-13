@@ -5,7 +5,7 @@
 	let util;
 
     // Component parameters
-    export let batch_history = {};
+    export let batch_history = [];
 
     afterUpdate(() => {
         // Calculate elapsed times for each batch
