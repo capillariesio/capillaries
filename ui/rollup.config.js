@@ -7,6 +7,8 @@ import css from 'rollup-plugin-css-only';
 import replace from '@rollup/plugin-replace';
 
 const production = !process.env.ROLLUP_WATCH;
+
+// export CAPILLARIES_WEBAPI_URL='http://microsoft.com'
 const suggestedWebapiUrl = (!!process.env.CAPILLARIES_WEBAPI_URL ? process.env.CAPILLARIES_WEBAPI_URL : "http://localhost:6543");
 
 function serve() {
@@ -41,7 +43,6 @@ export default {
 	plugins: [
 		replace({
 			preventAssignment: true,
-			//include:["src/Util.svelte"],
 			values: {'webApiUrlFromConfig': '"' + suggestedWebapiUrl + '"'} }),
 		svelte({
 			compilerOptions: {
