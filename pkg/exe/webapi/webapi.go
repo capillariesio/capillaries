@@ -16,13 +16,32 @@ import (
 
 	"github.com/capillariesio/capillaries/pkg/api"
 	"github.com/capillariesio/capillaries/pkg/cql"
+	"github.com/capillariesio/capillaries/pkg/custom"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/l"
+	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/wfdb"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/gocql/gocql"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
+
+type StandardWebapiProcessorDefFactory struct {
+}
+
+func (f *StandardWebapiProcessorDefFactory) Create(processorType string) (sc.CustomProcessorDef, bool) {
+	// All processors to be supported by this 'stock' binary (daemon/toolbelt/webapi).
+	// If you develop your own processor(s), use your own ProcessorDefFactory that lists all processors,
+	// they all must implement CustomProcessorRunner interface
+	switch processorType {
+	case custom.ProcessorPyCalcName:
+		return &custom.PyCalcProcessorDef{}, true
+	case custom.ProcessorTagAndDenormalizeName:
+		return &custom.TagAndDenormalizeProcessorDef{}, true
+	default:
+		return nil, false
+	}
+}
 
 const port = 6543 // Python Pyramid rules
 
@@ -45,8 +64,8 @@ type ApiResponse struct {
 	Error ApiResponseError `json:"error"`
 }
 
-func WriteApiError(l *l.Logger, w http.ResponseWriter, urlPath string, err error, httpStatus int) {
-	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:8080")
+func WriteApiError(l *l.Logger, wc *env.WebapiConfig, w http.ResponseWriter, urlPath string, err error, httpStatus int) {
+	w.Header().Set("Access-Control-Allow-Origin", wc.AccessControlAllowOrigin)
 	l.Error("cannot process %s: %s", urlPath, err.Error())
 	respJson, err := json.Marshal(ApiResponse{Error: ApiResponseError{Msg: err.Error()}})
 	if err != nil {
@@ -56,8 +75,8 @@ func WriteApiError(l *l.Logger, w http.ResponseWriter, urlPath string, err error
 	}
 }
 
-func WriteApiSuccess(l *l.Logger, w http.ResponseWriter, data interface{}) {
-	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:8080")
+func WriteApiSuccess(l *l.Logger, wc *env.WebapiConfig, w http.ResponseWriter, data interface{}) {
+	w.Header().Set("Access-Control-Allow-Origin", wc.AccessControlAllowOrigin)
 	respJson, err := json.Marshal(ApiResponse{Data: data})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("cannot serialize success response: %s", err.Error()), http.StatusInternalServerError)
@@ -71,7 +90,7 @@ func WriteApiSuccess(l *l.Logger, w http.ResponseWriter, data interface{}) {
 func (h *UrlHandler) ks(w http.ResponseWriter, r *http.Request) {
 	cqlSession, err := cql.NewSession(h.Env, "", cql.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
-		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 	defer cqlSession.Close()
@@ -81,7 +100,7 @@ func (h *UrlHandler) ks(w http.ResponseWriter, r *http.Request) {
 	q := qb.Keyspace("system_schema").Select("keyspaces", []string{"keyspace_name"})
 	rows, err := cqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
@@ -97,80 +116,13 @@ func (h *UrlHandler) ks(w http.ResponseWriter, r *http.Request) {
 		ksCount++
 	}
 
-	WriteApiSuccess(h.L, w, respData[:ksCount])
+	WriteApiSuccess(h.L, &h.Env.Webapi, w, respData[:ksCount])
 }
 
 type FullRunInfo struct {
 	Props   *wfmodel.RunProperties     `json:"props"`
 	History []*wfmodel.RunHistoryEvent `json:"history"`
 }
-
-// func (h *UrlHandler) ksRuns(w http.ResponseWriter, r *http.Request) {
-// 	keyspace := getField(r, 0)
-// 	cqlSession, err := cql.NewSession(h.Env, keyspace)
-// 	if err != nil {
-// 		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
-// 		return
-// 	}
-// 	defer cqlSession.Close()
-
-// 	// Get all runs that were ever registered (maybe even not started)
-// 	allRunsProps, err := wfdb.GetAllRunsProperties(cqlSession, keyspace)
-// 	if err != nil {
-// 		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
-// 		return
-// 	}
-
-// 	// Make a ref map RunId->FullRunInfo
-// 	resultMap := map[int16]*FullRunInfo{}
-// 	for _, runProps := range allRunsProps {
-// 		resultMap[runProps.RunId] = &FullRunInfo{Props: runProps}
-// 	}
-
-// 	// Get run history
-// 	runs, err := api.GetRunHistory(h.L, cqlSession, keyspace)
-// 	if err != nil {
-// 		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
-// 		return
-// 	}
-
-// 	// Enrich result with history
-// 	for _, run := range runs {
-// 		fullRunInfo := resultMap[run.RunId]
-// 		fullRunInfo.History = append(fullRunInfo.History, run)
-// 	}
-
-// 	// Map to list
-// 	result := make([]*FullRunInfo, len(resultMap))
-// 	for idx, runProps := range allRunsProps {
-// 		result[idx] = resultMap[runProps.RunId]
-// 	}
-
-// 	WriteApiSuccess(h.L, w, result)
-// }
-
-// func (h *UrlHandler) ksNodes(w http.ResponseWriter, r *http.Request) {
-// 	keyspace := getField(r, 0)
-// 	cqlSession, err := cql.NewSession(h.Env, keyspace)
-// 	if err != nil {
-// 		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
-// 		return
-// 	}
-// 	defer cqlSession.Close()
-
-// 	result, err := api.GetRunsNodeHistory(h.L, cqlSession, keyspace, []int16{})
-// 	if err != nil {
-// 		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
-// 		return
-// 	}
-// 	WriteApiSuccess(h.L, w, result)
-// }
-
-// type WebapiRunStatus struct {
-// 	RunId  int16                 `json:"run_id"`
-// 	Status wfmodel.RunStatusType `json:"status"`
-// 	Ts     string                `json:"ts"`
-// }
 
 type WebapiNodeStatus struct {
 	RunId  int16                       `json:"run_id"`
@@ -191,7 +143,7 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 	keyspace := getField(r, 0)
 	cqlSession, err := cql.NewSession(h.Env, keyspace, cql.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
-		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 	defer cqlSession.Close()
@@ -199,7 +151,7 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 	// Retrieve all runs that happened in this ks and find their current statuses
 	runLifespanMap, err := wfdb.HarvestRunLifespans(h.L, cqlSession, keyspace, []int16{})
 	if err != nil {
-		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
@@ -215,7 +167,7 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 	// Retireve all node events for this ks, for all runs
 	nodeHistory, err := api.GetRunsNodeHistory(h.L, cqlSession, keyspace, []int16{})
 	if err != nil {
-		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
@@ -251,30 +203,30 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 		return nodeStartTsMap[mx.Nodes[i].NodeName].Before(nodeStartTsMap[mx.Nodes[j].NodeName])
 	})
 
-	WriteApiSuccess(h.L, w, mx)
+	WriteApiSuccess(h.L, &h.Env.Webapi, w, mx)
 }
 
 // func (h *UrlHandler) ksRunNodes(w http.ResponseWriter, r *http.Request) {
 // 	keyspace := getField(r, 0)
 // 	cqlSession, err := cql.NewSession(h.Env, keyspace)
 // 	if err != nil {
-// 		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+// 		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
 // 		return
 // 	}
 // 	defer cqlSession.Close()
 
 // 	runId, err := strconv.Atoi(getField(r, 1))
 // 	if err != nil {
-// 		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+// 		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
 // 		return
 // 	}
 
 // 	result, err := api.GetRunsNodeHistory(h.L, cqlSession, keyspace, []int16{int16(runId)})
 // 	if err != nil {
-// 		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+// 		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
 // 		return
 // 	}
-// 	WriteApiSuccess(h.L, w, result)
+// 	WriteApiSuccess(h.L, &h.Env.Webapi, w, result)
 // }
 
 func getRunPropsAndLifespans(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId int16) (*wfmodel.RunProperties, *wfmodel.RunLifespan, error) {
@@ -313,21 +265,21 @@ func (h *UrlHandler) ksRunNodeBatchHistory(w http.ResponseWriter, r *http.Reques
 	keyspace := getField(r, 0)
 	cqlSession, err := cql.NewSession(h.Env, keyspace, cql.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
-		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 	defer cqlSession.Close()
 
 	runId, err := strconv.Atoi(getField(r, 1))
 	if err != nil {
-		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
 	result := RunNodeBatchesInfo{}
 	result.RunProps, result.RunLs, err = getRunPropsAndLifespans(h.L, cqlSession, keyspace, int16(runId))
 	if err != nil {
-		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
@@ -336,10 +288,10 @@ func (h *UrlHandler) ksRunNodeBatchHistory(w http.ResponseWriter, r *http.Reques
 	nodeName := getField(r, 2)
 	result.RunNodeBatchHistory, err = wfdb.GetRunNodeBatchHistory(h.L, cqlSession, keyspace, int16(runId), nodeName)
 	if err != nil {
-		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
-	WriteApiSuccess(h.L, w, result)
+	WriteApiSuccess(h.L, &h.Env.Webapi, w, result)
 }
 
 type RunNodesInfo struct {
@@ -352,21 +304,21 @@ func (h *UrlHandler) ksRunNodeHistory(w http.ResponseWriter, r *http.Request) {
 	keyspace := getField(r, 0)
 	cqlSession, err := cql.NewSession(h.Env, keyspace, cql.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
-		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 	defer cqlSession.Close()
 
 	runId, err := strconv.Atoi(getField(r, 1))
 	if err != nil {
-		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
 	result := RunNodesInfo{}
 	result.RunProps, result.RunLs, err = getRunPropsAndLifespans(h.L, cqlSession, keyspace, int16(runId))
 	if err != nil {
-		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
@@ -374,59 +326,64 @@ func (h *UrlHandler) ksRunNodeHistory(w http.ResponseWriter, r *http.Request) {
 
 	result.RunNodeHistory, err = wfdb.GetNodeHistoryForRun(h.L, cqlSession, keyspace, int16(runId))
 	if err != nil {
-		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 	sort.Slice(result.RunNodeHistory, func(i, j int) bool { return result.RunNodeHistory[i].Ts.Before(result.RunNodeHistory[j].Ts) })
 
-	WriteApiSuccess(h.L, w, result)
+	WriteApiSuccess(h.L, &h.Env.Webapi, w, result)
 }
 
-type StartRunInfo struct {
+type StartedRunInfo struct {
 	RunId int16 `json:"run_id"`
+}
+
+func (h *UrlHandler) ksStartRunOptions(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Methods", "OPTIONS,POST")
+	WriteApiSuccess(h.L, &h.Env.Webapi, w, nil)
 }
 
 func (h *UrlHandler) ksStartRun(w http.ResponseWriter, r *http.Request) {
 	keyspace := getField(r, 0)
 	cqlSession, err := cql.NewSession(h.Env, keyspace, cql.CreateKeyspaceOnConnect)
 	if err != nil {
-		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
 	amqpConnection, err := amqp.Dial(h.Env.Amqp.URL)
 	if err != nil {
-		WriteApiError(h.L, w, r.URL.Path, fmt.Errorf("cannot dial RabbitMQ at %v, will reconnect: %v\n", h.Env.Amqp.URL, err), http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, fmt.Errorf("cannot dial RabbitMQ at %v, will reconnect: %v\n", h.Env.Amqp.URL, err), http.StatusInternalServerError)
 		return
 	}
 	defer amqpConnection.Close()
 
 	amqpChannel, err := amqpConnection.Channel()
 	if err != nil {
-		WriteApiError(h.L, w, r.URL.Path, fmt.Errorf("cannot create amqp channel: %v\n", err), http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, fmt.Errorf("cannot create amqp channel: %v\n", err), http.StatusInternalServerError)
 		return
 	}
 	defer amqpChannel.Close()
 
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
 	runProps := wfmodel.RunProperties{}
 	if err = json.Unmarshal(bodyBytes, &runProps); err != nil {
-		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
 	runId, err := api.StartRun(h.Env, h.L, amqpChannel, runProps.ScriptUri, runProps.ScriptParamsUri, cqlSession, keyspace, strings.Split(runProps.StartNodes, ","))
 	if err != nil {
-		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
-	WriteApiSuccess(h.L, w, StartRunInfo{RunId: runId})
+	WriteApiSuccess(h.L, &h.Env.Webapi, w, StartedRunInfo{RunId: runId})
 }
 
 type StopRunInfo struct {
@@ -435,40 +392,40 @@ type StopRunInfo struct {
 
 func (h *UrlHandler) ksStopRunOptions(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Methods", "OPTIONS,DELETE")
-	WriteApiSuccess(h.L, w, nil)
+	WriteApiSuccess(h.L, &h.Env.Webapi, w, nil)
 }
 
 func (h *UrlHandler) ksStopRun(w http.ResponseWriter, r *http.Request) {
 	keyspace := getField(r, 0)
 	cqlSession, err := cql.NewSession(h.Env, keyspace, cql.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
-		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
 	stopRunInfo := StopRunInfo{}
 	if err = json.Unmarshal(bodyBytes, &stopRunInfo); err != nil {
-		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
 	runId, err := strconv.Atoi(getField(r, 1))
 	if err != nil {
-		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
 	if err = api.StopRun(h.L, cqlSession, keyspace, int16(runId), stopRunInfo.Comment); err != nil {
-		WriteApiError(h.L, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
-	WriteApiSuccess(h.L, w, nil)
+	WriteApiSuccess(h.L, &h.Env.Webapi, w, nil)
 }
 
 type UrlHandler struct {
@@ -516,6 +473,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Webapi (like toolbelt and daemon) requires custom proc def factory, otherwise it will not be able to start runs
+	envConfig.CustomProcessorDefFactoryInstance = &StandardWebapiProcessorDefFactory{}
 	logger, err := l.NewLoggerFromEnvConfig(envConfig)
 	if err != nil {
 		log.Fatalf(err.Error())
@@ -530,12 +489,10 @@ func main() {
 	routes = []route{
 		newRoute("GET", "/ks[/]*", h.ks),
 		newRoute("GET", "/ks/([a-zA-Z0-9_]+)[/]*", h.ksMatrix),
-		//newRoute("GET", "/ks/([a-zA-Z0-9_]+)/run[/]*", h.ksRuns),
-		//newRoute("GET", "/ks/([a-zA-Z0-9_]+)/node[/]*", h.ksNodes),
-		//newRoute("GET", "/ks/([a-zA-Z0-9_]+)/run/([0-9]+)/node[/]*", h.ksRunNodes),
 		newRoute("GET", "/ks/([a-zA-Z0-9_]+)/run/([0-9]+)/node/([a-zA-Z0-9_]+)/batch_history[/]*", h.ksRunNodeBatchHistory),
 		newRoute("GET", "/ks/([a-zA-Z0-9_]+)/run/([0-9]+)/node_history[/]*", h.ksRunNodeHistory),
 		newRoute("POST", "/ks/([a-zA-Z0-9_]+)/run[/]*", h.ksStartRun),
+		newRoute("OPTIONS", "/ks/([a-zA-Z0-9_]+)/run[/]*", h.ksStartRunOptions),
 		newRoute("DELETE", "/ks/([a-zA-Z0-9_]+)/run/([0-9]+)[/]*", h.ksStopRun),
 		newRoute("OPTIONS", "/ks/([a-zA-Z0-9_]+)/run/([0-9]+)[/]*", h.ksStopRunOptions),
 	}

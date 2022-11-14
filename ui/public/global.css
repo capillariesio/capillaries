@@ -416,3 +416,9 @@
   
   /* Larger than Desktop HD */
   @media (min-width: 1200px) {}
+
+  button {
+  margin: 0px;
+  padding: 1px 4px 0px 4px;
+  height: auto;
+  line-height: 20px;}

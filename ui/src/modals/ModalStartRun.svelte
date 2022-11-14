@@ -6,42 +6,47 @@
     export let isOpen
 
     // Component parameters
-    export let run_id
     export let keyspace
 
     let responseError = "";
     function setWebapiData(dataFromJson, errorFromJson) {
 		if (!!errorFromJson) {
-            responseError = errorFromJson;
+          responseError = errorFromJson;
         } else {
-            responseError = "";
-            closeModal();
+          console.log(dataFromJson);
+          responseError = "";
+           closeModal();
         }
     }
 
     // Local variables
-    let stopComment = "Stopped using capillaries-ui";
+    let scriptUri = "";
+    let paramsUri = "";
+    let startNodes = "";
 
-    function stopAndCloseModal() {
-		fetch(new Request(webapiUrl() + "/ks/" + keyspace + "/run/" + run_id, {method: 'DELETE', body: '{"comment": "' + stopComment +'"}'}))
-      		.then(response => response.json())
-      		.then(responseJson => { handleResponse(responseJson, setWebapiData);})
-      		.catch(error => {responseError = error;});
-        
+    function newAndCloseModal() {
+      console.log("Sending:",JSON.stringify({"script_uri": scriptUri, "script_params_uri": paramsUri, "start_nodes": startNodes}));
+      fetch(new Request(webapiUrl() + "/ks/" + keyspace + "/run", {method: 'POST', body: JSON.stringify({"script_uri": scriptUri, "script_params_uri": paramsUri, "start_nodes": startNodes})}))
+            .then(response => response.json())
+            .then(responseJson => { handleResponse(responseJson, setWebapiData);})
+            .catch(error => {responseError = error;});
     }
   </script>
   
   {#if isOpen}
   <div role="dialog" class="modal">
     <div class="contents">
-      <p>You are about to stop run {run_id} in {keyspace}</p>
-      Comment (will be stored in run history):
-      <input bind:value={stopComment}>
+      <p>You are about to start a new run in {keyspace}</p>
+      Script URI:
+      <input bind:value={scriptUri}>
+      Script parameters URI:
+      <input bind:value={paramsUri}>
+      Start nodes:
+      <input bind:value={startNodes}>
       <p style="color:red;">{responseError}</p>
-
       <div class="actions">
         <button on:click="{closeModal}">Cancel</button>
-        <button on:click="{stopAndCloseModal}">OK</button>
+        <button on:click="{newAndCloseModal}">OK</button>
       </div>
     </div>
   </div>

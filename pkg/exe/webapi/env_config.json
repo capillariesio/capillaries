@@ -17,6 +17,16 @@
       "prefetch_count": 20,
       "prefetch_size": 0
     },
+    "webapi": {
+      "access_control_allow_origin": "http://localhost:8080"
+    },
+    "custom_processors":{
+      "py_calc":{
+        "python_interpreter_path":"python",
+        "python_interpreter_params":["-u", "-"]
+      },
+      "tag_and_denormalize":{}
+    },
     "zap_config":{
           "level": "debug",
           "outputPaths": ["stdout"],

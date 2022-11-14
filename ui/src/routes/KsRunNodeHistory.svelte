@@ -34,8 +34,8 @@
 	onMount(async () => {
         breadcrumbsPathElements = [
             { title:"Keyspaces", link:util.rootLink() },
-            { title:params.ks_name + " matrix", link:util.ksMatrixLink(params.ks_name) },
-            { title:params.ks_name + "/" + params.run_id + " node history" }  ];
+            { title:params.ks_name, link:util.ksMatrixLink(params.ks_name) },
+            { title:"Node history: run " + params.run_id}  ];
     	fetchData();
     });
 	onDestroy(async () => {
