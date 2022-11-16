@@ -116,7 +116,7 @@
                 }
             }
         },
-        "file_tagged_products": {
+        "file_tagged_products_for_operator_review": {
             "type": "table_file",
             "desc": "All tagged products to file that can be inspected by the operator",
             "r": {

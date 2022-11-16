@@ -64,8 +64,27 @@ type ApiResponse struct {
 	Error ApiResponseError `json:"error"`
 }
 
-func WriteApiError(l *l.Logger, wc *env.WebapiConfig, w http.ResponseWriter, urlPath string, err error, httpStatus int) {
-	w.Header().Set("Access-Control-Allow-Origin", wc.AccessControlAllowOrigin)
+func pickAccessControlAllowOrigin(wc *env.WebapiConfig, r *http.Request) string {
+	if wc.AccessControlAllowOrigin == "*" {
+		return "*"
+	}
+	allowedOrigins := strings.Split(wc.AccessControlAllowOrigin, ",")
+	requestedOrigins, ok := r.Header["Origin"]
+	if !ok || len(requestedOrigins) == 0 {
+		return "no-origins-requested"
+	}
+	for _, allowedOrigin := range allowedOrigins {
+		for _, requestedOrigin := range requestedOrigins {
+			if strings.ToUpper(requestedOrigin) == strings.ToUpper(allowedOrigin) {
+				return requestedOrigin
+			}
+		}
+	}
+	return "no-allowed-origins"
+}
+
+func WriteApiError(l *l.Logger, wc *env.WebapiConfig, r *http.Request, w http.ResponseWriter, urlPath string, err error, httpStatus int) {
+	w.Header().Set("Access-Control-Allow-Origin", pickAccessControlAllowOrigin(wc, r))
 	l.Error("cannot process %s: %s", urlPath, err.Error())
 	respJson, err := json.Marshal(ApiResponse{Error: ApiResponseError{Msg: err.Error()}})
 	if err != nil {
@@ -75,8 +94,8 @@ func WriteApiError(l *l.Logger, wc *env.WebapiConfig, w http.ResponseWriter, url
 	}
 }
 
-func WriteApiSuccess(l *l.Logger, wc *env.WebapiConfig, w http.ResponseWriter, data interface{}) {
-	w.Header().Set("Access-Control-Allow-Origin", wc.AccessControlAllowOrigin)
+func WriteApiSuccess(l *l.Logger, wc *env.WebapiConfig, r *http.Request, w http.ResponseWriter, data interface{}) {
+	w.Header().Set("Access-Control-Allow-Origin", pickAccessControlAllowOrigin(wc, r))
 	respJson, err := json.Marshal(ApiResponse{Data: data})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("cannot serialize success response: %s", err.Error()), http.StatusInternalServerError)
@@ -90,7 +109,7 @@ func WriteApiSuccess(l *l.Logger, wc *env.WebapiConfig, w http.ResponseWriter, d
 func (h *UrlHandler) ks(w http.ResponseWriter, r *http.Request) {
 	cqlSession, err := cql.NewSession(h.Env, "", cql.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 	defer cqlSession.Close()
@@ -100,7 +119,7 @@ func (h *UrlHandler) ks(w http.ResponseWriter, r *http.Request) {
 	q := qb.Keyspace("system_schema").Select("keyspaces", []string{"keyspace_name"})
 	rows, err := cqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
@@ -116,7 +135,7 @@ func (h *UrlHandler) ks(w http.ResponseWriter, r *http.Request) {
 		ksCount++
 	}
 
-	WriteApiSuccess(h.L, &h.Env.Webapi, w, respData[:ksCount])
+	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, respData[:ksCount])
 }
 
 type FullRunInfo struct {
@@ -143,7 +162,7 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 	keyspace := getField(r, 0)
 	cqlSession, err := cql.NewSession(h.Env, keyspace, cql.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 	defer cqlSession.Close()
@@ -151,7 +170,7 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 	// Retrieve all runs that happened in this ks and find their current statuses
 	runLifespanMap, err := wfdb.HarvestRunLifespans(h.L, cqlSession, keyspace, []int16{})
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
@@ -167,7 +186,7 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 	// Retireve all node events for this ks, for all runs
 	nodeHistory, err := api.GetRunsNodeHistory(h.L, cqlSession, keyspace, []int16{})
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
@@ -203,30 +222,30 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 		return nodeStartTsMap[mx.Nodes[i].NodeName].Before(nodeStartTsMap[mx.Nodes[j].NodeName])
 	})
 
-	WriteApiSuccess(h.L, &h.Env.Webapi, w, mx)
+	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, mx)
 }
 
 // func (h *UrlHandler) ksRunNodes(w http.ResponseWriter, r *http.Request) {
 // 	keyspace := getField(r, 0)
 // 	cqlSession, err := cql.NewSession(h.Env, keyspace)
 // 	if err != nil {
-// 		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+// 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 // 		return
 // 	}
 // 	defer cqlSession.Close()
 
 // 	runId, err := strconv.Atoi(getField(r, 1))
 // 	if err != nil {
-// 		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+// 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 // 		return
 // 	}
 
 // 	result, err := api.GetRunsNodeHistory(h.L, cqlSession, keyspace, []int16{int16(runId)})
 // 	if err != nil {
-// 		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+// 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 // 		return
 // 	}
-// 	WriteApiSuccess(h.L, &h.Env.Webapi, w, result)
+// 	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, result)
 // }
 
 func getRunPropsAndLifespans(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId int16) (*wfmodel.RunProperties, *wfmodel.RunLifespan, error) {
@@ -265,21 +284,21 @@ func (h *UrlHandler) ksRunNodeBatchHistory(w http.ResponseWriter, r *http.Reques
 	keyspace := getField(r, 0)
 	cqlSession, err := cql.NewSession(h.Env, keyspace, cql.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 	defer cqlSession.Close()
 
 	runId, err := strconv.Atoi(getField(r, 1))
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
 	result := RunNodeBatchesInfo{}
 	result.RunProps, result.RunLs, err = getRunPropsAndLifespans(h.L, cqlSession, keyspace, int16(runId))
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
@@ -288,10 +307,10 @@ func (h *UrlHandler) ksRunNodeBatchHistory(w http.ResponseWriter, r *http.Reques
 	nodeName := getField(r, 2)
 	result.RunNodeBatchHistory, err = wfdb.GetRunNodeBatchHistory(h.L, cqlSession, keyspace, int16(runId), nodeName)
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
-	WriteApiSuccess(h.L, &h.Env.Webapi, w, result)
+	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, result)
 }
 
 type RunNodesInfo struct {
@@ -304,21 +323,21 @@ func (h *UrlHandler) ksRunNodeHistory(w http.ResponseWriter, r *http.Request) {
 	keyspace := getField(r, 0)
 	cqlSession, err := cql.NewSession(h.Env, keyspace, cql.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 	defer cqlSession.Close()
 
 	runId, err := strconv.Atoi(getField(r, 1))
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
 	result := RunNodesInfo{}
 	result.RunProps, result.RunLs, err = getRunPropsAndLifespans(h.L, cqlSession, keyspace, int16(runId))
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
@@ -326,12 +345,12 @@ func (h *UrlHandler) ksRunNodeHistory(w http.ResponseWriter, r *http.Request) {
 
 	result.RunNodeHistory, err = wfdb.GetNodeHistoryForRun(h.L, cqlSession, keyspace, int16(runId))
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 	sort.Slice(result.RunNodeHistory, func(i, j int) bool { return result.RunNodeHistory[i].Ts.Before(result.RunNodeHistory[j].Ts) })
 
-	WriteApiSuccess(h.L, &h.Env.Webapi, w, result)
+	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, result)
 }
 
 type StartedRunInfo struct {
@@ -340,50 +359,50 @@ type StartedRunInfo struct {
 
 func (h *UrlHandler) ksStartRunOptions(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Methods", "OPTIONS,POST")
-	WriteApiSuccess(h.L, &h.Env.Webapi, w, nil)
+	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, nil)
 }
 
 func (h *UrlHandler) ksStartRun(w http.ResponseWriter, r *http.Request) {
 	keyspace := getField(r, 0)
 	cqlSession, err := cql.NewSession(h.Env, keyspace, cql.CreateKeyspaceOnConnect)
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
 	amqpConnection, err := amqp.Dial(h.Env.Amqp.URL)
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, fmt.Errorf("cannot dial RabbitMQ at %v, will reconnect: %v\n", h.Env.Amqp.URL, err), http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot dial RabbitMQ at %v, will reconnect: %v\n", h.Env.Amqp.URL, err), http.StatusInternalServerError)
 		return
 	}
 	defer amqpConnection.Close()
 
 	amqpChannel, err := amqpConnection.Channel()
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, fmt.Errorf("cannot create amqp channel: %v\n", err), http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot create amqp channel: %v\n", err), http.StatusInternalServerError)
 		return
 	}
 	defer amqpChannel.Close()
 
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
 	runProps := wfmodel.RunProperties{}
 	if err = json.Unmarshal(bodyBytes, &runProps); err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
 	runId, err := api.StartRun(h.Env, h.L, amqpChannel, runProps.ScriptUri, runProps.ScriptParamsUri, cqlSession, keyspace, strings.Split(runProps.StartNodes, ","))
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
-	WriteApiSuccess(h.L, &h.Env.Webapi, w, StartedRunInfo{RunId: runId})
+	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, StartedRunInfo{RunId: runId})
 }
 
 type StopRunInfo struct {
@@ -392,61 +411,61 @@ type StopRunInfo struct {
 
 func (h *UrlHandler) ksStopRunOptions(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Methods", "OPTIONS,DELETE")
-	WriteApiSuccess(h.L, &h.Env.Webapi, w, nil)
+	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, nil)
 }
 
 func (h *UrlHandler) ksStopRun(w http.ResponseWriter, r *http.Request) {
 	keyspace := getField(r, 0)
 	cqlSession, err := cql.NewSession(h.Env, keyspace, cql.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
 	stopRunInfo := StopRunInfo{}
 	if err = json.Unmarshal(bodyBytes, &stopRunInfo); err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
 	runId, err := strconv.Atoi(getField(r, 1))
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
 	if err = api.StopRun(h.L, cqlSession, keyspace, int16(runId), stopRunInfo.Comment); err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
-	WriteApiSuccess(h.L, &h.Env.Webapi, w, nil)
+	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, nil)
 }
 
 func (h *UrlHandler) ksDropOptions(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Methods", "OPTIONS,DELETE")
-	WriteApiSuccess(h.L, &h.Env.Webapi, w, nil)
+	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, nil)
 }
 
 func (h *UrlHandler) ksDrop(w http.ResponseWriter, r *http.Request) {
 	keyspace := getField(r, 0)
 	cqlSession, err := cql.NewSession(h.Env, keyspace, cql.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
 	err = api.DropKeyspace(h.L, cqlSession, keyspace)
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
-	WriteApiSuccess(h.L, &h.Env.Webapi, w, nil)
+	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, nil)
 }
 
 type UrlHandler struct {

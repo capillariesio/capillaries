@@ -63,14 +63,35 @@ After all containers are started, you can navigate to `http://localhost:8080`. O
 
 | | |
 |- | - |
-| Keyspace | test_lookup |
-| Script URI | /tmp/capitest_cfg/lookup/script.json |
-| Script parameters URI | /tmp/capitest_cfg/lookup/script_params_one_run.json |
-| Start nodes | read_orders,read_order_items |
+| Keyspace | test_tag_and_denormalize |
+| Script URI |/tmp/capitest_cfg/tag_and_denormalize/script.json |
+| Script parameters URI | /tmp/capitest_cfg/tag_and_denormalize/script_params_two_runs.json |
+| Start nodes |	read_tags,read_products |
 
-A keyspace named `test_lookup` will appear on the list, click on it and watch the started [run](glossary.md#run) handling [script nodes](glossary.md#script-node). Drop the keyspace after experimenting with it. 
+A keyspace named `test_tag_and_denormalize` will appear on the list, click on it and watch the started [run](glossary.md#run) handling [script nodes](glossary.md#script-node).
 
-You have just performed the steps that `lookup` integration step does, but you operated on the UI level, instead of calling the [Toolbelt](glossary.md#toolbelt), as integration tests do.
+When the run is complete, check out data processing intermediate results:
+```
+cat /tmp/capitest_out/tag_and_denormalize/tagged_products_for_operator_review.csv
+```
+
+Let's assume the operator is satisfied with those results, no it's time to start the second (and final) run. Either from the root `Keyspaces` screen, or from the `test_tag_and_denormalize` matrix screen, start a new run - provide almost the same input, but `Start nodes` will look different now:
+
+| | |
+|- | - |
+| Keyspace | test_tag_and_denormalize |
+| Script URI |/tmp/capitest_cfg/tag_and_denormalize/script.json |
+| Script parameters URI | /tmp/capitest_cfg/tag_and_denormalize/script_params_two_runs.json |
+| Start nodes |	tag_totals |
+
+When this run is complete, see final results at:
+```
+cat /tmp/capitest_out/tag_and_denormalize/tag_totals_.csv
+```
+
+Drop the keyspace after experimenting with it. 
+
+You have just performed the steps that `test_tag_and_denormalize` integration step does, but you operated on the UI level, instead of calling the [Toolbelt](glossary.md#toolbelt), as integration tests do.
 
 Check out other [integration tests](testing.md#integration-tests), look into `code` scripts and try mimicking integration test behavior from Capillaries-UI.
 
