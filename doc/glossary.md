@@ -169,6 +169,14 @@ Third-party daemons may use other names for either/both queue and exchange, but 
 
 See [Toolbelt and Daemon configuration](binconfig.md) for configuration settings.
 
+## Webapi
+
+A simple application that provides web service access to Capillaries environment (similar to the [Toolbelt](#toolbelt), but speaks HTTP instead of cmdline). Can be used by [Capillaries-UI](#capillaries-ui), by integration tests (see [lookup Webapi test](../test/code/lookup/README.md#webapi) or by third-party applications.
+
+## Capillaries-UI
+
+A simple web UI application that provides user access to Capillaries environment. Uses [Webapi](#webapi) to access Capillaries environment (RabbitMQ queues and Cassandra storage).
+
 ## DAG
 
 [Directed Acyclic Graph](https://en.wikipedia.org/wiki/Directed_acyclic_graph). Used in workflow descriptions and defines a collection of all tasks to run, organized in a way that reflects their relationships and dependencies.

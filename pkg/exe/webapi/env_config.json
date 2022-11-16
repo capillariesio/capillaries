@@ -1,5 +1,5 @@
 {
-    "handler_executable_type":"capi_toolbelt",
+    "handler_executable_type":"capi_webapi",
     "cassandra":{
       "hosts": ["127.0.0.1"],
       "port": 9042,

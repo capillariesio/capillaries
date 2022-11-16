@@ -428,6 +428,27 @@ func (h *UrlHandler) ksStopRun(w http.ResponseWriter, r *http.Request) {
 	WriteApiSuccess(h.L, &h.Env.Webapi, w, nil)
 }
 
+func (h *UrlHandler) ksDropOptions(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Methods", "OPTIONS,DELETE")
+	WriteApiSuccess(h.L, &h.Env.Webapi, w, nil)
+}
+
+func (h *UrlHandler) ksDrop(w http.ResponseWriter, r *http.Request) {
+	keyspace := getField(r, 0)
+	cqlSession, err := cql.NewSession(h.Env, keyspace, cql.DoNotCreateKeyspaceOnConnect)
+	if err != nil {
+		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+		return
+	}
+
+	err = api.DropKeyspace(h.L, cqlSession, keyspace)
+	if err != nil {
+		WriteApiError(h.L, &h.Env.Webapi, w, r.URL.Path, err, http.StatusInternalServerError)
+		return
+	}
+	WriteApiSuccess(h.L, &h.Env.Webapi, w, nil)
+}
+
 type UrlHandler struct {
 	Env *env.EnvConfig
 	L   *l.Logger
@@ -495,6 +516,8 @@ func main() {
 		newRoute("OPTIONS", "/ks/([a-zA-Z0-9_]+)/run[/]*", h.ksStartRunOptions),
 		newRoute("DELETE", "/ks/([a-zA-Z0-9_]+)/run/([0-9]+)[/]*", h.ksStopRun),
 		newRoute("OPTIONS", "/ks/([a-zA-Z0-9_]+)/run/([0-9]+)[/]*", h.ksStopRunOptions),
+		newRoute("DELETE", "/ks/([a-zA-Z0-9_]+)[/]*", h.ksDrop),
+		newRoute("OPTIONS", "/ks/([a-zA-Z0-9_]+)[/]*", h.ksDropOptions),
 	}
 
 	mux.Handle("/", h)

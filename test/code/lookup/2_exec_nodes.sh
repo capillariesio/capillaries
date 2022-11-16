@@ -1,15 +1,13 @@
 #!/bin/bash
 
 keyspace="test_lookup"
-dataDir="../../../test/data"
-outDir=$dataDir/out/lookup
-scriptFile=$dataDir/cfg/lookup/script.json
-paramsFile=$dataDir/cfg/lookup/script_params_one_run.json
+outDir=/tmp/capitest_out/lookup
+scriptFile=/tmp/capitest_cfg/lookup/script.json
+paramsFile=/tmp/capitest_cfg/lookup/script_params_one_run.json
 
 SECONDS=0
 
 pushd ../../../pkg/exe/toolbelt
-[ ! -d $outDir ] && mkdir $outDir
 set -x
 
 go run toolbelt.go exec_node -script_file=$scriptFile -params_file=$paramsFile -keyspace=$keyspace -node_id=read_orders

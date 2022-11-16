@@ -3,9 +3,8 @@
 source ../common/util.sh
 
 keyspace="test_lookup"
-dataDir="../../../test/data"
-outDir=$dataDir/out/lookup
-scriptFile=$dataDir/cfg/lookup/script.json
-paramsFile=$dataDir/cfg/lookup/script_params_one_run.json
+outDir=/tmp/capitest_out/lookup
+scriptFile=/tmp/capitest_cfg/lookup/script.json
+paramsFile=/tmp/capitest_cfg/lookup/script_params_one_run.json
 
-one_daemon_run  $keyspace $scriptFile $paramsFile $outDir 'read_orders,read_order_items'
+one_daemon_run $keyspace $scriptFile $paramsFile $outDir 'read_orders,read_order_items'

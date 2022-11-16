@@ -12,7 +12,7 @@
     let responseError = "";
     function setWebapiData(dataFromJson, errorFromJson) {
 		if (!!errorFromJson) {
-            responseError = errorFromJson;
+            responseError = errorFromJson.error.msg;
         } else {
             responseError = "";
             closeModal();

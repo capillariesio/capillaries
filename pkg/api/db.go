@@ -15,12 +15,17 @@ import (
 )
 
 const ProhibitedKeyspaceNameRegex = "^system"
+const AllowedKeyspaceNameRegex = "[a-zA-Z0-9_]+"
 
 func CheckKeyspaceName(keyspace string) error {
 	re := regexp.MustCompile(ProhibitedKeyspaceNameRegex)
 	invalidNamePieceFound := re.FindString(keyspace)
 	if len(invalidNamePieceFound) > 0 {
 		return fmt.Errorf("invalid keyspace name [%s]: prohibited regex is [%s]", keyspace, ProhibitedKeyspaceNameRegex)
+	}
+	re = regexp.MustCompile(AllowedKeyspaceNameRegex)
+	if !re.MatchString(keyspace) {
+		return fmt.Errorf("invalid keyspace name [%s]: allowed regex is [%s]", keyspace, AllowedKeyspaceNameRegex)
 	}
 	return nil
 }

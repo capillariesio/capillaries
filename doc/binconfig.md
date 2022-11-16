@@ -1,4 +1,4 @@
-# Toolbelt and Daemon configuration
+# Toolbelt, Daemon, and Webapi configuration
 
 Executables that use Capillaries need to be able to access the message queue (RabbitMQ) and the database (Cassandra). There are also some settings that may be helpful during troubleshooting and performance tuning in specific environments. All these settings are managed by EnvConfig (env_config.json file residing in the binary's directory).
 
