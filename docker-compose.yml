@@ -1,7 +1,10 @@
 version: '3'
+
 networks:
   capinet:
-    external: true
+    # Assuming capinet network has been created already: 
+    # docker network create --driver=bridge --subnet=... --ip-range=... --gateway=... capinet
+    external: true 
 
 services:
 
@@ -34,7 +37,8 @@ services:
     environment:
       AMQP_URL: amqp://guest:guest@10.5.0.2/
       CASSANDRA_HOSTS: '["10.5.0.3"]'
-      ACCESS_CONTROL_ACCESS_ORIGIN: '*'
+      WEBAPI_PORT: 6543
+      ACCESS_CONTROL_ACCESS_ORIGIN: 'http://localhost:8080,http://127.0.0.1:8080' # Adjust if needed
     ports:
       - 6543:6543      
     network_mode: bridge

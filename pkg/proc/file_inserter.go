@@ -52,7 +52,7 @@ func newFileInserter(pCtx *ctx.MessageProcessingContext, fileCreator *sc.FileCre
 }
 
 func (instr *FileInserter) createFileAndStartWorker(logger *l.Logger, runId int16, batchIdx int16) error {
-	logger.PushF("createFileAndStartWorker")
+	logger.PushF("proc.createFileAndStartWorker")
 	defer logger.PopF()
 
 	// Templated file name
@@ -164,7 +164,7 @@ func (instr *FileInserter) add(row []interface{}) {
 }
 
 func (instr *FileInserter) fileInserterWorker(logger *l.Logger, actualFileUrl string, separator string) {
-	logger.PushF("fileInserterWorker")
+	logger.PushF("proc.fileInserterWorker")
 	defer logger.PopF()
 
 	f, err := os.OpenFile(actualFileUrl, os.O_APPEND|os.O_WRONLY, 0644)

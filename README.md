@@ -4,9 +4,25 @@
 
 Capillaries is a distributed batch data processing framework.
 
-**ATTENTION developers**
+# TL;DR
 
-**Here is a quick project overview you are probably looking for - [What Capillaries is and what it is not, with a use case discussion](doc/what.md)**
+[What Capillaries is and what it is not, with a use case discussion and diagrams](doc/what.md)
+
+[Getting started guide with instructions on how to run a quick Docker-based demo without building any code](doc/started.md)
+
+# Why Capillaries?
+![Capillaries: before and after](doc/beforeafter.png)
+
+
+|             | BEFORE | AFTER |
+| ----------- | ------ |------ |
+| Data aggregation | SQL joins | Capillaries [lookups](doc/glossary.md#lookup) in Cassandra + [Go expressions](doc/glossary.md#go-expressions) (scalability, parallel execution) |
+| Data filtering | SQL queries, custom code | [Go expressions](doc/glossary.md#go-expressions) (scalability, maintainability) |
+| Data transform | SQL expressions, custom code | [Go expressions](doc/glossary.md#go-expressions), Python [formulas](doc/glossary.md#py_calc-processor) (parallel execution, maintainability) |
+| Intermediate data storage | Files, relational databases | on-the-fly-created Cassandra [keyspaces](doc/glossary.md#keyspace) and [tables](doc/glossary.md#table) (scalability, maintainability) |
+| Workflow execution | Shell scripts, custom code, workflow frameworks | RabbitMQ as the Single Point of Failure + workflow status stored in Cassandra (parallel execution, fault tolerance, incremental computing) |
+| Workflow monitoring and interaction | Custom solutions | Capillaries [API](doc/api.md) and [Toolbelt](doc/glossary.md#toolbelt) utility (transparency, operator validation support) |
+| Workflow management | Shell scripts, custom code | Capillaries [script file](doc/glossary.md#script) with [DAG](doc/glossary.md#dag) |
 
 # Highlights
 
@@ -28,27 +44,12 @@ Consumes and produces delimited text files, uses database tables internally. Pro
 ## Use scenarios
 Capable of processing large amounts of data within SLA time limits, efficiently utilizing powerful computational (hardware, VM, containers) and storage (Cassandra) resources, with or without human monitoring/validation/intervention.
 
-# Why Capillaries?
-![Capillaries: before and after](doc/beforeafter.png)
-
-
-|             | BEFORE | AFTER |
-| ----------- | ------ |------ |
-| Data aggregation | SQL joins | Capillaries [lookups](doc/glossary.md#lookup) in Cassandra + [Go expressions](doc/glossary.md#go-expressions) (scalability, parallel execution) |
-| Data filtering | SQL queries, custom code | [Go expressions](doc/glossary.md#go-expressions) (scalability, maintainability) |
-| Data transform | SQL expressions, custom code | [Go expressions](doc/glossary.md#go-expressions), Python [formulas](doc/glossary.md#py_calc-processor) (parallel execution, maintainability) |
-| Intermediate data storage | Files, relational databases | on-the-fly-created Cassandra [keyspaces](doc/glossary.md#keyspace) and [tables](doc/glossary.md#table) (scalability, maintainability) |
-| Workflow execution | Shell scripts, custom code, workflow frameworks | RabbitMQ as the Single Point of Failure + workflow status stored in Cassandra (parallel execution, fault tolerance, incremental computing) |
-| Workflow monitoring and interaction | Custom solutions | Capillaries [API](doc/api.md) and [Toolbelt](doc/glossary.md#toolbelt) utility (transparency, operator validation support) |
-| Workflow management | Shell scripts, custom code | Capillaries [script file](doc/glossary.md#script) with [DAG](doc/glossary.md#dag) |
-
-
 # Capillaries in depth
 
 ## [What it is and what it is not](doc/what.md)
 ## [Getting started](doc/started.md)
 ## [Testing](doc/testing.md)
-## [Toolbelt and Daemon configuration](doc/binconfig.md)
+## [Toolbelt, Daemon, and Webapi configuration](doc/binconfig.md)
 ## [Script configuration](doc/scriptconfig.md)
 ## [API](doc/api.md)
 ## [Glossary](doc/glossary.md)

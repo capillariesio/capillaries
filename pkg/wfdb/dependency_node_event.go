@@ -10,7 +10,7 @@ import (
 )
 
 func BuildDependencyNodeEventLists(logger *l.Logger, pCtx *ctx.MessageProcessingContext, depNodeNames []string) (map[string][]wfmodel.DependencyNodeEvent, error) {
-	logger.PushF("buildDependencyNodeEventLists")
+	logger.PushF("wfdb.buildDependencyNodeEventLists")
 	defer logger.PopF()
 
 	affectingRunIds, nodeAffectingRunIdsMap, err := HarvestRunIdsByAffectedNodes(logger, pCtx, depNodeNames)

@@ -52,7 +52,7 @@ func selectBatchFromDataTablePaged(logger *l.Logger,
 	pageState []byte,
 	rowidsToFind map[int64]struct{}) ([]byte, error) {
 
-	logger.PushF("selectBatchFromDataTablePaged")
+	logger.PushF("proc.selectBatchFromDataTablePaged")
 	defer logger.PopF()
 
 	if err := rs.InitRows(batchSize); err != nil {
@@ -106,7 +106,7 @@ func selectBatchPagedAllRowids(logger *l.Logger,
 	batchSize int,
 	pageState []byte) ([]byte, error) {
 
-	logger.PushF("selectBatchPagedAllRowids")
+	logger.PushF("proc.selectBatchPagedAllRowids")
 	defer logger.PopF()
 
 	if err := rs.InitRows(batchSize); err != nil {
@@ -153,7 +153,7 @@ func selectBatchFromIdxTablePaged(logger *l.Logger,
 	pageState []byte,
 	keysToFind *[]string) ([]byte, error) {
 
-	logger.PushF("selectBatchFromIdxTablePaged")
+	logger.PushF("proc.selectBatchFromIdxTablePaged")
 	defer logger.PopF()
 
 	if err := rs.InitRows(batchSize); err != nil {
@@ -200,7 +200,7 @@ func selectBatchFromTableByToken(logger *l.Logger,
 	startToken int64,
 	endToken int64) (int64, error) {
 
-	logger.PushF("selectBatchFromTableByToken")
+	logger.PushF("proc.selectBatchFromTableByToken")
 	defer logger.PopF()
 
 	if err := rs.InitRows(batchSize); err != nil {
@@ -235,7 +235,7 @@ func selectBatchFromTableByToken(logger *l.Logger,
 const HarvestForDeleteRowsetSize = 1000 // Do not let users tweak it, maybe too sensitive
 
 func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.Logger, pCtx *ctx.MessageProcessingContext) error {
-	logger.PushF("DeleteDataAndUniqueIndexesByBatchIdx")
+	logger.PushF("proc.DeleteDataAndUniqueIndexesByBatchIdx")
 	defer logger.PopF()
 
 	logger.DebugCtx(pCtx, "deleting data records for %s...", pCtx.BatchInfo.FullBatchId())

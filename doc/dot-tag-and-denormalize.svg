@@ -3,12 +3,12 @@
 <g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(36 742.8)">
 <title>indexes</title>
 <polygon fill="#ffffff" stroke="transparent" points="-36,36 -36,-742.8 1322.104,-742.8 1322.104,36 -36,36"/>
-<!-- ../../../test/data/in/tag_and_denormalize/tags.csv -->
+<!-- /tmp/capitest_in/tag_and_denormalize/tags.csv -->
 <g id="node1" class="node">
-<title>../../../test/data/in/tag_and_denormalize/tags.csv</title>
+<title>/tmp/capitest_in/tag_and_denormalize/tags.csv</title>
 <g id="a_node1"><a xlink:title="Source data file(s)">
 <polygon fill="none" stroke="#000000" points="567.7402,-607.3 564.7402,-611.3 543.7402,-611.3 540.7402,-607.3 127.5558,-607.3 127.5558,-571.3 567.7402,-571.3 567.7402,-607.3"/>
-<text text-anchor="middle" x="347.648" y="-583.3" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">../../../test/data/in/tag_and_denormalize/tags.csv</text>
+<text text-anchor="middle" x="347.648" y="-583.3" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">/tmp/capitest_in/tag_and_denormalize/tags.csv</text>
 </a>
 </g>
 </g>
@@ -24,9 +24,9 @@
 </a>
 </g>
 </g>
-<!-- ../../../test/data/in/tag_and_denormalize/tags.csv&#45;&gt;tags -->
+<!-- /tmp/capitest_in/tag_and_denormalize/tags.csv&#45;&gt;tags -->
 <g id="edge1" class="edge">
-<title>../../../test/data/in/tag_and_denormalize/tags.csv-&gt;tags</title>
+<title>/tmp/capitest_in/tag_and_denormalize/tags.csv-&gt;tags</title>
 <path fill="none" stroke="#000000" stroke-dasharray="1,5" d="M347.648,-571.0294C347.648,-552.5308 347.648,-523.0128 347.648,-496.9482"/>
 <polygon fill="#000000" stroke="#000000" points="351.1481,-496.7849 347.648,-486.785 344.1481,-496.785 351.1481,-496.7849"/>
 </g>
@@ -51,12 +51,12 @@
 <polygon fill="#000000" stroke="#000000" points="351.1481,-350.315 347.648,-340.315 344.1481,-350.3151 351.1481,-350.315"/>
 <text text-anchor="middle" x="417.1694" y="-364" font-family="Helvetica,sans-Serif" font-size="18.00" fill="#000000">tags (10 batches)</text>
 </g>
-<!-- ../../../test/data/in/tag_and_denormalize/flipcart_products.tsv -->
+<!-- /tmp/capitest_in/tag_and_denormalize/flipcart_products.tsv -->
 <g id="node3" class="node">
-<title>../../../test/data/in/tag_and_denormalize/flipcart_products.tsv</title>
+<title>/tmp/capitest_in/tag_and_denormalize/flipcart_products.tsv</title>
 <g id="a_node3"><a xlink:title="Source data file(s)">
 <polygon fill="none" stroke="#000000" points="1030.196,-706.8 1027.196,-710.8 1006.196,-710.8 1003.196,-706.8 485.1,-706.8 485.1,-670.8 1030.196,-670.8 1030.196,-706.8"/>
-<text text-anchor="middle" x="757.648" y="-682.8" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">../../../test/data/in/tag_and_denormalize/flipcart_products.tsv</text>
+<text text-anchor="middle" x="757.648" y="-682.8" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">/tmp/capitest_in/tag_and_denormalize/flipcart_products.tsv</text>
 </a>
 </g>
 </g>
@@ -72,9 +72,9 @@
 </a>
 </g>
 </g>
-<!-- ../../../test/data/in/tag_and_denormalize/flipcart_products.tsv&#45;&gt;products -->
+<!-- /tmp/capitest_in/tag_and_denormalize/flipcart_products.tsv&#45;&gt;products -->
 <g id="edge2" class="edge">
-<title>../../../test/data/in/tag_and_denormalize/flipcart_products.tsv-&gt;products</title>
+<title>/tmp/capitest_in/tag_and_denormalize/flipcart_products.tsv-&gt;products</title>
 <path fill="none" stroke="#000000" stroke-dasharray="1,5" d="M757.648,-670.5502C757.648,-662.8053 757.648,-653.3302 757.648,-643.621"/>
 <polygon fill="#000000" stroke="#000000" points="761.1481,-643.4808 757.648,-633.4808 754.1481,-643.4809 761.1481,-643.4808"/>
 </g>
@@ -105,7 +105,7 @@
 <text text-anchor="middle" x="870.648" y="-302.1" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">file_tagged_products</text>
 <polyline fill="none" stroke="#000000" points="494.192,-292.1 1247.104,-292.1 "/>
 <text text-anchor="middle" x="870.648" y="-270.1" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">creates file:</text>
-<text text-anchor="middle" x="870.648" y="-246.1" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">../../../test/data/out/tag_and_denormalize/tagged_products_for_operator_review.csv</text>
+<text text-anchor="middle" x="870.648" y="-246.1" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">/tmp/capitest_out/tag_and_denormalize/tagged_products_for_operator_review.csv</text>
 </a>
 </g>
 </g>
@@ -123,20 +123,20 @@
 <polygon fill="#000000" stroke="#000000" points="449.0491,-329.5773 438.5654,-328.0469 445.8065,-335.781 449.0491,-329.5773"/>
 <text text-anchor="middle" x="676.6938" y="-364" font-family="Helvetica,sans-Serif" font-size="18.00" fill="#000000">idx_tagged_products_tag (lookup)</text>
 </g>
-<!-- ../../../test/data/out/tag_and_denormalize/tagged_products_for_operator_review.csv -->
+<!-- /tmp/capitest_out/tag_and_denormalize/tagged_products_for_operator_review.csv -->
 <g id="node7" class="node">
-<title>../../../test/data/out/tag_and_denormalize/tagged_products_for_operator_review.csv</title>
+<title>/tmp/capitest_out/tag_and_denormalize/tagged_products_for_operator_review.csv</title>
 <g id="a_node7"><a xlink:title="Target data file(s)">
 <polygon fill="none" stroke="#000000" points="1280.06,-135.5 533.236,-135.5 533.236,-99.5 1286.06,-99.5 1286.06,-129.5 1280.06,-135.5"/>
 <polyline fill="none" stroke="#000000" points="1280.06,-135.5 1280.06,-129.5 "/>
 <polyline fill="none" stroke="#000000" points="1286.06,-129.5 1280.06,-129.5 "/>
-<text text-anchor="middle" x="909.648" y="-111.5" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">../../../test/data/out/tag_and_denormalize/tagged_products_for_operator_review.csv</text>
+<text text-anchor="middle" x="909.648" y="-111.5" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">/tmp/capitest_out/tag_and_denormalize/tagged_products_for_operator_review.csv</text>
 </a>
 </g>
 </g>
-<!-- file_tagged_products&#45;&gt;../../../test/data/out/tag_and_denormalize/tagged_products_for_operator_review.csv -->
+<!-- file_tagged_products&#45;&gt;/tmp/capitest_out/tag_and_denormalize/tagged_products_for_operator_review.csv -->
 <g id="edge5" class="edge">
-<title>file_tagged_products-&gt;../../../test/data/out/tag_and_denormalize/tagged_products_for_operator_review.csv</title>
+<title>file_tagged_products-&gt;/tmp/capitest_out/tag_and_denormalize/tagged_products_for_operator_review.csv</title>
 <path fill="none" stroke="#000000" stroke-dasharray="1,5" d="M881.202,-236.0981C888.1105,-207.2946 896.9318,-170.5168 902.9059,-145.6094"/>
 <polygon fill="#000000" stroke="#000000" points="906.349,-146.26 905.278,-135.7195 899.5421,-144.6273 906.349,-146.26"/>
 </g>
@@ -148,7 +148,7 @@
 <text text-anchor="middle" x="248.648" y="-139.5" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">file_tag_totals</text>
 <polyline fill="none" stroke="#000000" points="0,-129.5 497.296,-129.5 "/>
 <text text-anchor="middle" x="248.648" y="-107.5" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">creates file:</text>
-<text text-anchor="middle" x="248.648" y="-83.5" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">../../../test/data/out/tag_and_denormalize/tag_totals.tsv</text>
+<text text-anchor="middle" x="248.648" y="-83.5" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">/tmp/capitest_out/tag_and_denormalize/tag_totals.tsv</text>
 </a>
 </g>
 </g>
@@ -159,20 +159,20 @@
 <polygon fill="#000000" stroke="#000000" points="283.6788,-168.3052 275.4888,-161.584 277.6998,-171.9455 283.6788,-168.3052"/>
 <text text-anchor="middle" x="401.6575" y="-185.4" font-family="Helvetica,sans-Serif" font-size="18.00" fill="#000000">tag_totals (no parallelism)</text>
 </g>
-<!-- ../../../test/data/out/tag_and_denormalize/tag_totals.tsv -->
+<!-- /tmp/capitest_out/tag_and_denormalize/tag_totals.tsv -->
 <g id="node10" class="node">
-<title>../../../test/data/out/tag_and_denormalize/tag_totals.tsv</title>
+<title>/tmp/capitest_out/tag_and_denormalize/tag_totals.tsv</title>
 <g id="a_node10"><a xlink:title="Target data file(s)">
 <polygon fill="none" stroke="#000000" points="491.4441,-36 -.1481,-36 -.1481,0 497.4441,0 497.4441,-30 491.4441,-36"/>
 <polyline fill="none" stroke="#000000" points="491.4441,-36 491.4441,-30 "/>
 <polyline fill="none" stroke="#000000" points="497.4441,-30 491.4441,-30 "/>
-<text text-anchor="middle" x="248.648" y="-12" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">../../../test/data/out/tag_and_denormalize/tag_totals.tsv</text>
+<text text-anchor="middle" x="248.648" y="-12" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">/tmp/capitest_out/tag_and_denormalize/tag_totals.tsv</text>
 </a>
 </g>
 </g>
-<!-- file_tag_totals&#45;&gt;../../../test/data/out/tag_and_denormalize/tag_totals.tsv -->
+<!-- file_tag_totals&#45;&gt;/tmp/capitest_out/tag_and_denormalize/tag_totals.tsv -->
 <g id="edge9" class="edge">
-<title>file_tag_totals-&gt;../../../test/data/out/tag_and_denormalize/tag_totals.tsv</title>
+<title>file_tag_totals-&gt;/tmp/capitest_out/tag_and_denormalize/tag_totals.tsv</title>
 <path fill="none" stroke="#000000" stroke-dasharray="1,5" d="M248.648,-73.2784C248.648,-64.082 248.648,-54.6304 248.648,-46.2016"/>
 <polygon fill="#000000" stroke="#000000" points="252.1481,-46.1684 248.648,-36.1685 245.1481,-46.1685 252.1481,-46.1684"/>
 </g>

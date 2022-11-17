@@ -23,7 +23,3 @@ There is a number of extensive integration tests that cover a big part of Capill
 - [tag_and_denormalize](../test/code/tag_and_denormalize/README.md): focuses on [custom processor](glossary.md#table_custom_tfm_table) implementation - [tag_and_denormalize](glossary.md#tag_and_denormalize-processor)
 
 All tests require running Cassandra and RabbitMQ containers (see [Getting started](started.md) for details)
-
-## Docker testing
-
-Some integration tests ([py_calc](../test/code/py_calc/README.md), at the moment) may provide setup for Capillaries [Daemon](glossary.md#daemon) running in Docker container. See corresponding test docs for details. 

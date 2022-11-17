@@ -64,6 +64,12 @@ This step groups tagged products and calculates aggregates:
 | diving | 162995.00 | 6519.80 | 499.00 | 107750.00 | 25 |
 | engagement | 15168839.00 | 35441.21 | 7193.00 | 49999.00 | 428 |
 
+# Capillaries components
+
+This is how deployed Capillaries components interact. For component definitions, see the [glossary](glossary.md).
+
+![deployment](deployment.svg)
+
 # What it is not
 
 1. This is not a generic job scheduler or workflow engine. Capillaries can only execute [nodes](glossary.md#script-node) in a [script](glossary.md#script), reading/writing data from/to [tables](glossary.md#table) or files.
@@ -80,6 +86,6 @@ This step groups tagged products and calculates aggregates:
    
 3. Eventual data consistency is guaranteed by message queue (RabbitMQ): every message triggering [data batch](glossary.md#data-batch) processing will be delivered to the [processor](glossary.md#processor) as many times as needed. If message queue connectivity is unreliable, script execution consistency is not guaranteed. 
 
-Sequence diagram depicting how different components of the infrastructure interact:
+The following sequence diagram shows Cassandra components interaction in more detail:
 
 ![sequence](sequence.png)

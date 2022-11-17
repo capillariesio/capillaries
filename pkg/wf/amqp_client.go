@@ -75,7 +75,7 @@ func amqpDeliveryToString(d amqp.Delivery) string {
 }
 
 func processDelivery(envConfig *env.EnvConfig, logger *l.Logger, delivery *amqp.Delivery) DaemonCmdType {
-	logger.PushF("processDelivery")
+	logger.PushF("wf.processDelivery")
 	defer logger.PopF()
 
 	// Deserialize incoming message
@@ -103,7 +103,7 @@ func processDelivery(envConfig *env.EnvConfig, logger *l.Logger, delivery *amqp.
 }
 
 func AmqpFullReconnectCycle(envConfig *env.EnvConfig, logger *l.Logger, osSignalChannel chan os.Signal) DaemonCmdType {
-	logger.PushF("AmqpFullReconnectCycle")
+	logger.PushF("wf.AmqpFullReconnectCycle")
 	defer logger.PopF()
 
 	amqpConnection, err := amqp.Dial(envConfig.Amqp.URL)
@@ -136,7 +136,7 @@ func AmqpFullReconnectCycle(envConfig *env.EnvConfig, logger *l.Logger, osSignal
 }
 
 func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.Logger, osSignalChannel chan os.Signal, amqpChannel *amqp.Channel, chanAmqpErrors chan *amqp.Error) DaemonCmdType {
-	logger.PushF("amqpConnectAndSelect")
+	logger.PushF("wf.amqpConnectAndSelect")
 	defer logger.PopF()
 
 	errExchange := amqpChannel.ExchangeDeclare(
@@ -293,7 +293,7 @@ func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.Logger, osSignalCh
 				return DaemonCmdQuit
 			}
 
-			logger.PushF("amqpConnectAndSelect_worker")
+			logger.PushF("wf.amqpConnectAndSelect_worker")
 			defer logger.PopF()
 
 			// Lock one slot in the semaphore

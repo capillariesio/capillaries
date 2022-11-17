@@ -20,7 +20,6 @@ import (
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
-	"github.com/capillariesio/capillaries/pkg/wfdb"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/gocql/gocql"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -42,8 +41,6 @@ func (f *StandardWebapiProcessorDefFactory) Create(processorType string) (sc.Cus
 		return nil, false
 	}
 }
-
-const port = 6543 // Python Pyramid rules
 
 type route struct {
 	method  string
@@ -128,7 +125,7 @@ func (h *UrlHandler) ks(w http.ResponseWriter, r *http.Request) {
 
 	for _, row := range rows {
 		ks := row["keyspace_name"].(string)
-		if len(ks) == 0 || api.CheckKeyspaceName(ks) != nil {
+		if len(ks) == 0 || api.IsSystemKeyspaceName(ks) {
 			continue
 		}
 		respData[ksCount] = ks
@@ -168,7 +165,7 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 	defer cqlSession.Close()
 
 	// Retrieve all runs that happened in this ks and find their current statuses
-	runLifespanMap, err := wfdb.HarvestRunLifespans(h.L, cqlSession, keyspace, []int16{})
+	runLifespanMap, err := api.HarvestRunLifespans(h.L, cqlSession, keyspace, []int16{})
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -225,34 +222,11 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, mx)
 }
 
-// func (h *UrlHandler) ksRunNodes(w http.ResponseWriter, r *http.Request) {
-// 	keyspace := getField(r, 0)
-// 	cqlSession, err := cql.NewSession(h.Env, keyspace)
-// 	if err != nil {
-// 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
-// 		return
-// 	}
-// 	defer cqlSession.Close()
-
-// 	runId, err := strconv.Atoi(getField(r, 1))
-// 	if err != nil {
-// 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
-// 		return
-// 	}
-
-// 	result, err := api.GetRunsNodeHistory(h.L, cqlSession, keyspace, []int16{int16(runId)})
-// 	if err != nil {
-// 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
-// 		return
-// 	}
-// 	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, result)
-// }
-
 func getRunPropsAndLifespans(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId int16) (*wfmodel.RunProperties, *wfmodel.RunLifespan, error) {
 	// Static run properties
 	// TODO: consider caching
 
-	allRunsProps, err := wfdb.GetRunProperties(cqlSession, keyspace, int16(runId))
+	allRunsProps, err := api.GetRunProperties(logger, cqlSession, keyspace, int16(runId))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -263,7 +237,7 @@ func getRunPropsAndLifespans(logger *l.Logger, cqlSession *gocql.Session, keyspa
 
 	// Run status
 
-	runLifeSpans, err := wfdb.HarvestRunLifespans(logger, cqlSession, keyspace, []int16{int16(runId)})
+	runLifeSpans, err := api.HarvestRunLifespans(logger, cqlSession, keyspace, []int16{int16(runId)})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -305,7 +279,7 @@ func (h *UrlHandler) ksRunNodeBatchHistory(w http.ResponseWriter, r *http.Reques
 	// Batch history
 
 	nodeName := getField(r, 2)
-	result.RunNodeBatchHistory, err = wfdb.GetRunNodeBatchHistory(h.L, cqlSession, keyspace, int16(runId), nodeName)
+	result.RunNodeBatchHistory, err = api.GetRunNodeBatchHistory(h.L, cqlSession, keyspace, int16(runId), nodeName)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -343,7 +317,7 @@ func (h *UrlHandler) ksRunNodeHistory(w http.ResponseWriter, r *http.Request) {
 
 	// Node history
 
-	result.RunNodeHistory, err = wfdb.GetNodeHistoryForRun(h.L, cqlSession, keyspace, int16(runId))
+	result.RunNodeHistory, err = api.GetNodeHistoryForRun(h.L, cqlSession, keyspace, int16(runId))
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -541,7 +515,8 @@ func main() {
 
 	mux.Handle("/", h)
 
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), mux); err != nil {
+	logger.Info("listening on %d...", h.Env.Webapi.Port)
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", h.Env.Webapi.Port), mux); err != nil {
 		log.Fatalf(err.Error())
 		os.Exit(1)
 	}

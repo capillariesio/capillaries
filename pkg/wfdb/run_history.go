@@ -13,7 +13,7 @@ import (
 )
 
 func GetCurrentRunStatus(logger *l.Logger, pCtx *ctx.MessageProcessingContext) (wfmodel.RunStatusType, error) {
-	logger.PushF("GetCurrentRunStatus")
+	logger.PushF("wfdb.GetCurrentRunStatus")
 	defer logger.PopF()
 
 	fields := []string{"ts", "status"}
@@ -46,7 +46,7 @@ func GetCurrentRunStatus(logger *l.Logger, pCtx *ctx.MessageProcessingContext) (
 }
 
 func HarvestRunLifespans(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runIds []int16) (wfmodel.RunLifespanMap, error) {
-	logger.PushF("HarvestRunStatusesForRunIds")
+	logger.PushF("wfdb.HarvestRunLifespans")
 	defer logger.PopF()
 
 	fields := []string{"ts", "run_id", "status"}
@@ -98,7 +98,7 @@ func HarvestRunLifespans(logger *l.Logger, cqlSession *gocql.Session, keyspace s
 }
 
 func SetRunStatus(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId int16, status wfmodel.RunStatusType, comment string, ifNotExistsFlag cql.IfNotExistsType) error {
-	logger.PushF("SetRunStatus")
+	logger.PushF("wfdb.SetRunStatus")
 	defer logger.PopF()
 
 	q := (&cql.QueryBuilder{}).

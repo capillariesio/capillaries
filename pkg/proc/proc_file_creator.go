@@ -40,7 +40,7 @@ func RunCreateFile(logger *l.Logger,
 	startToken int64,
 	endToken int64) error {
 
-	logger.PushF("RunCreateFile")
+	logger.PushF("proc.RunCreateFile")
 	defer logger.PopF()
 
 	if readerNodeRunId == 0 {

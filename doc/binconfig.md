@@ -3,7 +3,7 @@
 Executables that use Capillaries need to be able to access the message queue (RabbitMQ) and the database (Cassandra). There are also some settings that may be helpful during troubleshooting and performance tuning in specific environments. All these settings are managed by EnvConfig (env_config.json file residing in the binary's directory).
 
 ## handler_executable_type
-Name of the [queue](glossary.md#processor-queue) this executable consumes messages from.
+Name of the [queue](glossary.md#processor-queue) this executable consumes messages from. Also used by the logger to identify the source of each log message, so it makes sense to assign a distinct handler_executable_type value to each binary - [Daemon](glossary.md#daemon), [Toolbelt](glossary.md#toolbelt), [Webapi](glossary.md#webapi).
 
 ## cassandra
 
@@ -80,3 +80,17 @@ Read more about [Capillaries dead-letter-exchange](qna.md#dead-letter-exchange).
 
 ## zap_config
 Directly deserialized to [zap.Config](https://pkg.go.dev/go.uber.org/zap#Config)
+
+## webapi
+
+This section is required by [Webapi](glossary.md#webapi) only.
+
+### webapi_port
+Webapi uses this port for incomig HTTP requests.
+
+Default: 6543
+
+### access_control_allow_origin
+Used by [Webapi](glossary.md#webapi) for CORS. Can contain either "*" or a comma-separated list of allowed origin URLs.
+
+Default: none

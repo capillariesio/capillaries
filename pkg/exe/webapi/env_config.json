@@ -18,6 +18,7 @@
       "prefetch_size": 0
     },
     "webapi": {
+      "webapi_port": 6543,
       "access_control_allow_origin": "http://localhost:8080,http://127.0.0.1:8080"
     },
     "custom_processors":{

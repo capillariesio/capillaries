@@ -2,7 +2,7 @@
 
 This section is under active development, see pkg/api directory.
 
-The goal of Capillaries API is to allow system integrators to create solutions that can start [runs](glossary.md#run) and watch their execution progress. As of this writing, all API calls can be executed via the [Toolbelt](glossary.md#toolbelt) command. Some examples are below.
+The goal of Capillaries API is to allow system integrators to create solutions that can start [runs](glossary.md#run) and watch their execution progress. As of this writing, all API calls can be executed either via the [Toolbelt](glossary.md#toolbelt) command or via [Capillaries UI](glossary.md#capillaries-ui) using [Webapi](glossary.md#webapi). Some examples are below.
 
 Drop [keyspace](glossary.md#keyspace):
 

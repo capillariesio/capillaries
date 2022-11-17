@@ -81,7 +81,7 @@ func (procDef *TagAndDenormalizeProcessorDef) Deserialize(raw json.RawMessage, c
 }
 
 func (procDef *TagAndDenormalizeProcessorDef) Run(logger *l.Logger, pCtx *ctx.MessageProcessingContext, rsIn *proc.Rowset, flushVarsArray func(varsArray []*eval.VarValuesMap, varsArrayCount int) error) error {
-	logger.PushF("TagAndDenormalizeProcessorDef.Run")
+	logger.PushF("custom.TagAndDenormalizeProcessorDef.Run")
 	defer logger.PopF()
 
 	varsArray := make([]*eval.VarValuesMap, 1000)

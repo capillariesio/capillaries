@@ -54,7 +54,7 @@ func reportWriteTableComplete(logger *l.Logger, pCtx *ctx.MessageProcessingConte
 }
 
 func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.MessageProcessingContext, srcFileIdx int) error {
-	logger.PushF("RunReadFileForBatch")
+	logger.PushF("proc.RunReadFileForBatch")
 	defer logger.PopF()
 
 	node := pCtx.CurrentScriptNode
@@ -189,7 +189,7 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 	startLeftToken int64,
 	endLeftToken int64) error {
 
-	logger.PushF("RunCreateTableForCustomProcessorForBatch")
+	logger.PushF("proc.RunCreateTableForCustomProcessorForBatch")
 	defer logger.PopF()
 
 	if readerNodeRunId == 0 {
@@ -234,7 +234,7 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 	totalRowsWritten := 0
 
 	flushVarsArray := func(varsArray []*eval.VarValuesMap, varsArrayCount int) error {
-		logger.PushF("flushRowset")
+		logger.PushF("proc.flushRowset")
 		defer logger.PopF()
 
 		flushStartTime := time.Now()
@@ -319,7 +319,7 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 	startLeftToken int64,
 	endLeftToken int64) error {
 
-	logger.PushF("RunCreateTableForBatch")
+	logger.PushF("proc.RunCreateTableForBatch")
 	defer logger.PopF()
 
 	if readerNodeRunId == 0 {
@@ -443,7 +443,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 	startLeftToken int64,
 	endLeftToken int64) error {
 
-	logger.PushF("RunCreateTableRelForBatch")
+	logger.PushF("proc.RunCreateTableRelForBatch")
 	defer logger.PopF()
 
 	if readerNodeRunId == 0 {

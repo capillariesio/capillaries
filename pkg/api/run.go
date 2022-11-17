@@ -17,10 +17,10 @@ import (
 )
 
 func StopRun(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId int16, comment string) error {
-	logger.PushF("StopRun")
+	logger.PushF("api.StopRun")
 	defer logger.PopF()
 
-	if err := CheckKeyspaceName(keyspace); err != nil {
+	if err := checkKeyspaceName(keyspace); err != nil {
 		return err
 	}
 
@@ -28,16 +28,30 @@ func StopRun(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId
 }
 
 func StartRun(envConfig *env.EnvConfig, logger *l.Logger, amqpChannel *amqp.Channel, scriptFilePath string, paramsFilePath string, cqlSession *gocql.Session, keyspace string, startNodes []string) (int16, error) {
-	logger.PushF("StartRun")
+	logger.PushF("api.StartRun")
 	defer logger.PopF()
 
-	if err := CheckKeyspaceName(keyspace); err != nil {
+	if err := checkKeyspaceName(keyspace); err != nil {
 		return 0, err
 	}
 
 	script, err := sc.NewScriptFromFiles(envConfig.CaPath, scriptFilePath, paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
 	if err != nil {
 		return 0, err
+	}
+
+	// Verify that all start nodes actually present
+	missingNodesSb := strings.Builder{}
+	for _, nodeName := range startNodes {
+		if _, ok := script.ScriptNodes[nodeName]; !ok {
+			if missingNodesSb.Len() > 0 {
+				missingNodesSb.WriteString(",")
+			}
+			missingNodesSb.WriteString(nodeName)
+		}
+	}
+	if missingNodesSb.Len() > 0 {
+		return 0, fmt.Errorf("node(s) %s missing from %s, check node name spelling", missingNodesSb.String(), scriptFilePath)
 	}
 
 	// Get new run_id
@@ -113,7 +127,7 @@ func StartRun(envConfig *env.EnvConfig, logger *l.Logger, amqpChannel *amqp.Chan
 }
 
 func RunNode(envConfig *env.EnvConfig, logger *l.Logger, nodeName string, runId int16, scriptFilePath string, paramsFilePath string, cqlSession *gocql.Session, keyspace string) (int16, error) {
-	logger.PushF("RunNode")
+	logger.PushF("api.RunNode")
 	defer logger.PopF()
 
 	script, err := sc.NewScriptFromFiles(envConfig.CaPath, scriptFilePath, paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)

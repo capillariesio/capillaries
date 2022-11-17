@@ -12,7 +12,7 @@ import (
 )
 
 func HarvestNodeStatusesForRun(logger *l.Logger, pCtx *ctx.MessageProcessingContext, affectedNodes []string) (wfmodel.NodeBatchStatusType, string, error) {
-	logger.PushF("HarvestNodeStatusesForRun")
+	logger.PushF("wfdb.HarvestNodeStatusesForRun")
 	defer logger.PopF()
 
 	fields := []string{"script_node", "status"}
@@ -64,7 +64,7 @@ func HarvestNodeStatusesForRun(logger *l.Logger, pCtx *ctx.MessageProcessingCont
 }
 
 func HarvestNodeLifespans(logger *l.Logger, pCtx *ctx.MessageProcessingContext, affectingRuns []int16, affectedNodes []string) (wfmodel.RunNodeLifespanMap, error) {
-	logger.PushF("HarvestLastNodeStatuses")
+	logger.PushF("wfdb.HarvestLastNodeStatuses")
 	defer logger.PopF()
 
 	fields := []string{"ts", "run_id", "script_node", "status"}
@@ -114,7 +114,7 @@ func HarvestNodeLifespans(logger *l.Logger, pCtx *ctx.MessageProcessingContext, 
 }
 
 func SetNodeStatus(logger *l.Logger, pCtx *ctx.MessageProcessingContext, status wfmodel.NodeBatchStatusType, comment string) (bool, error) {
-	logger.PushF("SetNodeStatus")
+	logger.PushF("wfdb.SetNodeStatus")
 	defer logger.PopF()
 
 	q := (&cql.QueryBuilder{}).
@@ -139,7 +139,7 @@ func SetNodeStatus(logger *l.Logger, pCtx *ctx.MessageProcessingContext, status 
 }
 
 func GetNodeHistoryForRun(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId int16) ([]*wfmodel.NodeHistoryEvent, error) {
-	logger.PushF("GetNodeHistoryForRun")
+	logger.PushF("wfdb.GetNodeHistoryForRun")
 	defer logger.PopF()
 
 	q := (&cql.QueryBuilder{}).

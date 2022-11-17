@@ -171,11 +171,13 @@ See [Toolbelt and Daemon configuration](binconfig.md) for configuration settings
 
 ## Webapi
 
-A simple application that provides web service access to Capillaries environment (similar to the [Toolbelt](#toolbelt), but speaks HTTP instead of cmdline). Can be used by [Capillaries-UI](#capillaries-ui), by integration tests (see [lookup Webapi test](../test/code/lookup/README.md#webapi) or by third-party applications.
+A simple application that provides web service access to Capillaries environment (similar to the [Toolbelt](#toolbelt), but it speaks HTTP instead of cmdline). Can be used by [Capillaries-UI](#capillaries-ui), by integration tests (see [lookup Webapi test](../test/code/lookup/README.md#webapi) or by third-party applications.
+
+Please note that Webapi lacks user authorization capabilities. 
 
 ## Capillaries-UI
 
-A simple web UI application that provides user access to Capillaries environment. Uses [Webapi](#webapi) to access Capillaries environment (RabbitMQ queues and Cassandra storage).
+A simple web UI application that provides user access to Capillaries environment (RabbitMQ queues and Cassandra storage) using [Webapi](#webapi). See [Capillaries-UI readme](../ui/README.md) for details.
 
 ## DAG
 

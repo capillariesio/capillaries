@@ -59,6 +59,14 @@ This command will create and start the following containers:
 - [Webapi](glossary.md#webapi) container (backend for Capillaries-UI) 
 - [Capillaries-UI](glossary.md#capillaries-ui) container (user interface to Capillaries)
 
+While the containers are being built and started, check out the source data for this demo:
+```
+head -10 /tmp/capitest_in/tag_and_denormalize/flipcart_products.tsv
+cat /tmp/capitest_in/tag_and_denormalize/tags.csv
+```
+
+The demo will process this data as described in the [sample use scenario](what.md#sample-use);
+
 After all containers are started, you can navigate to `http://localhost:8080`. On the displayed `Keyspaces` page, click `New run` enter the following pramaters and click `OK`:
 
 | | |
@@ -68,32 +76,32 @@ After all containers are started, you can navigate to `http://localhost:8080`. O
 | Script parameters URI | /tmp/capitest_cfg/tag_and_denormalize/script_params_two_runs.json |
 | Start nodes |	read_tags,read_products |
 
-A keyspace named `test_tag_and_denormalize` will appear on the list, click on it and watch the started [run](glossary.md#run) handling [script nodes](glossary.md#script-node).
+A [keyspace](glossary.md#keyspace) named `test_tag_and_denormalize` will appear on the list, click on it and watch the started [run](glossary.md#run) handling [script nodes](glossary.md#script-node).
 
 When the run is complete, check out data processing intermediate results:
 ```
-cat /tmp/capitest_out/tag_and_denormalize/tagged_products_for_operator_review.csv
+head -10 /tmp/capitest_out/tag_and_denormalize/tagged_products_for_operator_review.csv
 ```
 
-Let's assume the operator is satisfied with those results, no it's time to start the second (and final) run. Either from the root `Keyspaces` screen, or from the `test_tag_and_denormalize` matrix screen, start a new run - provide almost the same input, but `Start nodes` will look different now:
+Let's assume the operator is satisfied with those tagging results, now it's time to start the second (and final) run. Either from the root `Keyspaces` screen, or from the `test_tag_and_denormalize` matrix screen, start a new run - provide almost the same input, but `Start nodes` will look different now - this second run will start from handling `tag_totals` node and calculating totals for each tag:
 
 | | |
 |- | - |
 | Keyspace | test_tag_and_denormalize |
-| Script URI |/tmp/capitest_cfg/tag_and_denormalize/script.json |
+| Script URI | /tmp/capitest_cfg/tag_and_denormalize/script.json |
 | Script parameters URI | /tmp/capitest_cfg/tag_and_denormalize/script_params_two_runs.json |
 | Start nodes |	tag_totals |
 
 When this run is complete, see final results at:
 ```
-cat /tmp/capitest_out/tag_and_denormalize/tag_totals_.csv
+cat /tmp/capitest_out/tag_and_denormalize/tag_totals.tsv
 ```
 
 Drop the keyspace after experimenting with it. 
 
-You have just performed the steps that `test_tag_and_denormalize` integration step does, but you operated on the UI level, instead of calling the [Toolbelt](glossary.md#toolbelt), as integration tests do.
+You have just performed the steps that `test_tag_and_denormalize` integration step does, but you operated on the UI level, instead of calling the [Toolbelt](glossary.md#toolbelt), like integration tests do.
 
-Check out other [integration tests](testing.md#integration-tests), look into `code` scripts and try mimicking integration test behavior from Capillaries-UI.
+As a next step, you can check out other [integration tests](testing.md#integration-tests), look into `code` scripts and try mimicking integration test behavior from Capillaries-UI.
 
 ## Setting up your dev machine
 

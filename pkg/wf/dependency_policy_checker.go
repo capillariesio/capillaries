@@ -11,7 +11,7 @@ import (
 )
 
 func CheckDependencyPolicyAgainstNodeEventList(logger *l.Logger, targetNodeDepPol *sc.DependencyPolicyDef, events wfmodel.DependencyNodeEvents) (sc.ReadyToRunNodeCmdType, int16, error) {
-	logger.PushF("checkDependencyPolicyAgainstNodeEventList")
+	logger.PushF("wf.checkDependencyPolicyAgainstNodeEventList")
 	defer logger.PopF()
 
 	var err error

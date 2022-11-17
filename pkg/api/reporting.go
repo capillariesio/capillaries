@@ -11,7 +11,7 @@ import (
 )
 
 func GetRunHistory(logger *l.Logger, cqlSession *gocql.Session, keyspace string) ([]*wfmodel.RunHistoryEvent, error) {
-	logger.PushF("GetRunHistory")
+	logger.PushF("api.GetRunHistory")
 	defer logger.PopF()
 
 	qb := cql.QueryBuilder{}
@@ -36,7 +36,7 @@ func GetRunHistory(logger *l.Logger, cqlSession *gocql.Session, keyspace string)
 }
 
 func GetRunsNodeHistory(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runIds []int16) ([]*wfmodel.NodeHistoryEvent, error) {
-	logger.PushF("GetNodeHistory")
+	logger.PushF("api.GetNodeHistory")
 	defer logger.PopF()
 
 	qb := cql.QueryBuilder{}
@@ -62,7 +62,7 @@ func GetRunsNodeHistory(logger *l.Logger, cqlSession *gocql.Session, keyspace st
 }
 
 func GetBatchHistory(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runIds []int16, scriptNodes []string) ([]*wfmodel.BatchHistoryEvent, error) {
-	logger.PushF("GetBatchHistory")
+	logger.PushF("api.GetBatchHistory")
 	defer logger.PopF()
 
 	qb := cql.QueryBuilder{}

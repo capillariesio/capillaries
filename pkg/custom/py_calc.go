@@ -351,7 +351,7 @@ func kahn(depMap map[string][]string) ([]string, error) {
 }
 
 func (procDef *PyCalcProcessorDef) Run(logger *l.Logger, pCtx *ctx.MessageProcessingContext, rsIn *proc.Rowset, flushVarsArray func(varsArray []*eval.VarValuesMap, varsArrayCount int) error) error {
-	logger.PushF("PyCalcProcessorDef.Run")
+	logger.PushF("custom.PyCalcProcessorDef.Run")
 	defer logger.PopF()
 
 	outFieldRefs := procDef.GetFieldRefs()
@@ -632,7 +632,7 @@ print("%s:%d")
 }
 
 // func (procDef *PyCalcProcessorDef) executeCalculations(logger *l.Logger, pCtx *ctx.MessageProcessingContext, rsIn *proc.Rowset, rsOut *proc.Rowset, timeout time.Duration) error {
-// 	logger.PushF("executeCalculations")
+// 	custom.executeCalculations")
 // 	defer logger.PopF()
 
 // }
