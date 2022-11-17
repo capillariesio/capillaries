@@ -34,13 +34,12 @@ func GetRunProperties(logger *l.Logger, cqlSession *gocql.Session, keyspace stri
 	logger.PushF("wfdb.GetRunProperties")
 	defer logger.PopF()
 
-	fields := []string{"run_id", "start_nodes", "affected_nodes", "script_uri", "script_params_uri"}
 	qb := cql.QueryBuilder{}
 	qb.Keyspace(keyspace)
 	if runId > 0 {
 		qb.Cond("run_id", "=", runId)
 	}
-	q := qb.Select(wfmodel.TableNameRunAffectedNodes, fields)
+	q := qb.Select(wfmodel.TableNameRunAffectedNodes, wfmodel.RunPropertiesAllFields())
 	rows, err := cqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
 		return []*wfmodel.RunProperties{}, cql.WrapDbErrorWithQuery("cannot get all runs properties", q, err)
@@ -48,7 +47,7 @@ func GetRunProperties(logger *l.Logger, cqlSession *gocql.Session, keyspace stri
 
 	runs := make([]*wfmodel.RunProperties, len(rows))
 	for rowIdx, row := range rows {
-		rec, err := wfmodel.NewRunPropertiesFromMap(row, fields)
+		rec, err := wfmodel.NewRunPropertiesFromMap(row, wfmodel.RunPropertiesAllFields())
 		if err != nil {
 			return []*wfmodel.RunProperties{}, fmt.Errorf("%s, %s", err.Error(), q)
 		}
@@ -100,7 +99,7 @@ func HarvestRunIdsByAffectedNodes(logger *l.Logger, pCtx *ctx.MessageProcessingC
 	return runIds, nodeAffectingRunIdsMap, nil
 }
 
-func WriteAffectedNodes(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId int16, startNodes []string, affectedNodes []string, scriptUri string, scriptParamsUri string) error {
+func WriteRunProperties(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId int16, startNodes []string, affectedNodes []string, scriptUri string, scriptParamsUri string, runDescription string) error {
 	q := (&cql.QueryBuilder{}).
 		Keyspace(keyspace).
 		Write("run_id", runId).
@@ -108,6 +107,7 @@ func WriteAffectedNodes(logger *l.Logger, cqlSession *gocql.Session, keyspace st
 		Write("affected_nodes", strings.Join(affectedNodes, ",")).
 		Write("script_uri", scriptUri).
 		Write("script_params_uri", scriptParamsUri).
+		Write("run_description", runDescription).
 		Insert(wfmodel.TableNameRunAffectedNodes, cql.IgnoreIfExists) // If not exists. First one wins.
 	err := cqlSession.Query(q).Exec()
 	if err != nil {

@@ -15,6 +15,11 @@ type RunProperties struct {
 	AffectedNodes   string `header:"affected_nodes" format:"%20v" column:"affected_nodes" type:"text" json:"affected_nodes"`
 	ScriptUri       string `header:"script_uri" format:"%20v" column:"script_uri" type:"text" json:"script_uri"`
 	ScriptParamsUri string `header:"script_params_uri" format:"%20v" column:"script_params_uri" type:"text" json:"script_params_uri"`
+	RunDescription  string `header:"run_desc" format:"%20v" column:"run_description" type:"text" json:"run_description"`
+}
+
+func RunPropertiesAllFields() []string {
+	return []string{"run_id", "start_nodes", "affected_nodes", "script_uri", "script_params_uri", "run_description"}
 }
 
 func NewRunPropertiesFromMap(r map[string]interface{}, fields []string) (*RunProperties, error) {
@@ -32,6 +37,8 @@ func NewRunPropertiesFromMap(r map[string]interface{}, fields []string) (*RunPro
 			res.ScriptUri, err = ReadStringFromRow(fieldName, r)
 		case "script_params_uri":
 			res.ScriptParamsUri, err = ReadStringFromRow(fieldName, r)
+		case "run_description":
+			res.RunDescription, err = ReadStringFromRow(fieldName, r)
 		default:
 			return nil, fmt.Errorf("unknown %s field %s", fieldName, TableNameRunAffectedNodes)
 		}

@@ -102,11 +102,14 @@ func (n RunHistoryEvent) ToSpacedString() string {
 }
 
 type RunLifespan struct {
-	RunId       int16         `json:"run_id"`
-	StartTs     time.Time     `json:"start_ts"`
-	FinalStatus RunStatusType `json:"final_status"`
-	CompletedTs time.Time     `json:"completed_ts"`
-	StoppedTs   time.Time     `json:"stopped_ts"`
+	RunId            int16         `json:"run_id"`
+	StartTs          time.Time     `json:"start_ts"`
+	StartComment     string        `json:"start_comment"`
+	FinalStatus      RunStatusType `json:"final_status"`
+	CompletedTs      time.Time     `json:"completed_ts"`
+	CompletedComment string        `json:"completed_comment"`
+	StoppedTs        time.Time     `json:"stopped_ts"`
+	StoppedComment   string        `json:"stopped_comment"`
 }
 
 func (ls RunLifespan) ToString() string {

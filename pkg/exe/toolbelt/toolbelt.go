@@ -476,7 +476,7 @@ func main() {
 		}
 		defer amqpChannel.Close()
 
-		runId, err := api.StartRun(envConfig, logger, amqpChannel, *scriptFilePath, *paramsFilePath, cqlSession, *keyspace, startNodes)
+		runId, err := api.StartRun(envConfig, logger, amqpChannel, *scriptFilePath, *paramsFilePath, cqlSession, *keyspace, startNodes, "started by Toolbelt")
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)

@@ -1,5 +1,6 @@
 <script>
     import { closeModal } from 'svelte-modals'
+    import dayjs from "dayjs";
     import Util, { webapiUrl, handleResponse } from '../Util.svelte';
 
     // provided by Modals
@@ -23,6 +24,7 @@
     let scriptUri = "";
     let paramsUri = "";
     let startNodes = "";
+    let runDesc = "Started using capillaries-ui at " +  dayjs().format("MMM D, YYYY HH:mm:ss.SSS Z");
 
     function validateKeyspace(ks) {
       if (ks.trim().length == 0) {
@@ -60,7 +62,7 @@
       //console.log("Sending:",JSON.stringify({"script_uri": scriptUri, "script_params_uri": paramsUri, "start_nodes": startNodes}));
       responseError = validateKeyspace(keyspace) + validateUri(scriptUri) + validateUri(paramsUri) + validateStartNodes(startNodes);
       if (responseError.length == 0) {
-        fetch(new Request(webapiUrl() + "/ks/" + keyspace + "/run", {method: 'POST', body: JSON.stringify({"script_uri": scriptUri, "script_params_uri": paramsUri, "start_nodes": startNodes})}))
+        fetch(new Request(webapiUrl() + "/ks/" + keyspace + "/run", {method: 'POST', body: JSON.stringify({"script_uri": scriptUri, "script_params_uri": paramsUri, "start_nodes": startNodes, "run_description": runDesc})}))
               .then(response => response.json())
               .then(responseJson => { handleResponse(responseJson, setWebapiData);})
               .catch(error => {responseError = error;});
@@ -72,6 +74,8 @@
   <div role="dialog" class="modal">
     <div class="contents">
       <p>You are about to start a new run</p>
+      Run description:
+      <input bind:value={runDesc}>
       Keyspace:
       <input bind:value={keyspace}>
       Script URI:

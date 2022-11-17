@@ -1,5 +1,6 @@
 <script>
     import { closeModal } from 'svelte-modals'
+    import dayjs from "dayjs";
     import Util, { webapiUrl, handleResponse } from '../Util.svelte';
 
     // provided by Modals
@@ -20,7 +21,7 @@
     }
 
     // Local variables
-    let stopComment = "Stopped using capillaries-ui";
+    let stopComment = "Stopped using capillaries-ui at " +  dayjs().format("MMM D, YYYY HH:mm:ss.SSS Z");
 
     function stopAndCloseModal() {
 		fetch(new Request(webapiUrl() + "/ks/" + keyspace + "/run/" + run_id, {method: 'DELETE', body: '{"comment": "' + stopComment +'"}'}))

@@ -38,26 +38,30 @@
         <tr>
             <td>Run Id:</td>
             <td>{run_lifespan.run_id}</td>
+            <td></td>
         </tr>
         <tr>
             <td>Started</td>
-            <td>{dayjs(run_lifespan.start_ts).format("MMM D, YYYY HH:mm:ss.SSS Z")}</td>
+            <td style="white-space: nowrap;">{dayjs(run_lifespan.start_ts).format("MMM D, YYYY HH:mm:ss.SSS Z")}</td>
+            <td>{run_lifespan.start_comment}</td>
         </tr>
         <tr>
             <td>Completed</td>
-            <td>{dayjs(run_lifespan.completed_ts).valueOf() > 0 ? dayjs(run_lifespan.completed_ts).format("MMM D, YYYY HH:mm:ss.SSS Z") : "never"}</td>
+            <td style="white-space: nowrap;">{dayjs(run_lifespan.completed_ts).valueOf() > 0 ? dayjs(run_lifespan.completed_ts).format("MMM D, YYYY HH:mm:ss.SSS Z") : "never"}</td>
+            <td>{run_lifespan.completed_comment}</td>
         </tr>
         <tr>
             <td>Stopped/Invalidated</td>
-            <td>{dayjs(run_lifespan.stopped_ts).valueOf() > 0 ? dayjs(run_lifespan.stopped_ts).format("MMM D, YYYY HH:mm:ss.SSS Z") : "never"}</td>
+            <td style="white-space: nowrap;">{dayjs(run_lifespan.stopped_ts).valueOf() > 0 ? dayjs(run_lifespan.stopped_ts).format("MMM D, YYYY HH:mm:ss.SSS Z") : "never"}</td>
+            <td>{run_lifespan.stopped_comment}</td>
         </tr>
         <tr>
             <td>Elapsed</td>
-            <td>{calculateElapsed(run_lifespan)}</td>
+            <td colspan="2"  style="white-space: nowrap;">{calculateElapsed(run_lifespan)}</td>
         </tr>
         <tr>
             <td>Status</td>
-            <td>
+            <td colspan="2"  style="white-space: nowrap;">
                 <img src={util.runStatusToIconStatic(run_lifespan.final_status)} title={util.runStatusToText(run_lifespan.final_status)} alt=""/>&nbsp;
                 {util.runStatusToText(run_lifespan.final_status)}&nbsp;
                 {#if run_lifespan.final_status != 3}<button on:click={onStop}>{#if run_lifespan.final_status === 1}Stop{:else}Invalidate{/if}</button>{:else}&nbsp;{/if}</td>
@@ -69,6 +73,10 @@
 {#if Object.keys(run_props).length > 0}
     <table>
         <tbody>
+            <tr>
+                <td>Description:</td>
+                <td>{run_props.run_description}</td>
+            </tr>
             <tr>
                 <td>Script URI:</td>
                 <td>{run_props.script_uri}</td>

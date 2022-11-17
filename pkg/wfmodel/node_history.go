@@ -42,7 +42,10 @@ func (m NodeStatusMap) ToString() string {
 	sb := strings.Builder{}
 	sb.WriteString("{")
 	for nodeName, nodeStatus := range m {
-		sb.WriteString(fmt.Sprintf("%s:%s ", nodeName, nodeStatus.ToString()))
+		if sb.Len() > 1 {
+			sb.WriteString(",")
+		}
+		sb.WriteString(fmt.Sprintf(`"%s":"%s"`, nodeName, nodeStatus.ToString()))
 	}
 	sb.WriteString("}")
 	return sb.String()

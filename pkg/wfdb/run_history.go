@@ -49,12 +49,11 @@ func HarvestRunLifespans(logger *l.Logger, cqlSession *gocql.Session, keyspace s
 	logger.PushF("wfdb.HarvestRunLifespans")
 	defer logger.PopF()
 
-	fields := []string{"ts", "run_id", "status"}
 	qb := (&cql.QueryBuilder{}).Keyspace(keyspace)
 	if len(runIds) > 0 {
 		qb.CondInInt16("run_id", runIds)
 	}
-	q := qb.Select(wfmodel.TableNameRunHistory, fields)
+	q := qb.Select(wfmodel.TableNameRunHistory, wfmodel.RunHistoryEventAllFields())
 	rows, err := cqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
 		return nil, cql.WrapDbErrorWithQuery("cannot get run statuses for a list of run ids", q, err)
@@ -63,7 +62,7 @@ func HarvestRunLifespans(logger *l.Logger, cqlSession *gocql.Session, keyspace s
 	events := make([]*wfmodel.RunHistoryEvent, len(rows))
 
 	for idx, r := range rows {
-		rec, err := wfmodel.NewRunHistoryEventFromMap(r, fields)
+		rec, err := wfmodel.NewRunHistoryEventFromMap(r, wfmodel.RunHistoryEventAllFields())
 		if err != nil {
 			return nil, fmt.Errorf("%s, %s", err.Error(), q)
 		}
@@ -76,7 +75,7 @@ func HarvestRunLifespans(logger *l.Logger, cqlSession *gocql.Session, keyspace s
 	emptyUnix := time.Time{}.Unix()
 	for _, e := range events {
 		if e.Status == wfmodel.RunStart {
-			runLifespanMap[e.RunId] = &wfmodel.RunLifespan{RunId: e.RunId, StartTs: e.Ts, FinalStatus: wfmodel.RunStart, CompletedTs: time.Time{}, StoppedTs: time.Time{}}
+			runLifespanMap[e.RunId] = &wfmodel.RunLifespan{RunId: e.RunId, StartTs: e.Ts, StartComment: e.Comment, FinalStatus: wfmodel.RunStart, CompletedTs: time.Time{}, StoppedTs: time.Time{}}
 		} else {
 			_, ok := runLifespanMap[e.RunId]
 			if !ok {
@@ -84,11 +83,13 @@ func HarvestRunLifespans(logger *l.Logger, cqlSession *gocql.Session, keyspace s
 			}
 			if e.Status == wfmodel.RunComplete && runLifespanMap[e.RunId].CompletedTs.Unix() == emptyUnix {
 				runLifespanMap[e.RunId].CompletedTs = e.Ts
+				runLifespanMap[e.RunId].CompletedComment = e.Comment
 				if runLifespanMap[e.RunId].StoppedTs.Unix() == emptyUnix {
 					runLifespanMap[e.RunId].FinalStatus = wfmodel.RunComplete // If it was not stopped so far, consider it complete
 				}
 			} else if e.Status == wfmodel.RunStop && runLifespanMap[e.RunId].StoppedTs.Unix() == emptyUnix {
 				runLifespanMap[e.RunId].StoppedTs = e.Ts
+				runLifespanMap[e.RunId].StoppedComment = e.Comment
 				runLifespanMap[e.RunId].FinalStatus = wfmodel.RunStop // Stop always wins as final status, it may be sign for dependency checker to declare results invalid (depending on the rules)
 			}
 		}

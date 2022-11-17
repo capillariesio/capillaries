@@ -27,7 +27,7 @@ func StopRun(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId
 	return wfdb.SetRunStatus(logger, cqlSession, keyspace, runId, wfmodel.RunStop, comment, cql.IgnoreIfExists)
 }
 
-func StartRun(envConfig *env.EnvConfig, logger *l.Logger, amqpChannel *amqp.Channel, scriptFilePath string, paramsFilePath string, cqlSession *gocql.Session, keyspace string, startNodes []string) (int16, error) {
+func StartRun(envConfig *env.EnvConfig, logger *l.Logger, amqpChannel *amqp.Channel, scriptFilePath string, paramsFilePath string, cqlSession *gocql.Session, keyspace string, startNodes []string, desc string) (int16, error) {
 	logger.PushF("api.StartRun")
 	defer logger.PopF()
 
@@ -63,7 +63,7 @@ func StartRun(envConfig *env.EnvConfig, logger *l.Logger, amqpChannel *amqp.Chan
 
 	// Write affected nodes
 	affectedNodes := script.GetAffectedNodes(startNodes)
-	if err := wfdb.WriteAffectedNodes(logger, cqlSession, keyspace, runId, startNodes, affectedNodes, scriptFilePath, paramsFilePath); err != nil {
+	if err := wfdb.WriteRunProperties(logger, cqlSession, keyspace, runId, startNodes, affectedNodes, scriptFilePath, paramsFilePath, desc); err != nil {
 		return 0, err
 	}
 
@@ -102,7 +102,7 @@ func StartRun(envConfig *env.EnvConfig, logger *l.Logger, amqpChannel *amqp.Chan
 	}
 
 	// Write status 'start', fail if a record for run_id is already there (too many operators)
-	if err := wfdb.SetRunStatus(logger, cqlSession, keyspace, runId, wfmodel.RunStart, strings.Join(startNodes, ","), cql.ThrowIfExists); err != nil {
+	if err := wfdb.SetRunStatus(logger, cqlSession, keyspace, runId, wfmodel.RunStart, "api.StarRun", cql.ThrowIfExists); err != nil {
 		return 0, err
 	}
 	// Send one msg after another
@@ -156,12 +156,12 @@ func RunNode(envConfig *env.EnvConfig, logger *l.Logger, nodeName string, runId 
 
 	// Write affected nodes
 	affectedNodes := script.GetAffectedNodes([]string{nodeName})
-	if err := wfdb.WriteAffectedNodes(logger, cqlSession, keyspace, runId, []string{nodeName}, affectedNodes, scriptFilePath, paramsFilePath); err != nil {
+	if err := wfdb.WriteRunProperties(logger, cqlSession, keyspace, runId, []string{nodeName}, affectedNodes, scriptFilePath, paramsFilePath, "started by Toolbelt direct RunNode"); err != nil {
 		return 0, err
 	}
 
 	// Write status 'start', fail if a record for run_id is already there (too many operators)
-	if err := wfdb.SetRunStatus(logger, cqlSession, keyspace, runId, wfmodel.RunStart, fmt.Sprintf("RunNode(%s)", nodeName), cql.ThrowIfExists); err != nil {
+	if err := wfdb.SetRunStatus(logger, cqlSession, keyspace, runId, wfmodel.RunStart, fmt.Sprintf("Toolbelt RunNode(%s)", nodeName), cql.ThrowIfExists); err != nil {
 		return 0, err
 	}
 
@@ -184,7 +184,7 @@ func RunNode(envConfig *env.EnvConfig, logger *l.Logger, nodeName string, runId 
 		}
 		logger.Info("BatchComplete: [%d,%d], %.3fs", intervals[i][0], intervals[i][1], time.Since(batchStartTs).Seconds())
 	}
-	if err := wfdb.SetRunStatus(logger, cqlSession, keyspace, runId, wfmodel.RunComplete, fmt.Sprintf("RunNode(%s), run successful", nodeName), cql.IgnoreIfExists); err != nil {
+	if err := wfdb.SetRunStatus(logger, cqlSession, keyspace, runId, wfmodel.RunComplete, fmt.Sprintf("Toolbelt RunNode(%s), run successful", nodeName), cql.IgnoreIfExists); err != nil {
 		return 0, err
 	}
 

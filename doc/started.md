@@ -72,7 +72,7 @@ After all containers are started, you can navigate to `http://localhost:8080`. O
 | | |
 |- | - |
 | Keyspace | test_tag_and_denormalize |
-| Script URI |/tmp/capitest_cfg/tag_and_denormalize/script.json |
+| Script URI | /tmp/capitest_cfg/tag_and_denormalize/script.json |
 | Script parameters URI | /tmp/capitest_cfg/tag_and_denormalize/script_params_two_runs.json |
 | Start nodes |	read_tags,read_products |
 
