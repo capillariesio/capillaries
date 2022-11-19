@@ -8,17 +8,18 @@ import (
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
+	"github.com/gocql/gocql"
 )
 
 func HarvestNodeStatusesForRun(logger *l.Logger, pCtx *ctx.MessageProcessingContext, affectedNodes []string) (wfmodel.NodeBatchStatusType, string, error) {
-	logger.PushF("HarvestNodeStatusesForRun")
+	logger.PushF("wfdb.HarvestNodeStatusesForRun")
 	defer logger.PopF()
 
 	fields := []string{"script_node", "status"}
 	q := (&cql.QueryBuilder{}).
 		Keyspace(pCtx.BatchInfo.DataKeyspace).
 		Cond("run_id", "=", pCtx.BatchInfo.RunId).
-		CondInString("script_node", affectedNodes).
+		CondInString("script_node", affectedNodes). // TODO: Is this really necessary? Shouldn't run id be enough? Of course, it's safer to be extra cautious, but...?
 		Select(wfmodel.TableNameNodeHistory, fields)
 	rows, err := pCtx.CqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
@@ -31,7 +32,7 @@ func HarvestNodeStatusesForRun(logger *l.Logger, pCtx *ctx.MessageProcessingCont
 	}
 
 	for _, r := range rows {
-		rec, err := wfmodel.NewNodeHistoryFromMap(r, fields)
+		rec, err := wfmodel.NewNodeHistoryEventFromMap(r, fields)
 		if err != nil {
 			return wfmodel.NodeBatchNone, "", fmt.Errorf("cannot deserialize node history row %s, %s", err.Error(), q)
 		}
@@ -63,7 +64,7 @@ func HarvestNodeStatusesForRun(logger *l.Logger, pCtx *ctx.MessageProcessingCont
 }
 
 func HarvestNodeLifespans(logger *l.Logger, pCtx *ctx.MessageProcessingContext, affectingRuns []int16, affectedNodes []string) (wfmodel.RunNodeLifespanMap, error) {
-	logger.PushF("HarvestLastNodeStatuses")
+	logger.PushF("wfdb.HarvestLastNodeStatuses")
 	defer logger.PopF()
 
 	fields := []string{"ts", "run_id", "script_node", "status"}
@@ -89,7 +90,7 @@ func HarvestNodeLifespans(logger *l.Logger, pCtx *ctx.MessageProcessingContext, 
 	}
 
 	for _, r := range rows {
-		rec, err := wfmodel.NewNodeHistoryFromMap(r, fields)
+		rec, err := wfmodel.NewNodeHistoryEventFromMap(r, fields)
 		if err != nil {
 			return nil, fmt.Errorf("%s, %s", err.Error(), q)
 		}
@@ -113,7 +114,7 @@ func HarvestNodeLifespans(logger *l.Logger, pCtx *ctx.MessageProcessingContext, 
 }
 
 func SetNodeStatus(logger *l.Logger, pCtx *ctx.MessageProcessingContext, status wfmodel.NodeBatchStatusType, comment string) (bool, error) {
-	logger.PushF("SetNodeStatus")
+	logger.PushF("wfdb.SetNodeStatus")
 	defer logger.PopF()
 
 	q := (&cql.QueryBuilder{}).
@@ -135,4 +136,30 @@ func SetNodeStatus(logger *l.Logger, pCtx *ctx.MessageProcessingContext, status 
 	}
 	logger.DebugCtx(pCtx, "%d/%s, %s, isApplied=%t", pCtx.BatchInfo.RunId, pCtx.CurrentScriptNode.Name, status.ToString(), isApplied)
 	return isApplied, nil
+}
+
+func GetNodeHistoryForRun(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId int16) ([]*wfmodel.NodeHistoryEvent, error) {
+	logger.PushF("wfdb.GetNodeHistoryForRun")
+	defer logger.PopF()
+
+	q := (&cql.QueryBuilder{}).
+		Keyspace(keyspace).
+		Cond("run_id", "=", runId).
+		Select(wfmodel.TableNameNodeHistory, wfmodel.NodeHistoryEventAllFields())
+	rows, err := cqlSession.Query(q).Iter().SliceMap()
+	if err != nil {
+		return []*wfmodel.NodeHistoryEvent{}, cql.WrapDbErrorWithQuery(fmt.Sprintf("cannot get node history for run %d", runId), q, err)
+	}
+
+	result := make([]*wfmodel.NodeHistoryEvent, len(rows))
+
+	for idx, r := range rows {
+		rec, err := wfmodel.NewNodeHistoryEventFromMap(r, wfmodel.NodeHistoryEventAllFields())
+		if err != nil {
+			return []*wfmodel.NodeHistoryEvent{}, fmt.Errorf("cannot deserialize node history row %s, %s", err.Error(), q)
+		}
+		result[idx] = rec
+	}
+
+	return result, nil
 }

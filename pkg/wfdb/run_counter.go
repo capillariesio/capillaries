@@ -10,7 +10,7 @@ import (
 )
 
 func GetNextRunCounter(logger *l.Logger, cqlSession *gocql.Session, keyspace string) (int16, error) {
-	logger.PushF("GetNextRunCounter")
+	logger.PushF("wfdb.GetNextRunCounter")
 	defer logger.PopF()
 
 	maxRetries := 100

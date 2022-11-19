@@ -5,15 +5,13 @@
 # - python interpreter is available by name 'python' (see env_config.json)
 
 keyspace="test_py_calc"
-dataDir="../../../test/data"
-outDir=$dataDir/out/py_calc
-scriptFile=$dataDir/cfg/py_calc/script.json
-paramsFile=$dataDir/cfg/py_calc/script_params.json
+outDir=/tmp/capitest_out/py_calc
+scriptFile=/tmp/capitest_cfg/py_calc/script.json
+paramsFile=/tmp/capitest_cfg/py_calc/script_params.json
 
 SECONDS=0
 
 pushd ../../../pkg/exe/toolbelt
-[ ! -d $outDir ] && mkdir $outDir
 set -x
 
 go run toolbelt.go drop_keyspace -keyspace=$keyspace

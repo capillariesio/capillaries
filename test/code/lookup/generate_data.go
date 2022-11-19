@@ -46,8 +46,12 @@ type ScriptParams struct {
 }
 
 func main() {
-	// Read sript params file to get cutoff dates and other params
-	fileScriptParams := "../../data/cfg/lookup/script_params_one_run.json"
+	cfgRoot := "/tmp/capitest_cfg/lookup"
+	inRoot := "/tmp/capitest_in/lookup"
+	outRoot := "/tmp/capitest_out/lookup"
+
+	// Read script params file to get cutoff dates and other params
+	fileScriptParams := cfgRoot + "/script_params_one_run.json"
 	fScriptParamsFile, err := os.Open(fileScriptParams)
 	if err != nil {
 		log.Fatalf("cannot open file [%s]: %s", fileScriptParams, err.Error())
@@ -85,12 +89,12 @@ func main() {
 	defaultProductId := ""
 	defaultSellerId := ""
 
-	fileInOrdersPath := flag.String("in_orders", "../../data/in/lookup/raw_orders", "Path to input file to generate: orders")
-	fileInItemsPath := flag.String("in_items", "../../data/in/lookup/raw_items", "Path to input file to generate: order items")
-	fileOutNoGroupInnerPath := flag.String("out_no_group_inner", "../../data/out/lookup/raw_no_group_inner", "Path to output file to generate: orders inner joined with items, no grouping")
-	fileOutNoGroupLeftOuterPath := flag.String("out_no_group_left_outer", "../../data/out/lookup/raw_no_group_outer", "Path to output file to generate: orders left outer joined with items, no grouping")
-	fileOutGroupInnerPath := flag.String("out_group_inner", "../../data/out/lookup/raw_grouped_inner", "Path to output file to generate: orders inner joined with items, grouped")
-	fileOutGroupLeftOuterPath := flag.String("out_group_left_outer", "../../data/out/lookup/raw_grouped_outer", "Path to output file to generate: orders left outer joined with items, grouped")
+	fileInOrdersPath := flag.String("in_orders", inRoot+"/raw_orders", "Path to input file to generate: orders")
+	fileInItemsPath := flag.String("in_items", inRoot+"/raw_items", "Path to input file to generate: order items")
+	fileOutNoGroupInnerPath := flag.String("out_no_group_inner", outRoot+"/raw_no_group_inner", "Path to output file to generate: orders inner joined with items, no grouping")
+	fileOutNoGroupLeftOuterPath := flag.String("out_no_group_left_outer", outRoot+"/raw_no_group_outer", "Path to output file to generate: orders left outer joined with items, no grouping")
+	fileOutGroupInnerPath := flag.String("out_group_inner", outRoot+"/raw_grouped_inner", "Path to output file to generate: orders inner joined with items, grouped")
+	fileOutGroupLeftOuterPath := flag.String("out_group_left_outer", outRoot+"/raw_grouped_outer", "Path to output file to generate: orders left outer joined with items, grouped")
 	totalItems := flag.Int("items", 1000, "Total number of order items to generate")
 	totalSellers := flag.Int("sellers", 20, "Total number of sellers to generate")
 	maxProductsPerSeller := flag.Int("products", 10, "Max number of products per seller to generate")

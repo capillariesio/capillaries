@@ -2,7 +2,7 @@
 
 ## Unit tests and code coverage
 
-cd into a directory under pkg/ and run 
+cd into any directory under pkg/ and run 
 ```
 go test - v
 ```
@@ -22,8 +22,4 @@ There is a number of extensive integration tests that cover a big part of Capill
 - [py_calc](../test/code/py_calc/README.md): focuses on [custom processor](glossary.md#table_custom_tfm_table) implementation - [py_calc](glossary.md#py_calc-processor)
 - [tag_and_denormalize](../test/code/tag_and_denormalize/README.md): focuses on [custom processor](glossary.md#table_custom_tfm_table) implementation - [tag_and_denormalize](glossary.md#tag_and_denormalize-processor)
 
-All tests require running Cassandra and RabbitMQ containers (see [Getting started](started.md) for details)
-
-## Docker testing
-
-Some integration tests ([py_calc](../test/code/py_calc/README.md), at the moment) may provide setup for Capillaries [Daemon](glossary.md#daemon) running in Docker container. See corresponding test docs for details. 
+All tests require running Cassandra and RabbitMQ containers (see [Getting started](started.md) for details). All tests run [Toolbelt](glossary.md#toolbelt) to send work batches to the queue and to check Capillaries workflow status.

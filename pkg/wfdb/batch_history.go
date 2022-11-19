@@ -2,16 +2,18 @@ package wfdb
 
 import (
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
+	"github.com/gocql/gocql"
 )
 
 func HarvestLastStatusForBatch(logger *l.Logger, pCtx *ctx.MessageProcessingContext) (wfmodel.NodeBatchStatusType, error) {
-	logger.PushF("HarvestLastStatusForBatch")
+	logger.PushF("wfdb.HarvestLastStatusForBatch")
 	defer logger.PopF()
 
 	fields := []string{"ts", "status"}
@@ -29,7 +31,7 @@ func HarvestLastStatusForBatch(logger *l.Logger, pCtx *ctx.MessageProcessingCont
 	lastStatus := wfmodel.NodeBatchNone
 	lastTs := time.Unix(0, 0)
 	for _, r := range rows {
-		rec, err := wfmodel.NewBatchHistoryFromMap(r, fields)
+		rec, err := wfmodel.NewBatchHistoryEventFromMap(r, fields)
 		if err != nil {
 			return wfmodel.NodeBatchNone, fmt.Errorf("HarvestLastStatusForBatch: : cannot deserialize batch history row: %s, %s", err.Error(), q)
 		}
@@ -44,8 +46,36 @@ func HarvestLastStatusForBatch(logger *l.Logger, pCtx *ctx.MessageProcessingCont
 	return lastStatus, nil
 }
 
+func GetRunNodeBatchHistory(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId int16, nodeName string) ([]*wfmodel.BatchHistoryEvent, error) {
+	logger.PushF("wfdb.GetRunNodeBatchHistory")
+	defer logger.PopF()
+
+	q := (&cql.QueryBuilder{}).
+		Keyspace(keyspace).
+		Cond("run_id", "=", runId).
+		Cond("script_node", "=", nodeName).
+		Select(wfmodel.TableNameBatchHistory, wfmodel.BatchHistoryEventAllFields())
+	rows, err := cqlSession.Query(q).Iter().SliceMap()
+	if err != nil {
+		return []*wfmodel.BatchHistoryEvent{}, cql.WrapDbErrorWithQuery("GetRunNodeBatchHistory: cannot get node batch history", q, err)
+	}
+
+	result := make([]*wfmodel.BatchHistoryEvent, len(rows))
+	for rowIdx, row := range rows {
+		rec, err := wfmodel.NewBatchHistoryEventFromMap(row, wfmodel.BatchHistoryEventAllFields())
+		if err != nil {
+			return []*wfmodel.BatchHistoryEvent{}, fmt.Errorf("cannot deserialize batch node history row %s, %s", err.Error(), q)
+		}
+		result[rowIdx] = rec
+	}
+
+	sort.Slice(result, func(i, j int) bool { return result[i].Ts.Before(result[j].Ts) })
+
+	return result, nil
+}
+
 func HarvestBatchStatusesForNode(logger *l.Logger, pCtx *ctx.MessageProcessingContext) (wfmodel.NodeBatchStatusType, error) {
-	logger.PushF("HarvestBatchStatusesForNode")
+	logger.PushF("wfdb.HarvestBatchStatusesForNode")
 	defer logger.PopF()
 
 	fields := []string{"status", "batch_idx", "batches_total"}
@@ -65,7 +95,7 @@ func HarvestBatchStatusesForNode(logger *l.Logger, pCtx *ctx.MessageProcessingCo
 	failFound := false
 	stopReceivedFound := false
 	for _, r := range rows {
-		rec, err := wfmodel.NewBatchHistoryFromMap(r, fields)
+		rec, err := wfmodel.NewBatchHistoryEventFromMap(r, fields)
 		if err != nil {
 			return wfmodel.NodeBatchNone, fmt.Errorf("harvestBatchStatusesForNode: cannot deserialize batch history row %s, %s", err.Error(), q)
 		}
@@ -113,7 +143,7 @@ func HarvestBatchStatusesForNode(logger *l.Logger, pCtx *ctx.MessageProcessingCo
 }
 
 func SetBatchStatus(logger *l.Logger, pCtx *ctx.MessageProcessingContext, status wfmodel.NodeBatchStatusType, comment string) error {
-	logger.PushF("SetBatchStatus")
+	logger.PushF("wfdb.SetBatchStatus")
 	defer logger.PopF()
 
 	qb := cql.QueryBuilder{}
@@ -126,7 +156,9 @@ func SetBatchStatus(logger *l.Logger, pCtx *ctx.MessageProcessingContext, status
 		Write("batches_total", pCtx.BatchInfo.BatchesTotal).
 		Write("status", status).
 		Write("first_token", pCtx.BatchInfo.FirstToken).
-		Write("last_token", pCtx.BatchInfo.LastToken)
+		Write("last_token", pCtx.BatchInfo.LastToken).
+		Write("instance", logger.ZapMachine.String).
+		Write("thread", logger.ZapThread.Integer)
 	if len(comment) > 0 {
 		qb.Write("comment", comment)
 	}

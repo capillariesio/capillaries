@@ -45,7 +45,6 @@ one_daemon_run()
 
     SECONDS=0
     pushd ../../../pkg/exe/toolbelt
-    [ ! -d $outDir ] && mkdir $outDir
 
     go run toolbelt.go drop_keyspace -keyspace=$keyspace
     
@@ -55,6 +54,7 @@ one_daemon_run()
     echo "Waiting for run to finish, make sure pkg/exe/daemon is running..."
     wait $keyspace 1 2 $outDir
     go run toolbelt.go get_node_history -keyspace=$keyspace -run_ids=1
+
     popd
     duration=$SECONDS
     echo "$(($duration / 60))m $(($duration % 60))s elapsed."    
@@ -71,7 +71,6 @@ two_daemon_runs()
 
     SECONDS=0
     pushd ../../../pkg/exe/toolbelt
-    [ ! -d $outDir ] && mkdir $outDir
 
     go run toolbelt.go drop_keyspace -keyspace=$keyspace
 
@@ -92,6 +91,49 @@ two_daemon_runs()
     echo "Waiting for run to finish, make sure pkg/exe/daemon is running..."
     wait $keyspace 2 2 $outDir
     go run toolbelt.go get_node_history -keyspace=$keyspace -run_ids=1,2
+    
+    popd
+    duration=$SECONDS
+    echo "$(($duration / 60))m $(($duration % 60))s elapsed."
+}
+
+
+two_daemon_runs_webapi()
+{
+    local keyspace=$1
+    local scriptFile=$2
+    local paramsFile=$3
+    local outDir=$4
+    local startNodesOne=$5
+    local startNodesTwo=$6
+
+    SECONDS=0
+    pushd ../../../pkg/exe/toolbelt
+
+    curl -H "Content-Type: application/json" -X DELETE "http://localhost:6543/ks/$keyspace"
+
+    # Operator starts run 1
+
+    curl -d '{"script_uri":"'"$scriptFile"'", "script_params_uri":"'"$paramsFile"'", "start_nodes":"read_orders,read_order_items"}' -H "Content-Type: application/json" -X POST "http://localhost:6543/ks/$keyspace/run"
+
+    echo "Waiting for run to start..."
+    wait $keyspace 1 1 $outDir
+    echo "Waiting for run to finish, make sure pkg/exe/daemon is running..."
+    wait $keyspace 1 2 $outDir
+
+    # Operator approves intermediate results and starts run 2
+
+    curl -d '{"script_uri":"'"$scriptFile"'", "script_params_uri":"'"$paramsFile"'", "start_nodes":"order_item_date_inner,order_item_date_left_outer,order_date_value_grouped_inner,order_date_value_grouped_left_outer"}' -H "Content-Type: application/json" -X POST "http://localhost:6543/ks/$keyspace/run"
+
+    echo "Waiting for run to start..."
+    wait $keyspace 2 1 $outDir
+    echo "Waiting for run to finish, make sure pkg/exe/daemon is running..."
+    wait $keyspace 2 2 $outDir
+
+    echo "Run 2 finished"
+    curl "http://localhost:6543/ks/$keyspace"
+    echo "Done"
+
     popd
     duration=$SECONDS
     echo "$(($duration / 60))m $(($duration % 60))s elapsed."

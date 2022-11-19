@@ -30,13 +30,17 @@ Run [test_exec_nodes.sh](test_exec_nodes.sh)  - the [Toolbelt](../../../doc/glos
 
 ### Using RabbitMQ workflow (single run)
 
-Make sure the [Daemon](../../../doc/glossary.md#daemon) is running (run `go run daemon.go` to start it in pkg/exe/daemon).
+Make sure the [Daemon](../../../doc/glossary.md#daemon) is running:
+- either run `go run daemon.go` to start it in pkg/exe/daemon
+- or start the Daemon container (`docker compose -p "test_capillaries_containers" start daemon`)
 
 Run [test_one_run.sh](test_one_run.sh) - the [Toolbelt](../../../doc/glossary.md#toolbelt) publishes [batch messages](../../../doc/glossary.md#data-batch) to RabbitMQ and the [Daemon](../../../doc/glossary.md#daemon) consumes them and executes all [script](../../data/cfg/tag_and_denormalize/script.json) [nodes](../../../doc/glossary.md#script-node) in parallel as part of a single [run](../../../doc/glossary.md#run).
 
 ### Using RabbitMQ workflow (two runs)
 
-Make sure the [Daemon](../../../doc/glossary.md#daemon) is running (run `go run daemon.go` to start it in pkg/exe/daemon).
+Make sure the [Daemon](../../../doc/glossary.md#daemon) is running:
+- either run `go run daemon.go` to start it in pkg/exe/daemon
+- or start the Daemon container (`docker compose -p "test_capillaries_containers" start daemon`)
 
 Run [test_two_runs.sh](test_two_runs.sh) - the [Toolbelt](../../../doc/glossary.md#toolbelt) publishes [batch messages](../../../doc/glossary.md#data-batch) to RabbitMQ and the [Daemon](../../../doc/glossary.md#daemon) consumes them and executes [script](../../data/cfg/tag_and_denormalize/script.json) [nodes](../../../doc/glossary.md#script-node) that:
 - load data from files
@@ -50,7 +54,11 @@ This test mimics the "operator validation" scenario.
 
 ### Using RabbitMQ workflow (single run, HTTPS inputs)
 
-Make sure the [Daemon](../../../doc/glossary.md#daemon) is running (run `go run daemon.go` to start it in pkg/exe/daemon).
+Make sure the [Daemon](../../../doc/glossary.md#daemon) is running:
+- either run `go run daemon.go` to start it in pkg/exe/daemon
+- or start the Daemon container (`docker compose -p "test_capillaries_containers" start daemon`)
+
+Make sure that the daemon can connect to github.com.
 
 Same as `test_one_run.sh`, but uses GitHub as the source of configuration and input data.
 

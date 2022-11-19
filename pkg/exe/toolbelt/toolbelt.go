@@ -273,7 +273,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		cqlSession, err := cql.NewSession(envConfig, *keyspace)
+		cqlSession, err := cql.NewSession(envConfig, *keyspace, cql.DoNotCreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
@@ -290,7 +290,7 @@ func main() {
 		keyspace := getRunsCmd.String("keyspace", "", "Keyspace (session id)")
 		getRunsCmd.Parse(os.Args[2:])
 
-		cqlSession, err := cql.NewSession(envConfig, *keyspace)
+		cqlSession, err := cql.NewSession(envConfig, *keyspace, cql.DoNotCreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
@@ -301,7 +301,7 @@ func main() {
 			log.Fatalf(err.Error())
 			os.Exit(1)
 		}
-		fmt.Println(strings.Join(wfmodel.RunHistoryAllFields(), ","))
+		fmt.Println(strings.Join(wfmodel.RunHistoryEventAllFields(), ","))
 		for _, r := range runs {
 			fmt.Printf("%s,%d,%d,%s\n", r.Ts.Format(LogTsFormatUnquoted), r.RunId, r.Status, strings.ReplaceAll(r.Comment, ",", ";"))
 		}
@@ -312,7 +312,7 @@ func main() {
 		runIdsString := getNodeHistoryCmd.String("run_ids", "", "Limit results to specific run ids (optional), comma-separated list")
 		getNodeHistoryCmd.Parse(os.Args[2:])
 
-		cqlSession, err := cql.NewSession(envConfig, *keyspace)
+		cqlSession, err := cql.NewSession(envConfig, *keyspace, cql.DoNotCreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
@@ -324,12 +324,12 @@ func main() {
 			os.Exit(1)
 		}
 
-		nodes, err := api.GetNodeHistory(logger, cqlSession, *keyspace, runIds)
+		nodes, err := api.GetRunsNodeHistory(logger, cqlSession, *keyspace, runIds)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
 		}
-		fmt.Println(strings.Join(wfmodel.NodeHistoryAllFields(), ","))
+		fmt.Println(strings.Join(wfmodel.NodeHistoryEventAllFields(), ","))
 		for _, n := range nodes {
 			fmt.Printf("%s,%d,%s,%d,%s\n", n.Ts.Format(LogTsFormatUnquoted), n.RunId, n.ScriptNode, n.Status, strings.ReplaceAll(n.Comment, ",", ";"))
 		}
@@ -341,7 +341,7 @@ func main() {
 		nodeNamesString := getBatchHistoryCmd.String("nodes", "", "Limit results to specific node names (optional), comma-separated list")
 		getBatchHistoryCmd.Parse(os.Args[2:])
 
-		cqlSession, err := cql.NewSession(envConfig, *keyspace)
+		cqlSession, err := cql.NewSession(envConfig, *keyspace, cql.DoNotCreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
@@ -365,7 +365,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		fmt.Println(strings.Join(wfmodel.BatchHistoryAllFields(), ","))
+		fmt.Println(strings.Join(wfmodel.BatchHistoryEventAllFields(), ","))
 		for _, r := range runs {
 			fmt.Printf("%s,%d,%s,%d,%d,%d,%d,%d,%s\n", r.Ts.Format(LogTsFormatUnquoted), r.RunId, r.ScriptNode, r.BatchIdx, r.BatchesTotal, r.Status, r.FirstToken, r.LastToken, strings.ReplaceAll(r.Comment, ",", ";"))
 		}
@@ -409,13 +409,13 @@ func main() {
 			os.Exit(1)
 		}
 
-		cqlSession, err := cql.NewSession(envConfig, *keyspace)
+		cqlSession, err := cql.NewSession(envConfig, *keyspace, cql.DoNotCreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
 		}
 
-		nodes, err := api.GetNodeHistory(logger, cqlSession, *keyspace, []int16{int16(runId)})
+		nodes, err := api.GetRunsNodeHistory(logger, cqlSession, *keyspace, []int16{int16(runId)})
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
@@ -433,7 +433,7 @@ func main() {
 		keyspace := dropKsCmd.String("keyspace", "", "Keyspace (session id)")
 		dropKsCmd.Parse(os.Args[2:])
 
-		cqlSession, err := cql.NewSession(envConfig, *keyspace)
+		cqlSession, err := cql.NewSession(envConfig, *keyspace, cql.DoNotCreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
@@ -455,7 +455,7 @@ func main() {
 
 		startNodes := strings.Split(*startNodesString, ",")
 
-		cqlSession, err := cql.NewSession(envConfig, *keyspace)
+		cqlSession, err := cql.NewSession(envConfig, *keyspace, cql.CreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
@@ -476,7 +476,7 @@ func main() {
 		}
 		defer amqpChannel.Close()
 
-		runId, err := api.StartRun(envConfig, logger, amqpChannel, *scriptFilePath, *paramsFilePath, cqlSession, *keyspace, startNodes)
+		runId, err := api.StartRun(envConfig, logger, amqpChannel, *scriptFilePath, *paramsFilePath, cqlSession, *keyspace, startNodes, "started by Toolbelt")
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
@@ -497,7 +497,7 @@ func main() {
 
 		startTime := time.Now()
 
-		cqlSession, err := cql.NewSession(envConfig, *keyspace)
+		cqlSession, err := cql.NewSession(envConfig, *keyspace, cql.CreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)

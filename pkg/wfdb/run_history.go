@@ -2,6 +2,7 @@ package wfdb
 
 import (
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
@@ -12,7 +13,7 @@ import (
 )
 
 func GetCurrentRunStatus(logger *l.Logger, pCtx *ctx.MessageProcessingContext) (wfmodel.RunStatusType, error) {
-	logger.PushF("GetCurrentRunStatus")
+	logger.PushF("wfdb.GetCurrentRunStatus")
 	defer logger.PopF()
 
 	fields := []string{"ts", "status"}
@@ -29,7 +30,7 @@ func GetCurrentRunStatus(logger *l.Logger, pCtx *ctx.MessageProcessingContext) (
 	lastStatus := wfmodel.RunNone
 	lastTs := time.Unix(0, 0)
 	for _, r := range rows {
-		rec, err := wfmodel.NewRunHistoryFromMap(r, fields)
+		rec, err := wfmodel.NewRunHistoryEventFromMap(r, fields)
 		if err != nil {
 			return wfmodel.RunNone, fmt.Errorf("%s, %s", err.Error(), q)
 		}
@@ -44,51 +45,61 @@ func GetCurrentRunStatus(logger *l.Logger, pCtx *ctx.MessageProcessingContext) (
 	return lastStatus, nil
 }
 
-func HarvestRunLifespans(logger *l.Logger, pCtx *ctx.MessageProcessingContext, runIds []int16) (wfmodel.RunLifespanMap, error) {
-	logger.PushF("HarvestRunStatusesForRunIds")
+func HarvestRunLifespans(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runIds []int16) (wfmodel.RunLifespanMap, error) {
+	logger.PushF("wfdb.HarvestRunLifespans")
 	defer logger.PopF()
 
-	fields := []string{"ts", "run_id", "status"}
-	q := (&cql.QueryBuilder{}).
-		Keyspace(pCtx.BatchInfo.DataKeyspace).
-		CondInInt16("run_id", runIds).
-		Select(wfmodel.TableNameRunHistory, fields)
-	rows, err := pCtx.CqlSession.Query(q).Iter().SliceMap()
+	qb := (&cql.QueryBuilder{}).Keyspace(keyspace)
+	if len(runIds) > 0 {
+		qb.CondInInt16("run_id", runIds)
+	}
+	q := qb.Select(wfmodel.TableNameRunHistory, wfmodel.RunHistoryEventAllFields())
+	rows, err := cqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
 		return nil, cql.WrapDbErrorWithQuery("cannot get run statuses for a list of run ids", q, err)
 	}
 
-	runLifespanMap := wfmodel.RunLifespanMap{}
-	for _, runId := range runIds {
-		runLifespanMap[runId] = &wfmodel.RunLifespan{
-			StartTs:      time.Time{},
-			LastStatus:   wfmodel.RunNone,
-			LastStatusTs: time.Time{}}
-	}
+	events := make([]*wfmodel.RunHistoryEvent, len(rows))
 
-	for _, r := range rows {
-		rec, err := wfmodel.NewRunHistoryFromMap(r, fields)
+	for idx, r := range rows {
+		rec, err := wfmodel.NewRunHistoryEventFromMap(r, wfmodel.RunHistoryEventAllFields())
 		if err != nil {
 			return nil, fmt.Errorf("%s, %s", err.Error(), q)
 		}
+		events[idx] = rec
+	}
 
-		if rec.Status == wfmodel.RunStart {
-			runLifespanMap[rec.RunId].StartTs = rec.Ts
-		}
+	sort.Slice(events, func(i, j int) bool { return events[i].Ts.Before(events[j].Ts) })
 
-		// Later status wins, Stop always wins
-		if rec.Ts.After(runLifespanMap[rec.RunId].LastStatusTs) || rec.Status == wfmodel.RunStop {
-			runLifespanMap[rec.RunId].LastStatus = rec.Status
-			runLifespanMap[rec.RunId].LastStatusTs = rec.Ts
+	runLifespanMap := wfmodel.RunLifespanMap{}
+	emptyUnix := time.Time{}.Unix()
+	for _, e := range events {
+		if e.Status == wfmodel.RunStart {
+			runLifespanMap[e.RunId] = &wfmodel.RunLifespan{RunId: e.RunId, StartTs: e.Ts, StartComment: e.Comment, FinalStatus: wfmodel.RunStart, CompletedTs: time.Time{}, StoppedTs: time.Time{}}
+		} else {
+			_, ok := runLifespanMap[e.RunId]
+			if !ok {
+				return nil, fmt.Errorf("unexpected sequence of run status events: %v, %s", events, q)
+			}
+			if e.Status == wfmodel.RunComplete && runLifespanMap[e.RunId].CompletedTs.Unix() == emptyUnix {
+				runLifespanMap[e.RunId].CompletedTs = e.Ts
+				runLifespanMap[e.RunId].CompletedComment = e.Comment
+				if runLifespanMap[e.RunId].StoppedTs.Unix() == emptyUnix {
+					runLifespanMap[e.RunId].FinalStatus = wfmodel.RunComplete // If it was not stopped so far, consider it complete
+				}
+			} else if e.Status == wfmodel.RunStop && runLifespanMap[e.RunId].StoppedTs.Unix() == emptyUnix {
+				runLifespanMap[e.RunId].StoppedTs = e.Ts
+				runLifespanMap[e.RunId].StoppedComment = e.Comment
+				runLifespanMap[e.RunId].FinalStatus = wfmodel.RunStop // Stop always wins as final status, it may be sign for dependency checker to declare results invalid (depending on the rules)
+			}
 		}
 	}
 
-	logger.DebugCtx(pCtx, "run ids %v, lifespans %s", runIds, runLifespanMap.ToString())
 	return runLifespanMap, nil
 }
 
 func SetRunStatus(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId int16, status wfmodel.RunStatusType, comment string, ifNotExistsFlag cql.IfNotExistsType) error {
-	logger.PushF("SetRunStatus")
+	logger.PushF("wfdb.SetRunStatus")
 	defer logger.PopF()
 
 	q := (&cql.QueryBuilder{}).

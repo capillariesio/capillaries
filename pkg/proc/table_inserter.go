@@ -161,7 +161,7 @@ func (instr *TableInserter) add(tableRecord TableRecord) error {
 }
 
 func (instr *TableInserter) tableInserterWorker(logger *l.Logger) {
-	logger.PushF("tableInserterWorker")
+	logger.PushF("proc.tableInserterWorker")
 	defer logger.PopF()
 
 	for writeItem := range instr.RecordsIn {

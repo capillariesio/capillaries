@@ -1,8 +1,7 @@
 #!/bin/bash
 
-dataDir=../../data
-inDir=$dataDir/in/py_calc
-outDir=$dataDir/out/py_calc
+inDir=/tmp/capitest_in/py_calc
+outDir=/tmp/capitest_out/py_calc
 
 echo "Generating files..."
 
