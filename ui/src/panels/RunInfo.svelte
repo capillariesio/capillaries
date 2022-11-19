@@ -64,7 +64,7 @@
             <td colspan="2"  style="white-space: nowrap;">
                 <img src={util.runStatusToIconStatic(run_lifespan.final_status)} title={util.runStatusToText(run_lifespan.final_status)} alt=""/>&nbsp;
                 {util.runStatusToText(run_lifespan.final_status)}&nbsp;
-                {#if run_lifespan.final_status != 3}<button on:click={onStop}>{#if run_lifespan.final_status === 1}Stop{:else}Invalidate{/if}</button>{:else}&nbsp;{/if}</td>
+                {#if run_lifespan.final_status != 3}<button on:click={onStop} title={(run_lifespan.final_status === 1 ? "Stop run":"Invalidate results of a complete run")}>{#if run_lifespan.final_status === 1}Stop{:else}Invalidate{/if}</button>{:else}&nbsp;{/if}</td>
         </tr>
     </tbody>
 </table>
