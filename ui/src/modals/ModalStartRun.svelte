@@ -1,7 +1,9 @@
 <script>
+    import { onDestroy } from "svelte";
     import { closeModal } from 'svelte-modals'
     import dayjs from "dayjs";
     import Util, { webapiUrl, handleResponse } from '../Util.svelte';
+    import { ksRunMap } from '../stores.js'
 
     // provided by Modals
     export let isOpen
@@ -25,6 +27,15 @@
     let paramsUri = "";
     let startNodes = "";
     let runDesc = "Started using capillaries-ui at " +  dayjs().format("MMM D, YYYY HH:mm:ss.SSS Z");
+
+    // For this ks, use cached run parameters
+    const unsubscribeFromKsRunMap = ksRunMap.subscribe((m) => {
+      if (keyspace in m){
+        scriptUri = m[keyspace]["scriptUri"];
+        paramsUri = m[keyspace]["paramsUri"];
+      }
+    });
+    onDestroy(unsubscribeFromKsRunMap);
 
     function validateKeyspace(ks) {
       if (ks.trim().length == 0) {
@@ -62,6 +73,9 @@
       //console.log("Sending:",JSON.stringify({"script_uri": scriptUri, "script_params_uri": paramsUri, "start_nodes": startNodes}));
       responseError = validateKeyspace(keyspace) + validateUri(scriptUri) + validateUri(paramsUri) + validateStartNodes(startNodes);
       if (responseError.length == 0) {
+        // For this ks, cache last used run parameters
+        $ksRunMap[keyspace] = {"scriptUri": scriptUri, "paramsUri": paramsUri};
+
         fetch(new Request(webapiUrl() + "/ks/" + keyspace + "/run", {method: 'POST', body: JSON.stringify({"script_uri": scriptUri, "script_params_uri": paramsUri, "start_nodes": startNodes, "run_description": runDesc})}))
               .then(response => response.json())
               .then(responseJson => { handleResponse(responseJson, setWebapiData);})

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="1000" height="1000" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs>
+    <g id="vert_curve">
+      <path d="M 0,-10 Q 50,250 0,500 T 0,1010" style="stroke-width:60;"/>
+    </g>
+    <g id="short_diag">
+      <path d="M 26,250 Q 10,375 125,500 T 225,750" style="stroke-width:55;"/>
+    </g>
+  </defs>
+  <rect x="0" y="0" width="1000" height="1000" stroke-width="0" fill="white"/>
+  <g style="fill: none; stroke:black" transform="scale(1.5,1) translate(-166,0)">
+    <use x="250" y="0" xlink:href="#vert_curve"/>
+    <use x="500" y="0" xlink:href="#vert_curve"/>
+    <use x="750" y="0" xlink:href="#vert_curve"/>
+    <use x="500" y="0" xlink:href="#short_diag"/>
+    <use x="250" y="0" xlink:href="#short_diag"/>
+  </g>
+</svg>
