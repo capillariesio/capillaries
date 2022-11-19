@@ -14,7 +14,7 @@ import (
 )
 
 func checkDependencyNodesReady(logger *l.Logger, pCtx *ctx.MessageProcessingContext) (sc.ReadyToRunNodeCmdType, int16, int16, error) {
-	logger.PushF("checkDependencyNodesReady")
+	logger.PushF("wf.checkDependencyNodesReady")
 	defer logger.PopF()
 
 	depNodeNames := make([]string, 2)
@@ -88,7 +88,7 @@ func checkDependencyNodesReady(logger *l.Logger, pCtx *ctx.MessageProcessingCont
 }
 
 func SafeProcessBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.MessageProcessingContext, readerNodeRunId int16, lookupNodeRunId int16) (wfmodel.NodeBatchStatusType, error) {
-	logger.PushF("SafeProcessBatch")
+	logger.PushF("wf.SafeProcessBatch")
 	defer logger.PopF()
 
 	var err error
@@ -129,7 +129,7 @@ func SafeProcessBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.Mess
 }
 
 func UpdateNodeStatusFromBatches(logger *l.Logger, pCtx *ctx.MessageProcessingContext) (wfmodel.NodeBatchStatusType, bool, error) {
-	logger.PushF("UpdateNodeStatusFromBatches")
+	logger.PushF("wf.UpdateNodeStatusFromBatches")
 	defer logger.PopF()
 
 	// Check all batches for this run/node, mark node complete if needed
@@ -155,11 +155,11 @@ func UpdateNodeStatusFromBatches(logger *l.Logger, pCtx *ctx.MessageProcessingCo
 }
 
 func UpdateRunStatusFromNodes(logger *l.Logger, pCtx *ctx.MessageProcessingContext) error {
-	logger.PushF("UpdateRunStatusFromNodes")
+	logger.PushF("wf.UpdateRunStatusFromNodes")
 	defer logger.PopF()
 
 	// Let's see if this run is complete
-	affectedNodes, err := wfdb.GetRunAffectedNodes(pCtx.CqlSession, pCtx.BatchInfo.DataKeyspace, pCtx.BatchInfo.RunId)
+	affectedNodes, err := wfdb.GetRunAffectedNodes(logger, pCtx.CqlSession, pCtx.BatchInfo.DataKeyspace, pCtx.BatchInfo.RunId)
 	if err != nil {
 		return err
 	}
@@ -179,7 +179,7 @@ func UpdateRunStatusFromNodes(logger *l.Logger, pCtx *ctx.MessageProcessingConte
 }
 
 func refreshNodeAndRunStatus(logger *l.Logger, pCtx *ctx.MessageProcessingContext) error {
-	logger.PushF("refreshNodeAndRunStatus")
+	logger.PushF("wf.refreshNodeAndRunStatus")
 	defer logger.PopF()
 
 	_, _, err := UpdateNodeStatusFromBatches(logger, pCtx)
@@ -205,7 +205,7 @@ Return new set of messages and next stage processor id
 */
 func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.Logger, msgTs int64, dataBatchInfo *wfmodel.MessagePayloadDataBatch) DaemonCmdType {
 	pCtx := ctx.NewFromBatchInfo(msgTs, dataBatchInfo)
-	logger.PushF("ProcessDataBatchMsg")
+	logger.PushF("wf.ProcessDataBatchMsg")
 
 	defer logger.PopF()
 
@@ -326,7 +326,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.Logger, msgTs int64
 	}
 
 	if nodeReady == sc.NodeNogo {
-		comment := fmt.Sprintf("some dependency nodes for %s are in bad state, will not run this node", pCtx.BatchInfo.FullBatchId())
+		comment := fmt.Sprintf("some dependency nodes for %s are in bad state, or runs executing dependency nodes were stopped/invalidated, will not run this node; for details, check rules in dependency_policies and previous runs history", pCtx.BatchInfo.FullBatchId())
 		logger.ErrorCtx(pCtx, comment)
 		if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeFail, comment); err != nil {
 			return DaemonCmdReconnectDb

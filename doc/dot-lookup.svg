@@ -107,7 +107,7 @@
 <text text-anchor="middle" x="1460.41" y="-139.5" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">file_order_date_value_grouped_inner</text>
 <polyline fill="none" stroke="#000000" points="1171.748,-129.5 1749.072,-129.5 "/>
 <text text-anchor="middle" x="1460.41" y="-107.5" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">creates file:</text>
-<text text-anchor="middle" x="1460.41" y="-83.5" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">../../../test/data/out/lookup/order_date_value_grouped_inner.csv</text>
+<text text-anchor="middle" x="1460.41" y="-83.5" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">/tmp/capitest_out/lookup/order_date_value_grouped_inner.csv</text>
 </a>
 </g>
 </g>
@@ -158,20 +158,20 @@
 <polygon fill="#000000" stroke="#000000" points="1999.1007,-350.6054 2001.7393,-340.3444 1993.2777,-346.7203 1999.1007,-350.6054"/>
 <text text-anchor="middle" x="2124.426" y="-364" font-family="Helvetica,sans-Serif" font-size="18.00" fill="#000000">idx_order_items_order_id (lookup)</text>
 </g>
-<!-- ../../../test/data/out/lookup/order_date_value_grouped_inner.csv -->
+<!-- /tmp/capitest_out/lookup/order_date_value_grouped_inner.csv -->
 <g id="node5" class="node">
-<title>../../../test/data/out/lookup/order_date_value_grouped_inner.csv</title>
+<title>/tmp/capitest_out/lookup/order_date_value_grouped_inner.csv</title>
 <g id="a_node5"><a xlink:title="Target data file(s)">
 <polygon fill="none" stroke="#000000" points="1743.2341,-36 1171.5859,-36 1171.5859,0 1749.2341,0 1749.2341,-30 1743.2341,-36"/>
 <polyline fill="none" stroke="#000000" points="1743.2341,-36 1743.2341,-30 "/>
 <polyline fill="none" stroke="#000000" points="1749.2341,-30 1743.2341,-30 "/>
-<text text-anchor="middle" x="1460.41" y="-12" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">../../../test/data/out/lookup/order_date_value_grouped_inner.csv</text>
+<text text-anchor="middle" x="1460.41" y="-12" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">/tmp/capitest_out/lookup/order_date_value_grouped_inner.csv</text>
 </a>
 </g>
 </g>
-<!-- file_order_date_value_grouped_inner&#45;&gt;../../../test/data/out/lookup/order_date_value_grouped_inner.csv -->
+<!-- file_order_date_value_grouped_inner&#45;&gt;/tmp/capitest_out/lookup/order_date_value_grouped_inner.csv -->
 <g id="edge4" class="edge">
-<title>file_order_date_value_grouped_inner-&gt;../../../test/data/out/lookup/order_date_value_grouped_inner.csv</title>
+<title>file_order_date_value_grouped_inner-&gt;/tmp/capitest_out/lookup/order_date_value_grouped_inner.csv</title>
 <path fill="none" stroke="#000000" stroke-dasharray="1,5" d="M1460.41,-73.2784C1460.41,-64.082 1460.41,-54.6304 1460.41,-46.2016"/>
 <polygon fill="#000000" stroke="#000000" points="1463.9101,-46.1684 1460.41,-36.1685 1456.9101,-46.1685 1463.9101,-46.1684"/>
 </g>
@@ -183,7 +183,7 @@
 <text text-anchor="middle" x="827.41" y="-139.5" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">file_order_date_value_grouped_left_outer</text>
 <polyline fill="none" stroke="#000000" points="519.293,-129.5 1135.527,-129.5 "/>
 <text text-anchor="middle" x="827.41" y="-107.5" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">creates file:</text>
-<text text-anchor="middle" x="827.41" y="-83.5" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">../../../test/data/out/lookup/order_date_value_grouped_left_outer.csv</text>
+<text text-anchor="middle" x="827.41" y="-83.5" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">/tmp/capitest_out/lookup/order_date_value_grouped_left_outer.csv</text>
 </a>
 </g>
 </g>
@@ -194,50 +194,50 @@
 <polygon fill="#000000" stroke="#000000" points="830.9101,-171.5839 827.41,-161.584 823.9101,-171.584 830.9101,-171.5839"/>
 <text text-anchor="middle" x="1041.961" y="-185.4" font-family="Helvetica,sans-Serif" font-size="18.00" fill="#000000">order_date_value_grouped_left_outer (no parallelism)</text>
 </g>
-<!-- ../../../test/data/out/lookup/order_date_value_grouped_left_outer.csv -->
+<!-- /tmp/capitest_out/lookup/order_date_value_grouped_left_outer.csv -->
 <g id="node8" class="node">
-<title>../../../test/data/out/lookup/order_date_value_grouped_left_outer.csv</title>
+<title>/tmp/capitest_out/lookup/order_date_value_grouped_left_outer.csv</title>
 <g id="a_node8"><a xlink:title="Target data file(s)">
 <polygon fill="none" stroke="#000000" points="1129.644,-36 519.176,-36 519.176,0 1135.644,0 1135.644,-30 1129.644,-36"/>
 <polyline fill="none" stroke="#000000" points="1129.644,-36 1129.644,-30 "/>
 <polyline fill="none" stroke="#000000" points="1135.644,-30 1129.644,-30 "/>
-<text text-anchor="middle" x="827.41" y="-12" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">../../../test/data/out/lookup/order_date_value_grouped_left_outer.csv</text>
+<text text-anchor="middle" x="827.41" y="-12" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">/tmp/capitest_out/lookup/order_date_value_grouped_left_outer.csv</text>
 </a>
 </g>
 </g>
-<!-- file_order_date_value_grouped_left_outer&#45;&gt;../../../test/data/out/lookup/order_date_value_grouped_left_outer.csv -->
+<!-- file_order_date_value_grouped_left_outer&#45;&gt;/tmp/capitest_out/lookup/order_date_value_grouped_left_outer.csv -->
 <g id="edge6" class="edge">
-<title>file_order_date_value_grouped_left_outer-&gt;../../../test/data/out/lookup/order_date_value_grouped_left_outer.csv</title>
+<title>file_order_date_value_grouped_left_outer-&gt;/tmp/capitest_out/lookup/order_date_value_grouped_left_outer.csv</title>
 <path fill="none" stroke="#000000" stroke-dasharray="1,5" d="M827.41,-73.2784C827.41,-64.082 827.41,-54.6304 827.41,-46.2016"/>
 <polygon fill="#000000" stroke="#000000" points="830.9101,-46.1684 827.41,-36.1685 823.9101,-46.1685 830.9101,-46.1684"/>
 </g>
-<!-- ../../../test/data/in/lookup/olist_orders_dataset.csv -->
+<!-- /tmp/capitest_in/lookup/olist_orders_dataset.csv -->
 <g id="node9" class="node">
-<title>../../../test/data/in/lookup/olist_orders_dataset.csv</title>
+<title>/tmp/capitest_in/lookup/olist_orders_dataset.csv</title>
 <g id="a_node9"><a xlink:title="Source data file(s)">
 <polygon fill="none" stroke="#000000" points="816.3802,-560.2 813.3802,-564.2 792.3802,-564.2 789.3802,-560.2 366.4398,-560.2 366.4398,-524.2 816.3802,-524.2 816.3802,-560.2"/>
-<text text-anchor="middle" x="591.41" y="-536.2" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">../../../test/data/in/lookup/olist_orders_dataset.csv</text>
+<text text-anchor="middle" x="591.41" y="-536.2" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">/tmp/capitest_in/lookup/olist_orders_dataset.csv</text>
 </a>
 </g>
 </g>
-<!-- ../../../test/data/in/lookup/olist_orders_dataset.csv&#45;&gt;orders -->
+<!-- /tmp/capitest_in/lookup/olist_orders_dataset.csv&#45;&gt;orders -->
 <g id="edge7" class="edge">
-<title>../../../test/data/in/lookup/olist_orders_dataset.csv-&gt;orders</title>
+<title>/tmp/capitest_in/lookup/olist_orders_dataset.csv-&gt;orders</title>
 <path fill="none" stroke="#000000" stroke-dasharray="1,5" d="M591.41,-523.9502C591.41,-516.2053 591.41,-506.7302 591.41,-497.021"/>
 <polygon fill="#000000" stroke="#000000" points="594.9101,-496.8808 591.41,-486.8808 587.9101,-496.8809 594.9101,-496.8808"/>
 </g>
-<!-- ../../../test/data/in/lookup/olist_order_items_dataset.csv -->
+<!-- /tmp/capitest_in/lookup/olist_order_items_dataset.csv -->
 <g id="node10" class="node">
-<title>../../../test/data/in/lookup/olist_order_items_dataset.csv</title>
+<title>/tmp/capitest_in/lookup/olist_order_items_dataset.csv</title>
 <g id="a_node10"><a xlink:title="Source data file(s)">
 <polygon fill="none" stroke="#000000" points="1706.7701,-560.2 1703.7701,-564.2 1682.7701,-564.2 1679.7701,-560.2 1208.0499,-560.2 1208.0499,-524.2 1706.7701,-524.2 1706.7701,-560.2"/>
-<text text-anchor="middle" x="1457.41" y="-536.2" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">../../../test/data/in/lookup/olist_order_items_dataset.csv</text>
+<text text-anchor="middle" x="1457.41" y="-536.2" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">/tmp/capitest_in/lookup/olist_order_items_dataset.csv</text>
 </a>
 </g>
 </g>
-<!-- ../../../test/data/in/lookup/olist_order_items_dataset.csv&#45;&gt;order_items -->
+<!-- /tmp/capitest_in/lookup/olist_order_items_dataset.csv&#45;&gt;order_items -->
 <g id="edge8" class="edge">
-<title>../../../test/data/in/lookup/olist_order_items_dataset.csv-&gt;order_items</title>
+<title>/tmp/capitest_in/lookup/olist_order_items_dataset.csv-&gt;order_items</title>
 <path fill="none" stroke="#000000" stroke-dasharray="1,5" d="M1457.41,-523.9502C1457.41,-516.2053 1457.41,-506.7302 1457.41,-497.021"/>
 <polygon fill="#000000" stroke="#000000" points="1460.9101,-496.8808 1457.41,-486.8808 1453.9101,-496.8809 1460.9101,-496.8808"/>
 </g>
@@ -249,7 +249,7 @@
 <text text-anchor="middle" x="241.41" y="-139.5" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">file_order_item_date_inner</text>
 <polyline fill="none" stroke="#000000" points="0,-129.5 482.82,-129.5 "/>
 <text text-anchor="middle" x="241.41" y="-107.5" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">creates file:</text>
-<text text-anchor="middle" x="241.41" y="-83.5" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">../../../test/data/out/lookup/order_item_date_inner.csv</text>
+<text text-anchor="middle" x="241.41" y="-83.5" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">/tmp/capitest_out/lookup/order_item_date_inner.csv</text>
 </a>
 </g>
 </g>
@@ -268,7 +268,7 @@
 <text text-anchor="middle" x="2046.41" y="-139.5" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">file_order_item_date_left_outer</text>
 <polyline fill="none" stroke="#000000" points="1785.545,-129.5 2307.275,-129.5 "/>
 <text text-anchor="middle" x="2046.41" y="-107.5" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">creates file:</text>
-<text text-anchor="middle" x="2046.41" y="-83.5" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">../../../test/data/out/lookup/order_item_date_left_outer.csv</text>
+<text text-anchor="middle" x="2046.41" y="-83.5" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">/tmp/capitest_out/lookup/order_item_date_left_outer.csv</text>
 </a>
 </g>
 </g>
@@ -279,37 +279,37 @@
 <polygon fill="#000000" stroke="#000000" points="2043.9082,-171.9084 2041.5299,-161.584 2036.9507,-171.1381 2043.9082,-171.9084"/>
 <text text-anchor="middle" x="2210.4342" y="-185.4" font-family="Helvetica,sans-Serif" font-size="18.00" fill="#000000">order_item_date_left_outer (no parallelism)</text>
 </g>
-<!-- ../../../test/data/out/lookup/order_item_date_left_outer.csv -->
+<!-- /tmp/capitest_out/lookup/order_item_date_left_outer.csv -->
 <g id="node14" class="node">
-<title>../../../test/data/out/lookup/order_item_date_left_outer.csv</title>
+<title>/tmp/capitest_out/lookup/order_item_date_left_outer.csv</title>
 <g id="a_node14"><a xlink:title="Target data file(s)">
 <polygon fill="none" stroke="#000000" points="2301.1401,-36 1785.6799,-36 1785.6799,0 2307.1401,0 2307.1401,-30 2301.1401,-36"/>
 <polyline fill="none" stroke="#000000" points="2301.1401,-36 2301.1401,-30 "/>
 <polyline fill="none" stroke="#000000" points="2307.1401,-30 2301.1401,-30 "/>
-<text text-anchor="middle" x="2046.41" y="-12" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">../../../test/data/out/lookup/order_item_date_left_outer.csv</text>
+<text text-anchor="middle" x="2046.41" y="-12" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">/tmp/capitest_out/lookup/order_item_date_left_outer.csv</text>
 </a>
 </g>
 </g>
-<!-- file_order_item_date_left_outer&#45;&gt;../../../test/data/out/lookup/order_item_date_left_outer.csv -->
+<!-- file_order_item_date_left_outer&#45;&gt;/tmp/capitest_out/lookup/order_item_date_left_outer.csv -->
 <g id="edge12" class="edge">
-<title>file_order_item_date_left_outer-&gt;../../../test/data/out/lookup/order_item_date_left_outer.csv</title>
+<title>file_order_item_date_left_outer-&gt;/tmp/capitest_out/lookup/order_item_date_left_outer.csv</title>
 <path fill="none" stroke="#000000" stroke-dasharray="1,5" d="M2046.41,-73.2784C2046.41,-64.082 2046.41,-54.6304 2046.41,-46.2016"/>
 <polygon fill="#000000" stroke="#000000" points="2049.9101,-46.1684 2046.41,-36.1685 2042.9101,-46.1685 2049.9101,-46.1684"/>
 </g>
-<!-- ../../../test/data/out/lookup/order_item_date_inner.csv -->
+<!-- /tmp/capitest_out/lookup/order_item_date_inner.csv -->
 <g id="node16" class="node">
-<title>../../../test/data/out/lookup/order_item_date_inner.csv</title>
+<title>/tmp/capitest_out/lookup/order_item_date_inner.csv</title>
 <g id="a_node16"><a xlink:title="Target data file(s)">
 <polygon fill="none" stroke="#000000" points="476.73,-36 .09,-36 .09,0 482.73,0 482.73,-30 476.73,-36"/>
 <polyline fill="none" stroke="#000000" points="476.73,-36 476.73,-30 "/>
 <polyline fill="none" stroke="#000000" points="482.73,-30 476.73,-30 "/>
-<text text-anchor="middle" x="241.41" y="-12" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">../../../test/data/out/lookup/order_item_date_inner.csv</text>
+<text text-anchor="middle" x="241.41" y="-12" font-family="Helvetica,sans-Serif" font-size="20.00" fill="#000000">/tmp/capitest_out/lookup/order_item_date_inner.csv</text>
 </a>
 </g>
 </g>
-<!-- file_order_item_date_inner&#45;&gt;../../../test/data/out/lookup/order_item_date_inner.csv -->
+<!-- file_order_item_date_inner&#45;&gt;/tmp/capitest_out/lookup/order_item_date_inner.csv -->
 <g id="edge18" class="edge">
-<title>file_order_item_date_inner-&gt;../../../test/data/out/lookup/order_item_date_inner.csv</title>
+<title>file_order_item_date_inner-&gt;/tmp/capitest_out/lookup/order_item_date_inner.csv</title>
 <path fill="none" stroke="#000000" stroke-dasharray="1,5" d="M241.41,-73.2784C241.41,-64.082 241.41,-54.6304 241.41,-46.2016"/>
 <polygon fill="#000000" stroke="#000000" points="244.9101,-46.1684 241.41,-36.1685 237.9101,-46.1685 244.9101,-46.1684"/>
 </g>

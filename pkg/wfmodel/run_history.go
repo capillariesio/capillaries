@@ -53,19 +53,19 @@ func (m RunStatusMap) ToString() string {
 }
 
 // Object model with tags that allow to create cql CREATE TABLE queries and to print object
-type RunHistory struct {
-	Ts      time.Time     `header:"ts" format:"%-33v" column:"ts" type:"timestamp"`
-	RunId   int16         `header:"run_id" format:"%6d" column:"run_id" type:"int" key:"true"`
-	Status  RunStatusType `header:"sts" format:"%3v" column:"status" type:"tinyint" key:"true"`
-	Comment string        `header:"comment" format:"%v" column:"comment" type:"text"`
+type RunHistoryEvent struct {
+	Ts      time.Time     `header:"ts" format:"%-33v" column:"ts" type:"timestamp" json:"ts"`
+	RunId   int16         `header:"run_id" format:"%6d" column:"run_id" type:"int" key:"true" json:"run_id"`
+	Status  RunStatusType `header:"sts" format:"%3v" column:"status" type:"tinyint" key:"true" json:"status"`
+	Comment string        `header:"comment" format:"%v" column:"comment" type:"text" json:"comment"`
 }
 
-func RunHistoryAllFields() []string {
+func RunHistoryEventAllFields() []string {
 	return []string{"ts", "run_id", "status", "comment"}
 }
 
-func NewRunHistoryFromMap(r map[string]interface{}, fields []string) (*RunHistory, error) {
-	res := &RunHistory{}
+func NewRunHistoryEventFromMap(r map[string]interface{}, fields []string) (*RunHistoryEvent, error) {
+	res := &RunHistoryEvent{}
 	for _, fieldName := range fields {
 		var err error
 		switch fieldName {
@@ -88,7 +88,7 @@ func NewRunHistoryFromMap(r map[string]interface{}, fields []string) (*RunHistor
 }
 
 // ToSpacedString - prints formatted field values, uses reflection, shoud not be used in prod
-func (n RunHistory) ToSpacedString() string {
+func (n RunHistoryEvent) ToSpacedString() string {
 	t := reflect.TypeOf(n)
 	formats := GetObjectModelFieldFormats(t)
 	values := make([]string, t.NumField())
@@ -102,16 +102,23 @@ func (n RunHistory) ToSpacedString() string {
 }
 
 type RunLifespan struct {
-	StartTs      time.Time
-	LastStatus   RunStatusType
-	LastStatusTs time.Time
+	RunId            int16         `json:"run_id"`
+	StartTs          time.Time     `json:"start_ts"`
+	StartComment     string        `json:"start_comment"`
+	FinalStatus      RunStatusType `json:"final_status"`
+	CompletedTs      time.Time     `json:"completed_ts"`
+	CompletedComment string        `json:"completed_comment"`
+	StoppedTs        time.Time     `json:"stopped_ts"`
+	StoppedComment   string        `json:"stopped_comment"`
 }
 
 func (ls RunLifespan) ToString() string {
-	return fmt.Sprintf("{start_ts:%s, last_status:%s, last_status_ts:%s}",
+	return fmt.Sprintf("{run_id: %d, start_ts:%s, final_status:%s, completed_ts:%s, stopped_ts:%s}",
+		ls.RunId,
 		ls.StartTs.Format(LogTsFormatQuoted),
-		ls.LastStatus.ToString(),
-		ls.LastStatusTs.Format(LogTsFormatQuoted))
+		ls.FinalStatus.ToString(),
+		ls.CompletedTs.Format(LogTsFormatQuoted),
+		ls.StoppedTs.Format(LogTsFormatQuoted))
 }
 
 type RunLifespanMap map[int16]*RunLifespan

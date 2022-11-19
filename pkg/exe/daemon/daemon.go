@@ -56,7 +56,7 @@ func main() {
 	}
 	defer logger.Close()
 
-	logger.PushF("main")
+	logger.PushF("daemon.main")
 	defer logger.PopF()
 
 	osSignalChannel := make(chan os.Signal, 1)

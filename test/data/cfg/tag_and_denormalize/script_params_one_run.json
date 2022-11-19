@@ -1,7 +1,7 @@
 {
     "totals_start_policy": "auto",
     "uri_suffix": "",
-    "dir_cfg": "../../../test/data/cfg/tag_and_denormalize",
-    "dir_in": "../../../test/data/in/tag_and_denormalize",
-    "dir_out": "../../../test/data/out/tag_and_denormalize"
+    "dir_cfg": "/tmp/capitest_cfg/tag_and_denormalize",
+    "dir_in": "/tmp/capitest_in/tag_and_denormalize",
+    "dir_out": "/tmp/capitest_out/tag_and_denormalize"
 }

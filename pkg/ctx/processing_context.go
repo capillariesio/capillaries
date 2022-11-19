@@ -39,7 +39,7 @@ func NewFromBatchInfo(msgTs int64, batchInfo *wfmodel.MessagePayloadDataBatch) *
 
 func (pCtx *MessageProcessingContext) DbConnect(envConfig *env.EnvConfig) error {
 	var err error
-	if pCtx.CqlSession, err = cql.NewSession(envConfig, pCtx.BatchInfo.DataKeyspace); err != nil {
+	if pCtx.CqlSession, err = cql.NewSession(envConfig, pCtx.BatchInfo.DataKeyspace, cql.CreateKeyspaceOnConnect); err != nil {
 		return err
 	}
 	return nil

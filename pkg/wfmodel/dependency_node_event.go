@@ -11,30 +11,32 @@ import (
 const DependencyNodeEventTableName string = "e"
 
 type DependencyNodeEvent struct {
-	RunId         int16
-	RunIsCurrent  bool
-	RunStartTs    time.Time
-	RunStatus     RunStatusType
-	RunStatusTs   time.Time
-	NodeIsStarted bool
-	NodeStartTs   time.Time
-	NodeStatus    NodeBatchStatusType
-	NodeStatusTs  time.Time
-	SortKey       string
+	RunId          int16
+	RunIsCurrent   bool
+	RunStartTs     time.Time
+	RunFinalStatus RunStatusType
+	RunCompletedTs time.Time
+	RunStoppedTs   time.Time
+	NodeIsStarted  bool
+	NodeStartTs    time.Time
+	NodeStatus     NodeBatchStatusType
+	NodeStatusTs   time.Time
+	SortKey        string
 }
 
 func (e *DependencyNodeEvent) ToVars() eval.VarValuesMap {
 	return eval.VarValuesMap{
 		DependencyNodeEventTableName: map[string]interface{}{
-			"run_id":          int64(e.RunId),
-			"run_is_current":  e.RunIsCurrent,
-			"run_start_ts":    e.RunStartTs,
-			"run_status":      int64(e.RunStatus),
-			"run_status_ts":   e.RunStatusTs,
-			"node_is_started": e.NodeIsStarted,
-			"node_start_ts":   e.NodeStartTs,
-			"node_status":     int64(e.NodeStatus),
-			"node_status_ts":  e.NodeStatusTs}}
+			"run_id":           int64(e.RunId),
+			"run_is_current":   e.RunIsCurrent,
+			"run_start_ts":     e.RunStartTs,
+			"run_final_status": int64(e.RunFinalStatus),
+			"run_completed_ts": e.RunCompletedTs,
+			"run_stopped_ts":   e.RunStoppedTs,
+			"node_is_started":  e.NodeIsStarted,
+			"node_start_ts":    e.NodeStartTs,
+			"node_status":      int64(e.NodeStatus),
+			"node_status_ts":   e.NodeStatusTs}}
 }
 
 func (e *DependencyNodeEvent) ToString() string {
@@ -43,8 +45,9 @@ func (e *DependencyNodeEvent) ToString() string {
 	sb.WriteString(fmt.Sprintf("run_id:%d,", e.RunId))
 	sb.WriteString(fmt.Sprintf("run_is_current:%t,", e.RunIsCurrent))
 	sb.WriteString(fmt.Sprintf("run_start_ts:%s,", e.RunStartTs.Format(LogTsFormatQuoted)))
-	sb.WriteString(fmt.Sprintf("run_status:%s,", e.RunStatus.ToString()))
-	sb.WriteString(fmt.Sprintf("run_status_ts:%s,", e.RunStatusTs.Format(LogTsFormatQuoted)))
+	sb.WriteString(fmt.Sprintf("run_final_status:%s,", e.RunFinalStatus.ToString()))
+	sb.WriteString(fmt.Sprintf("run_completed_ts:%s,", e.RunCompletedTs.Format(LogTsFormatQuoted)))
+	sb.WriteString(fmt.Sprintf("run_stopped_ts:%s,", e.RunStoppedTs.Format(LogTsFormatQuoted)))
 	sb.WriteString(fmt.Sprintf("node_is_started:%t,", e.NodeIsStarted))
 	sb.WriteString(fmt.Sprintf("node_start_ts:%s,", e.NodeStartTs.Format(LogTsFormatQuoted)))
 	sb.WriteString(fmt.Sprintf("node_status:%s,", e.NodeStatus.ToString()))
@@ -76,14 +79,15 @@ func NewVarsFromDepCtx(runId int16, e DependencyNodeEvent) eval.VarValuesMap {
 		"RunComplete":              int64(RunComplete),
 		"RunStop":                  int64(RunStop)}
 	m[DependencyNodeEventTableName] = map[string]interface{}{
-		"run_id":          int64(e.RunId),
-		"run_is_current":  e.RunIsCurrent,
-		"run_start_ts":    e.RunStartTs,
-		"run_status":      int64(e.RunStatus),
-		"run_status_ts":   e.RunStatusTs,
-		"node_is_started": e.NodeIsStarted,
-		"node_start_ts":   e.NodeStartTs,
-		"node_status":     int64(e.NodeStatus),
-		"node_status_ts":  e.NodeStatusTs}
+		"run_id":           int64(e.RunId),
+		"run_is_current":   e.RunIsCurrent,
+		"run_start_ts":     e.RunStartTs,
+		"run_final_status": int64(e.RunFinalStatus),
+		"run_completed_ts": e.RunCompletedTs,
+		"run_stopped_ts":   e.RunStoppedTs,
+		"node_is_started":  e.NodeIsStarted,
+		"node_start_ts":    e.NodeStartTs,
+		"node_status":      int64(e.NodeStatus),
+		"node_status_ts":   e.NodeStatusTs}
 	return m
 }

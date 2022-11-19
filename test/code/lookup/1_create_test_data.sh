@@ -1,10 +1,9 @@
-dataDir=../../data
-inDir=$dataDir/in/lookup
-outDir=$dataDir/out/lookup
+inDir=/tmp/capitest_in/lookup
+outDir=/tmp/capitest_out/lookup
 
 echo "Generating files..."
 
-go run generate_data.go -items=13900 -products=10 -sellers=20
+go run generate_data.go -items=1390 -products=10 -sellers=20
 
 # In
 

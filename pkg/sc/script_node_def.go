@@ -13,6 +13,7 @@ import (
 const (
 	HandlerExeTypeGeneric  string = "capi_daemon"
 	HandlerExeTypeToolbelt string = "capi_toolbelt"
+	HandlerExeTypeWebapi   string = "capi_webapi"
 )
 
 const MaxAcceptedBatchesByTableReader int = 1000000

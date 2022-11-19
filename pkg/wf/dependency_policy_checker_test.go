@@ -21,28 +21,29 @@ func TestDependencyPolicyChecker(t *testing.T) {
 
 	events := wfmodel.DependencyNodeEvents{
 		{
-			RunId:         10,
-			RunIsCurrent:  true,
-			RunStartTs:    time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
-			RunStatus:     wfmodel.RunStart,
-			RunStatusTs:   time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
-			NodeIsStarted: true,
-			NodeStartTs:   time.Date(2000, 1, 1, 0, 0, 1, 0, time.UTC),
-			NodeStatus:    wfmodel.NodeBatchNone,
-			NodeStatusTs:  time.Date(2000, 1, 1, 0, 0, 2, 0, time.UTC)}}
+			RunId:          10,
+			RunIsCurrent:   true,
+			RunStartTs:     time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
+			RunFinalStatus: wfmodel.RunStart,
+			RunCompletedTs: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
+			RunStoppedTs:   time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
+			NodeIsStarted:  true,
+			NodeStartTs:    time.Date(2000, 1, 1, 0, 0, 1, 0, time.UTC),
+			NodeStatus:     wfmodel.NodeBatchNone,
+			NodeStatusTs:   time.Date(2000, 1, 1, 0, 0, 2, 0, time.UTC)}}
 	conf := `{"event_priority_order": "run_is_current(desc),node_start_ts(desc)",
 		"rules": [
-		{"cmd": "go",   "expression": "e.run_is_current == true && e.run_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchSuccess"	},
-		{"cmd": "wait", "expression": "e.run_is_current == true && e.run_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchNone"	    },
-		{"cmd": "wait", "expression": "e.run_is_current == true && e.run_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchStart"	    },
-		{"cmd": "nogo", "expression": "e.run_is_current == true && e.run_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchFail"	    },
+		{"cmd": "go",   "expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchSuccess"	},
+		{"cmd": "wait", "expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchNone"	    },
+		{"cmd": "wait", "expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchStart"	    },
+		{"cmd": "nogo", "expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchFail"	    },
 
-		{"cmd": "go",   "expression": "e.run_is_current == false && e.run_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchSuccess"	},
-		{"cmd": "wait",   "expression": "e.run_is_current == false && e.run_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchNone"	},
-		{"cmd": "wait",   "expression": "e.run_is_current == false && e.run_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchStart"	},
+		{"cmd": "go",   "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchSuccess"	},
+		{"cmd": "wait",   "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchNone"	},
+		{"cmd": "wait",   "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchStart"	},
 
-		{"cmd": "go",   "expression": "e.run_is_current == false && e.run_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchSuccess"	},
-		{"cmd": "nogo",   "expression": "e.run_is_current == false && e.run_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchFail"	}
+		{"cmd": "go",   "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchSuccess"	},
+		{"cmd": "nogo",   "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchFail"	}
 	]}`
 	polDef := sc.DependencyPolicyDef{}
 	if err := polDef.Deserialize([]byte(conf)); err != nil {
@@ -84,7 +85,7 @@ func TestDependencyPolicyChecker(t *testing.T) {
 	cmd, _, _ = CheckDependencyPolicyAgainstNodeEventList(logger, &polDef, events)
 	assert.Equal(t, sc.NodeWait, cmd)
 
-	events[0].RunStatus = wfmodel.RunComplete
+	events[0].RunFinalStatus = wfmodel.RunComplete
 
 	events[0].NodeStatus = wfmodel.NodeBatchSuccess
 	cmd, runId, _ = CheckDependencyPolicyAgainstNodeEventList(logger, &polDef, events)

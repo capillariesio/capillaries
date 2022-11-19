@@ -1,15 +1,83 @@
 version: '3'
+
+networks:
+  capinet:
+    # Assuming capinet network has been created already: 
+    # docker network create --driver=bridge --subnet=... --ip-range=... --gateway=... capinet
+    external: true 
+
 services:
+
   daemon:
     container_name: capillaries_daemon
     build:
       context: .
       dockerfile: ./pkg/exe/daemon/docker/Dockerfile
     volumes:
-      - /capillaries_docker_test_cfg:/capillaries_docker_test_cfg:ro
-      - /capillaries_docker_test_in:/capillaries_docker_test_in:ro
-      - /capillaries_docker_test_out:/capillaries_docker_test_out
+      - /tmp/capitest_cfg:/tmp/capitest_cfg:ro
+      - /tmp/capitest_in:/tmp/capitest_in:ro
+      - /tmp/capitest_out:/tmp/capitest_out
     environment:
-      AMQP_URL: amqp://guest:guest@172.17.0.2/
-      CASSANDRA_HOSTS: '["172.17.0.3"]'
+      AMQP_URL: amqp://guest:guest@10.5.0.2/
+      CASSANDRA_HOSTS: '["10.5.0.3"]'
     network_mode: bridge
+    networks:
+      capinet:
+        ipv4_address: 10.5.0.4
+
+  webapi:
+    container_name: capillaries_webapi
+    build:
+      context: .
+      dockerfile: ./pkg/exe/webapi/docker/Dockerfile
+    volumes:
+      - /tmp/capitest_cfg:/tmp/capitest_cfg:ro
+      - /tmp/capitest_in:/tmp/capitest_in:ro
+      - /tmp/capitest_out:/tmp/capitest_out
+    environment:
+      AMQP_URL: amqp://guest:guest@10.5.0.2/
+      CASSANDRA_HOSTS: '["10.5.0.3"]'
+      WEBAPI_PORT: 6543
+      ACCESS_CONTROL_ACCESS_ORIGIN: 'http://localhost:8080,http://127.0.0.1:8080' # Adjust if needed
+    ports:
+      - 6543:6543      
+    network_mode: bridge
+    networks:
+      capinet:
+        ipv4_address: 10.5.0.5
+    
+  ui:
+    container_name: capillaries_ui
+    build:
+      context: .
+      dockerfile: ./ui/docker/Dockerfile
+    environment:
+      CAPILLARIES_WEBAPI_URL: 'http://10.5.0.6:6543'
+    ports:
+      - 8080:8080      
+    network_mode: bridge
+    networks:
+      capinet:
+        ipv4_address: 10.5.0.6
+
+# docker network create --driver=bridge --subnet=10.5.0.0/16 --ip-range=10.5.0.0/24 --gateway=10.5.0.1 capinet
+# docker run -d --hostname my-rabbit -p 15672:15672 -p 5672:5672 --network=capinet --ip 10.5.0.2 rabbitmq:3-management
+# docker run -d --hostname my-cassandra -p 9042:9042 --network=capinet --ip 10.5.0.3 cassandra
+# docker compose -p "test_capillaries_containers" create daemon
+# docker compose -p "test_capillaries_containers" start daemon
+# docker compose -p "test_capillaries_containers" create webapi
+# docker compose -p "test_capillaries_containers" start webapi
+# docker compose -p "test_capillaries_containers" create ui
+# docker compose -p "test_capillaries_containers" start ui
+
+# mkdir /tmp/capitest_cfg
+# mkdir /tmp/capitest_in
+# mkdir /tmp/capitest_out
+
+# cp -r ./test/data/cfg/* /tmp/capitest_cfg
+# cp -r ./test/data/in/* /tmp/capitest_in
+# cp -r ./test/data/out/* /tmp/capitest_out
+
+# rm -fR /tmp/capitest_cfg
+# rm -fR mkdir /tmp/capitest_in
+# rm -fR mkdir /tmp/capitest_out

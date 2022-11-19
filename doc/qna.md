@@ -5,13 +5,21 @@ Q&A
 
 Q. Is there a limit on the number of nodes, runs, and indexes?
 
-A. The number of nodes in the script and runs performed for a keyspace are virtually unlimited. But keep in mind that each run-node pair creates a separate table in Cassandra (if an index is created, account for an extra table for each run-node-index triad), and Cassandra does not scale well when the number of tables in a keyspace exceeds a couple of hundreds.
+A. The number of nodes in the script and runs performed for a keyspace are virtually unlimited. But keep in mind that each run-node pair creates a separate [table](glossary.md#table) in Cassandra (if an index is created, account for an extra table for each run-node-index triad), and Cassandra does not scale well when the number of tables in a keyspace exceeds a couple of hundred.
 
 ## NULL support
 
 Q. I can't see any code/example that works with NULLs. Are they supported?
 
 A. There is no support for NULL values. To mitigate it, Capillaries offers support for custom default values. See `default_value` in [File reader column definition](glossary.md#file-reader-column-definition) and [Table reader column definition](glossary.md#table-reader-column-definition).
+
+## Re-processing granularity
+
+Q. OK, Capillaries offers [runs](glossary.md#run) as a tool to handle scenarios when some data was not processed properly. After making all necessary fixes, operators can re-start a run (or multiple runs) to overwrite data for all nodes affected by this run - in intermediate Cassandra [tables](glossary.md#table) and in the result files. But it may unnecessarily affect too many nodes and take too long. Can I re-process a single failed [script node](glossary.md#script-node)? A single failed [batch](glossary.md#data-batch)?
+
+A. Re-processing nodes: yes, to some extent. But it has to be part of the script design. You can design your Capillaries [script](glossary.md#script) in a way so the node in question and all its dependants can only be started [manually](scriptconfig.md#start_policy). This means that even on successful script execution, the operator will have to manually start a run that pocesses only one node in question, and manually start a run that processes its dependants.  
+
+Re-running batches: no. Capillaries [data tables](glossary.md#data-table) that hold results of a run are immutable, re-running batches would violate this restriction.
 
 ## dead-letter-exchange
 
@@ -26,26 +34,32 @@ The trickiest part would be to guarantee that only one copy of a batch message f
 
 [This article](https://www.cloudamqp.com/blog/when-and-how-to-use-the-rabbitmq-dead-letter-exchange.html) explains RabbitMQ dead letter exchange use.
 
+## RabbitMQ failures
+
+Q. Can Capilaries survive RabbitMQ service disruption?
+
+A. No. Guaranteed delivery of RabbitMQ messages for each Capillaries [batch](glossary.md#data-batch) is one of the cornerstones of Capillaries architecture.
+
 ## External data acquisition
 
 Q. For each row in my [data table](glossary.md#data-table), I need to acquire data from an external source (say, via web service), providing some row fields as arguments.
 
-A. Start a run that dumps the table into files via [file writer](glossary.md#table_file) with some unique row identifiers, acquire data, save acquired data into new files that use the same unique row identifiers, and start a run that uses those new files.
+A. Start a run that dumps the table into files via [file writer](glossary.md#table_file) with some unique row identifiers, acquire data from the external source, save acquired data into new files that use the same unique row identifiers, and start a run that uses those new files.
 
 ## UI
 
 Q. Is there a UI for Capillaries?
 
-A. As of this writing (2022), no. The [Toolbelt](glossary.md#toolbelt):
+A. Yes. See [Capillaries UI](../ui/README.md) project, which is a simple web single-page application. UI requirements tend to be very business-specific, it's not an easy task to come up with a cookie-cutter UI framework that would be flexible enough. Solution developers are encouraged to develop their own UI for Capillaries workflows using Capillaries [API](api.md).
+
+Also please note that [Toolbelt](glossary.md#toolbelt):
 - can [start/stop](api.md) [runs](glossary.md#run)
 - gives very basic access to the [workflow tables](glossary.md#workflow-table)
 - can produce rudimentary visuals using [DOT diagram language](glossary.md#dot-diagrams) (see `validate_script`, `get_run_status_diagram` commands)
-  
-but that's it. UI requirements tend to be very business-specific, it's not an easy task to come up with a cookie-cutter UI framework that would be flexible enough. Solution developers are encouraged to develop their own UI for Capillaries workflows using Capillaries [API](api.md).
 
 ## Can Capillaries run in a Docker container?
 
-Yes. See details in [Docker testing](testing.md#docker-testing).
+Yes. See Capillaries [100% Docker-based demo](started.md#run-100-dockerized-capillaries-demo).
 
 ## Cassandra in the cloud?
 
@@ -80,9 +94,5 @@ A. Here are some:
 4. Need a strategy to mitigate potential security threats introduced by py_calc. SELinux/AppArmor?
 
 5. Keep an eye on Azure/AWS/GCP progress with Cassandra-compatible databases (latency!) and RabbitMQ offerings.
-   
-6. Something generic enough and useful at the same time to:
-    - build UI for operators who monitor Capillaries running user scripts
-    - allow integrated solutions to control Capillaries script execution
-  
-7. Select distinct field values from a table: it can be implemented easily using a set, but it will not scale and it will be limited by the size of the map. Alternatively, it can be implemented using Cassandra features, but it will require Capillaries to support tables without [rowid](glossary.md#rowid) (so the unique values are stored in a partitioning key field).
+
+6. Select distinct field values from a table: it can be implemented easily using a set, but it will not scale and it will be limited by the size of the map. Alternatively, it can be implemented using Cassandra features, but it will require Capillaries to support tables without [rowid](glossary.md#rowid) (so the unique values are stored in a partitioning key field).
