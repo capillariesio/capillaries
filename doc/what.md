@@ -1,7 +1,7 @@
-Capillaries: what it is and what it is not
+# Capillaries: what it is and what it is not
 ==========================================
 
-# What it is
+## What it is
 
 Capillaries is a distributed data-processing framework that:
 - works with structured row-based data
@@ -12,7 +12,7 @@ Capillaries is a distributed data-processing framework that:
 - allows [custom data processing](glossary.md#table_custom_tfm_table) plugins
 - requires basic knowledge of [Go](https://go.dev)
 
-# Sample use
+## Sample use
 
 For example, this Capillaries [script](glossary.md#script) - [test/data/cfg/tag_and_denormalize/script.json](../test/data/cfg/tag_and_denormalize/script.json) - for the [tag_and_denormalize integration test](../test/code/tag_and_denormalize/README.md) can be described with this [DAG](glossary.md#DAG) diagram (open it the SVG in a separate browser window to see node tooltips, they may be helpful):
 
@@ -20,7 +20,7 @@ For example, this Capillaries [script](glossary.md#script) - [test/data/cfg/tag_
 
 Workflow steps are discussed in detail below.
 
-## Read source data into the table
+### Read source data into the table
 
 Raw source data looks like this:
 | product_id | product_name | product_category_tree | retail_price | product_specifications |
@@ -30,7 +30,7 @@ Raw source data looks like this:
 
 This step writes source data to the `products` table.
 
-## Tag source data
+### Tag source data
 
 This step denormalizes raw data by checking if the row matches some tag criteria and writing denormalized data to the `tagged_products` table.
 
@@ -53,7 +53,7 @@ Denormalized data looks like this (rows ordered by price):
 | engagement | 982547 | 49999.00 |
 | engagement | 275735 | 49970.00 |
 
-## Calculated totals by tag
+### Calculated totals by tag
 
 This step groups tagged products and calculates aggregates:
 
@@ -64,13 +64,13 @@ This step groups tagged products and calculates aggregates:
 | diving | 162995.00 | 6519.80 | 499.00 | 107750.00 | 25 |
 | engagement | 15168839.00 | 35441.21 | 7193.00 | 49999.00 | 428 |
 
-# Capillaries components
+## Capillaries components
 
 This is how deployed Capillaries components interact. For component definitions, see the [glossary](glossary.md).
 
 ![deployment](deployment.svg)
 
-# What it is not
+## What it is not
 
 1. This is not a generic job scheduler or workflow engine. Capillaries can only execute [nodes](glossary.md#script-node) in a [script](glossary.md#script), reading/writing data from/to [tables](glossary.md#table) or files.
 
@@ -78,7 +78,7 @@ This is how deployed Capillaries components interact. For component definitions,
 
 3. Implementing complete relational algebra is not the goal. Do not expect complex joins support.
    
-# Key architecture points
+## Key architecture points
 
 1. Data/index/state table rows are immutable and all operations on them are idempotent. [Script](glossary.md#script) execution should survive temporary DB failures without any need for operator intervention. Data/index [table](glossary.md#table) rows can be deleted though during [batch re-runs](scriptconfig.md#rerun_policy) if needed.
    

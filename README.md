@@ -4,13 +4,13 @@
 
 Capillaries is a distributed batch data processing framework.
 
-# TL;DR
+## TL;DR
 
 [What Capillaries is and what it is not, with a use case discussion and diagrams](doc/what.md)
 
 [Getting started guide with instructions on how to run a quick Docker-based demo without building any code](doc/started.md)
 
-# Why Capillaries?
+## Why Capillaries?
 ![Capillaries: before and after](doc/beforeafter.png)
 
 
@@ -24,36 +24,42 @@ Capillaries is a distributed batch data processing framework.
 | Workflow monitoring and interaction | Custom solutions | Capillaries [API](doc/api.md) and [Toolbelt](doc/glossary.md#toolbelt) utility (transparency, operator validation support) |
 | Workflow management | Shell scripts, custom code | Capillaries [script file](doc/glossary.md#script) with [DAG](doc/glossary.md#dag) |
 
-# Highlights
+## Highlights
 
-## Incremental computing
+### Incremental computing
+
 Allows splitting the whole data processing pipeline into separate runs that can be started independently and re-run if needed.
 
-## Parallel processing
+### Parallel processing
+
 Splits large data volumes into smaller batches processed in parallel. Executes multiple data processing tasks ([DAG](doc/glossary.md#dag) nodes) in parallel.
 
-## Operator interaction
+### Operator interaction
+
 Allows human data validation for selected data processing stages.
 
-## Fault tolerance
-Survives temporary underlying database connectivity issues and processing node failures.
+### Fault tolerance
 
-## Works with structured data artifacts
+Survives temporary underlying database connectivity issues and processing node software and hardware failures.
+
+### Works with structured data artifacts
+
 Consumes and produces delimited text files, uses database tables internally. Provides ETL/ELT capabilities. Implements a subset of the relational algebra.
 
-## Use scenarios
+### Use scenarios
+
 Capable of processing large amounts of data within SLA time limits, efficiently utilizing powerful computational (hardware, VM, containers) and storage (Cassandra) resources, with or without human monitoring/validation/intervention.
 
-# Capillaries in depth
+## Capillaries in depth
 
-## [What it is and what it is not](doc/what.md)
-## [Getting started](doc/started.md)
-## [Testing](doc/testing.md)
-## [Toolbelt, Daemon, and Webapi configuration](doc/binconfig.md)
-## [Script configuration](doc/scriptconfig.md)
-## [API](doc/api.md)
-## [Glossary](doc/glossary.md)
-## [Q & A](doc/qna.md)
-## [MIT License](LICENSE)
+### [What it is and what it is not](doc/what.md)
+### [Getting started](doc/started.md)
+### [Testing](doc/testing.md)
+### [Toolbelt, Daemon, and Webapi configuration](doc/binconfig.md)
+### [Script configuration](doc/scriptconfig.md)
+### [API](doc/api.md)
+### [Glossary](doc/glossary.md)
+### [Q & A](doc/qna.md)
+### [MIT License](LICENSE)
 
 (C) 2022 kleines.hertz[at]protonmail.com

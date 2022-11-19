@@ -13,6 +13,14 @@ Q. I can't see any code/example that works with NULLs. Are they supported?
 
 A. There is no support for NULL values. To mitigate it, Capillaries offers support for custom default values. See `default_value` in [File reader column definition](glossary.md#file-reader-column-definition) and [Table reader column definition](glossary.md#table-reader-column-definition).
 
+## Re-processing granularity
+
+Q. OK, Capillaries offers [runs](glossary.md#run) as a tool to handle scenarios when some data was not processed properly. After making all necessary fixes, operators can re-start a run (or multiple runs) to overwrite data for all nodes affected by this run - in intermediate Cassandra [tables](glossary.md#table) and in the result files. But it may unnecessarily affect too many nodes and take too long. Can I re-process a single failed [script node](glossary.md#script-node)? A single failed [batch](glossary.md#data-batch)?
+
+A. Re-processing nodes: yes, to some extent. But it has to be part of the script design. You can design your Capillaries [script](glossary.md#script) in a way so the node in question and all its dependants can only be started [manually](scriptconfig.md#start_policy). This means that even on successful script execution, the operator will have to manually start a run that pocesses only one node in question, and manually start a run that processes its dependants.  
+
+Re-running batches: no. Capillaries [data tables](glossary.md#data-table) that hold results of a run are immutable, re-running batches would violate this restriction.
+
 ## dead-letter-exchange
 
 Q. When a run is started, I can see RabbitMQ messages created immediately for every batch, and every node affected by the run. And those messages linger in the queue for a while until the node is ready for processing. Why doesn't Capillaries send RabbitMQ messages to a node only after dependency node processing is complete?
@@ -26,11 +34,17 @@ The trickiest part would be to guarantee that only one copy of a batch message f
 
 [This article](https://www.cloudamqp.com/blog/when-and-how-to-use-the-rabbitmq-dead-letter-exchange.html) explains RabbitMQ dead letter exchange use.
 
+## RabbitMQ failures
+
+Q. Can Capilaries survive RabbitMQ service disruption?
+
+A. No. Guaranteed delivery of RabbitMQ messages for each Capillaries [batch](glossary.md#data-batch) is one of the cornerstones of Capillaries architecture.
+
 ## External data acquisition
 
 Q. For each row in my [data table](glossary.md#data-table), I need to acquire data from an external source (say, via web service), providing some row fields as arguments.
 
-A. Start a run that dumps the table into files via [file writer](glossary.md#table_file) with some unique row identifiers, acquire data, save acquired data into new files that use the same unique row identifiers, and start a run that uses those new files.
+A. Start a run that dumps the table into files via [file writer](glossary.md#table_file) with some unique row identifiers, acquire data from the external source, save acquired data into new files that use the same unique row identifiers, and start a run that uses those new files.
 
 ## UI
 

@@ -32,7 +32,7 @@ More about Cassandra setup [here](binconfig.md#cassandra) and [here](glossary.md
 
 ## Data directories
 
-In production environments, Capillaries server components (daemon, toolbelt, webapi) need access to configuration files, source data files and target directories. In dev environments, we want Capillaries components to access those files and directories in the uniform way: for dockerized component and for the developer-run scenarios. We use /tmp/capitest_* directories that can be acessed using the same path - from the host machine and from containers (see [docker-compose.yml](../docker-compose.yml) for volume definitions). 
+In production environments, Capillaries server components ([Daemon](glossary.md#daemon), [Toolbelt](glossary.md#toolbelt), [Webapi](glossary.md#webapi)) need access to configuration files, source data files and target directories. In dev environments, we want Capillaries components to access those files and directories in the uniform way: for dockerized component and for the scenarios when [Daemon](glossary.md#daemon), [Toolbelt](glossary.md#toolbelt), and [Webapi](glossary.md#webapi) are run by developers. We use `/tmp/capitest_*` directories that can be accessed using the same path - from the host machine and from containers (see [docker-compose.yml](../docker-compose.yml) for volume definitions). 
 
 Run these commands from the root project directory, they will create those data directories and populate them with sample configurations and sample source data:
 
@@ -65,11 +65,11 @@ head -10 /tmp/capitest_in/tag_and_denormalize/flipcart_products.tsv
 cat /tmp/capitest_in/tag_and_denormalize/tags.csv
 ```
 
-The demo will process this data as described in the [sample use scenario](what.md#sample-use);
+The demo will process this data as described in the [sample use scenario](what.md#sample-use).
 
 After all containers are started, you can navigate to `http://localhost:8080`. On the displayed `Keyspaces` page, click `New run` enter the following pramaters and click `OK`:
 
-| | |
+| Field | Value |
 |- | - |
 | Keyspace | test_tag_and_denormalize |
 | Script URI | /tmp/capitest_cfg/tag_and_denormalize/script.json |
@@ -85,12 +85,12 @@ head -10 /tmp/capitest_out/tag_and_denormalize/tagged_products_for_operator_revi
 
 Let's assume the operator is satisfied with those tagging results, now it's time to start the second (and final) run. Either from the root `Keyspaces` screen, or from the `test_tag_and_denormalize` matrix screen, start a new run - provide almost the same input, but `Start nodes` will look different now - this second run will start from handling `tag_totals` node and calculating totals for each tag:
 
-| | |
+| Field | Value |
 |- | - |
 | Keyspace | test_tag_and_denormalize |
 | Script URI | /tmp/capitest_cfg/tag_and_denormalize/script.json |
 | Script parameters URI | /tmp/capitest_cfg/tag_and_denormalize/script_params_two_runs.json |
-| Start nodes |	tag_totals |
+| Start nodes |	**tag_totals** |
 
 When this run is complete, see final results at:
 ```
@@ -99,7 +99,7 @@ cat /tmp/capitest_out/tag_and_denormalize/tag_totals.tsv
 
 Drop the keyspace after experimenting with it. 
 
-You have just performed the steps that `test_tag_and_denormalize` integration step does, but you operated on the UI level, instead of calling the [Toolbelt](glossary.md#toolbelt), like integration tests do.
+You have just performed the steps that [test_tag_and_denormalize](../test/code/tag_and_denormalize/README.md) integration test does, but you operated on the UI level, instead of calling the [Toolbelt](glossary.md#toolbelt), like integration tests do.
 
 As a next step, you can check out other [integration tests](testing.md#integration-tests), look into `code` scripts and try mimicking integration test behavior from Capillaries-UI.
 
@@ -113,9 +113,9 @@ If you are running Windows, you will be using WSL for development:
 
 Is there a way to develop and debug Capillaries server components in a dev environment like VSCode without running it from WSL? Yes, but you will have to solve two problems.
 
-1. Data directories /tmp/capitest_* will not be available from Windows, so you will have to tweak all configuration files and shell scripts to reference Windows paths. This is doable, but it's a tedious job.
+1. Data directories `/tmp/capitest_*` will not be available from Windows, so you will have to tweak all configuration files and shell scripts so they reference Windows paths. This is doable, but it's a tedious job.
 
-2. When [tag_and_denormalize] integration test runs in WSL and uses Webapi executed by Windows dev environment, `curl` command will not be able to connect to Webapi's `http://localhost:6543` because of the known WSL limitation descussed at https://github.com/microsoft/WSL/issues/5211 and at https://superuser.com/questions/1679757/how-to-access-windows-localhost-from-wsl2 . You will need to use host IP address or use `$(localhost).local` instead of `localhost` in the shell script.
+2. When [test_tag_and_denormalize](../test/code/tag_and_denormalize/README.md) integration test runs in WSL and uses Webapi executed from Windows dev environment, `curl` command will not be able to connect to Webapi's `http://localhost:6543` because of the known WSL limitation descussed at https://github.com/microsoft/WSL/issues/5211 and at https://superuser.com/questions/1679757/how-to-access-windows-localhost-from-wsl2 . You will need to use host IP address or use `$(localhost).local` instead of `localhost` in the shell script.
 
 ### Go development    
 
