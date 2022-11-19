@@ -5,6 +5,10 @@ WORKDIR /usr/src/capillaries
 # Capillaries daemon sources
 COPY go.mod go.sum ./
 COPY ./pkg ./pkg
+
+# Certificate dir for tests that use github.com as cfg/in data source
+COPY ./test/ca ./test/ca
+
 RUN go mod download && go mod verify
 
 # This image has python3 pre-installed, use python3 command for Python interpreter
