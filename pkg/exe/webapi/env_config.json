@@ -28,6 +28,7 @@
       },
       "tag_and_denormalize":{}
     },
+    "ca_path":"../../../test/ca",
     "zap_config":{
           "level": "debug",
           "outputPaths": ["stdout"],

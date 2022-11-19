@@ -5,6 +5,10 @@ WORKDIR /usr/src/capillaries
 # Capillaries daemon sources
 COPY go.mod go.sum ./
 COPY ./pkg ./pkg
+
+# Certificate dir for tests that use github.com as cfg/in data source
+COPY ./test/ca ./test/ca
+
 RUN go mod download && go mod verify
 
 COPY ./pkg/exe/webapi/env_config.json /usr/local/bin/
