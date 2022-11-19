@@ -96,4 +96,4 @@ Default: 6543
 ### access_control_allow_origin
 Used by [Webapi](glossary.md#webapi) for CORS. Can contain either "*" or a comma-separated list of allowed origin URLs.
 
-Default: http://localhost:8080,http://127.0.0.1:8080
+Default: `http://localhost:8080,http://127.0.0.1:8080`
