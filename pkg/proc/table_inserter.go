@@ -18,12 +18,12 @@ type TableInserter struct {
 	PCtx          *ctx.MessageProcessingContext
 	TableCreator  *sc.TableCreatorDef
 	BatchSize     int
-	RecordsIn     chan WriteChannelItem
+	RecordsIn     chan WriteChannelItem // Channel to pass records from the main function like RunCreateTableForBatch, usig add(), to TableInserter
 	ErrorsOut     chan error
 	RowidRand     *rand.Rand
 	RandMutex     sync.Mutex
 	NumWorkers    int
-	RecordsSent   int
+	RecordsSent   int // Records sent to RecordsIn
 	RecordsInOpen bool
 	//Logger        *l.Logger
 }
@@ -118,6 +118,7 @@ func (instr *TableInserter) waitForWorkers() error {
 	}
 
 	errors := make([]string, 0)
+	// It's crucial that the number of errors to receive eventually should match instr.RecordsSent
 	for i := 0; i < instr.RecordsSent; i++ {
 		err := <-instr.ErrorsOut
 		if err != nil {

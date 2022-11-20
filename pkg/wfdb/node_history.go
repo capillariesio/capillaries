@@ -2,6 +2,7 @@ package wfdb
 
 import (
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
@@ -27,19 +28,31 @@ func HarvestNodeStatusesForRun(logger *l.Logger, pCtx *ctx.MessageProcessingCont
 	}
 
 	nodeStatusMap := wfmodel.NodeStatusMap{}
-	for nodeIdx := 0; nodeIdx < len(affectedNodes); nodeIdx++ {
-		nodeStatusMap[affectedNodes[nodeIdx]] = wfmodel.NodeBatchNone
+	for _, affectedNodeName := range affectedNodes {
+		nodeStatusMap[affectedNodeName] = wfmodel.NodeBatchNone
 	}
 
-	for _, r := range rows {
+	nodeEvents := make([]*wfmodel.NodeHistoryEvent, len(rows))
+
+	for idx, r := range rows {
 		rec, err := wfmodel.NewNodeHistoryEventFromMap(r, fields)
 		if err != nil {
 			return wfmodel.NodeBatchNone, "", fmt.Errorf("cannot deserialize node history row %s, %s", err.Error(), q)
 		}
+		nodeEvents[idx] = rec
+	}
 
-		// Use status priority
-		if rec.Status > nodeStatusMap[rec.ScriptNode] {
-			nodeStatusMap[rec.ScriptNode] = rec.Status
+	sort.Slice(nodeEvents, func(i, j int) bool { return nodeEvents[i].Ts.Before(nodeEvents[j].Ts) })
+
+	for _, e := range nodeEvents {
+		lastStatus, ok := nodeStatusMap[e.ScriptNode]
+		if !ok {
+			nodeStatusMap[e.ScriptNode] = e.Status
+		} else {
+			// Stopreceived is higher priority than anything else
+			if lastStatus != wfmodel.NodeBatchRunStopReceived {
+				nodeStatusMap[e.ScriptNode] = e.Status
+			}
 		}
 	}
 
