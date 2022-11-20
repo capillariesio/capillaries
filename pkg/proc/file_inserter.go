@@ -114,10 +114,11 @@ func (instr *FileInserter) checkWorkerOutput() error {
 
 func (instr *FileInserter) waitForWorker() error {
 
+	// waitForWorker may be used for writing leftovers, handle them
 	if instr.CurrentBatch != nil && instr.CurrentBatch.RowCount > 0 {
 		instr.BatchesIn <- instr.CurrentBatch
-		instr.CurrentBatch = nil
 		instr.BatchesSent++
+		instr.CurrentBatch = nil
 	}
 
 	if instr.BatchesInOpen {
@@ -126,19 +127,16 @@ func (instr *FileInserter) waitForWorker() error {
 	}
 
 	errors := make([]string, 0)
-	for {
-		if instr.BatchesSent == 0 {
-			break
-		}
-		var err error
-		if len(instr.ErrorsOut) > 0 {
-			err = <-instr.ErrorsOut
-			instr.BatchesSent--
-			if err != nil {
-				errors = append(errors, err.Error())
-			}
+	// It's crucial that the number of errors to receive eventually should match instr.BatchesSent
+	for i := 0; i < instr.BatchesSent; i++ {
+		err := <-instr.ErrorsOut
+		if err != nil {
+			errors = append(errors, err.Error())
 		}
 	}
+
+	// Reset for the next cycle, if it ever happens
+	instr.BatchesSent = 0
 
 	if len(errors) > 0 {
 		return fmt.Errorf(strings.Join(errors, "; "))
@@ -161,8 +159,8 @@ func (instr *FileInserter) add(row []interface{}) {
 
 	if instr.CurrentBatch.RowCount == instr.BatchCapacity {
 		instr.BatchesIn <- instr.CurrentBatch
-		instr.CurrentBatch = nil
 		instr.BatchesSent++
+		instr.CurrentBatch = nil
 	}
 }
 
