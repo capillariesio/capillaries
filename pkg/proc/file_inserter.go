@@ -130,10 +130,13 @@ func (instr *FileInserter) waitForWorker() error {
 		if instr.BatchesSent == 0 {
 			break
 		}
-		err := <-instr.ErrorsOut
-		instr.BatchesSent--
-		if err != nil {
-			errors = append(errors, err.Error())
+		var err error
+		if len(instr.ErrorsOut) > 0 {
+			err = <-instr.ErrorsOut
+			instr.BatchesSent--
+			if err != nil {
+				errors = append(errors, err.Error())
+			}
 		}
 	}
 

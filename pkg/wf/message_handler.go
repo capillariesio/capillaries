@@ -138,12 +138,18 @@ func UpdateNodeStatusFromBatches(logger *l.Logger, pCtx *ctx.MessageProcessingCo
 		return wfmodel.NodeBatchNone, false, err
 	}
 
-	if totalNodeStatus == wfmodel.NodeBatchFail || totalNodeStatus == wfmodel.NodeBatchSuccess {
+	if totalNodeStatus == wfmodel.NodeBatchFail || totalNodeStatus == wfmodel.NodeBatchSuccess || totalNodeStatus == wfmodel.NodeBatchRunStopReceived {
 		// Node processing completed, mark whole node as complete
-		comment := "completed - all batches ok"
-		if totalNodeStatus == wfmodel.NodeBatchFail {
+		var comment string
+		switch totalNodeStatus {
+		case wfmodel.NodeBatchSuccess:
+			comment = "completed - all batches ok"
+		case wfmodel.NodeBatchFail:
 			comment = "completed with some failed batches - check batch history"
+		case wfmodel.NodeBatchRunStopReceived:
+			comment = "run was stopped,check run and batch history"
 		}
+
 		isApplied, err := wfdb.SetNodeStatus(logger, pCtx, totalNodeStatus, comment)
 		if err != nil {
 			return wfmodel.NodeBatchNone, false, err
@@ -151,6 +157,7 @@ func UpdateNodeStatusFromBatches(logger *l.Logger, pCtx *ctx.MessageProcessingCo
 			return totalNodeStatus, isApplied, nil
 		}
 	}
+
 	return totalNodeStatus, false, nil
 }
 
@@ -259,7 +266,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.Logger, msgTs int64
 	}
 
 	if runStatus == wfmodel.RunStop {
-		comment := fmt.Sprintf("will not process batch %s, run already stopped, marking batch as %d", dataBatchInfo.FullBatchId(), wfmodel.NodeBatchRunStopReceived)
+		comment := fmt.Sprintf("run stopped, batch %s marked %s", dataBatchInfo.FullBatchId(), wfmodel.NodeBatchRunStopReceived.ToString())
 		logger.InfoCtx(pCtx, comment)
 		if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeBatchRunStopReceived, comment); err != nil {
 			return DaemonCmdReconnectDb
