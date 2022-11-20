@@ -38,19 +38,22 @@ func RunCreateFile(logger *l.Logger,
 	pCtx *ctx.MessageProcessingContext,
 	readerNodeRunId int16,
 	startToken int64,
-	endToken int64) error {
+	endToken int64) (BatchStats, error) {
 
 	logger.PushF("proc.RunCreateFile")
 	defer logger.PopF()
 
+	totalStartTime := time.Now()
+	bs := BatchStats{RowsRead: 0, RowsWritten: 0}
+
 	if readerNodeRunId == 0 {
-		return fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
+		return bs, fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
 	}
 
 	node := pCtx.CurrentScriptNode
 
 	if !node.HasFileCreator() {
-		return fmt.Errorf("node does not have file creator")
+		return bs, fmt.Errorf("node does not have file creator")
 	}
 
 	// Fields to read from source table
@@ -71,10 +74,6 @@ func RunCreateFile(logger *l.Logger,
 	instr.createFileAndStartWorker(logger, pCtx.BatchInfo.RunId, pCtx.BatchInfo.BatchIdx)
 	defer instr.waitForWorkerAndClose()
 
-	totalStartTime := time.Now()
-	totalRowsRead := 0
-	totalRowsWritten := 0
-
 	var topHeap FileRecordHeap
 	if node.FileCreator.HasTop() {
 		topHeap := FileRecordHeap{}
@@ -92,7 +91,7 @@ func RunCreateFile(logger *l.Logger,
 			curStartToken,
 			endToken)
 		if err != nil {
-			return err
+			return bs, err
 		}
 		curStartToken = lastRetrievedToken + 1
 
@@ -103,17 +102,17 @@ func RunCreateFile(logger *l.Logger,
 		for rowIdx := 0; rowIdx < rs.RowCount; rowIdx++ {
 			vars := eval.VarValuesMap{}
 			if err := rs.ExportToVars(rowIdx, &vars); err != nil {
-				return err
+				return bs, err
 			}
 
 			fileRecord, err := node.FileCreator.CalculateFileRecordFromSrcVars(vars)
 			if err != nil {
-				return fmt.Errorf("cannot populate file record from [%v]: [%s]", vars, err.Error())
+				return bs, fmt.Errorf("cannot populate file record from [%v]: [%s]", vars, err.Error())
 			}
 
 			inResult, err := node.FileCreator.CheckFileRecordHavingCondition(fileRecord)
 			if err != nil {
-				return fmt.Errorf("cannot check having condition [%s], file record [%v]: [%s]", node.FileCreator.RawHaving, fileRecord, err.Error())
+				return bs, fmt.Errorf("cannot check having condition [%s], file record [%v]: [%s]", node.FileCreator.RawHaving, fileRecord, err.Error())
 			}
 
 			if !inResult {
@@ -127,7 +126,7 @@ func RunCreateFile(logger *l.Logger,
 				}
 				key, err := sc.BuildKey(keyVars, &node.FileCreator.Top.OrderIdxDef)
 				if err != nil {
-					return fmt.Errorf("cannot build top key for [%v]: [%s]", vars, err.Error())
+					return bs, fmt.Errorf("cannot build top key for [%v]: [%s]", vars, err.Error())
 				}
 				heap.Push(&topHeap, &FileRecordHeapItem{FileRecord: &fileRecord, Key: key})
 				if len(topHeap) > node.FileCreator.Top.Limit {
@@ -135,17 +134,17 @@ func RunCreateFile(logger *l.Logger,
 				}
 			} else {
 				instr.add(fileRecord)
-				totalRowsWritten++
+				bs.RowsWritten++
 			}
 		}
 
-		totalRowsRead += rs.RowCount
+		bs.RowsRead += rs.RowCount
 		if rs.RowCount < srcBatchSize {
 			break
 		}
 
 		if err := instr.checkWorkerOutput(); err != nil {
-			return fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+			return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
 		}
 
 	} // for each source table batch
@@ -157,17 +156,17 @@ func RunCreateFile(logger *l.Logger,
 		}
 		for i := 0; i < len(properlyOrderedTopList); i++ {
 			instr.add(*properlyOrderedTopList[i].FileRecord)
-			totalRowsWritten++
+			bs.RowsWritten++
 		}
 	}
 
 	// Successful so far, write leftovers
 	if err := instr.waitForWorker(); err != nil {
-		return fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+		return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
 	}
 
-	totalDur := time.Since(totalStartTime)
-	logger.InfoCtx(pCtx, "WriteFileComplete: read %d, wrote %d items in %.3fs (%.0f items/s)", totalRowsRead, totalRowsWritten, totalDur.Seconds(), float64(totalRowsWritten)/totalDur.Seconds())
+	bs.Elapsed = time.Since(totalStartTime)
+	logger.InfoCtx(pCtx, "WriteFileComplete: read %d, wrote %d items in %.3fs (%.0f items/s)", bs.RowsRead, bs.RowsWritten, bs.Elapsed.Seconds(), float64(bs.RowsWritten)/bs.Elapsed.Seconds())
 
-	return nil
+	return bs, nil
 }

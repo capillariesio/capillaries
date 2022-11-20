@@ -53,27 +53,31 @@ func reportWriteTableComplete(logger *l.Logger, pCtx *ctx.MessageProcessingConte
 		workerCount)
 }
 
-func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.MessageProcessingContext, srcFileIdx int) error {
+func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.MessageProcessingContext, srcFileIdx int) (BatchStats, error) {
 	logger.PushF("proc.RunReadFileForBatch")
 	defer logger.PopF()
+
+	batchStartTime := time.Now()
+	totalStartTime := time.Now()
+	bs := BatchStats{RowsRead: 0, RowsWritten: 0}
 
 	node := pCtx.CurrentScriptNode
 
 	if !node.HasFileReader() {
-		return fmt.Errorf("node does not have file reader")
+		return bs, fmt.Errorf("node does not have file reader")
 	}
 	if !node.HasTableCreator() {
-		return fmt.Errorf("node does not have table creator")
+		return bs, fmt.Errorf("node does not have table creator")
 	}
 
 	if srcFileIdx < 0 || srcFileIdx >= len(node.FileReader.SrcFileUrls) {
-		return fmt.Errorf("cannot find file to read: asked to read src file with index %d while there are only %d source files available", srcFileIdx, len(node.FileReader.SrcFileUrls))
+		return bs, fmt.Errorf("cannot find file to read: asked to read src file with index %d while there are only %d source files available", srcFileIdx, len(node.FileReader.SrcFileUrls))
 	}
 	filePath := node.FileReader.SrcFileUrls[srcFileIdx]
 
 	u, err := url.Parse(filePath)
 	if err != nil {
-		return fmt.Errorf("cannot parse file uri %s: %s", filePath, err.Error())
+		return bs, fmt.Errorf("cannot parse file uri %s: %s", filePath, err.Error())
 	}
 
 	var csvFile *os.File
@@ -81,18 +85,18 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.M
 	if u.Scheme == sc.UriSchemeFile || len(u.Scheme) == 0 {
 		csvFile, err = os.Open(filePath)
 		if err != nil {
-			return err
+			return bs, err
 		}
 		fileReader = bufio.NewReader(csvFile)
 	} else if u.Scheme == sc.UriSchemeHttp || u.Scheme == sc.UriSchemeHttps {
 		readCloser, err := sc.GetHttpReadCloser(filePath, u.Scheme, envConfig.CaPath)
 		if err != nil {
-			return err
+			return bs, err
 		}
 		fileReader = readCloser
 		defer readCloser.Close()
 	} else {
-		return fmt.Errorf("uri scheme %s not supported: %s", u.Scheme, filePath)
+		return bs, fmt.Errorf("uri scheme %s not supported: %s", u.Scheme, filePath)
 	}
 
 	r := csv.NewReader(fileReader)
@@ -107,14 +111,9 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.M
 	instr := newTableInserter(envConfig, logger, pCtx, &node.TableCreator, DefaultInserterBatchSize)
 	instr.verifyTablesExist()
 	if err := instr.startWorkers(logger); err != nil {
-		return err
+		return bs, err
 	}
 	defer instr.waitForWorkersAndClose()
-
-	batchStartTime := time.Now()
-	totalStartTime := time.Now()
-	totalRowsRead := 0
-	totalRowsWritten := 0
 
 	for {
 		line, err := r.Read()
@@ -122,30 +121,30 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.M
 			break
 		}
 		if err != nil {
-			return fmt.Errorf("cannot read file [%s]: [%s]", filePath, err.Error())
+			return bs, fmt.Errorf("cannot read file [%s]: [%s]", filePath, err.Error())
 		}
 		if node.FileReader.ColumnIndexingMode == sc.FileColumnIndexingName && int64(node.FileReader.SrcFileHdrLineIdx) == lineIdx {
 			if err := node.FileReader.ResolveColumnIndexesFromNames(line); err != nil {
-				return fmt.Errorf("cannot parse column headers of [%s]: [%s]", filePath, err.Error())
+				return bs, fmt.Errorf("cannot parse column headers of [%s]: [%s]", filePath, err.Error())
 			}
 		} else if lineIdx >= int64(node.FileReader.SrcFileFirstDataLineIdx) {
 
 			// FileReader: read columns
 			colVars := eval.VarValuesMap{}
 			if err := node.FileReader.ReadLineToValuesMap(&line, colVars); err != nil {
-				return fmt.Errorf("cannot read values from [%s], line %d: [%s]", filePath, lineIdx, err.Error())
+				return bs, fmt.Errorf("cannot read values from [%s], line %d: [%s]", filePath, lineIdx, err.Error())
 			}
 
 			// TableCreator: evaluate table column expressions
 			tableRecord, err := node.TableCreator.CalculateTableRecordFromSrcVars(false, colVars)
 			if err != nil {
-				return fmt.Errorf("cannot populate table record from [%s], line %d: [%s]", filePath, lineIdx, err.Error())
+				return bs, fmt.Errorf("cannot populate table record from [%s], line %d: [%s]", filePath, lineIdx, err.Error())
 			}
 
 			// Check table creator having
 			inResult, err := node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
 			if err != nil {
-				return fmt.Errorf("cannot check having condition [%s], table record [%v]: [%s]", node.TableCreator.RawHaving, tableRecord, err.Error())
+				return bs, fmt.Errorf("cannot check having condition [%s], table record [%v]: [%s]", node.TableCreator.RawHaving, tableRecord, err.Error())
 			}
 
 			// Write batch if needed
@@ -154,19 +153,19 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.M
 				tableRecordBatchCount++
 				if tableRecordBatchCount == DefaultInserterBatchSize {
 					if err := instr.waitForWorkers(); err != nil {
-						return fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+						return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
 					}
 					reportWriteTable(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
 					batchStartTime = time.Now()
 					tableRecordBatchCount = 0
 					if err := instr.startWorkers(logger); err != nil {
-						return err
+						return bs, err
 					}
 
 				}
-				totalRowsWritten++
+				bs.RowsWritten++
 			}
-			totalRowsRead++
+			bs.RowsRead++
 		}
 		lineIdx++
 	}
@@ -174,12 +173,15 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.M
 	// Write leftovers
 	if tableRecordBatchCount > 0 {
 		if err := instr.waitForWorkers(); err != nil {
-			return fmt.Errorf("cannot save leftover record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+			return bs, fmt.Errorf("cannot save leftover record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
 		}
 		reportWriteTableLeftovers(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
 	}
-	reportWriteTableComplete(logger, pCtx, totalRowsRead, totalRowsWritten, time.Since(totalStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
-	return nil
+
+	bs.Elapsed = time.Since(totalStartTime)
+	reportWriteTableComplete(logger, pCtx, bs.RowsRead, bs.RowsWritten, bs.Elapsed, len(node.TableCreator.Indexes), instr.NumWorkers)
+
+	return bs, nil
 }
 
 func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
@@ -187,22 +189,25 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 	pCtx *ctx.MessageProcessingContext,
 	readerNodeRunId int16,
 	startLeftToken int64,
-	endLeftToken int64) error {
+	endLeftToken int64) (BatchStats, error) {
 
 	logger.PushF("proc.RunCreateTableForCustomProcessorForBatch")
 	defer logger.PopF()
 
+	totalStartTime := time.Now()
+	bs := BatchStats{RowsRead: 0, RowsWritten: 0}
+
 	if readerNodeRunId == 0 {
-		return fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
+		return bs, fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
 	}
 
 	node := pCtx.CurrentScriptNode
 
 	if !node.HasTableReader() {
-		return fmt.Errorf("node does not have table reader")
+		return bs, fmt.Errorf("node does not have table reader")
 	}
 	if !node.HasTableCreator() {
-		return fmt.Errorf("node does not have table creator")
+		return bs, fmt.Errorf("node does not have table creator")
 	}
 
 	// Fields to read from source table
@@ -225,13 +230,9 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 	instr := newTableInserter(envConfig, logger, pCtx, &node.TableCreator, inserterBatchSize)
 	instr.verifyTablesExist()
 	if err := instr.startWorkers(logger); err != nil {
-		return err
+		return bs, err
 	}
 	defer instr.waitForWorkersAndClose()
-
-	totalStartTime := time.Now()
-	totalRowsRead := 0
-	totalRowsWritten := 0
 
 	flushVarsArray := func(varsArray []*eval.VarValuesMap, varsArrayCount int) error {
 		logger.PushF("proc.flushRowset")
@@ -262,7 +263,7 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 			if inResult {
 				instr.add(tableRecord)
 				rowsWritten++
-				totalRowsWritten++
+				bs.RowsWritten++
 			}
 		}
 
@@ -286,7 +287,7 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 			curStartLeftToken,
 			endLeftToken)
 		if err != nil {
-			return err
+			return bs, err
 		}
 		curStartLeftToken = lastRetrievedLeftToken + 1
 
@@ -296,20 +297,22 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 		customProcBatchStartTime := time.Now()
 
 		if err = node.CustomProcessor.(CustomProcessorRunner).Run(logger, pCtx, rsIn, flushVarsArray); err != nil {
-			return err
+			return bs, err
 		}
 
 		custProcDur := time.Since(customProcBatchStartTime)
 		logger.InfoCtx(pCtx, "CustomProcessor: %d items in %v (%.0f items/s)", rsIn.RowCount, custProcDur, float64(rsIn.RowCount)/custProcDur.Seconds())
 
-		totalRowsRead += rsIn.RowCount
+		bs.RowsRead += rsIn.RowCount
 		if rsIn.RowCount < leftBatchSize {
 			break
 		}
 	} // for each source table batch
 
-	reportWriteTableComplete(logger, pCtx, totalRowsRead, totalRowsWritten, time.Since(totalStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
-	return nil
+	bs.Elapsed = time.Since(totalStartTime)
+	reportWriteTableComplete(logger, pCtx, bs.RowsRead, bs.RowsWritten, bs.Elapsed, len(node.TableCreator.Indexes), instr.NumWorkers)
+
+	return bs, nil
 }
 
 func RunCreateTableForBatch(envConfig *env.EnvConfig,
@@ -317,22 +320,26 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 	pCtx *ctx.MessageProcessingContext,
 	readerNodeRunId int16,
 	startLeftToken int64,
-	endLeftToken int64) error {
+	endLeftToken int64) (BatchStats, error) {
 
 	logger.PushF("proc.RunCreateTableForBatch")
 	defer logger.PopF()
 
+	batchStartTime := time.Now()
+	totalStartTime := time.Now()
+	bs := BatchStats{RowsRead: 0, RowsWritten: 0}
+
 	if readerNodeRunId == 0 {
-		return fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
+		return bs, fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
 	}
 
 	node := pCtx.CurrentScriptNode
 
 	if !node.HasTableReader() {
-		return fmt.Errorf("node does not have table reader")
+		return bs, fmt.Errorf("node does not have table reader")
 	}
 	if !node.HasTableCreator() {
-		return fmt.Errorf("node does not have table creator")
+		return bs, fmt.Errorf("node does not have table creator")
 	}
 
 	// Fields to read from source table
@@ -355,13 +362,9 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 	instr := newTableInserter(envConfig, logger, pCtx, &node.TableCreator, inserterBatchSize)
 	instr.verifyTablesExist()
 	if err := instr.startWorkers(logger); err != nil {
-		return err
+		return bs, err
 	}
 	defer instr.waitForWorkersAndClose()
-	batchStartTime := time.Now()
-	totalStartTime := time.Now()
-	totalRowsRead := 0
-	totalRowsWritten := 0
 
 	for {
 		lastRetrievedLeftToken, err := selectBatchFromTableByToken(logger,
@@ -373,7 +376,7 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 			curStartLeftToken,
 			endLeftToken)
 		if err != nil {
-			return err
+			return bs, err
 		}
 		curStartLeftToken = lastRetrievedLeftToken + 1
 
@@ -385,18 +388,18 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 		for outRowIdx := 0; outRowIdx < rsIn.RowCount; outRowIdx++ {
 			vars := eval.VarValuesMap{}
 			if err := rsIn.ExportToVars(outRowIdx, &vars); err != nil {
-				return err
+				return bs, err
 			}
 
 			tableRecord, err := node.TableCreator.CalculateTableRecordFromSrcVars(false, vars)
 			if err != nil {
-				return fmt.Errorf("cannot populate table record from [%v]: [%s]", vars, err.Error())
+				return bs, fmt.Errorf("cannot populate table record from [%v]: [%s]", vars, err.Error())
 			}
 
 			// Check table creator having
 			inResult, err := node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
 			if err != nil {
-				return fmt.Errorf("cannot check having condition [%s], table record [%v]: [%s]", node.TableCreator.RawHaving, tableRecord, err.Error())
+				return bs, fmt.Errorf("cannot check having condition [%s], table record [%v]: [%s]", node.TableCreator.RawHaving, tableRecord, err.Error())
 			}
 
 			// Write batch if needed
@@ -405,20 +408,20 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 				tableRecordBatchCount++
 				if tableRecordBatchCount == DefaultInserterBatchSize {
 					if err := instr.waitForWorkers(); err != nil {
-						return fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+						return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
 					}
 					reportWriteTable(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
 					batchStartTime = time.Now()
 					tableRecordBatchCount = 0
 					if err := instr.startWorkers(logger); err != nil {
-						return err
+						return bs, err
 					}
 				}
-				totalRowsWritten++
+				bs.RowsWritten++
 			}
 		}
 
-		totalRowsRead += rsIn.RowCount
+		bs.RowsRead += rsIn.RowCount
 		if rsIn.RowCount < leftBatchSize {
 			break
 		}
@@ -427,12 +430,15 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 	// Write leftovers
 	if tableRecordBatchCount > 0 {
 		if err := instr.waitForWorkers(); err != nil {
-			return fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+			return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
 		}
 		reportWriteTableLeftovers(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
 	}
-	reportWriteTableComplete(logger, pCtx, totalRowsRead, totalRowsWritten, time.Since(totalStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
-	return nil
+
+	bs.Elapsed = time.Since(totalStartTime)
+	reportWriteTableComplete(logger, pCtx, bs.RowsRead, bs.RowsWritten, bs.Elapsed, len(node.TableCreator.Indexes), instr.NumWorkers)
+
+	return bs, nil
 }
 
 func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
@@ -441,29 +447,34 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 	readerNodeRunId int16,
 	lookupNodeRunId int16,
 	startLeftToken int64,
-	endLeftToken int64) error {
+	endLeftToken int64) (BatchStats, error) {
 
 	logger.PushF("proc.RunCreateTableRelForBatch")
 	defer logger.PopF()
 
+	batchStartTime := time.Now()
+	totalStartTime := time.Now()
+
+	bs := BatchStats{RowsRead: 0, RowsWritten: 0}
+
 	if readerNodeRunId == 0 {
-		return fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
+		return bs, fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
 	}
 
 	if lookupNodeRunId == 0 {
-		return fmt.Errorf("this node has a dependency node to lookup data at that was never started in this keyspace (lookupNodeRunId == 0)")
+		return bs, fmt.Errorf("this node has a dependency node to lookup data at that was never started in this keyspace (lookupNodeRunId == 0)")
 	}
 
 	node := pCtx.CurrentScriptNode
 
 	if !node.HasTableReader() {
-		return fmt.Errorf("node does not have table reader")
+		return bs, fmt.Errorf("node does not have table reader")
 	}
 	if !node.HasTableCreator() {
-		return fmt.Errorf("node does not have table creator")
+		return bs, fmt.Errorf("node does not have table creator")
 	}
 	if !node.HasLookup() {
-		return fmt.Errorf("node does not have lookup")
+		return bs, fmt.Errorf("node does not have lookup")
 	}
 
 	// Fields to read from source table
@@ -500,13 +511,9 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 	instr := newTableInserter(envConfig, logger, pCtx, &node.TableCreator, inserterBatchSize)
 	instr.verifyTablesExist()
 	if err := instr.startWorkers(logger); err != nil {
-		return err
+		return bs, err
 	}
 	defer instr.waitForWorkersAndClose()
-	batchStartTime := time.Now()
-	totalStartTime := time.Now()
-	totalRowsRead := 0
-	totalRowsWritten := 0
 
 	curStartLeftToken := startLeftToken
 	for {
@@ -519,7 +526,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 			curStartLeftToken,
 			endLeftToken)
 		if err != nil {
-			return err
+			return bs, err
 		}
 		curStartLeftToken = lastRetrievedLeftToken + 1
 
@@ -548,11 +555,11 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 			leftRowFoundRightLookup[rowIdx] = false
 			vars := eval.VarValuesMap{}
 			if err := rsLeft.ExportToVars(rowIdx, &vars); err != nil {
-				return err
+				return bs, err
 			}
 			key, err := sc.BuildKey(vars[sc.ReaderAlias], node.Lookup.TableCreator.Indexes[node.Lookup.IndexName])
 			if err != nil {
-				return err
+				return bs, err
 			}
 
 			_, ok := keyToLeftRowIdxMap[key]
@@ -589,7 +596,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 				idxPageState,
 				&keysToFind)
 			if err != nil {
-				return err
+				return bs, err
 			}
 
 			if rsIdx.RowCount == 0 {
@@ -626,7 +633,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 					rightPageState,
 					rowidsToFind)
 				if err != nil {
-					return err
+					return bs, err
 				}
 
 				if rsRight.RowCount == 0 {
@@ -646,12 +653,12 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 					if node.Lookup.UsesFilter() {
 						vars := eval.VarValuesMap{}
 						if err := rsRight.ExportToVars(rightRowIdx, &vars); err != nil {
-							return err
+							return bs, err
 						}
 						var err error
 						lookupFilterOk, err = node.Lookup.CheckFilterCondition(vars)
 						if err != nil {
-							return fmt.Errorf("cannot check filter condition [%s] against [%v]: [%s]", node.Lookup.RawFilter, vars, err.Error())
+							return bs, fmt.Errorf("cannot check filter condition [%s] against [%v]: [%s]", node.Lookup.RawFilter, vars, err.Error())
 						}
 					}
 
@@ -670,14 +677,14 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 							for fieldName, fieldDef := range node.TableCreator.Fields {
 								eCtxMap[leftRowid][fieldName].Vars = &eval.VarValuesMap{}
 								if err := rsLeft.ExportToVars(leftRowIdx, eCtxMap[leftRowid][fieldName].Vars); err != nil {
-									return err
+									return bs, err
 								}
 								if err := rsRight.ExportToVarsWithAlias(rightRowIdx, eCtxMap[leftRowid][fieldName].Vars, sc.LookupAlias); err != nil {
-									return err
+									return bs, err
 								}
 								_, err := eCtxMap[leftRowid][fieldName].Eval(fieldDef.ParsedExpression)
 								if err != nil {
-									return fmt.Errorf("cannot evaluate target expression [%s]: [%s]", fieldDef.RawExpression, err.Error())
+									return bs, fmt.Errorf("cannot evaluate target expression [%s]: [%s]", fieldDef.RawExpression, err.Error())
 								}
 							}
 						}
@@ -689,22 +696,22 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 
 							vars := eval.VarValuesMap{}
 							if err := rsLeft.ExportToVars(leftRowIdx, &vars); err != nil {
-								return err
+								return bs, err
 							}
 							if err := rsRight.ExportToVarsWithAlias(rightRowIdx, &vars, sc.LookupAlias); err != nil {
-								return err
+								return bs, err
 							}
 
 							// We are ready to write this result right away, so prepare the output tableRecord
 							tableRecord, err := node.TableCreator.CalculateTableRecordFromSrcVars(false, vars)
 							if err != nil {
-								return fmt.Errorf("cannot populate table record from [%v]: [%s]", vars, err.Error())
+								return bs, fmt.Errorf("cannot populate table record from [%v]: [%s]", vars, err.Error())
 							}
 
 							// Check table creator having
 							inResult, err := node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
 							if err != nil {
-								return fmt.Errorf("cannot check having condition [%s], table record [%v]: [%s]", node.TableCreator.RawHaving, tableRecord, err.Error())
+								return bs, fmt.Errorf("cannot check having condition [%s], table record [%v]: [%s]", node.TableCreator.RawHaving, tableRecord, err.Error())
 							}
 
 							// Write batch if needed
@@ -713,16 +720,16 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 								tableRecordBatchCount++
 								if tableRecordBatchCount == instr.BatchSize {
 									if err := instr.waitForWorkers(); err != nil {
-										return fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+										return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
 									}
 									reportWriteTable(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
 									batchStartTime = time.Now()
 									tableRecordBatchCount = 0
 									if err := instr.startWorkers(logger); err != nil {
-										return err
+										return bs, err
 									}
 								}
-								totalRowsWritten++
+								bs.RowsWritten++
 							}
 						} // non-group result row written
 					} // group case handled
@@ -749,7 +756,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 
 						leftVars := eval.VarValuesMap{}
 						if err := rsLeft.ExportToVars(leftRowIdx, &leftVars); err != nil {
-							return err
+							return bs, err
 						}
 
 						for fieldName, fieldDef := range node.TableCreator.Fields {
@@ -757,13 +764,13 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 								// Aggregate func is used in field expression - ignore the expression and produce default
 								tableRecord[fieldName], err = node.TableCreator.GetFieldDefaultReadyForDb(fieldName)
 								if err != nil {
-									return fmt.Errorf("cannot initialize default field %s: [%s]", fieldName, err.Error())
+									return bs, fmt.Errorf("cannot initialize default field %s: [%s]", fieldName, err.Error())
 								}
 							} else {
 								// No aggregate function used in field expression - assume it contains only left-side fields
 								tableRecord[fieldName], err = sc.CalculateFieldValue(fieldName, fieldDef, leftVars, false)
 								if err != nil {
-									return err
+									return bs, err
 								}
 							}
 						}
@@ -783,7 +790,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 						finalValue := eCtxMap[leftRowid][fieldName].Value
 
 						if err := sc.CheckValueType(finalValue, fieldDef.Type); err != nil {
-							return fmt.Errorf("invalid field %s type: [%s]", fieldName, err.Error())
+							return bs, fmt.Errorf("invalid field %s type: [%s]", fieldName, err.Error())
 						}
 						tableRecord[fieldName] = finalValue
 					}
@@ -792,7 +799,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 				// Check table creator having
 				inResult, err := node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
 				if err != nil {
-					return fmt.Errorf("cannot check having condition [%s], table record [%v]: [%s]", node.TableCreator.RawHaving, tableRecord, err.Error())
+					return bs, fmt.Errorf("cannot check having condition [%s], table record [%v]: [%s]", node.TableCreator.RawHaving, tableRecord, err.Error())
 				}
 
 				// Write batch if needed
@@ -801,16 +808,16 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 					tableRecordBatchCount++
 					if tableRecordBatchCount == instr.BatchSize {
 						if err := instr.waitForWorkers(); err != nil {
-							return fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+							return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
 						}
 						reportWriteTable(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
 						batchStartTime = time.Now()
 						tableRecordBatchCount = 0
 						if err := instr.startWorkers(logger); err != nil {
-							return err
+							return bs, err
 						}
 					}
-					totalRowsWritten++
+					bs.RowsWritten++
 				}
 			}
 		} else if node.Lookup.LookupJoin == sc.LookupJoinLeft {
@@ -826,7 +833,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 
 				leftVars := eval.VarValuesMap{}
 				if err := rsLeft.ExportToVars(leftRowIdx, &leftVars); err != nil {
-					return err
+					return bs, err
 				}
 
 				tableRecord := map[string]interface{}{}
@@ -836,13 +843,13 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 						// This field expression uses fields from lkp table - produce default value
 						tableRecord[fieldName], err = node.TableCreator.GetFieldDefaultReadyForDb(fieldName)
 						if err != nil {
-							return fmt.Errorf("cannot initialize non-grouped default field %s: [%s]", fieldName, err.Error())
+							return bs, fmt.Errorf("cannot initialize non-grouped default field %s: [%s]", fieldName, err.Error())
 						}
 					} else {
 						// This field expression does not use fields from lkp table - assume the expression contains only left-side fields
 						tableRecord[fieldName], err = sc.CalculateFieldValue(fieldName, fieldDef, leftVars, false)
 						if err != nil {
-							return err
+							return bs, err
 						}
 					}
 				}
@@ -850,7 +857,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 				// Check table creator having
 				inResult, err := node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
 				if err != nil {
-					return fmt.Errorf("cannot check having condition [%s], table record [%v]: [%s]", node.TableCreator.RawHaving, tableRecord, err.Error())
+					return bs, fmt.Errorf("cannot check having condition [%s], table record [%v]: [%s]", node.TableCreator.RawHaving, tableRecord, err.Error())
 				}
 
 				// Write batch if needed
@@ -859,23 +866,23 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 					tableRecordBatchCount++
 					if tableRecordBatchCount == instr.BatchSize {
 						if err := instr.waitForWorkers(); err != nil {
-							return fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+							return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
 						}
 						reportWriteTable(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
 						batchStartTime = time.Now()
 						tableRecordBatchCount = 0
 						if err := instr.startWorkers(logger); err != nil {
-							return err
+							return bs, err
 						}
 					}
-					totalRowsWritten++
+					bs.RowsWritten++
 				}
 			}
 		} else {
 			// Non-grouped inner join, already handled above
 		}
 
-		totalRowsRead += rsLeft.RowCount
+		bs.RowsRead += rsLeft.RowCount
 		if rsLeft.RowCount < leftBatchSize {
 			break
 		}
@@ -884,10 +891,11 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 	// Write leftovers
 	if tableRecordBatchCount > 0 {
 		if err := instr.waitForWorkers(); err != nil {
-			return fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+			return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
 		}
 		reportWriteTableLeftovers(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
 	}
-	reportWriteTableComplete(logger, pCtx, totalRowsRead, totalRowsWritten, time.Since(totalStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
-	return nil
+	bs.Elapsed = time.Since(totalStartTime)
+	reportWriteTableComplete(logger, pCtx, bs.RowsRead, bs.RowsWritten, bs.Elapsed, len(node.TableCreator.Indexes), instr.NumWorkers)
+	return bs, nil
 }

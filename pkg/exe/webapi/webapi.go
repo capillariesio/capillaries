@@ -187,17 +187,20 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	nodeStartTsMap := map[string]time.Time{} // Arrange by the ts in the last run
+
 	// For each node/run, harvest current node status, latest wins
 	nodeRunStatusMap := map[string]map[int16]WebapiNodeStatus{}
-	nodeStartTsMap := map[string]time.Time{}
 	for _, nodeEvent := range nodeHistory {
 		if _, ok := nodeRunStatusMap[nodeEvent.ScriptNode]; !ok {
 			nodeRunStatusMap[nodeEvent.ScriptNode] = map[int16]WebapiNodeStatus{}
 		}
 		nodeRunStatusMap[nodeEvent.ScriptNode][nodeEvent.RunId] = WebapiNodeStatus{RunId: nodeEvent.RunId, Status: nodeEvent.Status, Ts: nodeEvent.Ts.Format("2006-01-02T15:04:05.000-0700")}
 
-		if _, ok := nodeStartTsMap[nodeEvent.ScriptNode]; !ok {
-			nodeStartTsMap[nodeEvent.ScriptNode] = nodeEvent.Ts
+		if nodeEvent.Status == wfmodel.NodeBatchStart {
+			if _, ok := nodeStartTsMap[nodeEvent.ScriptNode]; !ok {
+				nodeStartTsMap[nodeEvent.ScriptNode] = nodeEvent.Ts
+			}
 		}
 	}
 
@@ -214,9 +217,22 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 		nodeCount++
 	}
 
-	// Sort nodes: those who were processed (including started) earlier, go first
+	// Sort nodes: started come first, sorted by start ts, other come after that, sorted by node name
+	// Ideally, they should be sorted geometrically from DAG, with start ts coming into play when DAG says nodes are equal.
+	// But this will require script analysis which takes too long.
 	sort.Slice(mx.Nodes, func(i, j int) bool {
-		return nodeStartTsMap[mx.Nodes[i].NodeName].Before(nodeStartTsMap[mx.Nodes[j].NodeName])
+		leftTs, leftPresent := nodeStartTsMap[mx.Nodes[i].NodeName]
+		rightTs, rightPresent := nodeStartTsMap[mx.Nodes[j].NodeName]
+		if !leftPresent && rightPresent {
+			return false
+		} else if leftPresent && !rightPresent {
+			return true
+		} else if !leftPresent && !rightPresent {
+			// Sort by node name
+			return mx.Nodes[i].NodeName < mx.Nodes[j].NodeName
+		} else {
+			return leftTs.Before(rightTs)
+		}
 	})
 
 	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, mx)

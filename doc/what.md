@@ -1,5 +1,4 @@
 # Capillaries: what it is and what it is not
-==========================================
 
 ## What it is
 
