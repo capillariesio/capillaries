@@ -12,14 +12,16 @@
     export let keyspace
 
     let responseError = "";
+    let webapiWaiting  = false;
     function setWebapiData(dataFromJson, errorFromJson) {
-		if (!!errorFromJson) {
-          responseError = errorFromJson;
-        } else {
-          console.log(dataFromJson);
-          responseError = "";
-           closeModal();
-        }
+      webapiWaiting = false;
+      if (!!errorFromJson) {
+        responseError = errorFromJson;
+      } else {
+        console.log(dataFromJson);
+        responseError = "";
+        closeModal();
+      }
     }
 
     // Local variables
@@ -75,7 +77,7 @@
       if (responseError.length == 0) {
         // For this ks, cache last used run parameters
         $ksRunMap[keyspace] = {"scriptUri": scriptUri, "paramsUri": paramsUri};
-
+        webapiWaiting = true;
         fetch(new Request(webapiUrl() + "/ks/" + keyspace + "/run", {method: 'POST', body: JSON.stringify({"script_uri": scriptUri, "script_params_uri": paramsUri, "start_nodes": startNodes, "run_description": runDesc})}))
               .then(response => response.json())
               .then(responseJson => { handleResponse(responseJson, setWebapiData);})
@@ -89,19 +91,20 @@
     <div class="contents">
       <p>You are about to start a new run</p>
       Run description:
-      <input bind:value={runDesc}>
+      <input bind:value={runDesc} disabled={webapiWaiting}>
       Keyspace:
-      <input bind:value={keyspace}>
+      <input bind:value={keyspace} disabled={webapiWaiting}>
       Script URI:
-      <input bind:value={scriptUri}>
+      <input bind:value={scriptUri} disabled={webapiWaiting}>
       Script parameters URI:
-      <input bind:value={paramsUri}>
+      <input bind:value={paramsUri} disabled={webapiWaiting}>
       Start nodes:
-      <input bind:value={startNodes}>
+      <input bind:value={startNodes} disabled={webapiWaiting}>
       <p style="color:red;">{responseError}</p>
       <div class="actions">
-        <button on:click="{closeModal}">Cancel</button>
-        <button on:click="{newAndCloseModal}">OK</button>
+        {#if webapiWaiting}<img src="i/wait.svg" style="height: 30px;padding-right: 10px;padding-top: 5px;" alt=""/>{/if}
+        <button on:click="{closeModal}" disabled={webapiWaiting}>Cancel</button>
+        <button on:click="{newAndCloseModal}" disabled={webapiWaiting}>OK</button>
       </div>
     </div>
   </div>

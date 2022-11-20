@@ -11,23 +11,26 @@
     export let keyspace
 
     let responseError = "";
+    let webapiWaiting  = false;
     function setWebapiData(dataFromJson, errorFromJson) {
-		if (!!errorFromJson) {
-            responseError = errorFromJson.error.msg;
-        } else {
-            responseError = "";
-            closeModal();
-        }
+      webapiWaiting = false;
+		  if (!!errorFromJson) {
+        responseError = errorFromJson.error.msg;
+      } else {
+        responseError = "";
+        closeModal();
+      }
     }
 
     // Local variables
     let stopComment = "Stopped using capillaries-ui at " +  dayjs().format("MMM D, YYYY HH:mm:ss.SSS Z");
 
     function stopAndCloseModal() {
-		fetch(new Request(webapiUrl() + "/ks/" + keyspace + "/run/" + run_id, {method: 'DELETE', body: '{"comment": "' + stopComment +'"}'}))
-      		.then(response => response.json())
-      		.then(responseJson => { handleResponse(responseJson, setWebapiData);})
-      		.catch(error => {responseError = error;});
+      webapiWaiting = true;
+		  fetch(new Request(webapiUrl() + "/ks/" + keyspace + "/run/" + run_id, {method: 'DELETE', body: '{"comment": "' + stopComment +'"}'}))
+        .then(response => response.json())
+      	.then(responseJson => { handleResponse(responseJson, setWebapiData);})
+      	.catch(error => {responseError = error;});
         
     }
   </script>
@@ -37,12 +40,13 @@
     <div class="contents">
       <p>You are about to stop run {run_id} in {keyspace}</p>
       Comment (will be stored in run history):
-      <input bind:value={stopComment}>
+      <input bind:value={stopComment} disabled={webapiWaiting}>
       <p style="color:red;">{responseError}</p>
 
       <div class="actions">
-        <button on:click="{closeModal}">Cancel</button>
-        <button on:click="{stopAndCloseModal}">OK</button>
+        {#if webapiWaiting}<img src="i/wait.svg" style="height: 30px;padding-right: 10px;padding-top: 5px;" alt=""/>{/if}
+        <button on:click="{closeModal}" disabled={webapiWaiting}>Cancel</button>
+        <button on:click="{stopAndCloseModal}" disabled={webapiWaiting}>OK</button>
       </div>
     </div>
   </div>
