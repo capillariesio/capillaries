@@ -58,7 +58,7 @@ This command will create and start the following containers:
 - [Daemon](glossary.md#daemon) container (performs actual data transformations)
 - [Webapi](glossary.md#webapi) container (backend for Capillaries-UI) 
 - [Capillaries-UI](glossary.md#capillaries-ui) container (user interface to Capillaries)
-- [Graylog](https://www.graylog.org/) container (and a couple of dependencies - MongoDB and ElasticSearch containers)
+- Graylog container (and a couple of dependencies - MongoDB and ElasticSearch containers)
 
 While the containers are being built and started, check out the source data for this demo:
 ```
