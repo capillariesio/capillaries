@@ -58,6 +58,7 @@ This command will create and start the following containers:
 - [Daemon](glossary.md#daemon) container (performs actual data transformations)
 - [Webapi](glossary.md#webapi) container (backend for Capillaries-UI) 
 - [Capillaries-UI](glossary.md#capillaries-ui) container (user interface to Capillaries)
+- [Graylog](https://www.graylog.org/) container (and a couple of dependencies - MongoDB and ElasticSearch containers)
 
 While the containers are being built and started, check out the source data for this demo:
 ```
@@ -67,7 +68,13 @@ cat /tmp/capitest_in/tag_and_denormalize/tags.csv
 
 The demo will process this data as described in the [sample use scenario](what.md#sample-use).
 
-After all containers are started, you can navigate to `http://localhost:8080`. On the displayed `Keyspaces` page, click `New run` enter the following pramaters and click `OK`:
+Wait until all containers are started.
+
+You may want to see all log output from all Capillaries components running in the containers. To do that:
+- navigate to Graylog UI at `http://localhost:9000` using admin/admin credentials;
+- add a new `GELF UDP` input bound to `10.5.0.13` listening on 12201, call it, say, `gelf_udp`.
+
+Now you can navigate to Capillaries UI at `http://localhost:8080`. On the displayed `Keyspaces` page, click `New run` enter the following pramaters and click `OK`:
 
 | Field | Value |
 |- | - |
@@ -97,7 +104,12 @@ When this run is complete, see final results at:
 cat /tmp/capitest_out/tag_and_denormalize/tag_totals.tsv
 ```
 
-Drop the keyspace after experimenting with it. 
+To see log messages in Graylog, navigate to Graylog UI again and:
+- add new extractor (say, `capi_json_extractor`) to `gelf_udp` input: it will parse JSON received in the `message` field of the log message;
+- add a new stream (say, `capi_all`), add a new rule to it - it should take messages from `gelf_udp`, and  select `always match` as a rule so all messages make it to this stream;
+- start this new stream `capi_all` and start another run in Capillaries UI or run an integration test - you should see parsed log events in `capi_all`.
+
+Drop the keyspace using Capillaries UI `Drop` button after experimenting with it.
 
 You have just performed the steps that [test_tag_and_denormalize](../test/code/tag_and_denormalize/README.md) integration test does, but you operated on the UI level, instead of calling the [Toolbelt](glossary.md#toolbelt), like integration tests do.
 
