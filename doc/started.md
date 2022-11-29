@@ -40,7 +40,7 @@ This command will create bridge network `capinet`, and will create and start the
 - [Capillaries-UI](glossary.md#capillaries-ui) container (user interface to Capillaries)
 - Graylog container (and a couple of dependencies - MongoDB and ElasticSearch containers)
 
-While the containers are being built and started, check out the source data for this demo:
+While the containers are being built and started (Cassandra will take a while to initialize, you may want to wait for `Created default superuser role 'cassandra'`), check out the source data for this demo:
 ```
 head -10 /tmp/capitest_in/tag_and_denormalize/flipcart_products.tsv
 cat /tmp/capitest_in/tag_and_denormalize/tags.csv

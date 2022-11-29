@@ -101,6 +101,7 @@ services:
         tag: "capi-ui"
 
   mongodb:
+    container_name: graylog_mongodb
     image: mongo:4.2
     volumes:
       - mongo_data:/data/db
@@ -112,6 +113,7 @@ services:
         ipv4_address: 10.5.0.11
 
   elasticsearch:
+    container_name: graylog_es
     image: docker.elastic.co/elasticsearch/elasticsearch-oss:7.10.2
     volumes:
       - es_data:/usr/share/elasticsearch/data
@@ -133,6 +135,7 @@ services:
         ipv4_address: 10.5.0.12
 
   graylog:
+    container_name: graylog
     image: graylog/graylog:4.3.9
     volumes:
       - graylog_data:/usr/share/graylog/data
