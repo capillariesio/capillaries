@@ -48,6 +48,9 @@ func NewLoggerFromEnvConfig(envConfig *env.EnvConfig) (*Logger, error) {
 	l.ZapThread = zap.Int64("t", 0)
 	l.ZapFunction = zap.String("f", "")
 
+	// TODO: this solution writes everything to stdout. Potentially, there is a way to write Debug/Info/Warn to stdout and
+	// errors to std err: https://stackoverflow.com/questions/68472667/how-to-log-to-stdout-or-stderr-based-on-log-level-using-uber-go-zap
+	// Do some research to see if this can be added to our ZapConfig.Build() scenario.
 	l.SavedZapConfig = envConfig.ZapConfig
 	l.Logger, err = envConfig.ZapConfig.Build()
 	if err != nil {

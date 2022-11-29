@@ -28,7 +28,7 @@
     let scriptUri = "";
     let paramsUri = "";
     let startNodes = "";
-    let runDesc = "Started using capillaries-ui at " +  dayjs().format("MMM D, YYYY HH:mm:ss.SSS Z");
+    let runDesc = "Manually started from Capillaries-UI at " +  dayjs().format("MMM D, YYYY HH:mm:ss.SSS Z");
 
     // For this ks, use cached run parameters
     const unsubscribeFromKsRunMap = ksRunMap.subscribe((m) => {
@@ -81,7 +81,7 @@
         fetch(new Request(webapiUrl() + "/ks/" + keyspace + "/run", {method: 'POST', body: JSON.stringify({"script_uri": scriptUri, "script_params_uri": paramsUri, "start_nodes": startNodes, "run_description": runDesc})}))
               .then(response => response.json())
               .then(responseJson => { handleResponse(responseJson, setWebapiData);})
-              .catch(error => {responseError = error;});
+              .catch(error => {webapiWaiting = false;responseError = error;});
       }
     }
   </script>
