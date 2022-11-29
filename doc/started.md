@@ -1,36 +1,14 @@
 # Getting started
 
-## Docker desktop and bridge network
+## Docker desktop
 
-1. Install Docker desktop with Docker Compose.
-2. Create a new bridge network `capinet`
-```
-docker network create --driver=bridge --subnet=10.5.0.0/16 --ip-range=10.5.0.0/24 --gateway=10.5.0.1 capinet
-```
-Dockerized Capillaries components discussed below make assumptions about IP addresses. If you want to make changes to the suggested network and addresses, see [docker-compose.yml](../docker-compose.yml) for details.
+Install Docker desktop with Docker Compose.
 
-## RabbitMQ and Cassandra
+## Windows users: WSL
 
-Capillaries needs both, so you have to provide access to them. The simplest way is to run them as containers, with assigned `capinet` IP addresses.
+If you are running Windows, you will be using WSL for development, so make sure Ubuntu WSL is functional and Docker has "Use the WSL 2 based engine" and "Enable integration with my default WSL distro" settings on; **All commands referenced in this document should be run from WSL**
 
-Start RabbitMQ container:
-
-```
-docker pull rabbitmq:3-management 
-docker run -d --hostname my-rabbit -p 15672:15672 -p 5672:5672 --network=capinet --ip 10.5.0.2 rabbitmq:3-management
-```
-
-More about RabbitMQ setup [here](binconfig.md#amqp) and [here](glossary.md#rabbitmq-setup).
-
-Start Cassandra container:
-```
-docker pull cassandra 
-docker run -d --hostname my-cassandra -p 9042:9042 --network=capinet --ip 10.5.0.3 cassandra
-```
-
-More about Cassandra setup [here](binconfig.md#cassandra) and [here](glossary.md#cassandra-setup).
-
-## Data directories
+## Prepare data directories
 
 In production environments, Capillaries server components ([Daemon](glossary.md#daemon), [Toolbelt](glossary.md#toolbelt), [Webapi](glossary.md#webapi)) need access to configuration files, source data files and target directories. In dev environments, we want Capillaries components to access those files and directories in the uniform way: for dockerized component and for the scenarios when [Daemon](glossary.md#daemon), [Toolbelt](glossary.md#toolbelt), and [Webapi](glossary.md#webapi) are run by developers. We use `/tmp/capitest_*` directories that can be accessed using the same path - from the host machine and from containers (see [docker-compose.yml](../docker-compose.yml) for volume definitions). 
 
@@ -51,10 +29,12 @@ cp -r ./test/data/out/* /tmp/capitest_out
 No coding or compiling required, just run from the root project directory:
 
 ```
-docker compose -p "test_capillaries_containers" up -d
+docker compose -p "test_capillaries_containers" up
 ```
 
-This command will create and start the following containers:
+This command will create bridge network `capinet`, and will create and start the following containers:
+- RabbitMQ (more about RabbitMQ setup [here](binconfig.md#amqp) and [here](glossary.md#rabbitmq-setup))
+- Cassandra (more about Cassandra setup [here](binconfig.md#cassandra) and [here](glossary.md#cassandra-setup))
 - [Daemon](glossary.md#daemon) container (performs actual data transformations)
 - [Webapi](glossary.md#webapi) container (backend for Capillaries-UI) 
 - [Capillaries-UI](glossary.md#capillaries-ui) container (user interface to Capillaries)
@@ -119,9 +99,7 @@ As a next step, you can check out other [integration tests](testing.md#integrati
 
 ### Windows users
 
-If you are running Windows, you will be using WSL for development:
-- make sure Ubuntu WSL is functional and Docker has "Use the WSL 2 based engine" and "Enable integration with my default WSL distro" settings on; **All commands referenced in this document should be run from WSL**
-- make sure your dev environment can run and debug from WSL (for example, if you use VSCode, make sure it runs from WSL, has Remote Development pack installed and has "WSL" on the left end of the status bar).
+If you are running Windows, you will be using WSL for development, so make sure your dev environment can run and debug from WSL (for example, if you use VSCode, make sure it runs from WSL, has Remote Development pack installed and has "WSL" on the left end of the status bar).
 
 Is there a way to develop and debug Capillaries server components in a dev environment like VSCode without running it from WSL? Yes, but you will have to solve two problems.
 
