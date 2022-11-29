@@ -72,7 +72,7 @@
 		<tr>
 			<td></td>
 			{#each webapiData.run_lifespans as ls}
-				<td>{#if ls.final_status != 3}<button on:click={onStop(ls.run_id)} title={(ls.final_status === 1 ? "Stop run":"Invalidate results of a complete run")}>{#if ls.final_status === 1}Stop{:else}Invalidate{/if}</button>{:else}&nbsp;{/if}</td>
+				<td>{#if ls.final_status != 3}<button on:click={onStop(ls.run_id)} title={(ls.final_status === 1 ? "Stop run":"Invalidate the results of a complete run so they cannot be used in depending runs")}>{#if ls.final_status === 1}Stop{:else}Invalidate{/if}</button>{:else}&nbsp;{/if}</td>
 			{/each}
 			<td>&nbsp;</td>
 		</tr>

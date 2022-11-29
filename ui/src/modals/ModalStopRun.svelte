@@ -23,14 +23,14 @@
     }
 
     // Local variables
-    let stopComment = "Stopped using capillaries-ui at " +  dayjs().format("MMM D, YYYY HH:mm:ss.SSS Z");
+    let stopComment = "Manually stopped/invalidated from Capillaries-UI at " +  dayjs().format("MMM D, YYYY HH:mm:ss.SSS Z");
 
     function stopAndCloseModal() {
       webapiWaiting = true;
 		  fetch(new Request(webapiUrl() + "/ks/" + keyspace + "/run/" + run_id, {method: 'DELETE', body: '{"comment": "' + stopComment +'"}'}))
         .then(response => response.json())
       	.then(responseJson => { handleResponse(responseJson, setWebapiData);})
-      	.catch(error => {responseError = error;});
+      	.catch(error => {webapiWaiting = false; responseError = error;});
         
     }
   </script>
@@ -38,7 +38,7 @@
   {#if isOpen}
   <div role="dialog" class="modal">
     <div class="contents">
-      <p>You are about to stop run {run_id} in {keyspace}</p>
+      <p>You are about to stop/invalidate run {run_id} in {keyspace}</p>
       Comment (will be stored in run history):
       <input bind:value={stopComment} disabled={webapiWaiting}>
       <p style="color:red;">{responseError}</p>

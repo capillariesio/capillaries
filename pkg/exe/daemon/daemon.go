@@ -66,9 +66,24 @@ func main() {
 		daemonCmd := wf.AmqpFullReconnectCycle(envConfig, logger, osSignalChannel)
 		if daemonCmd == wf.DaemonCmdQuit {
 			logger.Info("got quit cmd, shut down is supposed to be complete by now")
-			break
+			os.Exit(0)
 		}
 		logger.Info("got %d, waiting before reconnect...", daemonCmd)
-		time.Sleep(10 * time.Second)
+
+		// Read from osSignalChannel with timeout
+		timeoutChannel := make(chan bool, 1)
+		go func() {
+			time.Sleep(10 * time.Second)
+			timeoutChannel <- true
+		}()
+		select {
+		case osSignal := <-osSignalChannel:
+			if osSignal == os.Interrupt || osSignal == os.Kill {
+				logger.Info("received os signal %v while reconnecting to mq, quitting...", osSignal)
+				os.Exit(0)
+			}
+		case <-timeoutChannel:
+			break
+		}
 	}
 }

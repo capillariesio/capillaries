@@ -1,12 +1,37 @@
 version: '3'
 
 networks:
+
   capinet:
-    # Assuming capinet network has been created already: 
-    # docker network create --driver=bridge --subnet=... --ip-range=... --gateway=... capinet
-    external: true 
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.5.0.0/16
+          gateway: 10.5.0.1
 
 services:
+
+  rabbitmq:
+    container_name: capillaries_rabbitmq
+    image: rabbitmq:3-management
+    network_mode: bridge
+    networks:
+      capinet:
+        ipv4_address: 10.5.0.2
+    ports:
+      - 15672:15672
+      - 5672:5672
+
+  cassandra:
+    container_name: capillaries_cassandra
+    image: cassandra
+    network_mode: bridge
+    networks:
+      capinet:
+        ipv4_address: 10.5.0.3
+    ports:
+      - 9042:9042
 
   daemon:
     container_name: capillaries_daemon
@@ -24,6 +49,11 @@ services:
     networks:
       capinet:
         ipv4_address: 10.5.0.4
+    logging:
+      driver: "gelf"
+      options:
+        gelf-address: "udp://10.5.0.13:12201"
+        tag: "capi-daemon"
 
   webapi:
     container_name: capillaries_webapi
@@ -45,6 +75,11 @@ services:
     networks:
       capinet:
         ipv4_address: 10.5.0.5
+    logging:
+      driver: "gelf"
+      options:
+        gelf-address: "udp://10.5.0.13:12201"
+        tag: "capi-webapi"
     
   ui:
     container_name: capillaries_ui
@@ -59,11 +94,97 @@ services:
     networks:
       capinet:
         ipv4_address: 10.5.0.6
+    logging:
+      driver: "gelf"
+      options:
+        gelf-address: "udp://10.5.0.13:12201"
+        tag: "capi-ui"
+
+  mongodb:
+    container_name: graylog_mongodb
+    image: mongo:4.2
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - 27017:27017
+    network_mode: bridge
+    networks:
+      capinet:
+        ipv4_address: 10.5.0.11
+
+  elasticsearch:
+    container_name: graylog_es
+    image: docker.elastic.co/elasticsearch/elasticsearch-oss:7.10.2
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    environment:
+      - http.host=0.0.0.0
+      - transport.host=localhost
+      - network.host=0.0.0.0
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    mem_limit: 1g
+    ports:
+      - 9200:9200
+    network_mode: bridge
+    networks:
+      capinet:
+        ipv4_address: 10.5.0.12
+
+  graylog:
+    container_name: graylog
+    image: graylog/graylog:4.3.9
+    volumes:
+      - graylog_data:/usr/share/graylog/data
+    environment:
+      - GRAYLOG_PASSWORD_SECRET=enteryourown16characters
+      # Password: admin
+      - GRAYLOG_ROOT_PASSWORD_SHA2=8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
+      - GRAYLOG_HTTP_EXTERNAL_URI=http://127.0.0.1:9000/
+      - GRAYLOG_WEB_ENDPOINT_URI=http://127.0.0.1:9000/api
+      - GRAYLOG_ELASTICSEARCH_HOSTS=http://10.5.0.12:9200 # IP address in capinet
+      - GRAYLOG_MONGODB_URI=mongodb://10.5.0.11:27017/graylog # IP address in capinet
+    network_mode: bridge
+    networks:
+      capinet:
+        ipv4_address: 10.5.0.13
+    entrypoint: /usr/bin/tini -- wait-for-it 10.0.5.12:9200 --  /docker-entrypoint.sh
+    links:
+      - mongodb
+      - elasticsearch
+    restart: always
+    depends_on:
+      - mongodb
+      - elasticsearch
+    ports:
+      # Graylog web interface and REST API
+      - 9000:9000
+      # Syslog TCP
+      - 1514:1514
+      # Syslog UDP
+      - 1514:1514/udp
+      # GELF TCP
+      - 12201:12201
+      # GELF UDP
+      - 12201:12201/udp
+volumes:
+  mongo_data:
+    driver: local
+  es_data:
+    driver: local
+  graylog_data:
+    driver: local
 
 # docker network create --driver=bridge --subnet=10.5.0.0/16 --ip-range=10.5.0.0/24 --gateway=10.5.0.1 capinet
 # docker run -d --hostname my-rabbit -p 15672:15672 -p 5672:5672 --network=capinet --ip 10.5.0.2 rabbitmq:3-management
 # docker run -d --hostname my-cassandra -p 9042:9042 --network=capinet --ip 10.5.0.3 cassandra
-# docker compose -p "test_capillaries_containers" create daemon
+# docker run -d --hostname my-graylog -p 9000:9000 -p 12201:12201 graylog2/allinone
+# docker compose -p "test_capillaries_containers" create graylog
+# docker compose -p "test_capillaries_containers" start graylog
+# docker compose -p "test_capillaries_containers" create  --force-recreate daemon
 # docker compose -p "test_capillaries_containers" start daemon
 # docker compose -p "test_capillaries_containers" create webapi
 # docker compose -p "test_capillaries_containers" start webapi
