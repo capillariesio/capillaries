@@ -1,0 +1,8 @@
+{
+    "deployment_name": "sample_deployment_name",
+    "OS_AUTH_URL": "https://some_openstack_auth_url",
+    "OS_PASSWORD": "openstack_user_password",
+    "OS_PROJECT_ID": "openstack_project_id",
+    "OS_PROJECT_NAME": "openstack_project_name",
+    "OS_USERNAME": "openstack_user_name"
+}

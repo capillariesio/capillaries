@@ -1,0 +1,70 @@
+{
+    "deployment_name": "{deployment_name}",
+    "root_key_name": "{deployment_name}_root_key",
+    "availability_zone": "iad-2",
+    "timeouts": {
+        "openstack_cmd": 60
+    },
+    "openstack_environment_variables": {
+        "OS_AUTH_URL": "{OS_AUTH_URL}",
+        "OS_IDENTITY_API_VERSION": "3",
+        "OS_INTERFACE": "public",
+        "OS_PASSWORD": "{OS_PASSWORD}",
+        "OS_PROJECT_ID": "{OS_PROJECT_ID}",
+        "OS_PROJECT_NAME": "{OS_PROJECT_NAME}",
+        "OS_REGION_NAME": "RegionOne",
+        "OS_USERNAME": "{OS_USERNAME}",
+        "OS_USER_DOMAIN_NAME": "Default"
+    },
+    "security_group": {
+        "name": "{deployment_name}_security_group",
+        "id": "258130fc-d51a-4f04-8683-b97a4cbbe744"
+    },
+    "network": {
+        "name": "{deployment_name}_network",
+        "id": "0845479d-f108-4fea-b9d1-a738419d1069",
+        "subnet": {
+            "name": "{deployment_name}_subnet",
+            "id": "cdeda739-e4c4-4339-9349-30543b9993a7",
+            "cidr": "10.5.0.0/24"
+        },
+        "router": {
+            "name": "{deployment_name}_router",
+            "id": "bec69e61-7d28-4d7e-90d6-515593eb6d9b",
+            "external_gateway_network_name": "public"
+        }
+    },
+    "volumes": {
+        "cfg": {
+            "name": "{deployment_name}_cfg",
+            "mount_point": "/mnt/capi_cfg",
+            "size": 1,
+            "id": "63f4f13e-fac1-4ef6-8aa1-5fcd45da0f61"
+        }
+    },
+    "instances": {
+        "bastion": {
+            "host_name": "{deployment_name}_bastion",
+            "ip_address": "10.5.0.2",
+            "floating_ip_address": "208.113.134.216",
+            "flavor": "gp1.semisonic",
+            "image": "Ubuntu-22.04",
+            "attached_volumes": {
+                "cfg": {
+                    "device": "",
+                    "partition_id": ""
+                }
+            },
+            "id": "c350b65e-7069-4097-887f-49b766066273",
+            "service": {
+                "priority": 10
+            },
+            "applicable_file_groups": [
+                "up_capi_scripts",
+                "up_webapi_binaries",
+                "up_ui",
+                "down_lookup_results"
+            ]
+        }
+    }
+}

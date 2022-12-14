@@ -5,6 +5,78 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Deploy create security group",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
+            "args": ["create_security_group", "-verbose"]
+        },
+        {
+            "name": "Deploy delete security group",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
+            "args": ["delete_security_group", "-verbose"]
+        },
+        {
+            "name": "Deploy create networking",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
+            "args": ["create_networking", "-verbose"]
+        },
+        {
+            "name": "Deploy delete networking",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
+            "args": ["delete_networking", "-verbose"]
+        },
+        {
+            "name": "Deploy create volumes",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
+            "args": ["create_volumes", "-verbose"]
+        },
+        {
+            "name": "Deploy delete volumes",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
+            "args": ["delete_volumes", "-verbose"]
+        },
+        {
+            "name": "Deploy create instances",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
+            "args": ["create_instances", "-verbose"]
+        },
+        {
+            "name": "Deploy delete instances",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
+            "args": ["delete_instances", "-verbose"]
+        },
+        {
             "name": "Daemon",
             "type": "go",
             "request": "launch",
