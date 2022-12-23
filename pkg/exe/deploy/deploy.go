@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/capillariesio/capillaries/pkg/deploy"
 )
@@ -19,6 +20,8 @@ const (
 	CmdCreateInstances     string = "create_instances"
 	CmdDeleteInstances     string = "delete_instances"
 	CmdAttachVolumes       string = "attach_volumes"
+	CmdUploadFiles         string = "upload_files"
+	CmdDownloadFiles       string = "download_files"
 )
 
 type SingleThreadCmdHandler func(*deploy.ProjectPair, chan string) error
@@ -44,7 +47,6 @@ func main() {
 
 	commonArgs := flag.NewFlagSet("common args", flag.ExitOnError)
 	argVerbosity := commonArgs.Bool("verbose", false, "Verbosity")
-	commonArgs.Parse(os.Args[2:])
 
 	const MaxWorkerThreads int = 10
 	var logChan = make(chan string, MaxWorkerThreads*5)
@@ -60,6 +62,7 @@ func main() {
 	}
 
 	if cmdHandler, ok := singleThreadCommands[os.Args[1]]; ok {
+		commonArgs.Parse(os.Args[2:])
 		errChan = make(chan error, errorsExpected)
 		sem <- 1
 		go func() {
@@ -69,6 +72,7 @@ func main() {
 	} else {
 		switch os.Args[1] {
 		case CmdCreateVolumes:
+			commonArgs.Parse(os.Args[2:])
 			errorsExpected = len(prjPair.Live.Volumes)
 			errChan = make(chan error, errorsExpected)
 			for volNickname, _ := range prjPair.Live.Volumes {
@@ -79,6 +83,7 @@ func main() {
 				}(prjPair, logChan, errChan, volNickname)
 			}
 		case CmdDeleteVolumes:
+			commonArgs.Parse(os.Args[2:])
 			errorsExpected = len(prjPair.Live.Volumes)
 			errChan = make(chan error, errorsExpected)
 			for volNickname, _ := range prjPair.Live.Volumes {
@@ -89,6 +94,7 @@ func main() {
 				}(prjPair, logChan, errChan, volNickname)
 			}
 		case CmdCreateInstances:
+			commonArgs.Parse(os.Args[2:])
 			usedFlavors := map[string]string{}
 			usedImages := map[string]string{}
 			for _, instDef := range prjPair.Live.Instances {
@@ -115,6 +121,7 @@ func main() {
 				}(prjPair, logChan, errChan, iNickname)
 			}
 		case CmdDeleteInstances:
+			commonArgs.Parse(os.Args[2:])
 			errorsExpected = len(prjPair.Live.Instances)
 			errChan = make(chan error, errorsExpected)
 			for iNickname, _ := range prjPair.Live.Instances {
@@ -125,6 +132,7 @@ func main() {
 				}(prjPair, logChan, errChan, iNickname)
 			}
 		case CmdAttachVolumes:
+			commonArgs.Parse(os.Args[2:])
 			attachmentCount := 0
 			for iNickname, iDef := range prjPair.Live.Instances {
 				for volNickname, _ := range iDef.AttachedVolumes {
@@ -144,6 +152,40 @@ func main() {
 						<-sem
 					}(prjPair, logChan, errChan, iNickname, volNickname)
 				}
+			}
+		case CmdUploadFiles:
+			commonArgs.Parse(os.Args[3:])
+			if len(os.Args[2]) == 0 {
+				log.Fatalf("expected comma-separated list of file groups to upload or *")
+			}
+			var fileGroupsToUpload map[string]*deploy.FileGroupUpDef
+			if os.Args[2] == "*" {
+				fileGroupsToUpload = prjPair.Live.FileGroupsUp
+			} else {
+				fileGroupsToUpload = map[string]*deploy.FileGroupUpDef{}
+				for _, fileGroupName := range strings.Split(os.Args[2], ",") {
+					fgDef, ok := prjPair.Live.FileGroupsUp[fileGroupName]
+					if !ok {
+						log.Fatalf("file group %s not defined", fileGroupName)
+					}
+					fileGroupsToUpload[fileGroupName] = fgDef
+				}
+			}
+
+			// Parse src and create file upload specs
+			fileUploadSpecs, err := deploy.FileGroupUpDefsToSpecs(&prjPair.Live, fileGroupsToUpload)
+			if err != nil {
+				log.Fatalf(err.Error())
+			}
+
+			errorsExpected = len(fileUploadSpecs)
+			errChan = make(chan error, len(fileUploadSpecs))
+			for _, fuSpec := range fileUploadSpecs {
+				sem <- 1
+				go func(prj *deploy.Project, logChan chan string, errChan chan error, fuSpec *deploy.FileUploadSpec) {
+					errChan <- deploy.UploadFileSftp(prj, logChan, fuSpec.InstanceNickname, fuSpec.Src, fuSpec.Dst, fuSpec.Permissions)
+					<-sem
+				}(&prjPair.Live, logChan, errChan, fuSpec)
 			}
 
 		default:

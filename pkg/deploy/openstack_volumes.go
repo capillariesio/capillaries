@@ -233,7 +233,7 @@ func AttachVolume(prjPair *ProjectPair, logChan chan string, iNickname string, v
 	}
 
 	// At this point, we are sure we have good device
-	// We may need to wait a few se until the device is ready
+	// We may need to wait a few sec until the device is ready
 
 	startAttachWaitTs := time.Now()
 	for time.Since(startAttachWaitTs).Seconds() < float64(prjPair.Live.Timeouts.AttachVolume) {

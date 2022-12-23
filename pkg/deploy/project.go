@@ -78,17 +78,23 @@ type SshConfigDef struct {
 	PrivateKeyPassword string `json:"private_key_password"`
 }
 
+type FileGroupUpDef struct {
+	Src         string `json:"src"`
+	Dst         string `json:"dst"`
+	Permissions int    `json:"permissions"`
+}
 type Project struct {
-	DeploymentName        string                  `json:"deployment_name"`
-	SshConfig             *SshConfigDef           `json:"ssh_config"`
-	RootKeyName           string                  `json:"root_key_name"`
-	AvailabilityZone      string                  `json:"availability_zone"`
-	Timeouts              ExecTimeouts            `json:"timeouts"`
-	OpenstackEnvVariables map[string]string       `json:"openstack_environment_variables"`
-	SecurityGroup         SecurityGroupDef        `json:"security_group"`
-	Network               NetworkDef              `json:"network"`
-	Volumes               map[string]*VolumeDef   `json:"volumes"`
-	Instances             map[string]*InstanceDef `json:"instances"`
+	DeploymentName        string                     `json:"deployment_name"`
+	SshConfig             *SshConfigDef              `json:"ssh_config"`
+	RootKeyName           string                     `json:"root_key_name"`
+	AvailabilityZone      string                     `json:"availability_zone"`
+	Timeouts              ExecTimeouts               `json:"timeouts"`
+	OpenstackEnvVariables map[string]string          `json:"openstack_environment_variables"`
+	SecurityGroup         SecurityGroupDef           `json:"security_group"`
+	Network               NetworkDef                 `json:"network"`
+	Volumes               map[string]*VolumeDef      `json:"volumes"`
+	FileGroupsUp          map[string]*FileGroupUpDef `json:"file_groups_up"`
+	Instances             map[string]*InstanceDef    `json:"instances"`
 }
 
 type ProjectPair struct {

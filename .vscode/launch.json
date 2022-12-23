@@ -86,6 +86,15 @@
             "args": ["attach_volumes", "-verbose"]
         },
         {
+            "name": "Deploy upload files",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
+            "args": ["upload_files", "*", "-verbose"]
+        },
+        {
             "name": "Daemon",
             "type": "go",
             "request": "launch",

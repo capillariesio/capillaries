@@ -48,22 +48,29 @@
             "name": "{deployment_name}_cfg",
             "mount_point": "/mnt/capi_cfg",
             "size": 1,
-            "permissions": 644,
-            "id": ""
+            "permissions": 447,
+            "id": "6929821f-7c4a-4ad1-ae78-a15b11b9de2c"
         },
         "in": {
             "name": "{deployment_name}_in",
             "mount_point": "/mnt/capi_in",
             "size": 1,
-            "permissions": 644,
-            "id": ""
+            "permissions": 447,
+            "id": "7870510f-8eed-4926-9496-99909a264b78"
         },
         "out": {
             "name": "{deployment_name}_out",
             "mount_point": "/mnt/capi_out",
             "size": 1,
-            "permissions": 666,
-            "id": ""
+            "permissions": 667,
+            "id": "ae1c8dad-8743-449c-9f2f-b7c8d3c3c0d7"
+        }
+    },
+    "file_groups_up": {
+        "up_capi_scripts": {
+            "src": "../../../test/data/cfg",
+            "dst": "/mnt/capi_cfg",
+            "permissions": 644
         }
     },
     "instances": {
@@ -75,22 +82,22 @@
             "image": "Ubuntu-22.04",
             "attached_volumes": {
                 "cfg": {
-                    "attachment_id": "f6e333fd-dd63-4bad-bb15-d425da47db18",
-                    "device": "/dev/vdb",
-                    "block_device_id": "6cde45fe-a8ad-40e1-bc6d-7454f28feb7f"
+                    "attachment_id": "1d33b7da-5dcf-4b0a-84e7-2d00130dd82e",
+                    "device": "/dev/vdc",
+                    "block_device_id": "8c363472-275a-4028-a606-74a616f98065"
                 },
                 "in": {
-                    "attachment_id": "e3df8b05-4451-4556-b7ed-6f249c016bc7",
+                    "attachment_id": "4473333e-9715-49bd-82bd-c506c6db3b26",
                     "device": "/dev/vdd",
-                    "block_device_id": "c743c979-6135-4b3f-8259-d711480a6dab"
+                    "block_device_id": "eb57b4f2-0142-4f23-ac8c-be256a7c6821"
                 },
                 "out": {
-                    "attachment_id": "4b3a37b7-68ee-431a-b568-13ad69ba32b4",
-                    "device": "/dev/vdc",
-                    "block_device_id": "e16abd74-9c42-4976-a7df-8e744dd6a028"
+                    "attachment_id": "712bba47-2f41-4f69-be8d-81f11bf56269",
+                    "device": "/dev/vdb",
+                    "block_device_id": "77f5e51f-a884-4bd5-b0dc-062a2575913a"
                 }
             },
-            "id": "",
+            "id": "79d203db-f4e9-4f16-adad-cab008cb61b1",
             "service": {
                 "env": null,
                 "priority": 10,
@@ -101,10 +108,7 @@
                 }
             },
             "applicable_file_groups": [
-                "up_capi_scripts",
-                "up_webapi_binaries",
-                "up_ui",
-                "down_lookup_results"
+                "up_capi_scripts"
             ]
         }
     }

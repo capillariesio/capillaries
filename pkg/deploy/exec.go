@@ -195,18 +195,18 @@ func NewSshClient(user string, host string, port int, privateKeyPath string, pri
 	return client, nil
 }
 
-func (s *SshClient) RunCommand(cmd string) LocalExecResult {
+func (sshClient *SshClient) RunCommand(cmd string) LocalExecResult {
 	// open connection
-	conn, err := ssh.Dial("tcp", s.Server, s.Config)
+	conn, err := ssh.Dial("tcp", sshClient.Server, sshClient.Config)
 	if err != nil {
-		return LocalExecResult{cmd, "", "", 0, fmt.Errorf("Dial to %v failed %v", s.Server, err)}
+		return LocalExecResult{cmd, "", "", 0, fmt.Errorf("Dial to %v failed %v", sshClient.Server, err)}
 	}
 	defer conn.Close()
 
 	// open session
 	session, err := conn.NewSession()
 	if err != nil {
-		return LocalExecResult{cmd, "", "", 0, fmt.Errorf("Create session for %v failed %v", s.Server, err)}
+		return LocalExecResult{cmd, "", "", 0, fmt.Errorf("Create session for %v failed %v", sshClient.Server, err)}
 	}
 	defer session.Close()
 
@@ -222,7 +222,7 @@ func (s *SshClient) RunCommand(cmd string) LocalExecResult {
 }
 
 func ExecSsh(prj *Project, logBuilder *strings.Builder, cmd string) LocalExecResult {
-	ssh, err := NewSshClient(
+	sshClient, err := NewSshClient(
 		prj.SshConfig.User,
 		prj.SshConfig.Host,
 		prj.SshConfig.Port,
@@ -231,7 +231,7 @@ func ExecSsh(prj *Project, logBuilder *strings.Builder, cmd string) LocalExecRes
 	if err != nil {
 		return LocalExecResult{cmd, "", "", 0, err}
 	}
-	er := ssh.RunCommand(cmd)
+	er := sshClient.RunCommand(cmd)
 	logBuilder.WriteString(er.ToString())
 	return er
 }
