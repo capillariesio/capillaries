@@ -440,6 +440,7 @@ print("\n%s") # Provide function defs
 		// No Python interpreter errors, there may be runtime errors and good results.
 		// rawErrors is empty. Timeout error may be there too.
 		// There may be something in err. Log it, it may be helpful
+		// TODO: make sure this is never hit and remove
 		if err != nil {
 			errorText := fmt.Sprintf("err.Error():'%s';", err.Error())
 			errors.WriteString(errorText)

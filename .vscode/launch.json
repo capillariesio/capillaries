@@ -77,6 +77,15 @@
             "args": ["delete_instances", "-verbose"]
         },
         {
+            "name": "Deploy attach volumes",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
+            "args": ["attach_volumes", "-verbose"]
+        },
+        {
             "name": "Daemon",
             "type": "go",
             "request": "launch",

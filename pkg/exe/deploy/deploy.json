@@ -1,9 +1,18 @@
 {
     "deployment_name": "{deployment_name}",
+    "ssh_config": {
+        "host": "{floating_ip_address}",
+        "port": 22,
+        "user": "ubuntu",
+        "private_key_path": "{private_key_path}",
+        "private_key_password": "{private_key_password}"
+    },
     "root_key_name": "{deployment_name}_root_key",
     "availability_zone": "iad-2",
     "timeouts": {
-        "openstack_cmd": 60
+        "openstack_cmd": 60,
+        "openstack_instance_creation": 120,
+        "attach_volume": 60
     },
     "openstack_environment_variables": {
         "OS_AUTH_URL": "{OS_AUTH_URL}",
@@ -18,19 +27,19 @@
     },
     "security_group": {
         "name": "{deployment_name}_security_group",
-        "id": "258130fc-d51a-4f04-8683-b97a4cbbe744"
+        "id": "c02e9068-5057-4213-89b7-48ca9dca86f1"
     },
     "network": {
         "name": "{deployment_name}_network",
-        "id": "0845479d-f108-4fea-b9d1-a738419d1069",
+        "id": "241cfeeb-ec0f-4cfc-91ef-36f6ef439950",
         "subnet": {
             "name": "{deployment_name}_subnet",
-            "id": "cdeda739-e4c4-4339-9349-30543b9993a7",
+            "id": "ee5af192-0bfa-44fb-aa46-20e5407562d7",
             "cidr": "10.5.0.0/24"
         },
         "router": {
             "name": "{deployment_name}_router",
-            "id": "bec69e61-7d28-4d7e-90d6-515593eb6d9b",
+            "id": "4ea468b5-44d8-43dc-94db-538c916b5731",
             "external_gateway_network_name": "public"
         }
     },
@@ -39,25 +48,57 @@
             "name": "{deployment_name}_cfg",
             "mount_point": "/mnt/capi_cfg",
             "size": 1,
-            "id": "63f4f13e-fac1-4ef6-8aa1-5fcd45da0f61"
+            "permissions": 644,
+            "id": ""
+        },
+        "in": {
+            "name": "{deployment_name}_in",
+            "mount_point": "/mnt/capi_in",
+            "size": 1,
+            "permissions": 644,
+            "id": ""
+        },
+        "out": {
+            "name": "{deployment_name}_out",
+            "mount_point": "/mnt/capi_out",
+            "size": 1,
+            "permissions": 666,
+            "id": ""
         }
     },
     "instances": {
         "bastion": {
-            "host_name": "{deployment_name}_bastion",
+            "host_name": "{deployment_name}-bastion",
             "ip_address": "10.5.0.2",
-            "floating_ip_address": "208.113.134.216",
+            "floating_ip_address": "{floating_ip_address}",
             "flavor": "gp1.semisonic",
             "image": "Ubuntu-22.04",
             "attached_volumes": {
                 "cfg": {
-                    "device": "",
-                    "partition_id": ""
+                    "attachment_id": "f6e333fd-dd63-4bad-bb15-d425da47db18",
+                    "device": "/dev/vdb",
+                    "block_device_id": "6cde45fe-a8ad-40e1-bc6d-7454f28feb7f"
+                },
+                "in": {
+                    "attachment_id": "e3df8b05-4451-4556-b7ed-6f249c016bc7",
+                    "device": "/dev/vdd",
+                    "block_device_id": "c743c979-6135-4b3f-8259-d711480a6dab"
+                },
+                "out": {
+                    "attachment_id": "4b3a37b7-68ee-431a-b568-13ad69ba32b4",
+                    "device": "/dev/vdc",
+                    "block_device_id": "e16abd74-9c42-4976-a7df-8e744dd6a028"
                 }
             },
-            "id": "c350b65e-7069-4097-887f-49b766066273",
+            "id": "",
             "service": {
-                "priority": 10
+                "env": null,
+                "priority": 10,
+                "cmd": {
+                    "setup": "service_setup_webapi_ui.sh",
+                    "start": "service_start_webapi_ui.sh",
+                    "stop": "service_stop_webapi_ui.sh"
+                }
             },
             "applicable_file_groups": [
                 "up_capi_scripts",

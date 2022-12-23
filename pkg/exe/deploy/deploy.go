@@ -18,9 +18,19 @@ const (
 	CmdDeleteVolumes       string = "delete_volumes"
 	CmdCreateInstances     string = "create_instances"
 	CmdDeleteInstances     string = "delete_instances"
+	CmdAttachVolumes       string = "attach_volumes"
 )
 
 type SingleThreadCmdHandler func(*deploy.ProjectPair, chan string) error
+
+func DumpLogChan(logChan chan string, isVerbose bool) {
+	for len(logChan) > 0 {
+		msg := <-logChan
+		if isVerbose {
+			fmt.Println(msg)
+		}
+	}
+}
 
 func main() {
 	prjPair, fullPrjPath, err := deploy.LoadProject("deploy.json", "deploy_params.json")
@@ -88,9 +98,12 @@ func main() {
 			if err := deploy.GetFlavorIds(prjPair, logChan, usedFlavors); err != nil {
 				log.Fatalf(err.Error())
 			}
+			DumpLogChan(logChan, *argVerbosity)
+
 			if err := deploy.GetImageIds(prjPair, logChan, usedImages); err != nil {
 				log.Fatalf(err.Error())
 			}
+			DumpLogChan(logChan, *argVerbosity)
 
 			errorsExpected = len(prjPair.Live.Instances)
 			errChan = make(chan error, errorsExpected)
@@ -101,6 +114,38 @@ func main() {
 					<-sem
 				}(prjPair, logChan, errChan, iNickname)
 			}
+		case CmdDeleteInstances:
+			errorsExpected = len(prjPair.Live.Instances)
+			errChan = make(chan error, errorsExpected)
+			for iNickname, _ := range prjPair.Live.Instances {
+				sem <- 1
+				go func(prjPair *deploy.ProjectPair, logChan chan string, errChan chan error, iNickname string) {
+					errChan <- deploy.DeleteInstance(prjPair, logChan, iNickname)
+					<-sem
+				}(prjPair, logChan, errChan, iNickname)
+			}
+		case CmdAttachVolumes:
+			attachmentCount := 0
+			for iNickname, iDef := range prjPair.Live.Instances {
+				for volNickname, _ := range iDef.AttachedVolumes {
+					if _, ok := prjPair.Live.Volumes[volNickname]; !ok {
+						log.Fatalf("cannot find volume %s referenced in instance %s", volNickname, iNickname)
+					}
+					attachmentCount++
+				}
+			}
+			errorsExpected = attachmentCount
+			errChan = make(chan error, attachmentCount)
+			for iNickname, iDef := range prjPair.Live.Instances {
+				for volNickname, _ := range iDef.AttachedVolumes {
+					sem <- 1
+					go func(prjPair *deploy.ProjectPair, logChan chan string, errChan chan error, iNickname string, volNickname string) {
+						errChan <- deploy.AttachVolume(prjPair, logChan, iNickname, volNickname)
+						<-sem
+					}(prjPair, logChan, errChan, iNickname, volNickname)
+				}
+			}
+
 		default:
 			log.Fatalf("unknown command:" + os.Args[1])
 		}
@@ -122,12 +167,7 @@ func main() {
 		}
 	}
 
-	for len(logChan) > 0 {
-		msg := <-logChan
-		if *argVerbosity {
-			fmt.Println(msg)
-		}
-	}
+	DumpLogChan(logChan, *argVerbosity)
 
 	if finalCmdErr > 0 {
 		os.Exit(finalCmdErr)

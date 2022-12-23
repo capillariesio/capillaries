@@ -10,7 +10,9 @@ import (
 )
 
 type ExecTimeouts struct {
-	OpenstackCmd int `json:"openstack_cmd"`
+	OpenstackCmd              int `json:"openstack_cmd"`
+	OpenstackInstanceCreation int `json:"openstack_instance_creation"`
+	AttachVolume              int `json:"attach_volume"`
 }
 
 type SecurityGroupDef struct {
@@ -38,21 +40,23 @@ type NetworkDef struct {
 }
 
 type VolumeDef struct {
-	Name       string `json:"name"`
-	MountPoint string `json:"mount_point"`
-	Size       int    `json:"size"`
-	Id         string `json:"id"`
+	Name        string `json:"name"`
+	MountPoint  string `json:"mount_point"`
+	Size        int    `json:"size"`
+	Permissions int    `json:"permissions"`
+	Id          string `json:"id"`
 }
 
 type AttachedVolumeDef struct {
-	Device      string `json:"device"`
-	PartitionId string `json:"partition_id"`
+	AttachmentId  string `json:"attachment_id"`
+	Device        string `json:"device"`
+	BlockDeviceId string `json:"block_device_id"`
 }
 
 type ServiceDef struct {
 	Env      map[string]string `json:"env"`
 	Priority int               `json:"priority"`
-	Cmd      map[string]string `json:"env"`
+	Cmd      map[string]string `json:"cmd"`
 }
 
 type InstanceDef struct {
@@ -66,9 +70,17 @@ type InstanceDef struct {
 	Service              ServiceDef                    `json:"service"`
 	ApplicableFileGroups []string                      `json:"applicable_file_groups"`
 }
+type SshConfigDef struct {
+	Host               string `json:"host"`
+	Port               int    `json:"port"`
+	User               string `json:"user"`
+	PrivateKeyPath     string `json:"private_key_path"`
+	PrivateKeyPassword string `json:"private_key_password"`
+}
 
 type Project struct {
 	DeploymentName        string                  `json:"deployment_name"`
+	SshConfig             *SshConfigDef           `json:"ssh_config"`
 	RootKeyName           string                  `json:"root_key_name"`
 	AvailabilityZone      string                  `json:"availability_zone"`
 	Timeouts              ExecTimeouts            `json:"timeouts"`

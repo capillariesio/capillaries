@@ -49,6 +49,7 @@ func GetImageIds(prjPair *ProjectPair, logChan chan string, imageMap map[string]
 
 	return nil
 }
+
 func CreateInstance(prjPair *ProjectPair, logChan chan string, iNickname string, flavorId string, imageId string) error {
 	if prjPair.Live.Instances[iNickname].HostName == "" ||
 		prjPair.Live.Instances[iNickname].IpAddress == "" {
@@ -59,6 +60,24 @@ func CreateInstance(prjPair *ProjectPair, logChan chan string, iNickname string,
 	defer func() {
 		logChan <- CmdChainExecToString("CreateInstance:"+prjPair.Live.Instances[iNickname].HostName, sb.String())
 	}()
+
+	// If floating ip is requested and it's already assigned, fail
+	if prjPair.Live.Instances[iNickname].FloatingIpAddress != "" {
+		rows, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, &sb, "openstack", []string{"floating", "ip", "list"})
+		if er.Error != nil {
+			return er.Error
+		}
+
+		// | ID         | Floating IP Address | Fixed IP Address | Port | Floating Network | Project                          |
+		// | 8e6b5d7... | 205.234.86.102      | None             | None | e098d02f-... | 56ac58a4... |
+		foundFoatingIpPort := FindOpenstackColumnValue(rows, "Port", "Floating IP Address", prjPair.Live.Instances[iNickname].FloatingIpAddress)
+		if foundFoatingIpPort == "" {
+			return fmt.Errorf("cannot create instance %s, floating ip %s is not available, make sure it was reserved", prjPair.Live.Instances[iNickname].HostName, prjPair.Live.Instances[iNickname].FloatingIpAddress)
+		}
+		if foundFoatingIpPort != "None" {
+			return fmt.Errorf("cannot create instance %s, floating ip %s is already assigned, see port %s", prjPair.Live.Instances[iNickname].HostName, prjPair.Live.Instances[iNickname].FloatingIpAddress, foundFoatingIpPort)
+		}
+	}
 
 	rows, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, &sb, "openstack", []string{"server", "list"})
 	if er.Error != nil {
@@ -113,7 +132,8 @@ func CreateInstance(prjPair *ProjectPair, logChan chan string, iNickname string,
 	prjPair.Live.Instances[iNickname].Id = newId
 
 	var status string
-	for i := 0; i <= 60; i = i + 1 {
+	startInstanceWaitTs := time.Now()
+	for time.Since(startInstanceWaitTs).Seconds() < float64(prjPair.Live.Timeouts.OpenstackInstanceCreation) {
 		status = FindOpenstackFieldValue(rows, "status")
 		if status == "" {
 			return fmt.Errorf("openstack returned empty instance status")
@@ -122,7 +142,7 @@ func CreateInstance(prjPair *ProjectPair, logChan chan string, iNickname string,
 			break
 		}
 		sb.WriteString(fmt.Sprintf("instance %s(%s) is being created\n", prjPair.Live.Instances[iNickname].HostName, foundInstanceIdByName))
-		time.Sleep(1 * time.Second)
+		time.Sleep(5 * time.Second)
 		rows, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, &sb, "openstack", []string{
 			"server", "show", prjPair.Live.Instances[iNickname].HostName})
 		if er.Error != nil {
@@ -135,6 +155,36 @@ func CreateInstance(prjPair *ProjectPair, logChan chan string, iNickname string,
 	if status != "ACTIVE" {
 		return fmt.Errorf("instance %s(%s) was built, but the status is %s", prjPair.Live.Instances[iNickname].HostName, foundInstanceIdByName, status)
 	}
+
+	if prjPair.Live.Instances[iNickname].FloatingIpAddress != "" {
+		_, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, &sb, "openstack", []string{"server", "add", "floating", "ip", newId, prjPair.Live.Instances[iNickname].FloatingIpAddress})
+		if er.Error != nil {
+			return er.Error
+		}
+		sb.WriteString(fmt.Sprintf("floating ip %s was assigned to instance %s(%s)\n", prjPair.Live.Instances[iNickname].FloatingIpAddress, prjPair.Live.Instances[iNickname].HostName, foundInstanceIdByName))
+	}
+
+	return nil
+}
+
+func DeleteInstance(prjPair *ProjectPair, logChan chan string, iNickname string) error {
+	if prjPair.Live.Instances[iNickname].HostName == "" {
+		return fmt.Errorf("instance hostname cannot be empty")
+	}
+
+	sb := strings.Builder{}
+	defer func() {
+		logChan <- CmdChainExecToString("DeleteInstance:"+prjPair.Live.Instances[iNickname].HostName, sb.String())
+	}()
+
+	_, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, &sb, "openstack", []string{
+		"server", "delete", prjPair.Live.Instances[iNickname].HostName})
+	if er.Error != nil {
+		return er.Error
+	}
+
+	prjPair.Template.Instances[iNickname].Id = ""
+	prjPair.Live.Instances[iNickname].Id = ""
 
 	return nil
 }
