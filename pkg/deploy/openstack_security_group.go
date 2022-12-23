@@ -25,8 +25,8 @@ func CreateSecurityGroup(prjPair *ProjectPair, logChan chan string) error {
 		// If it was already created, save it for future use, but do not create
 		if foundGroupIdByName != "" {
 			sb.WriteString(fmt.Sprintf("security group %s(%s) already there, updating project\n", prjPair.Live.SecurityGroup.Name, foundGroupIdByName))
-			prjPair.Template.SecurityGroup.Id = foundGroupIdByName
-			prjPair.Live.SecurityGroup.Id = foundGroupIdByName
+			prjPair.SetSecurityGroupId(foundGroupIdByName)
+
 		}
 	} else {
 		if foundGroupIdByName == "" {
@@ -53,8 +53,7 @@ func CreateSecurityGroup(prjPair *ProjectPair, logChan chan string) error {
 		}
 
 		sb.WriteString(fmt.Sprintf("created security_group %s(%s)", prjPair.Live.SecurityGroup.Name, newId))
-		prjPair.Template.SecurityGroup.Id = newId
-		prjPair.Live.SecurityGroup.Id = newId
+		prjPair.SetSecurityGroupId(newId)
 	}
 
 	// Retrieve group rules
@@ -106,8 +105,7 @@ func DeleteSecurityGroup(prjPair *ProjectPair, logChan chan string) error {
 	foundGroupIdByName := FindOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.SecurityGroup.Name)
 	if foundGroupIdByName == "" {
 		sb.WriteString(fmt.Sprintf("security group %s not found, nothing to delete", prjPair.Live.SecurityGroup.Name))
-		prjPair.Template.SecurityGroup.Id = ""
-		prjPair.Live.SecurityGroup.Id = ""
+		prjPair.SetSecurityGroupId("")
 		return nil
 	}
 
@@ -117,8 +115,7 @@ func DeleteSecurityGroup(prjPair *ProjectPair, logChan chan string) error {
 	}
 
 	sb.WriteString(fmt.Sprintf("deleted security group %s, updating project file", prjPair.Live.SecurityGroup.Name))
-	prjPair.Template.SecurityGroup.Id = ""
-	prjPair.Live.SecurityGroup.Id = ""
+	prjPair.SetSecurityGroupId("")
 
 	return nil
 }

@@ -34,8 +34,8 @@ func CreateSubnet(prjPair *ProjectPair, logChan chan string) error {
 		// If it was already created, save it for future use, but do not create
 		if foundSubnetIdByName != "" {
 			sb.WriteString(fmt.Sprintf("subnet %s(%s) already there, updating project\n", prjPair.Live.Network.Subnet.Name, foundSubnetIdByName))
-			prjPair.Template.Network.Subnet.Id = foundSubnetIdByName
-			prjPair.Live.Network.Subnet.Id = foundSubnetIdByName
+			prjPair.SetSubnetId(foundSubnetIdByName)
+
 		}
 	} else {
 		if foundSubnetIdByName == "" {
@@ -69,8 +69,7 @@ func CreateSubnet(prjPair *ProjectPair, logChan chan string) error {
 	}
 
 	sb.WriteString(fmt.Sprintf("created subnet %s(%s)\n", prjPair.Live.Network.Subnet.Name, newId))
-	prjPair.Template.Network.Subnet.Id = newId
-	prjPair.Live.Network.Subnet.Id = newId
+	prjPair.SetSubnetId(newId)
 
 	return nil
 }
@@ -93,8 +92,7 @@ func DeleteSubnet(prjPair *ProjectPair, logChan chan string) error {
 	foundSubnetIdByName := FindOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.Network.Subnet.Name)
 	if foundSubnetIdByName == "" {
 		sb.WriteString(fmt.Sprintf("subnet %s not found, nothing to delete", prjPair.Live.Network.Subnet.Name))
-		prjPair.Template.Network.Subnet.Id = ""
-		prjPair.Live.Network.Subnet.Id = ""
+		prjPair.SetSubnetId("")
 		return nil
 	}
 
@@ -104,8 +102,7 @@ func DeleteSubnet(prjPair *ProjectPair, logChan chan string) error {
 	}
 
 	sb.WriteString(fmt.Sprintf("deleted subnet %s", prjPair.Live.Network.Subnet.Name))
-	prjPair.Template.Network.Subnet.Id = ""
-	prjPair.Live.Network.Subnet.Id = ""
+	prjPair.SetSubnetId("")
 
 	return nil
 }
@@ -131,8 +128,7 @@ func CreateNetwork(prjPair *ProjectPair, logChan chan string) error {
 		// If it was already created, save it for future use, but do not create
 		if foundNetworkIdByName != "" {
 			sb.WriteString(fmt.Sprintf("network %s(%s) already there, updating project\n", prjPair.Live.Network.Name, foundNetworkIdByName))
-			prjPair.Template.Network.Id = foundNetworkIdByName
-			prjPair.Live.Network.Id = foundNetworkIdByName
+			prjPair.SetNetworkId(foundNetworkIdByName)
 		}
 	} else {
 		if foundNetworkIdByName == "" {
@@ -163,8 +159,7 @@ func CreateNetwork(prjPair *ProjectPair, logChan chan string) error {
 	}
 
 	sb.WriteString(fmt.Sprintf("created network %s(%s)\n", prjPair.Live.Network.Name, newId))
-	prjPair.Template.Network.Id = newId
-	prjPair.Live.Network.Id = newId
+	prjPair.SetNetworkId(newId)
 	return nil
 }
 
@@ -187,8 +182,7 @@ func DeleteNetwork(prjPair *ProjectPair, logChan chan string) error {
 	foundNetworkIdByName := FindOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.Network.Name)
 	if foundNetworkIdByName == "" {
 		sb.WriteString(fmt.Sprintf("network %s not found, nothing to delete", prjPair.Live.Network.Name))
-		prjPair.Template.Network.Id = ""
-		prjPair.Live.Network.Id = ""
+		prjPair.SetNetworkId("")
 		return nil
 	}
 
@@ -198,8 +192,7 @@ func DeleteNetwork(prjPair *ProjectPair, logChan chan string) error {
 	}
 
 	sb.WriteString(fmt.Sprintf("deleted network %s, updating project file", prjPair.Live.Network.Name))
-	prjPair.Template.Network.Id = ""
-	prjPair.Live.Network.Id = ""
+	prjPair.SetNetworkId("")
 
 	return nil
 }
@@ -225,8 +218,7 @@ func CreateRouter(prjPair *ProjectPair, logChan chan string) error {
 		// If it was already created, save it for future use, but do not create
 		if foundRouterIdByName != "" {
 			sb.WriteString(fmt.Sprintf("router %s(%s) already there, updating project\n", prjPair.Live.Network.Router.Name, foundRouterIdByName))
-			prjPair.Template.Network.Router.Id = foundRouterIdByName
-			prjPair.Live.Network.Router.Id = foundRouterIdByName
+			prjPair.SetRouterId(foundRouterIdByName)
 		}
 	} else {
 		if foundRouterIdByName == "" {
@@ -253,8 +245,7 @@ func CreateRouter(prjPair *ProjectPair, logChan chan string) error {
 		}
 
 		sb.WriteString(fmt.Sprintf("created router %s(%s)\n", prjPair.Live.Network.Router.Name, newId))
-		prjPair.Template.Network.Router.Id = newId
-		prjPair.Live.Network.Router.Id = newId
+		prjPair.SetRouterId(newId)
 	} else {
 		sb.WriteString(fmt.Sprintf("router %s(%s) already there, no need to create\n", prjPair.Live.Network.Router.Name, foundRouterIdByName))
 	}
@@ -319,8 +310,7 @@ func DeleteRouter(prjPair *ProjectPair, logChan chan string) error {
 	foundRouterIdByName := FindOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.Network.Router.Name)
 	if foundRouterIdByName == "" {
 		sb.WriteString(fmt.Sprintf("router %s not found, nothing to delete", prjPair.Live.Network.Router.Name))
-		prjPair.Template.Network.Router.Id = ""
-		prjPair.Live.Network.Router.Id = ""
+		prjPair.SetRouterId("")
 		return nil
 	}
 
@@ -355,8 +345,7 @@ func DeleteRouter(prjPair *ProjectPair, logChan chan string) error {
 	}
 
 	sb.WriteString(fmt.Sprintf("deleted router %s", prjPair.Live.Network.Router.Name))
-	prjPair.Template.Network.Router.Id = ""
-	prjPair.Live.Network.Router.Id = ""
+	prjPair.SetRouterId("")
 
 	return nil
 }

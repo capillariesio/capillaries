@@ -2,94 +2,17 @@ package deploy
 
 import (
 	"bytes"
-	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
-	"os/exec"
 	"strings"
 	"time"
 
 	"golang.org/x/crypto/ssh"
 )
-
-type LocalExecResult struct {
-	Cmd     string
-	Stdout  string
-	Stderr  string
-	Elapsed float64
-	Error   error
-}
-
-func (er *LocalExecResult) ToString() string {
-	var errString string
-	if er.Error != nil {
-		errString = er.Error.Error()
-	}
-	return fmt.Sprintf(`
------------------------
-cmd:
-%s
-stdout:
-%s
-stderr:
-%s
-error:
-%s
-elapsed:%0.3f
------------------------
-`, er.Cmd, er.Stdout, er.Stderr, errString, er.Elapsed)
-}
-
-func CmdChainExecToString(name string, content string) string {
-	return fmt.Sprintf(
-		`
-=========================================
-%s
-=========================================
-%s
-=========================================
-`, name, content)
-}
-
-func ExecLocal(prj *Project, cmdPath string, params []string) LocalExecResult {
-	// Protect it with a timeout
-	cmdCtx, cancel := context.WithTimeout(context.Background(), time.Duration(prj.Timeouts.OpenstackCmd*int(time.Second)))
-	defer cancel()
-
-	p := exec.CommandContext(cmdCtx, cmdPath, params...)
-
-	for k, v := range prj.OpenstackEnvVariables {
-		p.Env = append(p.Env, fmt.Sprintf("%s=%s", k, v))
-	}
-
-	// Do not use pipes, work with raw data, otherwise stdout/stderr
-	// will not be easily available in the timeout scenario
-	var stdout, stderr bytes.Buffer
-	p.Stdout = &stdout
-	p.Stderr = &stderr
-
-	// Run
-	runStartTime := time.Now()
-	err := p.Run()
-	elapsed := time.Since(runStartTime).Seconds()
-
-	rawInput := fmt.Sprintf("%s %s", cmdPath, strings.Join(params, " "))
-	rawOutput := string(stdout.Bytes())
-	rawErrors := string(stderr.Bytes())
-	if err != nil {
-		// Cmd not found, nonzero exit status etc
-		return LocalExecResult{rawInput, rawOutput, rawErrors, elapsed, err}
-	} else if cmdCtx.Err() == context.DeadlineExceeded {
-		// Timeout occurred, err.Error() is probably: 'signal: killed'
-		return LocalExecResult{rawInput, rawOutput, rawErrors, elapsed, fmt.Errorf("cmd execution timeout exceeded")}
-	} else {
-		return LocalExecResult{rawInput, rawOutput, rawErrors, elapsed, nil}
-	}
-}
 
 type SshClient struct {
 	Config *ssh.ClientConfig
@@ -195,18 +118,18 @@ func NewSshClient(user string, host string, port int, privateKeyPath string, pri
 	return client, nil
 }
 
-func (sshClient *SshClient) RunCommand(cmd string) LocalExecResult {
+func (sshClient *SshClient) RunCommand(cmd string) ExecResult {
 	// open connection
 	conn, err := ssh.Dial("tcp", sshClient.Server, sshClient.Config)
 	if err != nil {
-		return LocalExecResult{cmd, "", "", 0, fmt.Errorf("Dial to %v failed %v", sshClient.Server, err)}
+		return ExecResult{cmd, "", "", 0, fmt.Errorf("Dial to %v failed %v", sshClient.Server, err)}
 	}
 	defer conn.Close()
 
 	// open session
 	session, err := conn.NewSession()
 	if err != nil {
-		return LocalExecResult{cmd, "", "", 0, fmt.Errorf("Create session for %v failed %v", sshClient.Server, err)}
+		return ExecResult{cmd, "", "", 0, fmt.Errorf("Create session for %v failed %v", sshClient.Server, err)}
 	}
 	defer session.Close()
 
@@ -218,10 +141,10 @@ func (sshClient *SshClient) RunCommand(cmd string) LocalExecResult {
 	err = session.Run(cmd)
 	elapsed := time.Since(runStartTime).Seconds()
 
-	return LocalExecResult{cmd, string(stdout.Bytes()), string(stderr.Bytes()), elapsed, err}
+	return ExecResult{cmd, string(stdout.Bytes()), string(stderr.Bytes()), elapsed, err}
 }
 
-func ExecSsh(prj *Project, logBuilder *strings.Builder, cmd string) LocalExecResult {
+func ExecSsh(prj *Project, logBuilder *strings.Builder, cmd string) ExecResult {
 	sshClient, err := NewSshClient(
 		prj.SshConfig.User,
 		prj.SshConfig.Host,
@@ -229,14 +152,14 @@ func ExecSsh(prj *Project, logBuilder *strings.Builder, cmd string) LocalExecRes
 		prj.SshConfig.PrivateKeyPath,
 		prj.SshConfig.PrivateKeyPassword)
 	if err != nil {
-		return LocalExecResult{cmd, "", "", 0, err}
+		return ExecResult{cmd, "", "", 0, err}
 	}
 	er := sshClient.RunCommand(cmd)
 	logBuilder.WriteString(er.ToString())
 	return er
 }
 
-func ExecSshAndReturnLastLine(prj *Project, logBuilder *strings.Builder, cmd string) (string, LocalExecResult) {
+func ExecSshAndReturnLastLine(prj *Project, logBuilder *strings.Builder, cmd string) (string, ExecResult) {
 	er := ExecSsh(prj, logBuilder, cmd)
 	if er.Error != nil {
 		return "", er

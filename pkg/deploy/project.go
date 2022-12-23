@@ -70,6 +70,16 @@ type InstanceDef struct {
 	Service              ServiceDef                    `json:"service"`
 	ApplicableFileGroups []string                      `json:"applicable_file_groups"`
 }
+
+func (iDef *InstanceDef) Clean() {
+	iDef.Id = ""
+	for _, volAttachDef := range iDef.AttachedVolumes {
+		volAttachDef.AttachmentId = ""
+		volAttachDef.Device = ""
+		volAttachDef.BlockDeviceId = ""
+	}
+}
+
 type SshConfigDef struct {
 	Host               string `json:"host"`
 	Port               int    `json:"port"`
@@ -100,6 +110,56 @@ type Project struct {
 type ProjectPair struct {
 	Template Project
 	Live     Project
+}
+
+func (prjPair *ProjectPair) SetSecurityGroupId(newId string) {
+	prjPair.Template.SecurityGroup.Id = newId
+	prjPair.Live.SecurityGroup.Id = newId
+}
+
+func (prjPair *ProjectPair) SetNetworkId(newId string) {
+	prjPair.Template.Network.Subnet.Id = newId
+	prjPair.Live.Network.Subnet.Id = newId
+}
+
+func (prjPair *ProjectPair) SetRouterId(newId string) {
+	prjPair.Template.Network.Router.Id = newId
+	prjPair.Live.Network.Router.Id = newId
+}
+
+func (prjPair *ProjectPair) SetSubnetId(newId string) {
+	prjPair.Template.Network.Subnet.Id = newId
+	prjPair.Live.Network.Subnet.Id = newId
+}
+
+func (prjPair *ProjectPair) SetVolumeId(volNickname string, newId string) {
+	prjPair.Template.Volumes[volNickname].Id = newId
+	prjPair.Live.Volumes[volNickname].Id = newId
+}
+
+func (prjPair *ProjectPair) SetAttachedVolumeDevice(iNickname string, volNickname string, device string) {
+	prjPair.Template.Instances[iNickname].AttachedVolumes[volNickname].Device = device
+	prjPair.Live.Instances[iNickname].AttachedVolumes[volNickname].Device = device
+}
+
+func (prjPair *ProjectPair) SetVolumeAttachmentId(iNickname string, volNickname string, newId string) {
+	prjPair.Template.Instances[iNickname].AttachedVolumes[volNickname].AttachmentId = newId
+	prjPair.Live.Instances[iNickname].AttachedVolumes[volNickname].AttachmentId = newId
+}
+
+func (prjPair *ProjectPair) SetVolumeBlockDeviceId(iNickname string, volNickname string, newId string) {
+	prjPair.Template.Instances[iNickname].AttachedVolumes[volNickname].BlockDeviceId = newId
+	prjPair.Live.Instances[iNickname].AttachedVolumes[volNickname].BlockDeviceId = newId
+}
+
+func (prjPair *ProjectPair) CleanInstance(iNickname string) {
+	prjPair.Template.Instances[iNickname].Clean()
+	prjPair.Live.Instances[iNickname].Clean()
+}
+
+func (prjPair *ProjectPair) SetInstanceId(iNickname string, newId string) {
+	prjPair.Template.Instances[iNickname].Id = newId
+	prjPair.Live.Instances[iNickname].Id = newId
 }
 
 func LoadProject(prjFile string, prjParamsFile string) (*ProjectPair, string, error) {

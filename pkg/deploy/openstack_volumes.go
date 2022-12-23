@@ -77,8 +77,7 @@ func CreateVolume(prjPair *ProjectPair, logChan chan string, volNickname string)
 		// If it was already created, save it for future use, but do not create
 		if foundVolIdByName != "" {
 			sb.WriteString(fmt.Sprintf("volume %s(%s) already there, updating project\n", prjPair.Live.Volumes[volNickname].Name, foundVolIdByName))
-			prjPair.Template.Volumes[volNickname].Id = foundVolIdByName
-			prjPair.Live.Volumes[volNickname].Id = foundVolIdByName
+			prjPair.SetVolumeId(volNickname, foundVolIdByName)
 		}
 	} else {
 		if foundVolIdByName == "" {
@@ -106,9 +105,8 @@ func CreateVolume(prjPair *ProjectPair, logChan chan string, volNickname string)
 		return fmt.Errorf("openstack returned empty volume id")
 	}
 
-	sb.WriteString(fmt.Sprintf("created volume %s(%s)", prjPair.Template.Volumes[volNickname].Name, newId))
-	prjPair.Template.Volumes[volNickname].Id = newId
-	prjPair.Live.Volumes[volNickname].Id = newId
+	sb.WriteString(fmt.Sprintf("created volume %s: %s(%s)", volNickname, prjPair.Live.Volumes[volNickname].Name, newId))
+	prjPair.SetVolumeId(volNickname, newId)
 
 	return nil
 }
@@ -131,8 +129,7 @@ func DeleteVolume(prjPair *ProjectPair, logChan chan string, volNickname string)
 	foundVolIdByName := FindOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.Volumes[volNickname].Name)
 	if foundVolIdByName == "" {
 		sb.WriteString(fmt.Sprintf("volume %s not found, nothing to delete", prjPair.Live.Volumes[volNickname].Name))
-		prjPair.Template.Volumes[volNickname].Id = ""
-		prjPair.Live.Volumes[volNickname].Id = ""
+		prjPair.SetVolumeId(volNickname, "")
 		return nil
 	}
 
@@ -142,8 +139,7 @@ func DeleteVolume(prjPair *ProjectPair, logChan chan string, volNickname string)
 	}
 
 	sb.WriteString(fmt.Sprintf("deleted volume %s, updating project file", prjPair.Live.Volumes[volNickname].Name))
-	prjPair.Template.Volumes[volNickname].Id = ""
-	prjPair.Live.Volumes[volNickname].Id = ""
+	prjPair.SetVolumeId(volNickname, "")
 
 	return nil
 }
@@ -201,13 +197,11 @@ func AttachVolume(prjPair *ProjectPair, logChan chan string, iNickname string, v
 		} else {
 			sb.WriteString(fmt.Sprintf("volume %s was not attached to %s, cleaning attachment info, updating project\n", volNickname, iNickname))
 		}
-		prjPair.Template.Instances[iNickname].AttachedVolumes[volNickname].Device = foundDevice
-		prjPair.Live.Instances[iNickname].AttachedVolumes[volNickname].Device = foundDevice
+		prjPair.SetAttachedVolumeDevice(iNickname, volNickname, foundDevice)
 	} else {
 		if foundDevice != "" && foundDevice != prjPair.Live.Instances[iNickname].AttachedVolumes[volNickname].Device {
 			sb.WriteString(fmt.Sprintf("volume %s already to %s, but with a different device(%s->%s), updating project\n", volNickname, iNickname, prjPair.Live.Instances[iNickname].AttachedVolumes[volNickname].Device, foundDevice))
-			prjPair.Template.Instances[iNickname].AttachedVolumes[volNickname].Device = foundDevice
-			prjPair.Live.Instances[iNickname].AttachedVolumes[volNickname].Device = foundDevice
+			prjPair.SetAttachedVolumeDevice(iNickname, volNickname, foundDevice)
 		}
 	}
 
@@ -228,8 +222,7 @@ func AttachVolume(prjPair *ProjectPair, logChan chan string, iNickname string, v
 			return fmt.Errorf("got empty id/device (%s/%s) when attaching volume %s to %s", newId, device, volNickname, iNickname)
 		}
 		sb.WriteString(fmt.Sprintf("attached volume %s to %s, attachment id %s, updating project\n", volNickname, iNickname, newId))
-		prjPair.Template.Instances[iNickname].AttachedVolumes[volNickname].Device = device
-		prjPair.Live.Instances[iNickname].AttachedVolumes[volNickname].Device = device
+		prjPair.SetAttachedVolumeDevice(iNickname, volNickname, device)
 	}
 
 	// At this point, we are sure we have good device
@@ -242,8 +235,7 @@ func AttachVolume(prjPair *ProjectPair, logChan chan string, iNickname string, v
 			return err
 		}
 		if attachmentId != "" {
-			prjPair.Template.Instances[iNickname].AttachedVolumes[volNickname].AttachmentId = attachmentId
-			prjPair.Live.Instances[iNickname].AttachedVolumes[volNickname].AttachmentId = attachmentId
+			prjPair.SetVolumeAttachmentId(iNickname, volNickname, attachmentId)
 			break
 		}
 		time.Sleep(5 * time.Second)
@@ -263,8 +255,7 @@ func AttachVolume(prjPair *ProjectPair, logChan chan string, iNickname string, v
 	}
 
 	sb.WriteString(fmt.Sprintf("initialized volume %s on %s, uuid %s\n", volNickname, iNickname, blockDeviceId))
-	prjPair.Template.Instances[iNickname].AttachedVolumes[volNickname].BlockDeviceId = blockDeviceId
-	prjPair.Live.Instances[iNickname].AttachedVolumes[volNickname].BlockDeviceId = blockDeviceId
+	prjPair.SetVolumeBlockDeviceId(iNickname, volNickname, blockDeviceId)
 
 	return nil
 }

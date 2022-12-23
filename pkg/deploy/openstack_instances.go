@@ -90,8 +90,7 @@ func CreateInstance(prjPair *ProjectPair, logChan chan string, iNickname string,
 		// If it was already created, save it for future use, but do not create
 		if foundInstanceIdByName != "" {
 			sb.WriteString(fmt.Sprintf("instance %s(%s) already there, updating project\n", prjPair.Live.Instances[iNickname].HostName, foundInstanceIdByName))
-			prjPair.Template.Instances[iNickname].Id = foundInstanceIdByName
-			prjPair.Live.Instances[iNickname].Id = foundInstanceIdByName
+			prjPair.SetInstanceId(iNickname, foundInstanceIdByName)
 		}
 	} else {
 		if foundInstanceIdByName == "" {
@@ -128,8 +127,7 @@ func CreateInstance(prjPair *ProjectPair, logChan chan string, iNickname string,
 	}
 
 	sb.WriteString(fmt.Sprintf("creating instance %s(%s)...\n", prjPair.Live.Instances[iNickname].HostName, newId))
-	prjPair.Template.Instances[iNickname].Id = newId
-	prjPair.Live.Instances[iNickname].Id = newId
+	prjPair.SetInstanceId(iNickname, newId)
 
 	var status string
 	startInstanceWaitTs := time.Now()
@@ -183,8 +181,7 @@ func DeleteInstance(prjPair *ProjectPair, logChan chan string, iNickname string)
 		return er.Error
 	}
 
-	prjPair.Template.Instances[iNickname].Id = ""
-	prjPair.Live.Instances[iNickname].Id = ""
+	prjPair.CleanInstance(iNickname)
 
 	return nil
 }
