@@ -73,6 +73,12 @@
             "permissions": 644
         }
     },
+    "file_groups_down": {
+        "down_capi_scripts": {
+            "src": "/mnt/capi_cfg",
+            "dst": "./tmp/capi_cfg"
+        }
+    },
     "instances": {
         "bastion": {
             "host_name": "{deployment_name}-bastion",
@@ -82,19 +88,19 @@
             "image": "Ubuntu-22.04",
             "attached_volumes": {
                 "cfg": {
-                    "attachment_id": "1d33b7da-5dcf-4b0a-84e7-2d00130dd82e",
-                    "device": "/dev/vdc",
-                    "block_device_id": "8c363472-275a-4028-a606-74a616f98065"
+                    "attachment_id": "",
+                    "device": "",
+                    "block_device_id": ""
                 },
                 "in": {
-                    "attachment_id": "4473333e-9715-49bd-82bd-c506c6db3b26",
-                    "device": "/dev/vdd",
-                    "block_device_id": "eb57b4f2-0142-4f23-ac8c-be256a7c6821"
+                    "attachment_id": "",
+                    "device": "",
+                    "block_device_id": ""
                 },
                 "out": {
-                    "attachment_id": "712bba47-2f41-4f69-be8d-81f11bf56269",
-                    "device": "/dev/vdb",
-                    "block_device_id": "77f5e51f-a884-4bd5-b0dc-062a2575913a"
+                    "attachment_id": "",
+                    "device": "",
+                    "block_device_id": ""
                 }
             },
             "id": "",
@@ -108,7 +114,8 @@
                 }
             },
             "applicable_file_groups": [
-                "up_capi_scripts"
+                "up_capi_scripts",
+                "down_capi_scripts"
             ]
         }
     }

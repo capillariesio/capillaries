@@ -44,6 +44,89 @@ func FileGroupUpDefsToSpecs(prj *Project, fileGroupsToUpload map[string]*FileGro
 	return fileUploadSpecs, nil
 }
 
+type FileDownloadSpec struct {
+	InstanceNickname string
+	Src              string
+	Dst              string
+}
+
+func InstanceFileGroupDownDefsToSpecs(prj *Project, iNickname string, fgDef *FileGroupDownDef) ([]*FileDownloadSpec, error) {
+	if prj.Instances[iNickname].FloatingIpAddress == "" {
+		// TODO: tweak ssh cfg to connect to this instance via jumphost
+		return nil, fmt.Errorf("sftp jumphost not supported yet")
+	}
+
+	sshClient, err := NewSshClient(
+		prj.SshConfig.User,
+		prj.SshConfig.Host,
+		prj.SshConfig.Port,
+		prj.SshConfig.PrivateKeyPath,
+		prj.SshConfig.PrivateKeyPassword)
+	if err != nil {
+		return nil, err
+	}
+	conn, err := ssh.Dial("tcp", sshClient.Server, sshClient.Config)
+	if err != nil {
+		return nil, fmt.Errorf("dial to %v failed %v", sshClient.Server, err)
+	}
+	defer conn.Close()
+
+	sftp, err := sftp.NewClient(conn)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create sftp client: %s", err.Error())
+	}
+	defer sftp.Close()
+
+	fileDownloadSpecs := make([]*FileDownloadSpec, 0)
+	w := sftp.Walk(fgDef.Src)
+	for w.Step() {
+		if w.Err() != nil {
+			return nil, fmt.Errorf("sftp walker error in %s, %s: %s", fgDef.Src, w.Path(), w.Err().Error())
+		}
+		if !w.Stat().IsDir() {
+			fileSubpath := strings.ReplaceAll(w.Path(), fgDef.Src, "")
+			fileDownloadSpecs = append(fileDownloadSpecs, &FileDownloadSpec{
+				InstanceNickname: iNickname,
+				Src:              w.Path(),
+				Dst:              filepath.Join(fgDef.Dst, fileSubpath)})
+		}
+	}
+
+	return fileDownloadSpecs, nil
+}
+
+func FileGroupDownDefsToSpecs(prj *Project, fileGroupsToDownload map[string]*FileGroupDownDef) ([]*FileDownloadSpec, error) {
+	fileDownloadSpecs := make([]*FileDownloadSpec, 0)
+	groupCountMap := map[string]int{}
+	sbDuplicates := strings.Builder{}
+	for iNickname, iDef := range prj.Instances {
+		for _, fgName := range iDef.ApplicableFileGroups {
+			if fgDef, ok := fileGroupsToDownload[fgName]; ok {
+				instanceGroupSpecs, err := InstanceFileGroupDownDefsToSpecs(prj, iNickname, fgDef)
+				if err != nil {
+					return nil, err
+				}
+				fileDownloadSpecs = append(fileDownloadSpecs, instanceGroupSpecs...)
+
+				// Additional check: do not download same group from more than one instance
+				if _, ok := groupCountMap[fgName]; !ok {
+					groupCountMap[fgName] = 0
+				}
+				groupCountMap[fgName] = groupCountMap[fgName] + 1
+				if groupCountMap[fgName] == 2 {
+					sbDuplicates.WriteString(fmt.Sprintf("%s;", fgName))
+				}
+			}
+		}
+	}
+
+	if sbDuplicates.Len() > 0 {
+		return nil, fmt.Errorf("cannot download, the following file groups are assoiated with more than one instance: %s", sbDuplicates.String())
+	}
+
+	return fileDownloadSpecs, nil
+}
+
 func UploadFileSftp(prj *Project, logChan chan string, iNickName string, srcPath string, dstPath string, permissions int) error {
 	if prj.Instances[iNickName].FloatingIpAddress == "" {
 		// TODO: tweak ssh cfg to connect to this instance via jumphost
@@ -83,7 +166,7 @@ func UploadFileSftp(prj *Project, logChan chan string, iNickName string, srcPath
 
 	dstFile, err := sftp.Create(dstPath)
 	if err != nil {
-		return fmt.Errorf("cannot create onupload %s: %s", dstPath, err.Error())
+		return fmt.Errorf("cannot create on upload %s: %s", dstPath, err.Error())
 	}
 
 	bytesRead, err := dstFile.ReadFrom(srcFile)
@@ -100,5 +183,56 @@ func UploadFileSftp(prj *Project, logChan chan string, iNickName string, srcPath
 	}
 
 	logChan <- fmt.Sprintf("Uploaded %s to %s, %d bytes", srcPath, dstPath, bytesRead)
+	return nil
+}
+
+func DownloadFileSftp(prj *Project, logChan chan string, iNickName string, srcPath string, dstPath string) error {
+	if prj.Instances[iNickName].FloatingIpAddress == "" {
+		// TODO: tweak ssh cfg to connect to this instance via jumphost
+		return fmt.Errorf("sftp jumphost not supported yet")
+	}
+
+	sshClient, err := NewSshClient(
+		prj.SshConfig.User,
+		prj.SshConfig.Host,
+		prj.SshConfig.Port,
+		prj.SshConfig.PrivateKeyPath,
+		prj.SshConfig.PrivateKeyPassword)
+	if err != nil {
+		return err
+	}
+	conn, err := ssh.Dial("tcp", sshClient.Server, sshClient.Config)
+	if err != nil {
+		return fmt.Errorf("dial to %v failed %v", sshClient.Server, err)
+	}
+	defer conn.Close()
+
+	sftp, err := sftp.NewClient(conn)
+	if err != nil {
+		return fmt.Errorf("cannot create sftp client: %s", err.Error())
+	}
+	defer sftp.Close()
+
+	if err := os.MkdirAll(filepath.Dir(dstPath), 0666); err != nil {
+		return fmt.Errorf("cannot create target dir for %s: %s", dstPath, err.Error())
+	}
+
+	srcFile, err := sftp.Open(srcPath)
+	if err != nil {
+		return fmt.Errorf("cannot open for download %s: %s", srcPath, err.Error())
+	}
+	defer srcFile.Close()
+
+	dstFile, err := os.Create(dstPath)
+	if err != nil {
+		return fmt.Errorf("cannot create on download %s: %s", dstPath, err.Error())
+	}
+
+	bytesRead, err := dstFile.ReadFrom(srcFile)
+	if err != nil {
+		return fmt.Errorf("cannot read for download %s: %s", srcPath, err.Error())
+	}
+
+	logChan <- fmt.Sprintf("Downloaded %s to %s, %d bytes", srcPath, dstPath, bytesRead)
 	return nil
 }

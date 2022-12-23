@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/capillariesio/capillaries/pkg/deploy"
 )
@@ -35,6 +36,23 @@ func DumpLogChan(logChan chan string, isVerbose bool) {
 	}
 }
 
+func FilterFileGroups[FileGroupDef deploy.FileGroupUpDef | deploy.FileGroupDownDef](sourceMap map[string]*FileGroupDef) (map[string]*FileGroupDef, error) {
+	var fileGroupMap map[string]*FileGroupDef
+	if os.Args[2] == "*" {
+		fileGroupMap = sourceMap
+	} else {
+		fileGroupMap = map[string]*FileGroupDef{}
+		for _, fileGroupName := range strings.Split(os.Args[2], ",") {
+			fgDef, ok := sourceMap[fileGroupName]
+			if !ok {
+				return nil, fmt.Errorf("file group %s not defined", fileGroupName)
+			}
+			fileGroupMap[fileGroupName] = fgDef
+		}
+	}
+	return fileGroupMap, nil
+}
+
 func main() {
 	prjPair, fullPrjPath, err := deploy.LoadProject("deploy.json", "deploy_params.json")
 	if err != nil {
@@ -44,6 +62,8 @@ func main() {
 	if len(os.Args) <= 1 {
 		log.Fatalf("COMMAND EXPECTED")
 	}
+
+	cmdStartTs := time.Now()
 
 	commonArgs := flag.NewFlagSet("common args", flag.ExitOnError)
 	argVerbosity := commonArgs.Bool("verbose", false, "Verbosity")
@@ -158,34 +178,53 @@ func main() {
 			if len(os.Args[2]) == 0 {
 				log.Fatalf("expected comma-separated list of file groups to upload or *")
 			}
-			var fileGroupsToUpload map[string]*deploy.FileGroupUpDef
-			if os.Args[2] == "*" {
-				fileGroupsToUpload = prjPair.Live.FileGroupsUp
-			} else {
-				fileGroupsToUpload = map[string]*deploy.FileGroupUpDef{}
-				for _, fileGroupName := range strings.Split(os.Args[2], ",") {
-					fgDef, ok := prjPair.Live.FileGroupsUp[fileGroupName]
-					if !ok {
-						log.Fatalf("file group %s not defined", fileGroupName)
-					}
-					fileGroupsToUpload[fileGroupName] = fgDef
-				}
-			}
 
-			// Parse src and create file upload specs
-			fileUploadSpecs, err := deploy.FileGroupUpDefsToSpecs(&prjPair.Live, fileGroupsToUpload)
+			fileGroups, err := FilterFileGroups(prjPair.Live.FileGroupsUp)
 			if err != nil {
 				log.Fatalf(err.Error())
 			}
 
-			errorsExpected = len(fileUploadSpecs)
-			errChan = make(chan error, len(fileUploadSpecs))
-			for _, fuSpec := range fileUploadSpecs {
+			// Walk through src locally and create file upload specs
+			fileSpecs, err := deploy.FileGroupUpDefsToSpecs(&prjPair.Live, fileGroups)
+			if err != nil {
+				log.Fatalf(err.Error())
+			}
+
+			errorsExpected = len(fileSpecs)
+			errChan = make(chan error, len(fileSpecs))
+			for _, fuSpec := range fileSpecs {
 				sem <- 1
 				go func(prj *deploy.Project, logChan chan string, errChan chan error, fuSpec *deploy.FileUploadSpec) {
 					errChan <- deploy.UploadFileSftp(prj, logChan, fuSpec.InstanceNickname, fuSpec.Src, fuSpec.Dst, fuSpec.Permissions)
 					<-sem
 				}(&prjPair.Live, logChan, errChan, fuSpec)
+			}
+
+		case CmdDownloadFiles:
+			commonArgs.Parse(os.Args[3:])
+			if len(os.Args[2]) == 0 {
+				log.Fatalf("expected comma-separated list of file groups to download or *")
+			}
+
+			fileGroups, err := FilterFileGroups(prjPair.Live.FileGroupsDown)
+			if err != nil {
+				log.Fatalf(err.Error())
+			}
+
+			// Walk through src remotely and create file upload specs
+			fileSpecs, err := deploy.FileGroupDownDefsToSpecs(&prjPair.Live, fileGroups)
+			if err != nil {
+				log.Fatalf(err.Error())
+			}
+
+			errorsExpected = len(fileSpecs)
+			errChan = make(chan error, len(fileSpecs))
+			for _, fdSpec := range fileSpecs {
+				sem <- 1
+				go func(prj *deploy.Project, logChan chan string, errChan chan error, fdSpec *deploy.FileDownloadSpec) {
+					errChan <- deploy.DownloadFileSftp(prj, logChan, fdSpec.InstanceNickname, fdSpec.Src, fdSpec.Dst)
+					<-sem
+				}(&prjPair.Live, logChan, errChan, fdSpec)
 			}
 
 		default:
@@ -218,6 +257,9 @@ func main() {
 	// Save updated project template, it may have some new ids and timestamps
 	if err = prjPair.Template.SaveProject(fullPrjPath); err != nil {
 		log.Fatalf(err.Error())
+	}
+	if *argVerbosity {
+		fmt.Printf("Elapsed: %.3fs\n", time.Since(cmdStartTs).Seconds())
 	}
 }
 
