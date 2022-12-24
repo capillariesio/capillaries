@@ -104,6 +104,15 @@
             "args": ["download_files", "*", "-verbose"]
         },
         {
+            "name": "Deploy setup services",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
+            "args": ["setup_services", "*", "-verbose"]
+        },
+        {
             "name": "Daemon",
             "type": "go",
             "request": "launch",

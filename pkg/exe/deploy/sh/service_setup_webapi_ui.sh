@@ -1,0 +1,2 @@
+echo 'webapi-ui!'
+hostname

@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/pkg/sftp"
-	"golang.org/x/crypto/ssh"
 )
 
 type FileUploadSpec struct {
@@ -51,27 +50,13 @@ type FileDownloadSpec struct {
 }
 
 func InstanceFileGroupDownDefsToSpecs(prj *Project, iNickname string, fgDef *FileGroupDownDef) ([]*FileDownloadSpec, error) {
-	if prj.Instances[iNickname].FloatingIpAddress == "" {
-		// TODO: tweak ssh cfg to connect to this instance via jumphost
-		return nil, fmt.Errorf("sftp jumphost not supported yet")
-	}
-
-	sshClient, err := NewSshClient(
-		prj.SshConfig.User,
-		prj.SshConfig.Host,
-		prj.SshConfig.Port,
-		prj.SshConfig.PrivateKeyPath,
-		prj.SshConfig.PrivateKeyPassword)
+	tsc, err := NewTunneledSshClient(prj.SshConfig, prj.Instances[iNickname].BestIpAddress())
 	if err != nil {
 		return nil, err
 	}
-	conn, err := ssh.Dial("tcp", sshClient.Server, sshClient.Config)
-	if err != nil {
-		return nil, fmt.Errorf("dial to %v failed %v", sshClient.Server, err)
-	}
-	defer conn.Close()
+	defer tsc.Close()
 
-	sftp, err := sftp.NewClient(conn)
+	sftp, err := sftp.NewClient(tsc.SshClient)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create sftp client: %s", err.Error())
 	}
@@ -127,28 +112,14 @@ func FileGroupDownDefsToSpecs(prj *Project, fileGroupsToDownload map[string]*Fil
 	return fileDownloadSpecs, nil
 }
 
-func UploadFileSftp(prj *Project, logChan chan string, iNickName string, srcPath string, dstPath string, permissions int) error {
-	if prj.Instances[iNickName].FloatingIpAddress == "" {
-		// TODO: tweak ssh cfg to connect to this instance via jumphost
-		return fmt.Errorf("sftp jumphost not supported yet")
-	}
-
-	sshClient, err := NewSshClient(
-		prj.SshConfig.User,
-		prj.SshConfig.Host,
-		prj.SshConfig.Port,
-		prj.SshConfig.PrivateKeyPath,
-		prj.SshConfig.PrivateKeyPassword)
+func UploadFileSftp(prj *Project, logChan chan string, iNickname string, srcPath string, dstPath string, permissions int) error {
+	tsc, err := NewTunneledSshClient(prj.SshConfig, prj.Instances[iNickname].BestIpAddress())
 	if err != nil {
 		return err
 	}
-	conn, err := ssh.Dial("tcp", sshClient.Server, sshClient.Config)
-	if err != nil {
-		return fmt.Errorf("dial to %v failed %v", sshClient.Server, err)
-	}
-	defer conn.Close()
+	defer tsc.Close()
 
-	sftp, err := sftp.NewClient(conn)
+	sftp, err := sftp.NewClient(tsc.SshClient)
 	if err != nil {
 		return fmt.Errorf("cannot create sftp client: %s", err.Error())
 	}
@@ -182,32 +153,18 @@ func UploadFileSftp(prj *Project, logChan chan string, iNickName string, srcPath
 		return fmt.Errorf("cannot chmod %s: %s", srcPath, err.Error())
 	}
 
-	logChan <- fmt.Sprintf("Uploaded %s to %s, %d bytes", srcPath, dstPath, bytesRead)
+	logChan <- fmt.Sprintf("Uploaded %s to %s:%s, %d bytes", srcPath, iNickname, dstPath, bytesRead)
 	return nil
 }
 
-func DownloadFileSftp(prj *Project, logChan chan string, iNickName string, srcPath string, dstPath string) error {
-	if prj.Instances[iNickName].FloatingIpAddress == "" {
-		// TODO: tweak ssh cfg to connect to this instance via jumphost
-		return fmt.Errorf("sftp jumphost not supported yet")
-	}
-
-	sshClient, err := NewSshClient(
-		prj.SshConfig.User,
-		prj.SshConfig.Host,
-		prj.SshConfig.Port,
-		prj.SshConfig.PrivateKeyPath,
-		prj.SshConfig.PrivateKeyPassword)
+func DownloadFileSftp(prj *Project, logChan chan string, iNickname string, srcPath string, dstPath string) error {
+	tsc, err := NewTunneledSshClient(prj.SshConfig, prj.Instances[iNickname].BestIpAddress())
 	if err != nil {
 		return err
 	}
-	conn, err := ssh.Dial("tcp", sshClient.Server, sshClient.Config)
-	if err != nil {
-		return fmt.Errorf("dial to %v failed %v", sshClient.Server, err)
-	}
-	defer conn.Close()
+	defer tsc.Close()
 
-	sftp, err := sftp.NewClient(conn)
+	sftp, err := sftp.NewClient(tsc.SshClient)
 	if err != nil {
 		return fmt.Errorf("cannot create sftp client: %s", err.Error())
 	}
@@ -233,6 +190,6 @@ func DownloadFileSftp(prj *Project, logChan chan string, iNickName string, srcPa
 		return fmt.Errorf("cannot read for download %s: %s", srcPath, err.Error())
 	}
 
-	logChan <- fmt.Sprintf("Downloaded %s to %s, %d bytes", srcPath, dstPath, bytesRead)
+	logChan <- fmt.Sprintf("Downloaded %s:%s to %s, %d bytes", iNickname, srcPath, dstPath, bytesRead)
 	return nil
 }

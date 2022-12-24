@@ -23,6 +23,7 @@ const (
 	CmdAttachVolumes       string = "attach_volumes"
 	CmdUploadFiles         string = "upload_files"
 	CmdDownloadFiles       string = "download_files"
+	CmdSetupServices       string = "setup_services"
 )
 
 type SingleThreadCmdHandler func(*deploy.ProjectPair, chan string) error
@@ -36,21 +37,21 @@ func DumpLogChan(logChan chan string, isVerbose bool) {
 	}
 }
 
-func FilterFileGroups[FileGroupDef deploy.FileGroupUpDef | deploy.FileGroupDownDef](sourceMap map[string]*FileGroupDef) (map[string]*FileGroupDef, error) {
-	var fileGroupMap map[string]*FileGroupDef
+func FilterByNickname[GenericDef deploy.FileGroupUpDef | deploy.FileGroupDownDef | deploy.InstanceDef](sourceMap map[string]*GenericDef) (map[string]*GenericDef, error) {
+	var defMap map[string]*GenericDef
 	if os.Args[2] == "*" {
-		fileGroupMap = sourceMap
+		defMap = sourceMap
 	} else {
-		fileGroupMap = map[string]*FileGroupDef{}
-		for _, fileGroupName := range strings.Split(os.Args[2], ",") {
-			fgDef, ok := sourceMap[fileGroupName]
+		defMap = map[string]*GenericDef{}
+		for _, defNickname := range strings.Split(os.Args[2], ",") {
+			fgDef, ok := sourceMap[defNickname]
 			if !ok {
-				return nil, fmt.Errorf("file group %s not defined", fileGroupName)
+				return nil, fmt.Errorf("definition for %s not found", defNickname)
 			}
-			fileGroupMap[fileGroupName] = fgDef
+			defMap[defNickname] = fgDef
 		}
 	}
-	return fileGroupMap, nil
+	return defMap, nil
 }
 
 func main() {
@@ -179,7 +180,7 @@ func main() {
 				log.Fatalf("expected comma-separated list of file groups to upload or *")
 			}
 
-			fileGroups, err := FilterFileGroups(prjPair.Live.FileGroupsUp)
+			fileGroups, err := FilterByNickname(prjPair.Live.FileGroupsUp)
 			if err != nil {
 				log.Fatalf(err.Error())
 			}
@@ -206,7 +207,7 @@ func main() {
 				log.Fatalf("expected comma-separated list of file groups to download or *")
 			}
 
-			fileGroups, err := FilterFileGroups(prjPair.Live.FileGroupsDown)
+			fileGroups, err := FilterByNickname(prjPair.Live.FileGroupsDown)
 			if err != nil {
 				log.Fatalf(err.Error())
 			}
@@ -225,6 +226,27 @@ func main() {
 					errChan <- deploy.DownloadFileSftp(prj, logChan, fdSpec.InstanceNickname, fdSpec.Src, fdSpec.Dst)
 					<-sem
 				}(&prjPair.Live, logChan, errChan, fdSpec)
+			}
+
+		case CmdSetupServices:
+			commonArgs.Parse(os.Args[3:])
+			if len(os.Args[2]) == 0 {
+				log.Fatalf("expected comma-separated list of instances or *")
+			}
+
+			instances, err := FilterByNickname(prjPair.Live.Instances)
+			if err != nil {
+				log.Fatalf(err.Error())
+			}
+
+			errorsExpected = len(instances)
+			errChan = make(chan error, len(instances))
+			for _, iDef := range instances {
+				sem <- 1
+				go func(prj *deploy.Project, logChan chan string, errChan chan error, iDef *deploy.InstanceDef) {
+					errChan <- deploy.ExecScriptOnInstance(prj, logChan, iDef, iDef.Service.Cmd.Setup)
+					<-sem
+				}(&prjPair.Live, logChan, errChan, iDef)
 			}
 
 		default:

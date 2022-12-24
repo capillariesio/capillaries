@@ -245,7 +245,7 @@ func AttachVolume(prjPair *ProjectPair, logChan chan string, iNickname string, v
 		return fmt.Errorf("cannot find newly created attachment, volume %s, instance %s", volNickname, iNickname)
 	}
 
-	blockDeviceId, er := ExecSshAndReturnLastLine(&prjPair.Live, &sb, fmt.Sprintf("%s\ninit_volume_attachment %s %s %d",
+	blockDeviceId, er := ExecSshAndReturnLastLine(&prjPair.Live, &sb, prjPair.Live.Instances[iNickname].BestIpAddress(), fmt.Sprintf("%s\ninit_volume_attachment %s %s %d",
 		InitVolumeAttachmentFunc,
 		prjPair.Live.Instances[iNickname].AttachedVolumes[volNickname].Device,
 		prjPair.Live.Volumes[volNickname].MountPoint,

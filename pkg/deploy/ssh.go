@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"os"
 	"strings"
 	"time"
 
@@ -87,19 +88,50 @@ func parsePemBlock(block *pem.Block) (interface{}, error) {
 		return nil, fmt.Errorf("Parsing private key failed, unsupported key type %q", block.Type)
 	}
 }
-func NewSshClient(user string, host string, port int, privateKeyPath string, privateKeyPassword string) (*SshClient, error) {
-	// read private key file
+
+// func NewSshClient(user string, host string, port int, privateKeyPath string, privateKeyPassword string) (*SshClient, error) {
+// 	// read private key file
+// 	pemBytes, err := ioutil.ReadFile(privateKeyPath)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("Reading private key file failed %v", err)
+// 	}
+// 	// create signer
+// 	signer, err := signerFromPem(pemBytes, []byte(privateKeyPassword))
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	// build SSH client config
+// 	config := &ssh.ClientConfig{
+// 		User: user,
+// 		Auth: []ssh.AuthMethod{
+// 			ssh.PublicKeys(signer),
+// 		},
+// 		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+// 			// use OpenSSH's known_hosts file if you care about host validation
+// 			return nil
+// 		},
+// 	}
+
+// 	client := &SshClient{
+// 		Config: config,
+// 		Server: fmt.Sprintf("%v:%v", host, port),
+// 	}
+
+// 	return client, nil
+// }
+
+func NewSshClientConfig(user string, host string, port int, privateKeyPath string, privateKeyPassword string) (*ssh.ClientConfig, error) {
 	pemBytes, err := ioutil.ReadFile(privateKeyPath)
 	if err != nil {
 		return nil, fmt.Errorf("Reading private key file failed %v", err)
 	}
-	// create signer
+
 	signer, err := signerFromPem(pemBytes, []byte(privateKeyPassword))
 	if err != nil {
 		return nil, err
 	}
-	// build SSH client config
-	config := &ssh.ClientConfig{
+
+	return &ssh.ClientConfig{
 		User: user,
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(signer),
@@ -108,14 +140,7 @@ func NewSshClient(user string, host string, port int, privateKeyPath string, pri
 			// use OpenSSH's known_hosts file if you care about host validation
 			return nil
 		},
-	}
-
-	client := &SshClient{
-		Config: config,
-		Server: fmt.Sprintf("%v:%v", host, port),
-	}
-
-	return client, nil
+	}, nil
 }
 
 func (sshClient *SshClient) RunCommand(cmd string) ExecResult {
@@ -144,27 +169,153 @@ func (sshClient *SshClient) RunCommand(cmd string) ExecResult {
 	return ExecResult{cmd, string(stdout.Bytes()), string(stderr.Bytes()), elapsed, err}
 }
 
-func ExecSsh(prj *Project, logBuilder *strings.Builder, cmd string) ExecResult {
-	sshClient, err := NewSshClient(
-		prj.SshConfig.User,
-		prj.SshConfig.Host,
-		prj.SshConfig.Port,
-		prj.SshConfig.PrivateKeyPath,
-		prj.SshConfig.PrivateKeyPassword)
+type TunneledSshClient struct {
+	ProxySshClient  *ssh.Client
+	TunneledTcpConn net.Conn
+	TunneledSshConn ssh.Conn
+	SshClient       *ssh.Client
+}
+
+func (tsc *TunneledSshClient) Close() {
+	if tsc.SshClient != nil {
+		tsc.SshClient.Close()
+	}
+	if tsc.TunneledSshConn != nil {
+		tsc.TunneledSshConn.Close()
+	}
+	if tsc.TunneledTcpConn != nil {
+		tsc.TunneledTcpConn.Close()
+	}
+	if tsc.ProxySshClient != nil {
+		tsc.ProxySshClient.Close()
+	}
+}
+
+func NewTunneledSshClient(sshConfig *SshConfigDef, ipAddress string) (*TunneledSshClient, error) {
+	bastionSshClientConfig, err := NewSshClientConfig(
+		sshConfig.User,
+		sshConfig.BastionIpAddress,
+		sshConfig.Port,
+		sshConfig.PrivateKeyPath,
+		sshConfig.PrivateKeyPassword)
+	if err != nil {
+		return nil, err
+	}
+
+	bastionUrl := fmt.Sprintf("%s:%d", sshConfig.BastionIpAddress, sshConfig.Port)
+
+	tsc := TunneledSshClient{}
+
+	if ipAddress == sshConfig.BastionIpAddress {
+		// Go directly to bastion
+		tsc.SshClient, err = ssh.Dial("tcp", bastionUrl, bastionSshClientConfig)
+		if err != nil {
+			return nil, fmt.Errorf("dial direct to bastion %s failed: %s", bastionUrl, err.Error())
+		}
+	} else {
+		// Dial twice
+		tsc.ProxySshClient, err = ssh.Dial("tcp", bastionUrl, bastionSshClientConfig)
+		if err != nil {
+			return nil, fmt.Errorf("dial to bastion proxy %s failed: %s", bastionUrl, err.Error())
+		}
+
+		internalUrl := fmt.Sprintf("%s:%d", ipAddress, sshConfig.Port)
+
+		tsc.TunneledTcpConn, err = tsc.ProxySshClient.Dial("tcp", internalUrl)
+		if err != nil {
+			return nil, fmt.Errorf("dial to internal URL %s failed: %s", internalUrl, err.Error())
+		}
+
+		tunneledSshClientConfig, err := NewSshClientConfig(
+			sshConfig.User,
+			ipAddress,
+			sshConfig.Port,
+			sshConfig.PrivateKeyPath,
+			sshConfig.PrivateKeyPassword)
+		if err != nil {
+			return nil, err
+		}
+		var chans <-chan ssh.NewChannel
+		var reqs <-chan *ssh.Request
+		tsc.TunneledSshConn, chans, reqs, err = ssh.NewClientConn(tsc.TunneledTcpConn, internalUrl, tunneledSshClientConfig)
+		if err != nil {
+			return nil, fmt.Errorf("cannot establish ssh connection via TCP tunnel to internal URL %s: %s", internalUrl, err.Error())
+		}
+
+		tsc.SshClient = ssh.NewClient(tsc.TunneledSshConn, chans, reqs)
+	}
+
+	return &tsc, nil
+}
+
+func ExecSsh(prj *Project, logBuilder *strings.Builder, ipAddress string, cmd string) ExecResult {
+	tsc, err := NewTunneledSshClient(prj.SshConfig, ipAddress)
 	if err != nil {
 		return ExecResult{cmd, "", "", 0, err}
 	}
-	er := sshClient.RunCommand(cmd)
+	defer tsc.Close()
+
+	session, err := tsc.SshClient.NewSession()
+	if err != nil {
+		return ExecResult{cmd, "", "", 0, fmt.Errorf("cannot create session for %s: %s", ipAddress, err.Error())}
+	}
+	defer session.Close()
+
+	var stdout, stderr bytes.Buffer
+	session.Stdout = &stdout
+	session.Stderr = &stderr
+
+	runStartTime := time.Now()
+	err = session.Run(cmd)
+	elapsed := time.Since(runStartTime).Seconds()
+
+	er := ExecResult{cmd, string(stdout.Bytes()), string(stderr.Bytes()), elapsed, err}
 	logBuilder.WriteString(er.ToString())
 	return er
 }
 
-func ExecSshAndReturnLastLine(prj *Project, logBuilder *strings.Builder, cmd string) (string, ExecResult) {
-	er := ExecSsh(prj, logBuilder, cmd)
+func ExecSshAndReturnLastLine(prj *Project, logBuilder *strings.Builder, ipAddress string, cmd string) (string, ExecResult) {
+	er := ExecSsh(prj, logBuilder, ipAddress, cmd)
 	if er.Error != nil {
 		return "", er
 	}
 
 	lines := strings.Split(strings.Trim(er.Stdout, "\n "), "\n")
 	return strings.TrimSpace(lines[len(lines)-1]), er
+}
+
+func ExecScriptOnInstance(prj *Project, logChan chan string, iDef *InstanceDef, shellScriptFile string) error {
+	sb := strings.Builder{}
+	defer func() {
+		logChan <- CmdChainExecToString(fmt.Sprintf("ExecScriptOnInstance: %s on %s", shellScriptFile, iDef.HostName), sb.String())
+	}()
+
+	if shellScriptFile == "" {
+		sb.WriteString(fmt.Sprintf("no command to execute on %s", iDef.HostName))
+		return nil
+	}
+
+	cmdBuilder := strings.Builder{}
+	for k, v := range iDef.Service.Env {
+		cmdBuilder.WriteString(fmt.Sprintf("%s=%s\n", k, v))
+	}
+
+	f, err := os.Open(shellScriptFile)
+	if err != nil {
+		return fmt.Errorf("cannot open shell script %s: %s", shellScriptFile, err.Error())
+	}
+	defer f.Close()
+
+	shellScriptBytes, err := ioutil.ReadAll(f)
+	if err != nil {
+		return fmt.Errorf("cannot read shell script %s: %s", shellScriptFile, err.Error())
+	}
+
+	cmdBuilder.WriteString(string(shellScriptBytes))
+
+	er := ExecSsh(prj, &sb, iDef.IpAddress, cmdBuilder.String())
+	if er.Error != nil {
+		return er.Error
+	}
+	return nil
 }

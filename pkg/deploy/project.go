@@ -53,10 +53,15 @@ type AttachedVolumeDef struct {
 	BlockDeviceId string `json:"block_device_id"`
 }
 
+type ServiceCommandsDef struct {
+	Setup string `json:"setup"`
+	Start string `json:"start"`
+	Stop  string `json:"stop"`
+}
 type ServiceDef struct {
-	Env      map[string]string `json:"env"`
-	Priority int               `json:"priority"`
-	Cmd      map[string]string `json:"cmd"`
+	Env      map[string]string  `json:"env"`
+	Priority int                `json:"priority"`
+	Cmd      ServiceCommandsDef `json:"cmd"`
 }
 
 type InstanceDef struct {
@@ -71,6 +76,13 @@ type InstanceDef struct {
 	ApplicableFileGroups []string                      `json:"applicable_file_groups"`
 }
 
+func (iDef *InstanceDef) BestIpAddress() string {
+	if iDef.FloatingIpAddress != "" {
+		return iDef.FloatingIpAddress
+	}
+	return iDef.IpAddress
+}
+
 func (iDef *InstanceDef) Clean() {
 	iDef.Id = ""
 	for _, volAttachDef := range iDef.AttachedVolumes {
@@ -81,7 +93,7 @@ func (iDef *InstanceDef) Clean() {
 }
 
 type SshConfigDef struct {
-	Host               string `json:"host"`
+	BastionIpAddress   string `json:"bastion_ip_address"`
 	Port               int    `json:"port"`
 	User               string `json:"user"`
 	PrivateKeyPath     string `json:"private_key_path"`

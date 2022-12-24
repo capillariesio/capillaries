@@ -1,7 +1,7 @@
 {
     "deployment_name": "{deployment_name}",
     "ssh_config": {
-        "host": "{floating_ip_address}",
+        "bastion_ip_address": "{floating_ip_address}",
         "port": 22,
         "user": "ubuntu",
         "private_key_path": "{private_key_path}",
@@ -106,9 +106,9 @@
             "id": "",
             "service": {
                 "env": null,
-                "priority": 10,
+                "priority": 1,
                 "cmd": {
-                    "setup": "service_setup_webapi_ui.sh",
+                    "setup": "sh/service_setup_webapi_ui.sh",
                     "start": "service_start_webapi_ui.sh",
                     "stop": "service_stop_webapi_ui.sh"
                 }
@@ -117,6 +117,25 @@
                 "up_capi_scripts",
                 "down_capi_scripts"
             ]
+        },
+        "prometheus": {
+            "host_name": "{deployment_name}-prometheus",
+            "ip_address": "10.5.0.4",
+            "floating_ip_address": "",
+            "flavor": "gp1.semisonic",
+            "image": "Ubuntu-22.04",
+            "attached_volumes": null,
+            "id": "",
+            "service": {
+                "env": null,
+                "priority": 1,
+                "cmd": {
+                    "setup": "sh/service_setup_graylog.sh",
+                    "start": "service_start_graylog.sh",
+                    "stop": "service_stop_graylog.sh"
+                }
+            },
+            "applicable_file_groups": null
         }
     }
 }

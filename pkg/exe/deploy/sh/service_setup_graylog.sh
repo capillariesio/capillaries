@@ -1,0 +1,2 @@
+echo 'graylog!'
+hostname
