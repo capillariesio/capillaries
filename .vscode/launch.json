@@ -113,6 +113,24 @@
             "args": ["setup_services", "*", "-verbose"]
         },
         {
+            "name": "Deploy start services",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
+            "args": ["start_services", "*", "-verbose"]
+        },
+        {
+            "name": "Deploy stop services",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
+            "args": ["stop_services", "*", "-verbose"]
+        },
+        {
             "name": "Daemon",
             "type": "go",
             "request": "launch",

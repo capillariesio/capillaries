@@ -27,7 +27,33 @@
     },
     "security_group": {
         "name": "{deployment_name}_security_group",
-        "id": "c02e9068-5057-4213-89b7-48ca9dca86f1"
+        "id": "c02e9068-5057-4213-89b7-48ca9dca86f1",
+        "rules": [
+            {
+                "id": "c58f1583-d4f2-48f1-bc60-1a28b768316c",
+                "protocol": "tcp",
+                "ethertype": "IPv4",
+                "remote_ip": "0.0.0.0/0",
+                "port": 22,
+                "direction": "ingress"
+            },
+            {
+                "id": "62f91a67-cab9-41ee-ae53-1a74331b2842",
+                "protocol": "tcp",
+                "ethertype": "IPv4",
+                "remote_ip": "0.0.0.0/0",
+                "port": 9090,
+                "direction": "ingress"
+            },
+            {
+                "id": "df3fdc4d-45dc-4a55-991f-882b547e4f5b",
+                "protocol": "tcp",
+                "ethertype": "IPv4",
+                "remote_ip": "10.5.0.0/24",
+                "port": 9100,
+                "direction": "ingress"
+            }
+        ]
     },
     "network": {
         "name": "{deployment_name}_network",
@@ -88,29 +114,37 @@
             "image": "Ubuntu-22.04",
             "attached_volumes": {
                 "cfg": {
-                    "attachment_id": "",
-                    "device": "",
-                    "block_device_id": ""
+                    "attachment_id": "f68a5f0f-2927-40b9-a64c-3215b692ecd4",
+                    "device": "/dev/vdb",
+                    "block_device_id": "2271e05b-8b34-497d-b8ae-d0393a2841e8"
                 },
                 "in": {
-                    "attachment_id": "",
-                    "device": "",
-                    "block_device_id": ""
+                    "attachment_id": "f0e6dc80-c8fd-479c-ba77-d66ba23b944a",
+                    "device": "/dev/vdc",
+                    "block_device_id": "42a0b631-94c2-495c-a390-a2d2715cd727"
                 },
                 "out": {
-                    "attachment_id": "",
-                    "device": "",
-                    "block_device_id": ""
+                    "attachment_id": "ced360b3-7eab-4ba4-a860-df9bd3e3ec0e",
+                    "device": "/dev/vdd",
+                    "block_device_id": "b519d9f4-5402-417f-809d-e601f3133c1e"
                 }
             },
-            "id": "",
+            "id": "31ccd986-25f2-4109-9ec2-f11005819b42",
             "service": {
-                "env": null,
-                "priority": 1,
+                "env": {
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "1.5.0"
+                },
                 "cmd": {
-                    "setup": "sh/service_setup_webapi_ui.sh",
-                    "start": "service_start_webapi_ui.sh",
-                    "stop": "service_stop_webapi_ui.sh"
+                    "setup": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/setup_node_exporter.sh"
+                    ],
+                    "start": [
+                        "sh/prometheus/start_node_exporter.sh"
+                    ],
+                    "stop": [
+                        "sh/prometheus/stop_node_exporter.sh"
+                    ]
                 }
             },
             "applicable_file_groups": [
@@ -125,14 +159,27 @@
             "flavor": "gp1.semisonic",
             "image": "Ubuntu-22.04",
             "attached_volumes": null,
-            "id": "",
+            "id": "56ddce98-44c1-44de-afef-c64096513b71",
             "service": {
-                "env": null,
-                "priority": 1,
+                "env": {
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "1.5.0",
+                    "PROMETHEUS_TARGETS": "\\'localhost:9100\\',\\'10.5.0.2:9100\\'",
+                    "PROMETHEUS_VERSION": "2.41.0"
+                },
                 "cmd": {
-                    "setup": "sh/service_setup_graylog.sh",
-                    "start": "service_start_graylog.sh",
-                    "stop": "service_stop_graylog.sh"
+                    "setup": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/setup_server.sh",
+                        "sh/prometheus/setup_node_exporter.sh"
+                    ],
+                    "start": [
+                        "sh/prometheus/start_server.sh",
+                        "sh/prometheus/start_node_exporter.sh"
+                    ],
+                    "stop": [
+                        "sh/prometheus/stop_server.sh",
+                        "sh/prometheus/stop_node_exporter.sh"
+                    ]
                 }
             },
             "applicable_file_groups": null

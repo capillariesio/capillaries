@@ -15,9 +15,26 @@ type ExecTimeouts struct {
 	AttachVolume              int `json:"attach_volume"`
 }
 
+type SecurityGroupRuleDef struct {
+	Id        string `json:"id"`        // guid
+	Protocol  string `json:"protocol"`  // tcp
+	Ethertype string `json:"ethertype"` // IPv4
+	RemoteIp  string `json:"remote_ip"` // 0.0.0.0/0
+	Port      int    `json:"port"`      // 22
+	Direction string `json:"direction"` // ingress
+}
+
 type SecurityGroupDef struct {
-	Name string `json:"name"`
-	Id   string `json:"id"`
+	Name  string                  `json:"name"`
+	Id    string                  `json:"id"`
+	Rules []*SecurityGroupRuleDef `json:"rules"`
+}
+
+func (sg *SecurityGroupDef) Clean() {
+	sg.Id = ""
+	for _, r := range sg.Rules {
+		r.Id = ""
+	}
 }
 
 type SubnetDef struct {
@@ -54,14 +71,13 @@ type AttachedVolumeDef struct {
 }
 
 type ServiceCommandsDef struct {
-	Setup string `json:"setup"`
-	Start string `json:"start"`
-	Stop  string `json:"stop"`
+	Setup []string `json:"setup"`
+	Start []string `json:"start"`
+	Stop  []string `json:"stop"`
 }
 type ServiceDef struct {
-	Env      map[string]string  `json:"env"`
-	Priority int                `json:"priority"`
-	Cmd      ServiceCommandsDef `json:"cmd"`
+	Env map[string]string  `json:"env"`
+	Cmd ServiceCommandsDef `json:"cmd"`
 }
 
 type InstanceDef struct {
@@ -132,6 +148,16 @@ type ProjectPair struct {
 func (prjPair *ProjectPair) SetSecurityGroupId(newId string) {
 	prjPair.Template.SecurityGroup.Id = newId
 	prjPair.Live.SecurityGroup.Id = newId
+}
+
+func (prjPair *ProjectPair) SetSecurityGroupRuleId(ruleIdx int, newId string) {
+	prjPair.Template.SecurityGroup.Rules[ruleIdx].Id = newId
+	prjPair.Live.SecurityGroup.Rules[ruleIdx].Id = newId
+}
+
+func (prjPair *ProjectPair) CleanSecurityGroup() {
+	prjPair.Template.SecurityGroup.Clean()
+	prjPair.Live.SecurityGroup.Clean()
 }
 
 func (prjPair *ProjectPair) SetNetworkId(newId string) {

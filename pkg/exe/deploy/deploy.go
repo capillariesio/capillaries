@@ -24,6 +24,8 @@ const (
 	CmdUploadFiles         string = "upload_files"
 	CmdDownloadFiles       string = "download_files"
 	CmdSetupServices       string = "setup_services"
+	CmdStartServices       string = "start_services"
+	CmdStopServices        string = "stop_services"
 )
 
 type SingleThreadCmdHandler func(*deploy.ProjectPair, chan string) error
@@ -90,6 +92,37 @@ func main() {
 			errChan <- cmdHandler(prjPair, logChan)
 			<-sem
 		}()
+	} else if os.Args[1] == CmdSetupServices || os.Args[1] == CmdStartServices || os.Args[1] == CmdStopServices {
+		commonArgs.Parse(os.Args[3:])
+		if len(os.Args[2]) == 0 {
+			log.Fatalf("expected comma-separated list of instances or *")
+		}
+
+		instances, err := FilterByNickname(prjPair.Live.Instances)
+		if err != nil {
+			log.Fatalf(err.Error())
+		}
+
+		errorsExpected = len(instances)
+		errChan = make(chan error, len(instances))
+		for _, iDef := range instances {
+			sem <- 1
+			go func(prj *deploy.Project, logChan chan string, errChan chan error, iDef *deploy.InstanceDef) {
+				var cmdToRun []string
+				switch os.Args[1] {
+				case CmdSetupServices:
+					cmdToRun = iDef.Service.Cmd.Setup
+				case CmdStartServices:
+					cmdToRun = iDef.Service.Cmd.Start
+				case CmdStopServices:
+					cmdToRun = iDef.Service.Cmd.Stop
+				default:
+					log.Fatalf("unknown setup/start/stop service command:" + os.Args[1])
+				}
+				errChan <- deploy.ExecScriptsOnInstance(prj, logChan, iDef.BestIpAddress(), iDef.Service.Env, cmdToRun)
+				<-sem
+			}(&prjPair.Live, logChan, errChan, iDef)
+		}
 	} else {
 		switch os.Args[1] {
 		case CmdCreateVolumes:
@@ -196,7 +229,7 @@ func main() {
 			for _, fuSpec := range fileSpecs {
 				sem <- 1
 				go func(prj *deploy.Project, logChan chan string, errChan chan error, fuSpec *deploy.FileUploadSpec) {
-					errChan <- deploy.UploadFileSftp(prj, logChan, fuSpec.InstanceNickname, fuSpec.Src, fuSpec.Dst, fuSpec.Permissions)
+					errChan <- deploy.UploadFileSftp(prj, logChan, fuSpec.IpAddress, fuSpec.Src, fuSpec.Dst, fuSpec.Permissions)
 					<-sem
 				}(&prjPair.Live, logChan, errChan, fuSpec)
 			}
@@ -223,30 +256,9 @@ func main() {
 			for _, fdSpec := range fileSpecs {
 				sem <- 1
 				go func(prj *deploy.Project, logChan chan string, errChan chan error, fdSpec *deploy.FileDownloadSpec) {
-					errChan <- deploy.DownloadFileSftp(prj, logChan, fdSpec.InstanceNickname, fdSpec.Src, fdSpec.Dst)
+					errChan <- deploy.DownloadFileSftp(prj, logChan, fdSpec.IpAddress, fdSpec.Src, fdSpec.Dst)
 					<-sem
 				}(&prjPair.Live, logChan, errChan, fdSpec)
-			}
-
-		case CmdSetupServices:
-			commonArgs.Parse(os.Args[3:])
-			if len(os.Args[2]) == 0 {
-				log.Fatalf("expected comma-separated list of instances or *")
-			}
-
-			instances, err := FilterByNickname(prjPair.Live.Instances)
-			if err != nil {
-				log.Fatalf(err.Error())
-			}
-
-			errorsExpected = len(instances)
-			errChan = make(chan error, len(instances))
-			for _, iDef := range instances {
-				sem <- 1
-				go func(prj *deploy.Project, logChan chan string, errChan chan error, iDef *deploy.InstanceDef) {
-					errChan <- deploy.ExecScriptOnInstance(prj, logChan, iDef, iDef.Service.Cmd.Setup)
-					<-sem
-				}(&prjPair.Live, logChan, errChan, iDef)
 			}
 
 		default:

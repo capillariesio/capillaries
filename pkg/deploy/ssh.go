@@ -284,38 +284,40 @@ func ExecSshAndReturnLastLine(prj *Project, logBuilder *strings.Builder, ipAddre
 	return strings.TrimSpace(lines[len(lines)-1]), er
 }
 
-func ExecScriptOnInstance(prj *Project, logChan chan string, iDef *InstanceDef, shellScriptFile string) error {
+func ExecScriptsOnInstance(prj *Project, logChan chan string, ipAddress string, env map[string]string, shellScriptFiles []string) error {
 	sb := strings.Builder{}
 	defer func() {
-		logChan <- CmdChainExecToString(fmt.Sprintf("ExecScriptOnInstance: %s on %s", shellScriptFile, iDef.HostName), sb.String())
+		logChan <- CmdChainExecToString(fmt.Sprintf("ExecScriptOnInstance: %s on %s", shellScriptFiles, ipAddress), sb.String())
 	}()
 
-	if shellScriptFile == "" {
-		sb.WriteString(fmt.Sprintf("no command to execute on %s", iDef.HostName))
+	if len(shellScriptFiles) == 0 {
+		sb.WriteString(fmt.Sprintf("no commands to execute on %s", ipAddress))
 		return nil
 	}
 
-	cmdBuilder := strings.Builder{}
-	for k, v := range iDef.Service.Env {
-		cmdBuilder.WriteString(fmt.Sprintf("%s=%s\n", k, v))
-	}
+	for _, shellScriptFile := range shellScriptFiles {
+		cmdBuilder := strings.Builder{}
+		for k, v := range env {
+			cmdBuilder.WriteString(fmt.Sprintf("%s=%s\n", k, v))
+		}
 
-	f, err := os.Open(shellScriptFile)
-	if err != nil {
-		return fmt.Errorf("cannot open shell script %s: %s", shellScriptFile, err.Error())
-	}
-	defer f.Close()
+		f, err := os.Open(shellScriptFile)
+		if err != nil {
+			return fmt.Errorf("cannot open shell script %s: %s", shellScriptFile, err.Error())
+		}
+		defer f.Close()
 
-	shellScriptBytes, err := ioutil.ReadAll(f)
-	if err != nil {
-		return fmt.Errorf("cannot read shell script %s: %s", shellScriptFile, err.Error())
-	}
+		shellScriptBytes, err := ioutil.ReadAll(f)
+		if err != nil {
+			return fmt.Errorf("cannot read shell script %s: %s", shellScriptFile, err.Error())
+		}
 
-	cmdBuilder.WriteString(string(shellScriptBytes))
+		cmdBuilder.WriteString(string(shellScriptBytes))
 
-	er := ExecSsh(prj, &sb, iDef.IpAddress, cmdBuilder.String())
-	if er.Error != nil {
-		return er.Error
+		er := ExecSsh(prj, &sb, ipAddress, cmdBuilder.String())
+		if er.Error != nil {
+			return er.Error
+		}
 	}
 	return nil
 }

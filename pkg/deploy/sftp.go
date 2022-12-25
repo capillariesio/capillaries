@@ -12,29 +12,29 @@ import (
 )
 
 type FileUploadSpec struct {
-	InstanceNickname string
-	Src              string
-	Dst              string
-	Permissions      int
+	IpAddress   string
+	Src         string
+	Dst         string
+	Permissions int
 }
 
 func FileGroupUpDefsToSpecs(prj *Project, fileGroupsToUpload map[string]*FileGroupUpDef) ([]*FileUploadSpec, error) {
 	fileUploadSpecs := make([]*FileUploadSpec, 0)
-	for iNickname, iDef := range prj.Instances {
+	for _, iDef := range prj.Instances {
 		for _, fgName := range iDef.ApplicableFileGroups {
 			if fgDef, ok := fileGroupsToUpload[fgName]; ok {
 				if err := filepath.WalkDir(fgDef.Src, func(path string, d fs.DirEntry, err error) error {
 					if !d.IsDir() {
 						fileSubpath := strings.ReplaceAll(path, fgDef.Src, "")
 						fileUploadSpecs = append(fileUploadSpecs, &FileUploadSpec{
-							InstanceNickname: iNickname,
-							Src:              path,
-							Dst:              filepath.Join(fgDef.Dst, fileSubpath),
-							Permissions:      fgDef.Permissions})
+							IpAddress:   iDef.BestIpAddress(),
+							Src:         path,
+							Dst:         filepath.Join(fgDef.Dst, fileSubpath),
+							Permissions: fgDef.Permissions})
 					}
 					return nil
 				}); err != nil {
-					return nil, fmt.Errorf("bad file group up %s in %s", fgName, iNickname)
+					return nil, fmt.Errorf("bad file group up %s in %s", fgName, iDef.HostName)
 				}
 			}
 		}
@@ -44,13 +44,13 @@ func FileGroupUpDefsToSpecs(prj *Project, fileGroupsToUpload map[string]*FileGro
 }
 
 type FileDownloadSpec struct {
-	InstanceNickname string
-	Src              string
-	Dst              string
+	IpAddress string
+	Src       string
+	Dst       string
 }
 
-func InstanceFileGroupDownDefsToSpecs(prj *Project, iNickname string, fgDef *FileGroupDownDef) ([]*FileDownloadSpec, error) {
-	tsc, err := NewTunneledSshClient(prj.SshConfig, prj.Instances[iNickname].BestIpAddress())
+func InstanceFileGroupDownDefsToSpecs(prj *Project, ipAddress string, fgDef *FileGroupDownDef) ([]*FileDownloadSpec, error) {
+	tsc, err := NewTunneledSshClient(prj.SshConfig, ipAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -71,9 +71,9 @@ func InstanceFileGroupDownDefsToSpecs(prj *Project, iNickname string, fgDef *Fil
 		if !w.Stat().IsDir() {
 			fileSubpath := strings.ReplaceAll(w.Path(), fgDef.Src, "")
 			fileDownloadSpecs = append(fileDownloadSpecs, &FileDownloadSpec{
-				InstanceNickname: iNickname,
-				Src:              w.Path(),
-				Dst:              filepath.Join(fgDef.Dst, fileSubpath)})
+				IpAddress: ipAddress,
+				Src:       w.Path(),
+				Dst:       filepath.Join(fgDef.Dst, fileSubpath)})
 		}
 	}
 
@@ -84,10 +84,10 @@ func FileGroupDownDefsToSpecs(prj *Project, fileGroupsToDownload map[string]*Fil
 	fileDownloadSpecs := make([]*FileDownloadSpec, 0)
 	groupCountMap := map[string]int{}
 	sbDuplicates := strings.Builder{}
-	for iNickname, iDef := range prj.Instances {
+	for _, iDef := range prj.Instances {
 		for _, fgName := range iDef.ApplicableFileGroups {
 			if fgDef, ok := fileGroupsToDownload[fgName]; ok {
-				instanceGroupSpecs, err := InstanceFileGroupDownDefsToSpecs(prj, iNickname, fgDef)
+				instanceGroupSpecs, err := InstanceFileGroupDownDefsToSpecs(prj, iDef.BestIpAddress(), fgDef)
 				if err != nil {
 					return nil, err
 				}
@@ -112,8 +112,8 @@ func FileGroupDownDefsToSpecs(prj *Project, fileGroupsToDownload map[string]*Fil
 	return fileDownloadSpecs, nil
 }
 
-func UploadFileSftp(prj *Project, logChan chan string, iNickname string, srcPath string, dstPath string, permissions int) error {
-	tsc, err := NewTunneledSshClient(prj.SshConfig, prj.Instances[iNickname].BestIpAddress())
+func UploadFileSftp(prj *Project, logChan chan string, ipAddress string, srcPath string, dstPath string, permissions int) error {
+	tsc, err := NewTunneledSshClient(prj.SshConfig, ipAddress)
 	if err != nil {
 		return err
 	}
@@ -153,12 +153,12 @@ func UploadFileSftp(prj *Project, logChan chan string, iNickname string, srcPath
 		return fmt.Errorf("cannot chmod %s: %s", srcPath, err.Error())
 	}
 
-	logChan <- fmt.Sprintf("Uploaded %s to %s:%s, %d bytes", srcPath, iNickname, dstPath, bytesRead)
+	logChan <- fmt.Sprintf("Uploaded %s to %s:%s, %d bytes", srcPath, ipAddress, dstPath, bytesRead)
 	return nil
 }
 
-func DownloadFileSftp(prj *Project, logChan chan string, iNickname string, srcPath string, dstPath string) error {
-	tsc, err := NewTunneledSshClient(prj.SshConfig, prj.Instances[iNickname].BestIpAddress())
+func DownloadFileSftp(prj *Project, logChan chan string, ipAddress string, srcPath string, dstPath string) error {
+	tsc, err := NewTunneledSshClient(prj.SshConfig, ipAddress)
 	if err != nil {
 		return err
 	}
@@ -190,6 +190,6 @@ func DownloadFileSftp(prj *Project, logChan chan string, iNickname string, srcPa
 		return fmt.Errorf("cannot read for download %s: %s", srcPath, err.Error())
 	}
 
-	logChan <- fmt.Sprintf("Downloaded %s:%s to %s, %d bytes", iNickname, srcPath, dstPath, bytesRead)
+	logChan <- fmt.Sprintf("Downloaded %s:%s to %s, %d bytes", ipAddress, srcPath, dstPath, bytesRead)
 	return nil
 }
