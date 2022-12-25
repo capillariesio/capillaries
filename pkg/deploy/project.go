@@ -86,10 +86,10 @@ type InstanceDef struct {
 	FloatingIpAddress    string                        `json:"floating_ip_address"`
 	FlavorName           string                        `json:"flavor"`
 	ImageName            string                        `json:"image"`
-	AttachedVolumes      map[string]*AttachedVolumeDef `json:"attached_volumes"`
+	AttachedVolumes      map[string]*AttachedVolumeDef `json:"attached_volumes,omitempty"`
 	Id                   string                        `json:"id"`
 	Service              ServiceDef                    `json:"service"`
-	ApplicableFileGroups []string                      `json:"applicable_file_groups"`
+	ApplicableFileGroups []string                      `json:"applicable_file_groups,omitempty"`
 }
 
 func (iDef *InstanceDef) BestIpAddress() string {

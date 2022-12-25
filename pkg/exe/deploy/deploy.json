@@ -132,18 +132,23 @@
             "id": "31ccd986-25f2-4109-9ec2-f11005819b42",
             "service": {
                 "env": {
-                    "PROMETHEUS_NODE_EXPORTER_VERSION": "1.5.0"
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "1.5.0",
+                    "PROMETHEUS_IP":"10.5.0.4"
                 },
                 "cmd": {
                     "setup": [
                         "sh/common/replace_nameserver.sh",
-                        "sh/prometheus/setup_node_exporter.sh"
+                        "sh/prometheus/setup_node_exporter.sh",
+                        "sh/nginx/install_nginx.sh",
+                        "sh/nginx/add_prometheus_reverse_proxy.sh"
                     ],
                     "start": [
-                        "sh/prometheus/start_node_exporter.sh"
+                        "sh/prometheus/start_node_exporter.sh",
+                        "sh/nginx/start_nginx.sh"
                     ],
                     "stop": [
-                        "sh/prometheus/stop_node_exporter.sh"
+                        "sh/prometheus/stop_node_exporter.sh",
+                        "sh/nginx/stop_nginx.sh"
                     ]
                 }
             },
