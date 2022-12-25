@@ -83,7 +83,7 @@ type ServiceDef struct {
 type InstanceDef struct {
 	HostName             string                        `json:"host_name"`
 	IpAddress            string                        `json:"ip_address"`
-	FloatingIpAddress    string                        `json:"floating_ip_address"`
+	FloatingIpAddress    string                        `json:"floating_ip_address,omitempty"`
 	FlavorName           string                        `json:"flavor"`
 	ImageName            string                        `json:"image"`
 	AttachedVolumes      map[string]*AttachedVolumeDef `json:"attached_volumes,omitempty"`
@@ -274,6 +274,38 @@ func LoadProject(prjFile string, prjParamsFile string) (*ProjectPair, string, er
 
 	if err := json.Unmarshal([]byte(prjString), &prjPair.Live); err != nil {
 		return nil, "", fmt.Errorf("cannot parse project file with replaced vars %s: %s", prjFullPath, err.Error())
+	}
+
+	// Check instance presense and uniqueness: hostnames, ip addresses
+	hostnameMap := map[string]struct{}{}
+	internalIpMap := map[string]struct{}{}
+	floatingIpMap := map[string]struct{}{}
+	for iNickname, iDef := range prjPair.Live.Instances {
+		if iDef.HostName == "" {
+			return nil, "", fmt.Errorf("cannot load project file, instance %s has empty hostname", iNickname)
+		}
+		if _, ok := hostnameMap[iDef.HostName]; ok {
+			return nil, "", fmt.Errorf("cannot load project file, instances share hostname %s", iDef.HostName)
+		}
+		hostnameMap[iDef.HostName] = struct{}{}
+
+		if iDef.IpAddress == "" {
+			return nil, "", fmt.Errorf("cannot load project file, instance %s has empty ip address", iNickname)
+		}
+		if _, ok := internalIpMap[iDef.IpAddress]; ok {
+			return nil, "", fmt.Errorf("cannot load project file, instances share internal ip %s", iDef.IpAddress)
+		}
+		internalIpMap[iDef.IpAddress] = struct{}{}
+
+		if iDef.FloatingIpAddress != "" {
+			if _, ok := floatingIpMap[iDef.FloatingIpAddress]; ok {
+				return nil, "", fmt.Errorf("cannot load project file, instances share floating ip %s", iDef.FloatingIpAddress)
+			}
+			floatingIpMap[iDef.FloatingIpAddress] = struct{}{}
+		}
+	}
+	if len(floatingIpMap) == 0 {
+		return nil, "", fmt.Errorf("cannot load project file, none of the instances has floating ip address, at least one must have it")
 	}
 
 	return &prjPair, prjFullPath, nil
