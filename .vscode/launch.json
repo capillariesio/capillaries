@@ -65,7 +65,7 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
-            "args": ["create_instances", "-verbose"]
+            "args": ["create_instances", "*", "-verbose"]
         },
         {
             "name": "Deploy delete instances",
@@ -74,7 +74,7 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
-            "args": ["delete_instances", "-verbose"]
+            "args": ["delete_instances", "*", "-verbose"]
         },
         {
             "name": "Deploy attach volumes",
@@ -83,7 +83,7 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
-            "args": ["attach_volumes", "-verbose"]
+            "args": ["attach_volumes", "*", "-verbose"]
         },
         {
             "name": "Deploy upload files",

@@ -1,4 +1,4 @@
-# nginx prometheus reverse proxy
+# nginx reverse proxy
 # https://www.digitalocean.com/community/tutorials/how-to-configure-nginx-as-a-reverse-proxy-on-ubuntu-22-04
 
 # Expecting

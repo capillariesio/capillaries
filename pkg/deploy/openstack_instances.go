@@ -159,7 +159,7 @@ func CreateInstance(prjPair *ProjectPair, logChan chan string, iNickname string,
 		if er.Error != nil {
 			return er.Error
 		}
-		sb.WriteString(fmt.Sprintf("floating ip %s was assigned to instance %s(%s)\n", prjPair.Live.Instances[iNickname].FloatingIpAddress, prjPair.Live.Instances[iNickname].HostName, foundInstanceIdByName))
+		sb.WriteString(fmt.Sprintf("floating ip %s was assigned to instance %s(%s)\n", prjPair.Live.Instances[iNickname].FloatingIpAddress, prjPair.Live.Instances[iNickname].HostName, newId))
 	}
 
 	return nil

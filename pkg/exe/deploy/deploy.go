@@ -92,6 +92,54 @@ func main() {
 			errChan <- cmdHandler(prjPair, logChan)
 			<-sem
 		}()
+	} else if os.Args[1] == CmdCreateInstances || os.Args[1] == CmdDeleteInstances {
+		commonArgs.Parse(os.Args[3:])
+		if len(os.Args[2]) == 0 {
+			log.Fatalf("expected comma-separated list of instances or *")
+		}
+		instances, err := FilterByNickname(prjPair.Live.Instances)
+		if err != nil {
+			log.Fatalf(err.Error())
+		}
+		errorsExpected = len(instances)
+		errChan = make(chan error, errorsExpected)
+		switch os.Args[1] {
+		case CmdCreateInstances:
+			// Make sure image/flavor is supported
+			usedFlavors := map[string]string{}
+			usedImages := map[string]string{}
+			for _, instDef := range instances {
+				usedFlavors[instDef.FlavorName] = ""
+				usedImages[instDef.ImageName] = ""
+			}
+			if err := deploy.GetFlavorIds(prjPair, logChan, usedFlavors); err != nil {
+				log.Fatalf(err.Error())
+			}
+			DumpLogChan(logChan, *argVerbosity)
+
+			if err := deploy.GetImageIds(prjPair, logChan, usedImages); err != nil {
+				log.Fatalf(err.Error())
+			}
+			DumpLogChan(logChan, *argVerbosity)
+
+			for iNickname, _ := range instances {
+				sem <- 1
+				go func(prjPair *deploy.ProjectPair, logChan chan string, errChan chan error, iNickname string) {
+					errChan <- deploy.CreateInstance(prjPair, logChan, iNickname, usedFlavors[prjPair.Live.Instances[iNickname].FlavorName], usedImages[prjPair.Live.Instances[iNickname].ImageName])
+					<-sem
+				}(prjPair, logChan, errChan, iNickname)
+			}
+		case CmdDeleteInstances:
+			for iNickname, _ := range instances {
+				sem <- 1
+				go func(prjPair *deploy.ProjectPair, logChan chan string, errChan chan error, iNickname string) {
+					errChan <- deploy.DeleteInstance(prjPair, logChan, iNickname)
+					<-sem
+				}(prjPair, logChan, errChan, iNickname)
+			}
+		default:
+			log.Fatalf("unknown create/delete instance command:" + os.Args[1])
+		}
 	} else if os.Args[1] == CmdSetupServices || os.Args[1] == CmdStartServices || os.Args[1] == CmdStopServices {
 		commonArgs.Parse(os.Args[3:])
 		if len(os.Args[2]) == 0 {
@@ -125,6 +173,7 @@ func main() {
 		}
 	} else {
 		switch os.Args[1] {
+
 		case CmdCreateVolumes:
 			commonArgs.Parse(os.Args[2:])
 			errorsExpected = len(prjPair.Live.Volumes)
@@ -136,6 +185,7 @@ func main() {
 					<-sem
 				}(prjPair, logChan, errChan, volNickname)
 			}
+
 		case CmdDeleteVolumes:
 			commonArgs.Parse(os.Args[2:])
 			errorsExpected = len(prjPair.Live.Volumes)
@@ -147,48 +197,20 @@ func main() {
 					<-sem
 				}(prjPair, logChan, errChan, volNickname)
 			}
-		case CmdCreateInstances:
-			commonArgs.Parse(os.Args[2:])
-			usedFlavors := map[string]string{}
-			usedImages := map[string]string{}
-			for _, instDef := range prjPair.Live.Instances {
-				usedFlavors[instDef.FlavorName] = ""
-				usedImages[instDef.ImageName] = ""
-			}
-			if err := deploy.GetFlavorIds(prjPair, logChan, usedFlavors); err != nil {
-				log.Fatalf(err.Error())
-			}
-			DumpLogChan(logChan, *argVerbosity)
 
-			if err := deploy.GetImageIds(prjPair, logChan, usedImages); err != nil {
-				log.Fatalf(err.Error())
-			}
-			DumpLogChan(logChan, *argVerbosity)
-
-			errorsExpected = len(prjPair.Live.Instances)
-			errChan = make(chan error, errorsExpected)
-			for iNickname, _ := range prjPair.Live.Instances {
-				sem <- 1
-				go func(prjPair *deploy.ProjectPair, logChan chan string, errChan chan error, iNickname string) {
-					errChan <- deploy.CreateInstance(prjPair, logChan, iNickname, usedFlavors[prjPair.Live.Instances[iNickname].FlavorName], usedImages[prjPair.Live.Instances[iNickname].ImageName])
-					<-sem
-				}(prjPair, logChan, errChan, iNickname)
-			}
-		case CmdDeleteInstances:
-			commonArgs.Parse(os.Args[2:])
-			errorsExpected = len(prjPair.Live.Instances)
-			errChan = make(chan error, errorsExpected)
-			for iNickname, _ := range prjPair.Live.Instances {
-				sem <- 1
-				go func(prjPair *deploy.ProjectPair, logChan chan string, errChan chan error, iNickname string) {
-					errChan <- deploy.DeleteInstance(prjPair, logChan, iNickname)
-					<-sem
-				}(prjPair, logChan, errChan, iNickname)
-			}
 		case CmdAttachVolumes:
-			commonArgs.Parse(os.Args[2:])
+			commonArgs.Parse(os.Args[3:])
+			if len(os.Args[2]) == 0 {
+				log.Fatalf("expected comma-separated list of instances or *")
+			}
+
+			instances, err := FilterByNickname(prjPair.Live.Instances)
+			if err != nil {
+				log.Fatalf(err.Error())
+			}
+
 			attachmentCount := 0
-			for iNickname, iDef := range prjPair.Live.Instances {
+			for iNickname, iDef := range instances {
 				for volNickname, _ := range iDef.AttachedVolumes {
 					if _, ok := prjPair.Live.Volumes[volNickname]; !ok {
 						log.Fatalf("cannot find volume %s referenced in instance %s", volNickname, iNickname)
@@ -198,7 +220,7 @@ func main() {
 			}
 			errorsExpected = attachmentCount
 			errChan = make(chan error, attachmentCount)
-			for iNickname, iDef := range prjPair.Live.Instances {
+			for iNickname, iDef := range instances {
 				for volNickname, _ := range iDef.AttachedVolumes {
 					sem <- 1
 					go func(prjPair *deploy.ProjectPair, logChan chan string, errChan chan error, iNickname string, volNickname string) {
@@ -207,6 +229,7 @@ func main() {
 					}(prjPair, logChan, errChan, iNickname, volNickname)
 				}
 			}
+
 		case CmdUploadFiles:
 			commonArgs.Parse(os.Args[3:])
 			if len(os.Args[2]) == 0 {

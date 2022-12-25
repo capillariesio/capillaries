@@ -76,6 +76,22 @@
                 "remote_ip": "{subnet_cidr}",
                 "port": 9042,
                 "direction": "ingress"
+            },
+            {
+                "id": "c280e429-f842-4bfb-9d43-d4eea0a5655f",
+                "protocol": "tcp",
+                "ethertype": "IPv4",
+                "remote_ip": "{subnet_cidr}",
+                "port": 5672,
+                "direction": "ingress"
+            },
+            {
+                "id": "fb6b165c-aec5-4490-b7d8-488fa704621f",
+                "protocol": "tcp",
+                "ethertype": "IPv4",
+                "remote_ip": "0.0.0.0/0",
+                "port": 15672,
+                "direction": "ingress"
             }
         ]
     },
@@ -99,21 +115,21 @@
             "mount_point": "/mnt/capi_cfg",
             "size": 1,
             "permissions": 447,
-            "id": ""
+            "id": "1043583a-f3d6-4572-b198-62abae13c9bd"
         },
         "in": {
             "name": "{deployment_name}_in",
             "mount_point": "/mnt/capi_in",
             "size": 1,
             "permissions": 447,
-            "id": ""
+            "id": "dbd1e985-3962-4ffb-9e65-0fe70379d67b"
         },
         "out": {
             "name": "{deployment_name}_out",
             "mount_point": "/mnt/capi_out",
             "size": 1,
             "permissions": 667,
-            "id": ""
+            "id": "c955f09e-e756-4391-b4e2-cd1f3be19e31"
         }
     },
     "file_groups_up": {
@@ -157,14 +173,16 @@
             "service": {
                 "env": {
                     "PROMETHEUS_IP": "{prometheus_ip}",
-                    "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
+                    "RABBITMQ_IP": "{rabbitmq_ip}"
                 },
                 "cmd": {
                     "setup": [
                         "sh/common/replace_nameserver.sh",
                         "sh/prometheus/setup_node_exporter.sh",
                         "sh/nginx/setup_nginx.sh",
-                        "sh/nginx/add_prometheus_reverse_proxy.sh"
+                        "sh/nginx/add_prometheus_reverse_proxy.sh",
+                        "sh/nginx/add_rabbitmq_reverse_proxy.sh"
                     ],
                     "start": [
                         "sh/prometheus/start_node_exporter.sh",
@@ -181,7 +199,7 @@
                 "down_capi_scripts"
             ]
         },
-        "cassandra01": {
+        "cass01": {
             "host_name": "{deployment_name}-cassandra01",
             "ip_address": "10.5.0.11",
             "flavor": "gp1.supersonic",
@@ -192,7 +210,6 @@
                     "CASSANDRA_IP": "10.5.0.11",
                     "CASSANDRA_RACK": "rack1",
                     "CASSANDRA_SEEDS": "{cassandra_seeds}",
-                    "PROMETHEUS_IP": "{prometheus_ip}",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
                 },
                 "cmd": {
@@ -212,7 +229,7 @@
                 }
             }
         },
-        "cassandra02": {
+        "cass02": {
             "host_name": "{deployment_name}-cassandra02",
             "ip_address": "10.5.0.12",
             "flavor": "gp1.supersonic",
@@ -223,7 +240,6 @@
                     "CASSANDRA_IP": "10.5.0.12",
                     "CASSANDRA_RACK": "rack2",
                     "CASSANDRA_SEEDS": "{cassandra_seeds}",
-                    "PROMETHEUS_IP": "{prometheus_ip}",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
                 },
                 "cmd": {
@@ -243,7 +259,7 @@
                 }
             }
         },
-        "cassandra03": {
+        "cass03": {
             "host_name": "{deployment_name}-cassandra03",
             "ip_address": "10.5.0.13",
             "flavor": "gp1.supersonic",
@@ -254,7 +270,6 @@
                     "CASSANDRA_IP": "10.5.0.13",
                     "CASSANDRA_RACK": "rack3",
                     "CASSANDRA_SEEDS": "{cassandra_seeds}",
-                    "PROMETHEUS_IP": "{prometheus_ip}",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
                 },
                 "cmd": {
@@ -283,7 +298,7 @@
             "service": {
                 "env": {
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
-                    "PROMETHEUS_TARGETS": "\\'localhost:9100\\',\\'10.5.0.2:9100\\',\\'10.5.0.11:9100\\',\\'10.5.0.12:9100\\',\\'10.5.0.13:9100\\'",
+                    "PROMETHEUS_TARGETS": "\\'localhost:9100\\',\\'10.5.0.2:9100\\',\\'10.5.0.5:9100\\',\\'10.5.0.11:9100\\',\\'10.5.0.12:9100\\',\\'10.5.0.13:9100\\'",
                     "PROMETHEUS_VERSION": "{prometheus_version}"
                 },
                 "cmd": {
@@ -299,6 +314,35 @@
                     "stop": [
                         "sh/prometheus/stop_server.sh",
                         "sh/prometheus/stop_node_exporter.sh"
+                    ]
+                }
+            }
+        },
+        "rabbitmq": {
+            "host_name": "{deployment_name}-rabbitmq",
+            "ip_address": "{rabbitmq_ip}",
+            "flavor": "gp1.semisonic",
+            "image": "Ubuntu-22.04",
+            "id": "",
+            "service": {
+                "env": {
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
+                    "RABBITMQ_ADMIN_NAME": "{rabbitmq_admin_name}",
+                    "RABBITMQ_ADMIN_PASS": "{rabbitmq_admin_pass}"
+                },
+                "cmd": {
+                    "setup": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/setup_node_exporter.sh",
+                        "sh/rabbitmq/setup_rabbitmq.sh"
+                    ],
+                    "start": [
+                        "sh/prometheus/start_node_exporter.sh",
+                        "sh/cassandra/start_rabbitmq.sh"
+                    ],
+                    "stop": [
+                        "sh/prometheus/stop_node_exporter.sh",
+                        "sh/cassandra/stop_rabbitmq.sh"
                     ]
                 }
             }
