@@ -51,39 +51,39 @@ rm -rf $PROMETHEUS_DL_FILE.tar.gz $PROMETHEUS_DL_FILE
 PROMETHEUS_YAML_FILE=/etc/prometheus/prometheus.yml
 
 sudo rm -f $PROMETHEUS_YAML_FILE
-sudo touch $PROMETHEUS_YAML_FILE
+
+sudo tee $PROMETHEUS_YAML_FILE <<EOF
+global:
+  scrape_interval: 15s
+scrape_configs:
+  - job_name: 'prometheus'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['localhost:9090']
+  - job_name: 'node_exporter'
+    scrape_interval: 5s
+    static_configs:
+      - targets: [$PROMETHEUS_TARGETS]
+EOF
 sudo chown -R prometheus:prometheus $PROMETHEUS_YAML_FILE
 
-echo "global:" | sudo tee -a $PROMETHEUS_YAML_FILE
-echo "  scrape_interval: 15s" | sudo tee -a $PROMETHEUS_YAML_FILE
-echo "scrape_configs:" | sudo tee -a $PROMETHEUS_YAML_FILE
-echo "  - job_name: 'prometheus'" | sudo tee -a $PROMETHEUS_YAML_FILE
-echo "    scrape_interval: 5s" | sudo tee -a $PROMETHEUS_YAML_FILE
-echo "    static_configs:" | sudo tee -a $PROMETHEUS_YAML_FILE
-echo "      - targets: ['localhost:9090']" | sudo tee -a $PROMETHEUS_YAML_FILE
-echo "  - job_name: 'node_exporter'" | sudo tee -a $PROMETHEUS_YAML_FILE
-echo "    scrape_interval: 5s" | sudo tee -a $PROMETHEUS_YAML_FILE
-echo "    static_configs:" | sudo tee -a $PROMETHEUS_YAML_FILE
-echo "      - targets: [$PROMETHEUS_TARGETS]" | sudo tee -a $PROMETHEUS_YAML_FILE
-  
 PROMETHEUS_SERVICE_FILE=/etc/systemd/system/prometheus.service
 
 sudo rm -f $PROMETHEUS_SERVICE_FILE
-sudo touch $PROMETHEUS_SERVICE_FILE
 
-echo "[Unit]" | sudo tee -a $PROMETHEUS_SERVICE_FILE
-echo "Description=Prometheus server" | sudo tee -a $PROMETHEUS_SERVICE_FILE
-echo "Wants=network-online.target" | sudo tee -a $PROMETHEUS_SERVICE_FILE
-echo "After=network-online.target" | sudo tee -a $PROMETHEUS_SERVICE_FILE
-echo "" | sudo tee -a $PROMETHEUS_SERVICE_FILE
-echo "[Service]" | sudo tee -a $PROMETHEUS_SERVICE_FILE
-echo "User=prometheus" | sudo tee -a $PROMETHEUS_SERVICE_FILE
-echo "Group=prometheus" | sudo tee -a $PROMETHEUS_SERVICE_FILE
-echo "Type=simple" | sudo tee -a $PROMETHEUS_SERVICE_FILE
-echo "ExecStart=/usr/local/bin/prometheus --config.file /etc/prometheus/prometheus.yml --storage.tsdb.path /var/lib/prometheus/ --storage.tsdb.retention=60d --web.console.templates=/etc/prometheus/consoles --web.console.libraries=/etc/prometheus/console_libraries" | sudo tee -a $PROMETHEUS_SERVICE_FILE
-echo "" | sudo tee -a $PROMETHEUS_SERVICE_FILE
-echo "[Install]" | sudo tee -a $PROMETHEUS_SERVICE_FILE
-echo "WantedBy=multi-user.target" | sudo tee -a $PROMETHEUS_SERVICE_FILE
+sudo tee $PROMETHEUS_SERVICE_FILE <<EOF
+[Unit] 
+Description=Prometheus server
+Wants=network-online.target
+After=network-online.target
+[Service]
+User=prometheus
+Group=prometheus
+Type=simple
+ExecStart=/usr/local/bin/prometheus --config.file /etc/prometheus/prometheus.yml --storage.tsdb.path /var/lib/prometheus/ --storage.tsdb.retention=60d --web.console.templates=/etc/prometheus/consoles --web.console.libraries=/etc/prometheus/console_libraries
+[Install]
+WantedBy=multi-user.target
+EOF
 
 sudo systemctl daemon-reload
 

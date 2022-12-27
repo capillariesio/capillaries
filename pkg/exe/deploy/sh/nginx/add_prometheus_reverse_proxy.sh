@@ -6,15 +6,16 @@
 
 PROMETHEUS_CONFIG_FILE=/etc/nginx/sites-available/prometheus
 sudo rm -f $PROMETHEUS_CONFIG_FILE
-sudo touch $PROMETHEUS_CONFIG_FILE
 
-echo "server {" | sudo tee -a $PROMETHEUS_CONFIG_FILE
-echo "    listen 9090;" | sudo tee -a $PROMETHEUS_CONFIG_FILE
-echo "    location / {" | sudo tee -a $PROMETHEUS_CONFIG_FILE
-echo "        proxy_pass http://$PROMETHEUS_IP:9090;" | sudo tee -a $PROMETHEUS_CONFIG_FILE
-echo "        include proxy_params;" | sudo tee -a $PROMETHEUS_CONFIG_FILE
-echo "    }" | sudo tee -a $PROMETHEUS_CONFIG_FILE
-echo "}" | sudo tee -a $PROMETHEUS_CONFIG_FILE
+sudo tee $PROMETHEUS_CONFIG_FILE <<EOF
+server {
+    listen 9090;
+    location / {
+        proxy_pass http://$PROMETHEUS_IP:9090;
+        include proxy_params;
+    }
+}
+EOF
 
 sudo ln -s $PROMETHEUS_CONFIG_FILE /etc/nginx/sites-enabled/
 

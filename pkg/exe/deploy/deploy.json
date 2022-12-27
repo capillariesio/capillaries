@@ -137,6 +137,16 @@
             "src": "../../../test/data/cfg",
             "dst": "/mnt/capi_cfg",
             "permissions": 644
+        },
+        "up_daemon_binary": {
+            "src": "../../../build/linux/amd64/capidaemon",
+            "dst": "/home/ubuntu/bin",
+            "permissions": 744
+        },
+        "up_daemon_env_config": {
+            "src": "../../../pkg/exe/daemon/env_config.json",
+            "dst": "/home/ubuntu/bin",
+            "permissions": 644
         }
     },
     "file_groups_down": {
@@ -289,6 +299,39 @@
                 }
             }
         },
+        "daemon01": {
+            "host_name": "{deployment_name}-daemon01",
+            "ip_address": "10.5.0.101",
+            "flavor": "gp1.semisonic",
+            "image": "Ubuntu-22.04",
+            "id": "",
+            "service": {
+                "env": {
+                    "AMQP_URL": "amqp://{rabbitmq_user_name}:{rabbitmq_user_pass}@{rabbitmq_ip}/",
+                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\"]'",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
+                },
+                "cmd": {
+                    "setup": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/setup_node_exporter.sh",
+                        "sh/daemon/setup_daemon.sh"
+                    ],
+                    "start": [
+                        "sh/prometheus/start_node_exporter.sh",
+                        "sh/daemon/start_daemon.sh"
+                    ],
+                    "stop": [
+                        "sh/prometheus/stop_node_exporter.sh",
+                        "sh/daemon/stop_daemon.sh"
+                    ]
+                }
+            },
+            "applicable_file_groups": [
+                "up_daemon_binary",
+                "up_daemon_env_config"
+            ]
+        },
         "prometheus": {
             "host_name": "{deployment_name}-prometheus",
             "ip_address": "{prometheus_ip}",
@@ -298,7 +341,7 @@
             "service": {
                 "env": {
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
-                    "PROMETHEUS_TARGETS": "\\'localhost:9100\\',\\'10.5.0.2:9100\\',\\'10.5.0.5:9100\\',\\'10.5.0.11:9100\\',\\'10.5.0.12:9100\\',\\'10.5.0.13:9100\\'",
+                    "PROMETHEUS_TARGETS": "\\'localhost:9100\\',\\'10.5.0.2:9100\\',\\'10.5.0.5:9100\\',\\'10.5.0.11:9100\\',\\'10.5.0.12:9100\\',\\'10.5.0.13:9100\\',\\'10.5.0.101:9100\\'",
                     "PROMETHEUS_VERSION": "{prometheus_version}"
                 },
                 "cmd": {
@@ -328,7 +371,9 @@
                 "env": {
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
                     "RABBITMQ_ADMIN_NAME": "{rabbitmq_admin_name}",
-                    "RABBITMQ_ADMIN_PASS": "{rabbitmq_admin_pass}"
+                    "RABBITMQ_ADMIN_PASS": "{rabbitmq_admin_pass}",
+                    "RABBITMQ_USER_NAME": "{rabbitmq_user_name}",
+                    "RABBITMQ_USER_PASS": "{rabbitmq_user_pass}"
                 },
                 "cmd": {
                     "setup": [

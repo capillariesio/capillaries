@@ -6,15 +6,16 @@
 
 RABBITMQ_CONFIG_FILE=/etc/nginx/sites-available/rabbitmq
 sudo rm -f $RABBITMQ_CONFIG_FILE
-sudo touch $RABBITMQ_CONFIG_FILE
 
-echo "server {" | sudo tee -a $RABBITMQ_CONFIG_FILE
-echo "    listen 15672;" | sudo tee -a $RABBITMQ_CONFIG_FILE
-echo "    location / {" | sudo tee -a $RABBITMQ_CONFIG_FILE
-echo "        proxy_pass http://$RABBITMQ_IP:15672;" | sudo tee -a $RABBITMQ_CONFIG_FILE
-echo "        include proxy_params;" | sudo tee -a $RABBITMQ_CONFIG_FILE
-echo "    }" | sudo tee -a $RABBITMQ_CONFIG_FILE
-echo "}" | sudo tee -a $RABBITMQ_CONFIG_FILE
+sudo tee $RABBITMQ_CONFIG_FILE <<EOF
+server {
+    listen 15672;
+    location / {
+        proxy_pass http://$RABBITMQ_IP:15672;
+        include proxy_params;
+    }
+}
+EOF
 
 sudo ln -s $RABBITMQ_CONFIG_FILE /etc/nginx/sites-enabled/
 

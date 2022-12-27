@@ -26,21 +26,20 @@ rm -rf $EXPORTER_DL_FILE.tar.gz $EXPORTER_DL_FILE
 PROMETHEUS_NODE_EXPORTER_SERVICE_FILE=/etc/systemd/system/node_exporter.service
 
 sudo rm -f $PROMETHEUS_NODE_EXPORTER_SERVICE_FILE
-sudo touch $PROMETHEUS_NODE_EXPORTER_SERVICE_FILE
 
-echo "[Unit]" | sudo tee -a $PROMETHEUS_NODE_EXPORTER_SERVICE_FILE
-echo "Description=Prometheus Node Exporter" | sudo tee -a $PROMETHEUS_NODE_EXPORTER_SERVICE_FILE
-echo "Wants=network-online.target" | sudo tee -a $PROMETHEUS_NODE_EXPORTER_SERVICE_FILE
-echo "After=network-online.target" | sudo tee -a $PROMETHEUS_NODE_EXPORTER_SERVICE_FILE
-echo "" | sudo tee -a $PROMETHEUS_NODE_EXPORTER_SERVICE_FILE
-echo "[Service]" | sudo tee -a $PROMETHEUS_NODE_EXPORTER_SERVICE_FILE
-echo "User=node_exporter" | sudo tee -a $PROMETHEUS_NODE_EXPORTER_SERVICE_FILE
-echo "Group=node_exporter" | sudo tee -a $PROMETHEUS_NODE_EXPORTER_SERVICE_FILE
-echo "Type=simple" | sudo tee -a $PROMETHEUS_NODE_EXPORTER_SERVICE_FILE
-echo "ExecStart=/usr/local/bin/node_exporter" | sudo tee -a $PROMETHEUS_NODE_EXPORTER_SERVICE_FILE
-echo "" | sudo tee -a $PROMETHEUS_NODE_EXPORTER_SERVICE_FILE
-echo "[Install]" | sudo tee -a $PROMETHEUS_NODE_EXPORTER_SERVICE_FILE
-echo "WantedBy=multi-user.target" | sudo tee -a $PROMETHEUS_NODE_EXPORTER_SERVICE_FILE
+sudo tee $PROMETHEUS_NODE_EXPORTER_SERVICE_FILE <<EOF
+[Unit]
+Description=Prometheus Node Exporter
+Wants=network-online.target
+After=network-online.target
+[Service]
+User=node_exporter
+Group=node_exporter
+Type=simple
+ExecStart=/usr/local/bin/node_exporter
+[Install]
+WantedBy=multi-user.target
+EOF
 
 sudo systemctl daemon-reload
 

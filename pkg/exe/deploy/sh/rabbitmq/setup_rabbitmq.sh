@@ -1,8 +1,10 @@
 # https://www.cherryservers.com/blog/how-to-install-and-start-using-rabbitmq-on-ubuntu-22-04
 
 # Expects
-RABBITMQ_ADMIN_NAME=radmin
-RABBITMQ_ADMIN_PASS=rpass
+# RABBITMQ_ADMIN_NAME=...
+# RABBITMQ_ADMIN_PASS=...
+# RABBITMQ_USER_NAME=...
+# RABBITMQ_USER_PASS=...
 
 sudo apt -y install gnupg apt-transport-https
 
@@ -38,8 +40,12 @@ sudo rabbitmq-plugins enable rabbitmq_management
 # Console user mgmt
 sudo rabbitmqctl add_user $RABBITMQ_ADMIN_NAME $RABBITMQ_ADMIN_PASS
 sudo rabbitmqctl set_user_tags $RABBITMQ_ADMIN_NAME administrator
-sudo rabbitmqctl delete_user guest
 sudo rabbitmqctl list_users
+sudo rabbitmqctl delete_user guest
+
+# Capillaries uses this account
+sudo rabbitmqctl add_user $RABBITMQ_USER_NAME $RABBITMQ_USER_PASS
+sudo rabbitmqctl set_permissions -p / $RABBITMQ_USER_NAME ".*" ".*" ".*"
 
 curl http://localhost:15672
 
