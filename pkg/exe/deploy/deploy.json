@@ -11,7 +11,7 @@
     "availability_zone": "iad-2",
     "timeouts": {
         "openstack_cmd": 60,
-        "openstack_instance_creation": 120,
+        "openstack_instance_creation": 240,
         "attach_volume": 60
     },
     "openstack_environment_variables": {
@@ -92,6 +92,14 @@
                 "remote_ip": "0.0.0.0/0",
                 "port": 15672,
                 "direction": "ingress"
+            },
+            {
+                "id": "3f800ecf-206a-49d4-b560-70542abb0404",
+                "protocol": "udp",
+                "ethertype": "IPv4",
+                "remote_ip": "{subnet_cidr}",
+                "port": 514,
+                "direction": "ingress"
             }
         ]
     },
@@ -115,21 +123,21 @@
             "mount_point": "/mnt/capi_cfg",
             "size": 1,
             "permissions": 447,
-            "id": "1043583a-f3d6-4572-b198-62abae13c9bd"
+            "id": ""
         },
         "in": {
             "name": "{deployment_name}_in",
             "mount_point": "/mnt/capi_in",
             "size": 1,
             "permissions": 447,
-            "id": "dbd1e985-3962-4ffb-9e65-0fe70379d67b"
+            "id": ""
         },
         "out": {
             "name": "{deployment_name}_out",
             "mount_point": "/mnt/capi_out",
             "size": 1,
             "permissions": 667,
-            "id": "c955f09e-e756-4391-b4e2-cd1f3be19e31"
+            "id": ""
         }
     },
     "file_groups_up": {
@@ -150,6 +158,10 @@
         }
     },
     "file_groups_down": {
+        "down_capi_logs": {
+            "src": "/var/log/capidaemon/",
+            "dst": "./tmp/capi_logs"
+        },
         "down_capi_scripts": {
             "src": "/mnt/capi_cfg",
             "dst": "./tmp/capi_cfg"
@@ -190,23 +202,23 @@
                     "setup": [
                         "sh/common/replace_nameserver.sh",
                         "sh/prometheus/setup_node_exporter.sh",
+                        "sh/rsyslog/setup_capidaemon_log_receiver.sh",
+                        "sh/logrotate/setup_capidaemon_logrotate.sh",
                         "sh/nginx/setup_nginx.sh",
                         "sh/nginx/add_prometheus_reverse_proxy.sh",
                         "sh/nginx/add_rabbitmq_reverse_proxy.sh"
                     ],
                     "start": [
-                        "sh/prometheus/start_node_exporter.sh",
                         "sh/nginx/start_nginx.sh"
                     ],
                     "stop": [
-                        "sh/prometheus/stop_node_exporter.sh",
                         "sh/nginx/stop_nginx.sh"
                     ]
                 }
             },
             "applicable_file_groups": [
                 "up_capi_scripts",
-                "down_capi_scripts"
+                "down_capi_logs"
             ]
         },
         "cass01": {
@@ -229,11 +241,9 @@
                         "sh/cassandra/setup_node.sh"
                     ],
                     "start": [
-                        "sh/prometheus/start_node_exporter.sh",
                         "sh/cassandra/start_node.sh"
                     ],
                     "stop": [
-                        "sh/prometheus/stop_node_exporter.sh",
                         "sh/cassandra/stop_node.sh"
                     ]
                 }
@@ -259,11 +269,9 @@
                         "sh/cassandra/setup_node.sh"
                     ],
                     "start": [
-                        "sh/prometheus/start_node_exporter.sh",
                         "sh/cassandra/start_node.sh"
                     ],
                     "stop": [
-                        "sh/prometheus/stop_node_exporter.sh",
                         "sh/cassandra/stop_node.sh"
                     ]
                 }
@@ -289,11 +297,9 @@
                         "sh/cassandra/setup_node.sh"
                     ],
                     "start": [
-                        "sh/prometheus/start_node_exporter.sh",
                         "sh/cassandra/start_node.sh"
                     ],
                     "stop": [
-                        "sh/prometheus/stop_node_exporter.sh",
                         "sh/cassandra/stop_node.sh"
                     ]
                 }
@@ -308,6 +314,7 @@
             "service": {
                 "env": {
                     "AMQP_URL": "amqp://{rabbitmq_user_name}:{rabbitmq_user_pass}@{rabbitmq_ip}/",
+                    "BASTION_IP": "{bastion_ip}",
                     "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\"]'",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
                 },
@@ -315,14 +322,14 @@
                     "setup": [
                         "sh/common/replace_nameserver.sh",
                         "sh/prometheus/setup_node_exporter.sh",
+                        "sh/logrotate/setup_capidaemon_logrotate.sh",
+                        "sh/rsyslog/setup_capidaemon_log_sender.sh",
                         "sh/daemon/setup_daemon.sh"
                     ],
                     "start": [
-                        "sh/prometheus/start_node_exporter.sh",
                         "sh/daemon/start_daemon.sh"
                     ],
                     "stop": [
-                        "sh/prometheus/stop_node_exporter.sh",
                         "sh/daemon/stop_daemon.sh"
                     ]
                 }
@@ -351,12 +358,10 @@
                         "sh/prometheus/setup_node_exporter.sh"
                     ],
                     "start": [
-                        "sh/prometheus/start_server.sh",
-                        "sh/prometheus/start_node_exporter.sh"
+                        "sh/prometheus/start_server.sh"
                     ],
                     "stop": [
-                        "sh/prometheus/stop_server.sh",
-                        "sh/prometheus/stop_node_exporter.sh"
+                        "sh/prometheus/stop_server.sh"
                     ]
                 }
             }
@@ -382,11 +387,9 @@
                         "sh/rabbitmq/setup_rabbitmq.sh"
                     ],
                     "start": [
-                        "sh/prometheus/start_node_exporter.sh",
                         "sh/cassandra/start_rabbitmq.sh"
                     ],
                     "stop": [
-                        "sh/prometheus/stop_node_exporter.sh",
                         "sh/cassandra/stop_rabbitmq.sh"
                     ]
                 }

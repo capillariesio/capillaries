@@ -315,9 +315,8 @@ func main() {
 	if err = prjPair.Template.SaveProject(fullPrjPath); err != nil {
 		log.Fatalf(err.Error())
 	}
-	if *argVerbosity {
-		fmt.Printf("Elapsed: %.3fs\n", time.Since(cmdStartTs).Seconds())
-	}
+
+	fmt.Printf("%s succeeded, elapsed %.3fs\n", os.Args[1], time.Since(cmdStartTs).Seconds())
 }
 
 // reserve_floating_ips

@@ -65,7 +65,7 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
-            "args": ["create_instances", "bastion,rabbitmq,daemon01", "-verbose"]
+            "args": ["create_instances", "bastion,daemon01", "-verbose"]
         },
         {
             "name": "Deploy delete instances",
@@ -74,7 +74,7 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
-            "args": ["delete_instances", "bastion,rabbitmq,daemon01", "-verbose"]
+            "args": ["delete_instances", "bastion,daemon01", "-verbose"]
         },
         {
             "name": "Deploy attach volumes",
@@ -110,7 +110,7 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
-            "args": ["setup_services", "bastion,rabbitmq,daemon01", "-verbose"]
+            "args": ["setup_services", "bastion,daemon01", "-verbose"]
         },
         {
             "name": "Deploy start services",
@@ -128,7 +128,7 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
-            "args": ["stop_services", "*", "-verbose"]
+            "args": ["stop_services", "daemon01", "-verbose"]
         },
         {
             "name": "Daemon",
