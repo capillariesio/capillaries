@@ -16,25 +16,40 @@
 
     // Webapi data
 	let webapiData = {run_lifespans:[], nodes:[]};
-	function setWebapiData(dataFromJson) {
-		webapiData = ( !!dataFromJson ? dataFromJson : {run_lifespans:[], nodes:[]});
-	}
+	let responseError = "";
 
-	function fetchData() {
-		fetch(webapiUrl() + "/ks/" + params.ks_name)
-      		.then(response => response.json())
-      		.then(responseJson => { handleResponse(responseJson, setWebapiData);})
-      		.catch(error => {console.log(error);});
+    function setWebapiData(dataFromJson, errorFromJson) {
+		webapiData = ( !!dataFromJson ? dataFromJson : {run_lifespans:[], nodes:[]});
+		if (!!errorFromJson) {
+			responseError = errorFromJson.msg
+		} else {
+			responseError = "";
+		}
 	}
 
 	var timer;
+	function fetchData() {
+		let url = webapiUrl() + "/ks/" + params.ks_name;
+		let method = "GET";
+		fetch(new Request(url, {method: method}))
+      		.then(response => response.json())
+      		.then(responseJson => {
+				handleResponse(responseJson, setWebapiData);
+				timer = setTimeout(fetchData, 500);
+			})
+      		.catch(error => {
+				responseError = method + " " + url + ":" + error;
+				console.log(error);
+				timer = setTimeout(fetchData, 3000);
+			});
+	}
+
 	onMount(async () => {
 		breadcrumbsPathElements = [{ title:"Keyspaces", link:util.rootLink() },{ title:params.ks_name }  ];
-		fetchData();
-		timer = setInterval(fetchData, 500);
+    	fetchData();
     });
 	onDestroy(async () => {
-    	clearInterval(timer);
+    	if (timer) clearTimeout(timer);
     });
 
     function onStop(runId) {
@@ -55,7 +70,7 @@
 
 <Util bind:this={util} />
 <Breadcrumbs bind:pathElements={breadcrumbsPathElements}/>
-
+<p style="color:red;">{responseError}</p>
 <table>
 	<thead>
 		<th>Nodes ({webapiData.nodes.length}) \ Runs ({webapiData.run_lifespans.length})</th>

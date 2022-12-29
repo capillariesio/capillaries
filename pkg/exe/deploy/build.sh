@@ -3,3 +3,7 @@ GOOS=linux GOARCH=amd64 go build -o ../../../build/linux/amd64/capidaemon -ldfla
 /mnt/c/tools/upx.exe ../../../build/linux/amd64/capidaemon
 GOOS=linux GOARCH=amd64 go build -o ../../../build/linux/amd64/webapi -ldflags="-s -w" ../webapi/webapi.go
 /mnt/c/tools/upx.exe ../../../build/linux/amd64/webapi
+pushd ../../../ui
+set CAPILLARIES_WEBAPI_URL=http://
+npm run build
+popd

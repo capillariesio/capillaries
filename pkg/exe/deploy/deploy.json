@@ -172,6 +172,11 @@
             "dst": "/home/ubuntu/bin",
             "permissions": 644
         },
+        "up_ui": {
+            "src": "../../../ui/public",
+            "dst": "/home/ubuntu/ui",
+            "permissions": 744
+        },
         "up_webapi_binary": {
             "src": "../../../build/linux/amd64/webapi",
             "dst": "/home/ubuntu/bin",
@@ -226,6 +231,7 @@
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
                     "RABBITMQ_IP": "{rabbitmq_ip}",
                     "WEBAPI_ACCESS_CONTROL_ACCESS_ORIGIN": "http://{floating_ip_address}",
+                    "WEBAPI_IP": "{floating_ip_address}",
                     "WEBAPI_PORT": "6543"
                 },
                 "cmd": {
@@ -235,7 +241,9 @@
                         "sh/rsyslog/setup_capidaemon_log_receiver.sh",
                         "sh/logrotate/setup_capidaemon_logrotate.sh",
                         "sh/webapi/setup_webapi.sh",
+                        "sh/ui/setup_ui.sh",
                         "sh/nginx/setup_nginx.sh",
+                        "sh/nginx/add_ui.sh",
                         "sh/nginx/add_prometheus_reverse_proxy.sh",
                         "sh/nginx/add_rabbitmq_reverse_proxy.sh"
                     ],
@@ -253,6 +261,7 @@
                 "up_capi_scripts",
                 "up_webapi_binary",
                 "up_webapi_env_config",
+                "up_ui",
                 "down_capi_logs"
             ]
         },

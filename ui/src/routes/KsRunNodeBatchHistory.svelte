@@ -13,22 +13,38 @@
 	let breadcrumbsPathElements = [];
 
     // Webapi data
-	var timer;
     let webapiData = {run_props:{}, run_lifespan:{}, batch_history: []};
-    function setWebapiData(dataFromJson) {
+	let responseError = "";
+
+    function setWebapiData(dataFromJson, errorFromJson) {
 		webapiData = ( !!dataFromJson ? dataFromJson : {run_props:{}, run_lifespan:{}, batch_history: []});
-        if (webapiData.run_lifespan.final_status > 1) {
-            timer = setTimeout(fetchData, 3000);
-        } else {
-			timer = setTimeout(fetchData, 500);
+		if (!!errorFromJson) {
+			responseError = errorFromJson.msg
+		} else {
+			responseError = "";
 		}
 	}
 
+	var timer;
 	function fetchData() {
-		fetch(webapiUrl() + "/ks/" + params.ks_name + "/run/" + params.run_id + "/node/" + params.node_name + "/batch_history")
+		let url = webapiUrl() + "/ks/" + params.ks_name + "/run/" + params.run_id + "/node/" + params.node_name + "/batch_history";
+		let method = "GET";
+		fetch(new Request(url, {method: method}))
       		.then(response => response.json())
-      		.then(responseJson => { handleResponse(responseJson, setWebapiData);})
-      		.catch(error => {console.log(error);});
+      		.then(responseJson => {
+				handleResponse(responseJson, setWebapiData);
+				if (webapiData.run_lifespan.final_status > 1) {
+					// Run complete, nothing to expect here
+		            timer = setTimeout(fetchData, 3000);
+        		} else {
+					timer = setTimeout(fetchData, 500);
+				}
+			})
+      		.catch(error => {
+				responseError = method + " " + url + ":" + error;
+				console.log(error);
+				timer = setTimeout(fetchData, 3000);
+			});
 	}
 
 	onMount(async () => {
@@ -39,11 +55,12 @@
     	fetchData();
     });
 	onDestroy(async () => {
-    	clearTimeout(timer);
+    	if (timer) clearTimeout(timer);
     });
 </script>
 
 <Util bind:this={util} />
 <Breadcrumbs bind:pathElements={breadcrumbsPathElements}/>
+<p style="color:red;">{responseError}</p>
 <RunInfo bind:run_lifespan={webapiData.run_lifespan} bind:run_props={webapiData.run_props} bind:ks_name={params.ks_name}/>
 <BatchHistory bind:batch_history={webapiData.batch_history}/>
