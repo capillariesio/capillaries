@@ -100,6 +100,22 @@
                 "remote_ip": "{subnet_cidr}",
                 "port": 514,
                 "direction": "ingress"
+            },
+            {
+                "id": "2466c440-8f69-4505-ab93-757ef65a5fce",
+                "protocol": "tcp",
+                "ethertype": "IPv4",
+                "remote_ip": "0.0.0.0/0",
+                "port": 6543,
+                "direction": "ingress"
+            },
+            {
+                "id": "cee5c80a-02c5-4594-9028-604a77fbde91",
+                "protocol": "tcp",
+                "ethertype": "IPv4",
+                "remote_ip": "0.0.0.0/0",
+                "port": 80,
+                "direction": "ingress"
             }
         ]
     },
@@ -155,6 +171,16 @@
             "src": "../../../pkg/exe/daemon/env_config.json",
             "dst": "/home/ubuntu/bin",
             "permissions": 644
+        },
+        "up_webapi_binary": {
+            "src": "../../../build/linux/amd64/webapi",
+            "dst": "/home/ubuntu/bin",
+            "permissions": 744
+        },
+        "up_webapi_env_config": {
+            "src": "../../../pkg/exe/webapi/env_config.json",
+            "dst": "/home/ubuntu/bin",
+            "permissions": 644
         }
     },
     "file_groups_down": {
@@ -194,9 +220,13 @@
             "id": "",
             "service": {
                 "env": {
+                    "AMQP_URL": "amqp://{rabbitmq_user_name}:{rabbitmq_user_pass}@{rabbitmq_ip}/",
+                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\"]'",
                     "PROMETHEUS_IP": "{prometheus_ip}",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
-                    "RABBITMQ_IP": "{rabbitmq_ip}"
+                    "RABBITMQ_IP": "{rabbitmq_ip}",
+                    "WEBAPI_ACCESS_CONTROL_ACCESS_ORIGIN": "http://{floating_ip_address}",
+                    "WEBAPI_PORT": "6543"
                 },
                 "cmd": {
                     "setup": [
@@ -204,27 +234,32 @@
                         "sh/prometheus/setup_node_exporter.sh",
                         "sh/rsyslog/setup_capidaemon_log_receiver.sh",
                         "sh/logrotate/setup_capidaemon_logrotate.sh",
+                        "sh/webapi/setup_webapi.sh",
                         "sh/nginx/setup_nginx.sh",
                         "sh/nginx/add_prometheus_reverse_proxy.sh",
                         "sh/nginx/add_rabbitmq_reverse_proxy.sh"
                     ],
                     "start": [
+                        "sh/webapi/start_webapi.sh",
                         "sh/nginx/start_nginx.sh"
                     ],
                     "stop": [
+                        "sh/webapi/stop_webapi.sh",
                         "sh/nginx/stop_nginx.sh"
                     ]
                 }
             },
             "applicable_file_groups": [
                 "up_capi_scripts",
+                "up_webapi_binary",
+                "up_webapi_env_config",
                 "down_capi_logs"
             ]
         },
         "cass01": {
             "host_name": "{deployment_name}-cassandra01",
             "ip_address": "10.5.0.11",
-            "flavor": "gp1.supersonic",
+            "flavor": "gp1.lightspeed",
             "image": "Ubuntu-22.04",
             "id": "",
             "service": {
@@ -252,7 +287,7 @@
         "cass02": {
             "host_name": "{deployment_name}-cassandra02",
             "ip_address": "10.5.0.12",
-            "flavor": "gp1.supersonic",
+            "flavor": "gp1.lightspeed",
             "image": "Ubuntu-22.04",
             "id": "",
             "service": {
@@ -280,7 +315,7 @@
         "cass03": {
             "host_name": "{deployment_name}-cassandra03",
             "ip_address": "10.5.0.13",
-            "flavor": "gp1.supersonic",
+            "flavor": "gp1.lightspeed",
             "image": "Ubuntu-22.04",
             "id": "",
             "service": {

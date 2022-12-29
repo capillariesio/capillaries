@@ -1,7 +1,7 @@
 # Expecting
 # BASTION_IP=10.5.0.2
 
-RSYSLOG_CAPIDAEMON_CONFIG_FILE=/etc/rsyslog.d/capidaemon.conf
+RSYSLOG_CAPIDAEMON_CONFIG_FILE=/etc/rsyslog.d/capidaemon_sender.conf
 
 sudo rm -f $RSYSLOG_CAPIDAEMON_CONFIG_FILE
 

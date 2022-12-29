@@ -11,4 +11,4 @@ sudo rm -fR /var/log/capidaemon
 sudo mkdir /var/log/capidaemon
 sudo chmod 777 /var/log/capidaemon
 
-/home/ubuntu/bin/capidaemon > /var/log/capidaemon/capidaemon.log 2>&1 &
+/home/ubuntu/bin/capidaemon >> /var/log/capidaemon/capidaemon.log 2>&1 &
