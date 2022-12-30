@@ -11,7 +11,7 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
-            "args": ["create_security_group", "-verbose"]
+            "args": ["create_security_groups", "-verbose"]
         },
         {
             "name": "Deploy delete security group",
@@ -92,7 +92,7 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
-            "args": ["upload_files", "up_daemon_env_config,up_daemon_binary", "-verbose"]
+            "args": ["upload_files", "up_test_in,up_test_scripts", "-verbose"]
         },
         {
             "name": "Deploy download files",
@@ -110,7 +110,7 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
-            "args": ["setup_services", "bastion,daemon01", "-verbose"]
+            "args": ["setup_services", "daemon01", "-verbose"]
         },
         {
             "name": "Deploy start services",

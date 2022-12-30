@@ -56,6 +56,28 @@ func FilterByNickname[GenericDef deploy.FileGroupUpDef | deploy.FileGroupDownDef
 	return defMap, nil
 }
 
+func waitForWorkers(errorsExpected int, errChan chan error, logChan chan string, verbosity bool) int {
+	finalCmdErr := 0
+	for errorsExpected > 0 {
+		select {
+		case cmdErr := <-errChan:
+			if cmdErr != nil {
+				finalCmdErr = 1
+				fmt.Fprintf(os.Stderr, "%s\n", cmdErr.Error())
+			}
+			errorsExpected--
+		case msg := <-logChan:
+			if verbosity {
+				fmt.Println(msg)
+			}
+		}
+	}
+
+	DumpLogChan(logChan, verbosity)
+
+	return finalCmdErr
+}
+
 func main() {
 	prjPair, fullPrjPath, err := deploy.LoadProject("deploy.json", "deploy_params.json")
 	if err != nil {
@@ -241,8 +263,8 @@ func main() {
 				log.Fatalf(err.Error())
 			}
 
-			// Walk through src locally and create file upload specs
-			fileSpecs, err := deploy.FileGroupUpDefsToSpecs(&prjPair.Live, fileGroups)
+			// Walk through src locally and create file upload specs and after-file specs
+			fileSpecs, afterSpecs, err := deploy.FileGroupUpDefsToSpecs(&prjPair.Live, fileGroups)
 			if err != nil {
 				log.Fatalf(err.Error())
 			}
@@ -252,9 +274,24 @@ func main() {
 			for _, fuSpec := range fileSpecs {
 				sem <- 1
 				go func(prj *deploy.Project, logChan chan string, errChan chan error, fuSpec *deploy.FileUploadSpec) {
-					errChan <- deploy.UploadFileSftp(prj, logChan, fuSpec.IpAddress, fuSpec.Src, fuSpec.Dst, fuSpec.Permissions)
+					errChan <- deploy.UploadFileSftp(prj, logChan, fuSpec.IpAddress, fuSpec.Src, fuSpec.Dst)
 					<-sem
 				}(&prjPair.Live, logChan, errChan, fuSpec)
+			}
+
+			fileUpErr := waitForWorkers(errorsExpected, errChan, logChan, *argVerbosity)
+			if fileUpErr > 0 {
+				os.Exit(fileUpErr)
+			}
+
+			errorsExpected = len(afterSpecs)
+			errChan = make(chan error, len(afterSpecs))
+			for _, aSpec := range afterSpecs {
+				sem <- 1
+				go func(prj *deploy.Project, logChan chan string, errChan chan error, aSpec *deploy.AfterFileUploadSpec) {
+					errChan <- deploy.ExecScriptsOnInstance(prj, logChan, aSpec.IpAddress, aSpec.Env, aSpec.Cmd)
+					<-sem
+				}(&prjPair.Live, logChan, errChan, aSpec)
 			}
 
 		case CmdDownloadFiles:
@@ -289,24 +326,7 @@ func main() {
 		}
 	}
 
-	finalCmdErr := 0
-	for errorsExpected > 0 {
-		select {
-		case cmdErr := <-errChan:
-			if cmdErr != nil {
-				finalCmdErr = 1
-				fmt.Fprintf(os.Stderr, "%s\n", cmdErr.Error())
-			}
-			errorsExpected--
-		case msg := <-logChan:
-			if *argVerbosity {
-				fmt.Println(msg)
-			}
-		}
-	}
-
-	DumpLogChan(logChan, *argVerbosity)
-
+	finalCmdErr := waitForWorkers(errorsExpected, errChan, logChan, *argVerbosity)
 	if finalCmdErr > 0 {
 		os.Exit(finalCmdErr)
 	}

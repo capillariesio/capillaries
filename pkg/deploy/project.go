@@ -118,11 +118,18 @@ type SshConfigDef struct {
 	PrivateKeyPassword string `json:"private_key_password"`
 }
 
-type FileGroupUpDef struct {
-	Src         string `json:"src"`
-	Dst         string `json:"dst"`
-	Permissions int    `json:"permissions"`
+type FileGroupUpAfter struct {
+	Env map[string]string `json:"env,omitempty"`
+	Cmd []string          `json:"cmd,omitempty"`
 }
+
+type FileGroupUpDef struct {
+	Src         string           `json:"src"`
+	Dst         string           `json:"dst"`
+	Permissions int              `json:"permissions"`
+	After       FileGroupUpAfter `json:"after,omitempty"`
+}
+
 type FileGroupDownDef struct {
 	Src string `json:"src"`
 	Dst string `json:"dst"`

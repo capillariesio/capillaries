@@ -5,54 +5,74 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/pkg/sftp"
 )
 
 type FileUploadSpec struct {
-	IpAddress   string
-	Src         string
-	Dst         string
-	Permissions int
+	IpAddress string
+	Src       string
+	Dst       string
+	//Permissions int
 }
 
-func FileGroupUpDefsToSpecs(prj *Project, fileGroupsToUpload map[string]*FileGroupUpDef) ([]*FileUploadSpec, error) {
+type AfterFileUploadSpec struct {
+	IpAddress string
+	Env       map[string]string
+	Cmd       []string
+}
+
+func FileGroupUpDefsToSpecs(prj *Project, fileGroupsToUpload map[string]*FileGroupUpDef) ([]*FileUploadSpec, []*AfterFileUploadSpec, error) {
 	fileUploadSpecs := make([]*FileUploadSpec, 0)
+	afterFileUploadSpecMap := map[string]map[string]struct{}{} // inst_ip->group_name->struct{}
+	afterFileUploadSpecs := make([]*AfterFileUploadSpec, 0)
 	for _, iDef := range prj.Instances {
+		ipAddress := iDef.BestIpAddress()
 		for _, fgName := range iDef.ApplicableFileGroups {
 			if fgDef, ok := fileGroupsToUpload[fgName]; ok {
 				fi, err := os.Stat(fgDef.Src)
 				if err != nil {
-					return nil, fmt.Errorf("cannot analyze path %s in %s: %s", fgDef.Src, fgName, err.Error())
+					return nil, nil, fmt.Errorf("cannot analyze path %s in %s: %s", fgDef.Src, fgName, err.Error())
 				}
 				if fi.IsDir() {
 					if err := filepath.WalkDir(fgDef.Src, func(path string, d fs.DirEntry, err error) error {
 						if !d.IsDir() {
 							fileSubpath := strings.ReplaceAll(path, fgDef.Src, "")
 							fileUploadSpecs = append(fileUploadSpecs, &FileUploadSpec{
-								IpAddress:   iDef.BestIpAddress(),
-								Src:         path,
-								Dst:         filepath.Join(fgDef.Dst, fileSubpath),
-								Permissions: fgDef.Permissions})
+								IpAddress: ipAddress,
+								Src:       path,
+								Dst:       filepath.Join(fgDef.Dst, fileSubpath),
+								//Permissions: fgDef.Permissions
+							})
 						}
 						return nil
 					}); err != nil {
-						return nil, fmt.Errorf("bad file group up %s in %s", fgName, iDef.HostName)
+						return nil, nil, fmt.Errorf("bad file group up %s in %s", fgName, iDef.HostName)
 					}
 				} else {
 					fileUploadSpecs = append(fileUploadSpecs, &FileUploadSpec{
-						IpAddress:   iDef.BestIpAddress(),
-						Src:         fgDef.Src,
-						Dst:         filepath.Join(fgDef.Dst, filepath.Base(fgDef.Src)),
-						Permissions: fgDef.Permissions})
+						IpAddress: ipAddress,
+						Src:       fgDef.Src,
+						Dst:       filepath.Join(fgDef.Dst, filepath.Base(fgDef.Src)),
+						//Permissions: fgDef.Permissions
+					})
+				}
+				if _, ok := afterFileUploadSpecMap[ipAddress]; !ok {
+					afterFileUploadSpecMap[ipAddress] = map[string]struct{}{}
+				}
+				if _, ok := afterFileUploadSpecMap[ipAddress][fgName]; !ok {
+					afterFileUploadSpecMap[ipAddress][fgName] = struct{}{}
+					afterFileUploadSpecs = append(afterFileUploadSpecs, &AfterFileUploadSpec{
+						IpAddress: ipAddress,
+						Env:       fgDef.After.Env,
+						Cmd:       fgDef.After.Cmd})
 				}
 			}
 		}
 	}
 
-	return fileUploadSpecs, nil
+	return fileUploadSpecs, afterFileUploadSpecs, nil
 }
 
 type FileDownloadSpec struct {
@@ -124,7 +144,7 @@ func FileGroupDownDefsToSpecs(prj *Project, fileGroupsToDownload map[string]*Fil
 	return fileDownloadSpecs, nil
 }
 
-func UploadFileSftp(prj *Project, logChan chan string, ipAddress string, srcPath string, dstPath string, permissions int) error {
+func UploadFileSftp(prj *Project, logChan chan string, ipAddress string, srcPath string, dstPath string) error {
 	tsc, err := NewTunneledSshClient(prj.SshConfig, ipAddress)
 	if err != nil {
 		return err
@@ -156,14 +176,14 @@ func UploadFileSftp(prj *Project, logChan chan string, ipAddress string, srcPath
 	if err != nil {
 		return fmt.Errorf("cannot read for upload %s: %s", srcPath, err.Error())
 	}
-	truePermissions, err := strconv.ParseInt(fmt.Sprintf("%d", permissions), 8, 0)
-	if err != nil {
-		return fmt.Errorf("cannot read oct convert permission %s %d: %s", ipAddress, permissions, err.Error())
-	}
+	// truePermissions, err := strconv.ParseInt(fmt.Sprintf("%d", permissions), 8, 0)
+	// if err != nil {
+	// 	return fmt.Errorf("cannot read oct convert permission %s %d: %s", ipAddress, permissions, err.Error())
+	// }
 
-	if err := sftp.Chmod(dstPath, os.FileMode(truePermissions)); err != nil {
-		return fmt.Errorf("cannot chmod %s %s: %s", ipAddress, dstPath, err.Error())
-	}
+	// if err := sftp.Chmod(dstPath, os.FileMode(truePermissions)); err != nil {
+	// 	return fmt.Errorf("cannot chmod %s %s: %s", ipAddress, dstPath, err.Error())
+	// }
 
 	logChan <- fmt.Sprintf("Uploaded %s to %s:%s, %d bytes", srcPath, ipAddress, dstPath, bytesRead)
 	return nil
