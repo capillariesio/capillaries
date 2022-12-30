@@ -28,14 +28,12 @@ const (
 	CmdStopServices         string = "stop_services"
 )
 
-type SingleThreadCmdHandler func(*deploy.ProjectPair, chan string) error
+type SingleThreadCmdHandler func(*deploy.ProjectPair, bool) (deploy.LogMsg, error)
 
-func DumpLogChan(logChan chan string, isVerbose bool) {
+func DumpLogChan(logChan chan deploy.LogMsg) {
 	for len(logChan) > 0 {
 		msg := <-logChan
-		if isVerbose {
-			fmt.Println(msg)
-		}
+		fmt.Println(string(msg))
 	}
 }
 
@@ -56,7 +54,7 @@ func FilterByNickname[GenericDef deploy.FileGroupUpDef | deploy.FileGroupDownDef
 	return defMap, nil
 }
 
-func waitForWorkers(errorsExpected int, errChan chan error, logChan chan string, verbosity bool) int {
+func waitForWorkers(errorsExpected int, errChan chan error, logChan chan deploy.LogMsg) int {
 	finalCmdErr := 0
 	for errorsExpected > 0 {
 		select {
@@ -67,13 +65,11 @@ func waitForWorkers(errorsExpected int, errChan chan error, logChan chan string,
 			}
 			errorsExpected--
 		case msg := <-logChan:
-			if verbosity {
-				fmt.Println(msg)
-			}
+			fmt.Println(msg)
 		}
 	}
 
-	DumpLogChan(logChan, verbosity)
+	DumpLogChan(logChan)
 
 	return finalCmdErr
 }
@@ -94,7 +90,7 @@ func main() {
 	argVerbosity := commonArgs.Bool("verbose", false, "Verbosity")
 
 	const MaxWorkerThreads int = 10
-	var logChan = make(chan string, MaxWorkerThreads*5)
+	var logChan = make(chan deploy.LogMsg, MaxWorkerThreads*5)
 	var sem = make(chan int, MaxWorkerThreads)
 	var errChan chan error
 	errorsExpected := 1
@@ -111,7 +107,9 @@ func main() {
 		errChan = make(chan error, errorsExpected)
 		sem <- 1
 		go func() {
-			errChan <- cmdHandler(prjPair, logChan)
+			logMsg, err := cmdHandler(prjPair, *argVerbosity)
+			logChan <- logMsg
+			errChan <- err
 			<-sem
 		}()
 	} else if os.Args[1] == CmdCreateInstances || os.Args[1] == CmdDeleteInstances {
@@ -134,28 +132,36 @@ func main() {
 				usedFlavors[instDef.FlavorName] = ""
 				usedImages[instDef.ImageName] = ""
 			}
-			if err := deploy.GetFlavorIds(prjPair, logChan, usedFlavors); err != nil {
+			logMsg, err := deploy.GetFlavorIds(prjPair, usedFlavors, *argVerbosity)
+			logChan <- logMsg
+			DumpLogChan(logChan)
+			if err != nil {
 				log.Fatalf(err.Error())
 			}
-			DumpLogChan(logChan, *argVerbosity)
 
-			if err := deploy.GetImageIds(prjPair, logChan, usedImages); err != nil {
+			logMsg, err = deploy.GetImageIds(prjPair, usedImages, *argVerbosity)
+			logChan <- logMsg
+			DumpLogChan(logChan)
+			if err != nil {
 				log.Fatalf(err.Error())
 			}
-			DumpLogChan(logChan, *argVerbosity)
 
 			for iNickname, _ := range instances {
 				sem <- 1
-				go func(prjPair *deploy.ProjectPair, logChan chan string, errChan chan error, iNickname string) {
-					errChan <- deploy.CreateInstance(prjPair, logChan, iNickname, usedFlavors[prjPair.Live.Instances[iNickname].FlavorName], usedImages[prjPair.Live.Instances[iNickname].ImageName])
+				go func(prjPair *deploy.ProjectPair, logChan chan deploy.LogMsg, errChan chan error, iNickname string) {
+					logMsg, err := deploy.CreateInstance(prjPair, iNickname, usedFlavors[prjPair.Live.Instances[iNickname].FlavorName], usedImages[prjPair.Live.Instances[iNickname].ImageName], *argVerbosity)
+					logChan <- logMsg
+					errChan <- err
 					<-sem
 				}(prjPair, logChan, errChan, iNickname)
 			}
 		case CmdDeleteInstances:
 			for iNickname, _ := range instances {
 				sem <- 1
-				go func(prjPair *deploy.ProjectPair, logChan chan string, errChan chan error, iNickname string) {
-					errChan <- deploy.DeleteInstance(prjPair, logChan, iNickname)
+				go func(prjPair *deploy.ProjectPair, logChan chan deploy.LogMsg, errChan chan error, iNickname string) {
+					logMsg, err := deploy.DeleteInstance(prjPair, iNickname, *argVerbosity)
+					logChan <- logMsg
+					errChan <- err
 					<-sem
 				}(prjPair, logChan, errChan, iNickname)
 			}
@@ -177,7 +183,7 @@ func main() {
 		errChan = make(chan error, len(instances))
 		for _, iDef := range instances {
 			sem <- 1
-			go func(prj *deploy.Project, logChan chan string, errChan chan error, iDef *deploy.InstanceDef) {
+			go func(prj *deploy.Project, logChan chan deploy.LogMsg, errChan chan error, iDef *deploy.InstanceDef) {
 				var cmdToRun []string
 				switch os.Args[1] {
 				case CmdSetupServices:
@@ -189,7 +195,9 @@ func main() {
 				default:
 					log.Fatalf("unknown setup/start/stop service command:" + os.Args[1])
 				}
-				errChan <- deploy.ExecScriptsOnInstance(prj, logChan, iDef.BestIpAddress(), iDef.Service.Env, cmdToRun)
+				logMsg, err := deploy.ExecScriptsOnInstance(prj, iDef.BestIpAddress(), iDef.Service.Env, cmdToRun, *argVerbosity)
+				logChan <- logMsg
+				errChan <- err
 				<-sem
 			}(&prjPair.Live, logChan, errChan, iDef)
 		}
@@ -202,8 +210,10 @@ func main() {
 			errChan = make(chan error, errorsExpected)
 			for volNickname, _ := range prjPair.Live.Volumes {
 				sem <- 1
-				go func(prjPair *deploy.ProjectPair, logChan chan string, errChan chan error, volNickname string) {
-					errChan <- deploy.CreateVolume(prjPair, logChan, volNickname)
+				go func(prjPair *deploy.ProjectPair, logChan chan deploy.LogMsg, errChan chan error, volNickname string) {
+					logMsg, err := deploy.CreateVolume(prjPair, volNickname, *argVerbosity)
+					logChan <- logMsg
+					errChan <- err
 					<-sem
 				}(prjPair, logChan, errChan, volNickname)
 			}
@@ -214,8 +224,10 @@ func main() {
 			errChan = make(chan error, errorsExpected)
 			for volNickname, _ := range prjPair.Live.Volumes {
 				sem <- 1
-				go func(prjPair *deploy.ProjectPair, logChan chan string, errChan chan error, volNickname string) {
-					errChan <- deploy.DeleteVolume(prjPair, logChan, volNickname)
+				go func(prjPair *deploy.ProjectPair, logChan chan deploy.LogMsg, errChan chan error, volNickname string) {
+					logMsg, err := deploy.DeleteVolume(prjPair, volNickname, *argVerbosity)
+					logChan <- logMsg
+					errChan <- err
 					<-sem
 				}(prjPair, logChan, errChan, volNickname)
 			}
@@ -245,8 +257,10 @@ func main() {
 			for iNickname, iDef := range instances {
 				for volNickname, _ := range iDef.AttachedVolumes {
 					sem <- 1
-					go func(prjPair *deploy.ProjectPair, logChan chan string, errChan chan error, iNickname string, volNickname string) {
-						errChan <- deploy.AttachVolume(prjPair, logChan, iNickname, volNickname)
+					go func(prjPair *deploy.ProjectPair, logChan chan deploy.LogMsg, errChan chan error, iNickname string, volNickname string) {
+						logMsg, err := deploy.AttachVolume(prjPair, iNickname, volNickname, *argVerbosity)
+						logChan <- logMsg
+						errChan <- err
 						<-sem
 					}(prjPair, logChan, errChan, iNickname, volNickname)
 				}
@@ -273,13 +287,15 @@ func main() {
 			errChan = make(chan error, len(fileSpecs))
 			for _, fuSpec := range fileSpecs {
 				sem <- 1
-				go func(prj *deploy.Project, logChan chan string, errChan chan error, fuSpec *deploy.FileUploadSpec) {
-					errChan <- deploy.UploadFileSftp(prj, logChan, fuSpec.IpAddress, fuSpec.Src, fuSpec.Dst)
+				go func(prj *deploy.Project, logChan chan deploy.LogMsg, errChan chan error, fuSpec *deploy.FileUploadSpec) {
+					logMsg, err := deploy.UploadFileSftp(prj, fuSpec.IpAddress, fuSpec.Src, fuSpec.Dst, *argVerbosity)
+					logChan <- logMsg
+					errChan <- err
 					<-sem
 				}(&prjPair.Live, logChan, errChan, fuSpec)
 			}
 
-			fileUpErr := waitForWorkers(errorsExpected, errChan, logChan, *argVerbosity)
+			fileUpErr := waitForWorkers(errorsExpected, errChan, logChan)
 			if fileUpErr > 0 {
 				os.Exit(fileUpErr)
 			}
@@ -288,8 +304,10 @@ func main() {
 			errChan = make(chan error, len(afterSpecs))
 			for _, aSpec := range afterSpecs {
 				sem <- 1
-				go func(prj *deploy.Project, logChan chan string, errChan chan error, aSpec *deploy.AfterFileUploadSpec) {
-					errChan <- deploy.ExecScriptsOnInstance(prj, logChan, aSpec.IpAddress, aSpec.Env, aSpec.Cmd)
+				go func(prj *deploy.Project, logChan chan deploy.LogMsg, errChan chan error, aSpec *deploy.AfterFileUploadSpec) {
+					logMsg, err := deploy.ExecScriptsOnInstance(prj, aSpec.IpAddress, aSpec.Env, aSpec.Cmd, *argVerbosity)
+					logChan <- logMsg
+					errChan <- err
 					<-sem
 				}(&prjPair.Live, logChan, errChan, aSpec)
 			}
@@ -315,9 +333,10 @@ func main() {
 			errChan = make(chan error, len(fileSpecs))
 			for _, fdSpec := range fileSpecs {
 				sem <- 1
-				go func(prj *deploy.Project, logChan chan string, errChan chan error, fdSpec *deploy.FileDownloadSpec) {
-					errChan <- deploy.DownloadFileSftp(prj, logChan, fdSpec.IpAddress, fdSpec.Src, fdSpec.Dst)
-					<-sem
+				go func(prj *deploy.Project, logChan chan deploy.LogMsg, errChan chan error, fdSpec *deploy.FileDownloadSpec) {
+					logMsg, err := deploy.DownloadFileSftp(prj, fdSpec.IpAddress, fdSpec.Src, fdSpec.Dst, *argVerbosity)
+					logChan <- logMsg
+					errChan <- err
 				}(&prjPair.Live, logChan, errChan, fdSpec)
 			}
 
@@ -326,7 +345,7 @@ func main() {
 		}
 	}
 
-	finalCmdErr := waitForWorkers(errorsExpected, errChan, logChan, *argVerbosity)
+	finalCmdErr := waitForWorkers(errorsExpected, errChan, logChan)
 	if finalCmdErr > 0 {
 		os.Exit(finalCmdErr)
 	}

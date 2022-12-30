@@ -37,15 +37,25 @@ elapsed:%0.3f
 `, er.Cmd, er.Stdout, er.Stderr, errString, er.Elapsed)
 }
 
-func CmdChainExecToString(name string, content string) string {
-	return fmt.Sprintf(
-		`
+func CmdChainExecToString(title string, logContent string, err error, isVerbose bool) string {
+	if err != nil {
+		title = fmt.Sprintf("%s: %s", title, err)
+	} else {
+		title = fmt.Sprintf("%s: OK", title)
+	}
+
+	if isVerbose {
+		return fmt.Sprintf(
+			`
 =========================================
 %s
 =========================================
 %s
 =========================================
-`, name, content)
+`, title, logContent)
+	} else {
+		return title
+	}
 }
 
 func ExecLocal(prj *Project, cmdPath string, params []string) ExecResult {

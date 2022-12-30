@@ -249,7 +249,7 @@ func NewTunneledSshClient(sshConfig *SshConfigDef, ipAddress string) (*TunneledS
 	return &tsc, nil
 }
 
-func ExecSsh(prj *Project, logBuilder *strings.Builder, ipAddress string, cmd string) ExecResult {
+func ExecSsh(prj *Project, ipAddress string, cmd string) ExecResult {
 	tsc, err := NewTunneledSshClient(prj.SshConfig, ipAddress)
 	if err != nil {
 		return ExecResult{cmd, "", "", 0, err}
@@ -271,12 +271,11 @@ func ExecSsh(prj *Project, logBuilder *strings.Builder, ipAddress string, cmd st
 	elapsed := time.Since(runStartTime).Seconds()
 
 	er := ExecResult{cmd, string(stdout.Bytes()), string(stderr.Bytes()), elapsed, err}
-	logBuilder.WriteString(er.ToString())
 	return er
 }
 
-func ExecSshAndReturnLastLine(prj *Project, logBuilder *strings.Builder, ipAddress string, cmd string) (string, ExecResult) {
-	er := ExecSsh(prj, logBuilder, ipAddress, cmd)
+func ExecSshAndReturnLastLine(prj *Project, ipAddress string, cmd string) (string, ExecResult) {
+	er := ExecSsh(prj, ipAddress, cmd)
 	if er.Error != nil {
 		return "", er
 	}
@@ -285,15 +284,57 @@ func ExecSshAndReturnLastLine(prj *Project, logBuilder *strings.Builder, ipAddre
 	return strings.TrimSpace(lines[len(lines)-1]), er
 }
 
-func ExecScriptsOnInstance(prj *Project, logChan chan string, ipAddress string, env map[string]string, shellScriptFiles []string) error {
-	sb := strings.Builder{}
-	defer func() {
-		logChan <- CmdChainExecToString(fmt.Sprintf("ExecScriptOnInstance: %s on %s", shellScriptFiles, ipAddress), sb.String())
-	}()
+type LogBuilder struct {
+	Sb        *strings.Builder
+	IsVerbose bool
+	Header    string
+	StartTs   time.Time
+}
+
+type LogMsg string
+
+func NewLogBuilder(header string, isVerbose bool) *LogBuilder {
+	lb := LogBuilder{Sb: &strings.Builder{}, IsVerbose: isVerbose, Header: header, StartTs: time.Now()}
+	if lb.IsVerbose {
+		lb.Sb.WriteString("\n===============================================\n")
+		lb.Sb.WriteString(fmt.Sprintf("%s : started\n", lb.Header))
+	} else {
+		lb.Sb.WriteString(fmt.Sprintf("%s : ", lb.Header))
+	}
+	return &lb
+}
+
+func AddLogMsg(sb *strings.Builder, logMsg LogMsg) {
+	sb.WriteString(string(logMsg))
+}
+
+func (lb *LogBuilder) Add(content string) {
+	if !lb.IsVerbose {
+		return
+	}
+	lb.Sb.WriteString(fmt.Sprintf("%s\n", content))
+}
+
+func (lb *LogBuilder) Complete(err error) (LogMsg, error) {
+	if lb.IsVerbose {
+		lb.Sb.WriteString(fmt.Sprintf("%s : ", lb.Header))
+	}
+	lb.Sb.WriteString(fmt.Sprintf("elapsed %.3fs, ", time.Since(lb.StartTs).Seconds()))
+	if err == nil {
+		lb.Sb.WriteString("OK")
+	} else {
+		lb.Sb.WriteString(err.Error())
+	}
+	lb.Sb.WriteString("\n")
+	return LogMsg(lb.Sb.String()), err
+}
+
+func ExecScriptsOnInstance(prj *Project, ipAddress string, env map[string]string, shellScriptFiles []string, isVerbose bool) (LogMsg, error) {
+	lb := NewLogBuilder(fmt.Sprintf("ExecScriptsOnInstance: %s on %s", shellScriptFiles, ipAddress), isVerbose)
 
 	if len(shellScriptFiles) == 0 {
-		sb.WriteString(fmt.Sprintf("no commands to execute on %s", ipAddress))
-		return nil
+		lb.Add(fmt.Sprintf("no commands to execute on %s", ipAddress))
+		return lb.Complete(nil)
 	}
 
 	for _, shellScriptFile := range shellScriptFiles {
@@ -304,21 +345,22 @@ func ExecScriptsOnInstance(prj *Project, logChan chan string, ipAddress string, 
 
 		f, err := os.Open(shellScriptFile)
 		if err != nil {
-			return fmt.Errorf("cannot open shell script %s: %s", shellScriptFile, err.Error())
+			return lb.Complete(fmt.Errorf("cannot open shell script %s: %s", shellScriptFile, err.Error()))
 		}
 		defer f.Close()
 
 		shellScriptBytes, err := ioutil.ReadAll(f)
 		if err != nil {
-			return fmt.Errorf("cannot read shell script %s: %s", shellScriptFile, err.Error())
+			return lb.Complete(fmt.Errorf("cannot read shell script %s: %s", shellScriptFile, err.Error()))
 		}
 
 		cmdBuilder.WriteString(string(shellScriptBytes))
 
-		er := ExecSsh(prj, &sb, ipAddress, cmdBuilder.String())
+		er := ExecSsh(prj, ipAddress, cmdBuilder.String())
+		lb.Add(er.ToString())
 		if er.Error != nil {
-			return er.Error
+			return lb.Complete(er.Error)
 		}
 	}
-	return nil
+	return lb.Complete(nil)
 }

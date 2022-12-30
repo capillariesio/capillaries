@@ -280,22 +280,22 @@
             "image": "Ubuntu-22.04",
             "attached_volumes": {
                 "cfg": {
-                    "attachment_id": "78c39630-1d54-40c0-8038-8fb6917b9d17",
-                    "device": "/dev/vdb",
-                    "block_device_id": "3d4e95f0-e9f2-42be-bd30-76810dc8839a"
+                    "attachment_id": "",
+                    "device": "",
+                    "block_device_id": ""
                 },
                 "in": {
-                    "attachment_id": "905b7db0-6743-4e5f-b484-94b1cc7aac24",
-                    "device": "/dev/vdc",
-                    "block_device_id": "6bff1b73-0f85-41f5-8e38-2c01ccb60a73"
+                    "attachment_id": "",
+                    "device": "",
+                    "block_device_id": ""
                 },
                 "out": {
-                    "attachment_id": "044177d8-c37c-4bc3-bf5d-9856bd74e5f3",
-                    "device": "/dev/vdd",
-                    "block_device_id": "8cae0747-baae-4b73-9b62-be53e6ccfd34"
+                    "attachment_id": "",
+                    "device": "",
+                    "block_device_id": ""
                 }
             },
-            "id": "8432c5e6-1125-4650-8fd3-9c614b2cd911",
+            "id": "",
             "service": {
                 "env": {
                     "AMQP_URL": "amqp://{rabbitmq_user_name}:{rabbitmq_user_pass}@{rabbitmq_ip}/",
@@ -467,7 +467,7 @@
             "ip_address": "{prometheus_ip}",
             "flavor": "gp1.semisonic",
             "image": "Ubuntu-22.04",
-            "id": "bfa6d31f-206a-4999-baf5-317ab6855c62",
+            "id": "",
             "service": {
                 "env": {
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",

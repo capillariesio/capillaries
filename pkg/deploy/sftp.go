@@ -144,37 +144,38 @@ func FileGroupDownDefsToSpecs(prj *Project, fileGroupsToDownload map[string]*Fil
 	return fileDownloadSpecs, nil
 }
 
-func UploadFileSftp(prj *Project, logChan chan string, ipAddress string, srcPath string, dstPath string) error {
+func UploadFileSftp(prj *Project, ipAddress string, srcPath string, dstPath string, isVerbose bool) (LogMsg, error) {
+	lb := NewLogBuilder(fmt.Sprintf("Uploading %s to %s:%s", srcPath, ipAddress, dstPath), isVerbose)
 	tsc, err := NewTunneledSshClient(prj.SshConfig, ipAddress)
 	if err != nil {
-		return err
+		return lb.Complete(err)
 	}
 	defer tsc.Close()
 
 	sftp, err := sftp.NewClient(tsc.SshClient)
 	if err != nil {
-		return fmt.Errorf("cannot create sftp client to %s: %s", ipAddress, err.Error())
+		return lb.Complete(fmt.Errorf("cannot create sftp client to %s: %s", ipAddress, err.Error()))
 	}
 	defer sftp.Close()
 
 	if err := sftp.MkdirAll(filepath.Dir(dstPath)); err != nil {
-		return fmt.Errorf("cannot create target dir for %s %s: %s", ipAddress, dstPath, err.Error())
+		return lb.Complete(fmt.Errorf("cannot create target dir for %s %s: %s", ipAddress, dstPath, err.Error()))
 	}
 
 	srcFile, err := os.Open(srcPath)
 	if err != nil {
-		return fmt.Errorf("cannot open for upload %s: %s", srcPath, err.Error())
+		return lb.Complete(fmt.Errorf("cannot open for upload %s: %s", srcPath, err.Error()))
 	}
 	defer srcFile.Close()
 
 	dstFile, err := sftp.Create(dstPath)
 	if err != nil {
-		return fmt.Errorf("cannot create on upload %s %s: %s", ipAddress, dstPath, err.Error())
+		return lb.Complete(fmt.Errorf("cannot create on upload %s %s: %s", ipAddress, dstPath, err.Error()))
 	}
 
-	bytesRead, err := dstFile.ReadFrom(srcFile)
+	_, err = dstFile.ReadFrom(srcFile)
 	if err != nil {
-		return fmt.Errorf("cannot read for upload %s: %s", srcPath, err.Error())
+		return lb.Complete(fmt.Errorf("cannot read for upload %s: %s", srcPath, err.Error()))
 	}
 	// truePermissions, err := strconv.ParseInt(fmt.Sprintf("%d", permissions), 8, 0)
 	// if err != nil {
@@ -185,43 +186,42 @@ func UploadFileSftp(prj *Project, logChan chan string, ipAddress string, srcPath
 	// 	return fmt.Errorf("cannot chmod %s %s: %s", ipAddress, dstPath, err.Error())
 	// }
 
-	logChan <- fmt.Sprintf("Uploaded %s to %s:%s, %d bytes", srcPath, ipAddress, dstPath, bytesRead)
-	return nil
+	return lb.Complete(nil)
 }
 
-func DownloadFileSftp(prj *Project, logChan chan string, ipAddress string, srcPath string, dstPath string) error {
+func DownloadFileSftp(prj *Project, ipAddress string, srcPath string, dstPath string, isVerbose bool) (LogMsg, error) {
+	lb := NewLogBuilder(fmt.Sprintf("Downloading %s:%s to %s", ipAddress, srcPath, dstPath), isVerbose)
 	tsc, err := NewTunneledSshClient(prj.SshConfig, ipAddress)
 	if err != nil {
-		return err
+		return lb.Complete(err)
 	}
 	defer tsc.Close()
 
 	sftp, err := sftp.NewClient(tsc.SshClient)
 	if err != nil {
-		return fmt.Errorf("cannot create sftp client: %s", err.Error())
+		return lb.Complete(fmt.Errorf("cannot create sftp client: %s", err.Error()))
 	}
 	defer sftp.Close()
 
 	if err := os.MkdirAll(filepath.Dir(dstPath), 0666); err != nil {
-		return fmt.Errorf("cannot create target dir for %s: %s", dstPath, err.Error())
+		return lb.Complete(fmt.Errorf("cannot create target dir for %s: %s", dstPath, err.Error()))
 	}
 
 	srcFile, err := sftp.Open(srcPath)
 	if err != nil {
-		return fmt.Errorf("cannot open for download %s: %s", srcPath, err.Error())
+		return lb.Complete(fmt.Errorf("cannot open for download %s: %s", srcPath, err.Error()))
 	}
 	defer srcFile.Close()
 
 	dstFile, err := os.Create(dstPath)
 	if err != nil {
-		return fmt.Errorf("cannot create on download %s: %s", dstPath, err.Error())
+		return lb.Complete(fmt.Errorf("cannot create on download %s: %s", dstPath, err.Error()))
 	}
 
-	bytesRead, err := dstFile.ReadFrom(srcFile)
+	_, err = dstFile.ReadFrom(srcFile)
 	if err != nil {
-		return fmt.Errorf("cannot read for download %s: %s", srcPath, err.Error())
+		return lb.Complete(fmt.Errorf("cannot read for download %s: %s", srcPath, err.Error()))
 	}
 
-	logChan <- fmt.Sprintf("Downloaded %s:%s to %s, %d bytes", ipAddress, srcPath, dstPath, bytesRead)
-	return nil
+	return lb.Complete(nil)
 }

@@ -68,10 +68,8 @@ func FindOpenstackFieldValue(rows []map[string]string, fieldName string) string 
 	return strings.Join(resultArray, "\n")
 }
 
-func ExecLocalAndParseOpenstackOutput(prj *Project, logBuilder *strings.Builder, cmdPath string, params []string) ([]map[string]string, ExecResult) {
+func ExecLocalAndParseOpenstackOutput(prj *Project, cmdPath string, params []string) ([]map[string]string, ExecResult) {
 	er := ExecLocal(prj, cmdPath, params)
-	defer logBuilder.WriteString(er.ToString())
-
 	if er.Error != nil {
 		return nil, er
 	}
