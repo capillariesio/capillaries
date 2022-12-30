@@ -132,7 +132,8 @@ func NewSshClientConfig(user string, host string, port int, privateKeyPath strin
 	}
 
 	return &ssh.ClientConfig{
-		User: user,
+		Timeout: time.Duration(10 * time.Second),
+		User:    user,
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(signer),
 		},

@@ -12,20 +12,20 @@ import (
 )
 
 const (
-	CmdCreateSecurityGroup string = "create_security_group"
-	CmdDeleteSecurityGroup string = "delete_security_group"
-	CmdCreateNetworking    string = "create_networking"
-	CmdDeleteNetworking    string = "delete_networking"
-	CmdCreateVolumes       string = "create_volumes"
-	CmdDeleteVolumes       string = "delete_volumes"
-	CmdCreateInstances     string = "create_instances"
-	CmdDeleteInstances     string = "delete_instances"
-	CmdAttachVolumes       string = "attach_volumes"
-	CmdUploadFiles         string = "upload_files"
-	CmdDownloadFiles       string = "download_files"
-	CmdSetupServices       string = "setup_services"
-	CmdStartServices       string = "start_services"
-	CmdStopServices        string = "stop_services"
+	CmdCreateSecurityGroups string = "create_security_groups"
+	CmdDeleteSecurityGroups string = "delete_security_groups"
+	CmdCreateNetworking     string = "create_networking"
+	CmdDeleteNetworking     string = "delete_networking"
+	CmdCreateVolumes        string = "create_volumes"
+	CmdDeleteVolumes        string = "delete_volumes"
+	CmdCreateInstances      string = "create_instances"
+	CmdDeleteInstances      string = "delete_instances"
+	CmdAttachVolumes        string = "attach_volumes"
+	CmdUploadFiles          string = "upload_files"
+	CmdDownloadFiles        string = "download_files"
+	CmdSetupServices        string = "setup_services"
+	CmdStartServices        string = "start_services"
+	CmdStopServices         string = "stop_services"
 )
 
 type SingleThreadCmdHandler func(*deploy.ProjectPair, chan string) error
@@ -78,10 +78,10 @@ func main() {
 	errorsExpected := 1
 
 	singleThreadCommands := map[string]SingleThreadCmdHandler{
-		CmdCreateSecurityGroup: deploy.CreateSecurityGroup,
-		CmdDeleteSecurityGroup: deploy.DeleteSecurityGroup,
-		CmdCreateNetworking:    deploy.CreateNetworking,
-		CmdDeleteNetworking:    deploy.DeleteNetworking,
+		CmdCreateSecurityGroups: deploy.CreateSecurityGroups,
+		CmdDeleteSecurityGroups: deploy.DeleteSecurityGroups,
+		CmdCreateNetworking:     deploy.CreateNetworking,
+		CmdDeleteNetworking:     deploy.DeleteNetworking,
 	}
 
 	if cmdHandler, ok := singleThreadCommands[os.Args[1]]; ok {

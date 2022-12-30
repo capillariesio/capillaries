@@ -16,6 +16,7 @@ type ExecTimeouts struct {
 }
 
 type SecurityGroupRuleDef struct {
+	Desc      string `json:"desc"`      // human-readable
 	Id        string `json:"id"`        // guid
 	Protocol  string `json:"protocol"`  // tcp
 	Ethertype string `json:"ethertype"` // IPv4
@@ -81,15 +82,16 @@ type ServiceDef struct {
 }
 
 type InstanceDef struct {
-	HostName             string                        `json:"host_name"`
-	IpAddress            string                        `json:"ip_address"`
-	FloatingIpAddress    string                        `json:"floating_ip_address,omitempty"`
-	FlavorName           string                        `json:"flavor"`
-	ImageName            string                        `json:"image"`
-	AttachedVolumes      map[string]*AttachedVolumeDef `json:"attached_volumes,omitempty"`
-	Id                   string                        `json:"id"`
-	Service              ServiceDef                    `json:"service"`
-	ApplicableFileGroups []string                      `json:"applicable_file_groups,omitempty"`
+	HostName              string                        `json:"host_name"`
+	SecurityGroupNickname string                        `json:"security_group"`
+	IpAddress             string                        `json:"ip_address"`
+	FloatingIpAddress     string                        `json:"floating_ip_address,omitempty"`
+	FlavorName            string                        `json:"flavor"`
+	ImageName             string                        `json:"image"`
+	AttachedVolumes       map[string]*AttachedVolumeDef `json:"attached_volumes,omitempty"`
+	Id                    string                        `json:"id"`
+	Service               ServiceDef                    `json:"service"`
+	ApplicableFileGroups  []string                      `json:"applicable_file_groups,omitempty"`
 }
 
 func (iDef *InstanceDef) BestIpAddress() string {
@@ -132,7 +134,7 @@ type Project struct {
 	AvailabilityZone      string                       `json:"availability_zone"`
 	Timeouts              ExecTimeouts                 `json:"timeouts"`
 	OpenstackEnvVariables map[string]string            `json:"openstack_environment_variables"`
-	SecurityGroup         SecurityGroupDef             `json:"security_group"`
+	SecurityGroups        map[string]*SecurityGroupDef `json:"security_groups"`
 	Network               NetworkDef                   `json:"network"`
 	Volumes               map[string]*VolumeDef        `json:"volumes"`
 	FileGroupsUp          map[string]*FileGroupUpDef   `json:"file_groups_up"`
@@ -145,19 +147,19 @@ type ProjectPair struct {
 	Live     Project
 }
 
-func (prjPair *ProjectPair) SetSecurityGroupId(newId string) {
-	prjPair.Template.SecurityGroup.Id = newId
-	prjPair.Live.SecurityGroup.Id = newId
+func (prjPair *ProjectPair) SetSecurityGroupId(sgNickname string, newId string) {
+	prjPair.Template.SecurityGroups[sgNickname].Id = newId
+	prjPair.Live.SecurityGroups[sgNickname].Id = newId
 }
 
-func (prjPair *ProjectPair) SetSecurityGroupRuleId(ruleIdx int, newId string) {
-	prjPair.Template.SecurityGroup.Rules[ruleIdx].Id = newId
-	prjPair.Live.SecurityGroup.Rules[ruleIdx].Id = newId
+func (prjPair *ProjectPair) SetSecurityGroupRuleId(sgNickname string, ruleIdx int, newId string) {
+	prjPair.Template.SecurityGroups[sgNickname].Rules[ruleIdx].Id = newId
+	prjPair.Live.SecurityGroups[sgNickname].Rules[ruleIdx].Id = newId
 }
 
-func (prjPair *ProjectPair) CleanSecurityGroup() {
-	prjPair.Template.SecurityGroup.Clean()
-	prjPair.Live.SecurityGroup.Clean()
+func (prjPair *ProjectPair) CleanSecurityGroup(sgNickname string) {
+	prjPair.Template.SecurityGroups[sgNickname].Clean()
+	prjPair.Live.SecurityGroups[sgNickname].Clean()
 }
 
 func (prjPair *ProjectPair) SetNetworkId(newId string) {
@@ -203,6 +205,81 @@ func (prjPair *ProjectPair) CleanInstance(iNickname string) {
 func (prjPair *ProjectPair) SetInstanceId(iNickname string, newId string) {
 	prjPair.Template.Instances[iNickname].Id = newId
 	prjPair.Live.Instances[iNickname].Id = newId
+}
+
+func (prj *Project) validate() error {
+	// Check instance presence and uniqueness: hostnames, ip addresses, security groups
+	hostnameMap := map[string]struct{}{}
+	internalIpMap := map[string]struct{}{}
+	floatingIpMap := map[string]struct{}{}
+	referencedUpFileGroups := map[string]struct{}{}
+	referencedDownFileGroups := map[string]struct{}{}
+	for iNickname, iDef := range prj.Instances {
+		if iDef.HostName == "" {
+			return fmt.Errorf("instance %s has empty hostname", iNickname)
+		}
+		if _, ok := hostnameMap[iDef.HostName]; ok {
+			return fmt.Errorf("instances share hostname %s", iDef.HostName)
+		}
+		hostnameMap[iDef.HostName] = struct{}{}
+
+		if iDef.IpAddress == "" {
+			return fmt.Errorf("instance %s has empty ip address", iNickname)
+		}
+		if _, ok := internalIpMap[iDef.IpAddress]; ok {
+			return fmt.Errorf("instances share internal ip %s", iDef.IpAddress)
+		}
+		internalIpMap[iDef.IpAddress] = struct{}{}
+
+		if iDef.FloatingIpAddress != "" {
+			if _, ok := floatingIpMap[iDef.FloatingIpAddress]; ok {
+				return fmt.Errorf("instances share floating ip %s", iDef.FloatingIpAddress)
+			}
+			floatingIpMap[iDef.FloatingIpAddress] = struct{}{}
+		}
+
+		// Security groups
+		if iDef.SecurityGroupNickname == "" {
+			return fmt.Errorf("instance %s has empty security group", iNickname)
+		}
+		if _, ok := prj.SecurityGroups[iDef.SecurityGroupNickname]; !ok {
+			return fmt.Errorf("instance %s has invalid security group %s", iNickname, iDef.SecurityGroupNickname)
+		}
+
+		// File groups in instances
+		for _, fgName := range iDef.ApplicableFileGroups {
+			_, okUp := prj.FileGroupsUp[fgName]
+			_, okDown := prj.FileGroupsDown[fgName]
+			if okUp && okDown {
+				return fmt.Errorf("instance %s has file group %s referenced as up and down, pick one: either up or down", iNickname, fgName)
+			} else if okUp {
+				referencedUpFileGroups[fgName] = struct{}{}
+			} else if okDown {
+				referencedDownFileGroups[fgName] = struct{}{}
+			} else {
+				return fmt.Errorf("instance %s has invalid file group %s", iNickname, fgName)
+			}
+		}
+	}
+
+	// Need at least one floating ip address
+	if len(floatingIpMap) == 0 {
+		return fmt.Errorf("none of the instances has floating ip address, at least one must have it")
+	}
+
+	// All file groups shpuld be referenced, otherwise useless
+	for fgName, _ := range prj.FileGroupsUp {
+		if _, ok := referencedUpFileGroups[fgName]; !ok {
+			return fmt.Errorf("up file group %s not reference by any instance, consider removing it", fgName)
+		}
+	}
+	for fgName, _ := range prj.FileGroupsDown {
+		if _, ok := referencedDownFileGroups[fgName]; !ok {
+			return fmt.Errorf("down file group %s not reference by any instance, consider removing it", fgName)
+		}
+	}
+
+	return nil
 }
 
 func LoadProject(prjFile string, prjParamsFile string) (*ProjectPair, string, error) {
@@ -276,36 +353,8 @@ func LoadProject(prjFile string, prjParamsFile string) (*ProjectPair, string, er
 		return nil, "", fmt.Errorf("cannot parse project file with replaced vars %s: %s", prjFullPath, err.Error())
 	}
 
-	// Check instance presense and uniqueness: hostnames, ip addresses
-	hostnameMap := map[string]struct{}{}
-	internalIpMap := map[string]struct{}{}
-	floatingIpMap := map[string]struct{}{}
-	for iNickname, iDef := range prjPair.Live.Instances {
-		if iDef.HostName == "" {
-			return nil, "", fmt.Errorf("cannot load project file, instance %s has empty hostname", iNickname)
-		}
-		if _, ok := hostnameMap[iDef.HostName]; ok {
-			return nil, "", fmt.Errorf("cannot load project file, instances share hostname %s", iDef.HostName)
-		}
-		hostnameMap[iDef.HostName] = struct{}{}
-
-		if iDef.IpAddress == "" {
-			return nil, "", fmt.Errorf("cannot load project file, instance %s has empty ip address", iNickname)
-		}
-		if _, ok := internalIpMap[iDef.IpAddress]; ok {
-			return nil, "", fmt.Errorf("cannot load project file, instances share internal ip %s", iDef.IpAddress)
-		}
-		internalIpMap[iDef.IpAddress] = struct{}{}
-
-		if iDef.FloatingIpAddress != "" {
-			if _, ok := floatingIpMap[iDef.FloatingIpAddress]; ok {
-				return nil, "", fmt.Errorf("cannot load project file, instances share floating ip %s", iDef.FloatingIpAddress)
-			}
-			floatingIpMap[iDef.FloatingIpAddress] = struct{}{}
-		}
-	}
-	if len(floatingIpMap) == 0 {
-		return nil, "", fmt.Errorf("cannot load project file, none of the instances has floating ip address, at least one must have it")
+	if err := prjPair.Live.validate(); err != nil {
+		return nil, "", fmt.Errorf("cannot load project file %s: %s", prjFullPath, err.Error())
 	}
 
 	return &prjPair, prjFullPath, nil

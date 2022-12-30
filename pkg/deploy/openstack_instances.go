@@ -111,7 +111,7 @@ func CreateInstance(prjPair *ProjectPair, logChan chan string, iNickname string,
 		"server", "create", "--flavor", flavorId, "--image", imageId,
 		"--key-name", prjPair.Live.RootKeyName,
 		"--availability-zone", prjPair.Live.AvailabilityZone,
-		"--security-group", prjPair.Live.SecurityGroup.Name,
+		"--security-group", prjPair.Live.Instances[iNickname].SecurityGroupNickname,
 		"--nic", fmt.Sprintf("net-id=%s,v4-fixed-ip=%s", prjPair.Live.Network.Id, prjPair.Live.Instances[iNickname].IpAddress),
 		prjPair.Live.Instances[iNickname].HostName})
 	if er.Error != nil {

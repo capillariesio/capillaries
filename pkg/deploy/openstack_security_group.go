@@ -5,13 +5,23 @@ import (
 	"strings"
 )
 
-func CreateSecurityGroup(prjPair *ProjectPair, logChan chan string) error {
-	if prjPair.Live.SecurityGroup.Name == "" {
+func CreateSecurityGroups(prjPair *ProjectPair, logChan chan string) error {
+	for sgNickname, _ := range prjPair.Live.SecurityGroups {
+		if err := CreateSecurityGroup(prjPair, logChan, sgNickname); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func CreateSecurityGroup(prjPair *ProjectPair, logChan chan string, sgNickname string) error {
+	liveGroupDef := prjPair.Live.SecurityGroups[sgNickname]
+	if liveGroupDef.Name == "" {
 		return fmt.Errorf("security group name cannot be empty")
 	}
 
 	sb := strings.Builder{}
-	defer func() { logChan <- CmdChainExecToString("CreateSecurityGroup", sb.String()) }()
+	defer func() { logChan <- CmdChainExecToString("CreateSecurityGroups", sb.String()) }()
 
 	rows, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, &sb, "openstack", []string{"security", "group", "list"})
 	if er.Error != nil {
@@ -20,26 +30,26 @@ func CreateSecurityGroup(prjPair *ProjectPair, logChan chan string) error {
 
 	// | ID                                   | Name                                  | Description                           | Project                          | Tags |
 	// | c25f81ce-0db0-4b98-9c24-01543d0033bf | sample_deployment_name_security_group | sample_deployment_name_security_group | 56ac58a4903a458dbd4ea2241afc9566 | []   |
-	foundGroupIdByName := FindOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.SecurityGroup.Name)
-	if prjPair.Live.SecurityGroup.Id == "" {
+	foundGroupIdByName := FindOpenstackColumnValue(rows, "ID", "Name", liveGroupDef.Name)
+	if liveGroupDef.Id == "" {
 		// If it was already created, save it for future use, but do not create
 		if foundGroupIdByName != "" {
-			sb.WriteString(fmt.Sprintf("security group %s(%s) already there, updating project\n", prjPair.Live.SecurityGroup.Name, foundGroupIdByName))
-			prjPair.SetSecurityGroupId(foundGroupIdByName)
+			sb.WriteString(fmt.Sprintf("security group %s(%s) already there, updating project\n", liveGroupDef.Name, foundGroupIdByName))
+			prjPair.SetSecurityGroupId(sgNickname, foundGroupIdByName)
 
 		}
 	} else {
 		if foundGroupIdByName == "" {
 			// It was supposed to be there, but it's not present, complain
-			return fmt.Errorf("requested security group id %s not present, consider removing this id from the project file", prjPair.Live.SecurityGroup.Id)
-		} else if prjPair.Live.SecurityGroup.Id != foundGroupIdByName {
+			return fmt.Errorf("requested security group id %s not present, consider removing this id from the project file", liveGroupDef.Id)
+		} else if liveGroupDef.Id != foundGroupIdByName {
 			// It is already there, but has different id, complain
-			return fmt.Errorf("requested security group id %s not matching existing security group id %s", prjPair.Live.SecurityGroup.Id, foundGroupIdByName)
+			return fmt.Errorf("requested security group id %s not matching existing security group id %s", liveGroupDef.Id, foundGroupIdByName)
 		}
 	}
 
-	if prjPair.Live.SecurityGroup.Id == "" {
-		rows, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, &sb, "openstack", []string{"security", "group", "create", prjPair.Live.SecurityGroup.Name})
+	if liveGroupDef.Id == "" {
+		rows, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, &sb, "openstack", []string{"security", "group", "create", liveGroupDef.Name})
 		if er.Error != nil {
 			return er.Error
 		}
@@ -52,8 +62,8 @@ func CreateSecurityGroup(prjPair *ProjectPair, logChan chan string) error {
 			return fmt.Errorf("openstack returned empty security group id")
 		}
 
-		sb.WriteString(fmt.Sprintf("created security_group %s(%s)", prjPair.Live.SecurityGroup.Name, newId))
-		prjPair.SetSecurityGroupId(newId)
+		sb.WriteString(fmt.Sprintf("created security_group %s(%s)", liveGroupDef.Name, newId))
+		prjPair.SetSecurityGroupId(sgNickname, newId)
 	}
 
 	// Retrieve group rules
@@ -89,12 +99,12 @@ func CreateSecurityGroup(prjPair *ProjectPair, logChan chan string) error {
 	// | 86159116-4acf-4d78-9901-4602bc455dbd | None        | IPv4      | 0.0.0.0/0   |            | egress    | None                  | None                 |
 	// | b3158642-996c-40f3-9729-121b47984a8c | None        | IPv6      | ::/0        |            | egress    | None                  | None                 |
 	// | c58f1583-d4f2-48f1-bc60-1a28b768316c | tcp         | IPv4      | 0.0.0.0/0   | 22:22      | ingress   | None                  | None                 |
-	rows, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, &sb, "openstack", []string{"security", "group", "rule", "list", prjPair.Live.SecurityGroup.Name})
+	rows, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, &sb, "openstack", []string{"security", "group", "rule", "list", liveGroupDef.Name})
 	if er.Error != nil {
 		return er.Error
 	}
 
-	for ruleIdx, rule := range prjPair.Live.SecurityGroup.Rules {
+	for ruleIdx, rule := range liveGroupDef.Rules {
 		// Search by port
 		portRange := fmt.Sprintf("%d:%d", rule.Port, rule.Port)
 		foundProtocol := FindOpenstackColumnValue(rows, "IP Protocol", "Port Range", portRange)
@@ -106,23 +116,33 @@ func CreateSecurityGroup(prjPair *ProjectPair, logChan chan string) error {
 			rule.Ethertype == foundEthertype &&
 			rule.RemoteIp == foundRemoteIp &&
 			rule.Direction == foundDirection {
-			prjPair.SetSecurityGroupRuleId(ruleIdx, foundId)
+			prjPair.SetSecurityGroupRuleId(sgNickname, ruleIdx, foundId)
 		} else {
-			sb.WriteString(fmt.Sprintf("security group %s needs a new rule for port %d, adding...\n", prjPair.Live.SecurityGroup.Name, rule.Port))
-			rows, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, &sb, "openstack", []string{"security", "group", "rule", "create", "--ethertype", rule.Ethertype, "--proto", rule.Protocol, "--remote-ip", rule.RemoteIp, "--dst-port", fmt.Sprintf("%d", rule.Port), fmt.Sprintf("--%s", rule.Direction), prjPair.Live.SecurityGroup.Name})
+			sb.WriteString(fmt.Sprintf("security group %s needs a new rule for port %d, adding...\n", liveGroupDef.Name, rule.Port))
+			rows, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, &sb, "openstack", []string{"security", "group", "rule", "create", "--ethertype", rule.Ethertype, "--proto", rule.Protocol, "--remote-ip", rule.RemoteIp, "--dst-port", fmt.Sprintf("%d", rule.Port), fmt.Sprintf("--%s", rule.Direction), liveGroupDef.Name})
 			if er.Error != nil {
 				return er.Error
 			}
 			newId := FindOpenstackFieldValue(rows, "id")
-			prjPair.SetSecurityGroupRuleId(ruleIdx, newId)
+			prjPair.SetSecurityGroupRuleId(sgNickname, ruleIdx, newId)
 		}
 	}
 
 	return nil
 }
 
-func DeleteSecurityGroup(prjPair *ProjectPair, logChan chan string) error {
-	if prjPair.Live.SecurityGroup.Name == "" {
+func DeleteSecurityGroups(prjPair *ProjectPair, logChan chan string) error {
+	for sgNickname, _ := range prjPair.Live.SecurityGroups {
+		if err := DeleteSecurityGroup(prjPair, logChan, sgNickname); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func DeleteSecurityGroup(prjPair *ProjectPair, logChan chan string, sgNickname string) error {
+	liveGroupDef := prjPair.Live.SecurityGroups[sgNickname]
+	if liveGroupDef.Name == "" {
 		return fmt.Errorf("security group name cannot be empty")
 	}
 
@@ -136,20 +156,20 @@ func DeleteSecurityGroup(prjPair *ProjectPair, logChan chan string) error {
 
 	// | ID                                   | Name                                  | Description                           | Project                          | Tags |
 	// | c25f81ce-0db0-4b98-9c24-01543d0033bf | sample_deployment_name_security_group | sample_deployment_name_security_group | 56ac58a4903a458dbd4ea2241afc9566 | []   |
-	foundGroupIdByName := FindOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.SecurityGroup.Name)
+	foundGroupIdByName := FindOpenstackColumnValue(rows, "ID", "Name", liveGroupDef.Name)
 	if foundGroupIdByName == "" {
-		sb.WriteString(fmt.Sprintf("security group %s not found, nothing to delete", prjPair.Live.SecurityGroup.Name))
-		prjPair.CleanSecurityGroup()
+		sb.WriteString(fmt.Sprintf("security group %s not found, nothing to delete", liveGroupDef.Name))
+		prjPair.CleanSecurityGroup(sgNickname)
 		return nil
 	}
 
-	_, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, &sb, "openstack", []string{"security", "group", "delete", prjPair.Live.SecurityGroup.Name})
+	_, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, &sb, "openstack", []string{"security", "group", "delete", liveGroupDef.Name})
 	if er.Error != nil {
 		return er.Error
 	}
 
-	sb.WriteString(fmt.Sprintf("deleted security group %s, updating project file", prjPair.Live.SecurityGroup.Name))
-	prjPair.CleanSecurityGroup()
+	sb.WriteString(fmt.Sprintf("deleted security group %s, updating project file", liveGroupDef.Name))
+	prjPair.CleanSecurityGroup(sgNickname)
 
 	return nil
 }
