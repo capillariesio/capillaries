@@ -194,21 +194,21 @@
             "mount_point": "/mnt/capi_cfg",
             "size": 1,
             "permissions": 447,
-            "id": "a802b81f-baac-4392-a655-00e45a8da1e5"
+            "id": ""
         },
         "in": {
             "name": "{deployment_name}_in",
             "mount_point": "/mnt/capi_in",
             "size": 1,
             "permissions": 447,
-            "id": "6ae56ee6-d1e8-44f0-b4cb-a219bafdc950"
+            "id": ""
         },
         "out": {
             "name": "{deployment_name}_out",
             "mount_point": "/mnt/capi_out",
             "size": 1,
             "permissions": 667,
-            "id": "413a114b-85d2-49af-a990-7dcf7ae89b84"
+            "id": ""
         }
     },
     "file_groups_up": {
@@ -432,6 +432,23 @@
             "ip_address": "10.5.0.101",
             "flavor": "gp1.semisonic",
             "image": "Ubuntu-22.04",
+            "attached_volumes": {
+                "cfg": {
+                    "attachment_id": "",
+                    "device": "",
+                    "block_device_id": ""
+                },
+                "in": {
+                    "attachment_id": "",
+                    "device": "",
+                    "block_device_id": ""
+                },
+                "out": {
+                    "attachment_id": "",
+                    "device": "",
+                    "block_device_id": ""
+                }
+            },
             "id": "",
             "service": {
                 "env": {
