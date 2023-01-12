@@ -14,6 +14,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/eval"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
+	"github.com/capillariesio/capillaries/pkg/xfer"
 )
 
 type TableRecord map[string]interface{}
@@ -82,19 +83,41 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.M
 
 	var csvFile *os.File
 	var fileReader io.Reader
-	if u.Scheme == sc.UriSchemeFile || len(u.Scheme) == 0 {
+	if u.Scheme == xfer.UriSchemeFile || len(u.Scheme) == 0 {
 		csvFile, err = os.Open(filePath)
 		if err != nil {
 			return bs, err
 		}
 		fileReader = bufio.NewReader(csvFile)
-	} else if u.Scheme == sc.UriSchemeHttp || u.Scheme == sc.UriSchemeHttps {
-		readCloser, err := sc.GetHttpReadCloser(filePath, u.Scheme, envConfig.CaPath)
+	} else if u.Scheme == xfer.UriSchemeHttp || u.Scheme == xfer.UriSchemeHttps {
+		readCloser, err := xfer.GetHttpReadCloser(filePath, u.Scheme, envConfig.CaPath)
 		if err != nil {
 			return bs, err
 		}
 		fileReader = readCloser
 		defer readCloser.Close()
+	} else if u.Scheme == xfer.UriSchemeSftp {
+		// When dealing with sftp, we download the *whole* file, instead of providing a reader
+		dstFile, err := os.CreateTemp("", "capi")
+		if err != nil {
+			return bs, fmt.Errorf("cannot creeate temp file for %s: %s", filePath, err.Error())
+		}
+
+		// Download and schedule delete
+		if err = xfer.DownloadSftpFile(filePath, envConfig.PrivateKeys, dstFile); err != nil {
+			dstFile.Close()
+			return bs, err
+		}
+		logger.Info("downloaded sftp file %s to %s", filePath, dstFile.Name())
+		dstFile.Close()
+		defer os.Remove(dstFile.Name())
+
+		// Create a reader for the temp file
+		csvFile, err = os.Open(dstFile.Name())
+		if err != nil {
+			return bs, fmt.Errorf("cannot read from file %s downloaded from %s: %s", dstFile.Name(), filePath, err.Error())
+		}
+		fileReader = bufio.NewReader(csvFile)
 	} else {
 		return bs, fmt.Errorf("uri scheme %s not supported: %s", u.Scheme, filePath)
 	}

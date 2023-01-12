@@ -58,7 +58,7 @@ func (pCtx *MessageProcessingContext) DbClose() {
 func (pCtx *MessageProcessingContext) InitScript(envConfig *env.EnvConfig) error {
 
 	var err error
-	pCtx.Script, err = sc.NewScriptFromFiles(envConfig.CaPath, pCtx.BatchInfo.ScriptURI, pCtx.BatchInfo.ScriptParamsURI, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
+	pCtx.Script, err = sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, pCtx.BatchInfo.ScriptURI, pCtx.BatchInfo.ScriptParamsURI, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
 	if err != nil {
 		return fmt.Errorf("cannot initialize context with script: %s", err.Error())
 	}

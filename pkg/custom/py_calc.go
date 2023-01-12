@@ -71,7 +71,7 @@ func harvestCallExp(callExp *ast.CallExpr, sigMap map[string]struct{}) {
 	}
 }
 
-func (procDef *PyCalcProcessorDef) Deserialize(raw json.RawMessage, customProcSettings json.RawMessage, caPath string) error {
+func (procDef *PyCalcProcessorDef) Deserialize(raw json.RawMessage, customProcSettings json.RawMessage, caPath string, privateKeys map[string]string) error {
 	var err error
 	if err = json.Unmarshal(raw, procDef); err != nil {
 		return fmt.Errorf("cannot unmarshal py_calc processor def: %s", err.Error())

@@ -185,17 +185,17 @@ func TestPyCalcDef(t *testing.T) {
 	var err error
 
 	newScript := &sc.ScriptDef{}
-	if err = newScript.Deserialize([]byte(script), &PyCalcTestTestProcessorDefFactory{}, map[string]json.RawMessage{"py_calc": []byte(envSettings)}, ""); err != nil {
+	if err = newScript.Deserialize([]byte(script), &PyCalcTestTestProcessorDefFactory{}, map[string]json.RawMessage{"py_calc": []byte(envSettings)}, "", nil); err != nil {
 		t.Error(err)
 	}
 
 	err = newScript.Deserialize(
 		[]byte(strings.Replace(script, `"having": "w.taxed_field_decimal > 10"`, `"having": "p.taxed_field_int1 > 10"`, 1)),
-		&PyCalcTestTestProcessorDefFactory{}, map[string]json.RawMessage{"py_calc": []byte(envSettings)}, "")
+		&PyCalcTestTestProcessorDefFactory{}, map[string]json.RawMessage{"py_calc": []byte(envSettings)}, "", nil)
 	assert.Contains(t, err.Error(), "prohibited field p.taxed_field_int1")
 
 	err = newScript.Deserialize(
 		[]byte(strings.Replace(script, `"expression": "increase_by_ten_percent(r.field_int1)"`, `"expression": "bad_func(r.field_int1)"`, 1)),
-		&PyCalcTestTestProcessorDefFactory{}, map[string]json.RawMessage{"py_calc": []byte(envSettings)}, "")
+		&PyCalcTestTestProcessorDefFactory{}, map[string]json.RawMessage{"py_calc": []byte(envSettings)}, "", nil)
 	assert.Contains(t, err.Error(), "function def 'bad_func(arg)' not found in Python file")
 }
