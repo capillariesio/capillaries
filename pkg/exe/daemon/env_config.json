@@ -17,6 +17,9 @@
       "prefetch_count": 20,
       "prefetch_size": 0
     },
+    "private_keys": {
+      "sftpuser":"../../../pkg/exe/deploy/keys/sftpuser"
+    },
     "custom_processors":{
       "py_calc":{
         "python_interpreter_path":"python",

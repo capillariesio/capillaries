@@ -71,7 +71,9 @@ func RunCreateFile(logger *l.Logger,
 		srcFieldRefs)
 
 	instr := newFileInserter(pCtx, &node.FileCreator)
-	instr.createFileAndStartWorker(logger, pCtx.BatchInfo.RunId, pCtx.BatchInfo.BatchIdx)
+	if err := instr.createFileAndStartWorker(logger, pCtx.BatchInfo.RunId, pCtx.BatchInfo.BatchIdx); err != nil {
+		return bs, fmt.Errorf("cannot strt file inserter worker: %s", err.Error())
+	}
 	defer instr.waitForWorkerAndClose()
 
 	var topHeap FileRecordHeap

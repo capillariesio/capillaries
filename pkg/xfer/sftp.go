@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
@@ -17,6 +18,8 @@ type ParsedSftpUri struct {
 	PrivateKeyPath string
 	RemotePath     string
 }
+
+const DefaultSshPort int = 22
 
 func parseSftpUri(uri string, privateKeys map[string]string) (*ParsedSftpUri, error) {
 	// sftp://user[:pass]@host[:port]/path/to/file
@@ -33,22 +36,27 @@ func parseSftpUri(uri string, privateKeys map[string]string) (*ParsedSftpUri, er
 
 	privateKeyPath, ok := privateKeys[userName]
 	if !ok {
-		return nil, fmt.Errorf("username %s in sftp uri %s ot found in enviroment configuration", userName, uri)
+		return nil, fmt.Errorf("username %s in sftp uri %s not found in enviroment configuration", userName, uri)
 	}
 
-	port := int64(22)
-	if u.Port() != "" {
-		port, err = strconv.ParseInt(u.Port(), 10, 32)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse port in sftp uri %s", uri)
-		}
+	hostParts := strings.Split(u.Host, ":")
+	if len(hostParts) < 2 {
+		return &ParsedSftpUri{userName, hostParts[0], DefaultSshPort, privateKeyPath, u.Path}, nil
+	}
+	port, err := strconv.ParseInt(hostParts[1], 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse port in sftp uri %s", uri)
 	}
 
-	return &ParsedSftpUri{userName, u.Host, int(port), privateKeyPath, u.Path}, nil
+	return &ParsedSftpUri{userName, hostParts[0], int(port), privateKeyPath, u.Path}, nil
 }
 
 func DownloadSftpFile(uri string, privateKeys map[string]string, dstFile *os.File) error {
+	//parsedUri, err := parseSftpUri(strings.ReplaceAll(uri, "sftp://", ""), privateKeys)
 	parsedUri, err := parseSftpUri(uri, privateKeys)
+	if err != nil {
+		return err
+	}
 
 	// Assume empty key password ""
 	sshClientConfig, err := NewSshClientConfig(parsedUri.User, parsedUri.Host, parsedUri.Port, parsedUri.PrivateKeyPath, "")

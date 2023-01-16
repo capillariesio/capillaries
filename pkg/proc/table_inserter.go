@@ -98,6 +98,7 @@ func (instr *TableInserter) verifyTablesExist() error {
 
 func (instr *TableInserter) startWorkers(logger *l.Logger) error {
 	instr.RecordsIn = make(chan WriteChannelItem, instr.BatchSize)
+	logger.Debug("startWorkers created RecordsIn")
 	instr.RecordsInOpen = true
 
 	for w := 0; w < instr.NumWorkers; w++ {
@@ -110,10 +111,12 @@ func (instr *TableInserter) startWorkers(logger *l.Logger) error {
 	return nil
 }
 
-func (instr *TableInserter) waitForWorkers() error {
+func (instr *TableInserter) waitForWorkers(logger *l.Logger) error {
 
 	if instr.RecordsInOpen {
+		logger.Debug("waitForWorkers closing RecordsIn")
 		close(instr.RecordsIn)
+		logger.Debug("waitForWorkers closed RecordsIn")
 		instr.RecordsInOpen = false
 	}
 
@@ -136,9 +139,9 @@ func (instr *TableInserter) waitForWorkers() error {
 	}
 }
 
-func (instr *TableInserter) waitForWorkersAndClose() {
+func (instr *TableInserter) waitForWorkersAndClose(logger *l.Logger) {
 	// Make sure no workers are running, so they do not hit closed ErrorsOut
-	instr.waitForWorkers()
+	instr.waitForWorkers(logger)
 	// Safe to close now
 	close(instr.ErrorsOut)
 }
@@ -165,6 +168,7 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger) {
 	logger.PushF("proc.tableInserterWorker")
 	defer logger.PopF()
 
+	logger.Debug("tableInserterWorker reading RecordsIn")
 	for writeItem := range instr.RecordsIn {
 		maxRetries := 3
 		var errorToReport error
@@ -244,4 +248,5 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger) {
 		}
 		instr.ErrorsOut <- errorToReport
 	}
+	logger.Debug("tableInserterWorker done with RecordsIn")
 }
