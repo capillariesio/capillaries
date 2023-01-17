@@ -175,7 +175,7 @@ func UploadFileSftp(prj *Project, ipAddress string, srcPath string, dstPath stri
 
 	_, err = dstFile.ReadFrom(srcFile)
 	if err != nil {
-		return lb.Complete(fmt.Errorf("cannot read for upload %s: %s", srcPath, err.Error()))
+		return lb.Complete(fmt.Errorf("cannot read for upload %s to %s: %s", srcPath, dstPath, err.Error()))
 	}
 	// truePermissions, err := strconv.ParseInt(fmt.Sprintf("%d", permissions), 8, 0)
 	// if err != nil {

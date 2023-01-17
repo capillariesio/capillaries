@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -92,11 +93,51 @@ func DownloadSftpFile(uri string, privateKeys map[string]string, dstFile *os.Fil
 	return nil
 }
 
-func UploadSftpFile(sourcePath string, uri string, privateKeys map[string]string) error {
-	//parsedUri, err := parseSftpUri(strings.ReplaceAll(uri, "sftp://", ""), privateKeys)
-	// parsedUri, err := parseSftpUri(uri, privateKeys)
-	// if err != nil {
-	// 	return err
-	// }
+func UploadSftpFile(srcPath string, uri string, privateKeys map[string]string) error {
+	parsedUri, err := parseSftpUri(uri, privateKeys)
+	if err != nil {
+		return err
+	}
+
+	// Assume empty key password ""
+	sshClientConfig, err := NewSshClientConfig(parsedUri.User, parsedUri.Host, parsedUri.Port, parsedUri.PrivateKeyPath, "")
+	if err != nil {
+		return err
+	}
+
+	sshUrl := fmt.Sprintf("%s:%d", parsedUri.Host, parsedUri.Port)
+
+	sshClient, err := ssh.Dial("tcp", sshUrl, sshClientConfig)
+	if err != nil {
+		return fmt.Errorf("dial to %s failed: %s", uri, err.Error())
+	}
+	defer sshClient.Close()
+
+	sftp, err := sftp.NewClient(sshClient)
+	if err != nil {
+		return fmt.Errorf("cannot create sftp client to %s: %s", uri, err.Error())
+	}
+	defer sftp.Close()
+
+	if err := sftp.MkdirAll(filepath.Dir(parsedUri.RemotePath)); err != nil {
+		return fmt.Errorf("cannot create target dir for %s: %s", uri, err.Error())
+	}
+
+	srcFile, err := os.Open(srcPath)
+	if err != nil {
+		return fmt.Errorf("cannot open for upload %s: %s", srcPath, err.Error())
+	}
+	defer srcFile.Close()
+
+	dstFile, err := sftp.Create(parsedUri.RemotePath)
+	if err != nil {
+		return fmt.Errorf("cannot create on upload %s: %s", uri, err.Error())
+	}
+
+	_, err = dstFile.ReadFrom(srcFile)
+	if err != nil {
+		return fmt.Errorf("cannot read for upload %s to %s : %s", srcPath, uri, err.Error())
+	}
+
 	return nil
 }

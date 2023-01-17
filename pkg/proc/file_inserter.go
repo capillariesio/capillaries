@@ -263,5 +263,7 @@ func (instr *FileInserter) sendFileToFinal(logger *l.Logger, pCtx *ctx.MessagePr
 	}
 	defer os.Remove(instr.TempFilePath)
 
+	logger.InfoCtx(pCtx, "uploading %s to %s...", instr.TempFilePath, instr.FinalFileUrl)
+
 	return xfer.UploadSftpFile(instr.TempFilePath, instr.FinalFileUrl, privateKeys)
 }
