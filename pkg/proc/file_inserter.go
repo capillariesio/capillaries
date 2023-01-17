@@ -112,7 +112,9 @@ func (instr *FileInserter) checkWorkerOutput() error {
 	}
 }
 
-func (instr *FileInserter) waitForWorker() error {
+func (instr *FileInserter) waitForWorker(logger *l.Logger, pCtx *ctx.MessageProcessingContext) error {
+	logger.PushF("proc.waitForWorkers/FieInserter")
+	defer logger.PopF()
 
 	// waitForWorker may be used for writing leftovers, handle them
 	if instr.CurrentBatch != nil && instr.CurrentBatch.RowCount > 0 {
@@ -122,10 +124,13 @@ func (instr *FileInserter) waitForWorker() error {
 	}
 
 	if instr.BatchesInOpen {
+		logger.DebugCtx(pCtx, "closing BatchesIn")
 		close(instr.BatchesIn)
+		logger.DebugCtx(pCtx, "closed BatchesIn")
 		instr.BatchesInOpen = false
 	}
 
+	logger.DebugCtx(pCtx, "started reading from BatchesSent")
 	errors := make([]string, 0)
 	// It's crucial that the number of errors to receive eventually should match instr.BatchesSent
 	for i := 0; i < instr.BatchesSent; i++ {
@@ -134,6 +139,7 @@ func (instr *FileInserter) waitForWorker() error {
 			errors = append(errors, err.Error())
 		}
 	}
+	logger.DebugCtx(pCtx, "done reading from BatchesSent")
 
 	// Reset for the next cycle, if it ever happens
 	instr.BatchesSent = 0
@@ -145,9 +151,14 @@ func (instr *FileInserter) waitForWorker() error {
 	}
 }
 
-func (instr *FileInserter) waitForWorkerAndClose() {
-	instr.waitForWorker()
+func (instr *FileInserter) waitForWorkerAndClose(logger *l.Logger, pCtx *ctx.MessageProcessingContext) {
+	logger.PushF("proc.waitForWorkersAndClose/FileInserter")
+	defer logger.PopF()
+
+	instr.waitForWorker(logger, pCtx)
+	logger.DebugCtx(pCtx, "closing ErrorsOut")
 	close(instr.ErrorsOut)
+	logger.DebugCtx(pCtx, "closed ErrorsOut")
 }
 
 func (instr *FileInserter) add(row []interface{}) {

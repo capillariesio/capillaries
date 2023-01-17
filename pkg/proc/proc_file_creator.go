@@ -72,9 +72,9 @@ func RunCreateFile(logger *l.Logger,
 
 	instr := newFileInserter(pCtx, &node.FileCreator)
 	if err := instr.createFileAndStartWorker(logger, pCtx.BatchInfo.RunId, pCtx.BatchInfo.BatchIdx); err != nil {
-		return bs, fmt.Errorf("cannot strt file inserter worker: %s", err.Error())
+		return bs, fmt.Errorf("cannot start file inserter worker: %s", err.Error())
 	}
-	defer instr.waitForWorkerAndClose()
+	defer instr.waitForWorkerAndClose(logger, pCtx)
 
 	var topHeap FileRecordHeap
 	if node.FileCreator.HasTop() {
@@ -83,7 +83,6 @@ func RunCreateFile(logger *l.Logger,
 	}
 
 	for {
-		//logger.InfoCtx(pCtx, "!!!FILEWRITE: %d-%d", curStartToken, endToken)
 		lastRetrievedToken, err := selectBatchFromTableByToken(logger,
 			pCtx,
 			rs,
@@ -163,7 +162,7 @@ func RunCreateFile(logger *l.Logger,
 	}
 
 	// Successful so far, write leftovers
-	if err := instr.waitForWorker(); err != nil {
+	if err := instr.waitForWorker(logger, pCtx); err != nil {
 		return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
 	}
 

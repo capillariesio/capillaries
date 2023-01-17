@@ -248,7 +248,7 @@ func getRunPropsAndLifespans(logger *l.Logger, cqlSession *gocql.Session, keyspa
 	}
 
 	if len(allRunsProps) != 1 {
-		return nil, nil, fmt.Errorf("invalid number of matching runs (%d), expected 1 ", len(allRunsProps))
+		return nil, nil, fmt.Errorf("invalid number of matching runs (%d), expected 1; this usually happens when webapi caller makes wrong assumptions about the process status", len(allRunsProps))
 	}
 
 	// Run status

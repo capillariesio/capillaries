@@ -133,10 +133,10 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.M
 
 	instr := newTableInserter(envConfig, logger, pCtx, &node.TableCreator, DefaultInserterBatchSize)
 	instr.verifyTablesExist()
-	if err := instr.startWorkers(logger); err != nil {
+	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}
-	defer instr.waitForWorkersAndClose(logger)
+	defer instr.waitForWorkersAndClose(logger, pCtx)
 
 	for {
 		line, err := r.Read()
@@ -175,13 +175,13 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.M
 				instr.add(tableRecord)
 				tableRecordBatchCount++
 				if tableRecordBatchCount == DefaultInserterBatchSize {
-					if err := instr.waitForWorkers(logger); err != nil {
+					if err := instr.waitForWorkers(logger, pCtx); err != nil {
 						return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
 					}
 					reportWriteTable(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
 					batchStartTime = time.Now()
 					tableRecordBatchCount = 0
-					if err := instr.startWorkers(logger); err != nil {
+					if err := instr.startWorkers(logger, pCtx); err != nil {
 						return bs, err
 					}
 
@@ -193,13 +193,11 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.M
 		lineIdx++
 	}
 
-	// Write leftovers
-	if tableRecordBatchCount > 0 {
-		if err := instr.waitForWorkers(logger); err != nil {
-			return bs, fmt.Errorf("cannot save leftover record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
-		}
-		reportWriteTableLeftovers(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
+	// Write leftovers regardless of tableRecordBatchCount == 0
+	if err := instr.waitForWorkers(logger, pCtx); err != nil {
+		return bs, fmt.Errorf("cannot save leftover record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
 	}
+	reportWriteTableLeftovers(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
 
 	bs.Elapsed = time.Since(totalStartTime)
 	reportWriteTableComplete(logger, pCtx, bs.RowsRead, bs.RowsWritten, bs.Elapsed, len(node.TableCreator.Indexes), instr.NumWorkers)
@@ -252,10 +250,10 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 	}
 	instr := newTableInserter(envConfig, logger, pCtx, &node.TableCreator, inserterBatchSize)
 	instr.verifyTablesExist()
-	if err := instr.startWorkers(logger); err != nil {
+	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}
-	defer instr.waitForWorkersAndClose(logger)
+	defer instr.waitForWorkersAndClose(logger, pCtx)
 
 	flushVarsArray := func(varsArray []*eval.VarValuesMap, varsArrayCount int) error {
 		logger.PushF("proc.flushRowset")
@@ -377,10 +375,10 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 	}
 	instr := newTableInserter(envConfig, logger, pCtx, &node.TableCreator, inserterBatchSize)
 	instr.verifyTablesExist()
-	if err := instr.startWorkers(logger); err != nil {
+	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}
-	defer instr.waitForWorkersAndClose(logger)
+	defer instr.waitForWorkersAndClose(logger, pCtx)
 
 	for {
 		lastRetrievedLeftToken, err := selectBatchFromTableByToken(logger,
@@ -423,13 +421,13 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 				instr.add(tableRecord)
 				tableRecordBatchCount++
 				if tableRecordBatchCount == DefaultInserterBatchSize {
-					if err := instr.waitForWorkers(logger); err != nil {
+					if err := instr.waitForWorkers(logger, pCtx); err != nil {
 						return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
 					}
 					reportWriteTable(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
 					batchStartTime = time.Now()
 					tableRecordBatchCount = 0
-					if err := instr.startWorkers(logger); err != nil {
+					if err := instr.startWorkers(logger, pCtx); err != nil {
 						return bs, err
 					}
 				}
@@ -443,13 +441,11 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 		}
 	} // for each source table batch
 
-	// Write leftovers
-	if tableRecordBatchCount > 0 {
-		if err := instr.waitForWorkers(logger); err != nil {
-			return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
-		}
-		reportWriteTableLeftovers(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
+	// Write leftovers regardless of tableRecordBatchCount == 0
+	if err := instr.waitForWorkers(logger, pCtx); err != nil {
+		return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
 	}
+	reportWriteTableLeftovers(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
 
 	bs.Elapsed = time.Since(totalStartTime)
 	reportWriteTableComplete(logger, pCtx, bs.RowsRead, bs.RowsWritten, bs.Elapsed, len(node.TableCreator.Indexes), instr.NumWorkers)
@@ -526,10 +522,10 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 	}
 	instr := newTableInserter(envConfig, logger, pCtx, &node.TableCreator, inserterBatchSize)
 	instr.verifyTablesExist()
-	if err := instr.startWorkers(logger); err != nil {
+	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}
-	defer instr.waitForWorkersAndClose(logger)
+	defer instr.waitForWorkersAndClose(logger, pCtx)
 
 	curStartLeftToken := startLeftToken
 	for {
@@ -735,13 +731,13 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 								instr.add(tableRecord)
 								tableRecordBatchCount++
 								if tableRecordBatchCount == instr.BatchSize {
-									if err := instr.waitForWorkers(logger); err != nil {
+									if err := instr.waitForWorkers(logger, pCtx); err != nil {
 										return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
 									}
 									reportWriteTable(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
 									batchStartTime = time.Now()
 									tableRecordBatchCount = 0
-									if err := instr.startWorkers(logger); err != nil {
+									if err := instr.startWorkers(logger, pCtx); err != nil {
 										return bs, err
 									}
 								}
@@ -823,13 +819,13 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 					instr.add(tableRecord)
 					tableRecordBatchCount++
 					if tableRecordBatchCount == instr.BatchSize {
-						if err := instr.waitForWorkers(logger); err != nil {
+						if err := instr.waitForWorkers(logger, pCtx); err != nil {
 							return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
 						}
 						reportWriteTable(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
 						batchStartTime = time.Now()
 						tableRecordBatchCount = 0
-						if err := instr.startWorkers(logger); err != nil {
+						if err := instr.startWorkers(logger, pCtx); err != nil {
 							return bs, err
 						}
 					}
@@ -881,13 +877,13 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 					instr.add(tableRecord)
 					tableRecordBatchCount++
 					if tableRecordBatchCount == instr.BatchSize {
-						if err := instr.waitForWorkers(logger); err != nil {
+						if err := instr.waitForWorkers(logger, pCtx); err != nil {
 							return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
 						}
 						reportWriteTable(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
 						batchStartTime = time.Now()
 						tableRecordBatchCount = 0
-						if err := instr.startWorkers(logger); err != nil {
+						if err := instr.startWorkers(logger, pCtx); err != nil {
 							return bs, err
 						}
 					}
@@ -904,13 +900,12 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 		}
 	} // for each source table batch
 
-	// Write leftovers
-	if tableRecordBatchCount > 0 {
-		if err := instr.waitForWorkers(logger); err != nil {
-			return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
-		}
-		reportWriteTableLeftovers(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
+	// Write leftovers regardless of tableRecordBatchCount == 0
+	if err := instr.waitForWorkers(logger, pCtx); err != nil {
+		return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
 	}
+	reportWriteTableLeftovers(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
+
 	bs.Elapsed = time.Since(totalStartTime)
 	reportWriteTableComplete(logger, pCtx, bs.RowsRead, bs.RowsWritten, bs.Elapsed, len(node.TableCreator.Indexes), instr.NumWorkers)
 	return bs, nil

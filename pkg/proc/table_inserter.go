@@ -96,9 +96,9 @@ func (instr *TableInserter) verifyTablesExist() error {
 	return nil
 }
 
-func (instr *TableInserter) startWorkers(logger *l.Logger) error {
+func (instr *TableInserter) startWorkers(logger *l.Logger, pCtx *ctx.MessageProcessingContext) error {
 	instr.RecordsIn = make(chan WriteChannelItem, instr.BatchSize)
-	logger.Debug("startWorkers created RecordsIn")
+	logger.DebugCtx(pCtx, "startWorkers created RecordsIn")
 	instr.RecordsInOpen = true
 
 	for w := 0; w < instr.NumWorkers; w++ {
@@ -106,20 +106,23 @@ func (instr *TableInserter) startWorkers(logger *l.Logger) error {
 		if err != nil {
 			return err
 		}
-		go instr.tableInserterWorker(newLogger)
+		go instr.tableInserterWorker(newLogger, pCtx)
 	}
 	return nil
 }
 
-func (instr *TableInserter) waitForWorkers(logger *l.Logger) error {
+func (instr *TableInserter) waitForWorkers(logger *l.Logger, pCtx *ctx.MessageProcessingContext) error {
+	logger.PushF("proc.waitForWorkers/TableInserter")
+	defer logger.PopF()
 
 	if instr.RecordsInOpen {
-		logger.Debug("waitForWorkers closing RecordsIn")
+		logger.DebugCtx(pCtx, "closing RecordsIn")
 		close(instr.RecordsIn)
-		logger.Debug("waitForWorkers closed RecordsIn")
+		logger.DebugCtx(pCtx, "closed RecordsIn")
 		instr.RecordsInOpen = false
 	}
 
+	logger.DebugCtx(pCtx, "started reading from RecordsSent")
 	errors := make([]string, 0)
 	// It's crucial that the number of errors to receive eventually should match instr.RecordsSent
 	for i := 0; i < instr.RecordsSent; i++ {
@@ -128,6 +131,7 @@ func (instr *TableInserter) waitForWorkers(logger *l.Logger) error {
 			errors = append(errors, err.Error())
 		}
 	}
+	logger.DebugCtx(pCtx, "done reading from RecordsSent")
 
 	// Reset for the next cycle, if it ever happens
 	instr.RecordsSent = 0
@@ -139,11 +143,16 @@ func (instr *TableInserter) waitForWorkers(logger *l.Logger) error {
 	}
 }
 
-func (instr *TableInserter) waitForWorkersAndClose(logger *l.Logger) {
+func (instr *TableInserter) waitForWorkersAndClose(logger *l.Logger, pCtx *ctx.MessageProcessingContext) {
+	logger.PushF("proc.waitForWorkersAndClose/TableInserter")
+	defer logger.PopF()
+
 	// Make sure no workers are running, so they do not hit closed ErrorsOut
-	instr.waitForWorkers(logger)
+	instr.waitForWorkers(logger, pCtx)
 	// Safe to close now
+	logger.DebugCtx(pCtx, "closing ErrorsOut")
 	close(instr.ErrorsOut)
+	logger.DebugCtx(pCtx, "closed ErrorsOut")
 }
 
 func (instr *TableInserter) add(tableRecord TableRecord) error {
@@ -164,11 +173,11 @@ func (instr *TableInserter) add(tableRecord TableRecord) error {
 	return nil
 }
 
-func (instr *TableInserter) tableInserterWorker(logger *l.Logger) {
+func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.MessageProcessingContext) {
 	logger.PushF("proc.tableInserterWorker")
 	defer logger.PopF()
 
-	logger.Debug("tableInserterWorker reading RecordsIn")
+	logger.DebugCtx(pCtx, "started reading from RecordsIn")
 	for writeItem := range instr.RecordsIn {
 		maxRetries := 3
 		var errorToReport error
@@ -248,5 +257,5 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger) {
 		}
 		instr.ErrorsOut <- errorToReport
 	}
-	logger.Debug("tableInserterWorker done with RecordsIn")
+	logger.DebugCtx(pCtx, "done reading from RecordsIn")
 }
