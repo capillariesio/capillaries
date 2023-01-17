@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/ctx"
+	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/eval"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
@@ -34,59 +35,23 @@ func (h *FileRecordHeap) Pop() interface{} {
 	return item
 }
 
-func RunCreateFile(logger *l.Logger,
-	pCtx *ctx.MessageProcessingContext,
-	readerNodeRunId int16,
-	startToken int64,
-	endToken int64) (BatchStats, error) {
+func readAndInsert(logger *l.Logger, pCtx *ctx.MessageProcessingContext, tableName string, rs *Rowset, instr *FileInserter, readerNodeRunId int16, startToken int64, endToken int64, srcBatchSize int) (BatchStats, error) {
 
-	logger.PushF("proc.RunCreateFile")
-	defer logger.PopF()
-
-	totalStartTime := time.Now()
 	bs := BatchStats{RowsRead: 0, RowsWritten: 0}
 
-	if readerNodeRunId == 0 {
-		return bs, fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
-	}
-
-	node := pCtx.CurrentScriptNode
-
-	if !node.HasFileCreator() {
-		return bs, fmt.Errorf("node does not have file creator")
-	}
-
-	// Fields to read from source table
-	srcFieldRefs := sc.FieldRefs{}
-	// No src fields in having!
-	srcFieldRefs.AppendWithFilter(node.FileCreator.UsedInTargetExpressionsFields, sc.ReaderAlias)
-
-	srcBatchSize := node.TableReader.RowsetSize
-	tableRecordBatchCount := 0
-	curStartToken := startToken
-
-	rs := NewRowsetFromFieldRefs(
-		sc.FieldRefs{sc.RowidFieldRef(node.TableReader.TableName)},
-		sc.FieldRefs{sc.RowidTokenFieldRef()},
-		srcFieldRefs)
-
-	instr := newFileInserter(pCtx, &node.FileCreator)
-	if err := instr.createFileAndStartWorker(logger, pCtx.BatchInfo.RunId, pCtx.BatchInfo.BatchIdx); err != nil {
-		return bs, fmt.Errorf("cannot start file inserter worker: %s", err.Error())
-	}
-	defer instr.waitForWorkerAndClose(logger, pCtx)
-
 	var topHeap FileRecordHeap
-	if node.FileCreator.HasTop() {
+	if instr.FileCreator.HasTop() {
 		topHeap := FileRecordHeap{}
 		heap.Init(&topHeap)
 	}
+
+	curStartToken := startToken
 
 	for {
 		lastRetrievedToken, err := selectBatchFromTableByToken(logger,
 			pCtx,
 			rs,
-			node.TableReader.TableName,
+			tableName,
 			readerNodeRunId,
 			srcBatchSize,
 			curStartToken,
@@ -106,31 +71,31 @@ func RunCreateFile(logger *l.Logger,
 				return bs, err
 			}
 
-			fileRecord, err := node.FileCreator.CalculateFileRecordFromSrcVars(vars)
+			fileRecord, err := instr.FileCreator.CalculateFileRecordFromSrcVars(vars)
 			if err != nil {
 				return bs, fmt.Errorf("cannot populate file record from [%v]: [%s]", vars, err.Error())
 			}
 
-			inResult, err := node.FileCreator.CheckFileRecordHavingCondition(fileRecord)
+			inResult, err := instr.FileCreator.CheckFileRecordHavingCondition(fileRecord)
 			if err != nil {
-				return bs, fmt.Errorf("cannot check having condition [%s], file record [%v]: [%s]", node.FileCreator.RawHaving, fileRecord, err.Error())
+				return bs, fmt.Errorf("cannot check having condition [%s], file record [%v]: [%s]", instr.FileCreator.RawHaving, fileRecord, err.Error())
 			}
 
 			if !inResult {
 				continue
 			}
 
-			if node.FileCreator.HasTop() {
+			if instr.FileCreator.HasTop() {
 				keyVars := map[string]interface{}{}
-				for i := 0; i < len(node.FileCreator.Columns); i++ {
-					keyVars[node.FileCreator.Columns[i].Name] = fileRecord[i]
+				for i := 0; i < len(instr.FileCreator.Columns); i++ {
+					keyVars[instr.FileCreator.Columns[i].Name] = fileRecord[i]
 				}
-				key, err := sc.BuildKey(keyVars, &node.FileCreator.Top.OrderIdxDef)
+				key, err := sc.BuildKey(keyVars, &instr.FileCreator.Top.OrderIdxDef)
 				if err != nil {
 					return bs, fmt.Errorf("cannot build top key for [%v]: [%s]", vars, err.Error())
 				}
 				heap.Push(&topHeap, &FileRecordHeapItem{FileRecord: &fileRecord, Key: key})
-				if len(topHeap) > node.FileCreator.Top.Limit {
+				if len(topHeap) > instr.FileCreator.Top.Limit {
 					heap.Pop(&topHeap)
 				}
 			} else {
@@ -144,13 +109,13 @@ func RunCreateFile(logger *l.Logger,
 			break
 		}
 
-		if err := instr.checkWorkerOutput(); err != nil {
-			return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+		if err := instr.checkWorkerOutputForErrors(); err != nil {
+			return bs, fmt.Errorf("cannot save record batch from %s to %s(temp %s): [%s]", tableName, instr.FinalFileUrl, instr.TempFilePath, err.Error())
 		}
 
 	} // for each source table batch
 
-	if node.FileCreator.HasTop() {
+	if instr.FileCreator.HasTop() {
 		properlyOrderedTopList := make([]*FileRecordHeapItem, topHeap.Len())
 		for i := topHeap.Len() - 1; i >= 0; i-- {
 			properlyOrderedTopList[i] = heap.Pop(&topHeap).(*FileRecordHeapItem)
@@ -161,13 +126,64 @@ func RunCreateFile(logger *l.Logger,
 		}
 	}
 
+	return bs, nil
+
+}
+
+func RunCreateFile(envConfig *env.EnvConfig,
+	logger *l.Logger,
+	pCtx *ctx.MessageProcessingContext,
+	readerNodeRunId int16,
+	startToken int64,
+	endToken int64) (BatchStats, error) {
+
+	logger.PushF("proc.RunCreateFile")
+	defer logger.PopF()
+
+	totalStartTime := time.Now()
+
+	if readerNodeRunId == 0 {
+		return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
+	}
+
+	node := pCtx.CurrentScriptNode
+
+	if !node.HasFileCreator() {
+		return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("node does not have file creator")
+	}
+
+	// Fields to read from source table
+	srcFieldRefs := sc.FieldRefs{}
+	// No src fields in having!
+	srcFieldRefs.AppendWithFilter(node.FileCreator.UsedInTargetExpressionsFields, sc.ReaderAlias)
+
+	rs := NewRowsetFromFieldRefs(
+		sc.FieldRefs{sc.RowidFieldRef(node.TableReader.TableName)},
+		sc.FieldRefs{sc.RowidTokenFieldRef()},
+		srcFieldRefs)
+
+	instr := newFileInserter(pCtx, &node.FileCreator, pCtx.BatchInfo.RunId, pCtx.BatchInfo.BatchIdx)
+	if err := instr.createFileAndStartWorker(logger); err != nil {
+		return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("cannot start file inserter worker: %s", err.Error())
+	}
+
+	bs, err := readAndInsert(logger, pCtx, node.TableReader.TableName, rs, instr, readerNodeRunId, startToken, endToken, node.TableReader.RowsetSize)
+	if err != nil {
+		instr.waitForWorkerAndClose(logger, pCtx)
+		return bs, err
+	}
+
 	// Successful so far, write leftovers
 	if err := instr.waitForWorker(logger, pCtx); err != nil {
-		return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+		return bs, fmt.Errorf("cannot save record batch from %s to %s(temp %s): [%s]", node.TableReader.TableName, instr.FinalFileUrl, instr.TempFilePath, err.Error())
 	}
 
 	bs.Elapsed = time.Since(totalStartTime)
 	logger.InfoCtx(pCtx, "WriteFileComplete: read %d, wrote %d items in %.3fs (%.0f items/s)", bs.RowsRead, bs.RowsWritten, bs.Elapsed.Seconds(), float64(bs.RowsWritten)/bs.Elapsed.Seconds())
+
+	if err := instr.sendFileToFinal(logger, pCtx, envConfig.PrivateKeys); err != nil {
+		return bs, err
+	}
 
 	return bs, nil
 }

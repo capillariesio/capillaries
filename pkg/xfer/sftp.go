@@ -91,3 +91,12 @@ func DownloadSftpFile(uri string, privateKeys map[string]string, dstFile *os.Fil
 
 	return nil
 }
+
+func UploadSftpFile(sourcePath string, uri string, privateKeys map[string]string) error {
+	//parsedUri, err := parseSftpUri(strings.ReplaceAll(uri, "sftp://", ""), privateKeys)
+	// parsedUri, err := parseSftpUri(uri, privateKeys)
+	// if err != nil {
+	// 	return err
+	// }
+	return nil
+}
