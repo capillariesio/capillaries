@@ -51,6 +51,13 @@ As is, passed to amqp.Channel.Qos()
 ### prefetch_size
 As is, passed to amqp.Channel.Qos()
 
+## private_keys
+Username->private_key_file_path map used for [SFTP](./glossary.md#sftp-uris) upload and download. For example, if anything in your [script configuration](./glossary.md#script) or [API](./api.md) call parameters (like script_file or script_params URIs) points to `sftp://ubuntu@somehost/some/file/path`, you will need an entry like this:
+`ubuntu -> /local/path/to/ubuntu_user_private_key` in your:
+- [Daemon](./glossary.md#daemon) env config file (if this sftp URI points to data or configuration files)
+- [Webapi](./glossary.md#webapi) env config file (if this sftp URI points to configuration files)
+- [Toolbelt](./glossary.md#toolbelt) env config file (if this sftp URI points to configuration files)
+
 ## custom_processors
 Placeholder for [custom processor](glossary.md#table_custom_tfm_table) configurations.
 

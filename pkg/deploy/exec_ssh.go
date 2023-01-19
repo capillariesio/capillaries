@@ -143,6 +143,22 @@ func ExecSsh(prj *Project, ipAddress string, cmd string) ExecResult {
 	return er
 }
 
+func ExecSshForClient(sshClient *ssh.Client, cmd string) (string, string, error) {
+	session, err := sshClient.NewSession()
+	if err != nil {
+		return "", "", fmt.Errorf("cannot create session for %s: %s", sshClient.RemoteAddr(), err.Error())
+	}
+	defer session.Close()
+
+	var stdout, stderr bytes.Buffer
+	session.Stdout = &stdout
+	session.Stderr = &stderr
+	if err := session.Run(cmd); err != nil {
+		return stdout.String(), stderr.String(), fmt.Errorf("cannot execute '%s' at %s: %s (stderr: %s)", sshClient.RemoteAddr(), cmd, err.Error(), stderr.String())
+	}
+	return stdout.String(), stderr.String(), nil
+}
+
 func ExecSshAndReturnLastLine(prj *Project, ipAddress string, cmd string) (string, ExecResult) {
 	er := ExecSsh(prj, ipAddress, cmd)
 	if er.Error != nil {
@@ -226,6 +242,23 @@ func ExecScriptsOnInstance(prj *Project, ipAddress string, env map[string]string
 		cmdBuilder.WriteString(string(shellScriptBytes))
 
 		er := ExecSsh(prj, ipAddress, cmdBuilder.String())
+		lb.Add(er.ToString())
+		if er.Error != nil {
+			return lb.Complete(er.Error)
+		}
+	}
+	return lb.Complete(nil)
+}
+
+func ExecCommandsOnInstance(prj *Project, ipAddress string, cmds []string, isVerbose bool) (LogMsg, error) {
+	lb := NewLogBuilder(fmt.Sprintf("ExecCommandsOnInstance: %d on %s", len(cmds), ipAddress), isVerbose)
+	if len(cmds) == 0 {
+		lb.Add(fmt.Sprintf("no commands to execute on %s", ipAddress))
+		return lb.Complete(nil)
+	}
+
+	for _, cmd := range cmds {
+		er := ExecSsh(prj, ipAddress, cmd)
 		lb.Add(er.ToString())
 		if er.Error != nil {
 			return lb.Complete(er.Error)

@@ -18,7 +18,7 @@
       "prefetch_size": 0
     },
     "private_keys": {
-      "sftpuser":"../../../pkg/exe/deploy/keys/sftpuser"
+      "sftpuser":"/home/ubuntu/.ssh/sftpuser"
     },
     "webapi": {
       "webapi_port": 6543,

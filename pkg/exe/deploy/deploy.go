@@ -26,6 +26,9 @@ const (
 	CmdSetupServices        string = "setup_services"
 	CmdStartServices        string = "start_services"
 	CmdStopServices         string = "stop_services"
+	CmdCreateInstanceUsers  string = "create_instance_users"
+	CmdCopyPrivateKeys      string = "copy_private_keys"
+	CmdPingInstances        string = "ping_instances"
 )
 
 type SingleThreadCmdHandler func(*deploy.ProjectPair, bool) (deploy.LogMsg, error)
@@ -37,13 +40,24 @@ func DumpLogChan(logChan chan deploy.LogMsg) {
 	}
 }
 
-func FilterByNickname[GenericDef deploy.FileGroupUpDef | deploy.FileGroupDownDef | deploy.InstanceDef](sourceMap map[string]*GenericDef) (map[string]*GenericDef, error) {
+func getNicknamesArg(commonArgs *flag.FlagSet, entityName string) (string, error) {
+	if len(os.Args) < 3 {
+		return "", fmt.Errorf("not enough args, expected comma-separated list of %s or '*'", entityName)
+	}
+	commonArgs.Parse(os.Args[3:])
+	if len(os.Args[2]) == 0 {
+		return "", fmt.Errorf("bad arg, expected comma-separated list of %s or '*'", entityName)
+	}
+	return os.Args[2], nil
+}
+
+func filterByNickname[GenericDef deploy.FileGroupUpDef | deploy.FileGroupDownDef | deploy.InstanceDef](nicknames string, sourceMap map[string]*GenericDef) (map[string]*GenericDef, error) {
 	var defMap map[string]*GenericDef
-	if os.Args[2] == "*" {
+	if nicknames == "*" {
 		defMap = sourceMap
 	} else {
 		defMap = map[string]*GenericDef{}
-		for _, defNickname := range strings.Split(os.Args[2], ",") {
+		for _, defNickname := range strings.Split(nicknames, ",") {
 			fgDef, ok := sourceMap[defNickname]
 			if !ok {
 				return nil, fmt.Errorf("definition for %s not found", defNickname)
@@ -113,11 +127,11 @@ func main() {
 			<-sem
 		}()
 	} else if os.Args[1] == CmdCreateInstances || os.Args[1] == CmdDeleteInstances {
-		commonArgs.Parse(os.Args[3:])
-		if len(os.Args[2]) == 0 {
-			log.Fatalf("expected comma-separated list of instances or *")
+		nicknames, err := getNicknamesArg(commonArgs, "instances")
+		if err != nil {
+			log.Fatalf(err.Error())
 		}
-		instances, err := FilterByNickname(prjPair.Live.Instances)
+		instances, err := filterByNickname(nicknames, prjPair.Live.Instances)
 		if err != nil {
 			log.Fatalf(err.Error())
 		}
@@ -168,13 +182,13 @@ func main() {
 		default:
 			log.Fatalf("unknown create/delete instance command:" + os.Args[1])
 		}
-	} else if os.Args[1] == CmdSetupServices || os.Args[1] == CmdStartServices || os.Args[1] == CmdStopServices {
-		commonArgs.Parse(os.Args[3:])
-		if len(os.Args[2]) == 0 {
-			log.Fatalf("expected comma-separated list of instances or *")
+	} else if os.Args[1] == CmdPingInstances || os.Args[1] == CmdCreateInstanceUsers || os.Args[1] == CmdCopyPrivateKeys || os.Args[1] == CmdSetupServices || os.Args[1] == CmdStartServices || os.Args[1] == CmdStopServices {
+		nicknames, err := getNicknamesArg(commonArgs, "instances")
+		if err != nil {
+			log.Fatalf(err.Error())
 		}
 
-		instances, err := FilterByNickname(prjPair.Live.Instances)
+		instances, err := filterByNickname(nicknames, prjPair.Live.Instances)
 		if err != nil {
 			log.Fatalf(err.Error())
 		}
@@ -184,20 +198,41 @@ func main() {
 		for _, iDef := range instances {
 			sem <- 1
 			go func(prj *deploy.Project, logChan chan deploy.LogMsg, errChan chan error, iDef *deploy.InstanceDef) {
-				var cmdToRun []string
+				var logMsg deploy.LogMsg
+				var finalErr error
 				switch os.Args[1] {
+				case CmdPingInstances:
+					// Just run WhoAmI
+					logMsg, finalErr = deploy.ExecCommandsOnInstance(&prjPair.Live, iDef.BestIpAddress(), []string{"id"}, *argVerbosity)
+				case CmdCreateInstanceUsers:
+					cmds, err := deploy.NewCreateInstanceUsersCommands(iDef)
+					if err != nil {
+						log.Fatalf("cannot build commands to create instance users: %s", err.Error())
+					}
+					logMsg, finalErr = deploy.ExecCommandsOnInstance(&prjPair.Live, iDef.BestIpAddress(), cmds, *argVerbosity)
+
+				case CmdCopyPrivateKeys:
+					cmds, err := deploy.NewCopyPrivateKeysCommands(iDef)
+					if err != nil {
+						log.Fatalf("cannot build commands to copy private keys: %s", err.Error())
+					}
+					logMsg, finalErr = deploy.ExecCommandsOnInstance(&prjPair.Live, iDef.BestIpAddress(), cmds, *argVerbosity)
+
 				case CmdSetupServices:
-					cmdToRun = iDef.Service.Cmd.Setup
+					logMsg, finalErr = deploy.ExecScriptsOnInstance(prj, iDef.BestIpAddress(), iDef.Service.Env, iDef.Service.Cmd.Setup, *argVerbosity)
+
 				case CmdStartServices:
-					cmdToRun = iDef.Service.Cmd.Start
+					logMsg, finalErr = deploy.ExecScriptsOnInstance(prj, iDef.BestIpAddress(), iDef.Service.Env, iDef.Service.Cmd.Start, *argVerbosity)
+
 				case CmdStopServices:
-					cmdToRun = iDef.Service.Cmd.Stop
+					logMsg, finalErr = deploy.ExecScriptsOnInstance(prj, iDef.BestIpAddress(), iDef.Service.Env, iDef.Service.Cmd.Stop, *argVerbosity)
+
 				default:
-					log.Fatalf("unknown setup/start/stop service command:" + os.Args[1])
+					log.Fatalf("unknown service command:" + os.Args[1])
 				}
-				logMsg, err := deploy.ExecScriptsOnInstance(prj, iDef.BestIpAddress(), iDef.Service.Env, cmdToRun, *argVerbosity)
+
 				logChan <- logMsg
-				errChan <- err
+				errChan <- finalErr
 				<-sem
 			}(&prjPair.Live, logChan, errChan, iDef)
 		}
@@ -233,12 +268,12 @@ func main() {
 			}
 
 		case CmdAttachVolumes:
-			commonArgs.Parse(os.Args[3:])
-			if len(os.Args[2]) == 0 {
-				log.Fatalf("expected comma-separated list of instances or *")
+			nicknames, err := getNicknamesArg(commonArgs, "instances")
+			if err != nil {
+				log.Fatalf(err.Error())
 			}
 
-			instances, err := FilterByNickname(prjPair.Live.Instances)
+			instances, err := filterByNickname(nicknames, prjPair.Live.Instances)
 			if err != nil {
 				log.Fatalf(err.Error())
 			}
@@ -267,12 +302,12 @@ func main() {
 			}
 
 		case CmdUploadFiles:
-			commonArgs.Parse(os.Args[3:])
-			if len(os.Args[2]) == 0 {
-				log.Fatalf("expected comma-separated list of file groups to upload or *")
+			nicknames, err := getNicknamesArg(commonArgs, "file groups to upload")
+			if err != nil {
+				log.Fatalf(err.Error())
 			}
 
-			fileGroups, err := FilterByNickname(prjPair.Live.FileGroupsUp)
+			fileGroups, err := filterByNickname(nicknames, prjPair.Live.FileGroupsUp)
 			if err != nil {
 				log.Fatalf(err.Error())
 			}
@@ -288,7 +323,7 @@ func main() {
 			for _, fuSpec := range fileSpecs {
 				sem <- 1
 				go func(prj *deploy.Project, logChan chan deploy.LogMsg, errChan chan error, fuSpec *deploy.FileUploadSpec) {
-					logMsg, err := deploy.UploadFileSftp(prj, fuSpec.IpAddress, fuSpec.Src, fuSpec.Dst, *argVerbosity)
+					logMsg, err := deploy.UploadFileSftp(prj, fuSpec.IpAddress, fuSpec.Src, fuSpec.Dst, fuSpec.DirPermissions, fuSpec.FilePermissions, fuSpec.Owner, *argVerbosity)
 					logChan <- logMsg
 					errChan <- err
 					<-sem
@@ -313,12 +348,12 @@ func main() {
 			}
 
 		case CmdDownloadFiles:
-			commonArgs.Parse(os.Args[3:])
-			if len(os.Args[2]) == 0 {
-				log.Fatalf("expected comma-separated list of file groups to download or *")
+			nicknames, err := getNicknamesArg(commonArgs, "file groups to download")
+			if err != nil {
+				log.Fatalf(err.Error())
 			}
 
-			fileGroups, err := FilterByNickname(prjPair.Live.FileGroupsDown)
+			fileGroups, err := filterByNickname(nicknames, prjPair.Live.FileGroupsDown)
 			if err != nil {
 				log.Fatalf(err.Error())
 			}

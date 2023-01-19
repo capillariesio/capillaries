@@ -184,6 +184,10 @@ func NewScriptFromFiles(caPath string, privateKeys map[string]string, scriptUri 
 	for templateParam, templateParamVal := range paramsMap {
 		switch typedParamVal := templateParamVal.(type) {
 		case string:
+			// Revert \n unescaping in parameter values - we want to preserve "\n"
+			if strings.Contains(typedParamVal, "\n") {
+				typedParamVal = strings.ReplaceAll(typedParamVal, "\n", "\\n")
+			}
 			// Just replace {param_name|string} with value, pay no attention to double quotes
 			replacerStrings[i] = fmt.Sprintf("{%s|string}", templateParam)
 			replacerStrings[i+1] = typedParamVal
