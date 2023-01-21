@@ -62,6 +62,7 @@ type VolumeDef struct {
 	MountPoint  string `json:"mount_point"`
 	Size        int    `json:"size"`
 	Permissions int    `json:"permissions"`
+	Owner       string `json:"owner"`
 	Id          string `json:"id"`
 }
 
@@ -81,6 +82,14 @@ type ServiceDef struct {
 	Cmd ServiceCommandsDef `json:"cmd"`
 }
 
+type UserDef struct {
+	Name      string `json:"name"`
+	PublicKey string `json:"public_key"`
+}
+type PrivateKeyDef struct {
+	Name       string `json:"name"`
+	PrivateKey string `json:"private_key"`
+}
 type InstanceDef struct {
 	HostName              string                        `json:"host_name"`
 	SecurityGroupNickname string                        `json:"security_group"`
@@ -90,6 +99,8 @@ type InstanceDef struct {
 	ImageName             string                        `json:"image"`
 	AttachedVolumes       map[string]*AttachedVolumeDef `json:"attached_volumes,omitempty"`
 	Id                    string                        `json:"id"`
+	Users                 []UserDef                     `json:"users,omitempty"`
+	PrivateKeys           []PrivateKeyDef               `json:"private_keys,omitempty"`
 	Service               ServiceDef                    `json:"service"`
 	ApplicableFileGroups  []string                      `json:"applicable_file_groups,omitempty"`
 }
@@ -124,10 +135,12 @@ type FileGroupUpAfter struct {
 }
 
 type FileGroupUpDef struct {
-	Src         string           `json:"src"`
-	Dst         string           `json:"dst"`
-	Permissions int              `json:"permissions"`
-	After       FileGroupUpAfter `json:"after,omitempty"`
+	Src             string           `json:"src"`
+	Dst             string           `json:"dst"`
+	DirPermissions  int              `json:"dir_permissions"`
+	FilePermissions int              `json:"file_permissions"`
+	Owner           string           `json:"owner,omitempty"`
+	After           FileGroupUpAfter `json:"after,omitempty"`
 }
 
 type FileGroupDownDef struct {
@@ -351,6 +364,10 @@ func LoadProject(prjFile string, prjParamsFile string) (*ProjectPair, string, er
 	// Replace project params
 
 	for k, v := range prjParams {
+		// Revert \n unescaping in parameter values - we want to preserve "\n"
+		if strings.Contains(v, "\n") {
+			v = strings.ReplaceAll(v, "\n", "\\n")
+		}
 		prjString = strings.ReplaceAll(prjString, fmt.Sprintf("{%s}", k), v)
 	}
 

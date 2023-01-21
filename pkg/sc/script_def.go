@@ -1,18 +1,12 @@
 package sc
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"net/http"
-	"net/url"
-	"path"
 	"regexp"
 	"strings"
-	"time"
+
+	"github.com/capillariesio/capillaries/pkg/xfer"
 )
 
 const (
@@ -27,7 +21,7 @@ type ScriptDef struct {
 	IndexNodeMap          map[string](*ScriptNodeDef)
 }
 
-func (scriptDef *ScriptDef) Deserialize(jsonBytesScript []byte, customProcessorDefFactory CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage, caPath string) error {
+func (scriptDef *ScriptDef) Deserialize(jsonBytesScript []byte, customProcessorDefFactory CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage, caPath string, privateKeys map[string]string) error {
 
 	if err := json.Unmarshal(jsonBytesScript, &scriptDef); err != nil {
 		return fmt.Errorf("cannot unmarshal script json: [%s]", err.Error())
@@ -38,7 +32,7 @@ func (scriptDef *ScriptDef) Deserialize(jsonBytesScript []byte, customProcessorD
 	// Deserialize node by node
 	for nodeName, node := range scriptDef.ScriptNodes {
 		node.Name = nodeName
-		if err := node.Deserialize(customProcessorDefFactory, customProcessorsSettings, caPath); err != nil {
+		if err := node.Deserialize(customProcessorDefFactory, customProcessorsSettings, caPath, privateKeys); err != nil {
 			errors = append(errors, fmt.Sprintf("cannot deserialize node %s: [%s]", nodeName, err.Error()))
 		}
 	}
@@ -144,80 +138,8 @@ func (scriptDef *ScriptDef) Deserialize(jsonBytesScript []byte, customProcessorD
 	return nil
 }
 
-const UriSchemeFile string = "file"
-const UriSchemeHttp string = "http"
-const UriSchemeHttps string = "https"
-
-func GetHttpReadCloser(uri string, scheme string, certDir string) (io.ReadCloser, error) {
-	caCertPool := x509.NewCertPool()
-	if scheme == UriSchemeHttps {
-		files, err := ioutil.ReadDir(certDir)
-		if err != nil {
-			return nil, fmt.Errorf("cannot read ca dir with PEM certs %s: %s", certDir, err.Error())
-		}
-
-		for _, f := range files {
-			caCert, err := ioutil.ReadFile(path.Join(certDir, f.Name()))
-			if err != nil {
-				return nil, fmt.Errorf("cannot read PEM cert %s: %s", f.Name(), err.Error())
-			}
-			caCertPool.AppendCertsFromPEM(caCert)
-		}
-	}
-	t := &http.Transport{TLSClientConfig: &tls.Config{Certificates: []tls.Certificate{}, RootCAs: caCertPool}}
-	client := http.Client{Transport: t, Timeout: 30 * time.Second}
-
-	resp, err := client.Get(uri)
-	if err != nil {
-		return nil, fmt.Errorf("cannot get %s: %s", uri, err.Error())
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		return nil, fmt.Errorf("cannot get %s, bad status: %s", uri, resp.Status)
-	}
-
-	return resp.Body, nil
-}
-
-func readHttpFile(uri string, scheme string, certDir string) ([]byte, error) {
-	r, err := GetHttpReadCloser(uri, scheme, certDir)
-	if err != nil {
-		return nil, err
-	}
-	defer r.Close()
-
-	bytes, err := io.ReadAll(r)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read body of %s, bad status: %s", uri, err.Error())
-	}
-	return bytes, nil
-}
-
-func GetFileBytes(uri string, certPath string) ([]byte, error) {
-	u, err := url.Parse(uri)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse uri %s: %s", uri, err.Error())
-	}
-
-	var bytes []byte
-	if u.Scheme == UriSchemeFile || len(u.Scheme) == 0 {
-		bytes, err = ioutil.ReadFile(uri)
-	} else if u.Scheme == UriSchemeHttp || u.Scheme == UriSchemeHttps {
-		bytes, err = readHttpFile(uri, u.Scheme, certPath)
-	} else {
-		return nil, fmt.Errorf("uri scheme %s not supported: %s", u.Scheme, uri)
-	}
-
-	if err != nil {
-		return nil, fmt.Errorf("cannot read input from %s: %s", uri, err.Error())
-	}
-
-	return bytes, nil
-}
-
-func NewScriptFromFiles(caPath string, scriptUri string, scriptParamsUri string, customProcessorDefFactoryInstance CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage) (*ScriptDef, error) {
-	jsonBytesScript, err := GetFileBytes(scriptUri, caPath)
+func NewScriptFromFiles(caPath string, privateKeys map[string]string, scriptUri string, scriptParamsUri string, customProcessorDefFactoryInstance CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage) (*ScriptDef, error) {
+	jsonBytesScript, err := xfer.GetFileBytes(scriptUri, caPath, privateKeys)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read script: %s", err.Error())
 	}
@@ -242,7 +164,7 @@ func NewScriptFromFiles(caPath string, scriptUri string, scriptParamsUri string,
 
 	var jsonBytesParams []byte
 	if len(scriptParamsUri) > 0 {
-		jsonBytesParams, err = GetFileBytes(scriptParamsUri, caPath)
+		jsonBytesParams, err = xfer.GetFileBytes(scriptParamsUri, caPath, privateKeys)
 		if err != nil {
 			return nil, fmt.Errorf("cannot read script parameters: %s", err.Error())
 		}
@@ -262,6 +184,10 @@ func NewScriptFromFiles(caPath string, scriptUri string, scriptParamsUri string,
 	for templateParam, templateParamVal := range paramsMap {
 		switch typedParamVal := templateParamVal.(type) {
 		case string:
+			// Revert \n unescaping in parameter values - we want to preserve "\n"
+			if strings.Contains(typedParamVal, "\n") {
+				typedParamVal = strings.ReplaceAll(typedParamVal, "\n", "\\n")
+			}
 			// Just replace {param_name|string} with value, pay no attention to double quotes
 			replacerStrings[i] = fmt.Sprintf("{%s|string}", templateParam)
 			replacerStrings[i+1] = typedParamVal
@@ -299,7 +225,7 @@ func NewScriptFromFiles(caPath string, scriptUri string, scriptParamsUri string,
 	}
 
 	newScript := &ScriptDef{}
-	if err = newScript.Deserialize([]byte(scriptString), customProcessorDefFactoryInstance, customProcessorsSettings, caPath); err != nil {
+	if err = newScript.Deserialize([]byte(scriptString), customProcessorDefFactoryInstance, customProcessorsSettings, caPath, privateKeys); err != nil {
 		return nil, fmt.Errorf("cannot deserialize script %s(%s): %s", scriptUri, scriptParamsUri, err.Error())
 	}
 

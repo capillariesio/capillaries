@@ -2,9 +2,6 @@ package deploy
 
 import (
 	"bytes"
-	"crypto/x509"
-	"encoding/pem"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -12,163 +9,35 @@ import (
 	"strings"
 	"time"
 
+	"github.com/capillariesio/capillaries/pkg/xfer"
 	"golang.org/x/crypto/ssh"
 )
 
-type SshClient struct {
-	Config *ssh.ClientConfig
-	Server string
-}
-
-func signerFromPem(pemBytes []byte, password []byte) (ssh.Signer, error) {
-
-	// read pem block
-	err := errors.New("Pem decode failed, no key found")
-	pemBlock, _ := pem.Decode(pemBytes)
-	if pemBlock == nil {
-		return nil, err
-	}
-
-	// handle encrypted key
-	if x509.IsEncryptedPEMBlock(pemBlock) {
-		// decrypt PEM
-		pemBlock.Bytes, err = x509.DecryptPEMBlock(pemBlock, []byte(password))
-		if err != nil {
-			return nil, fmt.Errorf("Decrypting PEM block failed %v", err)
-		}
-
-		// get RSA, EC or DSA key
-		key, err := parsePemBlock(pemBlock)
-		if err != nil {
-			return nil, err
-		}
-
-		// generate signer instance from key
-		signer, err := ssh.NewSignerFromKey(key)
-		if err != nil {
-			return nil, fmt.Errorf("Creating signer from encrypted key failed %v", err)
-		}
-
-		return signer, nil
-	} else {
-		// generate signer instance from plain key
-		signer, err := ssh.ParsePrivateKey(pemBytes)
-		if err != nil {
-			return nil, fmt.Errorf("Parsing plain private key failed %v", err)
-		}
-
-		return signer, nil
-	}
-}
-
-func parsePemBlock(block *pem.Block) (interface{}, error) {
-	switch block.Type {
-	case "RSA PRIVATE KEY":
-		key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
-		if err != nil {
-			return nil, fmt.Errorf("Parsing PKCS private key failed %v", err)
-		} else {
-			return key, nil
-		}
-	case "EC PRIVATE KEY":
-		key, err := x509.ParseECPrivateKey(block.Bytes)
-		if err != nil {
-			return nil, fmt.Errorf("Parsing EC private key failed %v", err)
-		} else {
-			return key, nil
-		}
-	case "DSA PRIVATE KEY":
-		key, err := ssh.ParseDSAPrivateKey(block.Bytes)
-		if err != nil {
-			return nil, fmt.Errorf("Parsing DSA private key failed %v", err)
-		} else {
-			return key, nil
-		}
-	default:
-		return nil, fmt.Errorf("Parsing private key failed, unsupported key type %q", block.Type)
-	}
-}
-
-// func NewSshClient(user string, host string, port int, privateKeyPath string, privateKeyPassword string) (*SshClient, error) {
-// 	// read private key file
-// 	pemBytes, err := ioutil.ReadFile(privateKeyPath)
+// func (sshClient *xfer.SshClient) RunCommand(cmd string) ExecResult {
+// 	// open connection
+// 	conn, err := ssh.Dial("tcp", sshClient.Server, sshClient.Config)
 // 	if err != nil {
-// 		return nil, fmt.Errorf("Reading private key file failed %v", err)
+// 		return ExecResult{cmd, "", "", 0, fmt.Errorf("Dial to %v failed %v", sshClient.Server, err)}
 // 	}
-// 	// create signer
-// 	signer, err := signerFromPem(pemBytes, []byte(privateKeyPassword))
+// 	defer conn.Close()
+
+// 	// open session
+// 	session, err := conn.NewSession()
 // 	if err != nil {
-// 		return nil, err
+// 		return ExecResult{cmd, "", "", 0, fmt.Errorf("Create session for %v failed %v", sshClient.Server, err)}
 // 	}
-// 	// build SSH client config
-// 	config := &ssh.ClientConfig{
-// 		User: user,
-// 		Auth: []ssh.AuthMethod{
-// 			ssh.PublicKeys(signer),
-// 		},
-// 		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
-// 			// use OpenSSH's known_hosts file if you care about host validation
-// 			return nil
-// 		},
-// 	}
+// 	defer session.Close()
 
-// 	client := &SshClient{
-// 		Config: config,
-// 		Server: fmt.Sprintf("%v:%v", host, port),
-// 	}
+// 	var stdout, stderr bytes.Buffer
+// 	session.Stdout = &stdout
+// 	session.Stderr = &stderr
 
-// 	return client, nil
+// 	runStartTime := time.Now()
+// 	err = session.Run(cmd)
+// 	elapsed := time.Since(runStartTime).Seconds()
+
+// 	return ExecResult{cmd, string(stdout.Bytes()), string(stderr.Bytes()), elapsed, err}
 // }
-
-func NewSshClientConfig(user string, host string, port int, privateKeyPath string, privateKeyPassword string) (*ssh.ClientConfig, error) {
-	pemBytes, err := ioutil.ReadFile(privateKeyPath)
-	if err != nil {
-		return nil, fmt.Errorf("Reading private key file failed %v", err)
-	}
-
-	signer, err := signerFromPem(pemBytes, []byte(privateKeyPassword))
-	if err != nil {
-		return nil, err
-	}
-
-	return &ssh.ClientConfig{
-		Timeout: time.Duration(10 * time.Second),
-		User:    user,
-		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(signer),
-		},
-		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
-			// use OpenSSH's known_hosts file if you care about host validation
-			return nil
-		},
-	}, nil
-}
-
-func (sshClient *SshClient) RunCommand(cmd string) ExecResult {
-	// open connection
-	conn, err := ssh.Dial("tcp", sshClient.Server, sshClient.Config)
-	if err != nil {
-		return ExecResult{cmd, "", "", 0, fmt.Errorf("Dial to %v failed %v", sshClient.Server, err)}
-	}
-	defer conn.Close()
-
-	// open session
-	session, err := conn.NewSession()
-	if err != nil {
-		return ExecResult{cmd, "", "", 0, fmt.Errorf("Create session for %v failed %v", sshClient.Server, err)}
-	}
-	defer session.Close()
-
-	var stdout, stderr bytes.Buffer
-	session.Stdout = &stdout
-	session.Stderr = &stderr
-
-	runStartTime := time.Now()
-	err = session.Run(cmd)
-	elapsed := time.Since(runStartTime).Seconds()
-
-	return ExecResult{cmd, string(stdout.Bytes()), string(stderr.Bytes()), elapsed, err}
-}
 
 type TunneledSshClient struct {
 	ProxySshClient  *ssh.Client
@@ -193,7 +62,7 @@ func (tsc *TunneledSshClient) Close() {
 }
 
 func NewTunneledSshClient(sshConfig *SshConfigDef, ipAddress string) (*TunneledSshClient, error) {
-	bastionSshClientConfig, err := NewSshClientConfig(
+	bastionSshClientConfig, err := xfer.NewSshClientConfig(
 		sshConfig.User,
 		sshConfig.BastionIpAddress,
 		sshConfig.Port,
@@ -227,7 +96,7 @@ func NewTunneledSshClient(sshConfig *SshConfigDef, ipAddress string) (*TunneledS
 			return nil, fmt.Errorf("dial to internal URL %s failed: %s", internalUrl, err.Error())
 		}
 
-		tunneledSshClientConfig, err := NewSshClientConfig(
+		tunneledSshClientConfig, err := xfer.NewSshClientConfig(
 			sshConfig.User,
 			ipAddress,
 			sshConfig.Port,
@@ -272,6 +141,22 @@ func ExecSsh(prj *Project, ipAddress string, cmd string) ExecResult {
 
 	er := ExecResult{cmd, string(stdout.Bytes()), string(stderr.Bytes()), elapsed, err}
 	return er
+}
+
+func ExecSshForClient(sshClient *ssh.Client, cmd string) (string, string, error) {
+	session, err := sshClient.NewSession()
+	if err != nil {
+		return "", "", fmt.Errorf("cannot create session for %s: %s", sshClient.RemoteAddr(), err.Error())
+	}
+	defer session.Close()
+
+	var stdout, stderr bytes.Buffer
+	session.Stdout = &stdout
+	session.Stderr = &stderr
+	if err := session.Run(cmd); err != nil {
+		return stdout.String(), stderr.String(), fmt.Errorf("cannot execute '%s' at %s: %s (stderr: %s)", sshClient.RemoteAddr(), cmd, err.Error(), stderr.String())
+	}
+	return stdout.String(), stderr.String(), nil
 }
 
 func ExecSshAndReturnLastLine(prj *Project, ipAddress string, cmd string) (string, ExecResult) {
@@ -357,6 +242,23 @@ func ExecScriptsOnInstance(prj *Project, ipAddress string, env map[string]string
 		cmdBuilder.WriteString(string(shellScriptBytes))
 
 		er := ExecSsh(prj, ipAddress, cmdBuilder.String())
+		lb.Add(er.ToString())
+		if er.Error != nil {
+			return lb.Complete(er.Error)
+		}
+	}
+	return lb.Complete(nil)
+}
+
+func ExecCommandsOnInstance(prj *Project, ipAddress string, cmds []string, isVerbose bool) (LogMsg, error) {
+	lb := NewLogBuilder(fmt.Sprintf("ExecCommandsOnInstance: %d on %s", len(cmds), ipAddress), isVerbose)
+	if len(cmds) == 0 {
+		lb.Add(fmt.Sprintf("no commands to execute on %s", ipAddress))
+		return lb.Complete(nil)
+	}
+
+	for _, cmd := range cmds {
+		er := ExecSsh(prj, ipAddress, cmd)
 		lb.Add(er.ToString())
 		if er.Error != nil {
 			return lb.Complete(er.Error)

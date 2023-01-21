@@ -113,7 +113,7 @@ func SafeProcessBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.Mess
 		bs, err = proc.RunCreateTableRelForBatch(envConfig, logger, pCtx, readerNodeRunId, lookupNodeRunId, pCtx.BatchInfo.FirstToken, pCtx.BatchInfo.LastToken)
 
 	case sc.NodeTypeTableFile:
-		bs, err = proc.RunCreateFile(logger, pCtx, readerNodeRunId, pCtx.BatchInfo.FirstToken, pCtx.BatchInfo.LastToken)
+		bs, err = proc.RunCreateFile(envConfig, logger, pCtx, readerNodeRunId, pCtx.BatchInfo.FirstToken, pCtx.BatchInfo.LastToken)
 
 	case sc.NodeTypeTableCustomTfmTable:
 		bs, err = proc.RunCreateTableForCustomProcessorForBatch(envConfig, logger, pCtx, readerNodeRunId, pCtx.BatchInfo.FirstToken, pCtx.BatchInfo.LastToken)

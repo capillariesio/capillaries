@@ -1,20 +1,24 @@
 package deploy
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/sftp"
 )
 
 type FileUploadSpec struct {
-	IpAddress string
-	Src       string
-	Dst       string
-	//Permissions int
+	IpAddress       string
+	Src             string
+	Dst             string
+	DirPermissions  int
+	FilePermissions int
+	Owner           string
 }
 
 type AfterFileUploadSpec struct {
@@ -40,10 +44,12 @@ func FileGroupUpDefsToSpecs(prj *Project, fileGroupsToUpload map[string]*FileGro
 						if !d.IsDir() {
 							fileSubpath := strings.ReplaceAll(path, fgDef.Src, "")
 							fileUploadSpecs = append(fileUploadSpecs, &FileUploadSpec{
-								IpAddress: ipAddress,
-								Src:       path,
-								Dst:       filepath.Join(fgDef.Dst, fileSubpath),
-								//Permissions: fgDef.Permissions
+								IpAddress:       ipAddress,
+								Src:             path,
+								Dst:             filepath.Join(fgDef.Dst, fileSubpath),
+								DirPermissions:  fgDef.DirPermissions,
+								FilePermissions: fgDef.FilePermissions,
+								Owner:           fgDef.Owner,
 							})
 						}
 						return nil
@@ -52,10 +58,12 @@ func FileGroupUpDefsToSpecs(prj *Project, fileGroupsToUpload map[string]*FileGro
 					}
 				} else {
 					fileUploadSpecs = append(fileUploadSpecs, &FileUploadSpec{
-						IpAddress: ipAddress,
-						Src:       fgDef.Src,
-						Dst:       filepath.Join(fgDef.Dst, filepath.Base(fgDef.Src)),
-						//Permissions: fgDef.Permissions
+						IpAddress:       ipAddress,
+						Src:             fgDef.Src,
+						Dst:             filepath.Join(fgDef.Dst, filepath.Base(fgDef.Src)),
+						DirPermissions:  fgDef.DirPermissions,
+						FilePermissions: fgDef.FilePermissions,
+						Owner:           fgDef.Owner,
 					})
 				}
 				if _, ok := afterFileUploadSpecMap[ipAddress]; !ok {
@@ -138,13 +146,13 @@ func FileGroupDownDefsToSpecs(prj *Project, fileGroupsToDownload map[string]*Fil
 	}
 
 	if sbDuplicates.Len() > 0 {
-		return nil, fmt.Errorf("cannot download, the following file groups are assoiated with more than one instance: %s", sbDuplicates.String())
+		return nil, fmt.Errorf("cannot download, the following file groups are associated with more than one instance: %s", sbDuplicates.String())
 	}
 
 	return fileDownloadSpecs, nil
 }
 
-func UploadFileSftp(prj *Project, ipAddress string, srcPath string, dstPath string, isVerbose bool) (LogMsg, error) {
+func UploadFileSftp(prj *Project, ipAddress string, srcPath string, dstPath string, dirPermissions int, filePermissions int, owner string, isVerbose bool) (LogMsg, error) {
 	lb := NewLogBuilder(fmt.Sprintf("Uploading %s to %s:%s", srcPath, ipAddress, dstPath), isVerbose)
 	tsc, err := NewTunneledSshClient(prj.SshConfig, ipAddress)
 	if err != nil {
@@ -158,8 +166,45 @@ func UploadFileSftp(prj *Project, ipAddress string, srcPath string, dstPath stri
 	}
 	defer sftp.Close()
 
-	if err := sftp.MkdirAll(filepath.Dir(dstPath)); err != nil {
-		return lb.Complete(fmt.Errorf("cannot create target dir for %s %s: %s", ipAddress, dstPath, err.Error()))
+	trueDirPermissions, err := strconv.ParseInt(fmt.Sprintf("%d", dirPermissions), 8, 0)
+	if err != nil {
+		return lb.Complete(fmt.Errorf("cannot read oct convert dir permission %s %d: %s", ipAddress, dirPermissions, err.Error()))
+	}
+
+	pathParts := strings.Split(dstPath, string(os.PathSeparator))
+	curPath := string(os.PathSeparator)
+	for partIdx := 0; partIdx < len(pathParts)-1; partIdx++ {
+		if pathParts[partIdx] == "" {
+			continue
+		}
+		curPath = filepath.Join(curPath, pathParts[partIdx])
+		fi, err := sftp.Stat(curPath)
+		if err == nil && fi.IsDir() {
+			// Nothing to do, we do not change existing directories
+			continue
+		}
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return lb.Complete(fmt.Errorf("cannot check target dir %s%s: %s", ipAddress, curPath, err.Error()))
+		}
+
+		// Do not use sftp.Mkdir(), it causes SSH_FX_FAILURE when >1 clients is used in parallel
+		if _, _, err := ExecSshForClient(tsc.SshClient, fmt.Sprintf("mkdir %s", curPath)); err != nil {
+			if !strings.Contains(err.Error(), "File exists") {
+				return lb.Complete(err)
+			}
+		}
+
+		// Do not use sftp.Chmod(), it throws permission denied when >1 clients is used in parallel
+		if _, _, err := ExecSshForClient(tsc.SshClient, fmt.Sprintf("sudo chmod %d %s", dirPermissions, curPath)); err != nil {
+			return lb.Complete(err)
+		}
+
+		if owner != "" {
+			// Do not use sftp.Chown(), it does not work for sudo
+			if _, _, err := ExecSshForClient(tsc.SshClient, fmt.Sprintf("sudo chown %s %s", owner, curPath)); err != nil {
+				return lb.Complete(err)
+			}
+		}
 	}
 
 	srcFile, err := os.Open(srcPath)
@@ -170,21 +215,26 @@ func UploadFileSftp(prj *Project, ipAddress string, srcPath string, dstPath stri
 
 	dstFile, err := sftp.Create(dstPath)
 	if err != nil {
-		return lb.Complete(fmt.Errorf("cannot create on upload %s %s: %s", ipAddress, dstPath, err.Error()))
+		return lb.Complete(fmt.Errorf("cannot create on upload %s%s: %s", ipAddress, dstPath, err.Error()))
 	}
 
 	_, err = dstFile.ReadFrom(srcFile)
 	if err != nil {
-		return lb.Complete(fmt.Errorf("cannot read for upload %s: %s", srcPath, err.Error()))
+		return lb.Complete(fmt.Errorf("cannot read for upload %s to %s: %s", srcPath, dstPath, err.Error()))
 	}
-	// truePermissions, err := strconv.ParseInt(fmt.Sprintf("%d", permissions), 8, 0)
-	// if err != nil {
-	// 	return fmt.Errorf("cannot read oct convert permission %s %d: %s", ipAddress, permissions, err.Error())
-	// }
 
-	// if err := sftp.Chmod(dstPath, os.FileMode(truePermissions)); err != nil {
-	// 	return fmt.Errorf("cannot chmod %s %s: %s", ipAddress, dstPath, err.Error())
-	// }
+	// sftp.Chmod 666 on a file owned by other user throws permission denied", even if existing permissions are 666 already
+	// Also, sftp.Chmod tends to cause SSH_FX_FAILURE when >1 clients is used in parallel. Use sudo chmod command instead.
+	if _, _, err := ExecSshForClient(tsc.SshClient, fmt.Sprintf("sudo chmod %d %s", filePermissions, dstPath)); err != nil {
+		return lb.Complete(err)
+	}
+
+	if owner != "" {
+		// Do not use sftp.Chown(), it does not work for sudo
+		if _, _, err := ExecSshForClient(tsc.SshClient, fmt.Sprintf("sudo chown %s %s", owner, dstPath)); err != nil {
+			return lb.Complete(err)
+		}
+	}
 
 	return lb.Complete(nil)
 }

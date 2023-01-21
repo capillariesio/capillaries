@@ -13,6 +13,7 @@ init_volume_attachment()
   local deviceName=$1
   local volumeMountPath=$2
   local permissions=$3
+  local owner=$4
 
   # Check if file system is already there
   local deviceBlockId=$(blkid -s UUID -o value $deviceName)
@@ -33,16 +34,24 @@ init_volume_attachment()
     # Create mount point
     sudo mkdir -p $volumeMountPath
     if [ "$?" -ne "0" ]; then
-      echo Cannot create mount dir
+      echo Cannot create mount dir $volumeMountPath
       return $?
     fi
 
     # Set permissions
     sudo chmod $permissions $volumeMountPath
     if [ "$?" -ne "0" ]; then
-        echo Cannot change permissions to $permissions
+        echo Cannot change $volumeMountPath permissions to $permissions
         return $?
     fi
+
+	if [ -n "$owner" ]; then
+	    sudo chown $owner $volumeMountPath
+		if [ "$?" -ne "0" ]; then
+		    echo Cannot change $volumeMountPath owner to $owner
+		    return $?
+		fi
+	fi
 
     # Adds a line to /etc/fstab
     echo "UUID=$deviceBlockId   $volumeMountPath   ext4   defaults   0   2 " | sudo tee -a /etc/fstab
@@ -249,11 +258,12 @@ func AttachVolume(prjPair *ProjectPair, iNickname string, volNickname string, is
 		return lb.Complete(fmt.Errorf("cannot find newly created attachment, volume %s, instance %s", volNickname, iNickname))
 	}
 
-	blockDeviceId, er := ExecSshAndReturnLastLine(&prjPair.Live, prjPair.Live.Instances[iNickname].BestIpAddress(), fmt.Sprintf("%s\ninit_volume_attachment %s %s %d",
+	blockDeviceId, er := ExecSshAndReturnLastLine(&prjPair.Live, prjPair.Live.Instances[iNickname].BestIpAddress(), fmt.Sprintf("%s\ninit_volume_attachment %s %s %d '%s'",
 		InitVolumeAttachmentFunc,
 		prjPair.Live.Instances[iNickname].AttachedVolumes[volNickname].Device,
 		prjPair.Live.Volumes[volNickname].MountPoint,
-		prjPair.Live.Volumes[volNickname].Permissions))
+		prjPair.Live.Volumes[volNickname].Permissions,
+		prjPair.Live.Volumes[volNickname].Owner))
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)

@@ -248,7 +248,7 @@ func main() {
 		isFieldDag := validateScriptCmd.Bool("field_dag", false, "Print field DAG")
 		validateScriptCmd.Parse(os.Args[2:])
 
-		script, err := sc.NewScriptFromFiles(envConfig.CaPath, *scriptFilePath, *paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
+		script, err := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, *scriptFilePath, *paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
@@ -379,7 +379,7 @@ func main() {
 		startNodesString := getTableCqlCmd.String("start_nodes", "", "Comma-separated list of start node names")
 		getTableCqlCmd.Parse(os.Args[2:])
 
-		script, err := sc.NewScriptFromFiles(envConfig.CaPath, *scriptFilePath, *paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
+		script, err := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, *scriptFilePath, *paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
@@ -403,7 +403,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		script, err := sc.NewScriptFromFiles(envConfig.CaPath, *scriptFilePath, *paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
+		script, err := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, *scriptFilePath, *paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)

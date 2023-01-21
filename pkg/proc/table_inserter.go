@@ -30,7 +30,7 @@ type TableInserter struct {
 
 type WriteChannelItem struct {
 	TableRecord *TableRecord
-	IndexKeys   *[]string
+	IndexKeyMap map[string]string
 }
 
 var seedCounter = int64(0)
@@ -96,8 +96,9 @@ func (instr *TableInserter) verifyTablesExist() error {
 	return nil
 }
 
-func (instr *TableInserter) startWorkers(logger *l.Logger) error {
+func (instr *TableInserter) startWorkers(logger *l.Logger, pCtx *ctx.MessageProcessingContext) error {
 	instr.RecordsIn = make(chan WriteChannelItem, instr.BatchSize)
+	logger.DebugCtx(pCtx, "startWorkers created RecordsIn")
 	instr.RecordsInOpen = true
 
 	for w := 0; w < instr.NumWorkers; w++ {
@@ -105,18 +106,23 @@ func (instr *TableInserter) startWorkers(logger *l.Logger) error {
 		if err != nil {
 			return err
 		}
-		go instr.tableInserterWorker(newLogger)
+		go instr.tableInserterWorker(newLogger, pCtx)
 	}
 	return nil
 }
 
-func (instr *TableInserter) waitForWorkers() error {
+func (instr *TableInserter) waitForWorkers(logger *l.Logger, pCtx *ctx.MessageProcessingContext) error {
+	logger.PushF("proc.waitForWorkers/TableInserter")
+	defer logger.PopF()
 
 	if instr.RecordsInOpen {
+		logger.DebugCtx(pCtx, "closing RecordsIn")
 		close(instr.RecordsIn)
+		logger.DebugCtx(pCtx, "closed RecordsIn")
 		instr.RecordsInOpen = false
 	}
 
+	logger.DebugCtx(pCtx, "started reading from RecordsSent")
 	errors := make([]string, 0)
 	// It's crucial that the number of errors to receive eventually should match instr.RecordsSent
 	for i := 0; i < instr.RecordsSent; i++ {
@@ -125,6 +131,7 @@ func (instr *TableInserter) waitForWorkers() error {
 			errors = append(errors, err.Error())
 		}
 	}
+	logger.DebugCtx(pCtx, "done reading from RecordsSent")
 
 	// Reset for the next cycle, if it ever happens
 	instr.RecordsSent = 0
@@ -136,40 +143,43 @@ func (instr *TableInserter) waitForWorkers() error {
 	}
 }
 
-func (instr *TableInserter) waitForWorkersAndClose() {
+func (instr *TableInserter) waitForWorkersAndClose(logger *l.Logger, pCtx *ctx.MessageProcessingContext) {
+	logger.PushF("proc.waitForWorkersAndClose/TableInserter")
+	defer logger.PopF()
+
 	// Make sure no workers are running, so they do not hit closed ErrorsOut
-	instr.waitForWorkers()
+	instr.waitForWorkers(logger, pCtx)
 	// Safe to close now
+	logger.DebugCtx(pCtx, "closing ErrorsOut")
 	close(instr.ErrorsOut)
+	logger.DebugCtx(pCtx, "closed ErrorsOut")
 }
 
 func (instr *TableInserter) add(tableRecord TableRecord) error {
-	indexKeys := make([]string, len(instr.TableCreator.Indexes))
-	indexIdx := 0
+	indexKeyMap := map[string]string{}
 	for idxName, idxDef := range instr.TableCreator.Indexes {
 		var err error
-		indexKeys[indexIdx], err = sc.BuildKey(tableRecord, idxDef)
+		indexKeyMap[idxName], err = sc.BuildKey(tableRecord, idxDef)
 		if err != nil {
 			return fmt.Errorf("cannot build key for idx %s, table record [%v]: [%s]", idxName, tableRecord, err.Error())
 		}
-		indexIdx++
 	}
 
 	instr.RecordsSent++
-	instr.RecordsIn <- WriteChannelItem{TableRecord: &tableRecord, IndexKeys: &indexKeys}
+	instr.RecordsIn <- WriteChannelItem{TableRecord: &tableRecord, IndexKeyMap: indexKeyMap}
 
 	return nil
 }
 
-func (instr *TableInserter) tableInserterWorker(logger *l.Logger) {
+func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.MessageProcessingContext) {
 	logger.PushF("proc.tableInserterWorker")
 	defer logger.PopF()
 
+	logger.DebugCtx(pCtx, "started reading from RecordsIn")
 	for writeItem := range instr.RecordsIn {
-		maxRetries := 3
+		maxDataRetries := 3
 		var errorToReport error
-		for retryCount := 0; retryCount < maxRetries; retryCount++ {
-
+		for dataRetryCount := 0; dataRetryCount < maxDataRetries; dataRetryCount++ {
 			// Data table
 			instr.RandMutex.Lock()
 			(*writeItem.TableRecord)["rowid"] = instr.RowidRand.Int63()
@@ -186,40 +196,63 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger) {
 			existingDataRow := map[string]interface{}{}
 			isApplied, err := instr.PCtx.CqlSession.Query(q).MapScanCAS(existingDataRow)
 
-			if err != nil {
-				// Some serious error happened, stop trying this rowid
-				errorToReport = cql.WrapDbErrorWithQuery("cannot write to data table", q, err)
-				break
-			} else if !isApplied {
-				if retryCount < maxRetries-1 {
-					// Retry now
-					logger.InfoCtx(instr.PCtx, "duplicate rowid not written [%s], existing record [%v], retry count %d", q, existingDataRow, retryCount)
-					instr.RandMutex.Lock()
-					instr.RowidRand = rand.New(rand.NewSource(newSeed()))
-					instr.RandMutex.Unlock()
-					continue
+			if err == nil {
+				if isApplied {
+					// Success
+					break
 				} else {
-					// No more retries
-					logger.ErrorCtx(instr.PCtx, "duplicate rowid not written [%s], existing record [%v], retry count %d reached, giving up", q, existingDataRow, retryCount)
-					errorToReport = fmt.Errorf("cannot write to data table after multiple attempts, keep getting rowid duplicates [%s]", q)
+					if dataRetryCount < maxDataRetries-1 {
+						// Retry now with a new rowid
+						logger.InfoCtx(instr.PCtx, "duplicate rowid not written [%s], existing record [%v], retry count %d", q, existingDataRow, dataRetryCount)
+						instr.RandMutex.Lock()
+						instr.RowidRand = rand.New(rand.NewSource(newSeed()))
+						instr.RandMutex.Unlock()
+					} else {
+						// No more retries
+						logger.ErrorCtx(instr.PCtx, "duplicate rowid not written [%s], existing record [%v], retry count %d reached, giving up", q, existingDataRow, dataRetryCount)
+						errorToReport = fmt.Errorf("cannot write to data table after multiple attempts, keep getting rowid duplicates [%s]", q)
+						break
+					}
 				}
 			} else {
-				// Index tables
-				indexIdx := 0
-				for idxName, idxDef := range instr.TableCreator.Indexes {
+				if strings.Contains(err.Error(), "does not exist") {
+					// There is a chance this table is brand new and table schema was not propagated to all Cassandra nodes
+					// TODO: come up with a better waiting strategy (exp backoff, at least)
+					if dataRetryCount < maxDataRetries-1 {
+						logger.InfoCtx(instr.PCtx, "will wait for table %s to be created, retry count %d", instr.TableCreator.Name, dataRetryCount)
+						time.Sleep(5 * time.Second)
+					} else {
+						logger.ErrorCtx(instr.PCtx, "table %s still not created, retry count %d reached, giving up", instr.TableCreator.Name, dataRetryCount)
+						errorToReport = fmt.Errorf("cannot write to data table after multiple attempts, table %s schema still not propagated to all nodes", instr.TableCreator.Name)
+						break
+					}
+				} else {
+					// Some serious error happened, stop trying this rowid
+					errorToReport = cql.WrapDbErrorWithQuery("cannot write to data table", q, err)
+					break
+				}
+			}
+		} // data retry loop
+
+		if errorToReport == nil {
+			// Index tables
+			indexIdx := 0
+			for idxName, idxDef := range instr.TableCreator.Indexes {
+				maxIdxRetries := 3
+				for idxRetryCount := 0; idxRetryCount < maxIdxRetries; idxRetryCount++ {
 					ifNotExistsFlag := cql.ThrowIfExists
 					if idxDef.Uniqueness == sc.IdxUnique {
 						ifNotExistsFlag = cql.IgnoreIfExists
 					}
-					qb = cql.QueryBuilder{}
-					//qb.Write("batch_idx", instr.PCtx.BatchInfo.BatchIdx)
-					qb.Write("key", (*writeItem.IndexKeys)[indexIdx])
+					qb := cql.QueryBuilder{}
+					qb.Write("key", writeItem.IndexKeyMap[idxName])
 					qb.Write("rowid", (*writeItem.TableRecord)["rowid"])
 					q := qb.Keyspace(instr.PCtx.BatchInfo.DataKeyspace).
 						InsertRun(idxName, instr.PCtx.BatchInfo.RunId, ifNotExistsFlag)
 
 					existingIdxRow := map[string]interface{}{}
 					var isApplied = true
+					var err error
 					if idxDef.Uniqueness == sc.IdxUnique {
 						// Unique idx assumed, check isApplied
 						isApplied, err = instr.PCtx.CqlSession.Query(q).MapScanCAS(existingIdxRow)
@@ -228,20 +261,35 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger) {
 						err = instr.PCtx.CqlSession.Query(q).Exec()
 					}
 
-					if err != nil {
-						errorToReport = cql.WrapDbErrorWithQuery("cannot write index table", q, err)
+					if err == nil {
+						if !isApplied {
+							errorToReport = fmt.Errorf("cannot write duplicate index key [%s], existing record [%v]", q, existingIdxRow)
+						}
+						// Success or not - we are done
 						break
-					} else if !isApplied {
-						errorToReport = fmt.Errorf("cannot write duplicate index key [%s], existing record [%v]", q, existingIdxRow)
-						break
+					} else {
+						if strings.Contains(err.Error(), "does not exist") {
+							// There is a chance this table is brand new and table schema was not propagated to all Cassandra nodes
+							// TODO: come up with a better waiting strategy (exp backoff, at least)
+							if idxRetryCount < maxIdxRetries-1 {
+								logger.InfoCtx(instr.PCtx, "will wait for idx table %s%s to be created, retry count %d", idxName, cql.RunIdSuffix(instr.PCtx.BatchInfo.RunId), idxRetryCount)
+								time.Sleep(5 * time.Second)
+							} else {
+								logger.ErrorCtx(instr.PCtx, "idx table %s%s still not created, retry count %d reached, giving up", idxName, cql.RunIdSuffix(instr.PCtx.BatchInfo.RunId), idxRetryCount)
+								errorToReport = fmt.Errorf("cannot write to idx table %s%s after multiple attempts, table schema still not propagated to all nodes", idxName, cql.RunIdSuffix(instr.PCtx.BatchInfo.RunId))
+								break
+							}
+						} else {
+							// Some serious error happened, stop trying this idx record
+							errorToReport = cql.WrapDbErrorWithQuery("cannot write to index table", q, err)
+							break
+						}
 					}
-					indexIdx++
-				}
-
-				// No need to retry
-				break
-			}
+				} // idx retry loop
+				indexIdx++
+			} // idx loop
 		}
 		instr.ErrorsOut <- errorToReport
 	}
+	logger.DebugCtx(pCtx, "done reading from RecordsIn")
 }

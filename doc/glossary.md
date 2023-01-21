@@ -275,3 +275,25 @@ There is no need to perform any setup steps beyond specifying [Cassandra connect
 ![sequence](../doc/cassandra-tables.png)
 
 All [data](#data-table), [index](#index-table) and [workflow](#workflow-table) tables are in place here.
+
+
+## SFTP URIs
+
+Capillaries supports reading source data and configuration files, and writing result data files via SFTP. SFTP URI format used is as follows:
+
+`sftp://user@host[:port]/path/to/file`
+
+where
+
+`user`: name of the user on the targeted host; no user passwords authentication supported; only private key authentication supported, and the path to the private key is given by the [private_keys](./binconfig.md#private_keys) map: a `user` entry corresponds to a path to the private key.
+
+`host`: target host name or IP address
+
+`port`: optional, default is 22
+
+`/path/to/file`: full absolute path to the file
+
+Here is the full list of configuration settings where SFTP URIs can be used:
+- [file reader source URIs](./scriptconfig.md#rurls)
+- script_file and script_params URIs used in [Capillaries API](./api.md) and exposed via the [Toolbelt](./glossary.md#toolbelt) or the [Webapi](./glossary.md#webapi)
+- [file writer target URIs](./scriptconfig.md#wurl_template)

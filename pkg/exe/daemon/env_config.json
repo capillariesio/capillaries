@@ -17,6 +17,9 @@
       "prefetch_count": 20,
       "prefetch_size": 0
     },
+    "private_keys": {
+      "sftpuser":"/home/ubuntu/.ssh/sftpuser"
+    },
     "custom_processors":{
       "py_calc":{
         "python_interpreter_path":"python",

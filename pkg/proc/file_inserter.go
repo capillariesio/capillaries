@@ -2,6 +2,7 @@ package proc
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
+	"github.com/capillariesio/capillaries/pkg/xfer"
 	"github.com/shopspring/decimal"
 )
 
@@ -21,6 +23,8 @@ type FileInserter struct {
 	ErrorsOut     chan error
 	BatchesSent   int
 	BatchesInOpen bool
+	FinalFileUrl  string
+	TempFilePath  string
 }
 
 const DefaultFileInserterBatchCapacity int = 1000
@@ -37,7 +41,7 @@ func newWriteFileBatch(batchCapacity int) *WriteFileBatch {
 	}
 }
 
-func newFileInserter(pCtx *ctx.MessageProcessingContext, fileCreator *sc.FileCreatorDef) *FileInserter {
+func newFileInserter(pCtx *ctx.MessageProcessingContext, fileCreator *sc.FileCreatorDef, runId int16, batchIdx int16) *FileInserter {
 	instr := FileInserter{
 		PCtx:          pCtx,
 		FileCreator:   fileCreator,
@@ -46,20 +50,33 @@ func newFileInserter(pCtx *ctx.MessageProcessingContext, fileCreator *sc.FileCre
 		ErrorsOut:     make(chan error, 1),
 		BatchesSent:   0,
 		BatchesInOpen: true,
+		FinalFileUrl:  strings.ReplaceAll(strings.ReplaceAll(fileCreator.UrlTemplate, sc.ReservedParamRunId, fmt.Sprintf("%05d", runId)), sc.ReservedParamBatchIdx, fmt.Sprintf("%05d", batchIdx)),
 	}
 
 	return &instr
 }
 
-func (instr *FileInserter) createFileAndStartWorker(logger *l.Logger, runId int16, batchIdx int16) error {
+func (instr *FileInserter) createFileAndStartWorker(logger *l.Logger) error {
 	logger.PushF("proc.createFileAndStartWorker")
 	defer logger.PopF()
 
-	// Templated file name
-	actualFileUrl := strings.ReplaceAll(strings.ReplaceAll(instr.FileCreator.UrlTemplate, sc.ReservedParamRunId, fmt.Sprintf("%05d", runId)), sc.ReservedParamBatchIdx, fmt.Sprintf("%05d", batchIdx))
-	f, err := os.Create(actualFileUrl)
+	u, err := url.Parse(instr.FinalFileUrl)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot parse file uri %s: %s", instr.FinalFileUrl, err.Error())
+	}
+
+	var f *os.File
+	if u.Scheme == xfer.UriSchemeSftp {
+		f, err = os.CreateTemp("", "capi")
+		if err != nil {
+			return fmt.Errorf("cannot create temp file for %s: %s", instr.FinalFileUrl, err.Error())
+		}
+		instr.TempFilePath = f.Name()
+	} else {
+		f, err = os.Create(instr.FinalFileUrl)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Header
@@ -79,7 +96,8 @@ func (instr *FileInserter) createFileAndStartWorker(logger *l.Logger, runId int1
 		}
 	}
 	if _, err := f.WriteString(b.String()); err != nil {
-		return fmt.Errorf("cannot write file [%s] header line: [%s]", actualFileUrl, err.Error())
+		f.Close()
+		return fmt.Errorf("cannot write file [%s] header line: [%s]", instr.FinalFileUrl, err.Error())
 	}
 
 	f.Close()
@@ -88,12 +106,12 @@ func (instr *FileInserter) createFileAndStartWorker(logger *l.Logger, runId int1
 	if err != nil {
 		return err
 	}
-	go instr.fileInserterWorker(newLogger, actualFileUrl, instr.FileCreator.Separator)
+	go instr.fileInserterWorker(newLogger)
 
 	return nil
 }
 
-func (instr *FileInserter) checkWorkerOutput() error {
+func (instr *FileInserter) checkWorkerOutputForErrors() error {
 	errors := make([]string, 0)
 	for {
 		select {
@@ -112,7 +130,9 @@ func (instr *FileInserter) checkWorkerOutput() error {
 	}
 }
 
-func (instr *FileInserter) waitForWorker() error {
+func (instr *FileInserter) waitForWorker(logger *l.Logger, pCtx *ctx.MessageProcessingContext) error {
+	logger.PushF("proc.waitForWorkers/FieInserter")
+	defer logger.PopF()
 
 	// waitForWorker may be used for writing leftovers, handle them
 	if instr.CurrentBatch != nil && instr.CurrentBatch.RowCount > 0 {
@@ -122,10 +142,13 @@ func (instr *FileInserter) waitForWorker() error {
 	}
 
 	if instr.BatchesInOpen {
+		logger.DebugCtx(pCtx, "closing BatchesIn")
 		close(instr.BatchesIn)
+		logger.DebugCtx(pCtx, "closed BatchesIn")
 		instr.BatchesInOpen = false
 	}
 
+	logger.DebugCtx(pCtx, "started reading from BatchesSent")
 	errors := make([]string, 0)
 	// It's crucial that the number of errors to receive eventually should match instr.BatchesSent
 	for i := 0; i < instr.BatchesSent; i++ {
@@ -134,6 +157,7 @@ func (instr *FileInserter) waitForWorker() error {
 			errors = append(errors, err.Error())
 		}
 	}
+	logger.DebugCtx(pCtx, "done reading from BatchesSent")
 
 	// Reset for the next cycle, if it ever happens
 	instr.BatchesSent = 0
@@ -145,9 +169,14 @@ func (instr *FileInserter) waitForWorker() error {
 	}
 }
 
-func (instr *FileInserter) waitForWorkerAndClose() {
-	instr.waitForWorker()
+func (instr *FileInserter) waitForWorkerAndClose(logger *l.Logger, pCtx *ctx.MessageProcessingContext) {
+	logger.PushF("proc.waitForWorkersAndClose/FileInserter")
+	defer logger.PopF()
+
+	instr.waitForWorker(logger, pCtx)
+	logger.DebugCtx(pCtx, "closing ErrorsOut")
 	close(instr.ErrorsOut)
+	logger.DebugCtx(pCtx, "closed ErrorsOut")
 }
 
 func (instr *FileInserter) add(row []interface{}) {
@@ -164,13 +193,20 @@ func (instr *FileInserter) add(row []interface{}) {
 	}
 }
 
-func (instr *FileInserter) fileInserterWorker(logger *l.Logger, actualFileUrl string, separator string) {
+func (instr *FileInserter) fileInserterWorker(logger *l.Logger) {
 	logger.PushF("proc.fileInserterWorker")
 	defer logger.PopF()
 
-	f, err := os.OpenFile(actualFileUrl, os.O_APPEND|os.O_WRONLY, 0644)
+	var localFilePath string
+	if instr.TempFilePath != "" {
+		localFilePath = instr.TempFilePath
+	} else {
+		localFilePath = instr.FinalFileUrl
+	}
+
+	f, err := os.OpenFile(localFilePath, os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
-		instr.ErrorsOut <- fmt.Errorf("cannot open %s for appending: [%s]", actualFileUrl, err.Error())
+		instr.ErrorsOut <- fmt.Errorf("cannot open %s(temp %s) for appending: [%s]", instr.FinalFileUrl, instr.TempFilePath, err.Error())
 	} else {
 		defer f.Close()
 	}
@@ -201,18 +237,33 @@ func (instr *FileInserter) fileInserterWorker(logger *l.Logger, actualFileUrl st
 				if i == len(instr.FileCreator.Columns)-1 {
 					b.WriteString("\n")
 				} else {
-					b.WriteString(separator)
+					b.WriteString(instr.FileCreator.Separator)
 				}
 			}
 		}
 
 		f.Sync()
 		if _, err := f.WriteString(b.String()); err != nil {
-			instr.ErrorsOut <- fmt.Errorf("cannot write string to %s: [%s]", actualFileUrl, err.Error())
+			instr.ErrorsOut <- fmt.Errorf("cannot write string to %s(temp %s): [%s]", instr.FinalFileUrl, instr.TempFilePath, err.Error())
 		} else {
 			instr.ErrorsOut <- nil
 		}
 		dur := time.Since(batchStartTime)
 		logger.InfoCtx(instr.PCtx, "%d items in %.3fs (%.0f items/s)", batch.RowCount, dur.Seconds(), float64(batch.RowCount)/dur.Seconds())
 	}
+}
+
+func (instr *FileInserter) sendFileToFinal(logger *l.Logger, pCtx *ctx.MessageProcessingContext, privateKeys map[string]string) error {
+	logger.PushF("proc.sendFileToFinal")
+	defer logger.PopF()
+
+	if instr.TempFilePath == "" {
+		// Nothing to do, the file is already at its destination
+		return nil
+	}
+	defer os.Remove(instr.TempFilePath)
+
+	logger.InfoCtx(pCtx, "uploading %s to %s...", instr.TempFilePath, instr.FinalFileUrl)
+
+	return xfer.UploadSftpFile(instr.TempFilePath, instr.FinalFileUrl, privateKeys)
 }

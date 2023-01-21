@@ -123,9 +123,6 @@
                 "table": "tagged_products"
             },
             "w": {
-                "top": {
-                    "order": "product_id(asc),tag(asc)"
-                },
                 "separator": "\t",
                 "url_template": "{dir_out}/tagged_products_for_operator_review.csv",
                 "columns": [
