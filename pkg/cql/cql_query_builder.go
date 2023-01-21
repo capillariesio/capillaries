@@ -25,7 +25,7 @@ const (
 /*
 Data/idx table name for each run needs run id as a suffix
 */
-func runIdSuffix(runId int16) string {
+func RunIdSuffix(runId int16) string {
 	if runId > 0 {
 		return fmt.Sprintf("_%05d", runId)
 	} else {
@@ -257,7 +257,7 @@ func (qb *QueryBuilder) InsertRun(tableName string, runId int16, ifNotExists IfN
 	q := fmt.Sprintf("INSERT INTO %s%s%s ( %s ) VALUES ( %s ) %s;",
 		qb.FormattedKeyspace,
 		tableName,
-		runIdSuffix(runId),
+		RunIdSuffix(runId),
 		strings.Join(qb.ColumnData.Columns[:qb.ColumnData.Len], ", "),
 		strings.Join(qb.ColumnData.Values[:qb.ColumnData.Len], ", "),
 		ifNotExistsStr)
@@ -282,7 +282,7 @@ func (qb *QueryBuilder) SelectRun(tableName string, runId int16, columns []strin
 		strings.Join(columns, ", "),
 		qb.FormattedKeyspace,
 		tableName,
-		runIdSuffix(runId)))
+		RunIdSuffix(runId)))
 	if qb.Conditions.Len > 0 {
 		b.WriteString(" WHERE ")
 		b.WriteString(strings.Join(qb.Conditions.Items[:qb.Conditions.Len], " AND "))
@@ -308,7 +308,7 @@ func (qb *QueryBuilder) DeleteRun(tableName string, runId int16) string {
 	q := fmt.Sprintf("DELETE FROM %s%s%s WHERE %s",
 		qb.FormattedKeyspace,
 		tableName,
-		runIdSuffix(runId),
+		RunIdSuffix(runId),
 		strings.Join(qb.Conditions.Items[:qb.Conditions.Len], " AND "))
 	if runId == 0 {
 		q = "DEV ERROR, INVALID runId: " + q
@@ -331,7 +331,7 @@ func (qb *QueryBuilder) UpdateRun(tableName string, runId int16) string {
 	q := fmt.Sprintf("UPDATE %s%s%s SET %s WHERE %s",
 		qb.FormattedKeyspace,
 		tableName,
-		runIdSuffix(runId),
+		RunIdSuffix(runId),
 		strings.Join(assignments[:qb.ColumnData.Len], ", "),
 		strings.Join(qb.Conditions.Items[:qb.Conditions.Len], " AND "))
 
@@ -356,7 +356,7 @@ func (qb *QueryBuilder) CreateRun(tableName string, runId int16, ifNotExists IfN
 	if ifNotExists == IgnoreIfExists {
 		b.WriteString("IF NOT EXISTS ")
 	}
-	b.WriteString(fmt.Sprintf("%s%s%s ( ", qb.FormattedKeyspace, tableName, runIdSuffix(runId)))
+	b.WriteString(fmt.Sprintf("%s%s%s ( ", qb.FormattedKeyspace, tableName, RunIdSuffix(runId)))
 	for i := 0; i < qb.ColumnDefs.Len; i++ {
 		b.WriteString(qb.ColumnDefs.Columns[i])
 		b.WriteString(" ")
@@ -382,7 +382,7 @@ func (qb *QueryBuilder) Drop(tableName string) string {
 	return qb.DropRun(tableName, RunIdForEmptyRun)
 }
 func (qb *QueryBuilder) DropRun(tableName string, runId int16) string {
-	q := fmt.Sprintf("DROP TABLE IF EXISTS %s%s%s", qb.FormattedKeyspace, tableName, runIdSuffix(runId))
+	q := fmt.Sprintf("DROP TABLE IF EXISTS %s%s%s", qb.FormattedKeyspace, tableName, RunIdSuffix(runId))
 	if runId == 0 {
 		q = "INVALID runId: " + q
 	}

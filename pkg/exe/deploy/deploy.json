@@ -237,10 +237,10 @@
             "owner": "{sftp_user}",
             "after": {
                 "env": {
-                    "MOUNT_POINT_CFG": "sftp://{sftp_user}@10.5.0.2/mnt/capi_cfg",
+                    "MOUNT_POINT_CFG": "sftp://{sftp_user}@{internal_bastion_ip}/mnt/capi_cfg",
                     "MOUNT_POINT_CFG_LOCAL": "/mnt/capi_cfg",
-                    "MOUNT_POINT_IN": "sftp://{sftp_user}@10.5.0.2/mnt/capi_in",
-                    "MOUNT_POINT_OUT": "sftp://{sftp_user}@10.5.0.2/mnt/capi_out"
+                    "MOUNT_POINT_IN": "sftp://{sftp_user}@{internal_bastion_ip}/mnt/capi_in",
+                    "MOUNT_POINT_OUT": "sftp://{sftp_user}@{internal_bastion_ip}/mnt/capi_out"
                 },
                 "cmd": [
                     "sh/capiscripts/adjust_cfg_in_out.sh"
@@ -266,7 +266,7 @@
         "up_ui": {
             "src": "../../../ui/public",
             "dst": "/home/ubuntu/ui",
-            "dir_permissions": 744,
+            "dir_permissions": 755,
             "file_permissions": 644,
             "after": {}
         },
@@ -289,15 +289,19 @@
         "down_capi_logs": {
             "src": "/var/log/capidaemon/",
             "dst": "./tmp/capi_logs"
+        },
+        "down_capi_out": {
+            "src": "/mnt/capi_out",
+            "dst": "./tmp/capi_out"
         }
     },
     "instances": {
         "bastion": {
             "host_name": "{deployment_name}-bastion",
             "security_group": "bastion",
-            "ip_address": "10.5.0.2",
+            "ip_address": "{internal_bastion_ip}",
             "floating_ip_address": "{floating_ip_address}",
-            "flavor": "gp1.semisonic",
+            "flavor": "gp1.lightspeed",
             "image": "Ubuntu-22.04",
             "attached_volumes": {
                 "cfg": {
@@ -336,6 +340,7 @@
                     "PROMETHEUS_IP": "{prometheus_ip}",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
                     "RABBITMQ_IP": "{rabbitmq_ip}",
+                    "SFTP_USER": "{sftp_user}",
                     "WEBAPI_ACCESS_CONTROL_ACCESS_ORIGIN": "http://{floating_ip_address}",
                     "WEBAPI_IP": "{floating_ip_address}",
                     "WEBAPI_PORT": "6543"
@@ -370,6 +375,7 @@
                 "up_webapi_binary",
                 "up_webapi_env_config",
                 "up_ui",
+                "down_capi_out",
                 "down_capi_logs"
             ]
         },
@@ -377,15 +383,12 @@
             "host_name": "{deployment_name}-cassandra01",
             "security_group": "internal",
             "ip_address": "10.5.0.11",
-            "flavor": "gp1.lightspeed",
+            "flavor": "gp1.warpspeed",
             "image": "Ubuntu-22.04",
             "id": "",
-            "users": null,
-            "private_keys": null,
             "service": {
                 "env": {
                     "CASSANDRA_IP": "10.5.0.11",
-                    "CASSANDRA_RACK": "rack1",
                     "CASSANDRA_SEEDS": "{cassandra_seeds}",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
                 },
@@ -408,15 +411,12 @@
             "host_name": "{deployment_name}-cassandra02",
             "security_group": "internal",
             "ip_address": "10.5.0.12",
-            "flavor": "gp1.lightspeed",
+            "flavor": "gp1.warpspeed",
             "image": "Ubuntu-22.04",
             "id": "",
-            "users": null,
-            "private_keys": null,
             "service": {
                 "env": {
                     "CASSANDRA_IP": "10.5.0.12",
-                    "CASSANDRA_RACK": "rack2",
                     "CASSANDRA_SEEDS": "{cassandra_seeds}",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
                 },
@@ -439,15 +439,12 @@
             "host_name": "{deployment_name}-cassandra03",
             "security_group": "internal",
             "ip_address": "10.5.0.13",
-            "flavor": "gp1.lightspeed",
+            "flavor": "gp1.warpspeed",
             "image": "Ubuntu-22.04",
             "id": "",
-            "users": null,
-            "private_keys": null,
             "service": {
                 "env": {
                     "CASSANDRA_IP": "10.5.0.13",
-                    "CASSANDRA_RACK": "rack3",
                     "CASSANDRA_SEEDS": "{cassandra_seeds}",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
                 },
@@ -470,10 +467,9 @@
             "host_name": "{deployment_name}-daemon01",
             "security_group": "internal",
             "ip_address": "10.5.0.101",
-            "flavor": "gp1.semisonic",
+            "flavor": "gp1.lightspeed",
             "image": "Ubuntu-22.04",
-            "id": "8f1f5d29-92f9-4a1c-b098-dc6bcf718e93",
-            "users": null,
+            "id": "",
             "private_keys": [
                 {
                     "name": "{sftp_user}",
@@ -483,14 +479,14 @@
             "service": {
                 "env": {
                     "AMQP_URL": "amqp://{rabbitmq_user_name}:{rabbitmq_user_pass}@{rabbitmq_ip}/",
-                    "BASTION_IP": "{bastion_ip}",
                     "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\"]'",
-                    "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
+                    "INTERNAL_BASTION_IP": "{internal_bastion_ip}",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
+                    "SFTP_USER": "{sftp_user}"
                 },
                 "cmd": {
                     "setup": [
                         "sh/common/replace_nameserver.sh",
-                        "sh/common/copy_sftpuser_private_key.sh",
                         "sh/prometheus/setup_node_exporter.sh",
                         "sh/logrotate/setup_capidaemon_logrotate.sh",
                         "sh/rsyslog/setup_capidaemon_log_sender.sh",
@@ -516,12 +512,10 @@
             "flavor": "gp1.semisonic",
             "image": "Ubuntu-22.04",
             "id": "",
-            "users": null,
-            "private_keys": null,
             "service": {
                 "env": {
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
-                    "PROMETHEUS_TARGETS": "\\'localhost:9100\\',\\'10.5.0.2:9100\\',\\'10.5.0.5:9100\\',\\'10.5.0.11:9100\\',\\'10.5.0.12:9100\\',\\'10.5.0.13:9100\\',\\'10.5.0.101:9100\\'",
+                    "PROMETHEUS_TARGETS": "\\'localhost:9100\\',\\'{internal_bastion_ip}:9100\\',\\'10.5.0.5:9100\\',\\'10.5.0.11:9100\\',\\'10.5.0.12:9100\\',\\'10.5.0.13:9100\\',\\'10.5.0.101:9100\\'",
                     "PROMETHEUS_VERSION": "{prometheus_version}"
                 },
                 "cmd": {
@@ -546,8 +540,6 @@
             "flavor": "gp1.semisonic",
             "image": "Ubuntu-22.04",
             "id": "",
-            "users": null,
-            "private_keys": null,
             "service": {
                 "env": {
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",

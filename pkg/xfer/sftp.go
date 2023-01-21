@@ -139,5 +139,10 @@ func UploadSftpFile(srcPath string, uri string, privateKeys map[string]string) e
 		return fmt.Errorf("cannot read for upload %s to %s : %s", srcPath, uri, err.Error())
 	}
 
+	err = dstFile.Sync()
+	if err != nil {
+		return fmt.Errorf("cannot flush for upload %s to %s : %s", srcPath, uri, err.Error())
+	}
+
 	return nil
 }

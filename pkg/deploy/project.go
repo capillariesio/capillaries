@@ -99,8 +99,8 @@ type InstanceDef struct {
 	ImageName             string                        `json:"image"`
 	AttachedVolumes       map[string]*AttachedVolumeDef `json:"attached_volumes,omitempty"`
 	Id                    string                        `json:"id"`
-	Users                 []UserDef                     `json:"users"`
-	PrivateKeys           []PrivateKeyDef               `json:"private_keys"`
+	Users                 []UserDef                     `json:"users,omitempty"`
+	PrivateKeys           []PrivateKeyDef               `json:"private_keys,omitempty"`
 	Service               ServiceDef                    `json:"service"`
 	ApplicableFileGroups  []string                      `json:"applicable_file_groups,omitempty"`
 }

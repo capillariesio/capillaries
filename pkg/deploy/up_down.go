@@ -58,10 +58,12 @@ func FileGroupUpDefsToSpecs(prj *Project, fileGroupsToUpload map[string]*FileGro
 					}
 				} else {
 					fileUploadSpecs = append(fileUploadSpecs, &FileUploadSpec{
-						IpAddress: ipAddress,
-						Src:       fgDef.Src,
-						Dst:       filepath.Join(fgDef.Dst, filepath.Base(fgDef.Src)),
-						//Permissions: fgDef.Permissions
+						IpAddress:       ipAddress,
+						Src:             fgDef.Src,
+						Dst:             filepath.Join(fgDef.Dst, filepath.Base(fgDef.Src)),
+						DirPermissions:  fgDef.DirPermissions,
+						FilePermissions: fgDef.FilePermissions,
+						Owner:           fgDef.Owner,
 					})
 				}
 				if _, ok := afterFileUploadSpecMap[ipAddress]; !ok {
@@ -185,13 +187,18 @@ func UploadFileSftp(prj *Project, ipAddress string, srcPath string, dstPath stri
 			return lb.Complete(fmt.Errorf("cannot check target dir %s%s: %s", ipAddress, curPath, err.Error()))
 		}
 
-		if err := sftp.Mkdir(curPath); err != nil {
-			return lb.Complete(fmt.Errorf("cannot create target dir %s%s: %s", ipAddress, curPath, err.Error()))
+		// Do not use sftp.Mkdir(), it causes SSH_FX_FAILURE when >1 clients is used in parallel
+		if _, _, err := ExecSshForClient(tsc.SshClient, fmt.Sprintf("mkdir %s", curPath)); err != nil {
+			if !strings.Contains(err.Error(), "File exists") {
+				return lb.Complete(err)
+			}
 		}
 
-		if err := sftp.Chmod(curPath, os.FileMode(trueDirPermissions)); err != nil {
-			return lb.Complete(fmt.Errorf("cannot chmod %s%s %d: %s", ipAddress, dstPath, dirPermissions, err.Error()))
+		// Do not use sftp.Chmod(), it throws permission denied when >1 clients is used in parallel
+		if _, _, err := ExecSshForClient(tsc.SshClient, fmt.Sprintf("sudo chmod %d %s", dirPermissions, curPath)); err != nil {
+			return lb.Complete(err)
 		}
+
 		if owner != "" {
 			// Do not use sftp.Chown(), it does not work for sudo
 			if _, _, err := ExecSshForClient(tsc.SshClient, fmt.Sprintf("sudo chown %s %s", owner, curPath)); err != nil {
@@ -217,7 +224,7 @@ func UploadFileSftp(prj *Project, ipAddress string, srcPath string, dstPath stri
 	}
 
 	// sftp.Chmod 666 on a file owned by other user throws permission denied", even if existing permissions are 666 already
-	// Also, sftp.Chmod tends to cause SSH_FX_FAILURE when >1 client is used in parallel. Use sudo chmod command instead.
+	// Also, sftp.Chmod tends to cause SSH_FX_FAILURE when >1 clients is used in parallel. Use sudo chmod command instead.
 	if _, _, err := ExecSshForClient(tsc.SshClient, fmt.Sprintf("sudo chmod %d %s", filePermissions, dstPath)); err != nil {
 		return lb.Complete(err)
 	}

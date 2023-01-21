@@ -1,5 +1,5 @@
 # Logrotate
-LOGROTATE_CONFIG_FILE=/etc/rsyslog.d/capidaemon_logrotate.conf
+LOGROTATE_CONFIG_FILE=/etc/logrotate.d/capidaemon_logrotate.conf
 
 sudo rm -f $LOGROTATE_CONFIG_FILE
 sudo tee $LOGROTATE_CONFIG_FILE <<EOF
