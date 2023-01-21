@@ -16,8 +16,9 @@ sed -i -e "s~\"keyspace_replication_config\":[ ]*\"[^\"]*\"~\"keyspace_replicati
 # and make sure client time out is more (not equal) than that
 sed -i -e "s~\"timeout\":[ ]*[0-9]*~\"timeout\": 15000~g" $ENV_CONFIG_FILE
 
-# Default value of 50 writer workers is pretty aggressive and can bring test Cassandra cluster to its knees, try 20
-sed -i -e "s~\"writer_workers\":[ ]*[0-9]*~\"writer_workers\": 20~g" $ENV_CONFIG_FILE
+# Default value of 50 writer workers is pretty aggressive and can bring test Cassandra cluster to its knees, try 30
+# Watch for "OPeration timed out", especiallyon writes
+sed -i -e "s~\"writer_workers\":[ ]*[0-9]*~\"writer_workers\": 30~g" $ENV_CONFIG_FILE
 
 sed -i -e "s~\"sftpuser\":[ ]*\"[^\"]*\"~\"sftpuser\": \"/home/ubuntu/.ssh/$SFTP_USER\"~g" $ENV_CONFIG_FILE
 

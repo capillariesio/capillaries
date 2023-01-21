@@ -392,28 +392,3 @@ func main() {
 
 	fmt.Printf("%s succeeded, elapsed %.3fs\n", os.Args[1], time.Since(cmdStartTs).Seconds())
 }
-
-// reserve_floating_ips
-// create_security_group
-// create_networking
-// create_volumes (gets list of all volumes in the sec group and reports if there are extra running, checking by name)
-// create_instances: (gets list of all instances in the sec group and reports if there are extra running, checking by name)
-// - also assigns floating ip if needed
-
-// attach_volumes
-
-// setup_instances (non-idempotent) (requires list/mask of instances, may be used when adding more instances)
-
-// start_services
-
-// upload_files (requires list of groups)
-// ... run toolbelt commands or UI/Webapi
-// download_files (requires list of groups)
-
-// stop_services
-
-// delete_instances (list/mask of instances)
-// delete_volumes (list volumes)
-// delete_networking
-// delete_security_group
-// release_floating_ips

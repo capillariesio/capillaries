@@ -53,3 +53,27 @@ http://208.113.134.216:15672/#/queues
 # read_orders,read_order_items
 
 go run deploy.go download_files down_capi_out,down_capi_logs
+
+# sudo apt update
+# sudo apt-get install iperf3
+# Server: sudo iperf3 -s -p 80
+# Client: perf3 -c 10.5.0.2 -p 80
+ubuntu@sampledeployment001-daemon01:~$ iperf3 -c10.5.0.2 -p 80
+Connecting to host 10.5.0.2, port 80
+[  5] local 10.5.0.101 port 47716 connected to 10.5.0.2 port 80
+[ ID] Interval           Transfer     Bitrate         Retr  Cwnd
+[  5]   0.00-1.00   sec   922 MBytes  7.73 Gbits/sec  258   2.10 MBytes
+[  5]   1.00-2.00   sec   810 MBytes  6.79 Gbits/sec   43   2.47 MBytes
+[  5]   2.00-3.00   sec   780 MBytes  6.55 Gbits/sec   93   1.87 MBytes
+[  5]   3.00-4.00   sec   684 MBytes  5.73 Gbits/sec   18   2.20 MBytes
+[  5]   4.00-5.00   sec   701 MBytes  5.88 Gbits/sec   96   1.96 MBytes
+[  5]   5.00-6.00   sec   648 MBytes  5.43 Gbits/sec   28   2.48 MBytes
+[  5]   6.00-7.00   sec   724 MBytes  6.07 Gbits/sec   91   1.94 MBytes
+[  5]   7.00-8.00   sec   836 MBytes  7.02 Gbits/sec   57   2.39 MBytes
+[  5]   8.00-9.00   sec   751 MBytes  6.30 Gbits/sec   25   2.43 MBytes
+[  5]   9.00-10.00  sec   679 MBytes  5.69 Gbits/sec   54   2.25 MBytes
+- - - - - - - - - - - - - - - - - - - - - - - - -
+[ ID] Interval           Transfer     Bitrate         Retr
+[  5]   0.00-10.00  sec  7.36 GBytes  6.32 Gbits/sec  763             sender
+[  5]   0.00-10.00  sec  7.36 GBytes  6.32 Gbits/sec                  receiver
+

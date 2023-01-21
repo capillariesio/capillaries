@@ -25,7 +25,6 @@ type TableInserter struct {
 	NumWorkers    int
 	RecordsSent   int // Records sent to RecordsIn
 	RecordsInOpen bool
-	//Logger        *l.Logger
 }
 
 type WriteChannelItem struct {
@@ -176,8 +175,11 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 	defer logger.PopF()
 
 	logger.DebugCtx(pCtx, "started reading from RecordsIn")
+	dataTableName := instr.TableCreator.Name + cql.RunIdSuffix(instr.PCtx.BatchInfo.RunId)
+
 	for writeItem := range instr.RecordsIn {
-		maxDataRetries := 3
+		maxDataRetries := 5
+		curDataExpBackoffFactor := 1
 		var errorToReport error
 		for dataRetryCount := 0; dataRetryCount < maxDataRetries; dataRetryCount++ {
 			// Data table
@@ -217,13 +219,24 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 			} else {
 				if strings.Contains(err.Error(), "does not exist") {
 					// There is a chance this table is brand new and table schema was not propagated to all Cassandra nodes
-					// TODO: come up with a better waiting strategy (exp backoff, at least)
 					if dataRetryCount < maxDataRetries-1 {
-						logger.InfoCtx(instr.PCtx, "will wait for table %s to be created, retry count %d", instr.TableCreator.Name, dataRetryCount)
+						logger.WarnCtx(instr.PCtx, "will wait for table %s to be created, retry count %d", dataTableName, dataRetryCount)
+						// TODO: come up with a better waiting strategy (exp backoff, at least)
 						time.Sleep(5 * time.Second)
 					} else {
-						logger.ErrorCtx(instr.PCtx, "table %s still not created, retry count %d reached, giving up", instr.TableCreator.Name, dataRetryCount)
-						errorToReport = fmt.Errorf("cannot write to data table after multiple attempts, table %s schema still not propagated to all nodes", instr.TableCreator.Name)
+						logger.ErrorCtx(instr.PCtx, "table %s still not created, retry count %d reached, giving up", dataTableName, dataRetryCount)
+						errorToReport = fmt.Errorf("cannot write to data table after multiple attempts, table %s%d schema still not propagated to all nodes", dataTableName)
+						break
+					}
+				} else if strings.Contains(err.Error(), "Operation timed out") {
+					// The cluster is overloaded, slow down
+					if dataRetryCount < maxDataRetries-1 {
+						logger.WarnCtx(instr.PCtx, "cluster overloaded (%s), will wait for %dms before writing to data table %s again, retry count %d", err.Error(), 10*curDataExpBackoffFactor, dataTableName, dataRetryCount)
+						time.Sleep(time.Duration(10*curDataExpBackoffFactor) * time.Millisecond)
+						curDataExpBackoffFactor *= 2
+					} else {
+						logger.ErrorCtx(instr.PCtx, "cluster overloaded (%s), cannot write to data table %s, retry count %d reached, giving up", err.Error(), dataTableName, dataRetryCount)
+						errorToReport = fmt.Errorf("cannot write to data table %s after multiple attempts, table schema still not propagated to all nodes", dataTableName)
 						break
 					}
 				} else {
@@ -236,9 +249,12 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 
 		if errorToReport == nil {
 			// Index tables
-			indexIdx := 0
 			for idxName, idxDef := range instr.TableCreator.Indexes {
-				maxIdxRetries := 3
+
+				maxIdxRetries := 5
+				idxTableName := idxName + cql.RunIdSuffix(instr.PCtx.BatchInfo.RunId)
+				curIdxExpBackoffFactor := 1
+
 				for idxRetryCount := 0; idxRetryCount < maxIdxRetries; idxRetryCount++ {
 					ifNotExistsFlag := cql.ThrowIfExists
 					if idxDef.Uniqueness == sc.IdxUnique {
@@ -263,6 +279,8 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 
 					if err == nil {
 						if !isApplied {
+							// We assume that our previous attempts to write this idx record (if this is not the first retry) did not leave any trace in the database,
+							// so finding an existing copy of this record is a problem indeed
 							errorToReport = fmt.Errorf("cannot write duplicate index key [%s], existing record [%v]", q, existingIdxRow)
 						}
 						// Success or not - we are done
@@ -270,23 +288,33 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 					} else {
 						if strings.Contains(err.Error(), "does not exist") {
 							// There is a chance this table is brand new and table schema was not propagated to all Cassandra nodes
-							// TODO: come up with a better waiting strategy (exp backoff, at least)
 							if idxRetryCount < maxIdxRetries-1 {
-								logger.InfoCtx(instr.PCtx, "will wait for idx table %s%s to be created, retry count %d", idxName, cql.RunIdSuffix(instr.PCtx.BatchInfo.RunId), idxRetryCount)
+								logger.WarnCtx(instr.PCtx, "will wait for idx table %s to be created, retry count %d", idxTableName, idxRetryCount)
+								// TODO: come up with a better waiting strategy (exp backoff, at least)
 								time.Sleep(5 * time.Second)
 							} else {
-								logger.ErrorCtx(instr.PCtx, "idx table %s%s still not created, retry count %d reached, giving up", idxName, cql.RunIdSuffix(instr.PCtx.BatchInfo.RunId), idxRetryCount)
-								errorToReport = fmt.Errorf("cannot write to idx table %s%s after multiple attempts, table schema still not propagated to all nodes", idxName, cql.RunIdSuffix(instr.PCtx.BatchInfo.RunId))
+								logger.ErrorCtx(instr.PCtx, "idx table %s still not created, retry count %d reached, giving up", idxTableName, idxRetryCount)
+								errorToReport = fmt.Errorf("cannot write to idx table %s after multiple attempts, table schema still not propagated to all nodes", idxTableName)
+								break
+							}
+						} else if strings.Contains(err.Error(), "Operation timed out") {
+							// The cluster is overloaded, slow down
+							if idxRetryCount < maxIdxRetries-1 {
+								logger.WarnCtx(instr.PCtx, "cluster overloaded (%s), will wait for %dms before writing to idx table %s again, retry count %d", err.Error(), 10*curIdxExpBackoffFactor, idxTableName, idxRetryCount)
+								time.Sleep(time.Duration(10*curIdxExpBackoffFactor) * time.Millisecond)
+								curIdxExpBackoffFactor *= 2
+							} else {
+								logger.ErrorCtx(instr.PCtx, "cluster overloaded (%s), cannot write to idx table %s, retry count %d reached, giving up", err.Error(), idxTableName, idxRetryCount)
+								errorToReport = fmt.Errorf("cannot write to idx table %s after multiple attempts, table schema still not propagated to all nodes", idxTableName)
 								break
 							}
 						} else {
 							// Some serious error happened, stop trying this idx record
-							errorToReport = cql.WrapDbErrorWithQuery("cannot write to index table", q, err)
+							errorToReport = cql.WrapDbErrorWithQuery("cannot write to idx table", q, err)
 							break
 						}
 					}
 				} // idx retry loop
-				indexIdx++
 			} // idx loop
 		}
 		instr.ErrorsOut <- errorToReport
