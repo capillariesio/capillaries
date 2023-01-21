@@ -225,7 +225,7 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 						time.Sleep(5 * time.Second)
 					} else {
 						logger.ErrorCtx(instr.PCtx, "table %s still not created, retry count %d reached, giving up", dataTableName, dataRetryCount)
-						errorToReport = fmt.Errorf("cannot write to data table after multiple attempts, table %s%d schema still not propagated to all nodes", dataTableName)
+						errorToReport = fmt.Errorf("cannot write to data table after multiple attempts, table %s schema still not propagated to all nodes", dataTableName)
 						break
 					}
 				} else if strings.Contains(err.Error(), "Operation timed out") {
