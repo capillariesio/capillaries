@@ -195,7 +195,7 @@
             "size": 1,
             "permissions": 777,
             "owner": "{sftp_user}",
-            "id": "0892fdae-39d7-44d2-8c8f-ade422597d2f"
+            "id": "1b46ff45-d45e-49b7-8290-ad2668c19873"
         },
         "in": {
             "name": "{deployment_name}_in",
@@ -203,7 +203,7 @@
             "size": 1,
             "permissions": 777,
             "owner": "{sftp_user}",
-            "id": "2a1fe732-af3c-4545-bb51-01636de519ce"
+            "id": "7aff5878-5589-4e8d-9beb-f857c6bb9bab"
         },
         "out": {
             "name": "{deployment_name}_out",
@@ -211,7 +211,7 @@
             "size": 1,
             "permissions": 777,
             "owner": "{sftp_user}",
-            "id": "6fbef229-3fec-4193-9228-8e2c40e49361"
+            "id": "09c69f0c-c152-4d84-8bd2-ad43021600f9"
         }
     },
     "file_groups_up": {
@@ -469,7 +469,7 @@
             "ip_address": "10.5.0.101",
             "flavor": "gp1.lightspeed",
             "image": "Ubuntu-22.04",
-            "id": "",
+            "id": "30f17544-1135-4393-9cc2-e52eea0ddeb7",
             "private_keys": [
                 {
                     "name": "{sftp_user}",

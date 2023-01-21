@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/pkg/sftp"
@@ -165,11 +164,6 @@ func UploadFileSftp(prj *Project, ipAddress string, srcPath string, dstPath stri
 		return lb.Complete(fmt.Errorf("cannot create sftp client to %s: %s", ipAddress, err.Error()))
 	}
 	defer sftp.Close()
-
-	trueDirPermissions, err := strconv.ParseInt(fmt.Sprintf("%d", dirPermissions), 8, 0)
-	if err != nil {
-		return lb.Complete(fmt.Errorf("cannot read oct convert dir permission %s %d: %s", ipAddress, dirPermissions, err.Error()))
-	}
 
 	pathParts := strings.Split(dstPath, string(os.PathSeparator))
 	curPath := string(os.PathSeparator)
