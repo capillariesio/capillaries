@@ -7,20 +7,23 @@ ENV_CONFIG_FILE=/home/ubuntu/bin/env_config.json
 
 sed -i -e 's~"url":[ ]*"[a-zA-Z0-9@\.:\/\-_$ ]*"~"url": "'"$AMQP_URL"'"~g' $ENV_CONFIG_FILE
 sed -i -e 's~"hosts":[ ]*\[[0-9a-zA-Z\.\,\-_ "]*\]~"hosts": '$CASSANDRA_HOSTS"~g" $ENV_CONFIG_FILE
-# We use our test Cassandra setup up to the limit, so avoid "Operation timed out - received only 0 responses"
-# https://stackoverflow.com/questions/38231621/cassandra-operation-timed-out
+sed -i -e "s~\"sftpuser\":[ ]*\"[^\"]*\"~\"sftpuser\": \"/home/ubuntu/.ssh/$SFTP_USER\"~g" $ENV_CONFIG_FILE
+
+# If you use your test Cassandra setup up to the limit, try to avoid "Operation timed out - received only 0 responses"
 # Make replication factor at least 2 to make reads more available, 1 for faster writes
-sed -i -e "s~\"keyspace_replication_config\":[ ]*\"[^\"]*\"~\"keyspace_replication_config\": \"{'class':'SimpleStrategy', 'replication_factor':2}\"~g" $ENV_CONFIG_FILE
+# https://stackoverflow.com/questions/38231621/cassandra-operation-timed-out
+sed -i -e "s~\"keyspace_replication_config\":[ ]*\"[^\"]*\"~\"keyspace_replication_config\": \"{'class':'SimpleStrategy', 'replication_factor':1}\"~g" $ENV_CONFIG_FILE
 
 # In test env, give enough time to Cassandra coordinator to complete the write (cassandra.yaml write_request_timeout_in_ms)
-# and make sure client time out is more (not equal) than that
+# so there is no doubt that coordinator is the bottleneck,
+# and make sure client time out is more (not equal) than that to avoid gocql error "no response received from cassandra within timeout period".
+# In prod environments, increasing write_request_timeout_in_ms and corresponding client timeout is not a solution.
 sed -i -e "s~\"timeout\":[ ]*[0-9]*~\"timeout\": 15000~g" $ENV_CONFIG_FILE
 
-# Default value of 50 writer workers is pretty aggressive and can bring test Cassandra cluster to its knees, try 30
-# Watch for "OPeration timed out", especiallyon writes
-sed -i -e "s~\"writer_workers\":[ ]*[0-9]*~\"writer_workers\": 30~g" $ENV_CONFIG_FILE
-
-sed -i -e "s~\"sftpuser\":[ ]*\"[^\"]*\"~\"sftpuser\": \"/home/ubuntu/.ssh/$SFTP_USER\"~g" $ENV_CONFIG_FILE
+# Default value of 50 writer workers may be pretty aggressive,
+# watch for "Operation timed out - received only 0 responses" on writes,
+# throttle it down to 30 or lower if needed
+# sed -i -e "s~\"writer_workers\":[ ]*[0-9]*~\"writer_workers\": 30~g" $ENV_CONFIG_FILE
 
 sudo rm -fR /var/log/capidaemon
 sudo mkdir /var/log/capidaemon

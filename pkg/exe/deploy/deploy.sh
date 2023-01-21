@@ -1,14 +1,14 @@
 # Create all instances in one shot (54 s)
-go run deploy.go create_instances bastion,daemon01,cass01,cass02,cass03,rabbitmq,prometheus
+go run deploy.go create_instances bastion,daemon01,daemon02,cass01,cass02,cass03,rabbitmq,prometheus
 
 # Make sure they are available
-go run deploy.go ping_instances bastion,daemon01,cass01,cass02,cass03,rabbitmq,prometheus
+go run deploy.go ping_instances bastion,daemon01,daemon02,cass01,cass02,cass03,rabbitmq,prometheus
 
 # Create sftp user
 go run deploy.go create_instance_users bastion
 
 # Allow these hosts to connect to data via sftp
-go run deploy.go copy_private_keys bastion,daemon01
+go run deploy.go copy_private_keys bastion,daemon01,daemon02
 
 # Volumes: used only by bastion
 #go run deploy.go create_volumes
@@ -22,13 +22,13 @@ go run deploy.go upload_files up_daemon_env_config,up_daemon_binary,up_webapi_en
 go run deploy.go setup_services bastion,cass01,cass02,cass03,prometheus,rabbitmq
 
 # Setup capidaemons (30 s)
-go run deploy.go setup_services daemon01
+go run deploy.go setup_services daemon01,daemon02
 
 # Check cassandra nodetool, all 3 shouldbe up, no exceptions thrown:
 ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment001_rsa -J 208.113.134.216 ubuntu@10.5.0.11 'nodetool status'
 
-Check cassandra status - this should return no error
-http://208.113.134.216:6543/ks
+# Check cassandra status - this should return no error
+curl http://208.113.134.216:6543/ks
 
 CPU usage %
 http://208.113.134.216:9090/graph?g0.expr=(1%20-%20avg(irate(node_cpu_seconds_total%7Bmode%3D%22idle%22%7D%5B10m%5D))%20by%20(instance))%20*%20100&g0.tab=0&g0.stacked=0&g0.show_exemplars=0&g0.range_input=15m
@@ -58,7 +58,7 @@ go run deploy.go download_files down_capi_out,down_capi_logs
 # sudo apt-get install iperf3
 # Server: sudo iperf3 -s -p 80
 # Client: perf3 -c 10.5.0.2 -p 80
-ubuntu@sampledeployment001-daemon01:~$ iperf3 -c10.5.0.2 -p 80
+iperf3 -c10.5.0.2 -p 80
 Connecting to host 10.5.0.2, port 80
 [  5] local 10.5.0.101 port 47716 connected to 10.5.0.2 port 80
 [ ID] Interval           Transfer     Bitrate         Retr  Cwnd

@@ -469,7 +469,49 @@
             "ip_address": "10.5.0.101",
             "flavor": "gp1.lightspeed",
             "image": "Ubuntu-22.04",
-            "id": "d2c66957-7308-4b7e-a282-c806266c7637",
+            "id": "",
+            "private_keys": [
+                {
+                    "name": "{sftp_user}",
+                    "private_key": "{sftp_user_private_key}"
+                }
+            ],
+            "service": {
+                "env": {
+                    "AMQP_URL": "amqp://{rabbitmq_user_name}:{rabbitmq_user_pass}@{rabbitmq_ip}/",
+                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\"]'",
+                    "INTERNAL_BASTION_IP": "{internal_bastion_ip}",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
+                    "SFTP_USER": "{sftp_user}"
+                },
+                "cmd": {
+                    "setup": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/setup_node_exporter.sh",
+                        "sh/logrotate/setup_capidaemon_logrotate.sh",
+                        "sh/rsyslog/setup_capidaemon_log_sender.sh",
+                        "sh/daemon/setup_daemon.sh"
+                    ],
+                    "start": [
+                        "sh/daemon/start_daemon.sh"
+                    ],
+                    "stop": [
+                        "sh/daemon/stop_daemon.sh"
+                    ]
+                }
+            },
+            "applicable_file_groups": [
+                "up_daemon_binary",
+                "up_daemon_env_config"
+            ]
+        },
+        "daemon02": {
+            "host_name": "{deployment_name}-daemon02",
+            "security_group": "internal",
+            "ip_address": "10.5.0.102",
+            "flavor": "gp1.lightspeed",
+            "image": "Ubuntu-22.04",
+            "id": "",
             "private_keys": [
                 {
                     "name": "{sftp_user}",
@@ -515,7 +557,7 @@
             "service": {
                 "env": {
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
-                    "PROMETHEUS_TARGETS": "\\'localhost:9100\\',\\'{internal_bastion_ip}:9100\\',\\'10.5.0.5:9100\\',\\'10.5.0.11:9100\\',\\'10.5.0.12:9100\\',\\'10.5.0.13:9100\\',\\'10.5.0.101:9100\\'",
+                    "PROMETHEUS_TARGETS": "\\'localhost:9100\\',\\'{internal_bastion_ip}:9100\\',\\'10.5.0.5:9100\\',\\'10.5.0.11:9100\\',\\'10.5.0.12:9100\\',\\'10.5.0.13:9100\\',\\'10.5.0.101:9100\\',\\'10.5.0.102:9100\\'",
                     "PROMETHEUS_VERSION": "{prometheus_version}"
                 },
                 "cmd": {
