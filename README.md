@@ -62,4 +62,4 @@ Capable of processing large amounts of data within SLA time limits, efficiently 
 ### [Q & A](doc/qna.md)
 ### [MIT License](LICENSE)
 
-(C) 2022 kleines.hertz[at]protonmail.com
+(C) 2023 kleines.hertz[at]protonmail.com

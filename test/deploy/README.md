@@ -61,16 +61,15 @@ go run ../../pkg/exe/deploy/capideploy.go setup_services daemon01,daemon02
 # Check cassandra nodetool, all 3 shouldbe up, no exceptions thrown:
 ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment001_rsa -J 208.113.134.216 ubuntu@10.5.0.11 'nodetool status'
 
-# Check cassandra status - this should return no error
-curl http://208.113.134.216:6543/ks
-
 ````
 
-Check RabbitMQ is functioning at http://208.113.134.216:15672
+Check Cassandra status - this should return no error: `http://208.113.134.216:6543/ks`
+
+Check RabbitMQ is functioning at `http://208.113.134.216:15672`
 
 # Run test processes
 
-At http://208.113.134.216/, create new runs:
+At `http://208.113.134.216`, create new runs:
 
 | Field | Value |
 |- | - |
