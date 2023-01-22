@@ -221,7 +221,7 @@ func stringToArrayOfStrings(s string) ([]string, error) {
 func main() {
 	//defer profile.Start().Stop()
 
-	envConfig, err := env.ReadEnvConfigFile("env_config.json")
+	envConfig, err := env.ReadEnvConfigFile("capitoolbelt.json")
 	if err != nil {
 		log.Fatalf(err.Error())
 		os.Exit(1)

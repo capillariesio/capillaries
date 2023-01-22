@@ -7,22 +7,22 @@ The goal of Capillaries API is to allow system integrators to create solutions t
 Drop [keyspace](glossary.md#keyspace):
 
 ```
-go run toolbelt.go drop_keyspace -keyspace=<keyspace_name>
+go run capitoolbelt.go drop_keyspace -keyspace=<keyspace_name>
 ```
 
 Get workflow status from [workflow tables](glossary.md#workflow-table):
 
 ```
-go run toolbelt.go get_run_history -keyspace=<keyspace_name>
-go run toolbelt.go get_node_history -keyspace=<keyspace_name> -run_ids=<comma_separated_list_of_run_ids>
-go run toolbelt.go get_batch_history -keyspace=<keyspace_name> -run_ids=<comma_separated_list_of_run_ids> -nodes=<comma_separated_list_of_node_names>
+go run capitoolbelt.go get_run_history -keyspace=<keyspace_name>
+go run capitoolbelt.go get_node_history -keyspace=<keyspace_name> -run_ids=<comma_separated_list_of_run_ids>
+go run capitoolbelt.go get_batch_history -keyspace=<keyspace_name> -run_ids=<comma_separated_list_of_run_ids> -nodes=<comma_separated_list_of_node_names>
 ```
 
 Initiate/terminate workflow - start/stop a [run](glossary.md#run):
 ```
-go run toolbelt.go start_run -script_file=<script_file> -params_file=<script_params_file> -keyspace=<keyspace_name> -start_nodes=<comma_separated_list_of_nodes_to start>
+go run capitoolbelt.go start_run -script_file=<script_file> -params_file=<script_params_file> -keyspace=<keyspace_name> -start_nodes=<comma_separated_list_of_nodes_to start>
 
-go run toolbelt.go stop_run -keyspace=<keyspace_name> -run_id=<run_id>
+go run capitoolbelt.go stop_run -keyspace=<keyspace_name> -run_id=<run_id>
 
 ```
 

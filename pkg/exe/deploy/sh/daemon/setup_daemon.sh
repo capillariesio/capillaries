@@ -3,7 +3,7 @@
 # CASSANDRA_HOSTS='["10.5.0.11","10.5.0.12","10.5.0.13"]'
 # SFTP_USER=sftpuser
 
-ENV_CONFIG_FILE=/home/ubuntu/bin/env_config.json
+ENV_CONFIG_FILE=/home/ubuntu/bin/capidaemon.json
 
 sed -i -e 's~"url":[ ]*"[a-zA-Z0-9@\.:\/\-_$ ]*"~"url": "'"$AMQP_URL"'"~g' $ENV_CONFIG_FILE
 sed -i -e 's~"hosts":[ ]*\[[0-9a-zA-Z\.\,\-_ "]*\]~"hosts": '$CASSANDRA_HOSTS"~g" $ENV_CONFIG_FILE

@@ -497,7 +497,7 @@ func (h UrlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	envConfig, err := env.ReadEnvConfigFile("env_config.json")
+	envConfig, err := env.ReadEnvConfigFile("capiwebapi.json")
 	if err != nil {
 		log.Fatalf(err.Error())
 		os.Exit(1)

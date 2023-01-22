@@ -2,7 +2,7 @@
 
 # Assumptions:
 # - this script is run from test/code/py_calc
-# - python interpreter is available by name 'python' (see env_config.json)
+# - python interpreter is available by name 'python' (see environment config files capidaemon.json and capitoolbelt.json)
 
 source ../common/util.sh
 

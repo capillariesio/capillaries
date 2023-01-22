@@ -10,7 +10,7 @@
             "request": "launch",
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
-            "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
             "args": ["create_security_groups", "-verbose"]
         },
         {
@@ -19,7 +19,7 @@
             "request": "launch",
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
-            "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
             "args": ["delete_security_group", "-verbose"]
         },
         {
@@ -28,7 +28,7 @@
             "request": "launch",
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
-            "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
             "args": ["create_networking", "-verbose"]
         },
         {
@@ -37,7 +37,7 @@
             "request": "launch",
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
-            "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
             "args": ["delete_networking", "-verbose"]
         },
         {
@@ -46,7 +46,7 @@
             "request": "launch",
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
-            "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
             "args": ["create_volumes", "-verbose"]
         },
         {
@@ -55,7 +55,7 @@
             "request": "launch",
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
-            "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
             "args": ["delete_volumes", "-verbose"]
         },
         {
@@ -64,7 +64,7 @@
             "request": "launch",
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
-            "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
             "args": ["create_instances", "bastion,daemon01", "-verbose"]
         },
         {
@@ -73,7 +73,7 @@
             "request": "launch",
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
-            "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
             "args": ["delete_instances", "bastion,daemon01", "-verbose"]
         },
         {
@@ -82,7 +82,7 @@
             "request": "launch",
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
-            "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
             "args": ["attach_volumes", "*", "-verbose"]
         },
         {
@@ -91,7 +91,7 @@
             "request": "launch",
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
-            "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
             "args": ["upload_files", "up_test_in,up_test_scripts", "-verbose"]
         },
         {
@@ -100,7 +100,7 @@
             "request": "launch",
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
-            "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
             "args": ["download_files", "*", "-verbose"]
         },
         {
@@ -109,7 +109,7 @@
             "request": "launch",
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
-            "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
             "args": ["setup_services", "daemon01", "-verbose"]
         },
         {
@@ -118,7 +118,7 @@
             "request": "launch",
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
-            "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
             "args": ["start_services", "*", "-verbose"]
         },
         {
@@ -127,7 +127,7 @@
             "request": "launch",
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
-            "program": "${workspaceFolder}/pkg/exe/deploy/deploy.go",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
             "args": ["stop_services", "daemon01", "-verbose"]
         },
         {
@@ -136,7 +136,7 @@
             "request": "launch",
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/daemon",
-            "program": "${workspaceFolder}/pkg/exe/daemon/daemon.go",
+            "program": "${workspaceFolder}/pkg/exe/daemon/capidaemon.go",
             "args": []
         },
         {
@@ -145,7 +145,7 @@
             "request": "launch",
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/webapi",
-            "program": "${workspaceFolder}/pkg/exe/webapi/webapi.go",
+            "program": "${workspaceFolder}/pkg/exe/webapi/capiwebapi.go",
             "args": []
         }
    ]

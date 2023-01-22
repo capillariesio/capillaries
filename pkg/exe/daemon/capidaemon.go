@@ -42,7 +42,7 @@ func (f *StandardDaemonProcessorDefFactory) Create(processorType string) (sc.Cus
 
 func main() {
 
-	envConfig, err := env.ReadEnvConfigFile("env_config.json")
+	envConfig, err := env.ReadEnvConfigFile("capidaemon.json")
 	if err != nil {
 		log.Fatalf(err.Error())
 		os.Exit(1)

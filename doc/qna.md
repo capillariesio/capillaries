@@ -83,7 +83,7 @@ A. While processing [nodes](glossary.md#script-node) that create [tables](glossa
 This situation can be potentially mitigated by creating all tables for a specific [run](glossary.md#run) in advance. A [toolbelt](glossary.md#toolbelt) command producing CQL statements that creates all tables for a [run](glossary.md#run) may look like this:
 
 ``` 
-go run toolbelt.go get_table_cql -script_file=... -params_file=... -keyspace=... -run_id=... -start_nodes=...
+go run capitoolbelt.go get_table_cql -script_file=... -params_file=... -keyspace=... -run_id=... -start_nodes=...
 ```
 
 The tricky part is to specify the correct run id for a run that has not started yet.

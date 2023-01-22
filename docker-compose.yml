@@ -53,7 +53,7 @@ services:
       driver: "gelf"
       options:
         gelf-address: "udp://10.5.0.13:12201"
-        tag: "capi-daemon"
+        tag: "capidaemon"
 
   webapi:
     container_name: capillaries_webapi
@@ -79,7 +79,7 @@ services:
       driver: "gelf"
       options:
         gelf-address: "udp://10.5.0.13:12201"
-        tag: "capi-webapi"
+        tag: "capiwebapi"
     
   ui:
     container_name: capillaries_ui
@@ -98,7 +98,7 @@ services:
       driver: "gelf"
       options:
         gelf-address: "udp://10.5.0.13:12201"
-        tag: "capi-ui"
+        tag: "capiui"
 
   mongodb:
     container_name: graylog_mongodb

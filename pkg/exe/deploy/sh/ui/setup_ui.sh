@@ -1,4 +1,4 @@
-# Tweak UI so it call the proper webapi URL
+# Tweak UI so it call the proper capiwebapi URL
 
 # Expecting
 # WEBAPI_IP=208.113.134.216

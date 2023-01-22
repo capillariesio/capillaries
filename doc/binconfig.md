@@ -1,6 +1,6 @@
 # Toolbelt, Daemon, and Webapi configuration
 
-Executables that use Capillaries need to be able to access the message queue (RabbitMQ) and the database (Cassandra). There are also some settings that may be helpful during troubleshooting and performance tuning in specific environments. All these settings are managed by EnvConfig (env_config.json file residing in the binary's directory).
+Executables that use Capillaries need to be able to access the message queue (RabbitMQ) and the database (Cassandra). There are also some settings that may be helpful during troubleshooting and performance tuning in specific environments. All these settings are managed by EnvConfig (`capi*.json` file residing in the binary's directory).
 
 ## handler_executable_type
 Name of the [queue](glossary.md#processor-queue) this executable consumes messages from. Also used by the logger to identify the source of each log message, so it makes sense to assign a distinct handler_executable_type value to each binary - [Daemon](glossary.md#daemon), [Toolbelt](glossary.md#toolbelt), [Webapi](glossary.md#webapi).
@@ -54,9 +54,9 @@ As is, passed to amqp.Channel.Qos()
 ## private_keys
 Username->private_key_file_path map used for [SFTP](./glossary.md#sftp-uris) upload and download. For example, if anything in your [script configuration](./glossary.md#script) or [API](./api.md) call parameters (like script_file or script_params URIs) points to `sftp://ubuntu@somehost/some/file/path`, you will need an entry like this:
 `ubuntu -> /local/path/to/ubuntu_user_private_key` in your:
-- [Daemon](./glossary.md#daemon) env config file (if this sftp URI points to data or configuration files)
-- [Webapi](./glossary.md#webapi) env config file (if this sftp URI points to configuration files)
-- [Toolbelt](./glossary.md#toolbelt) env config file (if this sftp URI points to configuration files)
+- [Daemon](./glossary.md#daemon) capidaemon.json [env config file](./binconfig.md#toolbelt-daemon-and-webapi-configuration) (if this sftp URI points to data or configuration files)
+- [Webapi](./glossary.md#webapi) capiwebapi.json [env config file](./binconfig.md#toolbelt-daemon-and-webapi-configuration) (if this sftp URI points to configuration files)
+- [Toolbelt](./glossary.md#toolbelt) capitoolbelt.json [env config file](./binconfig.md#toolbelt-daemon-and-webapi-configuration) (if this sftp URI points to configuration files)
 
 ## custom_processors
 Placeholder for [custom processor](glossary.md#table_custom_tfm_table) configurations.

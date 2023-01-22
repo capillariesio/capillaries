@@ -6,7 +6,7 @@ Created using Ubuntu WSL. Other Linux flavors and MacOS may require edits.
 
 The [DOT diagram](../../../doc/glossary.md#dot-diagrams) generated with
 ```
-go run toolbelt.go validate_script -script_file=../../../test/data/cfg/lookup/script.json -params_file=../../../test/data/cfg/lookup/script_params_two_runs.json -idx_dag=true
+go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/lookup/script.json -params_file=../../../test/data/cfg/lookup/script_params_two_runs.json -idx_dag=true
 ```
 and rendered in https://dreampuf.github.io/GraphvizOnline :
 
@@ -30,7 +30,7 @@ Run [test_exec_nodes.sh](test_exec_nodes.sh)  - the [Toolbelt](../../../doc/glos
 ### Using RabbitMQ workflow (single run)
 
 Make sure the [Daemon](../../../doc/glossary.md#daemon) is running:
-- either run `go run daemon.go` to start it in pkg/exe/daemon
+- either run `go run capidaemon.go` to start it in pkg/exe/daemon
 - or start the Daemon container (`docker compose -p "test_capillaries_containers" start daemon`)
 
 Run [test_one_run.sh](test_one_run.sh) - the [Toolbelt](../../../doc/glossary.md#toolbelt) publishes [batch messages](../../../doc/glossary.md#data-batch) to RabbitMQ and the [Daemon](../../../doc/glossary.md#daemon) consumes them and executes all [script](../../data/cfg/lookup/script.json) [nodes](../../../doc/glossary.md#script-node) in parallel as part of a single [run](../../../doc/glossary.md#run).
@@ -38,7 +38,7 @@ Run [test_one_run.sh](test_one_run.sh) - the [Toolbelt](../../../doc/glossary.md
 ### Using RabbitMQ workflow (two runs)
 
 Make sure the [Daemon](../../../doc/glossary.md#daemon) is running:
-- either run `go run daemon.go` to start it in pkg/exe/daemon
+- either run `go run capidaemon.go` to start it in pkg/exe/daemon
 - or start the Daemon container (`docker compose -p "test_capillaries_containers" start daemon`)
 
 Run [test_two_runs.sh](test_two_runs.sh) - the [Toolbelt](../../../doc/glossary.md#toolbelt) publishes [batch messages](../../../doc/glossary.md#data-batch) to RabbitMQ and the [Daemon](../../../doc/glossary.md#daemon) consumes them and executes [script](../../data/cfg/lookup/script.json) [nodes](../../../doc/glossary.md#script-node) that load data from files as part of the first [run](../../../doc/glossary.md#run).
@@ -50,11 +50,11 @@ This test mimics the "operator validation" scenario.
 ## Webapi
 
 Make sure the [Daemon](../../../doc/glossary.md#daemon) is running:
-- either run `go run daemon.go` to start it in pkg/exe/daemon
+- either run `go run capidaemon.go` to start it in pkg/exe/daemon
 - or start the Daemon container (`docker compose -p "test_capillaries_containers" start daemon`)
 
 Make sure the [Webapi](../../../doc/glossary.md#webapi) is running:
-- either run `go run webapi.go` to start it in pkg/exe/webapi
+- either run `go run capiwebapi.go` to start it in pkg/exe/webapi
 - or start the Webapi container (`docker compose -p "test_capillaries_containers" start webapi`)
 
 The test runs the same scenario as the previous [two runs test](#using-rabbitmq-workflow-two-runs) above, but uses [Webapi](../../../doc/glossary.md#webapi) instead of the [Toolbelt](../../../doc/glossary.md#toolbelt)

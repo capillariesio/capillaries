@@ -1,5 +1,5 @@
-pkill -2 webapi
-processid=$(pgrep webapi)
+pkill -2 capiwebapi
+processid=$(pgrep capiwebapi)
 if [ "$processid" != "" ]; then
-  pkill -9 webapi
+  pkill -9 capiwebapi
 fi

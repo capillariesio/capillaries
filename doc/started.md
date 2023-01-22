@@ -40,7 +40,7 @@ This command will create bridge network `capinet`, and will create and start the
 - [Capillaries-UI](glossary.md#capillaries-ui) container (user interface to Capillaries)
 - Graylog container (and a couple of dependencies - MongoDB and ElasticSearch containers)
 
-While the containers are being built and started (Cassandra will take a while to initialize, you may want to wait for `Created default superuser role 'cassandra'`), check out the source data for this demo:
+While the containers are being built and started (Cassandra will take a while to initialize, you may want to wait for `Created default superuser role 'cassandra'`), get familiar with the source data for this demo:
 ```
 head -10 /tmp/capitest_in/tag_and_denormalize/flipcart_products.tsv
 cat /tmp/capitest_in/tag_and_denormalize/tags.csv
@@ -123,7 +123,7 @@ You may also want to make sure you have cqlsh tool installed, it may be helpful 
 
 This section may help you get started with [lookup integration test](../test/code/lookup/README.md).
 
-All settings in pkg/exe/daemon/env_config.json and pkg/exe/toolbelt/env_config.json use default RabbitMQ and Cassandra settings. If you have changed your Cassandra or RabbitMQ setup, modify both env_config.json files accordingly. More about database and queue settings:
+All settings in pkg/exe/daemon/capidaemon.json and pkg/exe/toolbelt/capitoolbelt.json use default RabbitMQ and Cassandra settings. If you have changed your Cassandra or RabbitMQ setup, modify both JSON files accordingly. More about database and queue settings:
 - Cassandra [settings](binconfig.md#cassandra), general Cassandra setup [considerations](glossary.md#cassandra-setup)
 - RabbitMQ [settings](binconfig.md#amqp), general RabbitMQ setup [considerations](glossary.md#rabbitmq-setup)
 
@@ -142,7 +142,7 @@ Run Capillaries [Daemon](glossary.md#daemon) (make sure that Daemon container is
 
 ```
 cd pkg/exe/daemon
-go run daemon.go
+go run capidaemon.go
 ```
 
 Check out its stdout- make sure it successfully connected to RabbitMQ.
