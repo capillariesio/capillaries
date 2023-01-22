@@ -163,8 +163,9 @@ type Project struct {
 }
 
 type ProjectPair struct {
-	Template Project
-	Live     Project
+	Template           Project
+	Live               Project
+	ProjectFileDirPath string
 }
 
 func (prjPair *ProjectPair) SetSecurityGroupId(sgNickname string, newId string) {
@@ -343,7 +344,7 @@ func LoadProject(prjFile string, prjParamsFile string) (*ProjectPair, string, er
 		return nil, "", fmt.Errorf("cannot read project params file %s: %s", prjParamsFullPath, err.Error())
 	}
 
-	var prjPair ProjectPair
+	prjPair := ProjectPair{ProjectFileDirPath: filepath.Dir(prjFullPath)}
 
 	// Read project
 

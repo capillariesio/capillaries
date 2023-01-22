@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -118,8 +119,8 @@ func NewTunneledSshClient(sshConfig *SshConfigDef, ipAddress string) (*TunneledS
 	return &tsc, nil
 }
 
-func ExecSsh(prj *Project, ipAddress string, cmd string) ExecResult {
-	tsc, err := NewTunneledSshClient(prj.SshConfig, ipAddress)
+func ExecSsh(sshConfig *SshConfigDef, ipAddress string, cmd string) ExecResult {
+	tsc, err := NewTunneledSshClient(sshConfig, ipAddress)
 	if err != nil {
 		return ExecResult{cmd, "", "", 0, err}
 	}
@@ -159,8 +160,8 @@ func ExecSshForClient(sshClient *ssh.Client, cmd string) (string, string, error)
 	return stdout.String(), stderr.String(), nil
 }
 
-func ExecSshAndReturnLastLine(prj *Project, ipAddress string, cmd string) (string, ExecResult) {
-	er := ExecSsh(prj, ipAddress, cmd)
+func ExecSshAndReturnLastLine(sshConfig *SshConfigDef, ipAddress string, cmd string) (string, ExecResult) {
+	er := ExecSsh(sshConfig, ipAddress, cmd)
 	if er.Error != nil {
 		return "", er
 	}
@@ -214,7 +215,7 @@ func (lb *LogBuilder) Complete(err error) (LogMsg, error) {
 	return LogMsg(lb.Sb.String()), err
 }
 
-func ExecScriptsOnInstance(prj *Project, ipAddress string, env map[string]string, shellScriptFiles []string, isVerbose bool) (LogMsg, error) {
+func ExecScriptsOnInstance(sshConfig *SshConfigDef, ipAddress string, env map[string]string, prjFileDirPath string, shellScriptFiles []string, isVerbose bool) (LogMsg, error) {
 	lb := NewLogBuilder(fmt.Sprintf("ExecScriptsOnInstance: %s on %s", shellScriptFiles, ipAddress), isVerbose)
 
 	if len(shellScriptFiles) == 0 {
@@ -228,20 +229,21 @@ func ExecScriptsOnInstance(prj *Project, ipAddress string, env map[string]string
 			cmdBuilder.WriteString(fmt.Sprintf("%s=%s\n", k, v))
 		}
 
-		f, err := os.Open(shellScriptFile)
+		fullScriptPath := filepath.Join(prjFileDirPath, shellScriptFile)
+		f, err := os.Open(fullScriptPath)
 		if err != nil {
-			return lb.Complete(fmt.Errorf("cannot open shell script %s: %s", shellScriptFile, err.Error()))
+			return lb.Complete(fmt.Errorf("cannot open shell script %s: %s", fullScriptPath, err.Error()))
 		}
 		defer f.Close()
 
 		shellScriptBytes, err := ioutil.ReadAll(f)
 		if err != nil {
-			return lb.Complete(fmt.Errorf("cannot read shell script %s: %s", shellScriptFile, err.Error()))
+			return lb.Complete(fmt.Errorf("cannot read shell script %s: %s", fullScriptPath, err.Error()))
 		}
 
 		cmdBuilder.WriteString(string(shellScriptBytes))
 
-		er := ExecSsh(prj, ipAddress, cmdBuilder.String())
+		er := ExecSsh(sshConfig, ipAddress, cmdBuilder.String())
 		lb.Add(er.ToString())
 		if er.Error != nil {
 			return lb.Complete(er.Error)
@@ -250,7 +252,7 @@ func ExecScriptsOnInstance(prj *Project, ipAddress string, env map[string]string
 	return lb.Complete(nil)
 }
 
-func ExecCommandsOnInstance(prj *Project, ipAddress string, cmds []string, isVerbose bool) (LogMsg, error) {
+func ExecCommandsOnInstance(sshConfig *SshConfigDef, ipAddress string, cmds []string, isVerbose bool) (LogMsg, error) {
 	lb := NewLogBuilder(fmt.Sprintf("ExecCommandsOnInstance: %d on %s", len(cmds), ipAddress), isVerbose)
 	if len(cmds) == 0 {
 		lb.Add(fmt.Sprintf("no commands to execute on %s", ipAddress))
@@ -258,7 +260,7 @@ func ExecCommandsOnInstance(prj *Project, ipAddress string, cmds []string, isVer
 	}
 
 	for _, cmd := range cmds {
-		er := ExecSsh(prj, ipAddress, cmd)
+		er := ExecSsh(sshConfig, ipAddress, cmd)
 		lb.Add(er.ToString())
 		if er.Error != nil {
 			return lb.Complete(er.Error)

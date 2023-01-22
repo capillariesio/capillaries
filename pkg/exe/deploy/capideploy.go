@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"reflect"
 	"strings"
 	"time"
 
@@ -51,16 +52,16 @@ func getNicknamesArg(commonArgs *flag.FlagSet, entityName string) (string, error
 	return os.Args[2], nil
 }
 
-func filterByNickname[GenericDef deploy.FileGroupUpDef | deploy.FileGroupDownDef | deploy.InstanceDef](nicknames string, sourceMap map[string]*GenericDef) (map[string]*GenericDef, error) {
+func filterByNickname[GenericDef deploy.FileGroupUpDef | deploy.FileGroupDownDef | deploy.InstanceDef](nicknames string, sourceMap map[string]*GenericDef, entityName string) (map[string]*GenericDef, error) {
 	var defMap map[string]*GenericDef
-	if nicknames == "*" {
+	if nicknames == "all" {
 		defMap = sourceMap
 	} else {
 		defMap = map[string]*GenericDef{}
 		for _, defNickname := range strings.Split(nicknames, ",") {
 			fgDef, ok := sourceMap[defNickname]
 			if !ok {
-				return nil, fmt.Errorf("definition for %s not found", defNickname)
+				return nil, fmt.Errorf("definition for %s '%s' not found, available definitions: %s", entityName, defNickname, reflect.ValueOf(sourceMap).MapKeys())
 			}
 			defMap[defNickname] = fgDef
 		}
@@ -88,20 +89,75 @@ func waitForWorkers(errorsExpected int, errChan chan error, logChan chan deploy.
 	return finalCmdErr
 }
 
+func usage(flagset *flag.FlagSet) {
+	fmt.Printf(`
+Capillaries deploy
+Usage: capideploy <command> [command parameters] [optional parameters]
+
+Commands:
+  %s
+  %s
+  %s
+  %s
+  %s
+  %s
+  %s <comma-separated list of instances to create, or 'all'>
+  %s <comma-separated list of instances to delete, or 'all'>
+  %s <comma-separated list of instances to ping, or 'all'>
+  %s <comma-separated list of instances to create users on, or 'all'>
+  %s <comma-separated list of instances to copy private keys to, or 'all'>
+  %s <comma-separated list of instances to attach volumes to, or 'all'>
+  %s <comma-separated list of upload file groups, or 'all'>
+  %s <comma-separated list of download file groups, or 'all'>  
+  %s <comma-separated list of instances to setup services on, or 'all'>
+  %s <comma-separated list of instances to start services on, or 'all'>
+  %s <comma-separated list of instances to stop services on, or 'all'>
+`,
+		CmdCreateSecurityGroups,
+		CmdDeleteSecurityGroups,
+		CmdCreateNetworking,
+		CmdDeleteNetworking,
+		CmdCreateVolumes,
+		CmdDeleteVolumes,
+
+		CmdCreateInstances,
+		CmdDeleteInstances,
+		CmdPingInstances,
+
+		CmdCreateInstanceUsers,
+		CmdCopyPrivateKeys,
+
+		CmdAttachVolumes,
+
+		CmdUploadFiles,
+		CmdDownloadFiles,
+
+		CmdSetupServices,
+		CmdStartServices,
+		CmdStopServices,
+	)
+	fmt.Printf("\nOptional parameters:\n")
+	flagset.PrintDefaults()
+	os.Exit(0)
+}
+
 func main() {
-	prjPair, fullPrjPath, err := deploy.LoadProject("deploy.json", "deploy_params.json")
-	if err != nil {
-		log.Fatalf(err.Error())
-	}
+	commonArgs := flag.NewFlagSet("common args", flag.ExitOnError)
+	argVerbosity := commonArgs.Bool("verbose", false, "Debug output")
+	argPrjFile := commonArgs.String("prj", "capideploy_project.json", "Project file, looked in exe path, current dir")
+	argPrjParamsFile := commonArgs.String("prj_params", "capideploy_project_params.json", "Project params file, looked in exe path, current dir, home dir")
 
 	if len(os.Args) <= 1 {
-		log.Fatalf("COMMAND EXPECTED")
+		usage(commonArgs)
+		os.Exit(1)
 	}
 
 	cmdStartTs := time.Now()
 
-	commonArgs := flag.NewFlagSet("common args", flag.ExitOnError)
-	argVerbosity := commonArgs.Bool("verbose", false, "Verbosity")
+	prjPair, fullPrjPath, err := deploy.LoadProject(*argPrjFile, *argPrjParamsFile)
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
 
 	const MaxWorkerThreads int = 10
 	var logChan = make(chan deploy.LogMsg, MaxWorkerThreads*5)
@@ -131,7 +187,7 @@ func main() {
 		if err != nil {
 			log.Fatalf(err.Error())
 		}
-		instances, err := filterByNickname(nicknames, prjPair.Live.Instances)
+		instances, err := filterByNickname(nicknames, prjPair.Live.Instances, "instance")
 		if err != nil {
 			log.Fatalf(err.Error())
 		}
@@ -188,7 +244,7 @@ func main() {
 			log.Fatalf(err.Error())
 		}
 
-		instances, err := filterByNickname(nicknames, prjPair.Live.Instances)
+		instances, err := filterByNickname(nicknames, prjPair.Live.Instances, "instance")
 		if err != nil {
 			log.Fatalf(err.Error())
 		}
@@ -203,29 +259,29 @@ func main() {
 				switch os.Args[1] {
 				case CmdPingInstances:
 					// Just run WhoAmI
-					logMsg, finalErr = deploy.ExecCommandsOnInstance(&prjPair.Live, iDef.BestIpAddress(), []string{"id"}, *argVerbosity)
+					logMsg, finalErr = deploy.ExecCommandsOnInstance(prjPair.Live.SshConfig, iDef.BestIpAddress(), []string{"id"}, *argVerbosity)
 				case CmdCreateInstanceUsers:
 					cmds, err := deploy.NewCreateInstanceUsersCommands(iDef)
 					if err != nil {
 						log.Fatalf("cannot build commands to create instance users: %s", err.Error())
 					}
-					logMsg, finalErr = deploy.ExecCommandsOnInstance(&prjPair.Live, iDef.BestIpAddress(), cmds, *argVerbosity)
+					logMsg, finalErr = deploy.ExecCommandsOnInstance(prjPair.Live.SshConfig, iDef.BestIpAddress(), cmds, *argVerbosity)
 
 				case CmdCopyPrivateKeys:
 					cmds, err := deploy.NewCopyPrivateKeysCommands(iDef)
 					if err != nil {
 						log.Fatalf("cannot build commands to copy private keys: %s", err.Error())
 					}
-					logMsg, finalErr = deploy.ExecCommandsOnInstance(&prjPair.Live, iDef.BestIpAddress(), cmds, *argVerbosity)
+					logMsg, finalErr = deploy.ExecCommandsOnInstance(prjPair.Live.SshConfig, iDef.BestIpAddress(), cmds, *argVerbosity)
 
 				case CmdSetupServices:
-					logMsg, finalErr = deploy.ExecScriptsOnInstance(prj, iDef.BestIpAddress(), iDef.Service.Env, iDef.Service.Cmd.Setup, *argVerbosity)
+					logMsg, finalErr = deploy.ExecScriptsOnInstance(prj.SshConfig, iDef.BestIpAddress(), iDef.Service.Env, prjPair.ProjectFileDirPath, iDef.Service.Cmd.Setup, *argVerbosity)
 
 				case CmdStartServices:
-					logMsg, finalErr = deploy.ExecScriptsOnInstance(prj, iDef.BestIpAddress(), iDef.Service.Env, iDef.Service.Cmd.Start, *argVerbosity)
+					logMsg, finalErr = deploy.ExecScriptsOnInstance(prj.SshConfig, iDef.BestIpAddress(), iDef.Service.Env, prjPair.ProjectFileDirPath, iDef.Service.Cmd.Start, *argVerbosity)
 
 				case CmdStopServices:
-					logMsg, finalErr = deploy.ExecScriptsOnInstance(prj, iDef.BestIpAddress(), iDef.Service.Env, iDef.Service.Cmd.Stop, *argVerbosity)
+					logMsg, finalErr = deploy.ExecScriptsOnInstance(prj.SshConfig, iDef.BestIpAddress(), iDef.Service.Env, prjPair.ProjectFileDirPath, iDef.Service.Cmd.Stop, *argVerbosity)
 
 				default:
 					log.Fatalf("unknown service command:" + os.Args[1])
@@ -273,7 +329,7 @@ func main() {
 				log.Fatalf(err.Error())
 			}
 
-			instances, err := filterByNickname(nicknames, prjPair.Live.Instances)
+			instances, err := filterByNickname(nicknames, prjPair.Live.Instances, "instance")
 			if err != nil {
 				log.Fatalf(err.Error())
 			}
@@ -307,7 +363,7 @@ func main() {
 				log.Fatalf(err.Error())
 			}
 
-			fileGroups, err := filterByNickname(nicknames, prjPair.Live.FileGroupsUp)
+			fileGroups, err := filterByNickname(nicknames, prjPair.Live.FileGroupsUp, "file group to upload")
 			if err != nil {
 				log.Fatalf(err.Error())
 			}
@@ -340,7 +396,7 @@ func main() {
 			for _, aSpec := range afterSpecs {
 				sem <- 1
 				go func(prj *deploy.Project, logChan chan deploy.LogMsg, errChan chan error, aSpec *deploy.AfterFileUploadSpec) {
-					logMsg, err := deploy.ExecScriptsOnInstance(prj, aSpec.IpAddress, aSpec.Env, aSpec.Cmd, *argVerbosity)
+					logMsg, err := deploy.ExecScriptsOnInstance(prj.SshConfig, aSpec.IpAddress, aSpec.Env, prjPair.ProjectFileDirPath, aSpec.Cmd, *argVerbosity)
 					logChan <- logMsg
 					errChan <- err
 					<-sem
@@ -353,7 +409,7 @@ func main() {
 				log.Fatalf(err.Error())
 			}
 
-			fileGroups, err := filterByNickname(nicknames, prjPair.Live.FileGroupsDown)
+			fileGroups, err := filterByNickname(nicknames, prjPair.Live.FileGroupsDown, "file group to download")
 			if err != nil {
 				log.Fatalf(err.Error())
 			}

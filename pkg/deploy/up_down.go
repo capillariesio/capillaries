@@ -70,10 +70,13 @@ func FileGroupUpDefsToSpecs(prj *Project, fileGroupsToUpload map[string]*FileGro
 				}
 				if _, ok := afterFileUploadSpecMap[ipAddress][fgName]; !ok {
 					afterFileUploadSpecMap[ipAddress][fgName] = struct{}{}
-					afterFileUploadSpecs = append(afterFileUploadSpecs, &AfterFileUploadSpec{
-						IpAddress: ipAddress,
-						Env:       fgDef.After.Env,
-						Cmd:       fgDef.After.Cmd})
+					// Do not create afterSpec for empty list of commands
+					if len(fgDef.After.Cmd) > 0 {
+						afterFileUploadSpecs = append(afterFileUploadSpecs, &AfterFileUploadSpec{
+							IpAddress: ipAddress,
+							Env:       fgDef.After.Env,
+							Cmd:       fgDef.After.Cmd})
+					}
 				}
 			}
 		}
@@ -207,6 +210,13 @@ func UploadFileSftp(prj *Project, ipAddress string, srcPath string, dstPath stri
 	}
 	defer srcFile.Close()
 
+	fi, err := srcFile.Stat()
+	if err != nil {
+		return lb.Complete(fmt.Errorf("cannot obtain file info on upload %s: %s", srcPath, err.Error()))
+	}
+
+	lb.Sb.WriteString(fmt.Sprintf(" (size %d)", fi.Size()))
+
 	dstFile, err := sftp.Create(dstPath)
 	if err != nil {
 		return lb.Complete(fmt.Errorf("cannot create on upload %s%s: %s", ipAddress, dstPath, err.Error()))
@@ -256,6 +266,13 @@ func DownloadFileSftp(prj *Project, ipAddress string, srcPath string, dstPath st
 		return lb.Complete(fmt.Errorf("cannot open for download %s: %s", srcPath, err.Error()))
 	}
 	defer srcFile.Close()
+
+	fi, err := srcFile.Stat()
+	if err != nil {
+		return lb.Complete(fmt.Errorf("cannot obtain file info on download %s: %s", srcPath, err.Error()))
+	}
+
+	lb.Sb.WriteString(fmt.Sprintf(" (size %d)", fi.Size()))
 
 	dstFile, err := os.Create(dstPath)
 	if err != nil {
