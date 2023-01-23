@@ -35,14 +35,17 @@ popd
 
 # Prepare test data
 
-This command will populate /tmp/capi_in/lookup_big and /tmp/capi_cfg/lookup_bigtest:
+This command will populate /tmp/capi_in, /tmp/capi_cfg, /tmp/capi_out
 
 ```
 cd test/code/lookup
+./1_create_quicktest_data.sh
 ./create_bigtest_data.sh
+cd test/code/tag_and_denormalize
+./1_create_quicktest_data.sh
 ```
 
-Deploy project will pick up the files from there.
+Deploy project will pick up the files to upload from there.
 
 # Build test environment 
 
@@ -65,7 +68,7 @@ go run ../../pkg/exe/deploy/capideploy.go attach_volumes bastion
 # Upload all files in one shot (2 min). Make sure you have all binaries built before uploading them.
 go run ../../pkg/exe/deploy/capideploy.go upload_files up_daemon_env_config,up_daemon_binary,
 go run ../../pkg/exe/deploy/capideploy.go up_webapi_env_config,up_webapi_binary,up_ui,up_toolbelt_env_config,up_toolbelt_binary,
-go run ../../pkg/exe/deploy/capideploy.go upload_files up_all_cfg,up_lookup_bigtest_in,up_lookup_bigtest_out,up_tag_and_denormalize_quicktest_in,up_tag_and_denormalize_quicktest_out
+go run ../../pkg/exe/deploy/capideploy.go upload_files up_all_cfg,up_lookup_bigtest_in,up_lookup_bigtest_out,up_lookup_quicktest_in,up_lookup_quicktest_out,up_tag_and_denormalize_quicktest_in,up_tag_and_denormalize_quicktest_out
 
 # Setup all services except daemons (2 min)
 go run ../../pkg/exe/deploy/capideploy.go setup_services bastion,cass01,cass02,cass03,prometheus,rabbitmq
