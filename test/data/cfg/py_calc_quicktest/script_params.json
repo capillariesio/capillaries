@@ -1,0 +1,5 @@
+{
+    "dir_in": "/tmp/capi_in/py_calc_quicktest",
+    "dir_out": "/tmp/capi_out/py_calc_quicktest",
+    "dir_py": "/tmp/capi_cfg/py_calc_quicktest/py"
+}

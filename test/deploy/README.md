@@ -5,7 +5,7 @@
 3. Make sure all configuration values in the project parameters file are up-to-date.
 4. This guide assumes you have reserved a floating IP address 208.113.134.216 with your Openstack provider, this address will be assigned to the `bastion` instance and will be your door to all of your instances. Make sure you have set up this IP address for a jump host in your ssh configuration and assign it to `floating_ip_address` in your project parameters json file.
 
-# Initialize your Openstack environment networking and volumes
+# Openstack networking and volumes
 
 This step does not need to be performed often, assuming the Openstack provider does not charge for networking and volumes.
 
@@ -24,12 +24,25 @@ Build binaries for Linux:
 cd test/deploy
 GOOS=linux GOARCH=amd64 go build -o ../../build/linux/amd64/capidaemon -ldflags="-s -w" ../../pkg/exe/daemon/capidaemon.go
 GOOS=linux GOARCH=amd64 go build -o ../../build/linux/amd64/capiwebapi -ldflags="-s -w" ../../pkg/exe/webapi/capiwebapi.go
+GOOS=linux GOARCH=amd64 go build -o ../../build/linux/amd64/capitoolbelt -ldflags="-s -w" ../../pkg/exe/toolbelt/capitoolbelt.go
+gzip ../../build/linux/amd64/capitoolbelt
 
 pushd ../../ui
 set CAPILLARIES_WEBAPI_URL=http://208.113.134.216
 npm run build
 popd
 ```
+
+# Prepare test data
+
+This command will populate /tmp/capi_in/lookup_big and /tmp/capi_cfg/lookup_bigtest:
+
+```
+cd test/code/lookup
+./create_bigtest_data.sh
+```
+
+Deploy project will pick up the files from there.
 
 # Build test environment 
 
@@ -49,8 +62,10 @@ go run ../../pkg/exe/deploy/capideploy.go copy_private_keys bastion,daemon01,dae
 # Attach volumes and make sftpuser owner (15 s)
 go run ../../pkg/exe/deploy/capideploy.go attach_volumes bastion
 
-# Upload all files in one shot (2 min). Make sure you have all binaries built and ready before uploading them.
-go run ../../pkg/exe/deploy/capideploy.go upload_files up_daemon_env_config,up_daemon_binary,up_webapi_env_config,up_webapi_binary,up_ui,up_test_in,up_test_out,up_test_cfg
+# Upload all files in one shot (2 min). Make sure you have all binaries built before uploading them.
+go run ../../pkg/exe/deploy/capideploy.go upload_files up_daemon_env_config,up_daemon_binary,
+go run ../../pkg/exe/deploy/capideploy.go up_webapi_env_config,up_webapi_binary,up_ui,up_toolbelt_env_config,up_toolbelt_binary,
+go run ../../pkg/exe/deploy/capideploy.go upload_files up_all_cfg,up_lookup_bigtest_in,up_lookup_bigtest_out,up_tag_and_denormalize_quicktest_in,up_tag_and_denormalize_quicktest_out
 
 # Setup all services except daemons (2 min)
 go run ../../pkg/exe/deploy/capideploy.go setup_services bastion,cass01,cass02,cass03,prometheus,rabbitmq
@@ -58,14 +73,14 @@ go run ../../pkg/exe/deploy/capideploy.go setup_services bastion,cass01,cass02,c
 # Setup capidaemons (30 s)
 go run ../../pkg/exe/deploy/capideploy.go setup_services daemon01,daemon02
 
-# Check cassandra nodetool, all 3 shouldbe up, no exceptions thrown:
+# Check Cassandra with nodetool, all 3 should be up, no exceptions thrown:
 ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment001_rsa -J 208.113.134.216 ubuntu@10.5.0.11 'nodetool status'
 
 ````
 
-Check Cassandra status - this should return no error: `http://208.113.134.216:6543/ks`
+Check Cassandra status - this Webapi call should return no error: `http://208.113.134.216:6543/ks`
 
-Check RabbitMQ is functioning at `http://208.113.134.216:15672`
+Check RabbitMQ is functioning at `http://208.113.134.216:15672` (use RabbitMQ username/password from project parameters file)
 
 # Run test processes
 
@@ -80,9 +95,9 @@ At `http://208.113.134.216`, create new runs:
 
 | Field | Value |
 |- | - |
-| Keyspace | lookup |
-| Script URI | sftp://sftpuser@10.5.0.2/mnt/capi_cfg/lookup/script.json |
-| Script parameters URI | sftp://sftpuser@10.5.0.2/mnt/capi_cfg/lookup/script_params_one_run.json |
+| Keyspace | lookup_bigtest |
+| Script URI | sftp://sftpuser@10.5.0.2/mnt/capi_cfg/lookup_bigtest/script.json |
+| Script parameters URI | sftp://sftpuser@10.5.0.2/mnt/capi_cfg/lookup_bigtest/script_params_one_run.json |
 | Start nodes |	read_orders,read_order_items |
 
 # Prometheus: watch instance load

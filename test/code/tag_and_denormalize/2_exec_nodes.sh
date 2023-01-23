@@ -1,9 +1,9 @@
 #!/bin/bash
 
-keyspace="test_tag_and_denormalize"
-scriptFile=/tmp/capitest_cfg/tag_and_denormalize/script.json
-paramsFile=/tmp/capitest_cfg/tag_and_denormalize/script_params_one_run.json
-outDir=/tmp/capitest_out/tag_and_denormalize
+keyspace="tag_and_denormalize_quicktest"
+scriptFile=/tmp/capi_cfg/tag_and_denormalize_quicktest/script.json
+paramsFile=/tmp/capi_cfg/tag_and_denormalize_quicktest/script_params_one_run.json
+outDir=/tmp/capi_out/tag_and_denormalize_quicktest
 
 SECONDS=0
 

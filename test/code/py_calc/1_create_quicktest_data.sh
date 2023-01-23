@@ -1,11 +1,37 @@
 #!/bin/bash
 
-inDir=/tmp/capitest_in/py_calc
-outDir=/tmp/capitest_out/py_calc
+cfgDir=/tmp/capi_cfg/py_calc_quicktest
+inDir=/tmp/capi_in/py_calc_quicktest
+outDir=/tmp/capi_out/py_calc_quicktest
+
+if [ ! -d $cfgDir ]; then
+  mkdir -p $cfgDir
+else
+  rm -f $cfgDir/*
+fi
+
+if [ ! -d $inDir ]; then
+  mkdir -p $inDir
+else
+  rm -f $inDir/*
+fi
+
+if [ ! -d $outDir ]; then
+  mkdir -p $outDir
+else
+  rm -f $outDir/*
+fi
+
+echo "Copying config files to "$cfgDir
+
+cp -r ../../data/cfg/py_calc_quicktest/* $cfgDir/
 
 echo "Generating files..."
 
 go run generate_data.go -in_file=$inDir/raw -out_file_py=$outDir/raw_py -out_file_go=$outDir/raw_go -items=1100 -products=10 -sellers=20
+if [ "$?" -ne "0" ]; then
+  exit
+fi
 
 # In
 

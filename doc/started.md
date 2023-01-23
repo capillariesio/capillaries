@@ -15,13 +15,13 @@ In production environments, Capillaries server components ([Daemon](glossary.md#
 Run these commands from the root project directory, they will create those data directories and populate them with sample configurations and sample source data:
 
 ```
-mkdir /tmp/capitest_cfg
-mkdir /tmp/capitest_in
-mkdir /tmp/capitest_out
+mkdir /tmp/capi_cfg
+mkdir /tmp/capi_in
+mkdir /tmp/capi_out
 
-cp -r ./test/data/cfg/* /tmp/capitest_cfg
-cp -r ./test/data/in/* /tmp/capitest_in
-cp -r ./test/data/out/* /tmp/capitest_out
+cp -r ./test/data/cfg/* /tmp/capi_cfg
+cp -r ./test/data/in/* /tmp/capi_in
+cp -r ./test/data/out/* /tmp/capi_out
 ```
 
 ## Run 100% dockerized Capillaries demo
@@ -42,8 +42,8 @@ This command will create bridge network `capinet`, and will create and start the
 
 While the containers are being built and started (Cassandra will take a while to initialize, you may want to wait for `Created default superuser role 'cassandra'`), get familiar with the source data for this demo:
 ```
-head -10 /tmp/capitest_in/tag_and_denormalize/flipcart_products.tsv
-cat /tmp/capitest_in/tag_and_denormalize/tags.csv
+head -10 /tmp/capi_in/tag_and_denormalize/flipcart_products.tsv
+cat /tmp/capi_in/tag_and_denormalize/tags.csv
 ```
 
 The demo will process this data as described in the [sample use scenario](what.md#sample-use).
@@ -58,30 +58,30 @@ Now you can navigate to Capillaries UI at `http://localhost:8080`. On the displa
 
 | Field | Value |
 |- | - |
-| Keyspace | test_tag_and_denormalize |
-| Script URI | /tmp/capitest_cfg/tag_and_denormalize/script.json |
-| Script parameters URI | /tmp/capitest_cfg/tag_and_denormalize/script_params_two_runs.json |
+| Keyspace | tag_and_denormalize_quicktest |
+| Script URI | /tmp/capi_cfg/tag_and_denormalize_quicktest/script.json |
+| Script parameters URI | /tmp/capi_cfg/tag_and_denormalize_quicktest/script_params_two_runs.json |
 | Start nodes |	read_tags,read_products |
 
 A [keyspace](glossary.md#keyspace) named `test_tag_and_denormalize` will appear on the list, click on it and watch the started [run](glossary.md#run) handling [script nodes](glossary.md#script-node).
 
 When the run is complete, check out data processing intermediate results:
 ```
-head -10 /tmp/capitest_out/tag_and_denormalize/tagged_products_for_operator_review.csv
+head -10 /tmp/capi_out/tag_and_denormalize/tagged_products_for_operator_review.csv
 ```
 
 Let's assume the operator is satisfied with those tagging results, now it's time to start the second (and final) run. Either from the root `Keyspaces` screen, or from the `test_tag_and_denormalize` matrix screen, start a new run - provide almost the same input, but `Start nodes` will look different now - this second run will start from handling `tag_totals` node and calculating totals for each tag:
 
 | Field | Value |
 |- | - |
-| Keyspace | test_tag_and_denormalize |
-| Script URI | /tmp/capitest_cfg/tag_and_denormalize/script.json |
-| Script parameters URI | /tmp/capitest_cfg/tag_and_denormalize/script_params_two_runs.json |
+| Keyspace | tag_and_denormalize_quicktest |
+| Script URI | /tmp/capi_cfg/tag_and_denormalize_quicktest/script.json |
+| Script parameters URI | /tmp/capi_cfg/tag_and_denormalize_quicktest/script_params_two_runs.json |
 | Start nodes |	**tag_totals** |
 
 When this run is complete, see final results at:
 ```
-cat /tmp/capitest_out/tag_and_denormalize/tag_totals.tsv
+cat /tmp/capi_out/tag_and_denormalize_quicktest/tag_totals.tsv
 ```
 
 To see log messages in Graylog, navigate to Graylog UI again and:

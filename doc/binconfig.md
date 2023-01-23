@@ -31,7 +31,7 @@ Capillaries processors that write to [data tables](glossary.md#data-table) produ
 Passed to gocql.ClusterConfig.NumConns
 
 ### timeout
-Milliseconds, passed to gocql.ClusterConfig.Timeout
+Milliseconds, passed to gocql.ClusterConfig.Timeout. It is expected to be larger than write_request_timeout_in_ms/read_request_timeout_in_ms set in cassandra.yaml, otherwise it may be trigger before Cassandra coordinator has a chance to handle therequest.
 
 ### connect_timeout
 Milliseconds, passed to gocql.ClusterConfig.ConnectTimeout

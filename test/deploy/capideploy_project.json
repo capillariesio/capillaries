@@ -195,7 +195,7 @@
             "size": 1,
             "permissions": 777,
             "owner": "{sftp_user}",
-            "id": ""
+            "id": "8c6fe416-09ad-4a89-9e6d-d4f75d96a808"
         },
         "in": {
             "name": "{deployment_name}_in",
@@ -203,7 +203,7 @@
             "size": 1,
             "permissions": 777,
             "owner": "{sftp_user}",
-            "id": ""
+            "id": "74b90307-5d77-4c00-b90a-799577f71e2b"
         },
         "out": {
             "name": "{deployment_name}_out",
@@ -211,26 +211,26 @@
             "size": 1,
             "permissions": 777,
             "owner": "{sftp_user}",
-            "id": ""
+            "id": "62ca821b-2b1a-4265-8790-2d75bc8efb31"
         }
     },
     "file_groups_up": {
         "up_daemon_binary": {
-            "src": "../../../build/linux/amd64/capidaemon",
+            "src": "../../build/linux/amd64/capidaemon",
             "dst": "/home/ubuntu/bin",
             "dir_permissions": 744,
             "file_permissions": 744,
             "after": {}
         },
         "up_daemon_env_config": {
-            "src": "../../../pkg/exe/daemon/capidaemon.json",
+            "src": "../../pkg/exe/daemon/capidaemon.json",
             "dst": "/home/ubuntu/bin",
             "dir_permissions": 744,
             "file_permissions": 644,
             "after": {}
         },
-        "up_test_cfg": {
-            "src": "../../../test/data/cfg",
+        "up_all_cfg": {
+            "src": "/tmp/capi_cfg",
             "dst": "/mnt/capi_cfg",
             "dir_permissions": 777,
             "file_permissions": 666,
@@ -247,38 +247,76 @@
                 ]
             }
         },
-        "up_test_in": {
-            "src": "../../../test/data/in",
-            "dst": "/mnt/capi_in",
+        "up_lookup_bigtest_in": {
+            "src": "/tmp/capi_in/lookup_bigtest",
+            "dst": "/mnt/capi_in/lookup_bigtest",
+            "dir_permissions": 777,
+            "file_permissions": 666,
+            "owner": "{sftp_user}",
+            "after": {
+                "cmd": [
+                    "sh/capiscripts/unpack_lookup_big_in.sh"
+                ]
+            }
+        },
+        "up_lookup_bigtest_out": {
+            "src": "/tmp/capi_out/lookup_bigtest/readme.txt",
+            "dst": "/mnt/capi_out/lookup_bigtest",
             "dir_permissions": 777,
             "file_permissions": 666,
             "owner": "{sftp_user}",
             "after": {}
         },
-        "up_test_out": {
-            "src": "../../../test/data/out",
-            "dst": "/mnt/capi_out",
+        "up_tag_and_denormalize_quicktest_in": {
+            "src": "/tmp/capi_in/tag_and_denormalize_quicktest",
+            "dst": "/mnt/capi_in/tag_and_denormalize_quicktest",
             "dir_permissions": 777,
             "file_permissions": 666,
             "owner": "{sftp_user}",
+            "after": {}
+        },
+        "up_tag_and_denormalize_quicktest_out": {
+            "src": "/tmp/capi_out/tag_and_denormalize_quicktest/readme.txt",
+            "dst": "/mnt/capi_out/tag_and_denormalize_quicktest",
+            "dir_permissions": 777,
+            "file_permissions": 666,
+            "owner": "{sftp_user}",
+            "after": {}
+        },
+        "up_toolbelt_binary": {
+            "src": "../../build/linux/amd64/capitoolbelt.gz",
+            "dst": "/home/ubuntu/bin",
+            "dir_permissions": 744,
+            "file_permissions": 644,
+            "after": {
+                "cmd": [
+                    "sh/capiscripts/unpack_capitoolbelt.sh"
+                ]
+            }
+        },
+        "up_toolbelt_env_config": {
+            "src": "../../pkg/exe/toolbelt/capitoolbelt.json",
+            "dst": "/home/ubuntu/bin",
+            "dir_permissions": 744,
+            "file_permissions": 644,
             "after": {}
         },
         "up_ui": {
-            "src": "../../../ui/public",
+            "src": "../../ui/public",
             "dst": "/home/ubuntu/ui",
             "dir_permissions": 755,
             "file_permissions": 644,
             "after": {}
         },
         "up_webapi_binary": {
-            "src": "../../../build/linux/amd64/capiwebapi",
+            "src": "../../build/linux/amd64/capiwebapi",
             "dst": "/home/ubuntu/bin",
             "dir_permissions": 744,
             "file_permissions": 744,
             "after": {}
         },
         "up_webapi_env_config": {
-            "src": "../../../pkg/exe/webapi/capiwebapi.json",
+            "src": "../../pkg/exe/webapi/capiwebapi.json",
             "dst": "/home/ubuntu/bin",
             "dir_permissions": 744,
             "file_permissions": 644,
@@ -369,11 +407,15 @@
                 }
             },
             "applicable_file_groups": [
-                "up_test_cfg",
-                "up_test_in",
-                "up_test_out",
+                "up_all_cfg",
+                "up_lookup_bigtest_in",
+                "up_lookup_bigtest_out",
+                "up_tag_and_denormalize_quicktest_in",
+                "up_tag_and_denormalize_quicktest_out",
                 "up_webapi_binary",
                 "up_webapi_env_config",
+                "up_toolbelt_binary",
+                "up_toolbelt_env_config",
                 "up_ui",
                 "down_capi_out",
                 "down_capi_logs"

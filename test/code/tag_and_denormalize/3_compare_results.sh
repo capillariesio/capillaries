@@ -1,6 +1,6 @@
 #!/bin/bash
 
-outDir=/tmp/capitest_out/tag_and_denormalize
+outDir=/tmp/capi_out/tag_and_denormalize_quicktest
 
 sort $outDir/tagged_products_for_operator_review.csv -o $outDir/tagged_products_for_operator_review_sorted.csv
 

@@ -1,24 +1,59 @@
-inDir=/tmp/capitest_in/lookup
-outDir=/tmp/capitest_out/lookup
+
+cfgDir=/tmp/capi_cfg/lookup_quicktest
+inDir=/tmp/capi_in/lookup_quicktest
+outDir=/tmp/capi_out/lookup_quicktest
+
+if [ ! -d $cfgDir ]; then
+  mkdir -p $cfgDir
+else
+  rm -f $cfgDir/*
+fi
+
+if [ ! -d $inDir ]; then
+  mkdir -p $inDir
+else
+  rm -f $inDir/*
+fi
+
+if [ ! -d $outDir ]; then
+  mkdir -p $outDir
+else
+  rm -f $outDir/*
+fi
+
+echo "Copying config files to "$cfgDir
+
+cp ../../data/cfg/lookup_quicktest/* $cfgDir/
 
 echo "Generating files..."
 
-go run generate_data.go -items=1390 -products=10 -sellers=20
+echo "Placeholder for lookup_quicktest output files" > $outDir/readme.txt
 
-# In
-
-echo "Shuffling in files..."
+go run generate_data.go -items=1390 -products=10 -sellers=20 -script_params_path=$cfgDir/script_params_one_run.json -in_root=$inDir -out_root=$outDir
+if [ "$?" -ne "0" ]; then
+  exit
+fi
 
 # Orders
+
 head -n1 $inDir/raw_orders > $inDir/header
 tail -n+2 $inDir/raw_orders > $inDir/data
+
+echo "Shuffling orders..."
 shuf $inDir/data -o $inDir/data
+
+echo "Finalizing order file..."
 cat $inDir/header $inDir/data > $inDir/olist_orders_dataset.csv
 
 # Items
+
 head -n1 $inDir/raw_items > $inDir/header
 tail -n+2 $inDir/raw_items > $inDir/data
+
+echo "Shuffling order items..."
 shuf $inDir/data -o $inDir/data
+
+echo "Finalizing order items files..."
 cat $inDir/header $inDir/data > $inDir/olist_order_items_dataset.csv
 
 rm $inDir/raw* $inDir/header $inDir/data*

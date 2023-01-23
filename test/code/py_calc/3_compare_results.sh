@@ -1,6 +1,6 @@
 #!/bin/bash
 
-outDir=/tmp/capitest_out/py_calc
+outDir=/tmp/capi_out/py_calc_quicktest
 
 echo "Merging out files..."
 

@@ -6,6 +6,6 @@
     "default_order_item_value": "999.00",
     "lookup_node_batches_total": 10,
     "lookup_start_policy": "auto",
-    "dir_in": "/tmp/capitest_in/lookup",
-    "dir_out": "/tmp/capitest_out/lookup"
+    "dir_in": "/tmp/capi_in/lookup_quicktest",
+    "dir_out": "/tmp/capi_out/lookup_quicktest"
 }

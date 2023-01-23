@@ -215,7 +215,7 @@ func UploadFileSftp(prj *Project, ipAddress string, srcPath string, dstPath stri
 		return lb.Complete(fmt.Errorf("cannot obtain file info on upload %s: %s", srcPath, err.Error()))
 	}
 
-	lb.Sb.WriteString(fmt.Sprintf(" (size %d)", fi.Size()))
+	lb.Sb.WriteString(fmt.Sprintf("(size %d) ", fi.Size()))
 
 	dstFile, err := sftp.Create(dstPath)
 	if err != nil {
@@ -272,7 +272,7 @@ func DownloadFileSftp(prj *Project, ipAddress string, srcPath string, dstPath st
 		return lb.Complete(fmt.Errorf("cannot obtain file info on download %s: %s", srcPath, err.Error()))
 	}
 
-	lb.Sb.WriteString(fmt.Sprintf(" (size %d)", fi.Size()))
+	lb.Sb.WriteString(fmt.Sprintf("(size %d) ", fi.Size()))
 
 	dstFile, err := os.Create(dstPath)
 	if err != nil {

@@ -39,9 +39,9 @@ services:
       context: .
       dockerfile: ./pkg/exe/daemon/docker/Dockerfile
     volumes:
-      - /tmp/capitest_cfg:/tmp/capitest_cfg:ro
-      - /tmp/capitest_in:/tmp/capitest_in:ro
-      - /tmp/capitest_out:/tmp/capitest_out
+      - /tmp/capi_cfg:/tmp/capi_cfg:ro
+      - /tmp/capi_in:/tmp/capi_in:ro
+      - /tmp/capi_out:/tmp/capi_out
     environment:
       AMQP_URL: amqp://guest:guest@10.5.0.2/
       CASSANDRA_HOSTS: '["10.5.0.3"]'
@@ -61,9 +61,9 @@ services:
       context: .
       dockerfile: ./pkg/exe/webapi/docker/Dockerfile
     volumes:
-      - /tmp/capitest_cfg:/tmp/capitest_cfg:ro
-      - /tmp/capitest_in:/tmp/capitest_in:ro
-      - /tmp/capitest_out:/tmp/capitest_out
+      - /tmp/capi_cfg:/tmp/capi_cfg:ro
+      - /tmp/capi_in:/tmp/capi_in:ro
+      - /tmp/capi_out:/tmp/capi_out
     environment:
       AMQP_URL: amqp://guest:guest@10.5.0.2/
       CASSANDRA_HOSTS: '["10.5.0.3"]'
@@ -191,14 +191,14 @@ volumes:
 # docker compose -p "test_capillaries_containers" create ui
 # docker compose -p "test_capillaries_containers" start ui
 
-# mkdir /tmp/capitest_cfg
-# mkdir /tmp/capitest_in
-# mkdir /tmp/capitest_out
+# mkdir /tmp/capi_cfg
+# mkdir /tmp/capi_in
+# mkdir /tmp/capi_out
 
-# cp -r ./test/data/cfg/* /tmp/capitest_cfg
-# cp -r ./test/data/in/* /tmp/capitest_in
-# cp -r ./test/data/out/* /tmp/capitest_out
+# cp -r ./test/data/cfg/* /tmp/capi_cfg
+# cp -r ./test/data/in/* /tmp/capi_in
+# cp -r ./test/data/out/* /tmp/capi_out
 
-# rm -fR /tmp/capitest_cfg
-# rm -fR mkdir /tmp/capitest_in
-# rm -fR mkdir /tmp/capitest_out
+# rm -fR /tmp/capi_cfg
+# rm -fR mkdir /tmp/capi_in
+# rm -fR mkdir /tmp/capi_out

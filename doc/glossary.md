@@ -151,7 +151,7 @@ One of the main purposes of the toolbelt is to give system integrators easy acce
 go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/lookup/script.json -params_file=../../../test/data/cfg/lookup/script_params_two_runs.json -idx_dag=true
 
 # Can be executed when the lookup script is running using two runs
-go run capitoolbelt.go get_run_status_diagram -script_file=../../../test/data/cfg/lookup/script.json -params_file=../../../test/data/cfg/lookup/script_params_two_runs.json -keyspace=test_lookup -run_id=1
+go run capitoolbelt.go get_run_status_diagram -script_file=../../../test/data/cfg/lookup/script.json -params_file=../../../test/data/cfg/lookup/script_params_two_runs.json -keyspace=lookup_quicktest -run_id=1
 ```
 
 ## Daemon
