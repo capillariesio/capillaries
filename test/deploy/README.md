@@ -23,7 +23,9 @@ Build binaries for Linux:
 ```
 cd test/deploy
 GOOS=linux GOARCH=amd64 go build -o ../../build/linux/amd64/capidaemon -ldflags="-s -w" ../../pkg/exe/daemon/capidaemon.go
+gzip ../../build/linux/amd64/capidaemon
 GOOS=linux GOARCH=amd64 go build -o ../../build/linux/amd64/capiwebapi -ldflags="-s -w" ../../pkg/exe/webapi/capiwebapi.go
+gzip ../../build/linux/amd64/capiwebapi
 GOOS=linux GOARCH=amd64 go build -o ../../build/linux/amd64/capitoolbelt -ldflags="-s -w" ../../pkg/exe/toolbelt/capitoolbelt.go
 gzip ../../build/linux/amd64/capitoolbelt
 
@@ -66,8 +68,8 @@ go run ../../pkg/exe/deploy/capideploy.go copy_private_keys bastion,daemon01,dae
 go run ../../pkg/exe/deploy/capideploy.go attach_volumes bastion
 
 # Upload all files in one shot (2 min). Make sure you have all binaries built before uploading them.
-go run ../../pkg/exe/deploy/capideploy.go upload_files up_daemon_env_config,up_daemon_binary,
-go run ../../pkg/exe/deploy/capideploy.go up_webapi_env_config,up_webapi_binary,up_ui,up_toolbelt_env_config,up_toolbelt_binary,
+go run ../../pkg/exe/deploy/capideploy.go upload_files up_daemon_binary,up_daemon_env_config
+go run ../../pkg/exe/deploy/capideploy.go upload_files up_webapi_env_config,up_webapi_binary,up_ui,up_toolbelt_env_config,up_toolbelt_binary
 go run ../../pkg/exe/deploy/capideploy.go upload_files up_all_cfg,up_lookup_bigtest_in,up_lookup_bigtest_out,up_lookup_quicktest_in,up_lookup_quicktest_out,up_tag_and_denormalize_quicktest_in,up_tag_and_denormalize_quicktest_out
 
 # Setup all services except daemons (2 min)
@@ -78,7 +80,6 @@ go run ../../pkg/exe/deploy/capideploy.go setup_services daemon01,daemon02
 
 # Check Cassandra with nodetool, all 3 should be up, no exceptions thrown:
 ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment001_rsa -J 208.113.134.216 ubuntu@10.5.0.11 'nodetool status'
-
 ````
 
 Check Cassandra status - this Webapi call should return no error: `http://208.113.134.216:6543/ks`
@@ -91,10 +92,17 @@ At `http://208.113.134.216`, create new runs:
 
 | Field | Value |
 |- | - |
-| Keyspace | tag_and_denormalize |
-| Script URI | sftp://sftpuser@10.5.0.2/mnt/capi_cfg/tag_and_denormalize/script.json |
-| Script parameters URI | sftp://sftpuser@10.5.0.2/mnt/capi_cfg/tag_and_denormalize/script_params_one_run.json |
+| Keyspace | tag_and_denormalize_quicktest |
+| Script URI | sftp://sftpuser@10.5.0.2/mnt/capi_cfg/tag_and_denormalize_quicktest/script.json |
+| Script parameters URI | sftp://sftpuser@10.5.0.2/mnt/capi_cfg/tag_and_denormalize_quicktest/script_params_one_run.json |
 | Start nodes |	read_tags,read_products |
+
+| Field | Value |
+|- | - |
+| Keyspace | lookup_quicktest |
+| Script URI | sftp://sftpuser@10.5.0.2/mnt/capi_cfg/lookup_quicktest/script.json |
+| Script parameters URI | sftp://sftpuser@10.5.0.2/mnt/capi_cfg/lookup_quicktest/script_params_one_run.json |
+| Start nodes |	read_orders,read_order_items |
 
 | Field | Value |
 |- | - |
@@ -138,3 +146,7 @@ and, if needed:
 ```
 go run ../../pkg/exe/deploy/capideploy.go delete_volumes
 ```
+
+
+
+

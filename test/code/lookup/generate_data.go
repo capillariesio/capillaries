@@ -175,7 +175,7 @@ func main() {
 	itemIdx := 0
 	for itemIdx < *totalItems {
 		orderId := randomId(rnd)
-		projectedItemsInOrder := rnd.Intn(10) + 1 // There may be [1,10] items in order
+		projectedItemsInOrder := rnd.Intn(5) // There may be [0,4] items in order
 		orderStatus := "invoiced"
 		orderPurchaseTs := time.Date(2016, 1, 1, 0, 0, 0, 0, time.UTC).Add(time.Duration(rnd.Intn(100000000) * int(time.Second)))
 		orderEstimateDeliveryTs := orderPurchaseTs.Add(time.Duration(rnd.Intn(100000) * int(time.Second)))

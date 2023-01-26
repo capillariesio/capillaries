@@ -1,8 +1,10 @@
 # Prometheus node exporter
 # https://www.digitalocean.com/community/tutorials/how-to-install-prometheus-on-ubuntu-16-04
 
-# Expecting
-# PROMETHEUS_NODE_EXPORTER_VERSION=1.5.0
+if [ "$PROMETHEUS_NODE_EXPORTER_VERSION" = "" ]; then
+  echo Error, missing: PROMETHEUS_NODE_EXPORTER_VERSION=1.5.0
+  exit
+fi
 
 sudo useradd --no-create-home --shell /bin/false node_exporter
 

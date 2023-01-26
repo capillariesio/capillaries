@@ -181,19 +181,20 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 		maxDataRetries := 5
 		curDataExpBackoffFactor := 1
 		var errorToReport error
-		for dataRetryCount := 0; dataRetryCount < maxDataRetries; dataRetryCount++ {
-			// Data table
-			instr.RandMutex.Lock()
-			(*writeItem.TableRecord)["rowid"] = instr.RowidRand.Int63()
-			instr.RandMutex.Unlock()
 
-			qb := cql.QueryBuilder{}
-			qb.Write("batch_idx", instr.PCtx.BatchInfo.BatchIdx)
-			for fieldName, fieldValue := range *writeItem.TableRecord {
-				qb.Write(fieldName, fieldValue)
-			}
-			q := qb.Keyspace(instr.PCtx.BatchInfo.DataKeyspace).
-				InsertRun(instr.TableCreator.Name, instr.PCtx.BatchInfo.RunId, cql.IgnoreIfExists) // INSERT IF NOT EXISTS; if exists,  returned isApplied = false
+		instr.RandMutex.Lock()
+		(*writeItem.TableRecord)["rowid"] = instr.RowidRand.Int63()
+		instr.RandMutex.Unlock()
+
+		qb := cql.QueryBuilder{}
+		qb.Write("batch_idx", instr.PCtx.BatchInfo.BatchIdx)
+		for fieldName, fieldValue := range *writeItem.TableRecord {
+			qb.Write(fieldName, fieldValue)
+		}
+		q := qb.Keyspace(instr.PCtx.BatchInfo.DataKeyspace).
+			InsertRun(instr.TableCreator.Name, instr.PCtx.BatchInfo.RunId, cql.IgnoreIfExists) // INSERT IF NOT EXISTS; if exists,  returned isApplied = false
+
+		for dataRetryCount := 0; dataRetryCount < maxDataRetries; dataRetryCount++ {
 
 			existingDataRow := map[string]interface{}{}
 			isApplied, err := instr.PCtx.CqlSession.Query(q).MapScanCAS(existingDataRow)
@@ -208,7 +209,16 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 						logger.InfoCtx(instr.PCtx, "duplicate rowid not written [%s], existing record [%v], retry count %d", q, existingDataRow, dataRetryCount)
 						instr.RandMutex.Lock()
 						instr.RowidRand = rand.New(rand.NewSource(newSeed()))
+						(*writeItem.TableRecord)["rowid"] = instr.RowidRand.Int63()
 						instr.RandMutex.Unlock()
+
+						newQb := cql.QueryBuilder{}
+						newQb.Write("batch_idx", instr.PCtx.BatchInfo.BatchIdx)
+						for fieldName, fieldValue := range *writeItem.TableRecord {
+							newQb.Write(fieldName, fieldValue)
+						}
+						q = newQb.Keyspace(instr.PCtx.BatchInfo.DataKeyspace).
+							InsertRun(instr.TableCreator.Name, instr.PCtx.BatchInfo.RunId, cql.IgnoreIfExists) // INSERT IF NOT EXISTS; if exists,  returned isApplied = false
 					} else {
 						// No more retries
 						logger.ErrorCtx(instr.PCtx, "duplicate rowid not written [%s], existing record [%v], retry count %d reached, giving up", q, existingDataRow, dataRetryCount)
@@ -217,10 +227,10 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 					}
 				}
 			} else {
-				if strings.Contains(err.Error(), "does not exist") {
+				if strings.Contains(err.Error(), "does not exist") || strings.Contains(err.Error(), "INCOMPATIBLE_SCHEMA") {
 					// There is a chance this table is brand new and table schema was not propagated to all Cassandra nodes
 					if dataRetryCount < maxDataRetries-1 {
-						logger.WarnCtx(instr.PCtx, "will wait for table %s to be created, retry count %d", dataTableName, dataRetryCount)
+						logger.WarnCtx(instr.PCtx, "will wait for table %s to be created, retry count %d, got %s", dataTableName, dataRetryCount, err.Error())
 						// TODO: come up with a better waiting strategy (exp backoff, at least)
 						time.Sleep(5 * time.Second)
 					} else {
@@ -236,7 +246,7 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 						curDataExpBackoffFactor *= 2
 					} else {
 						logger.ErrorCtx(instr.PCtx, "cluster overloaded (%s), cannot write to data table %s, retry count %d reached, giving up", err.Error(), dataTableName, dataRetryCount)
-						errorToReport = fmt.Errorf("cannot write to data table %s after multiple attempts, table schema still not propagated to all nodes", dataTableName)
+						errorToReport = fmt.Errorf("cannot write to data table %s after %d attempts: %s", dataTableName, dataRetryCount+1, err.Error())
 						break
 					}
 				} else {
@@ -255,17 +265,17 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 				idxTableName := idxName + cql.RunIdSuffix(instr.PCtx.BatchInfo.RunId)
 				curIdxExpBackoffFactor := 1
 
-				for idxRetryCount := 0; idxRetryCount < maxIdxRetries; idxRetryCount++ {
-					ifNotExistsFlag := cql.ThrowIfExists
-					if idxDef.Uniqueness == sc.IdxUnique {
-						ifNotExistsFlag = cql.IgnoreIfExists
-					}
-					qb := cql.QueryBuilder{}
-					qb.Write("key", writeItem.IndexKeyMap[idxName])
-					qb.Write("rowid", (*writeItem.TableRecord)["rowid"])
-					q := qb.Keyspace(instr.PCtx.BatchInfo.DataKeyspace).
-						InsertRun(idxName, instr.PCtx.BatchInfo.RunId, ifNotExistsFlag)
+				ifNotExistsFlag := cql.ThrowIfExists
+				if idxDef.Uniqueness == sc.IdxUnique {
+					ifNotExistsFlag = cql.IgnoreIfExists
+				}
+				qb := cql.QueryBuilder{}
+				qb.Write("key", writeItem.IndexKeyMap[idxName])
+				qb.Write("rowid", (*writeItem.TableRecord)["rowid"])
+				q := qb.Keyspace(instr.PCtx.BatchInfo.DataKeyspace).
+					InsertRun(idxName, instr.PCtx.BatchInfo.RunId, ifNotExistsFlag)
 
+				for idxRetryCount := 0; idxRetryCount < maxIdxRetries; idxRetryCount++ {
 					existingIdxRow := map[string]interface{}{}
 					var isApplied = true
 					var err error
@@ -280,21 +290,21 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 					if err == nil {
 						if !isApplied {
 							// We assume that our previous attempts to write this idx record (if this is not the first retry) did not leave any trace in the database,
-							// so finding an existing copy of this record is a problem indeed
-							errorToReport = fmt.Errorf("cannot write duplicate index key [%s], existing record [%v]", q, existingIdxRow)
+							// so we cannot be sure if this existing copy was written by somebody else or by our previous attempt
+							errorToReport = fmt.Errorf("cannot write duplicate index key [%s] on attempt %d, existing record [%v]", q, idxRetryCount+1, existingIdxRow)
 						}
 						// Success or not - we are done
 						break
 					} else {
-						if strings.Contains(err.Error(), "does not exist") {
+						if strings.Contains(err.Error(), "does not exist") || strings.Contains(err.Error(), "INCOMPATIBLE_SCHEMA") {
 							// There is a chance this table is brand new and table schema was not propagated to all Cassandra nodes
 							if idxRetryCount < maxIdxRetries-1 {
-								logger.WarnCtx(instr.PCtx, "will wait for idx table %s to be created, retry count %d", idxTableName, idxRetryCount)
+								logger.WarnCtx(instr.PCtx, "will wait for idx table %s to be created, retry count %d, got %s", idxTableName, idxRetryCount, err.Error())
 								// TODO: come up with a better waiting strategy (exp backoff, at least)
 								time.Sleep(5 * time.Second)
 							} else {
 								logger.ErrorCtx(instr.PCtx, "idx table %s still not created, retry count %d reached, giving up", idxTableName, idxRetryCount)
-								errorToReport = fmt.Errorf("cannot write to idx table %s after multiple attempts, table schema still not propagated to all nodes", idxTableName)
+								errorToReport = fmt.Errorf("cannot write to idx table %s after %d attempts, table schema still not propagated to all nodes: %s", idxTableName, idxRetryCount+1, err.Error())
 								break
 							}
 						} else if strings.Contains(err.Error(), "Operation timed out") {
@@ -305,7 +315,7 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 								curIdxExpBackoffFactor *= 2
 							} else {
 								logger.ErrorCtx(instr.PCtx, "cluster overloaded (%s), cannot write to idx table %s, retry count %d reached, giving up", err.Error(), idxTableName, idxRetryCount)
-								errorToReport = fmt.Errorf("cannot write to idx table %s after multiple attempts, table schema still not propagated to all nodes", idxTableName)
+								errorToReport = fmt.Errorf("cannot write to idx table %s after %d attempts: %s", idxTableName, idxRetryCount+1, err.Error())
 								break
 							}
 						} else {

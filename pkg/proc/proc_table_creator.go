@@ -81,6 +81,9 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.M
 		return bs, fmt.Errorf("cannot parse file uri %s: %s", filePath, err.Error())
 	}
 
+	bs.Src = filePath
+	bs.Dst = node.TableCreator.Name
+
 	var csvFile *os.File
 	var fileReader io.Reader
 	if u.Scheme == xfer.UriSchemeFile || len(u.Scheme) == 0 {
@@ -215,14 +218,14 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 	logger.PushF("proc.RunCreateTableForCustomProcessorForBatch")
 	defer logger.PopF()
 
+	node := pCtx.CurrentScriptNode
+
 	totalStartTime := time.Now()
-	bs := BatchStats{RowsRead: 0, RowsWritten: 0}
+	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: node.TableReader.TableName, Dst: node.TableCreator.Name}
 
 	if readerNodeRunId == 0 {
 		return bs, fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
 	}
-
-	node := pCtx.CurrentScriptNode
 
 	if !node.HasTableReader() {
 		return bs, fmt.Errorf("node does not have table reader")
@@ -339,15 +342,15 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 	logger.PushF("proc.RunCreateTableForBatch")
 	defer logger.PopF()
 
+	node := pCtx.CurrentScriptNode
+
 	batchStartTime := time.Now()
 	totalStartTime := time.Now()
-	bs := BatchStats{RowsRead: 0, RowsWritten: 0}
+	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: node.TableReader.TableName, Dst: node.TableCreator.Name}
 
 	if readerNodeRunId == 0 {
 		return bs, fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
 	}
-
-	node := pCtx.CurrentScriptNode
 
 	if !node.HasTableReader() {
 		return bs, fmt.Errorf("node does not have table reader")
@@ -464,10 +467,12 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 	logger.PushF("proc.RunCreateTableRelForBatch")
 	defer logger.PopF()
 
+	node := pCtx.CurrentScriptNode
+
 	batchStartTime := time.Now()
 	totalStartTime := time.Now()
 
-	bs := BatchStats{RowsRead: 0, RowsWritten: 0}
+	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: node.TableReader.TableName, Dst: node.TableCreator.Name}
 
 	if readerNodeRunId == 0 {
 		return bs, fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
@@ -476,8 +481,6 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 	if lookupNodeRunId == 0 {
 		return bs, fmt.Errorf("this node has a dependency node to lookup data at that was never started in this keyspace (lookupNodeRunId == 0)")
 	}
-
-	node := pCtx.CurrentScriptNode
 
 	if !node.HasTableReader() {
 		return bs, fmt.Errorf("node does not have table reader")

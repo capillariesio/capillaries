@@ -76,11 +76,6 @@ pushd $inDir
 tar -czf $inDir/all.tgz .
 popd
 
-echo "Deleting input files..."
-
-# If you run this test locally, do not delete csv files
-rm $inDir/*.csv
-
 # Out
 
 echo "Sorting baseline files..."

@@ -1,8 +1,10 @@
 # nginx reverse proxy
 # https://www.digitalocean.com/community/tutorials/how-to-configure-nginx-as-a-reverse-proxy-on-ubuntu-22-04
 
-# Expecting
-# PROMETHEUS_IP=10.5.0.4
+if [ "$PROMETHEUS_IP" = "" ]; then
+  echo Error, missing: PROMETHEUS_IP=10.5.0.4
+  exit
+fi
 
 PROMETHEUS_CONFIG_FILE=/etc/nginx/sites-available/prometheus
 sudo rm -f $PROMETHEUS_CONFIG_FILE

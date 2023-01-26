@@ -3,7 +3,7 @@
     "ssh_config": {
         "bastion_ip_address": "{floating_ip_address}",
         "port": 22,
-        "user": "ubuntu",
+        "user": "{ssh_user}",
         "private_key_path": "{private_key_path}",
         "private_key_password": "{private_key_password}"
     },
@@ -195,7 +195,7 @@
             "size": 1,
             "permissions": 777,
             "owner": "{sftp_user}",
-            "id": ""
+            "id": "5d9e7d55-4026-4b73-9175-794847795581"
         },
         "in": {
             "name": "{deployment_name}_in",
@@ -203,7 +203,7 @@
             "size": 1,
             "permissions": 777,
             "owner": "{sftp_user}",
-            "id": ""
+            "id": "cf4b1c32-776f-4ecb-9d3e-d55989293c00"
         },
         "out": {
             "name": "{deployment_name}_out",
@@ -211,7 +211,7 @@
             "size": 1,
             "permissions": 777,
             "owner": "{sftp_user}",
-            "id": ""
+            "id": "3eed4ffe-988e-4dae-8d30-180acef136eb"
         }
     },
     "file_groups_up": {
@@ -234,26 +234,36 @@
             }
         },
         "up_daemon_binary": {
-            "src": "../../build/linux/amd64/capidaemon",
-            "dst": "/home/ubuntu/bin",
+            "src": "../../build/linux/amd64/capidaemon.gz",
+            "dst": "/home/{ssh_user}/bin",
             "dir_permissions": 744,
-            "file_permissions": 744,
-            "after": {}
+            "file_permissions": 644,
+            "after": {
+                "env": {
+                    "CAPI_BINARY": "/home/{ssh_user}/bin/capidaemon"
+                },
+                "cmd": [
+                    "sh/capiscripts/unpack_capi_binary.sh"
+                ]
+            }
         },
         "up_daemon_env_config": {
             "src": "../../pkg/exe/daemon/capidaemon.json",
-            "dst": "/home/ubuntu/bin",
+            "dst": "/home/{ssh_user}/bin",
             "dir_permissions": 744,
             "file_permissions": 644,
             "after": {}
         },
         "up_lookup_bigtest_in": {
-            "src": "/tmp/capi_in/lookup_bigtest",
+            "src": "/tmp/capi_in/lookup_bigtest/all.tgz",
             "dst": "/mnt/capi_in/lookup_bigtest",
             "dir_permissions": 777,
             "file_permissions": 666,
             "owner": "{sftp_user}",
             "after": {
+                "env": {
+                    "SFTP_USER": "{sftp_user}"
+                },
                 "cmd": [
                     "sh/capiscripts/unpack_lookup_big_in.sh"
                 ]
@@ -301,42 +311,49 @@
         },
         "up_toolbelt_binary": {
             "src": "../../build/linux/amd64/capitoolbelt.gz",
-            "dst": "/home/ubuntu/bin",
+            "dst": "/home/{ssh_user}/bin",
             "dir_permissions": 744,
             "file_permissions": 644,
             "after": {
                 "env": {
-                    "SFTP_USER": "{sftp_user}"
+                    "CAPI_BINARY": "/home/{ssh_user}/bin/capitoolbelt"
                 },
                 "cmd": [
-                    "sh/capiscripts/unpack_capitoolbelt.sh"
+                    "sh/capiscripts/unpack_capi_binary.sh"
                 ]
             }
         },
         "up_toolbelt_env_config": {
             "src": "../../pkg/exe/toolbelt/capitoolbelt.json",
-            "dst": "/home/ubuntu/bin",
+            "dst": "/home/{ssh_user}/bin",
             "dir_permissions": 744,
             "file_permissions": 644,
             "after": {}
         },
         "up_ui": {
             "src": "../../ui/public",
-            "dst": "/home/ubuntu/ui",
+            "dst": "/home/{ssh_user}/ui",
             "dir_permissions": 755,
             "file_permissions": 644,
             "after": {}
         },
         "up_webapi_binary": {
-            "src": "../../build/linux/amd64/capiwebapi",
-            "dst": "/home/ubuntu/bin",
+            "src": "../../build/linux/amd64/capiwebapi.gz",
+            "dst": "/home/{ssh_user}/bin",
             "dir_permissions": 744,
-            "file_permissions": 744,
-            "after": {}
+            "file_permissions": 644,
+            "after": {
+                "env": {
+                    "CAPI_BINARY": "/home/{ssh_user}/bin/capiwebapi"
+                },
+                "cmd": [
+                    "sh/capiscripts/unpack_capi_binary.sh"
+                ]
+            }
         },
         "up_webapi_env_config": {
             "src": "../../pkg/exe/webapi/capiwebapi.json",
-            "dst": "/home/ubuntu/bin",
+            "dst": "/home/{ssh_user}/bin",
             "dir_permissions": 744,
             "file_permissions": 644,
             "after": {}
@@ -398,6 +415,7 @@
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
                     "RABBITMQ_IP": "{rabbitmq_ip}",
                     "SFTP_USER": "{sftp_user}",
+                    "SSH_USER": "{ssh_user}",
                     "WEBAPI_ACCESS_CONTROL_ACCESS_ORIGIN": "http://{floating_ip_address}",
                     "WEBAPI_IP": "{floating_ip_address}",
                     "WEBAPI_PORT": "6543"
@@ -408,6 +426,7 @@
                         "sh/prometheus/setup_node_exporter.sh",
                         "sh/rsyslog/setup_capidaemon_log_receiver.sh",
                         "sh/logrotate/setup_capidaemon_logrotate.sh",
+                        "sh/toolbelt/setup_toolbelt.sh",
                         "sh/webapi/setup_webapi.sh",
                         "sh/ui/setup_ui.sh",
                         "sh/nginx/setup_nginx.sh",
@@ -446,7 +465,7 @@
             "host_name": "{deployment_name}-cassandra01",
             "security_group": "internal",
             "ip_address": "10.5.0.11",
-            "flavor": "gp1.warpspeed",
+            "flavor": "gp1.lightspeed",
             "image": "Ubuntu-22.04",
             "id": "",
             "service": {
@@ -474,7 +493,7 @@
             "host_name": "{deployment_name}-cassandra02",
             "security_group": "internal",
             "ip_address": "10.5.0.12",
-            "flavor": "gp1.warpspeed",
+            "flavor": "gp1.lightspeed",
             "image": "Ubuntu-22.04",
             "id": "",
             "service": {
@@ -502,7 +521,7 @@
             "host_name": "{deployment_name}-cassandra03",
             "security_group": "internal",
             "ip_address": "10.5.0.13",
-            "flavor": "gp1.warpspeed",
+            "flavor": "gp1.lightspeed",
             "image": "Ubuntu-22.04",
             "id": "",
             "service": {
@@ -530,7 +549,7 @@
             "host_name": "{deployment_name}-daemon01",
             "security_group": "internal",
             "ip_address": "10.5.0.101",
-            "flavor": "gp1.lightspeed",
+            "flavor": "gp1.semisonic",
             "image": "Ubuntu-22.04",
             "id": "",
             "private_keys": [
@@ -545,7 +564,8 @@
                     "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\"]'",
                     "INTERNAL_BASTION_IP": "{internal_bastion_ip}",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
-                    "SFTP_USER": "{sftp_user}"
+                    "SFTP_USER": "{sftp_user}",
+                    "SSH_USER": "{ssh_user}"
                 },
                 "cmd": {
                     "setup": [
@@ -572,7 +592,7 @@
             "host_name": "{deployment_name}-daemon02",
             "security_group": "internal",
             "ip_address": "10.5.0.102",
-            "flavor": "gp1.lightspeed",
+            "flavor": "gp1.semisonic",
             "image": "Ubuntu-22.04",
             "id": "",
             "private_keys": [

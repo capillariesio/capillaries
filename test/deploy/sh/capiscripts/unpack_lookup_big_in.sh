@@ -1,5 +1,8 @@
-# Expects
-# SFTP_USER=sftpuser
+if [ "$SFTP_USER" = "" ]; then
+  echo Error, missing: SFTP_USER=sftpuser
+  exit
+fi
+
 rm -f /mnt/capi_in/lookup_bigtest/*.csv
 sudo tar -zxf /mnt/capi_in/lookup_bigtest/all.tgz --directory /mnt/capi_in/lookup_bigtest
 sudo chown $SFTP_USER /mnt/capi_in/lookup_bigtest/*.csv

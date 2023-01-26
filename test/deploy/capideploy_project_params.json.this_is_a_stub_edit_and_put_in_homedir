@@ -4,6 +4,7 @@
     "floating_ip_address":"208.113.134.216",
     "private_key_path":"/home/yourname/.ssh/sampledeployment001_rsa",
     "private_key_password":"",
+    "ssh_user":"ubuntu",
     "sftp_user":"sftpuser",
     "sftp_user_public_key":"ssh-rsa ... sftpuser@anything",
     "sftp_user_private_key":"-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----\n",

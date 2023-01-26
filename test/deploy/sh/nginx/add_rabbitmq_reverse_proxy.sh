@@ -1,8 +1,10 @@
 # nginx reverse proxy
 # https://www.digitalocean.com/community/tutorials/how-to-configure-nginx-as-a-reverse-proxy-on-ubuntu-22-04
 
-# Expecting
-# RABBITMQ_IP=10.5.0.5
+if [ "$RABBITMQ_IP" = "" ]; then
+  echo Error, missing: RABBITMQ_IP=10.5.0.5
+  exit
+fi
 
 RABBITMQ_CONFIG_FILE=/etc/nginx/sites-available/rabbitmq
 sudo rm -f $RABBITMQ_CONFIG_FILE

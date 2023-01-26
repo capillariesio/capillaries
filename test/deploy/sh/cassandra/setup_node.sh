@@ -3,10 +3,14 @@
 # https://youkudbhelper.wordpress.com/2020/05/17/cassandradaemon-java731-cannot-start-node-if-snitchs-data-center-dc1-differs-from-previous-data-center-datacenter1/
 # https://stackoverflow.com/questions/38961502/cannot-start-cassandra-snitchs-datacenter-differs-from-previous
 
-# Expecting for all:
-#CASSANDRA_SEEDS=10.5.0.11,10.5.0.12
-# Expecting for each enstance:
-#CASSANDRA_IP=10.5.0.11 (12,13)
+if [ "$CASSANDRA_SEEDS" = "" ]; then
+  echo Error, missing: CASSANDRA_SEEDS=10.5.0.11,10.5.0.12
+  exit
+fi
+if [ "$CASSANDRA_IP" = "" ]; then
+  echo Error, missing: CASSANDRA_IP=10.5.0.11 or 12 or 13
+  exit
+fi
 
 sudo apt update
 

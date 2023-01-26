@@ -37,7 +37,7 @@ func (h *FileRecordHeap) Pop() interface{} {
 
 func readAndInsert(logger *l.Logger, pCtx *ctx.MessageProcessingContext, tableName string, rs *Rowset, instr *FileInserter, readerNodeRunId int16, startToken int64, endToken int64, srcBatchSize int) (BatchStats, error) {
 
-	bs := BatchStats{RowsRead: 0, RowsWritten: 0}
+	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: tableName, Dst: instr.FinalFileUrl}
 
 	var topHeap FileRecordHeap
 	if instr.FileCreator.HasTop() {

@@ -1,9 +1,14 @@
 # Prometheus server (assuming node exporter also running on it)
 # https://www.digitalocean.com/community/tutorials/how-to-install-prometheus-on-ubuntu-16-04
 
-# Expecting
-# PROMETHEUS_VERSION=2.41.0
-# PROMETHEUS_TARGETS=\'localhost:9100\',\'10.5.0.2:9100\'
+if [ "$PROMETHEUS_VERSION" = "" ]; then
+  echo Error, missing: PROMETHEUS_VERSION=2.41.0
+  exit
+fi
+if [ "$PROMETHEUS_TARGETS" = "" ]; then
+  echo "Error, missing: PROMETHEUS_TARGETS=\'localhost:9100\',\'10.5.0.2:9100\'"
+  exit
+fi
 
 # Create users
 sudo useradd --no-create-home --shell /bin/false prometheus

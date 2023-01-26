@@ -1,3 +1,8 @@
+if [ "$SSH_USER" = "" ]; then
+  echo Error, missing: SSH_USER=ubuntu
+  exit
+fi
+
 UI_CONFIG_FILE=/etc/nginx/sites-available/ui
 sudo rm -f $UI_CONFIG_FILE
 
@@ -5,7 +10,7 @@ sudo tee $UI_CONFIG_FILE <<EOF
 server {
   listen 80;
   listen [::]:80;
-  root /home/ubuntu/ui;
+  root /home/$SSH_USER/ui;
   index index.html;
   location / {
   }
@@ -13,8 +18,8 @@ server {
 EOF
 
 sudo chmod 755 /home
-sudo chmod 755 /home/ubuntu
-sudo chmod 755 /home/ubuntu/ui
+sudo chmod 755 /home/$SSH_USER
+sudo chmod 755 /home/$SSH_USER/ui
 
 sudo ln -s $UI_CONFIG_FILE /etc/nginx/sites-enabled/
 

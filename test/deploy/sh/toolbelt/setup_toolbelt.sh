@@ -15,7 +15,7 @@ if [ "$SFTP_USER" = "" ]; then
   exit
 fi
 
-ENV_CONFIG_FILE=/home/$SSH_USER/bin/capidaemon.json
+ENV_CONFIG_FILE=/home/$SSH_USER/bin/capitoolbelt.json
 
 sed -i -e 's~"url":[ ]*"[a-zA-Z0-9@\.:\/\-_$ ]*"~"url": "'"$AMQP_URL"'"~g' $ENV_CONFIG_FILE
 sed -i -e 's~"hosts":[ ]*\[[0-9a-zA-Z\.\,\-_ "]*\]~"hosts": '$CASSANDRA_HOSTS"~g" $ENV_CONFIG_FILE
@@ -31,16 +31,4 @@ sed -i -e "s~\"keyspace_replication_config\":[ ]*\"[^\"]*\"~\"keyspace_replicati
 # and make sure client time out is more (not equal) than that to avoid gocql error "no response received from cassandra within timeout period".
 # In prod environments, increasing write_request_timeout_in_ms and corresponding client timeout is not a solution.
 sed -i -e "s~\"timeout\":[ ]*[0-9]*~\"timeout\": 15000~g" $ENV_CONFIG_FILE
-
-# Default value of 50 writer workers may be pretty aggressive,
-# watch for "Operation timed out - received only 0 responses" on writes,
-# throttle it down to 30 or lower if needed
-# sed -i -e "s~\"writer_workers\":[ ]*[0-9]*~\"writer_workers\": 30~g" $ENV_CONFIG_FILE
-
-sudo rm -fR /var/log/capidaemon
-sudo mkdir /var/log/capidaemon
-sudo chmod 777 /var/log/capidaemon
-sudo chmod 744 /home/$SSH_USER/bin/capidaemon
-
-/home/$SSH_USER/bin/capidaemon >> /var/log/capidaemon/capidaemon.log 2>&1 &
 
