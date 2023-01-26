@@ -30,7 +30,7 @@ echo "Generating files..."
 
 go run generate_data.go -in_file=$inDir/raw -out_file_py=$outDir/raw_py -out_file_go=$outDir/raw_go -items=1100 -products=10 -sellers=20
 if [ "$?" -ne "0" ]; then
-  exit
+ exit 1
 fi
 
 # In

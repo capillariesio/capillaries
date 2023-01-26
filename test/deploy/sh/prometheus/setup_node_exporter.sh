@@ -3,7 +3,7 @@
 
 if [ "$PROMETHEUS_NODE_EXPORTER_VERSION" = "" ]; then
   echo Error, missing: PROMETHEUS_NODE_EXPORTER_VERSION=1.5.0
-  exit
+ exit 1
 fi
 
 sudo useradd --no-create-home --shell /bin/false node_exporter

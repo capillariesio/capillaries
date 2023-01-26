@@ -3,7 +3,7 @@
 
 if [ "$RABBITMQ_IP" = "" ]; then
   echo Error, missing: RABBITMQ_IP=10.5.0.5
-  exit
+ exit 1
 fi
 
 RABBITMQ_CONFIG_FILE=/etc/nginx/sites-available/rabbitmq

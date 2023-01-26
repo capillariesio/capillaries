@@ -1,6 +1,6 @@
 if [ "$INTERNAL_BASTION_IP" = "" ]; then
   echo Error, missing: INTERNAL_BASTION_IP=10.5.0.2
-  exit
+ exit 1
 fi
 
 RSYSLOG_CAPIDAEMON_CONFIG_FILE=/etc/rsyslog.d/capidaemon_sender.conf

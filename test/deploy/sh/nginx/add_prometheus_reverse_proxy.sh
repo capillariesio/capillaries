@@ -3,7 +3,7 @@
 
 if [ "$PROMETHEUS_IP" = "" ]; then
   echo Error, missing: PROMETHEUS_IP=10.5.0.4
-  exit
+ exit 1
 fi
 
 PROMETHEUS_CONFIG_FILE=/etc/nginx/sites-available/prometheus

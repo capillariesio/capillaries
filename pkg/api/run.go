@@ -8,6 +8,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/l"
+	"github.com/capillariesio/capillaries/pkg/proc"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/wf"
 	"github.com/capillariesio/capillaries/pkg/wfdb"
@@ -67,6 +68,25 @@ func StartRun(envConfig *env.EnvConfig, logger *l.Logger, amqpChannel *amqp.Chan
 		return 0, err
 	}
 
+	// Create all run-specific tables, do not create them in daemon on the fly to avoid INCOMPATIBLE_SCHEMA error
+	// (apparently, thrown if we try to insert immediately after creating a table)
+	for _, nodeName := range affectedNodes {
+		node, ok := script.ScriptNodes[nodeName]
+		if !ok || !node.HasTableCreator() {
+			continue
+		}
+		q := proc.CreateDataTableCql(keyspace, runId, &node.TableCreator)
+		if err := cqlSession.Query(q).Exec(); err != nil {
+			return 0, cql.WrapDbErrorWithQuery("cannot create data table", q, err)
+		}
+		for idxName, idxDef := range node.TableCreator.Indexes {
+			q = proc.CreateIdxTableCql(keyspace, runId, idxName, idxDef)
+			if err := cqlSession.Query(q).Exec(); err != nil {
+				return 0, cql.WrapDbErrorWithQuery("cannot create idx table", q, err)
+			}
+		}
+	}
+
 	// Create msgs to send
 	allMsgs := make([]*wfmodel.Message, 0)
 	allHandlerExeTypes := make([]string, 0)
@@ -106,6 +126,7 @@ func StartRun(envConfig *env.EnvConfig, logger *l.Logger, amqpChannel *amqp.Chan
 		return 0, err
 	}
 	// Send one msg after another
+	// TODO: there easily may be hundreds of messages, can we send them in a single shot?
 	for msgIdx := 0; msgIdx < len(allMsgs); msgIdx++ {
 		msgOutBytes, errMsgOut := allMsgs[msgIdx].Serialize()
 		if errMsgOut != nil {

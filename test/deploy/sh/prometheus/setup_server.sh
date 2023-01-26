@@ -3,11 +3,11 @@
 
 if [ "$PROMETHEUS_VERSION" = "" ]; then
   echo Error, missing: PROMETHEUS_VERSION=2.41.0
-  exit
+ exit 1
 fi
 if [ "$PROMETHEUS_TARGETS" = "" ]; then
   echo "Error, missing: PROMETHEUS_TARGETS=\'localhost:9100\',\'10.5.0.2:9100\'"
-  exit
+ exit 1
 fi
 
 # Create users

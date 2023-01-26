@@ -2,19 +2,19 @@
 
 if [ "$RABBITMQ_ADMIN_NAME" = "" ]; then
   echo Error, missing: RABBITMQ_ADMIN_NAME=...
-  exit
+ exit 1
 fi
 if [ "$RABBITMQ_ADMIN_PASS" = "" ]; then
   echo Error, missing: RABBITMQ_ADMIN_PASS=...
-  exit
+ exit 1
 fi
 if [ "$RABBITMQ_USER_NAME" = "" ]; then
   echo Error, missing: RABBITMQ_USER_NAME=...
-  exit
+ exit 1
 fi
 if [ "$RABBITMQ_ADMIN_PASS" = "" ]; then
   echo Error, missing: RABBITMQ_USER_PASS=...
-  exit
+ exit 1
 fi
 
 sudo apt -y install gnupg apt-transport-https

@@ -1,26 +1,26 @@
 if [ "$CASSANDRA_HOSTS" = "" ]; then
   echo Error, missing: CASSANDRA_HOSTS='["10.5.0.11","10.5.0.12","10.5.0.13"]'
-  exit
+ exit 1
 fi
 if [ "$AMQP_URL" = "" ]; then
   echo Error, missing: AMQP_URL=amqp://guest:guest@10.5.0.5/
-  exit
+ exit 1
 fi
 if [ "$WEBAPI_PORT" = "" ]; then
   echo Error, missing: WEBAPI_PORT=6543
-  exit
+ exit 1
 fi
 if [ "$WEBAPI_ACCESS_CONTROL_ACCESS_ORIGIN" = "" ]; then
   echo Error, missing: WEBAPI_ACCESS_CONTROL_ACCESS_ORIGIN=http://floating_ip_address
-  exit
+ exit 1
 fi
 if [ "$SSH_USER" = "" ]; then
   echo Error, missing: SSH_USER=ubuntu
-  exit
+ exit 1
 fi
 if [ "$SFTP_USER" = "" ]; then
   echo Error, missing: SFTP_USER=sftpuser
-  exit
+ exit 1
 fi
 
 ENV_CONFIG_FILE=/home/$SSH_USER/bin/capiwebapi.json

@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/eval"
@@ -82,7 +83,7 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.M
 	}
 
 	bs.Src = filePath
-	bs.Dst = node.TableCreator.Name
+	bs.Dst = node.TableCreator.Name + cql.RunIdSuffix(pCtx.BatchInfo.RunId)
 
 	var csvFile *os.File
 	var fileReader io.Reader
@@ -135,7 +136,7 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.M
 	tableRecordBatchCount := 0
 
 	instr := newTableInserter(envConfig, logger, pCtx, &node.TableCreator, DefaultInserterBatchSize)
-	instr.verifyTablesExist()
+	//instr.verifyTablesExist()
 	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}
@@ -221,7 +222,7 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 	node := pCtx.CurrentScriptNode
 
 	totalStartTime := time.Now()
-	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: node.TableReader.TableName, Dst: node.TableCreator.Name}
+	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: node.TableReader.TableName + cql.RunIdSuffix(readerNodeRunId), Dst: node.TableCreator.Name + cql.RunIdSuffix(readerNodeRunId)}
 
 	if readerNodeRunId == 0 {
 		return bs, fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
@@ -252,7 +253,7 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 		inserterBatchSize = node.TableReader.RowsetSize
 	}
 	instr := newTableInserter(envConfig, logger, pCtx, &node.TableCreator, inserterBatchSize)
-	instr.verifyTablesExist()
+	//instr.verifyTablesExist()
 	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}
@@ -346,7 +347,7 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 
 	batchStartTime := time.Now()
 	totalStartTime := time.Now()
-	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: node.TableReader.TableName, Dst: node.TableCreator.Name}
+	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: node.TableReader.TableName + cql.RunIdSuffix(readerNodeRunId), Dst: node.TableCreator.Name + cql.RunIdSuffix(readerNodeRunId)}
 
 	if readerNodeRunId == 0 {
 		return bs, fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
@@ -377,7 +378,7 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 		inserterBatchSize = node.TableReader.RowsetSize
 	}
 	instr := newTableInserter(envConfig, logger, pCtx, &node.TableCreator, inserterBatchSize)
-	instr.verifyTablesExist()
+	//instr.verifyTablesExist()
 	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}
@@ -472,7 +473,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 	batchStartTime := time.Now()
 	totalStartTime := time.Now()
 
-	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: node.TableReader.TableName, Dst: node.TableCreator.Name}
+	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: node.TableReader.TableName + cql.RunIdSuffix(readerNodeRunId), Dst: node.TableCreator.Name + cql.RunIdSuffix(readerNodeRunId)}
 
 	if readerNodeRunId == 0 {
 		return bs, fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
@@ -524,7 +525,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 		inserterBatchSize = node.TableReader.RowsetSize
 	}
 	instr := newTableInserter(envConfig, logger, pCtx, &node.TableCreator, inserterBatchSize)
-	instr.verifyTablesExist()
+	//instr.verifyTablesExist()
 	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}

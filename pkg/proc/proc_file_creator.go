@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/eval"
@@ -37,7 +38,7 @@ func (h *FileRecordHeap) Pop() interface{} {
 
 func readAndInsert(logger *l.Logger, pCtx *ctx.MessageProcessingContext, tableName string, rs *Rowset, instr *FileInserter, readerNodeRunId int16, startToken int64, endToken int64, srcBatchSize int) (BatchStats, error) {
 
-	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: tableName, Dst: instr.FinalFileUrl}
+	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: tableName + cql.RunIdSuffix(readerNodeRunId), Dst: instr.FinalFileUrl}
 
 	var topHeap FileRecordHeap
 	if instr.FileCreator.HasTop() {

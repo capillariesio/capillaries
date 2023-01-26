@@ -31,7 +31,7 @@ echo "Placeholder for lookup_quicktest output files" > $outDir/readme.txt
 
 go run generate_data.go -items=1390 -products=10 -sellers=20 -script_params_path=$cfgDir/script_params_one_run.json -in_root=$inDir -out_root=$outDir
 if [ "$?" -ne "0" ]; then
-  exit
+ exit 1
 fi
 
 # Orders

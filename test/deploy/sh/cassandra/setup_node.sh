@@ -5,11 +5,11 @@
 
 if [ "$CASSANDRA_SEEDS" = "" ]; then
   echo Error, missing: CASSANDRA_SEEDS=10.5.0.11,10.5.0.12
-  exit
+ exit 1
 fi
 if [ "$CASSANDRA_IP" = "" ]; then
   echo Error, missing: CASSANDRA_IP=10.5.0.11 or 12 or 13
-  exit
+ exit 1
 fi
 
 sudo apt update

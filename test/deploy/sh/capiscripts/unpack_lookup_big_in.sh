@@ -1,6 +1,6 @@
 if [ "$SFTP_USER" = "" ]; then
   echo Error, missing: SFTP_USER=sftpuser
-  exit
+ exit 1
 fi
 
 rm -f /mnt/capi_in/lookup_bigtest/*.csv

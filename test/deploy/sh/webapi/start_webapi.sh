@@ -1,6 +1,6 @@
 if [ "$SSH_USER" = "" ]; then
   echo Error, missing: SSH_USER=ubuntu
-  exit
+ exit 1
 fi
 
 processid=$(pgrep capiwebapi)

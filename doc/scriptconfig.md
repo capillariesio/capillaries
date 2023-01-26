@@ -92,7 +92,10 @@ Configures table or file reader, depending on the [processor type](glossary.md#p
 Table reader only. Name of the [data table](glossary.md#table) to read from.
 
 #### r.expected_batches_total
-Table reader only. Number of data batches to supply to the node in parallel. Choose these settings according to your hardware environment specifics.
+Table reader only. Number of data batches to supply to the node in parallel. Choose these settings according to your hardware environment specifics. Things to keep in mind:
+- each batch will be triggered by a separate RabbitMQ message
+- data for each batch will be read in a single worker thread and, if result written to a table (not file), written multiple writer threads
+What is a good size of a batch? Really depends on your specific case: anything between 100 and 100000 records.
 
 Default: 1 (no [parallelism](glossary.md#parallellism)).
 

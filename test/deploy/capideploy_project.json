@@ -375,26 +375,26 @@
             "security_group": "bastion",
             "ip_address": "{internal_bastion_ip}",
             "floating_ip_address": "{floating_ip_address}",
-            "flavor": "gp1.lightspeed",
+            "flavor": "gp1.warpspeed",
             "image": "Ubuntu-22.04",
             "attached_volumes": {
                 "cfg": {
-                    "attachment_id": "",
-                    "device": "",
-                    "block_device_id": ""
+                    "attachment_id": "a264f9d6-58df-4448-bf08-c937efdd8f55",
+                    "device": "/dev/vdc",
+                    "block_device_id": "7ed2c96a-f0d8-4671-979a-482dc73abdab"
                 },
                 "in": {
-                    "attachment_id": "",
-                    "device": "",
-                    "block_device_id": ""
+                    "attachment_id": "210979a8-16d1-4181-b8e5-a8bd258bc9ea",
+                    "device": "/dev/vdb",
+                    "block_device_id": "6accb861-0687-4768-bd31-c8a7399372c4"
                 },
                 "out": {
-                    "attachment_id": "",
-                    "device": "",
-                    "block_device_id": ""
+                    "attachment_id": "6618f425-ee8b-4de9-bbc8-d45fa7ac74b5",
+                    "device": "/dev/vdd",
+                    "block_device_id": "fb35497a-1dd5-45c8-afd1-f155f184f2bc"
                 }
             },
-            "id": "",
+            "id": "69c25de3-b6c3-4b7d-8f75-ca6c881070f1",
             "users": [
                 {
                     "name": "{sftp_user}",
@@ -467,7 +467,7 @@
             "ip_address": "10.5.0.11",
             "flavor": "gp1.lightspeed",
             "image": "Ubuntu-22.04",
-            "id": "",
+            "id": "99de00a2-bd79-4040-a873-57229bdb7adc",
             "service": {
                 "env": {
                     "CASSANDRA_IP": "10.5.0.11",
@@ -495,7 +495,7 @@
             "ip_address": "10.5.0.12",
             "flavor": "gp1.lightspeed",
             "image": "Ubuntu-22.04",
-            "id": "",
+            "id": "5c336d34-908a-4806-8c7f-2bcf6e2f5d4c",
             "service": {
                 "env": {
                     "CASSANDRA_IP": "10.5.0.12",
@@ -523,7 +523,7 @@
             "ip_address": "10.5.0.13",
             "flavor": "gp1.lightspeed",
             "image": "Ubuntu-22.04",
-            "id": "",
+            "id": "9a31585b-a876-42e0-8749-eea24ed7a34d",
             "service": {
                 "env": {
                     "CASSANDRA_IP": "10.5.0.13",
@@ -551,7 +551,7 @@
             "ip_address": "10.5.0.101",
             "flavor": "gp1.semisonic",
             "image": "Ubuntu-22.04",
-            "id": "",
+            "id": "34d6004d-d5ae-4912-ae44-45175e4672ee",
             "private_keys": [
                 {
                     "name": "{sftp_user}",
@@ -594,7 +594,7 @@
             "ip_address": "10.5.0.102",
             "flavor": "gp1.semisonic",
             "image": "Ubuntu-22.04",
-            "id": "",
+            "id": "706d3feb-5d8e-4483-8225-686425f0c9ad",
             "private_keys": [
                 {
                     "name": "{sftp_user}",
@@ -607,7 +607,8 @@
                     "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\"]'",
                     "INTERNAL_BASTION_IP": "{internal_bastion_ip}",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
-                    "SFTP_USER": "{sftp_user}"
+                    "SFTP_USER": "{sftp_user}",
+                    "SSH_USER": "{ssh_user}"
                 },
                 "cmd": {
                     "setup": [
@@ -636,7 +637,7 @@
             "ip_address": "{prometheus_ip}",
             "flavor": "gp1.semisonic",
             "image": "Ubuntu-22.04",
-            "id": "",
+            "id": "b8c48e47-1527-4156-b3f0-3b73db98c1ca",
             "service": {
                 "env": {
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
@@ -664,7 +665,7 @@
             "ip_address": "{rabbitmq_ip}",
             "flavor": "gp1.semisonic",
             "image": "Ubuntu-22.04",
-            "id": "",
+            "id": "aa329f21-0e6d-4f69-95a6-2b6653f778b7",
             "service": {
                 "env": {
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",

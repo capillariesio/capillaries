@@ -23,11 +23,11 @@ Build binaries for Linux:
 ```
 cd test/deploy
 GOOS=linux GOARCH=amd64 go build -o ../../build/linux/amd64/capidaemon -ldflags="-s -w" ../../pkg/exe/daemon/capidaemon.go
-gzip ../../build/linux/amd64/capidaemon
+gzip -f ../../build/linux/amd64/capidaemon
 GOOS=linux GOARCH=amd64 go build -o ../../build/linux/amd64/capiwebapi -ldflags="-s -w" ../../pkg/exe/webapi/capiwebapi.go
-gzip ../../build/linux/amd64/capiwebapi
+gzip -f ../../build/linux/amd64/capiwebapi
 GOOS=linux GOARCH=amd64 go build -o ../../build/linux/amd64/capitoolbelt -ldflags="-s -w" ../../pkg/exe/toolbelt/capitoolbelt.go
-gzip ../../build/linux/amd64/capitoolbelt
+gzip -f ../../build/linux/amd64/capitoolbelt
 
 pushd ../../ui
 set CAPILLARIES_WEBAPI_URL=http://208.113.134.216
@@ -78,7 +78,7 @@ go run ../../pkg/exe/deploy/capideploy.go setup_services bastion,cass01,cass02,c
 # Setup capidaemons (30 s)
 go run ../../pkg/exe/deploy/capideploy.go setup_services daemon01,daemon02
 
-# Check Cassandra with nodetool, all 3 should be up, no exceptions thrown:
+# Check Cassandra with nodetool, all 3 should be up (UN), no exceptions thrown:
 ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment001_rsa -J 208.113.134.216 ubuntu@10.5.0.11 'nodetool status'
 ````
 
@@ -97,6 +97,11 @@ At `http://208.113.134.216`, create new runs:
 | Script parameters URI | sftp://sftpuser@10.5.0.2/mnt/capi_cfg/tag_and_denormalize_quicktest/script_params_one_run.json |
 | Start nodes |	read_tags,read_products |
 
+or
+```
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment001_rsa ubuntu@208.113.134.216 '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.2/mnt/capi_cfg/tag_and_denormalize_quicktest/script.json -params_file=sftp://sftpuser@10.5.0.2/mnt/capi_cfg/tag_and_denormalize_quicktest/script_params_one_run.json -keyspace=tag_and_denormalize_quicktest -start_nodes=read_tags,read_products'
+```
+
 | Field | Value |
 |- | - |
 | Keyspace | lookup_quicktest |
@@ -110,6 +115,11 @@ At `http://208.113.134.216`, create new runs:
 | Script URI | sftp://sftpuser@10.5.0.2/mnt/capi_cfg/lookup_bigtest/script.json |
 | Script parameters URI | sftp://sftpuser@10.5.0.2/mnt/capi_cfg/lookup_bigtest/script_params_one_run.json |
 | Start nodes |	read_orders,read_order_items |
+
+or
+```
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment001_rsa ubuntu@208.113.134.216 '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.2/mnt/capi_cfg/lookup_bigtest/script.json -params_file=sftp://sftpuser@10.5.0.2/mnt/capi_cfg/lookup_bigtest/script_params_one_run.json -keyspace=lookup_bigtest -start_nodes=read_orders,read_order_items'
+```
 
 # Prometheus: watch instance load
 

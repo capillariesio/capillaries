@@ -80,20 +80,22 @@ func CreateIdxTableCql(keyspace string, runId int16, idxName string, idxDef *sc.
 	return qb.CreateRun(idxName, runId, cql.IgnoreIfExists)
 }
 
-func (instr *TableInserter) verifyTablesExist() error {
-	q := CreateDataTableCql(instr.PCtx.BatchInfo.DataKeyspace, instr.PCtx.BatchInfo.RunId, instr.TableCreator)
-	if err := instr.PCtx.CqlSession.Query(q).Exec(); err != nil {
-		return cql.WrapDbErrorWithQuery("cannot create data table", q, err)
-	}
+// Obsolete: now we create all run-specific tables in api.StartRun
+//
+// func (instr *TableInserter) verifyTablesExist() error {
+// 	q := CreateDataTableCql(instr.PCtx.BatchInfo.DataKeyspace, instr.PCtx.BatchInfo.RunId, instr.TableCreator)
+// 	if err := instr.PCtx.CqlSession.Query(q).Exec(); err != nil {
+// 		return cql.WrapDbErrorWithQuery("cannot create data table", q, err)
+// 	}
 
-	for idxName, idxDef := range instr.TableCreator.Indexes {
-		q := CreateIdxTableCql(instr.PCtx.BatchInfo.DataKeyspace, instr.PCtx.BatchInfo.RunId, idxName, idxDef)
-		if err := instr.PCtx.CqlSession.Query(q).Exec(); err != nil {
-			return cql.WrapDbErrorWithQuery("cannot create idx table", q, err)
-		}
-	}
-	return nil
-}
+// 	for idxName, idxDef := range instr.TableCreator.Indexes {
+// 		q := CreateIdxTableCql(instr.PCtx.BatchInfo.DataKeyspace, instr.PCtx.BatchInfo.RunId, idxName, idxDef)
+// 		if err := instr.PCtx.CqlSession.Query(q).Exec(); err != nil {
+// 			return cql.WrapDbErrorWithQuery("cannot create idx table", q, err)
+// 		}
+// 	}
+// 	return nil
+// }
 
 func (instr *TableInserter) startWorkers(logger *l.Logger, pCtx *ctx.MessageProcessingContext) error {
 	instr.RecordsIn = make(chan WriteChannelItem, instr.BatchSize)
@@ -227,15 +229,14 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 					}
 				}
 			} else {
-				if strings.Contains(err.Error(), "does not exist") || strings.Contains(err.Error(), "INCOMPATIBLE_SCHEMA") {
+				if strings.Contains(err.Error(), "does not exist") {
 					// There is a chance this table is brand new and table schema was not propagated to all Cassandra nodes
 					if dataRetryCount < maxDataRetries-1 {
 						logger.WarnCtx(instr.PCtx, "will wait for table %s to be created, retry count %d, got %s", dataTableName, dataRetryCount, err.Error())
 						// TODO: come up with a better waiting strategy (exp backoff, at least)
 						time.Sleep(5 * time.Second)
 					} else {
-						logger.ErrorCtx(instr.PCtx, "table %s still not created, retry count %d reached, giving up", dataTableName, dataRetryCount)
-						errorToReport = fmt.Errorf("cannot write to data table after multiple attempts, table %s schema still not propagated to all nodes", dataTableName)
+						errorToReport = fmt.Errorf("cannot write to data table %s after %d attempts, apparently, table schema still not propagated to all nodes: %s", dataTableName, dataRetryCount+1, err.Error())
 						break
 					}
 				} else if strings.Contains(err.Error(), "Operation timed out") {
@@ -245,8 +246,7 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 						time.Sleep(time.Duration(10*curDataExpBackoffFactor) * time.Millisecond)
 						curDataExpBackoffFactor *= 2
 					} else {
-						logger.ErrorCtx(instr.PCtx, "cluster overloaded (%s), cannot write to data table %s, retry count %d reached, giving up", err.Error(), dataTableName, dataRetryCount)
-						errorToReport = fmt.Errorf("cannot write to data table %s after %d attempts: %s", dataTableName, dataRetryCount+1, err.Error())
+						errorToReport = fmt.Errorf("cannot write to data table %s after %d attempts, still getting timeouts: %s", dataTableName, dataRetryCount+1, err.Error())
 						break
 					}
 				} else {
@@ -291,20 +291,20 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 						if !isApplied {
 							// We assume that our previous attempts to write this idx record (if this is not the first retry) did not leave any trace in the database,
 							// so we cannot be sure if this existing copy was written by somebody else or by our previous attempt
+							// If attempt number > 0, is there a chance that Cassandra managed to insert the record on the first attempt, but returned an error?
 							errorToReport = fmt.Errorf("cannot write duplicate index key [%s] on attempt %d, existing record [%v]", q, idxRetryCount+1, existingIdxRow)
 						}
 						// Success or not - we are done
 						break
 					} else {
-						if strings.Contains(err.Error(), "does not exist") || strings.Contains(err.Error(), "INCOMPATIBLE_SCHEMA") {
+						if strings.Contains(err.Error(), "does not exist") {
 							// There is a chance this table is brand new and table schema was not propagated to all Cassandra nodes
 							if idxRetryCount < maxIdxRetries-1 {
 								logger.WarnCtx(instr.PCtx, "will wait for idx table %s to be created, retry count %d, got %s", idxTableName, idxRetryCount, err.Error())
 								// TODO: come up with a better waiting strategy (exp backoff, at least)
 								time.Sleep(5 * time.Second)
 							} else {
-								logger.ErrorCtx(instr.PCtx, "idx table %s still not created, retry count %d reached, giving up", idxTableName, idxRetryCount)
-								errorToReport = fmt.Errorf("cannot write to idx table %s after %d attempts, table schema still not propagated to all nodes: %s", idxTableName, idxRetryCount+1, err.Error())
+								errorToReport = fmt.Errorf("cannot write to idx table %s after %d attempts, apparently, table schema still not propagated to all nodes: %s", idxTableName, idxRetryCount+1, err.Error())
 								break
 							}
 						} else if strings.Contains(err.Error(), "Operation timed out") {
@@ -314,8 +314,7 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 								time.Sleep(time.Duration(10*curIdxExpBackoffFactor) * time.Millisecond)
 								curIdxExpBackoffFactor *= 2
 							} else {
-								logger.ErrorCtx(instr.PCtx, "cluster overloaded (%s), cannot write to idx table %s, retry count %d reached, giving up", err.Error(), idxTableName, idxRetryCount)
-								errorToReport = fmt.Errorf("cannot write to idx table %s after %d attempts: %s", idxTableName, idxRetryCount+1, err.Error())
+								errorToReport = fmt.Errorf("cannot write to idx table %s after %d attempts, still getting timeout: %s", idxTableName, idxRetryCount+1, err.Error())
 								break
 							}
 						} else {
