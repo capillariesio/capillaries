@@ -3,6 +3,6 @@ if [ "$CAPI_BINARY" = "" ]; then
  exit 1
 fi
 
-gzip -d $CAPI_BINARY.gz
+gzip -d -f $CAPI_BINARY.gz
 chmod 744 $CAPI_BINARY
 

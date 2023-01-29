@@ -363,13 +363,10 @@ func LoadProject(prjFile string, prjParamsFile string) (*ProjectPair, string, er
 	}
 
 	// Replace project params
-
+	// Revert unescaping in parameter values caused by JSON - we want to preserve `\n"` and `\"`
+	escapeReplacer := strings.NewReplacer("\n", "\\n", `"`, `\"`)
 	for k, v := range prjParams {
-		// Revert \n unescaping in parameter values - we want to preserve "\n"
-		if strings.Contains(v, "\n") {
-			v = strings.ReplaceAll(v, "\n", "\\n")
-		}
-		prjString = strings.ReplaceAll(prjString, fmt.Sprintf("{%s}", k), v)
+		prjString = strings.ReplaceAll(prjString, fmt.Sprintf("{%s}", k), escapeReplacer.Replace(v))
 	}
 
 	// Re-deserialize, now with replaced params

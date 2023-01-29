@@ -218,6 +218,39 @@ func stringToArrayOfStrings(s string) ([]string, error) {
 	return result, nil
 }
 
+const (
+	CmdValidateScript      string = "validate_script"
+	CmdStartRun            string = "start_run"
+	CmdStopRun             string = "stop_run"
+	CmdExecNode            string = "exec_node"
+	CmdGetRunHistory       string = "get_run_history"
+	CmdGetNodeHistory      string = "get_node_history"
+	CmdGetBatchHistory     string = "get_batch_history"
+	CmdGetRunStatusDiagram string = "drop_run_status_diagram"
+	CmdDropKeyspace        string = "drop_keyspace"
+	CmdGetTableCql         string = "get_table_cql"
+)
+
+func usage(flagset *flag.FlagSet) {
+	fmt.Printf("Capillaries toolbelt\nUsage: capitoolbelt <command> <command parameters>\nCommands:\n")
+	fmt.Printf("  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n",
+		CmdValidateScript,
+		CmdStartRun,
+		CmdStopRun,
+		CmdExecNode,
+		CmdGetRunHistory,
+		CmdGetNodeHistory,
+		CmdGetBatchHistory,
+		CmdGetRunStatusDiagram,
+		CmdDropKeyspace,
+		CmdGetTableCql)
+	if flagset != nil {
+		fmt.Printf("\n%s parameters:\n", flagset.Name())
+		flagset.PrintDefaults()
+	}
+	os.Exit(0)
+}
+
 func main() {
 	//defer profile.Start().Stop()
 
@@ -235,18 +268,19 @@ func main() {
 	defer logger.Close()
 
 	if len(os.Args) <= 1 {
-		log.Fatalf("COMMAND EXPECTED")
-		os.Exit(1)
+		usage(nil)
 	}
 
 	switch os.Args[1] {
-	case "validate_script":
-		validateScriptCmd := flag.NewFlagSet("validate_script", flag.ExitOnError)
+	case CmdValidateScript:
+		validateScriptCmd := flag.NewFlagSet(CmdValidateScript, flag.ExitOnError)
 		scriptFilePath := validateScriptCmd.String("script_file", "", "Path to script file")
 		paramsFilePath := validateScriptCmd.String("params_file", "", "Path to script parameters map file")
 		isIdxDag := validateScriptCmd.Bool("idx_dag", false, "Print index DAG")
 		isFieldDag := validateScriptCmd.Bool("field_dag", false, "Print field DAG")
-		validateScriptCmd.Parse(os.Args[2:])
+		if err := validateScriptCmd.Parse(os.Args[2:]); err != nil || *scriptFilePath == "" || *paramsFilePath == "" || (!*isIdxDag && !*isFieldDag) {
+			usage(validateScriptCmd)
+		}
 
 		script, err := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, *scriptFilePath, *paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
 		if err != nil {
@@ -261,11 +295,13 @@ func main() {
 			fmt.Println(GetDotDiagram(script, DotDiagramFields, nil))
 		}
 
-	case "stop_run":
-		stopRunCmd := flag.NewFlagSet("stop_run", flag.ExitOnError)
+	case CmdStopRun:
+		stopRunCmd := flag.NewFlagSet(CmdStopRun, flag.ExitOnError)
 		keyspace := stopRunCmd.String("keyspace", "", "Keyspace (session id)")
 		runIdString := stopRunCmd.String("run_id", "", "Run id")
-		stopRunCmd.Parse(os.Args[2:])
+		if err := stopRunCmd.Parse(os.Args[2:]); err != nil {
+			usage(stopRunCmd)
+		}
 
 		runId, err := strconv.ParseInt(strings.TrimSpace(*runIdString), 10, 16)
 		if err != nil {
@@ -285,10 +321,12 @@ func main() {
 			os.Exit(1)
 		}
 
-	case "get_run_history":
-		getRunsCmd := flag.NewFlagSet("get_runs", flag.ExitOnError)
+	case CmdGetRunHistory:
+		getRunsCmd := flag.NewFlagSet(CmdGetRunHistory, flag.ExitOnError)
 		keyspace := getRunsCmd.String("keyspace", "", "Keyspace (session id)")
-		getRunsCmd.Parse(os.Args[2:])
+		if err := getRunsCmd.Parse(os.Args[2:]); err != nil {
+			usage(getRunsCmd)
+		}
 
 		cqlSession, err := cql.NewSession(envConfig, *keyspace, cql.DoNotCreateKeyspaceOnConnect)
 		if err != nil {
@@ -306,11 +344,13 @@ func main() {
 			fmt.Printf("%s,%d,%d,%s\n", r.Ts.Format(LogTsFormatUnquoted), r.RunId, r.Status, strings.ReplaceAll(r.Comment, ",", ";"))
 		}
 
-	case "get_node_history":
-		getNodeHistoryCmd := flag.NewFlagSet("get_node_history", flag.ExitOnError)
+	case CmdGetNodeHistory:
+		getNodeHistoryCmd := flag.NewFlagSet(CmdGetNodeHistory, flag.ExitOnError)
 		keyspace := getNodeHistoryCmd.String("keyspace", "", "Keyspace (session id)")
 		runIdsString := getNodeHistoryCmd.String("run_ids", "", "Limit results to specific run ids (optional), comma-separated list")
-		getNodeHistoryCmd.Parse(os.Args[2:])
+		if err := getNodeHistoryCmd.Parse(os.Args[2:]); err != nil {
+			usage(getNodeHistoryCmd)
+		}
 
 		cqlSession, err := cql.NewSession(envConfig, *keyspace, cql.DoNotCreateKeyspaceOnConnect)
 		if err != nil {
@@ -334,12 +374,14 @@ func main() {
 			fmt.Printf("%s,%d,%s,%d,%s\n", n.Ts.Format(LogTsFormatUnquoted), n.RunId, n.ScriptNode, n.Status, strings.ReplaceAll(n.Comment, ",", ";"))
 		}
 
-	case "get_batch_history":
-		getBatchHistoryCmd := flag.NewFlagSet("get_batch_history", flag.ExitOnError)
+	case CmdGetBatchHistory:
+		getBatchHistoryCmd := flag.NewFlagSet(CmdGetBatchHistory, flag.ExitOnError)
 		keyspace := getBatchHistoryCmd.String("keyspace", "", "Keyspace (session id)")
 		runIdsString := getBatchHistoryCmd.String("run_ids", "", "Limit results to specific run ids (optional), comma-separated list")
 		nodeNamesString := getBatchHistoryCmd.String("nodes", "", "Limit results to specific node names (optional), comma-separated list")
-		getBatchHistoryCmd.Parse(os.Args[2:])
+		if err := getBatchHistoryCmd.Parse(os.Args[2:]); err != nil {
+			usage(getBatchHistoryCmd)
+		}
 
 		cqlSession, err := cql.NewSession(envConfig, *keyspace, cql.DoNotCreateKeyspaceOnConnect)
 		if err != nil {
@@ -370,14 +412,16 @@ func main() {
 			fmt.Printf("%s,%d,%s,%d,%d,%d,%d,%d,%s\n", r.Ts.Format(LogTsFormatUnquoted), r.RunId, r.ScriptNode, r.BatchIdx, r.BatchesTotal, r.Status, r.FirstToken, r.LastToken, strings.ReplaceAll(r.Comment, ",", ";"))
 		}
 
-	case "get_table_cql":
-		getTableCqlCmd := flag.NewFlagSet("get_table_cql", flag.ExitOnError)
+	case CmdGetTableCql:
+		getTableCqlCmd := flag.NewFlagSet(CmdGetTableCql, flag.ExitOnError)
 		scriptFilePath := getTableCqlCmd.String("script_file", "", "Path to script file")
 		paramsFilePath := getTableCqlCmd.String("params_file", "", "Path to script parameters map file")
 		keyspace := getTableCqlCmd.String("keyspace", "", "Keyspace (session id)")
 		runId := getTableCqlCmd.Int("run_id", 0, "Run id")
 		startNodesString := getTableCqlCmd.String("start_nodes", "", "Comma-separated list of start node names")
-		getTableCqlCmd.Parse(os.Args[2:])
+		if err := getTableCqlCmd.Parse(os.Args[2:]); err != nil {
+			usage(getTableCqlCmd)
+		}
 
 		script, err := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, *scriptFilePath, *paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
 		if err != nil {
@@ -389,13 +433,15 @@ func main() {
 
 		fmt.Print(api.GetTablesCql(script, *keyspace, int16(*runId), startNodes))
 
-	case "get_run_status_diagram":
-		getRunStatusDiagramCmd := flag.NewFlagSet("get_run_status_diagram", flag.ExitOnError)
+	case CmdGetRunStatusDiagram:
+		getRunStatusDiagramCmd := flag.NewFlagSet(CmdGetRunStatusDiagram, flag.ExitOnError)
 		scriptFilePath := getRunStatusDiagramCmd.String("script_file", "", "Path to script file")
 		paramsFilePath := getRunStatusDiagramCmd.String("params_file", "", "Path to script parameters map file")
 		keyspace := getRunStatusDiagramCmd.String("keyspace", "", "Keyspace (session id)")
 		runIdString := getRunStatusDiagramCmd.String("run_id", "", "Run id")
-		getRunStatusDiagramCmd.Parse(os.Args[2:])
+		if err := getRunStatusDiagramCmd.Parse(os.Args[2:]); err != nil {
+			usage(getRunStatusDiagramCmd)
+		}
 
 		runId, err := strconv.ParseInt(strings.TrimSpace(*runIdString), 10, 16)
 		if err != nil {
@@ -428,10 +474,12 @@ func main() {
 
 		fmt.Println(GetDotDiagram(script, DotDiagramRunStatus, nodeColorMap))
 
-	case "drop_keyspace":
-		dropKsCmd := flag.NewFlagSet("drop_keyspae", flag.ExitOnError)
+	case CmdDropKeyspace:
+		dropKsCmd := flag.NewFlagSet(CmdDropKeyspace, flag.ExitOnError)
 		keyspace := dropKsCmd.String("keyspace", "", "Keyspace (session id)")
-		dropKsCmd.Parse(os.Args[2:])
+		if err := dropKsCmd.Parse(os.Args[2:]); err != nil {
+			usage(dropKsCmd)
+		}
 
 		cqlSession, err := cql.NewSession(envConfig, *keyspace, cql.DoNotCreateKeyspaceOnConnect)
 		if err != nil {
@@ -445,13 +493,15 @@ func main() {
 			os.Exit(1)
 		}
 
-	case "start_run":
-		startRunCmd := flag.NewFlagSet("start_run", flag.ExitOnError)
+	case CmdStartRun:
+		startRunCmd := flag.NewFlagSet(CmdStartRun, flag.ExitOnError)
 		keyspace := startRunCmd.String("keyspace", "", "Keyspace (session id)")
 		scriptFilePath := startRunCmd.String("script_file", "", "Path to script file")
 		paramsFilePath := startRunCmd.String("params_file", "", "Path to script parameters map file")
 		startNodesString := startRunCmd.String("start_nodes", "", "Comma-separated list of start node names")
-		startRunCmd.Parse(os.Args[2:])
+		if err := startRunCmd.Parse(os.Args[2:]); err != nil {
+			usage(startRunCmd)
+		}
 
 		startNodes := strings.Split(*startNodesString, ",")
 
@@ -484,14 +534,16 @@ func main() {
 
 		fmt.Println(runId)
 
-	case "exec_node":
-		execNodeCmd := flag.NewFlagSet("exec_node", flag.ExitOnError)
+	case CmdExecNode:
+		execNodeCmd := flag.NewFlagSet(CmdExecNode, flag.ExitOnError)
 		keyspace := execNodeCmd.String("keyspace", "", "Keyspace (session id)")
 		scriptFilePath := execNodeCmd.String("script_file", "", "Path to script file")
 		paramsFilePath := execNodeCmd.String("params_file", "", "Path to script parameters map file")
 		runIdParam := execNodeCmd.Int("run_id", 0, "run id (optional, use with extra caution as it will modify existing run id results)")
 		nodeName := execNodeCmd.String("node_id", "", "Script node name")
-		execNodeCmd.Parse(os.Args[2:])
+		if err := execNodeCmd.Parse(os.Args[2:]); err != nil {
+			usage(execNodeCmd)
+		}
 
 		runId := int16(*runIdParam)
 
@@ -511,7 +563,7 @@ func main() {
 		fmt.Printf("run %d, elapsed %v\n", runId, time.Since(startTime))
 
 	default:
-		fmt.Println("expected some valid command")
-		os.Exit(1)
+		fmt.Printf("invalid command: %s\n", os.Args[1])
+		usage(nil)
 	}
 }

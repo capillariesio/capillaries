@@ -293,6 +293,22 @@
             "owner": "{sftp_user}",
             "after": {}
         },
+        "up_py_calc_quicktest_in": {
+            "src": "/tmp/capi_in/py_calc_quicktest",
+            "dst": "/mnt/capi_in/py_calc_quicktest",
+            "dir_permissions": 777,
+            "file_permissions": 666,
+            "owner": "{sftp_user}",
+            "after": {}
+        },
+        "up_py_calc_quicktest_out": {
+            "src": "/tmp/capi_out/py_calc_quicktest/readme.txt",
+            "dst": "/mnt/capi_out/py_calc_quicktest",
+            "dir_permissions": 777,
+            "file_permissions": 666,
+            "owner": "{sftp_user}",
+            "after": {}
+        },
         "up_tag_and_denormalize_quicktest_in": {
             "src": "/tmp/capi_in/tag_and_denormalize_quicktest",
             "dst": "/mnt/capi_in/tag_and_denormalize_quicktest",
@@ -375,26 +391,26 @@
             "security_group": "bastion",
             "ip_address": "{internal_bastion_ip}",
             "floating_ip_address": "{floating_ip_address}",
-            "flavor": "gp1.warpspeed",
+            "flavor": "gp1.lightspeed",
             "image": "Ubuntu-22.04",
             "attached_volumes": {
                 "cfg": {
-                    "attachment_id": "a264f9d6-58df-4448-bf08-c937efdd8f55",
-                    "device": "/dev/vdc",
-                    "block_device_id": "7ed2c96a-f0d8-4671-979a-482dc73abdab"
+                    "attachment_id": "acf914aa-af91-4959-9e5c-2f398bf43c19",
+                    "device": "/dev/vdd",
+                    "block_device_id": "3d0eb59d-387d-4f3e-9594-568fcbea83f9"
                 },
                 "in": {
-                    "attachment_id": "210979a8-16d1-4181-b8e5-a8bd258bc9ea",
-                    "device": "/dev/vdb",
-                    "block_device_id": "6accb861-0687-4768-bd31-c8a7399372c4"
+                    "attachment_id": "69113ac2-fb87-4a20-81aa-44cc6b04e06e",
+                    "device": "/dev/vdc",
+                    "block_device_id": "c9dd28f6-60ec-49ed-81bd-655c2ae4ddec"
                 },
                 "out": {
-                    "attachment_id": "6618f425-ee8b-4de9-bbc8-d45fa7ac74b5",
-                    "device": "/dev/vdd",
-                    "block_device_id": "fb35497a-1dd5-45c8-afd1-f155f184f2bc"
+                    "attachment_id": "68c1a33d-acd7-4242-8db5-cbe73cd2cda2",
+                    "device": "/dev/vdb",
+                    "block_device_id": "0af424db-4650-4d0a-9d70-3de9613bd792"
                 }
             },
-            "id": "69c25de3-b6c3-4b7d-8f75-ca6c881070f1",
+            "id": "b523d8c7-68cb-4aed-a39c-91724fa9634f",
             "users": [
                 {
                     "name": "{sftp_user}",
@@ -410,7 +426,7 @@
             "service": {
                 "env": {
                     "AMQP_URL": "amqp://{rabbitmq_user_name}:{rabbitmq_user_pass}@{rabbitmq_ip}/",
-                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\"]'",
+                    "CASSANDRA_HOSTS": "{cassandra_hosts}",
                     "PROMETHEUS_IP": "{prometheus_ip}",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
                     "RABBITMQ_IP": "{rabbitmq_ip}",
@@ -452,6 +468,8 @@
                 "up_lookup_quicktest_out",
                 "up_tag_and_denormalize_quicktest_in",
                 "up_tag_and_denormalize_quicktest_out",
+                "up_py_calc_quicktest_in",
+                "up_py_calc_quicktest_out",
                 "up_webapi_binary",
                 "up_webapi_env_config",
                 "up_toolbelt_binary",
@@ -467,7 +485,7 @@
             "ip_address": "10.5.0.11",
             "flavor": "gp1.lightspeed",
             "image": "Ubuntu-22.04",
-            "id": "99de00a2-bd79-4040-a873-57229bdb7adc",
+            "id": "bd4b8a43-3512-4de3-874a-ceecfef0a930",
             "service": {
                 "env": {
                     "CASSANDRA_IP": "10.5.0.11",
@@ -495,7 +513,7 @@
             "ip_address": "10.5.0.12",
             "flavor": "gp1.lightspeed",
             "image": "Ubuntu-22.04",
-            "id": "5c336d34-908a-4806-8c7f-2bcf6e2f5d4c",
+            "id": "d6953729-8cbb-4de9-9c4d-e6065ad21de1",
             "service": {
                 "env": {
                     "CASSANDRA_IP": "10.5.0.12",
@@ -523,10 +541,66 @@
             "ip_address": "10.5.0.13",
             "flavor": "gp1.lightspeed",
             "image": "Ubuntu-22.04",
-            "id": "9a31585b-a876-42e0-8749-eea24ed7a34d",
+            "id": "56596e7e-def2-4ddb-bd25-3d0cff28a8d5",
             "service": {
                 "env": {
                     "CASSANDRA_IP": "10.5.0.13",
+                    "CASSANDRA_SEEDS": "{cassandra_seeds}",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
+                },
+                "cmd": {
+                    "setup": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/setup_node_exporter.sh",
+                        "sh/cassandra/setup_node.sh"
+                    ],
+                    "start": [
+                        "sh/cassandra/start_node.sh"
+                    ],
+                    "stop": [
+                        "sh/cassandra/stop_node.sh"
+                    ]
+                }
+            }
+        },
+        "cass04": {
+            "host_name": "{deployment_name}-cassandra04",
+            "security_group": "internal",
+            "ip_address": "10.5.0.14",
+            "flavor": "gp1.lightspeed",
+            "image": "Ubuntu-22.04",
+            "id": "3ef90d52-75ed-44ed-a0eb-5deb400f655a",
+            "service": {
+                "env": {
+                    "CASSANDRA_IP": "10.5.0.14",
+                    "CASSANDRA_SEEDS": "{cassandra_seeds}",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
+                },
+                "cmd": {
+                    "setup": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/setup_node_exporter.sh",
+                        "sh/cassandra/setup_node.sh"
+                    ],
+                    "start": [
+                        "sh/cassandra/start_node.sh"
+                    ],
+                    "stop": [
+                        "sh/cassandra/stop_node.sh"
+                    ]
+                }
+            }
+        },
+        "cass05": {
+            "host_name": "{deployment_name}-cassandra05",
+            "security_group": "internal",
+            "ip_address": "10.5.0.15",
+            "flavor": "gp1.lightspeed",
+            "image": "Ubuntu-22.04",
+            "id": "113de596-0ce4-4f10-8fe1-2262213759c0",
+            "service": {
+                "env": {
+                    "CASSANDRA_IP": "10.5.0.15",
                     "CASSANDRA_SEEDS": "{cassandra_seeds}",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
                 },
@@ -551,7 +625,7 @@
             "ip_address": "10.5.0.101",
             "flavor": "gp1.semisonic",
             "image": "Ubuntu-22.04",
-            "id": "34d6004d-d5ae-4912-ae44-45175e4672ee",
+            "id": "fbf0d58e-134e-4d8c-9961-2aa5cb62e174",
             "private_keys": [
                 {
                     "name": "{sftp_user}",
@@ -561,7 +635,7 @@
             "service": {
                 "env": {
                     "AMQP_URL": "amqp://{rabbitmq_user_name}:{rabbitmq_user_pass}@{rabbitmq_ip}/",
-                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\"]'",
+                    "CASSANDRA_HOSTS": "{cassandra_hosts}",
                     "INTERNAL_BASTION_IP": "{internal_bastion_ip}",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
                     "SFTP_USER": "{sftp_user}",
@@ -594,7 +668,7 @@
             "ip_address": "10.5.0.102",
             "flavor": "gp1.semisonic",
             "image": "Ubuntu-22.04",
-            "id": "706d3feb-5d8e-4483-8225-686425f0c9ad",
+            "id": "e22d4357-2ee7-4534-a0e7-0f2264ee06b0",
             "private_keys": [
                 {
                     "name": "{sftp_user}",
@@ -604,7 +678,7 @@
             "service": {
                 "env": {
                     "AMQP_URL": "amqp://{rabbitmq_user_name}:{rabbitmq_user_pass}@{rabbitmq_ip}/",
-                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\"]'",
+                    "CASSANDRA_HOSTS": "{cassandra_hosts}",
                     "INTERNAL_BASTION_IP": "{internal_bastion_ip}",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
                     "SFTP_USER": "{sftp_user}",
@@ -637,11 +711,11 @@
             "ip_address": "{prometheus_ip}",
             "flavor": "gp1.semisonic",
             "image": "Ubuntu-22.04",
-            "id": "b8c48e47-1527-4156-b3f0-3b73db98c1ca",
+            "id": "fc93cbe3-c6b6-4046-86dc-89220dbc44cc",
             "service": {
                 "env": {
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
-                    "PROMETHEUS_TARGETS": "\\'localhost:9100\\',\\'{internal_bastion_ip}:9100\\',\\'10.5.0.5:9100\\',\\'10.5.0.11:9100\\',\\'10.5.0.12:9100\\',\\'10.5.0.13:9100\\',\\'10.5.0.101:9100\\',\\'10.5.0.102:9100\\'",
+                    "PROMETHEUS_TARGETS": "\\'localhost:9100\\',\\'{internal_bastion_ip}:9100\\',\\'10.5.0.5:9100\\',\\'10.5.0.11:9100\\',\\'10.5.0.12:9100\\',\\'10.5.0.13:9100\\',\\'10.5.0.14:9100\\',\\'10.5.0.15:9100\\',\\'10.5.0.101:9100\\',\\'10.5.0.102:9100\\'",
                     "PROMETHEUS_VERSION": "{prometheus_version}"
                 },
                 "cmd": {
@@ -665,7 +739,7 @@
             "ip_address": "{rabbitmq_ip}",
             "flavor": "gp1.semisonic",
             "image": "Ubuntu-22.04",
-            "id": "aa329f21-0e6d-4f69-95a6-2b6653f778b7",
+            "id": "beb7a684-faee-4135-8a51-cd808209c381",
             "service": {
                 "env": {
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",

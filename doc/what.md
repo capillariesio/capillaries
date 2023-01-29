@@ -2,7 +2,7 @@
 
 ## What it is
 
-Capillaries is a distributed data-processing framework that:
+Capillaries is a distributed data processing framework that:
 - works with structured row-based data
 - splits data into batches that can be processed as separate jobs on multiple machines in parallel
 - allows scenarios that involve human operator supervision and data validation
@@ -73,7 +73,7 @@ This is how deployed Capillaries components interact. For component definitions,
 
 1. This is not a generic job scheduler or workflow engine. Capillaries can only execute [nodes](glossary.md#script-node) in a [script](glossary.md#script), reading/writing data from/to [tables](glossary.md#table) or files.
 
-2. This is not a generic data storage solution. Capillaries uses Cassandra as temporary storage for potentially very large amounts of data required for processing.
+2. This is not a generic data storage/management solution. Capillaries uses Cassandra as temporary storage for potentially very large amounts of data required for processing.
 
 3. Implementing complete relational algebra is not the goal. Do not expect complex joins support.
    

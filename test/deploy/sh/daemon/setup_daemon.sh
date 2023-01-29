@@ -20,6 +20,7 @@ ENV_CONFIG_FILE=/home/$SSH_USER/bin/capidaemon.json
 sed -i -e 's~"url":[ ]*"[a-zA-Z0-9@\.:\/\-_$ ]*"~"url": "'"$AMQP_URL"'"~g' $ENV_CONFIG_FILE
 sed -i -e 's~"hosts":[ ]*\[[0-9a-zA-Z\.\,\-_ "]*\]~"hosts": '$CASSANDRA_HOSTS"~g" $ENV_CONFIG_FILE
 sed -i -e "s~\"sftpuser\":[ ]*\"[^\"]*\"~\"sftpuser\": \"/home/"$SSH_USER"/.ssh/$SFTP_USER\"~g" $ENV_CONFIG_FILE
+sed -i -e 's~"python_interpreter_path":[ ]*"[a-zA-Z0-9]*"~"python_interpreter_path": "python3"~g' $ENV_CONFIG_FILE
 
 # If you use your test Cassandra setup up to the limit, try to avoid "Operation timed out - received only 0 responses"
 # Make replication factor at least 2 to make reads more available, 1 for faster writes
@@ -35,7 +36,7 @@ sed -i -e "s~\"timeout\":[ ]*[0-9]*~\"timeout\": 15000~g" $ENV_CONFIG_FILE
 # Default value of 50 writer workers may be pretty aggressive,
 # watch for "Operation timed out - received only 0 responses" on writes,
 # throttle it down to 30 or lower if needed
-# sed -i -e "s~\"writer_workers\":[ ]*[0-9]*~\"writer_workers\": 30~g" $ENV_CONFIG_FILE
+sed -i -e "s~\"writer_workers\":[ ]*[0-9]*~\"writer_workers\": 30~g" $ENV_CONFIG_FILE
 
 sudo rm -fR /var/log/capidaemon
 sudo mkdir /var/log/capidaemon

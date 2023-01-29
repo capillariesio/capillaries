@@ -53,10 +53,10 @@ Deploy project will pick up the files to upload from there.
 
 ```
 # Create all instances in one shot (1 min)
-go run ../../pkg/exe/deploy/capideploy.go create_instances bastion,daemon01,daemon02,cass01,cass02,cass03,rabbitmq,prometheus
+go run ../../pkg/exe/deploy/capideploy.go create_instances bastion,daemon01,daemon02,cass01,cass02,cass03,cass04,cass05,rabbitmq,prometheus
 
 # Make sure they are available. If an instance is missing for too long, go to the provider console and reboot if needed (happens sometimes)
-go run ../../pkg/exe/deploy/capideploy.go ping_instances bastion,daemon01,daemon02,cass01,cass02,cass03,rabbitmq,prometheus
+go run ../../pkg/exe/deploy/capideploy.go ping_instances bastion,daemon01,daemon02,cass01,cass02,cass03,cass04,cass05,rabbitmq,prometheus
 
 # Create sftp user ((we assume the Openstack provider doesnot support multi-attach volumes, so we have to use sftp to read and write files)
 go run ../../pkg/exe/deploy/capideploy.go create_instance_users bastion
@@ -67,18 +67,16 @@ go run ../../pkg/exe/deploy/capideploy.go copy_private_keys bastion,daemon01,dae
 # Attach volumes and make sftpuser owner (15 s)
 go run ../../pkg/exe/deploy/capideploy.go attach_volumes bastion
 
-# Upload all files in one shot (2 min). Make sure you have all binaries built before uploading them.
+# Upload all files in one shot (1 min). Make sure you have all binaries built before uploading them.
+go run ../../pkg/exe/deploy/capideploy.go upload_files up_daemon_binary,up_daemon_env_config,up_webapi_env_config,up_webapi_binary,up_ui,up_toolbelt_env_config,up_toolbelt_binary,up_all_cfg,up_lookup_bigtest_in,up_lookup_bigtest_out,up_lookup_quicktest_in,up_lookup_quicktest_out,up_tag_and_denormalize_quicktest_in,up_tag_and_denormalize_quicktest_out,up_py_calc_quicktest_in,up_py_calc_quicktest_out
+
+go run ../../pkg/exe/deploy/capideploy.go upload_files up_all_cfg
 go run ../../pkg/exe/deploy/capideploy.go upload_files up_daemon_binary,up_daemon_env_config
-go run ../../pkg/exe/deploy/capideploy.go upload_files up_webapi_env_config,up_webapi_binary,up_ui,up_toolbelt_env_config,up_toolbelt_binary
-go run ../../pkg/exe/deploy/capideploy.go upload_files up_all_cfg,up_lookup_bigtest_in,up_lookup_bigtest_out,up_lookup_quicktest_in,up_lookup_quicktest_out,up_tag_and_denormalize_quicktest_in,up_tag_and_denormalize_quicktest_out
 
-# Setup all services except daemons (2 min)
-go run ../../pkg/exe/deploy/capideploy.go setup_services bastion,cass01,cass02,cass03,prometheus,rabbitmq
+# Setup all services (2 min)
+go run ../../pkg/exe/deploy/capideploy.go setup_services bastion,cass01,cass02,cass03,cass04,cass05,prometheus,rabbitmq,daemon01,daemon02
 
-# Setup capidaemons (30 s)
-go run ../../pkg/exe/deploy/capideploy.go setup_services daemon01,daemon02
-
-# Check Cassandra with nodetool, all 3 should be up (UN), no exceptions thrown:
+# Check Cassandra with nodetool, all should be up (UN), no exceptions thrown:
 ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment001_rsa -J 208.113.134.216 ubuntu@10.5.0.11 'nodetool status'
 ````
 
@@ -109,6 +107,10 @@ ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment001_rsa ubuntu@208.113
 | Script parameters URI | sftp://sftpuser@10.5.0.2/mnt/capi_cfg/lookup_quicktest/script_params_one_run.json |
 | Start nodes |	read_orders,read_order_items |
 
+or
+
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment001_rsa ubuntu@208.113.134.216 '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.2/mnt/capi_cfg/lookup_quicktest/script.json -params_file=sftp://sftpuser@10.5.0.2/mnt/capi_cfg/lookup_quicktest/script_params_one_run.json -keyspace=lookup_quicktest -start_nodes=read_orders,read_order_items'
+
 | Field | Value |
 |- | - |
 | Keyspace | lookup_bigtest |
@@ -119,6 +121,11 @@ ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment001_rsa ubuntu@208.113
 or
 ```
 ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment001_rsa ubuntu@208.113.134.216 '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.2/mnt/capi_cfg/lookup_bigtest/script.json -params_file=sftp://sftpuser@10.5.0.2/mnt/capi_cfg/lookup_bigtest/script_params_one_run.json -keyspace=lookup_bigtest -start_nodes=read_orders,read_order_items'
+
+py_calc
+
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment001_rsa ubuntu@208.113.134.216 '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.2/mnt/capi_cfg/py_calc_quicktest/script.json -params_file=sftp://sftpuser@10.5.0.2/mnt/capi_cfg/py_calc_quicktest/script_params_one_run.json -keyspace=py_calc_quicktest -start_nodes=read_order_items'
+
 ```
 
 # Prometheus: watch instance load

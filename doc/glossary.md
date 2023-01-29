@@ -142,6 +142,11 @@ A command-line executable that performs common Capillaries operations by:
 - reading Capillaries [script files](#script)
 - sending commands to the [processor queue](#processor-queue)
 
+The Toolbelt:
+- can [start/stop](api.md) [runs](#run), so solution developers can use it in their scripts
+- gives very basic access to the [workflow tables](#workflow-table), see `get_*_history` commands
+- can produce rudimentary visuals using [DOT diagram language](#dot-diagrams) - see `validate_script`, `get_run_status_diagram` commands
+
 See [Toolbelt and Daemon configuration](binconfig.md) for configuration settings.
 
 One of the main purposes of the toolbelt is to give system integrators easy access to [Capillaries API](api.md). Also, the toolbelt can be useful for visualizing [scripts](#script) and the status of their execution with [DOT diagrams](#dot-diagrams), for example:

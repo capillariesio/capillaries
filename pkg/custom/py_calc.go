@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"go/ast"
-	"io/ioutil"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -19,6 +18,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/proc"
 	"github.com/capillariesio/capillaries/pkg/sc"
+	"github.com/capillariesio/capillaries/pkg/xfer"
 	"github.com/shopspring/decimal"
 )
 
@@ -122,7 +122,8 @@ func (procDef *PyCalcProcessorDef) Deserialize(raw json.RawMessage, customProcSe
 	var b strings.Builder
 	procDef.PythonCode = ""
 	for _, url := range procDef.PythonUrls {
-		bytes, err := ioutil.ReadFile(url)
+		fmt.Printf("OPening %s...\n", url)
+		bytes, err := xfer.GetFileBytes(url, caPath, privateKeys)
 		if err != nil {
 			errors = append(errors, err.Error())
 		}

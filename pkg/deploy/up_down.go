@@ -217,6 +217,14 @@ func UploadFileSftp(prj *Project, ipAddress string, srcPath string, dstPath stri
 
 	lb.Sb.WriteString(fmt.Sprintf("(size %d) ", fi.Size()))
 
+	if _, _, err := ExecSshForClient(tsc.SshClient, fmt.Sprintf("sudo rm -f %s", dstPath)); err != nil {
+		return lb.Complete(err)
+	}
+
+	if err != nil {
+		return lb.Complete(fmt.Errorf("cannot delete dst file on upload %s: %s", dstPath, err.Error()))
+	}
+
 	dstFile, err := sftp.Create(dstPath)
 	if err != nil {
 		return lb.Complete(fmt.Errorf("cannot create on upload %s%s: %s", ipAddress, dstPath, err.Error()))

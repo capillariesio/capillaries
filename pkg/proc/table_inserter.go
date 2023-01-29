@@ -289,10 +289,14 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 
 					if err == nil {
 						if !isApplied {
-							// We assume that our previous attempts to write this idx record (if this is not the first retry) did not leave any trace in the database,
-							// so we cannot be sure if this existing copy was written by somebody else or by our previous attempt
-							// If attempt number > 0, is there a chance that Cassandra managed to insert the record on the first attempt, but returned an error?
-							errorToReport = fmt.Errorf("cannot write duplicate index key [%s] on attempt %d, existing record [%v]", q, idxRetryCount+1, existingIdxRow)
+							// If attempt number > 0, there is a chance that Cassandra managed to insert the record on the previous attempt but returned an error
+							if idxRetryCount > 0 && existingIdxRow["key"] == writeItem.IndexKeyMap[idxName] && existingIdxRow["rowid"] == (*writeItem.TableRecord)["rowid"] {
+								// Cassandra screwed up, but we know how to handle it, the record is there, just log a warning
+								logger.WarnCtx(instr.PCtx, "duplicate idx record found (%s) in idx %s on retry %d when writing (%d,'%s'), assuming this retry was successful, proceeding as usual", idxName, existingIdxRow, idxRetryCount, (*writeItem.TableRecord)["rowid"], writeItem.IndexKeyMap[idxName])
+							} else {
+								// We screwed up, report everything we can
+								errorToReport = fmt.Errorf("cannot write duplicate index key [%s] on attempt %d, existing record [%v]", q, idxRetryCount+1, existingIdxRow)
+							}
 						}
 						// Success or not - we are done
 						break

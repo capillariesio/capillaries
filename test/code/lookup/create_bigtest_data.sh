@@ -29,7 +29,7 @@ echo "Generating files..."
 
 echo "Placeholder for lookup_bigtest output files" > $outDir/readme.txt
 
-go run generate_data.go -items=10000 -products=100 -sellers=200 -script_params_path=$cfgDir/script_params_one_run.json -in_root=$inDir -out_root=$outDir
+go run generate_data.go -items=100000 -products=100 -sellers=200 -script_params_path=$cfgDir/script_params_one_run.json -in_root=$inDir -out_root=$outDir
 if [ "$?" -ne "0" ]; then
  exit 1
 fi

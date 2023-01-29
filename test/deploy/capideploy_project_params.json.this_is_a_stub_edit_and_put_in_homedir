@@ -9,7 +9,7 @@
     "sftp_user_public_key":"ssh-rsa ... sftpuser@anything",
     "sftp_user_private_key":"-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----\n",
     "cassandra_seeds":"10.5.0.11,10.5.0.12",
-    "cassandra_hosts":"\\'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\"]\\'",
+    "cassandra_hosts":"\\'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\"]\\'",
     "prometheus_ip":"10.5.0.4",
     "prometheus_node_exporter_version":"1.5.0",
     "prometheus_version":"2.41.0",
