@@ -28,7 +28,7 @@ and rendered in https://dreampuf.github.io/GraphvizOnline :
 
 ### Direct node execution
 
-Run [test_exec_nodes.sh](test_exec_nodes.sh) - the [Toolbelt](../../../doc/glossary.md#toolbelt) executes [script](../../data/cfg/py_calc/script.json) [nodes](../../../doc/glossary.md#script-node) one by one, without invoking RabbitMQ workflow.
+Run [test_exec_nodes.sh](test_exec_nodes.sh) - the [Toolbelt](../../../doc/glossary.md#toolbelt) executes [script](../../data/cfg/py_calc_quicktest/script.json) [nodes](../../../doc/glossary.md#script-node) one by one, without invoking RabbitMQ workflow.
 
 ### Using RabbitMQ workflow
 
@@ -36,12 +36,12 @@ Make sure the [Daemon](../../../doc/glossary.md#daemon) is running:
 - either run `go run capidaemon.go` to start it in pkg/exe/daemon
 - or start the Daemon container (`docker compose -p "test_capillaries_containers" start daemon`)
 
-Run [test_one_run.sh](test_one_run.sh) - the [Toolbelt](../../../doc/glossary.md#toolbelt) publishes [batch messages](../../../doc/glossary.md#data-batch) to RabbitMQ and the [Daemon](../../../doc/glossary.md#daemon) consumes them and executes all [script](../../data/cfg/py_calc/script.json) [nodes](../../../doc/glossary.md#script-node) in parallel as part of a single [run](../../../doc/glossary.md#run).
+Run [test_one_run.sh](test_one_run.sh) - the [Toolbelt](../../../doc/glossary.md#toolbelt) publishes [batch messages](../../../doc/glossary.md#data-batch) to RabbitMQ and the [Daemon](../../../doc/glossary.md#daemon) consumes them and executes all [script](../../data/cfg/py_calc_quicktest/script.json) [nodes](../../../doc/glossary.md#script-node) in parallel as part of a single [run](../../../doc/glossary.md#run).
 
 ## Possible edits
 
-- number of total line items (see "-items=..." in [1_create_test_data.sh](1_create_test_data.sh))
-- number of input files (default is 5, see "split -d -nl/5..." in [1_create_test_data.sh](1_create_test_data.sh))
+- number of total line items (see "-items=..." in [1_create_quicktest_data.sh](1_create_quicktest_data.sh))
+- number of input files (default is 5, see "split -d -nl/5..." in [1_create_quicktest_data.sh](1_create_quicktest_data.sh))
 
 ## User-supplied formulas
 
