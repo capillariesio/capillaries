@@ -395,22 +395,22 @@
             "image": "Ubuntu-22.04",
             "attached_volumes": {
                 "cfg": {
-                    "attachment_id": "acf914aa-af91-4959-9e5c-2f398bf43c19",
-                    "device": "/dev/vdd",
-                    "block_device_id": "3d0eb59d-387d-4f3e-9594-568fcbea83f9"
+                    "attachment_id": "",
+                    "device": "",
+                    "block_device_id": ""
                 },
                 "in": {
-                    "attachment_id": "69113ac2-fb87-4a20-81aa-44cc6b04e06e",
-                    "device": "/dev/vdc",
-                    "block_device_id": "c9dd28f6-60ec-49ed-81bd-655c2ae4ddec"
+                    "attachment_id": "",
+                    "device": "",
+                    "block_device_id": ""
                 },
                 "out": {
-                    "attachment_id": "68c1a33d-acd7-4242-8db5-cbe73cd2cda2",
-                    "device": "/dev/vdb",
-                    "block_device_id": "0af424db-4650-4d0a-9d70-3de9613bd792"
+                    "attachment_id": "",
+                    "device": "",
+                    "block_device_id": ""
                 }
             },
-            "id": "b523d8c7-68cb-4aed-a39c-91724fa9634f",
+            "id": "",
             "users": [
                 {
                     "name": "{sftp_user}",
@@ -485,7 +485,7 @@
             "ip_address": "10.5.0.11",
             "flavor": "gp1.lightspeed",
             "image": "Ubuntu-22.04",
-            "id": "bd4b8a43-3512-4de3-874a-ceecfef0a930",
+            "id": "",
             "service": {
                 "env": {
                     "CASSANDRA_IP": "10.5.0.11",
@@ -513,7 +513,7 @@
             "ip_address": "10.5.0.12",
             "flavor": "gp1.lightspeed",
             "image": "Ubuntu-22.04",
-            "id": "d6953729-8cbb-4de9-9c4d-e6065ad21de1",
+            "id": "",
             "service": {
                 "env": {
                     "CASSANDRA_IP": "10.5.0.12",
@@ -541,7 +541,7 @@
             "ip_address": "10.5.0.13",
             "flavor": "gp1.lightspeed",
             "image": "Ubuntu-22.04",
-            "id": "56596e7e-def2-4ddb-bd25-3d0cff28a8d5",
+            "id": "",
             "service": {
                 "env": {
                     "CASSANDRA_IP": "10.5.0.13",
@@ -569,7 +569,7 @@
             "ip_address": "10.5.0.14",
             "flavor": "gp1.lightspeed",
             "image": "Ubuntu-22.04",
-            "id": "3ef90d52-75ed-44ed-a0eb-5deb400f655a",
+            "id": "",
             "service": {
                 "env": {
                     "CASSANDRA_IP": "10.5.0.14",
@@ -597,7 +597,7 @@
             "ip_address": "10.5.0.15",
             "flavor": "gp1.lightspeed",
             "image": "Ubuntu-22.04",
-            "id": "113de596-0ce4-4f10-8fe1-2262213759c0",
+            "id": "",
             "service": {
                 "env": {
                     "CASSANDRA_IP": "10.5.0.15",
@@ -625,7 +625,7 @@
             "ip_address": "10.5.0.101",
             "flavor": "gp1.semisonic",
             "image": "Ubuntu-22.04",
-            "id": "fbf0d58e-134e-4d8c-9961-2aa5cb62e174",
+            "id": "",
             "private_keys": [
                 {
                     "name": "{sftp_user}",
@@ -668,7 +668,7 @@
             "ip_address": "10.5.0.102",
             "flavor": "gp1.semisonic",
             "image": "Ubuntu-22.04",
-            "id": "e22d4357-2ee7-4534-a0e7-0f2264ee06b0",
+            "id": "",
             "private_keys": [
                 {
                     "name": "{sftp_user}",
@@ -711,7 +711,7 @@
             "ip_address": "{prometheus_ip}",
             "flavor": "gp1.semisonic",
             "image": "Ubuntu-22.04",
-            "id": "fc93cbe3-c6b6-4046-86dc-89220dbc44cc",
+            "id": "",
             "service": {
                 "env": {
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
@@ -739,7 +739,7 @@
             "ip_address": "{rabbitmq_ip}",
             "flavor": "gp1.semisonic",
             "image": "Ubuntu-22.04",
-            "id": "beb7a684-faee-4135-8a51-cd808209c381",
+            "id": "",
             "service": {
                 "env": {
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",

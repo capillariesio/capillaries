@@ -47,7 +47,8 @@ sudo sed -i -e "s~write_request_timeout_in_ms:[ ]*[0-9]*~write_request_timeout_i
 # Do not store keys longer than 120s (does not help)
 #sudo sed -i -e "s~key_cache_save_period:[ 0-9]*~key_cache_save_period: 120~g" /etc/cassandra/cassandra.yaml
 
-sudo rm -R /var/lib/cassandra/data
+sudo rm -fR /var/lib/cassandra/data/*
+sudo rm -fR /var/lib/cassandra/commitlog/*
 
 # To avoid "Cannot start node if snitch’s data center (dc1) differs from previous data center (datacenter1)"
 # error, keep using dc and rack variables as they are (dc1,rack1) in /etc/cassandra/cassandra-rackdc.properties
@@ -57,8 +58,8 @@ echo 'JVM_OPTS="$JVM_OPTS -Dcassandra.ignore_dc=true"' | sudo tee -a /etc/cassan
 # We do not need this config file, delete it
 sudo rm -f rm /etc/cassandra/cassandra-topology.properties
 
-sudo systemctl start cassandra
-if [ "$?" -ne "0" ]; then
-    echo Cannot start cassandra, exiting
-    exit $?
-fi
+#sudo systemctl start cassandra
+#if [ "$?" -ne "0" ]; then
+#    echo Cannot start cassandra, exiting
+#    exit $?
+#fi

@@ -9,6 +9,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
+	"github.com/gocql/gocql"
 )
 
 // func ClearNodeOutputs(logger *l.Logger, script *sc.ScriptDef, session *gocql.Session, keyspace string, nodeName string, runId int16) error {
@@ -72,27 +73,43 @@ func selectBatchFromDataTablePaged(logger *l.Logger,
 		CondInInt("rowid", rowids). // This is a right-side lookup table, select by rowid
 		SelectRun(tableName, lookupNodeRunId, *rs.GetFieldNames())
 
-	iter := pCtx.CqlSession.Query(q).PageSize(batchSize).PageState(pageState).Iter()
+	var iter *gocql.Iter
+	selectRetryIdx := 0
+	curSelectExpBackoffFactor := 1
+	for {
+		iter = pCtx.CqlSession.Query(q).PageSize(batchSize).PageState(pageState).Iter()
 
-	dbWarnings := iter.Warnings()
-	if len(dbWarnings) > 0 {
-		logger.WarnCtx(pCtx, strings.Join(dbWarnings, ";"))
-	}
-
-	rs.RowCount = 0
-
-	scanner := iter.Scanner()
-	for scanner.Next() {
-		if rs.RowCount >= len(rs.Rows) {
-			return nil, fmt.Errorf("unexpected data row retrieved, exceeding rowset size %d", len(rs.Rows))
+		dbWarnings := iter.Warnings()
+		if len(dbWarnings) > 0 {
+			// TODO: figure out what those warnigs can be, never saw one
+			logger.WarnCtx(pCtx, "got warnigs while selecting %d rows from %s%s: %s", batchSize, tableName, cql.RunIdSuffix(lookupNodeRunId), strings.Join(dbWarnings, ";"))
 		}
-		if err := scanner.Scan(*rs.Rows[rs.RowCount]...); err != nil {
-			return nil, cql.WrapDbErrorWithQuery("cannot scan paged data row", q, err)
+
+		rs.RowCount = 0
+
+		scanner := iter.Scanner()
+		for scanner.Next() {
+			if rs.RowCount >= len(rs.Rows) {
+				return nil, fmt.Errorf("unexpected data row retrieved, exceeding rowset size %d", len(rs.Rows))
+			}
+			if err := scanner.Scan(*rs.Rows[rs.RowCount]...); err != nil {
+				return nil, cql.WrapDbErrorWithQuery("cannot scan paged data row", q, err)
+			}
+			rs.RowCount++
 		}
-		rs.RowCount++
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, cql.WrapDbErrorWithQuery("data paged scanner error", q, err)
+
+		if err := scanner.Err(); err != nil {
+			if strings.Contains(err.Error(), "Operation timed out") || strings.Contains(err.Error(), "Cannot achieve consistency level") && selectRetryIdx < 3 {
+				logger.WarnCtx(pCtx, "cannot select %d rows from %s%s on retry %d, getting timeout/consistency error (%s), will wait for %dms and retry", batchSize, tableName, cql.RunIdSuffix(lookupNodeRunId), selectRetryIdx, err.Error(), 10*curSelectExpBackoffFactor)
+				time.Sleep(time.Duration(10*curSelectExpBackoffFactor) * time.Millisecond)
+				curSelectExpBackoffFactor *= 2
+			} else {
+				return nil, cql.WrapDbErrorWithQuery(fmt.Sprintf("paged data scanner cannot select %d rows from %s%s after %d attempts; another worker may retry this batch later, but, if some unique idx records has been written already by current worker, the next worker handling this batch will throw an error on them and there is nothing we can do about it;", batchSize, tableName, cql.RunIdSuffix(lookupNodeRunId), selectRetryIdx+1), q, err)
+			}
+		} else {
+			break
+		}
+		selectRetryIdx++
 	}
 
 	return iter.PageState(), nil
@@ -213,6 +230,8 @@ func selectBatchFromTableByToken(logger *l.Logger,
 		Cond("token(rowid)", ">=", startToken).
 		Cond("token(rowid)", "<=", endToken).
 		SelectRun(tableName, readerNodeRunId, *rs.GetFieldNames())
+
+	// TODO: consider retries as we do in selectBatchFromDataTablePaged(); although no timeouts were detected so far here
 
 	iter := pCtx.CqlSession.Query(q).Iter()
 	dbWarnings := iter.Warnings()

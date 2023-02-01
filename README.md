@@ -40,7 +40,7 @@ Allows human data validation for selected data processing stages.
 
 ### Fault tolerance
 
-Survives temporary underlying database connectivity issues and processing node software and hardware failures.
+Survives most of the temporary underlying database connectivity issues and processing node software and hardware failures.
 
 ### Works with structured data artifacts
 

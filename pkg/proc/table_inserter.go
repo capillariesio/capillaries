@@ -295,7 +295,7 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 								logger.WarnCtx(instr.PCtx, "duplicate idx record found (%s) in idx %s on retry %d when writing (%d,'%s'), assuming this retry was successful, proceeding as usual", idxName, existingIdxRow, idxRetryCount, (*writeItem.TableRecord)["rowid"], writeItem.IndexKeyMap[idxName])
 							} else {
 								// We screwed up, report everything we can
-								errorToReport = fmt.Errorf("cannot write duplicate index key [%s] on attempt %d, existing record [%v]", q, idxRetryCount+1, existingIdxRow)
+								errorToReport = fmt.Errorf("cannot write duplicate index key [%s] on retry %d, existing record [%v]", q, idxRetryCount, existingIdxRow)
 							}
 						}
 						// Success or not - we are done

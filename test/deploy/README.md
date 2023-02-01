@@ -76,6 +76,15 @@ go run ../../pkg/exe/deploy/capideploy.go upload_files up_daemon_binary,up_daemo
 # Setup all services (2 min)
 go run ../../pkg/exe/deploy/capideploy.go setup_services bastion,cass01,cass02,cass03,cass04,cass05,prometheus,rabbitmq,daemon01,daemon02
 
+# Start Cassandra seeds
+go run ../../pkg/exe/deploy/capideploy.go start_services cass01,cass02,cass03
+
+# Check Cassandra with nodetool, all should be up (UN), no exceptions thrown:
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment001_rsa -J 208.113.134.216 ubuntu@10.5.0.11 'nodetool status'
+
+# Start other Cassandra nodes
+go run ../../pkg/exe/deploy/capideploy.go start_services cass03,cass04
+
 # Check Cassandra with nodetool, all should be up (UN), no exceptions thrown:
 ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment001_rsa -J 208.113.134.216 ubuntu@10.5.0.11 'nodetool status'
 ````
@@ -165,5 +174,196 @@ go run ../../pkg/exe/deploy/capideploy.go delete_volumes
 ```
 
 
+each CPU 5 times slower, memory 2 time slower than laptop
+
+sudo apt-get update
+sudo apt-get install sysbench
+sysbench cpu run
+sysbench --threads=16 cpu run
 
 
+laptop one thread
+
+CPU speed:
+    events per second:  3686.01
+
+General statistics:
+    total time:                          10.0003s
+    total number of events:              36866
+
+Latency (ms):
+         min:                                    0.26
+         avg:                                    0.27
+         max:                                    1.14
+         95th percentile:                        0.29
+         sum:                                 9988.22
+
+Threads fairness:
+    events (avg/stddev):           36866.0000/0.00
+    execution time (avg/stddev):   9.9882/0.00
+
+laptop 16 threads
+
+CPU speed:
+    events per second: 21838.00
+
+General statistics:
+    total time:                          10.0006s
+    total number of events:              218422
+
+Latency (ms):
+         min:                                    0.28
+         avg:                                    0.73
+         max:                                   50.54
+         95th percentile:                        0.61
+         sum:                               159832.87
+
+Threads fairness:
+    events (avg/stddev):           13651.3750/1055.60
+    execution time (avg/stddev):   9.9896/0.01
+
+
+
+lightspeed one thread
+
+CPU speed:
+    events per second:   754.56
+
+General statistics:
+    total time:                          10.0005s
+    total number of events:              7548
+
+Latency (ms):
+         min:                                    1.01
+         avg:                                    1.32
+         max:                                    5.97
+         95th percentile:                        1.58
+         sum:                                 9995.07
+
+Threads fairness:
+    events (avg/stddev):           7548.0000/0.00
+    execution time (avg/stddev):   9.9951/0.00
+
+semisonic one thread
+
+CPU speed:
+    events per second:   739.57
+
+General statistics:
+    total time:                          10.0009s
+    total number of events:              7398
+
+Latency (ms):
+         min:                                    1.04
+         avg:                                    1.35
+         max:                                    9.54
+         95th percentile:                        1.55
+         sum:                                 9993.91
+
+Threads fairness:
+    events (avg/stddev):           7398.0000/0.00
+    execution time (avg/stddev):   9.9939/0.00
+
+lightspeed 16 threads
+
+CPU speed:
+    events per second:  1435.25
+
+General statistics:
+    total time:                          10.0067s
+    total number of events:              14365
+
+Latency (ms):
+         min:                                    0.98
+         avg:                                   11.12
+         max:                                   62.44
+         95th percentile:                       33.72
+         sum:                               159669.23
+
+Threads fairness:
+    events (avg/stddev):           897.8125/4.84
+    execution time (avg/stddev):   9.9793/0.02
+
+
+
+semisonic 16 threads
+CPU speed:
+    events per second:   739.57
+
+General statistics:
+    total time:                          10.0009s
+    total number of events:              7398
+
+Latency (ms):
+         min:                                    1.04
+         avg:                                    1.35
+         max:                                    9.54
+         95th percentile:                        1.55
+         sum:                                 9993.91
+
+Threads fairness:
+    events (avg/stddev):           7398.0000/0.00
+    execution time (avg/stddev):   9.9939/0.00
+
+
+sysbench memory --memory-oper=write --memory-block-size=1K --memory-scope=global --memory-total-size=100G --threads=4 --time=30 run
+
+lightspeed
+
+General statistics:
+    total time:                          24.2804s
+    total number of events:              104857600
+
+Latency (ms):
+         min:                                    0.00
+         avg:                                    0.00
+         max:                                   24.09
+         95th percentile:                        0.00
+         sum:                                57739.03
+
+Threads fairness:
+    events (avg/stddev):           26214400.0000/0.00
+    execution time (avg/stddev):   14.4348/0.19
+
+semisonic
+
+Total operations: 104857600 (3627052.92 per second)
+
+102400.00 MiB transferred (3542.04 MiB/sec)
+
+
+General statistics:
+    total time:                          28.9075s
+    total number of events:              104857600
+
+Latency (ms):
+         min:                                    0.00
+         avg:                                    0.00
+         max:                                   26.93
+         95th percentile:                        0.00
+         sum:                                52621.52
+
+Threads fairness:
+    events (avg/stddev):           26214400.0000/0.00
+    execution time (avg/stddev):   13.1554/0.43
+
+laptop
+
+Total operations: 104857600 (11394616.77 per second)
+
+102400.00 MiB transferred (11127.56 MiB/sec)
+
+General statistics:
+    total time:                          9.2011s
+    total number of events:              104857600
+
+Latency (ms):
+         min:                                    0.00
+         avg:                                    0.00
+         max:                                    1.58
+         95th percentile:                        0.00
+         sum:                                27664.23
+
+Threads fairness:
+    events (avg/stddev):           26214400.0000/0.00
+    execution time (avg/stddev):   6.9161/0.01
