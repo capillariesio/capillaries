@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 )
@@ -39,9 +40,10 @@ func (sg *SecurityGroupDef) Clean() {
 }
 
 type SubnetDef struct {
-	Name string `json:"name"`
-	Id   string `json:"id"`
-	Cidr string `json:"cidr"`
+	Name           string `json:"name"`
+	Id             string `json:"id"`
+	Cidr           string `json:"cidr"`
+	AllocationPool string `json:"allocation_pool"` //start=192.168.199.2,end=192.168.199.254
 }
 
 type RouterDef struct {
@@ -61,6 +63,7 @@ type VolumeDef struct {
 	Name        string `json:"name"`
 	MountPoint  string `json:"mount_point"`
 	Size        int    `json:"size"`
+	Type        string `json:"type"`
 	Permissions int    `json:"permissions"`
 	Owner       string `json:"owner"`
 	Id          string `json:"id"`
@@ -184,8 +187,8 @@ func (prjPair *ProjectPair) CleanSecurityGroup(sgNickname string) {
 }
 
 func (prjPair *ProjectPair) SetNetworkId(newId string) {
-	prjPair.Template.Network.Subnet.Id = newId
-	prjPair.Live.Network.Subnet.Id = newId
+	prjPair.Template.Network.Id = newId
+	prjPair.Live.Network.Id = newId
 }
 
 func (prjPair *ProjectPair) SetRouterId(newId string) {
@@ -316,20 +319,40 @@ func LoadProject(prjFile string, prjParamsFile string) (*ProjectPair, string, er
 	if err != nil {
 		return nil, "", fmt.Errorf("cannot get home dir: [%s]", err.Error())
 	}
-	prjFullPath := filepath.Join(filepath.Dir(exec), prjFile)
+
+	usr, err := user.Current()
+	if err != nil {
+		return nil, "", fmt.Errorf("cannot get current user: [%s]", err.Error())
+	}
+
+	prjFullPath := prjFile
+	if strings.HasPrefix(prjFile, "~/") {
+		prjFullPath = filepath.Join(usr.HomeDir, prjFile[2:])
+	}
+
 	if _, err := os.Stat(prjFullPath); err != nil {
-		prjFullPath = filepath.Join(cwd, prjFile)
+		prjFullPath = filepath.Join(filepath.Dir(exec), prjFile)
 		if _, err := os.Stat(prjFullPath); err != nil {
-			return nil, "", fmt.Errorf("cannot find project file [%s], neither at [%s] nor at current dir [%s]: [%s]", prjFile, filepath.Dir(exec), filepath.Join(cwd, prjFile), err.Error())
+			prjFullPath = filepath.Join(cwd, prjFile)
+			if _, err := os.Stat(prjFullPath); err != nil {
+				return nil, "", fmt.Errorf("cannot find project file [%s], neither at [%s] nor at current dir [%s]: [%s]", prjFile, filepath.Dir(exec), filepath.Join(cwd, prjFile), err.Error())
+			}
 		}
 	}
-	prjParamsFullPath := filepath.Join(filepath.Dir(exec), prjParamsFile)
+
+	prjParamsFullPath := prjParamsFile
+	if strings.HasPrefix(prjParamsFile, "~/") {
+		prjFullPath = filepath.Join(usr.HomeDir, prjParamsFile[2:])
+	}
 	if _, err := os.Stat(prjParamsFullPath); err != nil {
-		prjParamsFullPath = filepath.Join(cwd, prjParamsFile)
+		prjParamsFullPath = filepath.Join(filepath.Dir(exec), prjParamsFile)
 		if _, err := os.Stat(prjParamsFullPath); err != nil {
-			prjParamsFullPath = filepath.Join(homeDir, prjParamsFile)
+			prjParamsFullPath = filepath.Join(cwd, prjParamsFile)
 			if _, err := os.Stat(prjParamsFullPath); err != nil {
-				return nil, "", fmt.Errorf("cannot find project params file [%s]: neither at [%s], at current dir [%s], at home dir [%s]: [%s]", prjParamsFile, filepath.Dir(exec), filepath.Join(cwd, prjParamsFile), filepath.Join(homeDir, prjParamsFile), err.Error())
+				prjParamsFullPath = filepath.Join(homeDir, prjParamsFile)
+				if _, err := os.Stat(prjParamsFullPath); err != nil {
+					return nil, "", fmt.Errorf("cannot find project params file [%s]: neither at [%s], at current dir [%s], at home dir [%s]: [%s]", prjParamsFile, filepath.Dir(exec), filepath.Join(cwd, prjParamsFile), filepath.Join(homeDir, prjParamsFile), err.Error())
+				}
 			}
 		}
 	}

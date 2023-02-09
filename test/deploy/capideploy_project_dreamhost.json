@@ -1,0 +1,771 @@
+{
+    "deployment_name": "{deployment_name}",
+    "ssh_config": {
+        "bastion_ip_address": "{floating_ip_address}",
+        "port": 22,
+        "user": "{ssh_user}",
+        "private_key_path": "{private_key_path}",
+        "private_key_password": "{private_key_password}"
+    },
+    "root_key_name": "{deployment_name}_root_key",
+    "availability_zone": "{availability_zone}",
+    "timeouts": {
+        "openstack_cmd": 60,
+        "openstack_instance_creation": 240,
+        "attach_volume": 60
+    },
+    "openstack_environment_variables": {
+        "OS_AUTH_URL": "{OS_AUTH_URL}",
+        "OS_IDENTITY_API_VERSION": "3",
+        "OS_INTERFACE": "public",
+        "OS_PASSWORD": "{OS_PASSWORD}",
+        "OS_PROJECT_ID": "{OS_PROJECT_ID}",
+        "OS_PROJECT_NAME": "{OS_PROJECT_NAME}",
+        "OS_REGION_NAME": "{OS_REGION_NAME}",
+        "OS_USERNAME": "{OS_USERNAME}",
+        "OS_USER_DOMAIN_NAME": "{OS_USER_DOMAIN_NAME}"
+    },
+    "security_groups": {
+        "bastion": {
+            "name": "{deployment_name}_bastion_security_group",
+            "id": "a64d5fc8-a40c-4021-ac79-6cc79a0f45f2",
+            "rules": [
+                {
+                    "desc": "SSH",
+                    "id": "fdeeff61-328a-4613-b8d5-5f8a94e67d85",
+                    "protocol": "tcp",
+                    "ethertype": "IPv4",
+                    "remote_ip": "0.0.0.0/0",
+                    "port": 22,
+                    "direction": "ingress"
+                },
+                {
+                    "desc": "Prometheus UI reverse proxy",
+                    "id": "780a71c9-6048-4c0e-828f-37ee4944f2e6",
+                    "protocol": "tcp",
+                    "ethertype": "IPv4",
+                    "remote_ip": "0.0.0.0/0",
+                    "port": 9090,
+                    "direction": "ingress"
+                },
+                {
+                    "desc": "Prometheus node exporter",
+                    "id": "c2aba984-18ea-45cd-a1bf-71df5ad85780",
+                    "protocol": "tcp",
+                    "ethertype": "IPv4",
+                    "remote_ip": "{subnet_cidr}",
+                    "port": 9100,
+                    "direction": "ingress"
+                },
+                {
+                    "desc": "RabbitMQ UI reverse proxy",
+                    "id": "0fc9847d-61f6-4068-bed3-24fb22a53ccb",
+                    "protocol": "tcp",
+                    "ethertype": "IPv4",
+                    "remote_ip": "0.0.0.0/0",
+                    "port": 15672,
+                    "direction": "ingress"
+                },
+                {
+                    "desc": "rsyslog receiver",
+                    "id": "999f9d51-698d-4421-a27c-999228f1ac35",
+                    "protocol": "udp",
+                    "ethertype": "IPv4",
+                    "remote_ip": "{subnet_cidr}",
+                    "port": 514,
+                    "direction": "ingress"
+                },
+                {
+                    "desc": "Capillaries webapi",
+                    "id": "a0acfd08-7410-442d-93ad-7d6e16d08fd8",
+                    "protocol": "tcp",
+                    "ethertype": "IPv4",
+                    "remote_ip": "0.0.0.0/0",
+                    "port": 6543,
+                    "direction": "ingress"
+                },
+                {
+                    "desc": "Capillaries UI nginx",
+                    "id": "7123c650-95a3-490e-8fe2-e7ff4068b62e",
+                    "protocol": "tcp",
+                    "ethertype": "IPv4",
+                    "remote_ip": "0.0.0.0/0",
+                    "port": 80,
+                    "direction": "ingress"
+                }
+            ]
+        },
+        "internal": {
+            "name": "{deployment_name}_internal_security_group",
+            "id": "ab832ae4-dbff-4fc6-8dbe-8b55a3cd73ff",
+            "rules": [
+                {
+                    "desc": "SSH",
+                    "id": "d1731307-e987-4561-9f9d-d316ec0a1c03",
+                    "protocol": "tcp",
+                    "ethertype": "IPv4",
+                    "remote_ip": "{subnet_cidr}",
+                    "port": 22,
+                    "direction": "ingress"
+                },
+                {
+                    "desc": "Prometheus UI internal",
+                    "id": "dc74f1c0-da70-4eef-85c6-c16b3da7df2e",
+                    "protocol": "tcp",
+                    "ethertype": "IPv4",
+                    "remote_ip": "{subnet_cidr}",
+                    "port": 9090,
+                    "direction": "ingress"
+                },
+                {
+                    "desc": "Prometheus node exporter",
+                    "id": "8a9c0764-518e-471c-a23b-bbf6d6e2466f",
+                    "protocol": "tcp",
+                    "ethertype": "IPv4",
+                    "remote_ip": "{subnet_cidr}",
+                    "port": 9100,
+                    "direction": "ingress"
+                },
+                {
+                    "desc": "Cassandra JMX",
+                    "id": "9d9389d5-0487-4fb5-9772-e4a8a9a9b231",
+                    "protocol": "tcp",
+                    "ethertype": "IPv4",
+                    "remote_ip": "{subnet_cidr}",
+                    "port": 7199,
+                    "direction": "ingress"
+                },
+                {
+                    "desc": "Cassandra cluster comm",
+                    "id": "4567dec4-1085-4f73-8bdd-cecbaf7d3076",
+                    "protocol": "tcp",
+                    "ethertype": "IPv4",
+                    "remote_ip": "{subnet_cidr}",
+                    "port": 7000,
+                    "direction": "ingress"
+                },
+                {
+                    "desc": "Cassandra API",
+                    "id": "c0f6a071-d128-4ddd-8827-c9339dfe2d40",
+                    "protocol": "tcp",
+                    "ethertype": "IPv4",
+                    "remote_ip": "{subnet_cidr}",
+                    "port": 9042,
+                    "direction": "ingress"
+                },
+                {
+                    "desc": "RabbitMQ API",
+                    "id": "bec7628e-7a6f-4592-9cd9-c9d78553d2b4",
+                    "protocol": "tcp",
+                    "ethertype": "IPv4",
+                    "remote_ip": "{subnet_cidr}",
+                    "port": 5672,
+                    "direction": "ingress"
+                },
+                {
+                    "desc": "RabbitMQ UI",
+                    "id": "75190863-09d6-4952-887f-a07a2a7ddf2d",
+                    "protocol": "tcp",
+                    "ethertype": "IPv4",
+                    "remote_ip": "{subnet_cidr}",
+                    "port": 15672,
+                    "direction": "ingress"
+                }
+            ]
+        }
+    },
+    "network": {
+        "name": "{deployment_name}_network",
+        "id": "d2fd3e62-bc49-498a-93aa-305f0ab036fd",
+        "subnet": {
+            "name": "{deployment_name}_subnet",
+            "id": "2c871f52-970a-4639-9641-176c8492c1c1",
+            "cidr": "{subnet_cidr}",
+            "allocation_pool": "start=10.5.0.240,end=10.5.0.254"
+        },
+        "router": {
+            "name": "{deployment_name}_router",
+            "id": "b4b1517e-28da-4a5b-b6c0-a2a6ba2ac319",
+            "external_gateway_network_name": "public"
+        }
+    },
+    "volumes": {
+        "cfg": {
+            "name": "{deployment_name}_cfg",
+            "mount_point": "/mnt/capi_cfg",
+            "size": 1,
+            "type": "",
+            "permissions": 777,
+            "owner": "{sftp_user}",
+            "id": "5d9e7d55-4026-4b73-9175-794847795581"
+        },
+        "in": {
+            "name": "{deployment_name}_in",
+            "mount_point": "/mnt/capi_in",
+            "size": 1,
+            "type": "",
+            "permissions": 777,
+            "owner": "{sftp_user}",
+            "id": "cf4b1c32-776f-4ecb-9d3e-d55989293c00"
+        },
+        "out": {
+            "name": "{deployment_name}_out",
+            "mount_point": "/mnt/capi_out",
+            "size": 1,
+            "type": "",
+            "permissions": 777,
+            "owner": "{sftp_user}",
+            "id": "3eed4ffe-988e-4dae-8d30-180acef136eb"
+        }
+    },
+    "file_groups_up": {
+        "up_all_cfg": {
+            "src": "/tmp/capi_cfg",
+            "dst": "/mnt/capi_cfg",
+            "dir_permissions": 777,
+            "file_permissions": 666,
+            "owner": "{sftp_user}",
+            "after": {
+                "env": {
+                    "MOUNT_POINT_CFG": "sftp://{sftp_user}@{internal_bastion_ip}/mnt/capi_cfg",
+                    "MOUNT_POINT_CFG_LOCAL": "/mnt/capi_cfg",
+                    "MOUNT_POINT_IN": "sftp://{sftp_user}@{internal_bastion_ip}/mnt/capi_in",
+                    "MOUNT_POINT_OUT": "sftp://{sftp_user}@{internal_bastion_ip}/mnt/capi_out"
+                },
+                "cmd": [
+                    "sh/capiscripts/adjust_cfg_in_out.sh"
+                ]
+            }
+        },
+        "up_daemon_binary": {
+            "src": "../../build/linux/amd64/capidaemon.gz",
+            "dst": "/home/{ssh_user}/bin",
+            "dir_permissions": 744,
+            "file_permissions": 644,
+            "after": {
+                "env": {
+                    "CAPI_BINARY": "/home/{ssh_user}/bin/capidaemon"
+                },
+                "cmd": [
+                    "sh/capiscripts/unpack_capi_binary.sh"
+                ]
+            }
+        },
+        "up_daemon_env_config": {
+            "src": "../../pkg/exe/daemon/capidaemon.json",
+            "dst": "/home/{ssh_user}/bin",
+            "dir_permissions": 744,
+            "file_permissions": 644,
+            "after": {}
+        },
+        "up_lookup_bigtest_in": {
+            "src": "/tmp/capi_in/lookup_bigtest/all.tgz",
+            "dst": "/mnt/capi_in/lookup_bigtest",
+            "dir_permissions": 777,
+            "file_permissions": 666,
+            "owner": "{sftp_user}",
+            "after": {
+                "env": {
+                    "SFTP_USER": "{sftp_user}"
+                },
+                "cmd": [
+                    "sh/capiscripts/unpack_lookup_big_in.sh"
+                ]
+            }
+        },
+        "up_lookup_bigtest_out": {
+            "src": "/tmp/capi_out/lookup_bigtest/readme.txt",
+            "dst": "/mnt/capi_out/lookup_bigtest",
+            "dir_permissions": 777,
+            "file_permissions": 666,
+            "owner": "{sftp_user}",
+            "after": {}
+        },
+        "up_lookup_quicktest_in": {
+            "src": "/tmp/capi_in/lookup_quicktest",
+            "dst": "/mnt/capi_in/lookup_quicktest",
+            "dir_permissions": 777,
+            "file_permissions": 666,
+            "owner": "{sftp_user}",
+            "after": {}
+        },
+        "up_lookup_quicktest_out": {
+            "src": "/tmp/capi_out/lookup_quicktest/readme.txt",
+            "dst": "/mnt/capi_out/lookup_quicktest",
+            "dir_permissions": 777,
+            "file_permissions": 666,
+            "owner": "{sftp_user}",
+            "after": {}
+        },
+        "up_py_calc_quicktest_in": {
+            "src": "/tmp/capi_in/py_calc_quicktest",
+            "dst": "/mnt/capi_in/py_calc_quicktest",
+            "dir_permissions": 777,
+            "file_permissions": 666,
+            "owner": "{sftp_user}",
+            "after": {}
+        },
+        "up_py_calc_quicktest_out": {
+            "src": "/tmp/capi_out/py_calc_quicktest/readme.txt",
+            "dst": "/mnt/capi_out/py_calc_quicktest",
+            "dir_permissions": 777,
+            "file_permissions": 666,
+            "owner": "{sftp_user}",
+            "after": {}
+        },
+        "up_tag_and_denormalize_quicktest_in": {
+            "src": "/tmp/capi_in/tag_and_denormalize_quicktest",
+            "dst": "/mnt/capi_in/tag_and_denormalize_quicktest",
+            "dir_permissions": 777,
+            "file_permissions": 666,
+            "owner": "{sftp_user}",
+            "after": {}
+        },
+        "up_tag_and_denormalize_quicktest_out": {
+            "src": "/tmp/capi_out/tag_and_denormalize_quicktest/readme.txt",
+            "dst": "/mnt/capi_out/tag_and_denormalize_quicktest",
+            "dir_permissions": 777,
+            "file_permissions": 666,
+            "owner": "{sftp_user}",
+            "after": {}
+        },
+        "up_toolbelt_binary": {
+            "src": "../../build/linux/amd64/capitoolbelt.gz",
+            "dst": "/home/{ssh_user}/bin",
+            "dir_permissions": 744,
+            "file_permissions": 644,
+            "after": {
+                "env": {
+                    "CAPI_BINARY": "/home/{ssh_user}/bin/capitoolbelt"
+                },
+                "cmd": [
+                    "sh/capiscripts/unpack_capi_binary.sh"
+                ]
+            }
+        },
+        "up_toolbelt_env_config": {
+            "src": "../../pkg/exe/toolbelt/capitoolbelt.json",
+            "dst": "/home/{ssh_user}/bin",
+            "dir_permissions": 744,
+            "file_permissions": 644,
+            "after": {}
+        },
+        "up_ui": {
+            "src": "../../ui/public",
+            "dst": "/home/{ssh_user}/ui",
+            "dir_permissions": 755,
+            "file_permissions": 644,
+            "after": {}
+        },
+        "up_webapi_binary": {
+            "src": "../../build/linux/amd64/capiwebapi.gz",
+            "dst": "/home/{ssh_user}/bin",
+            "dir_permissions": 744,
+            "file_permissions": 644,
+            "after": {
+                "env": {
+                    "CAPI_BINARY": "/home/{ssh_user}/bin/capiwebapi"
+                },
+                "cmd": [
+                    "sh/capiscripts/unpack_capi_binary.sh"
+                ]
+            }
+        },
+        "up_webapi_env_config": {
+            "src": "../../pkg/exe/webapi/capiwebapi.json",
+            "dst": "/home/{ssh_user}/bin",
+            "dir_permissions": 744,
+            "file_permissions": 644,
+            "after": {}
+        }
+    },
+    "file_groups_down": {
+        "down_capi_logs": {
+            "src": "/var/log/capidaemon/",
+            "dst": "./tmp/capi_logs"
+        },
+        "down_capi_out": {
+            "src": "/mnt/capi_out",
+            "dst": "./tmp/capi_out"
+        }
+    },
+    "instances": {
+        "bastion": {
+            "host_name": "{deployment_name}-bastion",
+            "security_group": "bastion",
+            "ip_address": "{internal_bastion_ip}",
+            "floating_ip_address": "{floating_ip_address}",
+            "flavor": "{instance_flavor_bastion}",
+            "image": "{instance_image_name}",
+            "attached_volumes": {
+                "cfg": {
+                    "attachment_id": "",
+                    "device": "",
+                    "block_device_id": ""
+                },
+                "in": {
+                    "attachment_id": "",
+                    "device": "",
+                    "block_device_id": ""
+                },
+                "out": {
+                    "attachment_id": "",
+                    "device": "",
+                    "block_device_id": ""
+                }
+            },
+            "id": "",
+            "users": [
+                {
+                    "name": "{sftp_user}",
+                    "public_key": "{sftp_user_public_key}"
+                }
+            ],
+            "private_keys": [
+                {
+                    "name": "{sftp_user}",
+                    "private_key": "{sftp_user_private_key}"
+                }
+            ],
+            "service": {
+                "env": {
+                    "AMQP_URL": "amqp://{rabbitmq_user_name}:{rabbitmq_user_pass}@{rabbitmq_ip}/",
+                    "CASSANDRA_HOSTS": "{cassandra_hosts}",
+                    "PROMETHEUS_IP": "{prometheus_ip}",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
+                    "RABBITMQ_IP": "{rabbitmq_ip}",
+                    "SFTP_USER": "{sftp_user}",
+                    "SSH_USER": "{ssh_user}",
+                    "WEBAPI_ACCESS_CONTROL_ACCESS_ORIGIN": "http://{floating_ip_address}",
+                    "WEBAPI_IP": "{floating_ip_address}",
+                    "WEBAPI_PORT": "6543"
+                },
+                "cmd": {
+                    "setup": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/setup_node_exporter.sh",
+                        "sh/rsyslog/setup_capidaemon_log_receiver.sh",
+                        "sh/logrotate/setup_capidaemon_logrotate.sh",
+                        "sh/toolbelt/setup_toolbelt.sh",
+                        "sh/webapi/setup_webapi.sh",
+                        "sh/ui/setup_ui.sh",
+                        "sh/nginx/setup_nginx.sh",
+                        "sh/nginx/add_ui.sh",
+                        "sh/nginx/add_prometheus_reverse_proxy.sh",
+                        "sh/nginx/add_rabbitmq_reverse_proxy.sh"
+                    ],
+                    "start": [
+                        "sh/webapi/start_webapi.sh",
+                        "sh/nginx/start_nginx.sh"
+                    ],
+                    "stop": [
+                        "sh/webapi/stop_webapi.sh",
+                        "sh/nginx/stop_nginx.sh"
+                    ]
+                }
+            },
+            "applicable_file_groups": [
+                "up_all_cfg",
+                "up_lookup_bigtest_in",
+                "up_lookup_bigtest_out",
+                "up_lookup_quicktest_in",
+                "up_lookup_quicktest_out",
+                "up_tag_and_denormalize_quicktest_in",
+                "up_tag_and_denormalize_quicktest_out",
+                "up_py_calc_quicktest_in",
+                "up_py_calc_quicktest_out",
+                "up_webapi_binary",
+                "up_webapi_env_config",
+                "up_toolbelt_binary",
+                "up_toolbelt_env_config",
+                "up_ui",
+                "down_capi_out",
+                "down_capi_logs"
+            ]
+        },
+        "cass01": {
+            "host_name": "{deployment_name}-cassandra01",
+            "security_group": "internal",
+            "ip_address": "10.5.0.11",
+            "flavor": "{instance_flavor_cassandra}",
+            "image": "{instance_image_name}",
+            "id": "",
+            "service": {
+                "env": {
+                    "CASSANDRA_IP": "10.5.0.11",
+                    "CASSANDRA_SEEDS": "{cassandra_seeds}",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
+                },
+                "cmd": {
+                    "setup": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/setup_node_exporter.sh",
+                        "sh/cassandra/setup_node.sh"
+                    ],
+                    "start": [
+                        "sh/cassandra/start_node.sh"
+                    ],
+                    "stop": [
+                        "sh/cassandra/stop_node.sh"
+                    ]
+                }
+            }
+        },
+        "cass02": {
+            "host_name": "{deployment_name}-cassandra02",
+            "security_group": "internal",
+            "ip_address": "10.5.0.12",
+            "flavor": "{instance_flavor_cassandra}",
+            "image": "{instance_image_name}",
+            "id": "",
+            "service": {
+                "env": {
+                    "CASSANDRA_IP": "10.5.0.12",
+                    "CASSANDRA_SEEDS": "{cassandra_seeds}",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
+                },
+                "cmd": {
+                    "setup": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/setup_node_exporter.sh",
+                        "sh/cassandra/setup_node.sh"
+                    ],
+                    "start": [
+                        "sh/cassandra/start_node.sh"
+                    ],
+                    "stop": [
+                        "sh/cassandra/stop_node.sh"
+                    ]
+                }
+            }
+        },
+        "cass03": {
+            "host_name": "{deployment_name}-cassandra03",
+            "security_group": "internal",
+            "ip_address": "10.5.0.13",
+            "flavor": "{instance_flavor_cassandra}",
+            "image": "{instance_image_name}",
+            "id": "",
+            "service": {
+                "env": {
+                    "CASSANDRA_IP": "10.5.0.13",
+                    "CASSANDRA_SEEDS": "{cassandra_seeds}",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
+                },
+                "cmd": {
+                    "setup": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/setup_node_exporter.sh",
+                        "sh/cassandra/setup_node.sh"
+                    ],
+                    "start": [
+                        "sh/cassandra/start_node.sh"
+                    ],
+                    "stop": [
+                        "sh/cassandra/stop_node.sh"
+                    ]
+                }
+            }
+        },
+        "cass04": {
+            "host_name": "{deployment_name}-cassandra04",
+            "security_group": "internal",
+            "ip_address": "10.5.0.14",
+            "flavor": "{instance_flavor_cassandra}",
+            "image": "{instance_image_name}",
+            "id": "",
+            "service": {
+                "env": {
+                    "CASSANDRA_IP": "10.5.0.14",
+                    "CASSANDRA_SEEDS": "{cassandra_seeds}",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
+                },
+                "cmd": {
+                    "setup": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/setup_node_exporter.sh",
+                        "sh/cassandra/setup_node.sh"
+                    ],
+                    "start": [
+                        "sh/cassandra/start_node.sh"
+                    ],
+                    "stop": [
+                        "sh/cassandra/stop_node.sh"
+                    ]
+                }
+            }
+        },
+        "cass05": {
+            "host_name": "{deployment_name}-cassandra05",
+            "security_group": "internal",
+            "ip_address": "10.5.0.15",
+            "flavor": "{instance_flavor_cassandra}",
+            "image": "{instance_image_name}",
+            "id": "",
+            "service": {
+                "env": {
+                    "CASSANDRA_IP": "10.5.0.15",
+                    "CASSANDRA_SEEDS": "{cassandra_seeds}",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
+                },
+                "cmd": {
+                    "setup": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/setup_node_exporter.sh",
+                        "sh/cassandra/setup_node.sh"
+                    ],
+                    "start": [
+                        "sh/cassandra/start_node.sh"
+                    ],
+                    "stop": [
+                        "sh/cassandra/stop_node.sh"
+                    ]
+                }
+            }
+        },
+        "daemon01": {
+            "host_name": "{deployment_name}-daemon01",
+            "security_group": "internal",
+            "ip_address": "10.5.0.101",
+            "flavor": "{instance_flavor_daemon}",
+            "image": "{instance_image_name}",
+            "id": "",
+            "private_keys": [
+                {
+                    "name": "{sftp_user}",
+                    "private_key": "{sftp_user_private_key}"
+                }
+            ],
+            "service": {
+                "env": {
+                    "AMQP_URL": "amqp://{rabbitmq_user_name}:{rabbitmq_user_pass}@{rabbitmq_ip}/",
+                    "CASSANDRA_HOSTS": "{cassandra_hosts}",
+                    "INTERNAL_BASTION_IP": "{internal_bastion_ip}",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
+                    "SFTP_USER": "{sftp_user}",
+                    "SSH_USER": "{ssh_user}"
+                },
+                "cmd": {
+                    "setup": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/setup_node_exporter.sh",
+                        "sh/logrotate/setup_capidaemon_logrotate.sh",
+                        "sh/rsyslog/setup_capidaemon_log_sender.sh",
+                        "sh/daemon/setup_daemon.sh"
+                    ],
+                    "start": [
+                        "sh/daemon/start_daemon.sh"
+                    ],
+                    "stop": [
+                        "sh/daemon/stop_daemon.sh"
+                    ]
+                }
+            },
+            "applicable_file_groups": [
+                "up_daemon_binary",
+                "up_daemon_env_config"
+            ]
+        },
+        "daemon02": {
+            "host_name": "{deployment_name}-daemon02",
+            "security_group": "internal",
+            "ip_address": "10.5.0.102",
+            "flavor": "{instance_flavor_daemon}",
+            "image": "{instance_image_name}",
+            "id": "",
+            "private_keys": [
+                {
+                    "name": "{sftp_user}",
+                    "private_key": "{sftp_user_private_key}"
+                }
+            ],
+            "service": {
+                "env": {
+                    "AMQP_URL": "amqp://{rabbitmq_user_name}:{rabbitmq_user_pass}@{rabbitmq_ip}/",
+                    "CASSANDRA_HOSTS": "{cassandra_hosts}",
+                    "INTERNAL_BASTION_IP": "{internal_bastion_ip}",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
+                    "SFTP_USER": "{sftp_user}",
+                    "SSH_USER": "{ssh_user}"
+                },
+                "cmd": {
+                    "setup": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/setup_node_exporter.sh",
+                        "sh/logrotate/setup_capidaemon_logrotate.sh",
+                        "sh/rsyslog/setup_capidaemon_log_sender.sh",
+                        "sh/daemon/setup_daemon.sh"
+                    ],
+                    "start": [
+                        "sh/daemon/start_daemon.sh"
+                    ],
+                    "stop": [
+                        "sh/daemon/stop_daemon.sh"
+                    ]
+                }
+            },
+            "applicable_file_groups": [
+                "up_daemon_binary",
+                "up_daemon_env_config"
+            ]
+        },
+        "prometheus": {
+            "host_name": "{deployment_name}-prometheus",
+            "security_group": "internal",
+            "ip_address": "{prometheus_ip}",
+            "flavor": "{instance_flavor_prometheus}",
+            "image": "{instance_image_name}",
+            "id": "",
+            "service": {
+                "env": {
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
+                    "PROMETHEUS_TARGETS": "\\'localhost:9100\\',\\'{internal_bastion_ip}:9100\\',\\'10.5.0.5:9100\\',\\'10.5.0.11:9100\\',\\'10.5.0.12:9100\\',\\'10.5.0.13:9100\\',\\'10.5.0.14:9100\\',\\'10.5.0.15:9100\\',\\'10.5.0.101:9100\\',\\'10.5.0.102:9100\\'",
+                    "PROMETHEUS_VERSION": "{prometheus_version}"
+                },
+                "cmd": {
+                    "setup": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/setup_server.sh",
+                        "sh/prometheus/setup_node_exporter.sh"
+                    ],
+                    "start": [
+                        "sh/prometheus/start_server.sh"
+                    ],
+                    "stop": [
+                        "sh/prometheus/stop_server.sh"
+                    ]
+                }
+            }
+        },
+        "rabbitmq": {
+            "host_name": "{deployment_name}-rabbitmq",
+            "security_group": "internal",
+            "ip_address": "{rabbitmq_ip}",
+            "flavor": "{instance_flavor_rabbitmq}",
+            "image": "{instance_image_name}",
+            "id": "",
+            "service": {
+                "env": {
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
+                    "RABBITMQ_ADMIN_NAME": "{rabbitmq_admin_name}",
+                    "RABBITMQ_ADMIN_PASS": "{rabbitmq_admin_pass}",
+                    "RABBITMQ_USER_NAME": "{rabbitmq_user_name}",
+                    "RABBITMQ_USER_PASS": "{rabbitmq_user_pass}"
+                },
+                "cmd": {
+                    "setup": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/setup_node_exporter.sh",
+                        "sh/rabbitmq/setup_rabbitmq.sh"
+                    ],
+                    "start": [
+                        "sh/cassandra/start_rabbitmq.sh"
+                    ],
+                    "stop": [
+                        "sh/cassandra/stop_rabbitmq.sh"
+                    ]
+                }
+            }
+        }
+    }
+}

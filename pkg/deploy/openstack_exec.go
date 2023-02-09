@@ -3,6 +3,7 @@ package deploy
 import (
 	"fmt"
 	"strings"
+	"time"
 )
 
 func ParseOpenstackOutput(input string) ([]map[string]string, error) {
@@ -78,4 +79,30 @@ func ExecLocalAndParseOpenstackOutput(prj *Project, cmdPath string, params []str
 		return nil, er
 	}
 	return rows, er
+}
+
+func WaitForEntityToBeCreated(prj *Project, entityType string, entityName string, entityId string, timeoutSeconds int, isVerbose bool) (LogMsg, error) {
+	lb := NewLogBuilder("WaitForEntityToBeCreated", isVerbose)
+	startWaitTs := time.Now()
+	for {
+		rows, er := ExecLocalAndParseOpenstackOutput(prj, "openstack", []string{entityType, "show", entityId})
+		lb.Add(er.ToString())
+		if er.Error != nil {
+			return lb.Complete(er.Error)
+		}
+		status := FindOpenstackFieldValue(rows, "status")
+		if status == "" {
+			return lb.Complete(fmt.Errorf("openstack returned empty %s status for %s(%s)", entityType, entityName, entityId))
+		}
+		if status == "ACTIVE" {
+			return lb.Complete(nil)
+		}
+		if status != "BUILD" {
+			return lb.Complete(fmt.Errorf("%s %s(%s) was built, but the status is %s", entityType, entityName, entityId, status))
+		}
+		if time.Since(startWaitTs).Seconds() > float64(timeoutSeconds) {
+			return lb.Complete(fmt.Errorf("giving up after waiting for %s %s(%s) to be created", entityType, entityName, entityId))
+		}
+		time.Sleep(10 * time.Second)
+	}
 }

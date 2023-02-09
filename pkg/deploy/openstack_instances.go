@@ -2,7 +2,6 @@ package deploy
 
 import (
 	"fmt"
-	"time"
 )
 
 func GetFlavorIds(prjPair *ProjectPair, flavorMap map[string]string, isVerbose bool) (LogMsg, error) {
@@ -123,29 +122,35 @@ func CreateInstance(prjPair *ProjectPair, iNickname string, flavorId string, ima
 	lb.Add(fmt.Sprintf("creating instance %s(%s)...", prjPair.Live.Instances[iNickname].HostName, newId))
 	prjPair.SetInstanceId(iNickname, newId)
 
-	var status string
-	startInstanceWaitTs := time.Now()
-	for time.Since(startInstanceWaitTs).Seconds() < float64(prjPair.Live.Timeouts.OpenstackInstanceCreation) {
-		status = FindOpenstackFieldValue(rows, "status")
-		if status == "" {
-			return lb.Complete(fmt.Errorf("openstack returned empty instance status"))
-		}
-		if status != "BUILD" {
-			break
-		}
-		lb.Add(fmt.Sprintf("instance %s(%s) is being created", prjPair.Live.Instances[iNickname].HostName, foundInstanceIdByName))
-		time.Sleep(5 * time.Second)
-		rows, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"server", "show", prjPair.Live.Instances[iNickname].HostName})
-		lb.Add(er.ToString())
-		if er.Error != nil {
-			return lb.Complete(er.Error)
-		}
-	}
-	if status == "BUILD" {
-		return lb.Complete(fmt.Errorf("building instance %s(%s) took too long", prjPair.Live.Instances[iNickname].HostName, foundInstanceIdByName))
-	}
-	if status != "ACTIVE" {
-		return lb.Complete(fmt.Errorf("instance %s(%s) was built, but the status is %s", prjPair.Live.Instances[iNickname].HostName, foundInstanceIdByName, status))
+	// var status string
+	// startInstanceWaitTs := time.Now()
+	// for time.Since(startInstanceWaitTs).Seconds() < float64(prjPair.Live.Timeouts.OpenstackInstanceCreation) {
+	// 	status = FindOpenstackFieldValue(rows, "status")
+	// 	if status == "" {
+	// 		return lb.Complete(fmt.Errorf("openstack returned empty instance status"))
+	// 	}
+	// 	if status != "BUILD" {
+	// 		break
+	// 	}
+	// 	lb.Add(fmt.Sprintf("instance %s(%s) is being created", prjPair.Live.Instances[iNickname].HostName, foundInstanceIdByName))
+	// 	time.Sleep(5 * time.Second)
+	// 	rows, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"server", "show", prjPair.Live.Instances[iNickname].HostName})
+	// 	lb.Add(er.ToString())
+	// 	if er.Error != nil {
+	// 		return lb.Complete(er.Error)
+	// 	}
+	// }
+	// if status == "BUILD" {
+	// 	return lb.Complete(fmt.Errorf("building instance %s(%s) took too long", prjPair.Live.Instances[iNickname].HostName, foundInstanceIdByName))
+	// }
+	// if status != "ACTIVE" {
+	// 	return lb.Complete(fmt.Errorf("instance %s(%s) was built, but the status is %s", prjPair.Live.Instances[iNickname].HostName, foundInstanceIdByName, status))
+	// }
+
+	logMsg, err := WaitForEntityToBeCreated(&prjPair.Live, "server", prjPair.Live.Instances[iNickname].HostName, newId, prjPair.Live.Timeouts.OpenstackInstanceCreation, isVerbose)
+	AddLogMsg(lb.Sb, logMsg)
+	if err != nil {
+		return lb.Complete(err)
 	}
 
 	if prjPair.Live.Instances[iNickname].FloatingIpAddress != "" {

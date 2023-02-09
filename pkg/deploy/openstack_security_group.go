@@ -123,7 +123,15 @@ func CreateSecurityGroup(prjPair *ProjectPair, sgNickname string, isVerbose bool
 			prjPair.SetSecurityGroupRuleId(sgNickname, ruleIdx, foundId)
 		} else {
 			lb.Add(fmt.Sprintf("security group %s needs a new rule for port %d, adding...\n", liveGroupDef.Name, rule.Port))
-			rows, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"security", "group", "rule", "create", "--ethertype", rule.Ethertype, "--proto", rule.Protocol, "--remote-ip", rule.RemoteIp, "--dst-port", fmt.Sprintf("%d", rule.Port), fmt.Sprintf("--%s", rule.Direction), liveGroupDef.Name})
+			rows, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{
+				"security", "group", "rule", "create",
+				"--ethertype", rule.Ethertype,
+				"--proto", rule.Protocol,
+				"--remote-ip", rule.RemoteIp,
+				"--dst-port", fmt.Sprintf("%d", rule.Port),
+				"--description", rule.Desc,
+				fmt.Sprintf("--%s", rule.Direction),
+				liveGroupDef.Name})
 			lb.Add(er.ToString())
 			if er.Error != nil {
 				return lb.Complete(er.Error)

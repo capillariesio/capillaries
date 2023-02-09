@@ -7,8 +7,8 @@
         "private_key_path": "{private_key_path}",
         "private_key_password": "{private_key_password}"
     },
-    "root_key_name": "{deployment_name}_root_key",
-    "availability_zone": "iad-2",
+    "root_key_name": "{deployment_name}-root-key",
+    "availability_zone": "{availability_zone}",
     "timeouts": {
         "openstack_cmd": 60,
         "openstack_instance_creation": 240,
@@ -19,20 +19,21 @@
         "OS_IDENTITY_API_VERSION": "3",
         "OS_INTERFACE": "public",
         "OS_PASSWORD": "{OS_PASSWORD}",
+        "OS_PROJECT_DOMAIN_ID": "{OS_PROJECT_DOMAIN_ID}",
         "OS_PROJECT_ID": "{OS_PROJECT_ID}",
         "OS_PROJECT_NAME": "{OS_PROJECT_NAME}",
-        "OS_REGION_NAME": "RegionOne",
+        "OS_REGION_NAME": "{OS_REGION_NAME}",
         "OS_USERNAME": "{OS_USERNAME}",
-        "OS_USER_DOMAIN_NAME": "Default"
+        "OS_USER_DOMAIN_NAME": "{OS_USER_DOMAIN_NAME}"
     },
     "security_groups": {
         "bastion": {
             "name": "{deployment_name}_bastion_security_group",
-            "id": "a64d5fc8-a40c-4021-ac79-6cc79a0f45f2",
+            "id": "e100cc74-281b-419c-ab45-618a18e2503e",
             "rules": [
                 {
                     "desc": "SSH",
-                    "id": "fdeeff61-328a-4613-b8d5-5f8a94e67d85",
+                    "id": "5ba1ca57-7b4a-4738-afee-525d7423746b",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "0.0.0.0/0",
@@ -41,7 +42,7 @@
                 },
                 {
                     "desc": "Prometheus UI reverse proxy",
-                    "id": "780a71c9-6048-4c0e-828f-37ee4944f2e6",
+                    "id": "340b890d-296a-403e-ae31-1231bd8097f4",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "0.0.0.0/0",
@@ -50,7 +51,7 @@
                 },
                 {
                     "desc": "Prometheus node exporter",
-                    "id": "c2aba984-18ea-45cd-a1bf-71df5ad85780",
+                    "id": "a53e1eda-4f92-4985-8530-cc1118aaef1f",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -59,7 +60,7 @@
                 },
                 {
                     "desc": "RabbitMQ UI reverse proxy",
-                    "id": "0fc9847d-61f6-4068-bed3-24fb22a53ccb",
+                    "id": "e51829fd-53ae-4b75-aabc-09bc64e55e5e",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "0.0.0.0/0",
@@ -68,7 +69,7 @@
                 },
                 {
                     "desc": "rsyslog receiver",
-                    "id": "999f9d51-698d-4421-a27c-999228f1ac35",
+                    "id": "295ce233-5b6c-47af-a67f-938f6a7d43d5",
                     "protocol": "udp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -77,7 +78,7 @@
                 },
                 {
                     "desc": "Capillaries webapi",
-                    "id": "a0acfd08-7410-442d-93ad-7d6e16d08fd8",
+                    "id": "3d750725-a7aa-4969-9082-35d527733fc4",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "0.0.0.0/0",
@@ -86,7 +87,7 @@
                 },
                 {
                     "desc": "Capillaries UI nginx",
-                    "id": "7123c650-95a3-490e-8fe2-e7ff4068b62e",
+                    "id": "ac089cc3-896f-422c-acd1-a72c40ac36b2",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "0.0.0.0/0",
@@ -97,11 +98,11 @@
         },
         "internal": {
             "name": "{deployment_name}_internal_security_group",
-            "id": "ab832ae4-dbff-4fc6-8dbe-8b55a3cd73ff",
+            "id": "73d9dd28-18e9-4d86-9f7b-9ab488ccd24c",
             "rules": [
                 {
                     "desc": "SSH",
-                    "id": "d1731307-e987-4561-9f9d-d316ec0a1c03",
+                    "id": "3c59b640-8883-45f1-8d81-9adc2d91fac7",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -110,7 +111,7 @@
                 },
                 {
                     "desc": "Prometheus UI internal",
-                    "id": "dc74f1c0-da70-4eef-85c6-c16b3da7df2e",
+                    "id": "3d542f64-f6af-4f7c-9faa-bda2b0208d60",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -119,7 +120,7 @@
                 },
                 {
                     "desc": "Prometheus node exporter",
-                    "id": "8a9c0764-518e-471c-a23b-bbf6d6e2466f",
+                    "id": "65f15b4b-9c6b-42f3-837d-de50635b26db",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -128,7 +129,7 @@
                 },
                 {
                     "desc": "Cassandra JMX",
-                    "id": "9d9389d5-0487-4fb5-9772-e4a8a9a9b231",
+                    "id": "da73bb76-cc76-42f5-9590-973feeb703d8",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -137,7 +138,7 @@
                 },
                 {
                     "desc": "Cassandra cluster comm",
-                    "id": "4567dec4-1085-4f73-8bdd-cecbaf7d3076",
+                    "id": "edcd46c3-d6d9-43ba-b32a-be4202237ce8",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -146,7 +147,7 @@
                 },
                 {
                     "desc": "Cassandra API",
-                    "id": "c0f6a071-d128-4ddd-8827-c9339dfe2d40",
+                    "id": "83af06c8-6fe3-4e4f-bdf8-4db1b7fc3d93",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -155,7 +156,7 @@
                 },
                 {
                     "desc": "RabbitMQ API",
-                    "id": "bec7628e-7a6f-4592-9cd9-c9d78553d2b4",
+                    "id": "889b8913-6f2c-460a-8dbd-aba9caf054ea",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -164,7 +165,7 @@
                 },
                 {
                     "desc": "RabbitMQ UI",
-                    "id": "75190863-09d6-4952-887f-a07a2a7ddf2d",
+                    "id": "2e724cc6-d5ef-4589-ad52-37cf7593a4a8",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -176,16 +177,17 @@
     },
     "network": {
         "name": "{deployment_name}_network",
-        "id": "241cfeeb-ec0f-4cfc-91ef-36f6ef439950",
+        "id": "4d761a4e-3314-40b5-94ab-c0aa80d6da6d",
         "subnet": {
             "name": "{deployment_name}_subnet",
-            "id": "ee5af192-0bfa-44fb-aa46-20e5407562d7",
-            "cidr": "{subnet_cidr}"
+            "id": "8997673d-e6f5-4242-b4c8-ea16eee9516b",
+            "cidr": "{subnet_cidr}",
+            "allocation_pool": "start=10.5.0.240,end=10.5.0.254"
         },
         "router": {
             "name": "{deployment_name}_router",
-            "id": "4ea468b5-44d8-43dc-94db-538c916b5731",
-            "external_gateway_network_name": "public"
+            "id": "80697fb2-1d4c-4d20-a317-32e7725763b2",
+            "external_gateway_network_name": "ext-net"
         }
     },
     "volumes": {
@@ -193,25 +195,28 @@
             "name": "{deployment_name}_cfg",
             "mount_point": "/mnt/capi_cfg",
             "size": 1,
+            "type": "gp1",
             "permissions": 777,
             "owner": "{sftp_user}",
-            "id": "5d9e7d55-4026-4b73-9175-794847795581"
+            "id": "4399ff9b-b846-4162-b444-d2126932eda0"
         },
         "in": {
             "name": "{deployment_name}_in",
             "mount_point": "/mnt/capi_in",
             "size": 1,
+            "type": "gp1",
             "permissions": 777,
             "owner": "{sftp_user}",
-            "id": "cf4b1c32-776f-4ecb-9d3e-d55989293c00"
+            "id": "fb002ef1-7d03-4307-9f5b-943a3e93bfe8"
         },
         "out": {
             "name": "{deployment_name}_out",
             "mount_point": "/mnt/capi_out",
             "size": 1,
+            "type": "gp1",
             "permissions": 777,
             "owner": "{sftp_user}",
-            "id": "3eed4ffe-988e-4dae-8d30-180acef136eb"
+            "id": "6ef68e4a-e467-4bef-aafb-a0c113c45ae3"
         }
     },
     "file_groups_up": {
@@ -391,8 +396,8 @@
             "security_group": "bastion",
             "ip_address": "{internal_bastion_ip}",
             "floating_ip_address": "{floating_ip_address}",
-            "flavor": "gp1.lightspeed",
-            "image": "Ubuntu-22.04",
+            "flavor": "{instance_flavor_bastion}",
+            "image": "{instance_image_name}",
             "attached_volumes": {
                 "cfg": {
                     "attachment_id": "",
@@ -483,8 +488,8 @@
             "host_name": "{deployment_name}-cassandra01",
             "security_group": "internal",
             "ip_address": "10.5.0.11",
-            "flavor": "gp1.lightspeed",
-            "image": "Ubuntu-22.04",
+            "flavor": "{instance_flavor_cassandra}",
+            "image": "{instance_image_name}",
             "id": "",
             "service": {
                 "env": {
@@ -511,8 +516,8 @@
             "host_name": "{deployment_name}-cassandra02",
             "security_group": "internal",
             "ip_address": "10.5.0.12",
-            "flavor": "gp1.lightspeed",
-            "image": "Ubuntu-22.04",
+            "flavor": "{instance_flavor_cassandra}",
+            "image": "{instance_image_name}",
             "id": "",
             "service": {
                 "env": {
@@ -539,8 +544,8 @@
             "host_name": "{deployment_name}-cassandra03",
             "security_group": "internal",
             "ip_address": "10.5.0.13",
-            "flavor": "gp1.lightspeed",
-            "image": "Ubuntu-22.04",
+            "flavor": "{instance_flavor_cassandra}",
+            "image": "{instance_image_name}",
             "id": "",
             "service": {
                 "env": {
@@ -567,8 +572,8 @@
             "host_name": "{deployment_name}-cassandra04",
             "security_group": "internal",
             "ip_address": "10.5.0.14",
-            "flavor": "gp1.lightspeed",
-            "image": "Ubuntu-22.04",
+            "flavor": "{instance_flavor_cassandra}",
+            "image": "{instance_image_name}",
             "id": "",
             "service": {
                 "env": {
@@ -595,8 +600,8 @@
             "host_name": "{deployment_name}-cassandra05",
             "security_group": "internal",
             "ip_address": "10.5.0.15",
-            "flavor": "gp1.lightspeed",
-            "image": "Ubuntu-22.04",
+            "flavor": "{instance_flavor_cassandra}",
+            "image": "{instance_image_name}",
             "id": "",
             "service": {
                 "env": {
@@ -623,8 +628,8 @@
             "host_name": "{deployment_name}-daemon01",
             "security_group": "internal",
             "ip_address": "10.5.0.101",
-            "flavor": "gp1.semisonic",
-            "image": "Ubuntu-22.04",
+            "flavor": "{instance_flavor_daemon}",
+            "image": "{instance_image_name}",
             "id": "",
             "private_keys": [
                 {
@@ -666,8 +671,8 @@
             "host_name": "{deployment_name}-daemon02",
             "security_group": "internal",
             "ip_address": "10.5.0.102",
-            "flavor": "gp1.semisonic",
-            "image": "Ubuntu-22.04",
+            "flavor": "{instance_flavor_daemon}",
+            "image": "{instance_image_name}",
             "id": "",
             "private_keys": [
                 {
@@ -709,8 +714,8 @@
             "host_name": "{deployment_name}-prometheus",
             "security_group": "internal",
             "ip_address": "{prometheus_ip}",
-            "flavor": "gp1.semisonic",
-            "image": "Ubuntu-22.04",
+            "flavor": "{instance_flavor_prometheus}",
+            "image": "{instance_image_name}",
             "id": "",
             "service": {
                 "env": {
@@ -737,8 +742,8 @@
             "host_name": "{deployment_name}-rabbitmq",
             "security_group": "internal",
             "ip_address": "{rabbitmq_ip}",
-            "flavor": "gp1.semisonic",
-            "image": "Ubuntu-22.04",
+            "flavor": "{instance_flavor_rabbitmq}",
+            "image": "{instance_image_name}",
             "id": "",
             "service": {
                 "env": {

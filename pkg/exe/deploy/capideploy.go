@@ -154,16 +154,14 @@ func main() {
 
 	cmdStartTs := time.Now()
 
-	prjPair, fullPrjPath, err := deploy.LoadProject(*argPrjFile, *argPrjParamsFile)
-	if err != nil {
-		log.Fatalf(err.Error())
-	}
-
 	const MaxWorkerThreads int = 10
 	var logChan = make(chan deploy.LogMsg, MaxWorkerThreads*5)
 	var sem = make(chan int, MaxWorkerThreads)
 	var errChan chan error
 	errorsExpected := 1
+	var prjPair *deploy.ProjectPair
+	var fullPrjPath string
+	var prjErr error
 
 	singleThreadCommands := map[string]SingleThreadCmdHandler{
 		CmdCreateSecurityGroups: deploy.CreateSecurityGroups,
@@ -174,6 +172,10 @@ func main() {
 
 	if cmdHandler, ok := singleThreadCommands[os.Args[1]]; ok {
 		commonArgs.Parse(os.Args[2:])
+		prjPair, fullPrjPath, prjErr = deploy.LoadProject(*argPrjFile, *argPrjParamsFile)
+		if prjErr != nil {
+			log.Fatalf(prjErr.Error())
+		}
 		errChan = make(chan error, errorsExpected)
 		sem <- 1
 		go func() {
@@ -183,6 +185,11 @@ func main() {
 			<-sem
 		}()
 	} else if os.Args[1] == CmdCreateInstances || os.Args[1] == CmdDeleteInstances {
+		commonArgs.Parse(os.Args[3:])
+		prjPair, fullPrjPath, prjErr = deploy.LoadProject(*argPrjFile, *argPrjParamsFile)
+		if prjErr != nil {
+			log.Fatalf(prjErr.Error())
+		}
 		nicknames, err := getNicknamesArg(commonArgs, "instances")
 		if err != nil {
 			log.Fatalf(err.Error())
@@ -239,6 +246,11 @@ func main() {
 			log.Fatalf("unknown create/delete instance command:" + os.Args[1])
 		}
 	} else if os.Args[1] == CmdPingInstances || os.Args[1] == CmdCreateInstanceUsers || os.Args[1] == CmdCopyPrivateKeys || os.Args[1] == CmdSetupServices || os.Args[1] == CmdStartServices || os.Args[1] == CmdStopServices {
+		commonArgs.Parse(os.Args[3:])
+		prjPair, fullPrjPath, prjErr = deploy.LoadProject(*argPrjFile, *argPrjParamsFile)
+		if prjErr != nil {
+			log.Fatalf(prjErr.Error())
+		}
 		nicknames, err := getNicknamesArg(commonArgs, "instances")
 		if err != nil {
 			log.Fatalf(err.Error())
@@ -292,11 +304,15 @@ func main() {
 				<-sem
 			}(&prjPair.Live, logChan, errChan, iDef)
 		}
-	} else {
-		switch os.Args[1] {
 
+	} else if os.Args[1] == CmdCreateVolumes || os.Args[1] == CmdDeleteVolumes {
+		commonArgs.Parse(os.Args[2:])
+		prjPair, fullPrjPath, prjErr = deploy.LoadProject(*argPrjFile, *argPrjParamsFile)
+		if prjErr != nil {
+			log.Fatalf(prjErr.Error())
+		}
+		switch os.Args[1] {
 		case CmdCreateVolumes:
-			commonArgs.Parse(os.Args[2:])
 			errorsExpected = len(prjPair.Live.Volumes)
 			errChan = make(chan error, errorsExpected)
 			for volNickname, _ := range prjPair.Live.Volumes {
@@ -310,7 +326,6 @@ func main() {
 			}
 
 		case CmdDeleteVolumes:
-			commonArgs.Parse(os.Args[2:])
 			errorsExpected = len(prjPair.Live.Volumes)
 			errChan = make(chan error, errorsExpected)
 			for volNickname, _ := range prjPair.Live.Volumes {
@@ -322,41 +337,54 @@ func main() {
 					<-sem
 				}(prjPair, logChan, errChan, volNickname)
 			}
+		default:
+			log.Fatalf("unknown command:" + os.Args[1])
+		}
+	} else if os.Args[1] == CmdAttachVolumes {
+		commonArgs.Parse(os.Args[3:])
+		prjPair, fullPrjPath, prjErr = deploy.LoadProject(*argPrjFile, *argPrjParamsFile)
+		if prjErr != nil {
+			log.Fatalf(prjErr.Error())
+		}
+		nicknames, err := getNicknamesArg(commonArgs, "instances")
+		if err != nil {
+			log.Fatalf(err.Error())
+		}
 
-		case CmdAttachVolumes:
-			nicknames, err := getNicknamesArg(commonArgs, "instances")
-			if err != nil {
-				log.Fatalf(err.Error())
-			}
+		instances, err := filterByNickname(nicknames, prjPair.Live.Instances, "instance")
+		if err != nil {
+			log.Fatalf(err.Error())
+		}
 
-			instances, err := filterByNickname(nicknames, prjPair.Live.Instances, "instance")
-			if err != nil {
-				log.Fatalf(err.Error())
-			}
-
-			attachmentCount := 0
-			for iNickname, iDef := range instances {
-				for volNickname, _ := range iDef.AttachedVolumes {
-					if _, ok := prjPair.Live.Volumes[volNickname]; !ok {
-						log.Fatalf("cannot find volume %s referenced in instance %s", volNickname, iNickname)
-					}
-					attachmentCount++
+		attachmentCount := 0
+		for iNickname, iDef := range instances {
+			for volNickname, _ := range iDef.AttachedVolumes {
+				if _, ok := prjPair.Live.Volumes[volNickname]; !ok {
+					log.Fatalf("cannot find volume %s referenced in instance %s", volNickname, iNickname)
 				}
+				attachmentCount++
 			}
-			errorsExpected = attachmentCount
-			errChan = make(chan error, attachmentCount)
-			for iNickname, iDef := range instances {
-				for volNickname, _ := range iDef.AttachedVolumes {
-					sem <- 1
-					go func(prjPair *deploy.ProjectPair, logChan chan deploy.LogMsg, errChan chan error, iNickname string, volNickname string) {
-						logMsg, err := deploy.AttachVolume(prjPair, iNickname, volNickname, *argVerbosity)
-						logChan <- logMsg
-						errChan <- err
-						<-sem
-					}(prjPair, logChan, errChan, iNickname, volNickname)
-				}
+		}
+		errorsExpected = attachmentCount
+		errChan = make(chan error, attachmentCount)
+		for iNickname, iDef := range instances {
+			for volNickname, _ := range iDef.AttachedVolumes {
+				sem <- 1
+				go func(prjPair *deploy.ProjectPair, logChan chan deploy.LogMsg, errChan chan error, iNickname string, volNickname string) {
+					logMsg, err := deploy.AttachVolume(prjPair, iNickname, volNickname, *argVerbosity)
+					logChan <- logMsg
+					errChan <- err
+					<-sem
+				}(prjPair, logChan, errChan, iNickname, volNickname)
 			}
-
+		}
+	} else {
+		commonArgs.Parse(os.Args[3:])
+		prjPair, fullPrjPath, prjErr = deploy.LoadProject(*argPrjFile, *argPrjParamsFile)
+		if prjErr != nil {
+			log.Fatalf(prjErr.Error())
+		}
+		switch os.Args[1] {
 		case CmdUploadFiles:
 			nicknames, err := getNicknamesArg(commonArgs, "file groups to upload")
 			if err != nil {
@@ -442,8 +470,8 @@ func main() {
 	}
 
 	// Save updated project template, it may have some new ids and timestamps
-	if err = prjPair.Template.SaveProject(fullPrjPath); err != nil {
-		log.Fatalf(err.Error())
+	if prjErr = prjPair.Template.SaveProject(fullPrjPath); prjErr != nil {
+		log.Fatalf(prjErr.Error())
 	}
 
 	fmt.Printf("%s succeeded, elapsed %.3fs\n", os.Args[1], time.Since(cmdStartTs).Seconds())

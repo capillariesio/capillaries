@@ -58,8 +58,8 @@ echo 'JVM_OPTS="$JVM_OPTS -Dcassandra.ignore_dc=true"' | sudo tee -a /etc/cassan
 # We do not need this config file, delete it
 sudo rm -f rm /etc/cassandra/cassandra-topology.properties
 
-#sudo systemctl start cassandra
-#if [ "$?" -ne "0" ]; then
-#    echo Cannot start cassandra, exiting
-#    exit $?
-#fi
+sudo systemctl start cassandra
+if [ "$?" -ne "0" ]; then
+    echo Cannot start cassandra, exiting
+    exit $?
+fi

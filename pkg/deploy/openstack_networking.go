@@ -51,7 +51,19 @@ func CreateSubnet(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 		return lb.Complete(nil)
 	}
 
-	rows, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"subnet", "create", prjPair.Live.Network.Subnet.Name, "--subnet-range", prjPair.Live.Network.Subnet.Cidr, "--network", prjPair.Live.Network.Name, "--no-dhcp"})
+	subnetParams := []string{
+		"subnet", "create", prjPair.Live.Network.Subnet.Name,
+		"--subnet-range", prjPair.Live.Network.Subnet.Cidr,
+		"--network", prjPair.Live.Network.Name}
+	if prjPair.Live.Network.Subnet.AllocationPool == "" {
+		subnetParams = append(subnetParams, "--no-dhcp")
+	} else {
+		subnetParams = append(subnetParams, "--dhcp")
+		subnetParams = append(subnetParams, "--allocation-pool")
+		subnetParams = append(subnetParams, prjPair.Live.Network.Subnet.AllocationPool)
+	}
+
+	rows, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", subnetParams)
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)
@@ -364,6 +376,12 @@ func CreateNetworking(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 		return LogMsg(sb.String()), err
 	}
 
+	logMsg, err = WaitForEntityToBeCreated(&prjPair.Live, "network", prjPair.Live.Network.Name, prjPair.Live.Network.Id, prjPair.Live.Timeouts.OpenstackInstanceCreation, isVerbose)
+	AddLogMsg(&sb, logMsg)
+	if err != nil {
+		return LogMsg(sb.String()), err
+	}
+
 	logMsg, err = CreateSubnet(prjPair, isVerbose)
 	AddLogMsg(&sb, logMsg)
 	if err != nil {
@@ -371,6 +389,12 @@ func CreateNetworking(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	}
 
 	logMsg, err = CreateRouter(prjPair, isVerbose)
+	AddLogMsg(&sb, logMsg)
+	if err != nil {
+		return LogMsg(sb.String()), err
+	}
+
+	logMsg, err = WaitForEntityToBeCreated(&prjPair.Live, "router", prjPair.Live.Network.Router.Name, prjPair.Live.Network.Router.Id, prjPair.Live.Timeouts.OpenstackInstanceCreation, isVerbose)
 	AddLogMsg(&sb, logMsg)
 	if err != nil {
 		return LogMsg(sb.String()), err

@@ -67,6 +67,7 @@ func ExecLocal(prj *Project, cmdPath string, params []string) ExecResult {
 
 	for k, v := range prj.OpenstackEnvVariables {
 		p.Env = append(p.Env, fmt.Sprintf("%s=%s", k, v))
+		// fmt.Printf("%s=%s\n", k, v)
 	}
 
 	// Do not use pipes, work with raw data, otherwise stdout/stderr

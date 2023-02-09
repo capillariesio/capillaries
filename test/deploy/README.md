@@ -11,9 +11,9 @@ This step does not need to be performed often, assuming the Openstack provider d
 
 ```
 cd test/deploy
-go run ../../pkg/exe/deploy/capideploy.go create_security_group
-go run ../../pkg/exe/deploy/capideploy.go create_networking
-go run ../../pkg/exe/deploy/capideploy.go create_volumes
+go run ../../pkg/exe/deploy/capideploy.go create_security_groups -prj capideploy_project_dreamhost.json -prj_params ~/capideploy_project_params_dreamhost.json -verbose
+go run ../../pkg/exe/deploy/capideploy.go create_networking -prj capideploy_project_dreamhost.json -prj_params ~/capideploy_project_params_dreamhost.json -verbose
+go run ../../pkg/exe/deploy/capideploy.go create_volumes -prj capideploy_project_dreamhost.json -prj_params ~/capideploy_project_params_dreamhost.json -verbose
 ```
 
 # Build Capillaries binaries
@@ -53,41 +53,47 @@ Deploy project will pick up the files to upload from there.
 
 ```
 # Create all instances in one shot (1 min)
-go run ../../pkg/exe/deploy/capideploy.go create_instances bastion,daemon01,daemon02,cass01,cass02,cass03,cass04,cass05,rabbitmq,prometheus
+go run ../../pkg/exe/deploy/capideploy.go create_instances bastion,daemon01,daemon02,cass01,cass02,cass03,cass04,cass05,rabbitmq,prometheus -prj capideploy_project_dreamhost.json -prj_params ~/capideploy_project_params_dreamhost.json
 
 # Make sure they are available. If an instance is missing for too long, go to the provider console and reboot if needed (happens sometimes)
-go run ../../pkg/exe/deploy/capideploy.go ping_instances bastion,daemon01,daemon02,cass01,cass02,cass03,cass04,cass05,rabbitmq,prometheus
+go run ../../pkg/exe/deploy/capideploy.go ping_instances bastion,daemon01,daemon02,cass01,cass02,cass03,cass04,cass05,rabbitmq,prometheus -prj capideploy_project_dreamhost.json -prj_params ~/capideploy_project_params_dreamhost.json
 
 # Create sftp user ((we assume the Openstack provider doesnot support multi-attach volumes, so we have to use sftp to read and write files)
-go run ../../pkg/exe/deploy/capideploy.go create_instance_users bastion
+go run ../../pkg/exe/deploy/capideploy.go create_instance_users bastion -prj capideploy_project_dreamhost.json -prj_params ~/capideploy_project_params_dreamhost.json
 
 # Allow these instances to connect to data via sftp
-go run ../../pkg/exe/deploy/capideploy.go copy_private_keys bastion,daemon01,daemon02
+go run ../../pkg/exe/deploy/capideploy.go copy_private_keys bastion,daemon01,daemon02 -prj capideploy_project_dreamhost.json -prj_params ~/capideploy_project_params_dreamhost.json
 
 # Attach volumes and make sftpuser owner (15 s)
-go run ../../pkg/exe/deploy/capideploy.go attach_volumes bastion
+go run ../../pkg/exe/deploy/capideploy.go attach_volumes bastion -prj capideploy_project_dreamhost.json -prj_params ~/capideploy_project_params_dreamhost.json
 
 # Upload all files in one shot (1 min). Make sure you have all binaries built before uploading them.
-go run ../../pkg/exe/deploy/capideploy.go upload_files up_daemon_binary,up_daemon_env_config,up_webapi_env_config,up_webapi_binary,up_ui,up_toolbelt_env_config,up_toolbelt_binary,up_all_cfg,up_lookup_bigtest_in,up_lookup_bigtest_out,up_lookup_quicktest_in,up_lookup_quicktest_out,up_tag_and_denormalize_quicktest_in,up_tag_and_denormalize_quicktest_out,up_py_calc_quicktest_in,up_py_calc_quicktest_out
+go run ../../pkg/exe/deploy/capideploy.go upload_files up_daemon_binary,up_daemon_env_config,up_webapi_env_config,up_webapi_binary,up_ui,up_toolbelt_env_config,up_toolbelt_binary,up_all_cfg,up_lookup_bigtest_in,up_lookup_bigtest_out,up_lookup_quicktest_in,up_lookup_quicktest_out,up_tag_and_denormalize_quicktest_in,up_tag_and_denormalize_quicktest_out,up_py_calc_quicktest_in,up_py_calc_quicktest_out -prj capideploy_project_dreamhost.json -prj_params ~/capideploy_project_params_dreamhost.json
 
-go run ../../pkg/exe/deploy/capideploy.go upload_files up_all_cfg
-go run ../../pkg/exe/deploy/capideploy.go upload_files up_daemon_binary,up_daemon_env_config
+# Setup all services except cassandra (2 min)
+go run ../../pkg/exe/deploy/capideploy.go setup_services bastion,cass01,prometheus,rabbitmq,daemon01,daemon02 -prj capideploy_project_dreamhost.json -prj_params ~/capideploy_project_params_dreamhost.json
 
-# Setup all services (2 min)
-go run ../../pkg/exe/deploy/capideploy.go setup_services bastion,cass01,cass02,cass03,cass04,cass05,prometheus,rabbitmq,daemon01,daemon02
+go run ../../pkg/exe/deploy/capideploy.go setup_services cass02 -prj capideploy_project_dreamhost.json -prj_params ~/capideploy_project_params_dreamhost.json
 
-# Start Cassandra seeds
-go run ../../pkg/exe/deploy/capideploy.go start_services cass01,cass02,cass03
+go run ../../pkg/exe/deploy/capideploy.go setup_services cass03 -prj capideploy_project_dreamhost.json -prj_params ~/capideploy_project_params_dreamhost.json
 
 # Check Cassandra with nodetool, all should be up (UN), no exceptions thrown:
 ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment001_rsa -J 208.113.134.216 ubuntu@10.5.0.11 'nodetool status'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa -J 104.36.110.167 ubuntu@10.5.0.11 'nodetool status'
 
-# Start other Cassandra nodes
-go run ../../pkg/exe/deploy/capideploy.go start_services cass03,cass04
+# Add non-seed cassandra nodes (2 min)
+go run ../../pkg/exe/deploy/capideploy.go setup_services cass04 -prj capideploy_project_dreamhost.json -prj_params ~/capideploy_project_params_dreamhost.json
+
+go run ../../pkg/exe/deploy/capideploy.go setup_services cass05 -prj capideploy_project_dreamhost.json -prj_params ~/capideploy_project_params_dreamhost.json
 
 # Check Cassandra with nodetool, all should be up (UN), no exceptions thrown:
 ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment001_rsa -J 208.113.134.216 ubuntu@10.5.0.11 'nodetool status'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa -J 104.36.110.167 ubuntu@10.5.0.11 'nodetool status'
 ````
+
+# Add non-seed cassandra 05 (2 min)
+go run ../../pkg/exe/deploy/capideploy.go setup_services cass05 -prj capideploy_project_dreamhost.json -prj_params ~/capideploy_project_params_dreamhost.json
+
 
 Check Cassandra status - this Webapi call should return no error: `http://208.113.134.216:6543/ks`
 
@@ -100,40 +106,44 @@ At `http://208.113.134.216`, create new runs:
 | Field | Value |
 |- | - |
 | Keyspace | tag_and_denormalize_quicktest |
-| Script URI | sftp://sftpuser@10.5.0.2/mnt/capi_cfg/tag_and_denormalize_quicktest/script.json |
-| Script parameters URI | sftp://sftpuser@10.5.0.2/mnt/capi_cfg/tag_and_denormalize_quicktest/script_params_one_run.json |
+| Script URI | sftp://sftpuser@10.5.0.10/mnt/capi_cfg/tag_and_denormalize_quicktest/script.json |
+| Script parameters URI | sftp://sftpuser@10.5.0.10/mnt/capi_cfg/tag_and_denormalize_quicktest/script_params_one_run.json |
 | Start nodes |	read_tags,read_products |
 
 or
 ```
-ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment001_rsa ubuntu@208.113.134.216 '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.2/mnt/capi_cfg/tag_and_denormalize_quicktest/script.json -params_file=sftp://sftpuser@10.5.0.2/mnt/capi_cfg/tag_and_denormalize_quicktest/script_params_one_run.json -keyspace=tag_and_denormalize_quicktest -start_nodes=read_tags,read_products'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment001_rsa ubuntu@208.113.134.216 '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/tag_and_denormalize_quicktest/script.json -params_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/tag_and_denormalize_quicktest/script_params_one_run.json -keyspace=tag_and_denormalize_quicktest -start_nodes=read_tags,read_products'
+
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@104.36.110.167 '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/tag_and_denormalize_quicktest/script.json -params_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/tag_and_denormalize_quicktest/script_params_one_run.json -keyspace=tag_and_denormalize_quicktest -start_nodes=read_tags,read_products'
 ```
 
 | Field | Value |
 |- | - |
 | Keyspace | lookup_quicktest |
-| Script URI | sftp://sftpuser@10.5.0.2/mnt/capi_cfg/lookup_quicktest/script.json |
-| Script parameters URI | sftp://sftpuser@10.5.0.2/mnt/capi_cfg/lookup_quicktest/script_params_one_run.json |
+| Script URI | sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_quicktest/script.json |
+| Script parameters URI | sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_quicktest/script_params_one_run.json |
 | Start nodes |	read_orders,read_order_items |
 
 or
 
-ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment001_rsa ubuntu@208.113.134.216 '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.2/mnt/capi_cfg/lookup_quicktest/script.json -params_file=sftp://sftpuser@10.5.0.2/mnt/capi_cfg/lookup_quicktest/script_params_one_run.json -keyspace=lookup_quicktest -start_nodes=read_orders,read_order_items'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment001_rsa ubuntu@208.113.134.216 '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_quicktest/script.json -params_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_quicktest/script_params_one_run.json -keyspace=lookup_quicktest -start_nodes=read_orders,read_order_items'
 
 | Field | Value |
 |- | - |
 | Keyspace | lookup_bigtest |
-| Script URI | sftp://sftpuser@10.5.0.2/mnt/capi_cfg/lookup_bigtest/script.json |
-| Script parameters URI | sftp://sftpuser@10.5.0.2/mnt/capi_cfg/lookup_bigtest/script_params_one_run.json |
+| Script URI | sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_bigtest/script.json |
+| Script parameters URI | sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_bigtest/script_params_one_run.json |
 | Start nodes |	read_orders,read_order_items |
 
 or
 ```
-ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment001_rsa ubuntu@208.113.134.216 '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.2/mnt/capi_cfg/lookup_bigtest/script.json -params_file=sftp://sftpuser@10.5.0.2/mnt/capi_cfg/lookup_bigtest/script_params_one_run.json -keyspace=lookup_bigtest -start_nodes=read_orders,read_order_items'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment001_rsa ubuntu@208.113.134.216 '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_bigtest/script.json -params_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_bigtest/script_params_one_run.json -keyspace=lookup_bigtest -start_nodes=read_orders,read_order_items'
+
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@104.36.110.167 '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_bigtest/script.json -params_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_bigtest/script_params_one_run.json -keyspace=lookup_bigtest -start_nodes=read_orders,read_order_items'
 
 py_calc
 
-ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment001_rsa ubuntu@208.113.134.216 '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.2/mnt/capi_cfg/py_calc_quicktest/script.json -params_file=sftp://sftpuser@10.5.0.2/mnt/capi_cfg/py_calc_quicktest/script_params_one_run.json -keyspace=py_calc_quicktest -start_nodes=read_order_items'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment001_rsa ubuntu@208.113.134.216 '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/py_calc_quicktest/script.json -params_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/py_calc_quicktest/script_params_one_run.json -keyspace=py_calc_quicktest -start_nodes=read_order_items'
 
 ```
 
@@ -150,7 +160,7 @@ ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment001_rsa ubuntu@208.113
 Download all results from capi_out:
 
 ```
-go run ../../pkg/exe/deploy/capideploy.go download_files down_capi_out
+go run ../../pkg/exe/deploy/capideploy.go download_files down_capi_out  -prj capideploy_project_dreamhost.json -prj_params ~/capideploy_project_params_dreamhost.json
 ```
 
 # Logging
@@ -158,13 +168,13 @@ go run ../../pkg/exe/deploy/capideploy.go download_files down_capi_out
 See consolidated log from all capidaemons:
 
 ```
-go run ../../pkg/exe/deploy/capideploy.go download_files down_capi_logs
+go run ../../pkg/exe/deploy/capideploy.go download_files down_capi_logs -prj capideploy_project_dreamhost.json -prj_params ~/capideploy_project_params_dreamhost.json
 ```
 
 # Delete test environment
 
 ```
-go run ../../pkg/exe/deploy/capideploy.go delete_instances all
+go run ../../pkg/exe/deploy/capideploy.go delete_instances all -prj capideploy_project_dreamhost.json -prj_params ~/capideploy_project_params_dreamhost.json
 ```
 
 and, if needed:
@@ -181,6 +191,7 @@ sudo apt-get install sysbench
 sysbench cpu run
 sysbench --threads=16 cpu run
 
+w6asx.2xlarge 16 threads 64182
 
 laptop one thread
 
@@ -367,3 +378,99 @@ Latency (ms):
 Threads fairness:
     events (avg/stddev):           26214400.0000/0.00
     execution time (avg/stddev):   6.9161/0.01
+
+
+genesis bastion one thread
+
+CPU speed:
+    events per second:   303.26
+
+General statistics:
+    total time:                          10.0004s
+    total number of events:              3033
+
+Latency (ms):
+         min:                                    0.60
+         avg:                                    3.29
+         max:                                   69.21
+         95th percentile:                       17.95
+         sum:                                 9990.96
+
+Threads fairness:
+    events (avg/stddev):           3033.0000/0.00
+    execution time (avg/stddev):   9.9910/0.00
+
+
+ubuntu@sampledeployment002-rabbitmq:~$ iperf -s -p 9090
+------------------------------------------------------------
+Server listening on TCP port 9090
+TCP window size:  128 KByte (default)
+------------------------------------------------------------
+[  1] local 10.5.0.5 port 9090 connected with 10.5.0.4 port 49532
+[ ID] Interval       Transfer     Bandwidth
+[  1] 0.0000-10.0609 sec   322 MBytes   268 Mbits/sec
+[  2] local 10.5.0.5 port 9090 connected with 10.5.0.4 port 59900
+[ ID] Interval       Transfer     Bandwidth
+[  2] 0.0000-10.0460 sec   321 MBytes   268 Mbits/sec
+
+
+sudo apt -y update
+sudo apt-get install -y iperf
+sudo apt-get install -y sysbench
+
+
+
+ubuntu@sampledeployment002-prometheus:~$ iperf -c 10.5.0.5 -p 9090
+------------------------------------------------------------
+Client connecting to 10.5.0.5, TCP port 9090
+TCP window size:  682 KByte (default)
+------------------------------------------------------------
+[  1] local 10.5.0.4 port 49532 connected with 10.5.0.5 port 9090
+[ ID] Interval       Transfer     Bandwidth
+[  1] 0.0000-10.0648 sec   322 MBytes   268 Mbits/sec
+ubuntu@sampledeployment002-prometheus:~$ iperf -c 10.5.0.5 -p 9090
+------------------------------------------------------------
+Client connecting to 10.5.0.5, TCP port 9090
+TCP window size:  682 KByte (default)
+------------------------------------------------------------
+[  1] local 10.5.0.4 port 59900 connected with 10.5.0.5 port 9090
+[ ID] Interval       Transfer     Bandwidth
+[  1] 0.0000-10.0518 sec   321 MBytes   268 Mbits/sec
+
+
+cassNodes=('cass01:10.5.0.11' 'cass02:10.5.0.12' 'cass03:10.5.0.13' 'cass04:10.5.0.14' 'cass04:10.5.0.15')
+for cassNode in ${cassNodes[@]}
+do
+  cassNodeParts=(${cassNode//:/ })
+  cassNodeNickname=${cassNodeParts[0]}
+  cassNodeIp=${cassNodeParts[1]}
+  echo Provisioning $cassNodeNickname ($cassNodeIp)...
+  go run ../../pkg/exe/deploy/capideploy.go setup_services $cassNodeNickname -prj capideploy_project_dreamhost.json -prj_params ~/capideploy_project_params_dreamhost.json
+  if [ "$?" -ne "0" ]; then
+    echo Cannot install cassandra on $cassNodeNickname
+    return $?
+  fi
+
+  while :
+  do
+    if ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment001_rsa -J 208.113.134.216 ubuntu@$cassNodeIp 'nodetool status' | grep "UN  $cassNodeIp"; then
+      echo Node $cassNodeNickname ready
+      break
+    else
+      sleep 10
+    fi
+  done
+done
+echo All nodes up
+
+
+if cat test.txt | grep "UN  10.5.0.14"; then
+  echo "Found"
+else
+  echo "not found"
+fi
+
+go run ../../pkg/exe/deploy/capideploy.go setup_services cass05 -prj capideploy_project_dreamhost.json -prj_params ~/capideploy_project_params_dreamhost.json
+
+# Check Cassandra with nodetool, all should be up (UN), no exceptions thrown:
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment001_rsa -J 208.113.134.216 ubuntu@10.5.0.11 'nodetool status'

@@ -224,6 +224,8 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.Logger, msgTs int64
 	}
 	defer pCtx.DbClose()
 
+	logger.DebugCtx(pCtx, "started processing batch %s", dataBatchInfo.FullBatchId())
+
 	// var err error
 	// //pCtx.Script, err = sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, pCtx.BatchInfo.ScriptURI, pCtx.BatchInfo.ScriptParamsURI, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
 	// pCtx.Script, err = sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, dataBatchInfo.ScriptURI, dataBatchInfo.ScriptParamsURI, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
@@ -266,12 +268,12 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.Logger, msgTs int64
 
 	runStatus, err := wfdb.GetCurrentRunStatus(logger, pCtx)
 	if err != nil {
-		logger.ErrorCtx(pCtx, "cannot get current run status: %s", err.Error())
+		logger.ErrorCtx(pCtx, "cannot get current run status for batch %s: %s", dataBatchInfo.FullBatchId(), err.Error())
 		return DaemonCmdReconnectDb
 	}
 
 	if runStatus == wfmodel.RunNone {
-		comment := fmt.Sprintf("run history status is empty, looks like this run %d was never started", pCtx.BatchInfo.RunId)
+		comment := fmt.Sprintf("run history status for batch %s is empty, looks like this run %d was never started", dataBatchInfo.FullBatchId(), pCtx.BatchInfo.RunId)
 		logger.ErrorCtx(pCtx, comment)
 		if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeBatchRunStopReceived, comment); err != nil {
 			return DaemonCmdReconnectDb

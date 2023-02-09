@@ -100,7 +100,13 @@ func CreateVolume(prjPair *ProjectPair, volNickname string, isVerbose bool) (Log
 		return lb.Complete(nil)
 	}
 
-	rows, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"volume", "create", "--size", fmt.Sprintf("%d", prjPair.Live.Volumes[volNickname].Size), "--availability-zone", prjPair.Live.AvailabilityZone, prjPair.Live.Volumes[volNickname].Name})
+	volCreateParams := []string{"volume", "create", "--size", fmt.Sprintf("%d", prjPair.Live.Volumes[volNickname].Size), "--availability-zone", prjPair.Live.AvailabilityZone, prjPair.Live.Volumes[volNickname].Name}
+	if prjPair.Live.Volumes[volNickname].Type != "" {
+		volCreateParams = append(volCreateParams, "--type")
+		volCreateParams = append(volCreateParams, prjPair.Live.Volumes[volNickname].Type)
+	}
+
+	rows, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", volCreateParams)
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)

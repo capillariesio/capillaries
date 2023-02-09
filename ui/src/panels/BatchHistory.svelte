@@ -7,13 +7,53 @@
     // Component parameters
     export let batch_history = [];
 
+    let nonStartedBatches = "";
+    let startedBatches = "";
+    let runningBatches = "";
+    let finishedBatches = "";
+    function arrayToReadable(arr){
+        var result = "";
+        var prev = -1;
+        for (var i=0; i < arr.length; i++) {
+            if (prev == -1){
+            result += arr[i].toString();
+            prev = arr[i];
+            continue;
+            }
+            
+            if (prev != arr[i]-1) {
+            // End of strike
+            if (!result.endsWith(prev.toString())) {
+                    result += prev.toString();
+            }
+            if (result.length > 0) {
+                result += ",";
+            }
+            result += arr[i].toString();
+            } else {
+            if (!result.endsWith("-")){
+                result += "-";
+            }
+            }
+            prev = arr[i];
+        }
+        if (result.endsWith("-")) {
+            result += prev.toString();
+        }
+        return result;
+        }
     afterUpdate(() => {
+        if (batch_history.length == 0) {
+            return;
+        }
         // Calculate elapsed times for each batch
+        let runningBatchSet = new Set();
         let batchStartMap = {};
         for (let i=0; i < batch_history.length; i++) {
             let e = batch_history[i];
             if (e.status === 1) {
                 batchStartMap[e.batch_idx] = dayjs(e.ts).valueOf();
+                runningBatchSet.add(e.batch_idx)
             }
         }
 
@@ -22,8 +62,14 @@
             let e = batch_history[i];
             if (e.status > 1 && !(e.batch_idx in batchEndMap)) {
                 batchEndMap[e.batch_idx] = dayjs(e.ts).valueOf();
+                runningBatchSet.delete(e.batch_idx)
             }
         }
+
+        nonStartedBatches = arrayToReadable(([...Array(batch_history[0].batches_total).keys()].filter((i) => !(i in batchStartMap))));
+        startedBatches = arrayToReadable(Array.from(Object.keys(batchStartMap)));
+        runningBatches = arrayToReadable(Array.from(runningBatchSet).sort(function(a, b) { return a - b;}));
+        finishedBatches = arrayToReadable(Array.from(Object.keys(batchEndMap)));
 
         for (let i=0; i < batch_history.length; i++) {
             let e = batch_history[i];
@@ -44,6 +90,29 @@
     th {white-space: nowrap;}
     img {width: 20px;}
 </style>
+<table>
+    <thead>
+        <th colspan="2">Batch summary</th>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Not started:</td>
+            <td>{nonStartedBatches}</td>
+        </tr>
+        <tr>
+            <td>Started:</td>
+            <td>{startedBatches}</td>
+        </tr>
+        <tr>
+            <td>Running:</td>
+            <td>{runningBatches}</td>
+        </tr>
+        <tr>
+            <td>Finished:</td>
+            <td>{finishedBatches}</td>
+        </tr>
+    </tbody>
+</table>
 <table>
     <thead>
         <th>Timestamp</th>

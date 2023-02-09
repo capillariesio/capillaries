@@ -5,3 +5,9 @@ echo 127.0.0.1 $(hostname) | sudo tee -a /etc/hosts
 sudo sed -i "s/nameserver[ ]*[0-9.]*/nameserver 8.8.8.8/" /etc/resolv.conf 
 
 sudo resolvectl flush-caches
+
+sudo apt -y update
+
+# Utilities for checking cloud performance, feel free to comment this out
+sudo apt-get install -y iperf
+sudo apt-get install -y sysbench
