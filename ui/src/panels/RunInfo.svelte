@@ -34,6 +34,9 @@
 
 {#if Object.keys(run_lifespan).length > 0}
 <table>
+    <thead>
+        <th colspan="3">Run summary</th>
+    </thead>    
     <tbody>
         <tr>
             <td>Run Id:</td>

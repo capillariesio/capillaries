@@ -8,6 +8,20 @@
             setWebapiDataFunc(responseJson.data, null);
 		}
 	}
+    export function nodeStatusToColor(status) {
+		switch (status) {
+			case 1:
+				return "Gray"; //"Started" 
+			case 2:
+				return "DarkGreen"; //"Success" 
+			case 3:
+				return "OrangeRed"; // "Failure" 
+			case 104:
+				return "Maroon"; // "Run stopped" 
+			default:
+				return "Black"; //"Unknown" 
+		}
+	}
 </script>
 <script>
 	export function rootLink(ksName) {
