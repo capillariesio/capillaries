@@ -2,15 +2,15 @@
 
 Capillaries [Deploy tool](../../doc/glossary.md#deploy-tool) can provision complete Capillaries cloud environment in public/private clouds that support Openstack API.
 
-`test/deploy` directory contains two sample projects (capideploy_project_dreamhost.json and capideploy_project_genesis.json) used by [Deploy tool](../../doc/glossary.md#deploy-tool). Sensitive and repetitive configuration can be stored in project parameter files (capideploy_project_params_dreamhost.json and capideploy_project_params_genesis.json), andit's a good idea to store paramatar files at somewhat secure location (like user home dir).
+`test/deploy` directory contains two sample projects (capideploy_project_dreamhost.json and capideploy_project_genesis.json) used by [Deploy tool](../../doc/glossary.md#deploy-tool). Sensitive and repetitive configuration can be stored in project parameter files (capideploy_project_params_dreamhost.json and capideploy_project_params_genesis.json), andit's a good idea to store parameter files at somewhat secure location (like user home dir).
 
 For troubleshooting, add `-verbose` argument to your deploy tool command line.
 
 ## Openstack environment
 
-1. Make sure you have an Openstack project ready, with all `OS_*` variables defined in the project parameter file. Usually, Openstack cloud provider generates a shell script that sets all those variables for you. Just manually copy those values to the parametar file, one by one.
+1. Make sure you have an Openstack project ready, with all `OS_*` variables defined in the project parameter file. Usually, Openstack cloud provider generates a shell script that sets all those variables for you. Just manually copy those values to the parameter file, one by one.
 2. Make sure you have created the key pair for SSH access to the Openstack instances, key pair name stored in `root_key_name` in the project file.
-3. Make sure all configuration values in the project parameters file are up-to-date.
+3. Make sure all configuration values in the project parameters file are up-to-date. Some paramaters, like `sftp_user_private_key` may contain multi-line content - make sure you replace all line endings with `\n`.
 4. This guide assumes you have reserved a floating IP address with your Openstack provider, this address will be assigned to the `bastion` instance and will be your gateway to all of your instances. Make sure `floating_ip_address` in your project parameter file is set to this floating IP address. You may want to use bastion instance as an SSH  jumphost, make sure you have set up this IP address for a jump host in `~/.ssh/config` file:
 
 ```
@@ -28,12 +28,12 @@ Host <genesis_bastion_ip>
 
 ## Set environment variables
 
-Just for convenience, you may want to store deploy tool arguments and other configuration settings in shell variables, for example:
+Just for convenience, let's store deploy tool arguments and other configuration settings in shell variables, for example:
 ```
-capideploy=../../build/capideploy.exe
-DEPLOY_ARGS="-prj capideploy_project_dreamhost.json -prj_params $HOME/capideploy_project_params_dreamhost.json"
-DEPLOY_ROOT_KEY=$HOME/.ssh/sampledeployment001_rsa
-BASTION_IP=<dreamhost_bastion_ip>
+export capideploy=../../build/capideploy.exe
+export DEPLOY_ARGS="-prj capideploy_project_dreamhost.json -prj_params $HOME/capideploy_project_params_dreamhost.json"
+export DEPLOY_ROOT_KEY=$HOME/.ssh/sampledeployment001_rsa
+export BASTION_IP=<dreamhost_bastion_ip>
 ```
 
 ## Build Capillaries components
@@ -102,7 +102,7 @@ $capideploy ping_instances all $DEPLOY_ARGS
 # Install all pre-requisite software
 $capideploy install_services all $DEPLOY_ARGS
 
-# Now it's a good time to run the script that start Cassandra cluster (see next section)
+# Now it's a good time to start Cassandra cluster in a separate shell session (see next section)
 
 # Create sftp user (we assume that Openstack provider does not support multi-attach volumes, so we have to use sftp to read and write data files)
 $capideploy create_instance_users bastion $DEPLOY_ARGS
@@ -122,17 +122,16 @@ $capideploy config_services bastion,rabbitmq,prometheus,daemon01,daemon02 $DEPLO
 
 ## Starting cassandra cluster
 
-This is probably the most fragile part of the provisioning process, as Cassandra nodes, if started simultaneously, may get into token collision situation. To avoid it, consider adding nodes one by one using a script below. It calls `config_service` deploy command for each Cassandra node and waits until `nodetool status` confirms that the node joined the cluster.
+This is probably the most fragile part of the provisioning process, as Cassandra nodes, if started simultaneously, may get into token collision situation. To avoid it, consider two approaches.
 
-It's worth running this script in a separate shell session as soon as `install_services` command is complete.
+### Add nodes to Cassandra cluster one by one
+
+The script below calls `config_service` deploy command for each Cassandra node and waits until `nodetool status` confirms that the node joined the cluster. It's worth running this script in a separate shell session right after `install_services` command is complete.
 
 Keep in mind that `config_service` command also restarts Cassandra on Cassandra nodes.
 
 ```
-capideploy=../../build/capideploy.exe
-DEPLOY_ARGS="-prj capideploy_project_dreamhost.json -prj_params $HOME/capideploy_project_params_dreamhost.json"
-DEPLOY_ROOT_KEY=$HOME/.ssh/sampledeployment001_rsa
-BASTION_IP=<dreamhost_bastion_ip>
+#! /bin/bash
 
 echo Stopping all nodes in the cluster...
 $capideploy stop_services cass01,cass02,cass03,cass04,cass05 $DEPLOY_ARGS
@@ -149,35 +148,32 @@ do
     echo Cannot configure Cassandra on $cassNodeNickname
     return $?
   fi
-
   while :
   do
     nodetoolOutput=$(ssh -o StrictHostKeyChecking=no -i $DEPLOY_ROOT_KEY -J $BASTION_IP ubuntu@$cassNodeIp 'nodetool status' 2>&1)
     if [[ "$nodetoolOutput" == *"UJ  $cassNodeIp"* ]]; then
-      echo Node $cassNodeNickname is joining the cluster, almost there...
+      echo $cassNodeNickname is joining the cluster, almost there...
     elif [[ "$nodetoolOutput" == *"nodetool: Failed to connect"* ]]; then 
-      echo Node $cassNodeNickname is not online, nodetool cannot connect to 7199 
+      echo $cassNodeNickname is not online, nodetool cannot connect to 7199 
     elif [[ "$nodetoolOutput" == *"Has this node finished starting up"* ]]; then 
-      echo Node $cassNodeNickname is not online, still starting up 
+      echo $cassNodeNickname is not online, still starting up 
     elif [[ "$nodetoolOutput" == *"UN  $cassNodeIp"* ]]; then
-      # Show one line of the nodetool output 
-      echo $nodetoolOutput | grep "UN  $cassNodeIp"
-      echo Node $cassNodeNickname joined the cluster
+      echo $cassNodeNickname joined the cluster
       break
     elif [[ "$nodetoolOutput" == *"Normal/Leaving/Joining/Moving"* ]]; then
-      echo Node $cassNodeNickname is about to start joining the cluster, nodetool functioning
+      echo $cassNodeNickname is about to start joining the cluster, nodetool functioning
     else
-      # Unknown issue, let the user see it
       echo $nodetoolOutput
     fi
     sleep 10
   done
 done
-# Final summary
 ssh -o StrictHostKeyChecking=no -i $DEPLOY_ROOT_KEY -J $BASTION_IP ubuntu@10.5.0.11 'nodetool status'
 ```
 
-Alternatively, you can provide INITIAL_TOKEN setting for each Cassandra node to speed up bootstrapping pocess, for example, for 5-node cluster:
+### Speed up bootrapping
+
+Alternatively, you may decide not to wait for each node to join the cluster, and provide INITIAL_TOKEN setting for each Cassandra node to speed up the bootstrapping pocess. For example, for a 5-node cluster:
 
 | Node | Project setting |
 |- | - |

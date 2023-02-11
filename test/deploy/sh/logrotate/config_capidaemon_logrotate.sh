@@ -5,7 +5,7 @@ sudo rm -f $LOGROTATE_CONFIG_FILE
 sudo tee $LOGROTATE_CONFIG_FILE <<EOF
 /var/log/capidaemon/* {
     create 0644 root root
-    hourly
+    daily
     rotate 10
     missingok
     notifempty

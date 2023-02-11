@@ -3,6 +3,8 @@ echo "deb http://www.apache.org/dist/cassandra/debian 40x main" | sudo tee -a /e
 
 wget -q -O - https://www.apache.org/dist/cassandra/KEYS | sudo tee /etc/apt/trusted.gpg.d/cassandra.asc > /dev/null
 
+sudo apt -y update
+
 sudo apt -y install cassandra
 
 sudo systemctl status cassandra

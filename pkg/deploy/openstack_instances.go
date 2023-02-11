@@ -2,6 +2,7 @@ package deploy
 
 import (
 	"fmt"
+	"strings"
 )
 
 func GetFlavorIds(prjPair *ProjectPair, flavorMap map[string]string, isVerbose bool) (LogMsg, error) {
@@ -45,28 +46,29 @@ func GetImageIds(prjPair *ProjectPair, imageMap map[string]string, isVerbose boo
 }
 
 func CreateInstanceAndWaitForCompletion(prjPair *ProjectPair, iNickname string, flavorId string, imageId string, isVerbose bool) (LogMsg, error) {
-	lb := NewLogBuilder("CreateInstanceAndWaitForCompletion:"+prjPair.Live.Instances[iNickname].HostName+"\n", isVerbose)
+	sb := strings.Builder{}
+
 	logMsg, err := CreateInstance(prjPair, iNickname, flavorId, imageId, isVerbose)
-	AddLogMsg(lb.Sb, logMsg)
+	AddLogMsg(&sb, logMsg)
 	if err != nil {
-		return LogMsg(lb.Sb.String()), err
+		return LogMsg(sb.String()), err
 	}
 
 	logMsg, err = WaitForEntityToBeCreated(&prjPair.Live, "server", prjPair.Live.Instances[iNickname].HostName, prjPair.Live.Instances[iNickname].Id, prjPair.Live.Timeouts.OpenstackInstanceCreation, isVerbose)
-	AddLogMsg(lb.Sb, logMsg)
+	AddLogMsg(&sb, logMsg)
 	if err != nil {
-		return LogMsg(lb.Sb.String()), err
+		return LogMsg(sb.String()), err
 	}
 
 	if prjPair.Live.Instances[iNickname].FloatingIpAddress != "" {
 		logMsg, err = AssignFloatingIp(&prjPair.Live, prjPair.Live.Instances[iNickname].Id, prjPair.Live.Instances[iNickname].FloatingIpAddress, isVerbose)
-		AddLogMsg(lb.Sb, logMsg)
+		AddLogMsg(&sb, logMsg)
 		if err != nil {
-			return LogMsg(lb.Sb.String()), err
+			return LogMsg(sb.String()), err
 		}
 	}
 
-	return LogMsg(lb.Sb.String()), nil
+	return LogMsg(sb.String()), nil
 }
 
 func AssignFloatingIp(prj *Project, instanceId string, floatingIp string, isVerbose bool) (LogMsg, error) {

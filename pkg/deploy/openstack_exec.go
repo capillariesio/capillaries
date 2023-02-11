@@ -82,7 +82,7 @@ func ExecLocalAndParseOpenstackOutput(prj *Project, cmdPath string, params []str
 }
 
 func WaitForEntityToBeCreated(prj *Project, entityType string, entityName string, entityId string, timeoutSeconds int, isVerbose bool) (LogMsg, error) {
-	lb := NewLogBuilder("WaitForEntityToBeCreated", isVerbose)
+	lb := NewLogBuilder("WaitForEntityToBeCreated: "+entityName, isVerbose)
 	startWaitTs := time.Now()
 	for {
 		rows, er := ExecLocalAndParseOpenstackOutput(prj, "openstack", []string{entityType, "show", entityId})
