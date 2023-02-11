@@ -1,22 +1,5 @@
 # https://www.cherryservers.com/blog/how-to-install-and-start-using-rabbitmq-on-ubuntu-22-04
 
-if [ "$RABBITMQ_ADMIN_NAME" = "" ]; then
-  echo Error, missing: RABBITMQ_ADMIN_NAME=...
- exit 1
-fi
-if [ "$RABBITMQ_ADMIN_PASS" = "" ]; then
-  echo Error, missing: RABBITMQ_ADMIN_PASS=...
- exit 1
-fi
-if [ "$RABBITMQ_USER_NAME" = "" ]; then
-  echo Error, missing: RABBITMQ_USER_NAME=...
- exit 1
-fi
-if [ "$RABBITMQ_ADMIN_PASS" = "" ]; then
-  echo Error, missing: RABBITMQ_USER_PASS=...
- exit 1
-fi
-
 sudo apt -y install gnupg apt-transport-https
 
 curl -1sLf "https://keys.openpgp.org/vks/v1/by-fingerprint/0A9AF2115F4687BD29803A206B73A36E6026DFCA" | sudo gpg --dearmor | sudo tee /usr/share/keyrings/com.rabbitmq.team.gpg > /dev/null
@@ -31,8 +14,6 @@ deb [signed-by=/usr/share/keyrings/io.packagecloud.rabbitmq.gpg] https://package
 deb-src [signed-by=/usr/share/keyrings/io.packagecloud.rabbitmq.gpg] https://packagecloud.io/rabbitmq/rabbitmq-server/ubuntu/ jammy main
 EOF
 
-sudo apt -y update
-
 # Erlang
 sudo apt -y install erlang-base \
     erlang-asn1 erlang-crypto erlang-eldap erlang-ftp erlang-inets \
@@ -42,21 +23,3 @@ sudo apt -y install erlang-base \
 
 # RabbitMQ server
 sudo apt -y --fix-missing install rabbitmq-server
-
-sudo rabbitmq-plugins list
-
-# Enable mgmt console
-sudo rabbitmq-plugins enable rabbitmq_management
-
-# Console user mgmt
-sudo rabbitmqctl add_user $RABBITMQ_ADMIN_NAME $RABBITMQ_ADMIN_PASS
-sudo rabbitmqctl set_user_tags $RABBITMQ_ADMIN_NAME administrator
-sudo rabbitmqctl list_users
-sudo rabbitmqctl delete_user guest
-
-# Capillaries uses this account
-sudo rabbitmqctl add_user $RABBITMQ_USER_NAME $RABBITMQ_USER_PASS
-sudo rabbitmqctl set_permissions -p / $RABBITMQ_USER_NAME ".*" ".*" ".*"
-
-curl http://localhost:15672
-

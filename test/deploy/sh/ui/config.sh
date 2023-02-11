@@ -1,7 +1,7 @@
-# Tweak UI so it call the proper capiwebapi URL
+# Tweak UI so it calls the proper capiwebapi URL
 
 if [ "$WEBAPI_IP" = "" ]; then
-  echo Error, missing: WEBAPI_IP=208.113.134.216
+  echo Error, missing: WEBAPI_IP=your_bastion_ip
  exit 1
 fi
 if [ "$WEBAPI_PORT" = "" ]; then

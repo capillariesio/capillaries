@@ -81,7 +81,7 @@ This is how deployed Capillaries components interact. For component definitions,
 
 1. Data/index/state table rows are immutable and all operations on them are idempotent. [Script](glossary.md#script) execution should survive temporary DB failures without any need for operator intervention (there some exceptional cases though, unique index key writes are not idempotent). Data/index [table](glossary.md#table) rows can be deleted though during [batch re-runs](scriptconfig.md#rerun_policy) if needed.
    
-2. Capillaries follows a Cassandra-style mindset: everything that prevents scalability should be prohibited or limited. For example, Capillaries has limited [data sorting](scriptconfig.md#w_top) capabilities.
+2. Capillaries follows Cassandra-style mindset: everything that prevents scalability should be prohibited or limited. For example, Capillaries has limited [data sorting](scriptconfig.md#w_top) capabilities.
    
 3. Eventual data consistency is guaranteed by message queue (RabbitMQ): every message triggering [data batch](glossary.md#data-batch) processing will be delivered to the [processor](glossary.md#processor) as many times as needed. If message queue connectivity is unreliable, script execution consistency is not guaranteed. 
 

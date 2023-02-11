@@ -15,6 +15,12 @@ if [ "$SFTP_USER" = "" ]; then
  exit 1
 fi
 
+pkill -2 capidaemon
+processid=$(pgrep capidaemon)
+if [ "$processid" != "" ]; then
+  pkill -9 capidaemon
+fi
+
 ENV_CONFIG_FILE=/home/$SSH_USER/bin/capidaemon.json
 
 sed -i -e 's~"url":[ ]*"[a-zA-Z0-9@\.:\/\-_$ ]*"~"url": "'"$AMQP_URL"'"~g' $ENV_CONFIG_FILE

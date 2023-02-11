@@ -23,9 +23,6 @@ sudo chmod 755 /home/$SSH_USER/ui
 
 sudo ln -s $UI_CONFIG_FILE /etc/nginx/sites-enabled/
 
-# Remove nginx stub site
-sudo rm -f /etc/nginx/sites-enabled/default
-
 sudo nginx -t
 if [ "$?" -ne "0" ]; then
     echo nginx config error, exiting

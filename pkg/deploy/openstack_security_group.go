@@ -149,7 +149,6 @@ func DeleteSecurityGroups(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) 
 	for sgNickname, _ := range prjPair.Live.SecurityGroups {
 		logMsg, err := DeleteSecurityGroup(prjPair, sgNickname, isVerbose)
 		AddLogMsg(&sb, logMsg)
-		sb.WriteString("\n")
 		if err != nil {
 			return LogMsg(sb.String()), err
 		}

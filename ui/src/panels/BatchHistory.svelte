@@ -94,11 +94,11 @@
         );
         finishedBatches = arrayToReadable(Array.from(Object.keys(batchEndMap)));
 
-        let svgWidth = 600;
-        let svgHeight = Math.max(200, Math.min(500, Math.round(batch_history[0].batches_total / 10)*100 ));
-        svgSummary = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${svgWidth} ${svgHeight}" width="${svgWidth}px" height="${svgHeight}px">\n`;
-        svgSummary += `<rect width="${svgWidth}" height="${svgHeight}" fill="lightgray" />`;
-        if (earliestTs != null && latestTs != null) {
+        if (earliestTs != null && latestTs != null && batch_history[0].batches_total > 1) {
+            let svgWidth = 600;
+            let svgHeight = Math.max(200, Math.min(500, Math.round(batch_history[0].batches_total / 10)*100 ));
+            svgSummary = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${svgWidth} ${svgHeight}" width="${svgWidth}px" height="${svgHeight}px">\n`;
+            svgSummary += `<rect width="${svgWidth}" height="${svgHeight}" fill="lightgray" />`;
             nodeElapsed = Math.round((latestTs - earliestTs) / 1000);
             let lineWidth = svgHeight / batch_history[0].batches_total;
             for (var batchIdx = 0; batchIdx < batch_history[0].batches_total; batchIdx++) {
@@ -110,8 +110,8 @@
                     svgSummary += `<path d="M${startX},${topY} L${endX},${topY} L${endX},${bottomY} L${startX},${bottomY} Z" fill="${nodeStatusToColor(batchStatusMap[batchIdx])}" ><title>Batch ${batchIdx}</title></path>`;
                 }
             }
+            svgSummary += '</svg>';
         }
-        svgSummary += '</svg>';
 
         for (let i = 0; i < batch_history.length; i++) {
             let e = batch_history[i];

@@ -76,9 +76,10 @@ type AttachedVolumeDef struct {
 }
 
 type ServiceCommandsDef struct {
-	Setup []string `json:"setup"`
-	Start []string `json:"start"`
-	Stop  []string `json:"stop"`
+	Install []string `json:"install"`
+	Config  []string `json:"config"`
+	Start   []string `json:"start"`
+	Stop    []string `json:"stop"`
 }
 type ServiceDef struct {
 	Env map[string]string  `json:"env"`

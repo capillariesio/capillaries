@@ -12,28 +12,17 @@ if [ "$CASSANDRA_IP" = "" ]; then
  exit 1
 fi
 
-sudo apt update
-
-echo "deb http://www.apache.org/dist/cassandra/debian 40x main" | sudo tee -a /etc/apt/sources.list.d/cassandra.sources.list
-
-wget -q -O - https://www.apache.org/dist/cassandra/KEYS | sudo tee /etc/apt/trusted.gpg.d/cassandra.asc > /dev/null
-
-sudo apt update
-
-sudo apt -y install cassandra
-
-sudo systemctl status cassandra
-if [ "$?" -ne "0" ]; then
-    echo Bad cassandra service status, exiting
-    exit $?
-fi
-
 sudo systemctl stop cassandra
 
-sudo sed -i -e "s~seeds:[\: \"a-zA-Z0-9\.]*~seeds: $CASSANDRA_SEEDS~g" /etc/cassandra/cassandra.yaml
+sudo sed -i -e "s~seeds:[\: \"a-zA-Z0-9\.,]*~seeds: $CASSANDRA_SEEDS~g" /etc/cassandra/cassandra.yaml
 sudo sed -i -e "s~listen_address:[\: \"a-zA-Z0-9\.]*~listen_address: $CASSANDRA_IP~g" /etc/cassandra/cassandra.yaml
 sudo sed -i -e "s~rpc_address:[\: \"a-zA-Z0-9\.]*~rpc_address: $CASSANDRA_IP~g" /etc/cassandra/cassandra.yaml
 sudo sed -i -e "s~endpoint_snitch:[\: \"a-zA-Z0-9\.]*~endpoint_snitch: SimpleSnitch~g" /etc/cassandra/cassandra.yaml
+
+# If provided, use initial token list to decrease cluster starting time
+if [ "$INITIAL_TOKEN" != "" ]; then
+  sudo sed -i -e "s~[ #]*initial_token:[^\n]*~initial_token: $INITIAL_TOKEN~g" /etc/cassandra/cassandra.yaml
+fi
 
 # In test env, give enough time to Cassandra coordinator to complete the write (cassandra.yaml write_request_timeout_in_ms)
 # so there is no doubt that coordinator is the bottleneck,

@@ -28,11 +28,11 @@
     "security_groups": {
         "bastion": {
             "name": "{deployment_name}_bastion_security_group",
-            "id": "a64d5fc8-a40c-4021-ac79-6cc79a0f45f2",
+            "id": "67bdd3b5-d414-4899-8a2f-9394c3cd1c72",
             "rules": [
                 {
                     "desc": "SSH",
-                    "id": "fdeeff61-328a-4613-b8d5-5f8a94e67d85",
+                    "id": "2c2c93cd-a814-4899-89a7-b3a7a1228b71",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "0.0.0.0/0",
@@ -41,7 +41,7 @@
                 },
                 {
                     "desc": "Prometheus UI reverse proxy",
-                    "id": "780a71c9-6048-4c0e-828f-37ee4944f2e6",
+                    "id": "fb59b1e6-8fed-4d68-8612-fc399c482c54",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "0.0.0.0/0",
@@ -50,7 +50,7 @@
                 },
                 {
                     "desc": "Prometheus node exporter",
-                    "id": "c2aba984-18ea-45cd-a1bf-71df5ad85780",
+                    "id": "fa6f0690-5cf5-4976-adaf-eb91d9cec237",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -59,7 +59,7 @@
                 },
                 {
                     "desc": "RabbitMQ UI reverse proxy",
-                    "id": "0fc9847d-61f6-4068-bed3-24fb22a53ccb",
+                    "id": "2fc3e76a-7faa-4971-bf40-3209b9f11d90",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "0.0.0.0/0",
@@ -68,7 +68,7 @@
                 },
                 {
                     "desc": "rsyslog receiver",
-                    "id": "999f9d51-698d-4421-a27c-999228f1ac35",
+                    "id": "cf6236f0-31c3-45e3-b89d-250d05517523",
                     "protocol": "udp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -77,7 +77,7 @@
                 },
                 {
                     "desc": "Capillaries webapi",
-                    "id": "a0acfd08-7410-442d-93ad-7d6e16d08fd8",
+                    "id": "cf6b1d4a-47da-4da0-b3a7-4176fdf99dd6",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "0.0.0.0/0",
@@ -86,7 +86,7 @@
                 },
                 {
                     "desc": "Capillaries UI nginx",
-                    "id": "7123c650-95a3-490e-8fe2-e7ff4068b62e",
+                    "id": "44a7fc43-e565-49b9-a05e-ff8bb8329b8b",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "0.0.0.0/0",
@@ -97,11 +97,11 @@
         },
         "internal": {
             "name": "{deployment_name}_internal_security_group",
-            "id": "ab832ae4-dbff-4fc6-8dbe-8b55a3cd73ff",
+            "id": "4da8ce49-6263-4972-9ac4-4eec91c02396",
             "rules": [
                 {
                     "desc": "SSH",
-                    "id": "d1731307-e987-4561-9f9d-d316ec0a1c03",
+                    "id": "3339f66a-9e30-4388-b468-bb11b7f0dfb6",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -110,7 +110,7 @@
                 },
                 {
                     "desc": "Prometheus UI internal",
-                    "id": "dc74f1c0-da70-4eef-85c6-c16b3da7df2e",
+                    "id": "2157210e-2db4-49c7-8424-421958d0fb9d",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -119,7 +119,7 @@
                 },
                 {
                     "desc": "Prometheus node exporter",
-                    "id": "8a9c0764-518e-471c-a23b-bbf6d6e2466f",
+                    "id": "86a7848b-e252-4f82-83f5-f8458869b71c",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -128,7 +128,7 @@
                 },
                 {
                     "desc": "Cassandra JMX",
-                    "id": "9d9389d5-0487-4fb5-9772-e4a8a9a9b231",
+                    "id": "e31cb6cd-1e9e-4f92-8298-c2b9048bef75",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -137,7 +137,7 @@
                 },
                 {
                     "desc": "Cassandra cluster comm",
-                    "id": "4567dec4-1085-4f73-8bdd-cecbaf7d3076",
+                    "id": "5445ebd5-0b32-472a-bdbf-6151ed5d3d8d",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -146,7 +146,7 @@
                 },
                 {
                     "desc": "Cassandra API",
-                    "id": "c0f6a071-d128-4ddd-8827-c9339dfe2d40",
+                    "id": "2e674203-fcb1-4024-ab3a-540bf91dd3e7",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -155,7 +155,7 @@
                 },
                 {
                     "desc": "RabbitMQ API",
-                    "id": "bec7628e-7a6f-4592-9cd9-c9d78553d2b4",
+                    "id": "1c715398-19dd-407e-bdf7-86a1ba9ea83b",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -164,7 +164,7 @@
                 },
                 {
                     "desc": "RabbitMQ UI",
-                    "id": "75190863-09d6-4952-887f-a07a2a7ddf2d",
+                    "id": "7fe95c16-3211-4dd3-8f70-73dd3c602e2f",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -176,16 +176,16 @@
     },
     "network": {
         "name": "{deployment_name}_network",
-        "id": "d2fd3e62-bc49-498a-93aa-305f0ab036fd",
+        "id": "13cdd45d-9f26-4752-a39a-d3f435487f97",
         "subnet": {
             "name": "{deployment_name}_subnet",
-            "id": "2c871f52-970a-4639-9641-176c8492c1c1",
+            "id": "5cbe3f4d-f0f0-4a65-a8eb-720c1b33d486",
             "cidr": "{subnet_cidr}",
             "allocation_pool": "start=10.5.0.240,end=10.5.0.254"
         },
         "router": {
             "name": "{deployment_name}_router",
-            "id": "b4b1517e-28da-4a5b-b6c0-a2a6ba2ac319",
+            "id": "7744cb82-c6c9-47d5-9372-4652016cacf6",
             "external_gateway_network_name": "public"
         }
     },
@@ -197,7 +197,7 @@
             "type": "",
             "permissions": 777,
             "owner": "{sftp_user}",
-            "id": "5d9e7d55-4026-4b73-9175-794847795581"
+            "id": "09b31888-c429-4aad-a289-61810270d1df"
         },
         "in": {
             "name": "{deployment_name}_in",
@@ -206,7 +206,7 @@
             "type": "",
             "permissions": 777,
             "owner": "{sftp_user}",
-            "id": "cf4b1c32-776f-4ecb-9d3e-d55989293c00"
+            "id": "1aff0588-3866-4b5e-baf6-c464e826d7f3"
         },
         "out": {
             "name": "{deployment_name}_out",
@@ -215,7 +215,7 @@
             "type": "",
             "permissions": 777,
             "owner": "{sftp_user}",
-            "id": "3eed4ffe-988e-4dae-8d30-180acef136eb"
+            "id": "be22b37d-9036-48f3-8d46-cfc4093a4cb1"
         }
     },
     "file_groups_up": {
@@ -441,26 +441,29 @@
                     "WEBAPI_PORT": "6543"
                 },
                 "cmd": {
-                    "setup": [
+                    "install": [
                         "sh/common/replace_nameserver.sh",
-                        "sh/prometheus/setup_node_exporter.sh",
-                        "sh/rsyslog/setup_capidaemon_log_receiver.sh",
-                        "sh/logrotate/setup_capidaemon_logrotate.sh",
-                        "sh/toolbelt/setup_toolbelt.sh",
-                        "sh/webapi/setup_webapi.sh",
-                        "sh/ui/setup_ui.sh",
-                        "sh/nginx/setup_nginx.sh",
-                        "sh/nginx/add_ui.sh",
-                        "sh/nginx/add_prometheus_reverse_proxy.sh",
-                        "sh/nginx/add_rabbitmq_reverse_proxy.sh"
+                        "sh/prometheus/install_node_exporter.sh",
+                        "sh/nginx/install.sh"
+                    ],
+                    "config": [
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/rsyslog/config_capidaemon_log_receiver.sh",
+                        "sh/logrotate/config_capidaemon_logrotate.sh",
+                        "sh/toolbelt/config.sh",
+                        "sh/webapi/config.sh",
+                        "sh/ui/config.sh",
+                        "sh/nginx/config_ui.sh",
+                        "sh/nginx/config_prometheus_reverse_proxy.sh",
+                        "sh/nginx/config_rabbitmq_reverse_proxy.sh"
                     ],
                     "start": [
-                        "sh/webapi/start_webapi.sh",
-                        "sh/nginx/start_nginx.sh"
+                        "sh/webapi/start.sh",
+                        "sh/nginx/start.sh"
                     ],
                     "stop": [
-                        "sh/webapi/stop_webapi.sh",
-                        "sh/nginx/stop_nginx.sh"
+                        "sh/webapi/stop.sh",
+                        "sh/nginx/stop.sh"
                     ]
                 }
             },
@@ -494,19 +497,24 @@
                 "env": {
                     "CASSANDRA_IP": "10.5.0.11",
                     "CASSANDRA_SEEDS": "{cassandra_seeds}",
+                    "INITIAL_TOKEN": "",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
                 },
                 "cmd": {
-                    "setup": [
+                    "install": [
                         "sh/common/replace_nameserver.sh",
-                        "sh/prometheus/setup_node_exporter.sh",
-                        "sh/cassandra/setup_node.sh"
+                        "sh/prometheus/install_node_exporter.sh",
+                        "sh/cassandra/install.sh"
+                    ],
+                    "config": [
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/cassandra/config.sh"
                     ],
                     "start": [
-                        "sh/cassandra/start_node.sh"
+                        "sh/cassandra/start.sh"
                     ],
                     "stop": [
-                        "sh/cassandra/stop_node.sh"
+                        "sh/cassandra/stop.sh"
                     ]
                 }
             }
@@ -522,19 +530,24 @@
                 "env": {
                     "CASSANDRA_IP": "10.5.0.12",
                     "CASSANDRA_SEEDS": "{cassandra_seeds}",
+                    "INITIAL_TOKEN": "",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
                 },
                 "cmd": {
-                    "setup": [
+                    "install": [
                         "sh/common/replace_nameserver.sh",
-                        "sh/prometheus/setup_node_exporter.sh",
-                        "sh/cassandra/setup_node.sh"
+                        "sh/prometheus/install_node_exporter.sh",
+                        "sh/cassandra/install.sh"
+                    ],
+                    "config": [
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/cassandra/config.sh"
                     ],
                     "start": [
-                        "sh/cassandra/start_node.sh"
+                        "sh/cassandra/start.sh"
                     ],
                     "stop": [
-                        "sh/cassandra/stop_node.sh"
+                        "sh/cassandra/stop.sh"
                     ]
                 }
             }
@@ -550,19 +563,24 @@
                 "env": {
                     "CASSANDRA_IP": "10.5.0.13",
                     "CASSANDRA_SEEDS": "{cassandra_seeds}",
+                    "INITIAL_TOKEN": "",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
                 },
                 "cmd": {
-                    "setup": [
+                    "install": [
                         "sh/common/replace_nameserver.sh",
-                        "sh/prometheus/setup_node_exporter.sh",
-                        "sh/cassandra/setup_node.sh"
+                        "sh/prometheus/install_node_exporter.sh",
+                        "sh/cassandra/install.sh"
+                    ],
+                    "config": [
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/cassandra/config.sh"
                     ],
                     "start": [
-                        "sh/cassandra/start_node.sh"
+                        "sh/cassandra/start.sh"
                     ],
                     "stop": [
-                        "sh/cassandra/stop_node.sh"
+                        "sh/cassandra/stop.sh"
                     ]
                 }
             }
@@ -578,19 +596,24 @@
                 "env": {
                     "CASSANDRA_IP": "10.5.0.14",
                     "CASSANDRA_SEEDS": "{cassandra_seeds}",
+                    "INITIAL_TOKEN": "",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
                 },
                 "cmd": {
-                    "setup": [
+                    "install": [
                         "sh/common/replace_nameserver.sh",
-                        "sh/prometheus/setup_node_exporter.sh",
-                        "sh/cassandra/setup_node.sh"
+                        "sh/prometheus/install_node_exporter.sh",
+                        "sh/cassandra/install.sh"
+                    ],
+                    "config": [
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/cassandra/config.sh"
                     ],
                     "start": [
-                        "sh/cassandra/start_node.sh"
+                        "sh/cassandra/start.sh"
                     ],
                     "stop": [
-                        "sh/cassandra/stop_node.sh"
+                        "sh/cassandra/stop.sh"
                     ]
                 }
             }
@@ -606,19 +629,24 @@
                 "env": {
                     "CASSANDRA_IP": "10.5.0.15",
                     "CASSANDRA_SEEDS": "{cassandra_seeds}",
+                    "INITIAL_TOKEN": "",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
                 },
                 "cmd": {
-                    "setup": [
+                    "install": [
                         "sh/common/replace_nameserver.sh",
-                        "sh/prometheus/setup_node_exporter.sh",
-                        "sh/cassandra/setup_node.sh"
+                        "sh/prometheus/install_node_exporter.sh",
+                        "sh/cassandra/install.sh"
+                    ],
+                    "config": [
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/cassandra/config.sh"
                     ],
                     "start": [
-                        "sh/cassandra/start_node.sh"
+                        "sh/cassandra/start.sh"
                     ],
                     "stop": [
-                        "sh/cassandra/stop_node.sh"
+                        "sh/cassandra/stop.sh"
                     ]
                 }
             }
@@ -646,18 +674,21 @@
                     "SSH_USER": "{ssh_user}"
                 },
                 "cmd": {
-                    "setup": [
+                    "install": [
                         "sh/common/replace_nameserver.sh",
-                        "sh/prometheus/setup_node_exporter.sh",
-                        "sh/logrotate/setup_capidaemon_logrotate.sh",
-                        "sh/rsyslog/setup_capidaemon_log_sender.sh",
-                        "sh/daemon/setup_daemon.sh"
+                        "sh/prometheus/install_node_exporter.sh"
+                    ],
+                    "config": [
+                        "sh/logrotate/config_capidaemon_logrotate.sh",
+                        "sh/rsyslog/config_capidaemon_log_sender.sh",
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/daemon/config.sh"
                     ],
                     "start": [
-                        "sh/daemon/start_daemon.sh"
+                        "sh/daemon/start.sh"
                     ],
                     "stop": [
-                        "sh/daemon/stop_daemon.sh"
+                        "sh/daemon/stop.sh"
                     ]
                 }
             },
@@ -689,18 +720,21 @@
                     "SSH_USER": "{ssh_user}"
                 },
                 "cmd": {
-                    "setup": [
+                    "install": [
                         "sh/common/replace_nameserver.sh",
-                        "sh/prometheus/setup_node_exporter.sh",
-                        "sh/logrotate/setup_capidaemon_logrotate.sh",
-                        "sh/rsyslog/setup_capidaemon_log_sender.sh",
-                        "sh/daemon/setup_daemon.sh"
+                        "sh/prometheus/install_node_exporter.sh"
+                    ],
+                    "config": [
+                        "sh/logrotate/config_capidaemon_logrotate.sh",
+                        "sh/rsyslog/config_capidaemon_log_sender.sh",
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/daemon/config.sh"
                     ],
                     "start": [
-                        "sh/daemon/start_daemon.sh"
+                        "sh/daemon/start.sh"
                     ],
                     "stop": [
-                        "sh/daemon/stop_daemon.sh"
+                        "sh/daemon/stop.sh"
                     ]
                 }
             },
@@ -723,10 +757,14 @@
                     "PROMETHEUS_VERSION": "{prometheus_version}"
                 },
                 "cmd": {
-                    "setup": [
+                    "install": [
                         "sh/common/replace_nameserver.sh",
-                        "sh/prometheus/setup_server.sh",
-                        "sh/prometheus/setup_node_exporter.sh"
+                        "sh/prometheus/install_server.sh",
+                        "sh/prometheus/install_node_exporter.sh"
+                    ],
+                    "config": [
+                        "sh/prometheus/config_server.sh",
+                        "sh/prometheus/config_node_exporter.sh"
                     ],
                     "start": [
                         "sh/prometheus/start_server.sh"
@@ -753,16 +791,20 @@
                     "RABBITMQ_USER_PASS": "{rabbitmq_user_pass}"
                 },
                 "cmd": {
-                    "setup": [
+                    "install": [
                         "sh/common/replace_nameserver.sh",
-                        "sh/prometheus/setup_node_exporter.sh",
-                        "sh/rabbitmq/setup_rabbitmq.sh"
+                        "sh/prometheus/install_node_exporter.sh",
+                        "sh/rabbitmq/install.sh"
+                    ],
+                    "config": [
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/rabbitmq/config.sh"
                     ],
                     "start": [
-                        "sh/cassandra/start_rabbitmq.sh"
+                        "sh/cassandra/start.sh"
                     ],
                     "stop": [
-                        "sh/cassandra/stop_rabbitmq.sh"
+                        "sh/cassandra/stop.sh"
                     ]
                 }
             }

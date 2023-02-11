@@ -44,6 +44,42 @@ func GetImageIds(prjPair *ProjectPair, imageMap map[string]string, isVerbose boo
 	return lb.Complete(nil)
 }
 
+func CreateInstanceAndWaitForCompletion(prjPair *ProjectPair, iNickname string, flavorId string, imageId string, isVerbose bool) (LogMsg, error) {
+	lb := NewLogBuilder("CreateInstanceAndWaitForCompletion:"+prjPair.Live.Instances[iNickname].HostName+"\n", isVerbose)
+	logMsg, err := CreateInstance(prjPair, iNickname, flavorId, imageId, isVerbose)
+	AddLogMsg(lb.Sb, logMsg)
+	if err != nil {
+		return LogMsg(lb.Sb.String()), err
+	}
+
+	logMsg, err = WaitForEntityToBeCreated(&prjPair.Live, "server", prjPair.Live.Instances[iNickname].HostName, prjPair.Live.Instances[iNickname].Id, prjPair.Live.Timeouts.OpenstackInstanceCreation, isVerbose)
+	AddLogMsg(lb.Sb, logMsg)
+	if err != nil {
+		return LogMsg(lb.Sb.String()), err
+	}
+
+	if prjPair.Live.Instances[iNickname].FloatingIpAddress != "" {
+		logMsg, err = AssignFloatingIp(&prjPair.Live, prjPair.Live.Instances[iNickname].Id, prjPair.Live.Instances[iNickname].FloatingIpAddress, isVerbose)
+		AddLogMsg(lb.Sb, logMsg)
+		if err != nil {
+			return LogMsg(lb.Sb.String()), err
+		}
+	}
+
+	return LogMsg(lb.Sb.String()), nil
+}
+
+func AssignFloatingIp(prj *Project, instanceId string, floatingIp string, isVerbose bool) (LogMsg, error) {
+	lb := NewLogBuilder("AssignFloatingIp:"+floatingIp, isVerbose)
+	_, er := ExecLocalAndParseOpenstackOutput(prj, "openstack", []string{"server", "add", "floating", "ip", instanceId, floatingIp})
+	lb.Add(er.ToString())
+	if er.Error != nil {
+		return lb.Complete(er.Error)
+	}
+	lb.Add(fmt.Sprintf("floating ip %s was assigned to instance %s", floatingIp, instanceId))
+	return lb.Complete(nil)
+}
+
 func CreateInstance(prjPair *ProjectPair, iNickname string, flavorId string, imageId string, isVerbose bool) (LogMsg, error) {
 	lb := NewLogBuilder("CreateInstance:"+prjPair.Live.Instances[iNickname].HostName, isVerbose)
 	if prjPair.Live.Instances[iNickname].HostName == "" ||
@@ -121,46 +157,6 @@ func CreateInstance(prjPair *ProjectPair, iNickname string, flavorId string, ima
 
 	lb.Add(fmt.Sprintf("creating instance %s(%s)...", prjPair.Live.Instances[iNickname].HostName, newId))
 	prjPair.SetInstanceId(iNickname, newId)
-
-	// var status string
-	// startInstanceWaitTs := time.Now()
-	// for time.Since(startInstanceWaitTs).Seconds() < float64(prjPair.Live.Timeouts.OpenstackInstanceCreation) {
-	// 	status = FindOpenstackFieldValue(rows, "status")
-	// 	if status == "" {
-	// 		return lb.Complete(fmt.Errorf("openstack returned empty instance status"))
-	// 	}
-	// 	if status != "BUILD" {
-	// 		break
-	// 	}
-	// 	lb.Add(fmt.Sprintf("instance %s(%s) is being created", prjPair.Live.Instances[iNickname].HostName, foundInstanceIdByName))
-	// 	time.Sleep(5 * time.Second)
-	// 	rows, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"server", "show", prjPair.Live.Instances[iNickname].HostName})
-	// 	lb.Add(er.ToString())
-	// 	if er.Error != nil {
-	// 		return lb.Complete(er.Error)
-	// 	}
-	// }
-	// if status == "BUILD" {
-	// 	return lb.Complete(fmt.Errorf("building instance %s(%s) took too long", prjPair.Live.Instances[iNickname].HostName, foundInstanceIdByName))
-	// }
-	// if status != "ACTIVE" {
-	// 	return lb.Complete(fmt.Errorf("instance %s(%s) was built, but the status is %s", prjPair.Live.Instances[iNickname].HostName, foundInstanceIdByName, status))
-	// }
-
-	logMsg, err := WaitForEntityToBeCreated(&prjPair.Live, "server", prjPair.Live.Instances[iNickname].HostName, newId, prjPair.Live.Timeouts.OpenstackInstanceCreation, isVerbose)
-	AddLogMsg(lb.Sb, logMsg)
-	if err != nil {
-		return lb.Complete(err)
-	}
-
-	if prjPair.Live.Instances[iNickname].FloatingIpAddress != "" {
-		_, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"server", "add", "floating", "ip", newId, prjPair.Live.Instances[iNickname].FloatingIpAddress})
-		lb.Add(er.ToString())
-		if er.Error != nil {
-			return lb.Complete(er.Error)
-		}
-		lb.Add(fmt.Sprintf("floating ip %s was assigned to instance %s(%s)", prjPair.Live.Instances[iNickname].FloatingIpAddress, prjPair.Live.Instances[iNickname].HostName, newId))
-	}
 
 	return lb.Complete(nil)
 }

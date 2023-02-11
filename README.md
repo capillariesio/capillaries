@@ -2,7 +2,7 @@
 
 # Capillaries
 
-Capillaries is a supervised data processing framework. It fills the gap between distributed, scalable data processing/integration solutions and the need to provide enriched, customer-ready, production-quality, human-curated data within SLA time limits.
+Capillaries is a supervised data processing framework. It fills the gap between distributed, scalable data processing/integration solutions and the need to produce enriched, customer-ready, production-quality, human-curated data within SLA time limits.
 
 ## TL;DR
 
@@ -57,7 +57,8 @@ Capable of processing large amounts of data within SLA time limits, efficiently 
 ### [Testing](doc/testing.md)
 ### [Toolbelt, Daemon, and Webapi configuration](doc/binconfig.md)
 ### [Script configuration](doc/scriptconfig.md)
-### [API](doc/api.md)
+### [Capillaries API](doc/api.md)
+### [Capillaries deploy tool: Openstack cloud deployment](test/deploy/README.md)
 ### [Glossary](doc/glossary.md)
 ### [Q & A](doc/qna.md)
 ### [MIT License](LICENSE)

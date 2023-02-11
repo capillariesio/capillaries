@@ -39,9 +39,9 @@ elapsed:%0.3f
 
 func CmdChainExecToString(title string, logContent string, err error, isVerbose bool) string {
 	if err != nil {
-		title = fmt.Sprintf("%s: %s", title, err)
+		title = fmt.Sprintf("%s: %s%s%s", title, LogColorRed, err, LogColorReset)
 	} else {
-		title = fmt.Sprintf("%s: OK", title)
+		title = fmt.Sprintf("%s: %sOK%s", title, LogColorGreen, LogColorReset)
 	}
 
 	if isVerbose {

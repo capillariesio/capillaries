@@ -179,6 +179,10 @@ type LogBuilder struct {
 
 type LogMsg string
 
+const LogColorReset string = "\033[0m"
+const LogColorRed string = "\033[31m"
+const LogColorGreen string = "\033[32m"
+
 func NewLogBuilder(header string, isVerbose bool) *LogBuilder {
 	lb := LogBuilder{Sb: &strings.Builder{}, IsVerbose: isVerbose, Header: header, StartTs: time.Now()}
 	if lb.IsVerbose {
@@ -207,9 +211,9 @@ func (lb *LogBuilder) Complete(err error) (LogMsg, error) {
 	}
 	lb.Sb.WriteString(fmt.Sprintf("elapsed %.3fs, ", time.Since(lb.StartTs).Seconds()))
 	if err == nil {
-		lb.Sb.WriteString("OK")
+		lb.Sb.WriteString(LogColorGreen + "OK" + LogColorReset)
 	} else {
-		lb.Sb.WriteString(err.Error())
+		lb.Sb.WriteString(LogColorRed + err.Error() + LogColorReset)
 	}
 	lb.Sb.WriteString("\n")
 	return LogMsg(lb.Sb.String()), err

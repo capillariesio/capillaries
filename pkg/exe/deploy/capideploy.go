@@ -24,7 +24,8 @@ const (
 	CmdAttachVolumes        string = "attach_volumes"
 	CmdUploadFiles          string = "upload_files"
 	CmdDownloadFiles        string = "download_files"
-	CmdSetupServices        string = "setup_services"
+	CmdInstallServices      string = "install_services"
+	CmdConfigServices       string = "config_services"
 	CmdStartServices        string = "start_services"
 	CmdStopServices         string = "stop_services"
 	CmdCreateInstanceUsers  string = "create_instance_users"
@@ -109,7 +110,8 @@ Commands:
   %s <comma-separated list of instances to attach volumes to, or 'all'>
   %s <comma-separated list of upload file groups, or 'all'>
   %s <comma-separated list of download file groups, or 'all'>  
-  %s <comma-separated list of instances to setup services on, or 'all'>
+  %s <comma-separated list of instances to install services on, or 'all'>
+  %s <comma-separated list of instances to config services on, or 'all'>
   %s <comma-separated list of instances to start services on, or 'all'>
   %s <comma-separated list of instances to stop services on, or 'all'>
 `,
@@ -132,7 +134,8 @@ Commands:
 		CmdUploadFiles,
 		CmdDownloadFiles,
 
-		CmdSetupServices,
+		CmdInstallServices,
+		CmdConfigServices,
 		CmdStartServices,
 		CmdStopServices,
 	)
@@ -226,7 +229,7 @@ func main() {
 			for iNickname, _ := range instances {
 				sem <- 1
 				go func(prjPair *deploy.ProjectPair, logChan chan deploy.LogMsg, errChan chan error, iNickname string) {
-					logMsg, err := deploy.CreateInstance(prjPair, iNickname, usedFlavors[prjPair.Live.Instances[iNickname].FlavorName], usedImages[prjPair.Live.Instances[iNickname].ImageName], *argVerbosity)
+					logMsg, err := deploy.CreateInstanceAndWaitForCompletion(prjPair, iNickname, usedFlavors[prjPair.Live.Instances[iNickname].FlavorName], usedImages[prjPair.Live.Instances[iNickname].ImageName], *argVerbosity)
 					logChan <- logMsg
 					errChan <- err
 					<-sem
@@ -245,7 +248,13 @@ func main() {
 		default:
 			log.Fatalf("unknown create/delete instance command:" + os.Args[1])
 		}
-	} else if os.Args[1] == CmdPingInstances || os.Args[1] == CmdCreateInstanceUsers || os.Args[1] == CmdCopyPrivateKeys || os.Args[1] == CmdSetupServices || os.Args[1] == CmdStartServices || os.Args[1] == CmdStopServices {
+	} else if os.Args[1] == CmdPingInstances ||
+		os.Args[1] == CmdCreateInstanceUsers ||
+		os.Args[1] == CmdCopyPrivateKeys ||
+		os.Args[1] == CmdInstallServices ||
+		os.Args[1] == CmdConfigServices ||
+		os.Args[1] == CmdStartServices ||
+		os.Args[1] == CmdStopServices {
 		commonArgs.Parse(os.Args[3:])
 		prjPair, fullPrjPath, prjErr = deploy.LoadProject(*argPrjFile, *argPrjParamsFile)
 		if prjErr != nil {
@@ -286,8 +295,11 @@ func main() {
 					}
 					logMsg, finalErr = deploy.ExecCommandsOnInstance(prjPair.Live.SshConfig, iDef.BestIpAddress(), cmds, *argVerbosity)
 
-				case CmdSetupServices:
-					logMsg, finalErr = deploy.ExecScriptsOnInstance(prj.SshConfig, iDef.BestIpAddress(), iDef.Service.Env, prjPair.ProjectFileDirPath, iDef.Service.Cmd.Setup, *argVerbosity)
+				case CmdInstallServices:
+					logMsg, finalErr = deploy.ExecScriptsOnInstance(prj.SshConfig, iDef.BestIpAddress(), iDef.Service.Env, prjPair.ProjectFileDirPath, iDef.Service.Cmd.Install, *argVerbosity)
+
+				case CmdConfigServices:
+					logMsg, finalErr = deploy.ExecScriptsOnInstance(prj.SshConfig, iDef.BestIpAddress(), iDef.Service.Env, prjPair.ProjectFileDirPath, iDef.Service.Cmd.Config, *argVerbosity)
 
 				case CmdStartServices:
 					logMsg, finalErr = deploy.ExecScriptsOnInstance(prj.SshConfig, iDef.BestIpAddress(), iDef.Service.Env, prjPair.ProjectFileDirPath, iDef.Service.Cmd.Start, *argVerbosity)
@@ -474,5 +486,5 @@ func main() {
 		log.Fatalf(prjErr.Error())
 	}
 
-	fmt.Printf("%s succeeded, elapsed %.3fs\n", os.Args[1], time.Since(cmdStartTs).Seconds())
+	fmt.Printf("%s %sOK%s, elapsed %.3fs\n", os.Args[1], deploy.LogColorGreen, deploy.LogColorReset, time.Since(cmdStartTs).Seconds())
 }
