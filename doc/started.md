@@ -52,7 +52,7 @@ Wait until all containers are started.
 
 You may want to see all log output from all Capillaries components running in the containers. To do that:
 - navigate to Graylog UI at `http://localhost:9000` using admin/admin credentials;
-- add a new `GELF UDP` input bound to `10.5.0.13` listening on 12201, call it, say, `gelf_udp`.
+- add a new `GELF UDP` input (menu System/Inputs) bound to `10.5.0.60` (Graylog server IP in the Docker network) listening on `12201`, call it, say, `gelf_udp`; click `Show received messages` to start monitoring messages coming to this input (you may want to click `Every 1 second` in the top right corner of the input message view screen to see live updates).
 
 Now you can navigate to Capillaries UI at `http://localhost:8080`. On the displayed `Keyspaces` page, click `New run` enter the following pramaters and click `OK`:
 
@@ -84,10 +84,10 @@ When this run is complete, see final results at:
 cat /tmp/capi_out/tag_and_denormalize_quicktest/tag_totals.tsv
 ```
 
-To see log messages in Graylog, navigate to Graylog UI again and:
-- add new extractor (say, `capi_json_extractor`) to `gelf_udp` input: it will parse JSON received in the `message` field of the log message;
-- add a new stream (say, `capi_all`), add a new rule to it - it should take messages from `gelf_udp`, and  select `always match` as a rule so all messages make it to this stream;
-- start this new stream `capi_all` and start another run in Capillaries UI or run an integration test - you should see parsed log events in `capi_all`.
+If you want to see parsed Capillaries log messages in Graylog, navigate to Graylog UI again and:
+- add new `JSON` extractor (say, `capi_json_extractor`) to `gelf_udp` input (menu System/Inputs, `Manage extractors` for `gelf_udp`): it will parse JSON received in the `message` field of the log message;
+- add a new stream (nemu `Streams`/`Create stream`, call it `capi_all`), add a new rule to it - it should take messages from `gelf_udp`, and  select `always match` (in `Add stream rule`) as a rule so all messages make it to this stream;
+- start this new stream `capi_all` (menu Streams) and start another run in Capillaries UI or run an integration test - you should see parsed log events in `capi_all`.
 
 Drop the keyspace using Capillaries UI `Drop` button after experimenting with it.
 

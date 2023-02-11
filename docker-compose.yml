@@ -18,7 +18,7 @@ services:
     network_mode: bridge
     networks:
       capinet:
-        ipv4_address: 10.5.0.2
+        ipv4_address: 10.5.0.5
     ports:
       - 15672:15672
       - 5672:5672
@@ -29,7 +29,7 @@ services:
     network_mode: bridge
     networks:
       capinet:
-        ipv4_address: 10.5.0.3
+        ipv4_address: 10.5.0.11
     ports:
       - 9042:9042
 
@@ -43,16 +43,16 @@ services:
       - /tmp/capi_in:/tmp/capi_in:ro
       - /tmp/capi_out:/tmp/capi_out
     environment:
-      AMQP_URL: amqp://guest:guest@10.5.0.2/
-      CASSANDRA_HOSTS: '["10.5.0.3"]'
+      AMQP_URL: amqp://guest:guest@10.5.0.5/
+      CASSANDRA_HOSTS: '["10.5.0.11"]'
     network_mode: bridge
     networks:
       capinet:
-        ipv4_address: 10.5.0.4
+        ipv4_address: 10.5.0.101
     logging:
       driver: "gelf"
       options:
-        gelf-address: "udp://10.5.0.13:12201"
+        gelf-address: "udp://10.5.0.60:12201"
         tag: "capidaemon"
 
   webapi:
@@ -65,8 +65,8 @@ services:
       - /tmp/capi_in:/tmp/capi_in:ro
       - /tmp/capi_out:/tmp/capi_out
     environment:
-      AMQP_URL: amqp://guest:guest@10.5.0.2/
-      CASSANDRA_HOSTS: '["10.5.0.3"]'
+      AMQP_URL: amqp://guest:guest@10.5.0.5/
+      CASSANDRA_HOSTS: '["10.5.0.11"]'
       WEBAPI_PORT: 6543
       ACCESS_CONTROL_ACCESS_ORIGIN: 'http://localhost:8080,http://127.0.0.1:8080' # Adjust if needed
     ports:
@@ -74,11 +74,11 @@ services:
     network_mode: bridge
     networks:
       capinet:
-        ipv4_address: 10.5.0.5
+        ipv4_address: 10.5.0.20
     logging:
       driver: "gelf"
       options:
-        gelf-address: "udp://10.5.0.13:12201"
+        gelf-address: "udp://10.5.0.60:12201"
         tag: "capiwebapi"
     
   ui:
@@ -87,17 +87,17 @@ services:
       context: .
       dockerfile: ./ui/docker/Dockerfile
     environment:
-      CAPILLARIES_WEBAPI_URL: 'http://10.5.0.6:6543'
+      CAPILLARIES_WEBAPI_URL: 'http://10.5.0.20:6543'
     ports:
       - 8080:8080      
     network_mode: bridge
     networks:
       capinet:
-        ipv4_address: 10.5.0.6
+        ipv4_address: 10.5.0.30
     logging:
       driver: "gelf"
       options:
-        gelf-address: "udp://10.5.0.13:12201"
+        gelf-address: "udp://10.5.0.60:12201"
         tag: "capiui"
 
   mongodb:
@@ -110,7 +110,7 @@ services:
     network_mode: bridge
     networks:
       capinet:
-        ipv4_address: 10.5.0.11
+        ipv4_address: 10.5.0.40
 
   elasticsearch:
     container_name: graylog_es
@@ -132,7 +132,7 @@ services:
     network_mode: bridge
     networks:
       capinet:
-        ipv4_address: 10.5.0.12
+        ipv4_address: 10.5.0.50
 
   graylog:
     container_name: graylog
@@ -145,13 +145,13 @@ services:
       - GRAYLOG_ROOT_PASSWORD_SHA2=8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
       - GRAYLOG_HTTP_EXTERNAL_URI=http://127.0.0.1:9000/
       - GRAYLOG_WEB_ENDPOINT_URI=http://127.0.0.1:9000/api
-      - GRAYLOG_ELASTICSEARCH_HOSTS=http://10.5.0.12:9200 # IP address in capinet
-      - GRAYLOG_MONGODB_URI=mongodb://10.5.0.11:27017/graylog # IP address in capinet
+      - GRAYLOG_ELASTICSEARCH_HOSTS=http://10.5.0.50:9200 # IP address in capinet
+      - GRAYLOG_MONGODB_URI=mongodb://10.5.0.40:27017/graylog # IP address in capinet
     network_mode: bridge
     networks:
       capinet:
-        ipv4_address: 10.5.0.13
-    entrypoint: /usr/bin/tini -- wait-for-it 10.0.5.12:9200 --  /docker-entrypoint.sh
+        ipv4_address: 10.5.0.60
+    entrypoint: /usr/bin/tini -- wait-for-it 10.0.5.50:9200 --  /docker-entrypoint.sh
     links:
       - mongodb
       - elasticsearch
@@ -179,8 +179,8 @@ volumes:
     driver: local
 
 # docker network create --driver=bridge --subnet=10.5.0.0/16 --ip-range=10.5.0.0/24 --gateway=10.5.0.1 capinet
-# docker run -d --hostname my-rabbit -p 15672:15672 -p 5672:5672 --network=capinet --ip 10.5.0.2 rabbitmq:3-management
-# docker run -d --hostname my-cassandra -p 9042:9042 --network=capinet --ip 10.5.0.3 cassandra
+# docker run -d --hostname my-rabbit -p 15672:15672 -p 5672:5672 --network=capinet --ip 10.5.0.5 rabbitmq:3-management
+# docker run -d --hostname my-cassandra -p 9042:9042 --network=capinet --ip 10.5.0.11 cassandra
 # docker run -d --hostname my-graylog -p 9000:9000 -p 12201:12201 graylog2/allinone
 # docker compose -p "test_capillaries_containers" create graylog
 # docker compose -p "test_capillaries_containers" start graylog

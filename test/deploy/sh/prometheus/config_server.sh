@@ -2,7 +2,7 @@
 # https://www.digitalocean.com/community/tutorials/how-to-install-prometheus-on-ubuntu-16-04
 
 if [ "$PROMETHEUS_TARGETS" = "" ]; then
-  echo "Error, missing: PROMETHEUS_TARGETS=\'localhost:9100\',\'10.5.0.2:9100\'"
+  echo "Error, missing: PROMETHEUS_TARGETS=\'localhost:9100\',\'10.5.0.10:9100\'"
  exit 1
 fi
 
