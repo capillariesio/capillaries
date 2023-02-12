@@ -128,7 +128,7 @@ This is probably the most fragile part of the provisioning process, as Cassandra
 
 The script below calls `config_service` deploy command for each Cassandra node and waits until `nodetool status` confirms that the node joined the cluster. It's worth running this script in a separate shell session right after `install_services` command is complete.
 
-Keep in mind that `config_service` command also restarts Cassandra on Cassandra nodes.
+Keep in mind that `config_service` command also restarts Cassandra on each node.
 
 ```
 #! /bin/bash
@@ -171,7 +171,7 @@ done
 ssh -o StrictHostKeyChecking=no -i $DEPLOY_ROOT_KEY -J $BASTION_IP ubuntu@10.5.0.11 'nodetool status'
 ```
 
-### Speed up bootrapping
+### Speed up bootstrapping
 
 Alternatively, you may decide not to wait for each node to join the cluster, and provide INITIAL_TOKEN setting for each Cassandra node to speed up the bootstrapping pocess. For example, for a 5-node cluster:
 
@@ -225,21 +225,6 @@ less /var/log/capidaemon/capidaemon.log
 
 Start runs either using [Webapi](../../doc/glossary.md#webapi) at `http://$BASTION_IP` or using [Toolbelt](../../doc/glossary.md#toolbelt) via SSH.
 
-### tag_and_denormalize_quicktest
-
-| Field | Value |
-|- | - |
-| Keyspace | tag_and_denormalize_quicktest |
-| Script URI | sftp://sftpuser@10.5.0.10/mnt/capi_cfg/tag_and_denormalize_quicktest/script.json |
-| Script parameters URI | sftp://sftpuser@10.5.0.10/mnt/capi_cfg/tag_and_denormalize_quicktest/script_params_one_run.json |
-| Start nodes |	read_tags,read_products |
-
-or
-
-```
-ssh -o StrictHostKeyChecking=no -i $DEPLOY_ROOT_KEY ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/tag_and_denormalize_quicktest/script.json -params_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/tag_and_denormalize_quicktest/script_params_one_run.json -keyspace=tag_and_denormalize_quicktest -start_nodes=read_tags,read_products'
-```
-
 ### lookup_quicktest
 
 | Field | Value |
@@ -283,6 +268,21 @@ or
 
 ```
 ssh -o StrictHostKeyChecking=no -i $DEPLOY_ROOT_KEY ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/py_calc_quicktest/script.json -params_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/py_calc_quicktest/script_params.json -keyspace=py_calc_quicktest -start_nodes=read_order_items'
+```
+
+### tag_and_denormalize_quicktest
+
+| Field | Value |
+|- | - |
+| Keyspace | tag_and_denormalize_quicktest |
+| Script URI | sftp://sftpuser@10.5.0.10/mnt/capi_cfg/tag_and_denormalize_quicktest/script.json |
+| Script parameters URI | sftp://sftpuser@10.5.0.10/mnt/capi_cfg/tag_and_denormalize_quicktest/script_params_one_run.json |
+| Start nodes |	read_tags,read_products |
+
+or
+
+```
+ssh -o StrictHostKeyChecking=no -i $DEPLOY_ROOT_KEY ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/tag_and_denormalize_quicktest/script.json -params_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/tag_and_denormalize_quicktest/script_params_one_run.json -keyspace=tag_and_denormalize_quicktest -start_nodes=read_tags,read_products'
 ```
 
 ## Results

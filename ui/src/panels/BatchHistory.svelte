@@ -95,19 +95,24 @@
         finishedBatches = arrayToReadable(Array.from(Object.keys(batchEndMap)));
 
         if (earliestTs != null && latestTs != null && batch_history[0].batches_total > 1) {
-            let svgWidth = 600;
-            let svgHeight = Math.max(200, Math.min(500, Math.round(batch_history[0].batches_total / 10)*100 ));
+            let svgWidth = 800;
+            let svgHeight = 600; // Max height
+            let lineWidth = 10;
+            if (lineWidth * batch_history[0].batches_total < svgHeight) {
+                svgHeight = lineWidth * batch_history[0].batches_total;
+            } else {
+                lineWidth = svgHeight / batch_history[0].batches_total;
+            }
             svgSummary = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${svgWidth} ${svgHeight}" width="${svgWidth}px" height="${svgHeight}px">\n`;
             svgSummary += `<rect width="${svgWidth}" height="${svgHeight}" fill="lightgray" />`;
             nodeElapsed = Math.round((latestTs - earliestTs) / 1000);
-            let lineWidth = svgHeight / batch_history[0].batches_total;
             for (var batchIdx = 0; batchIdx < batch_history[0].batches_total; batchIdx++) {
                 if (batchIdx in batchStartMap && batchIdx in batchEndMap) {
                     let startX = (batchStartMap[batchIdx] - earliestTs) / (latestTs - earliestTs) * svgWidth;
                     let topY = batchIdx * lineWidth;
                     let endX = (batchEndMap[batchIdx] - earliestTs) / (latestTs - earliestTs) * svgWidth;
                     let bottomY = (batchIdx + 1) * lineWidth;
-                    svgSummary += `<path d="M${startX},${topY} L${endX},${topY} L${endX},${bottomY} L${startX},${bottomY} Z" fill="${nodeStatusToColor(batchStatusMap[batchIdx])}" ><title>Batch ${batchIdx}</title></path>`;
+                    svgSummary += `<path d="M${startX},${topY} L${endX},${topY} L${endX},${bottomY} L${startX},${bottomY} Z" fill="${nodeStatusToColor(batchStatusMap[batchIdx])}" ><title>Batch ${batchIdx} ${Math.ceil((batchEndMap[batchIdx]-batchStartMap[batchIdx])/1000).toString()}s</title></path>`;
                 }
             }
             svgSummary += '</svg>';

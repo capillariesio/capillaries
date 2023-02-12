@@ -25,9 +25,17 @@
 		} else {
 			responseError = "";
 		}
+
+		for (var lsIdx=0; lsIdx < webapiData.run_lifespans.length; lsIdx++){
+			const tsStart = dayjs(webapiData.run_lifespans[lsIdx].start_ts).valueOf();
+			const tsCompleted = dayjs(webapiData.run_lifespans[lsIdx].completed_ts).valueOf();
+			const tsStopped = dayjs(webapiData.run_lifespans[lsIdx].stopped_ts).valueOf();
+			webapiData.run_lifespans[lsIdx].elapsed = Math.round((tsCompleted > 0 ? tsCompleted - tsStart : ( tsStopped > 0 ? tsStopped - tsStart : Date.now() - tsStart)) / 1000).toString();
+		}
 	}
 
 	var timer;
+	let isDestroyed = false;
 	function fetchData() {
 		let url = webapiUrl() + "/ks/" + params.ks_name;
 		let method = "GET";
@@ -35,12 +43,14 @@
       		.then(response => response.json())
       		.then(responseJson => {
 				handleResponse(responseJson, setWebapiData);
-				timer = setTimeout(fetchData, 500);
+				if (!isDestroyed)
+					timer = setTimeout(fetchData, 500);
 			})
       		.catch(error => {
 				responseError = method + " " + url + ":" + error;
 				console.log(error);
-				timer = setTimeout(fetchData, 3000);
+				if (!isDestroyed)
+					timer = setTimeout(fetchData, 3000);
 			});
 	}
 
@@ -49,6 +59,7 @@
     	fetchData();
     });
 	onDestroy(async () => {
+		isDestroyed = true;
     	if (timer) clearTimeout(timer);
     });
 
@@ -65,7 +76,7 @@
 <style>
 	img { width: 20px; vertical-align: text-bottom;	}
 	tr td:not(:first-child) {text-align: center;}
-	thead th:not(:first-child) {text-align: center;}
+	thead th:not(:first-child) {text-align: center;font-size:large;}
 </style>
 
 <Util bind:this={util} />
@@ -76,14 +87,21 @@
 		<th>Nodes ({webapiData.nodes.length}) \ Runs ({webapiData.run_lifespans.length})</th>
 		{#each webapiData.run_lifespans as ls}
 		  <th>
-			<a href={util.ksRunNodeHistoryLink(params.ks_name, ls.run_id)}>
+			<a href={util.ksRunNodeHistoryLink(params.ks_name, ls.run_id)} title="Run {ls.run_id}">
 				{ls.run_id}<img src={util.runStatusToIconLink(ls.final_status)} title={util.runStatusToText(ls.final_status)} alt="" style="margin-left:3px;"/>
-			</a>
-		  </th>
+			</a> 
+	  </th>
 		{/each}
 		<th><button on:click={onNew}>New</button></th>
 	</thead>
 	<tbody>
+		<tr>
+			<td></td>
+			{#each webapiData.run_lifespans as ls}
+				<td style="font-size:small;">{ls.elapsed}s</td>
+			{/each}
+			<td>&nbsp;</td>
+		</tr>
 		<tr>
 			<td></td>
 			{#each webapiData.run_lifespans as ls}

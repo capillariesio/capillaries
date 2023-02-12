@@ -22,6 +22,7 @@
 	}
 
 	var timer;
+	let isDestroyed = false;
 	function fetchData() {
 		let url = webapiUrl() + "/ks/";
 		let method = "GET";
@@ -29,12 +30,14 @@
       		.then(response => response.json())
       		.then(responseJson => {
 				handleResponse(responseJson, setWebapiData);
-				timer = setTimeout(fetchData, 500);
+				if (!isDestroyed)
+					timer = setTimeout(fetchData, 500);
 			})
       		.catch(error => {
 				responseError = method + " " + url + ":" + error;
 				console.log(error);
-				timer = setTimeout(fetchData, 3000);
+				if (!isDestroyed)
+					timer = setTimeout(fetchData, 3000);
 			});
 	}
 
@@ -43,6 +46,7 @@
     	fetchData();
     });
 	onDestroy(async () => {
+		isDestroyed = true;
     	if (timer) clearTimeout(timer);
     });
 

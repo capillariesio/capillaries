@@ -282,7 +282,7 @@ func main() {
 			usage(validateScriptCmd)
 		}
 
-		script, err := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, *scriptFilePath, *paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
+		script, err, _ := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, *scriptFilePath, *paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
@@ -423,7 +423,7 @@ func main() {
 			usage(getTableCqlCmd)
 		}
 
-		script, err := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, *scriptFilePath, *paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
+		script, err, _ := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, *scriptFilePath, *paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
@@ -449,7 +449,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		script, err := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, *scriptFilePath, *paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
+		script, err, _ := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, *scriptFilePath, *paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)

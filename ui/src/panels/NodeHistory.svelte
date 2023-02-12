@@ -40,13 +40,17 @@
         }
 
         let nodesTotal = Object.keys(nodeStartMap).length;
-        let svgWidth = 800;
-        let svgHeight = 600;
         if (earliestTs != null && latestTs != null && nodesTotal > 1) {
+            let svgWidth = 800;
+            let svgHeight = 600; // Max height
+            let lineWidth = 10;
+            if (lineWidth * nodesTotal < svgHeight) {
+                svgHeight = lineWidth * nodesTotal;
+            } else {
+                lineWidth = svgHeight / nodesTotal;
+            }
             svgSummary = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${svgWidth} ${svgHeight}" width="${svgWidth}px" height="${svgHeight}px">\n`;
             svgSummary += `<rect width="${svgWidth}" height="${svgHeight}" fill="lightgray" />`;
-            let nodeElapsed = Math.round((latestTs - earliestTs) / 1000);
-            let lineWidth = svgHeight / nodesTotal;
             let nodeIdx = 0;
             for (var node in nodeStartMap) {
                 if (node in nodeEndMap) {
@@ -54,7 +58,7 @@
                     let topY = nodeIdx * lineWidth;
                     let endX = (nodeEndMap[node] - earliestTs) / (latestTs - earliestTs) * svgWidth;
                     let bottomY = (nodeIdx + 1) * lineWidth;
-                    svgSummary += `<path d="M${startX},${topY} L${endX},${topY} L${endX},${bottomY} L${startX},${bottomY} Z" fill="${nodeStatusToColor(nodeStatusMap[node])}" ><title>${node}</title></path>`;
+                    svgSummary += `<path d="M${startX},${topY} L${endX},${topY} L${endX},${bottomY} L${startX},${bottomY} Z" fill="${nodeStatusToColor(nodeStatusMap[node])}" ><title>${node} ${Math.ceil((nodeEndMap[node]-nodeStartMap[node])/1000).toString()}s</title></path>`;
                     nodeIdx++;
                 }
             }

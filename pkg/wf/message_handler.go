@@ -2,6 +2,7 @@ package wf
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
@@ -11,6 +12,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/wfdb"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
+	"go.uber.org/zap"
 )
 
 func checkDependencyNodesReady(logger *l.Logger, pCtx *ctx.MessageProcessingContext) (sc.ReadyToRunNodeCmdType, int16, int16, error) {
@@ -211,10 +213,39 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.Logger, msgTs int64
 	logger.PushF("wf.ProcessDataBatchMsg")
 	defer logger.PopF()
 
-	pCtx, err := ctx.NewFromBatchInfo(envConfig, msgTs, dataBatchInfo)
-	if err != nil {
-		logger.Error("cannot initialize context: %s", err.Error())
-		// This is fatal, ack this msg, do not send it to dlx
+	pCtx := &ctx.MessageProcessingContext{
+		MsgTs:           msgTs,
+		BatchInfo:       *dataBatchInfo,
+		ZapDataKeyspace: zap.String("ks", dataBatchInfo.DataKeyspace),
+		ZapRun:          zap.Int16("run", dataBatchInfo.RunId),
+		ZapNode:         zap.String("node", dataBatchInfo.TargetNodeName),
+		ZapBatchIdx:     zap.Int16("bi", dataBatchInfo.BatchIdx),
+		ZapMsgAgeMillis: zap.Int64("age", time.Now().UnixMilli()-msgTs)}
+
+	var err error
+	var initProblem sc.ScriptInitProblemType
+	pCtx.Script, err, initProblem = sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, dataBatchInfo.ScriptURI, dataBatchInfo.ScriptParamsURI, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
+	if initProblem != sc.ScriptInitNoProblem {
+		switch initProblem {
+		case sc.ScriptInitUrlProblem:
+			logger.Error("cannot init script because of URI problem, will not let other workers handle it, giving up with msg %s: %s", dataBatchInfo.ToString(), err.Error())
+			return DaemonCmdAckWithError
+		case sc.ScriptInitContentProblem:
+			logger.Error("cannot init script because of content problem, will not let other workers handle it, giving up with msg %s: %s", dataBatchInfo.ToString(), err.Error())
+			return DaemonCmdAckWithError
+		case sc.ScriptInitConnectivityProblem:
+			logger.Error("cannot init script because of connectivity problem, will let other workers handle it, giving up with msg %s: %s", dataBatchInfo.ToString(), err.Error())
+			return DaemonCmdRejectAndRetryLater
+		default:
+			logger.Error("unexpected: cannot init script for unknown reason %d, will let other workers handle it, giving up with msg %s: %s", initProblem, dataBatchInfo.ToString(), err.Error())
+			return DaemonCmdRejectAndRetryLater
+		}
+	}
+
+	var ok bool
+	pCtx.CurrentScriptNode, ok = pCtx.Script.ScriptNodes[dataBatchInfo.TargetNodeName]
+	if !ok {
+		logger.Error("cannot find node %s in the script [%s], giving up with %s, returning DaemonCmdAckWithError, will not let other workers handle it", pCtx.BatchInfo.TargetNodeName, pCtx.BatchInfo.ScriptURI, dataBatchInfo.ToString())
 		return DaemonCmdAckWithError
 	}
 
