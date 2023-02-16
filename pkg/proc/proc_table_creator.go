@@ -140,7 +140,7 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.M
 	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}
-	defer instr.waitForWorkersAndClose(logger, pCtx)
+	defer instr.waitForWorkersAndCloseErrorsOut(logger, pCtx)
 
 	for {
 		line, err := r.Read()
@@ -257,7 +257,7 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}
-	defer instr.waitForWorkersAndClose(logger, pCtx)
+	defer instr.waitForWorkersAndCloseErrorsOut(logger, pCtx)
 
 	flushVarsArray := func(varsArray []*eval.VarValuesMap, varsArrayCount int) error {
 		logger.PushF("proc.flushRowset")
@@ -382,7 +382,7 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}
-	defer instr.waitForWorkersAndClose(logger, pCtx)
+	defer instr.waitForWorkersAndCloseErrorsOut(logger, pCtx)
 
 	for {
 		lastRetrievedLeftToken, err := selectBatchFromTableByToken(logger,
@@ -529,7 +529,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}
-	defer instr.waitForWorkersAndClose(logger, pCtx)
+	defer instr.waitForWorkersAndCloseErrorsOut(logger, pCtx)
 
 	curStartLeftToken := startLeftToken
 	for {

@@ -15,15 +15,19 @@ import (
 )
 
 type TableInserter struct {
-	PCtx          *ctx.MessageProcessingContext
-	TableCreator  *sc.TableCreatorDef
-	BatchSize     int
-	RecordsIn     chan WriteChannelItem // Channel to pass records from the main function like RunCreateTableForBatch, usig add(), to TableInserter
-	ErrorsOut     chan error
-	RowidRand     *rand.Rand
-	RandMutex     sync.Mutex
-	NumWorkers    int
-	RecordsSent   int // Records sent to RecordsIn
+	PCtx            *ctx.MessageProcessingContext
+	TableCreator    *sc.TableCreatorDef
+	BatchSize       int
+	RecordsIn       chan WriteChannelItem // Channel to pass records from the main function like RunCreateTableForBatch, usig add(), to TableInserter
+	ErrorsOut       chan error
+	RowidRand       *rand.Rand
+	RandMutex       sync.Mutex
+	NumWorkers      int
+	WorkerWaitGroup sync.WaitGroup
+	RecordsSent     int // Records sent to RecordsIn
+	// TODO: the only reason we have this is because we decided to end handlers
+	// with "defer instr.waitForWorkersAndCloseErrorsOut(logger, pCtx)" - not the cleanest way, get rid of this bool thingy.
+	// That defer is convenient because there are so many early returns.
 	RecordsInOpen bool
 }
 
@@ -98,8 +102,11 @@ func CreateIdxTableCql(keyspace string, runId int16, idxName string, idxDef *sc.
 // }
 
 func (instr *TableInserter) startWorkers(logger *l.Logger, pCtx *ctx.MessageProcessingContext) error {
+	logger.PushF("proc.startWorkers/TableInserter")
+	defer logger.PopF()
+
 	instr.RecordsIn = make(chan WriteChannelItem, instr.BatchSize)
-	logger.DebugCtx(pCtx, "startWorkers created RecordsIn")
+	logger.DebugCtx(pCtx, "startWorkers created RecordsIn,now launching %d writers...", instr.NumWorkers)
 	instr.RecordsInOpen = true
 
 	for w := 0; w < instr.NumWorkers; w++ {
@@ -107,6 +114,8 @@ func (instr *TableInserter) startWorkers(logger *l.Logger, pCtx *ctx.MessageProc
 		if err != nil {
 			return err
 		}
+		// Increase busy worker count
+		instr.WorkerWaitGroup.Add(1)
 		go instr.tableInserterWorker(newLogger, pCtx)
 	}
 	return nil
@@ -116,6 +125,40 @@ func (instr *TableInserter) waitForWorkers(logger *l.Logger, pCtx *ctx.MessagePr
 	logger.PushF("proc.waitForWorkers/TableInserter")
 	defer logger.PopF()
 
+	logger.DebugCtx(pCtx, "started reading RecordsSent=%d from instr.ErrorsOut", instr.RecordsSent)
+
+	timeoutChannel := make(chan bool, 1)
+	go func() {
+		time.Sleep(60 * time.Second)
+		timeoutChannel <- true
+	}()
+
+	errors := make([]string, 0)
+	errCount := 0
+	startTime := time.Now()
+	// 1. It's crucial that the number of errors to receive eventually should match instr.RecordsSent
+	// 2. We do not need an extra select/timeout here - we are guaranteed to receive something in instr.ErrorsOut because of cassndra read timeouts (5-15s or so)
+	for i := 0; i < instr.RecordsSent; i++ {
+		err := <-instr.ErrorsOut
+		if err != nil {
+			errors = append(errors, err.Error())
+			errCount++
+		}
+		logger.DebugCtx(pCtx, "got result for sent record %d out of %d from instr.ErrorsOut, %d errors so far", i, instr.RecordsSent, errCount)
+
+		inserterRate := float64(i+1) / time.Now().Sub(startTime).Seconds()
+		// TODO: make DAEMON_MIN_INSERTER_RATE configurable, 10 records/s is really slow indeed
+		if i > 5 && inserterRate < 10 {
+			errors = append(errors, fmt.Sprintf("table inserter detected slow db insertion rate %.0f records/s, wrote %d records out of %d", inserterRate, i, instr.RecordsSent))
+			break
+		}
+	}
+	logger.DebugCtx(pCtx, "done writing RecordsSent=%d from instr.ErrorsOut, %d errors", instr.RecordsSent, errCount)
+
+	// Reset for the next cycle, if it ever happens
+	instr.RecordsSent = 0
+
+	// Close instr.RecordsIn, it will trigger the completion of all writer workers
 	if instr.RecordsInOpen {
 		logger.DebugCtx(pCtx, "closing RecordsIn")
 		close(instr.RecordsIn)
@@ -123,19 +166,10 @@ func (instr *TableInserter) waitForWorkers(logger *l.Logger, pCtx *ctx.MessagePr
 		instr.RecordsInOpen = false
 	}
 
-	logger.DebugCtx(pCtx, "started reading from RecordsSent")
-	errors := make([]string, 0)
-	// It's crucial that the number of errors to receive eventually should match instr.RecordsSent
-	for i := 0; i < instr.RecordsSent; i++ {
-		err := <-instr.ErrorsOut
-		if err != nil {
-			errors = append(errors, err.Error())
-		}
-	}
-	logger.DebugCtx(pCtx, "done reading from RecordsSent")
-
-	// Reset for the next cycle, if it ever happens
-	instr.RecordsSent = 0
+	// Wait for all writer threads to complete, otherwise they will keep writing to instr.ErrorsOut, which can close anytime after we exit this function
+	logger.DebugCtx(pCtx, "waiting for writer workers to complete...")
+	instr.WorkerWaitGroup.Wait()
+	logger.DebugCtx(pCtx, "writer workers are done")
 
 	if len(errors) > 0 {
 		return fmt.Errorf(strings.Join(errors, "; "))
@@ -144,7 +178,7 @@ func (instr *TableInserter) waitForWorkers(logger *l.Logger, pCtx *ctx.MessagePr
 	}
 }
 
-func (instr *TableInserter) waitForWorkersAndClose(logger *l.Logger, pCtx *ctx.MessageProcessingContext) {
+func (instr *TableInserter) waitForWorkersAndCloseErrorsOut(logger *l.Logger, pCtx *ctx.MessageProcessingContext) {
 	logger.PushF("proc.waitForWorkersAndClose/TableInserter")
 	defer logger.PopF()
 
@@ -176,10 +210,12 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 	logger.PushF("proc.tableInserterWorker")
 	defer logger.PopF()
 
-	logger.DebugCtx(pCtx, "started reading from RecordsIn")
+	logger.DebugCtx(pCtx, "writer started reading from RecordsIn")
 	dataTableName := instr.TableCreator.Name + cql.RunIdSuffix(instr.PCtx.BatchInfo.RunId)
 
+	handledRecordCount := 0
 	for writeItem := range instr.RecordsIn {
+		handledRecordCount++
 		maxDataRetries := 5
 		curDataExpBackoffFactor := 1
 		var errorToReport error
@@ -330,7 +366,10 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 				} // idx retry loop
 			} // idx loop
 		}
+		// logger.DebugCtx(pCtx, "writer wrote")
 		instr.ErrorsOut <- errorToReport
 	}
-	logger.DebugCtx(pCtx, "done reading from RecordsIn")
+	logger.DebugCtx(pCtx, "done reading from RecordsIn, this writer worker handled %d records from instr.RecordsIn", handledRecordCount)
+	// Decrease busy worker count
+	instr.WorkerWaitGroup.Done()
 }

@@ -26,6 +26,8 @@
     "instance_flavor_rabbitmq":"t5sd.large",
     "instance_flavor_cassandra":"c6asx.2xlarge",
     "instance_flavor_daemon":"t5sd.large",
+    "daemon_thread_pool_size":"10",
+    "daemon_db_writers":"30",
     "OS_AUTH_URL": "https://us-central-1.genesishosting.com:5000/v3",
     "OS_PASSWORD": "...",
     "OS_PROJECT_ID": "...",

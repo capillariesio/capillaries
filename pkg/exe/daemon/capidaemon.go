@@ -83,6 +83,7 @@ func main() {
 				os.Exit(0)
 			}
 		case <-timeoutChannel:
+			// Break from select
 			break
 		}
 	}

@@ -22,7 +22,6 @@ type FileInserter struct {
 	BatchesIn     chan *WriteFileBatch
 	ErrorsOut     chan error
 	BatchesSent   int
-	BatchesInOpen bool
 	FinalFileUrl  string
 	TempFilePath  string
 }
@@ -49,7 +48,6 @@ func newFileInserter(pCtx *ctx.MessageProcessingContext, fileCreator *sc.FileCre
 		BatchesIn:     make(chan *WriteFileBatch, sc.MaxFileCreatorTopLimit/DefaultFileInserterBatchCapacity),
 		ErrorsOut:     make(chan error, 1),
 		BatchesSent:   0,
-		BatchesInOpen: true,
 		FinalFileUrl:  strings.ReplaceAll(strings.ReplaceAll(fileCreator.UrlTemplate, sc.ReservedParamRunId, fmt.Sprintf("%05d", runId)), sc.ReservedParamBatchIdx, fmt.Sprintf("%05d", batchIdx)),
 	}
 
@@ -141,26 +139,27 @@ func (instr *FileInserter) waitForWorker(logger *l.Logger, pCtx *ctx.MessageProc
 		instr.CurrentBatch = nil
 	}
 
-	if instr.BatchesInOpen {
-		logger.DebugCtx(pCtx, "closing BatchesIn")
-		close(instr.BatchesIn)
-		logger.DebugCtx(pCtx, "closed BatchesIn")
-		instr.BatchesInOpen = false
-	}
-
-	logger.DebugCtx(pCtx, "started reading from BatchesSent")
+	logger.DebugCtx(pCtx, "started reading BatchesSent=%d from instr.ErrorsOut", instr.BatchesSent)
 	errors := make([]string, 0)
 	// It's crucial that the number of errors to receive eventually should match instr.BatchesSent
+	errCount := 0
 	for i := 0; i < instr.BatchesSent; i++ {
 		err := <-instr.ErrorsOut
 		if err != nil {
 			errors = append(errors, err.Error())
+			errCount++
 		}
+		logger.DebugCtx(pCtx, "got result for sent record %d out of %d from instr.ErrorsOut, %d errors so far", i, instr.BatchesSent, errCount)
 	}
-	logger.DebugCtx(pCtx, "done reading from BatchesSent")
+	logger.DebugCtx(pCtx, "done reading BatchesSent=%d from instr.ErrorsOut, %d errors", instr.BatchesSent, errCount)
 
 	// Reset for the next cycle, if it ever happens
 	instr.BatchesSent = 0
+
+	// Now it's safe to close
+	logger.DebugCtx(pCtx, "closing BatchesIn")
+	close(instr.BatchesIn)
+	logger.DebugCtx(pCtx, "closed BatchesIn")
 
 	if len(errors) > 0 {
 		return fmt.Errorf(strings.Join(errors, "; "))
@@ -169,14 +168,15 @@ func (instr *FileInserter) waitForWorker(logger *l.Logger, pCtx *ctx.MessageProc
 	}
 }
 
-func (instr *FileInserter) waitForWorkerAndClose(logger *l.Logger, pCtx *ctx.MessageProcessingContext) {
+func (instr *FileInserter) waitForWorkerAndCloseErrorsOut(logger *l.Logger, pCtx *ctx.MessageProcessingContext) error {
 	logger.PushF("proc.waitForWorkersAndClose/FileInserter")
 	defer logger.PopF()
 
-	instr.waitForWorker(logger, pCtx)
+	err := instr.waitForWorker(logger, pCtx)
 	logger.DebugCtx(pCtx, "closing ErrorsOut")
 	close(instr.ErrorsOut)
 	logger.DebugCtx(pCtx, "closed ErrorsOut")
+	return err
 }
 
 func (instr *FileInserter) add(row []interface{}) {

@@ -125,7 +125,10 @@ func SafeProcessBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.Mess
 	}
 
 	if err != nil {
+		logger.DebugCtx(pCtx, "batch processed, error: %s", err.Error())
 		return wfmodel.NodeBatchFail, bs, fmt.Errorf("error running node %s of type %s in the script [%s]: [%s]", pCtx.CurrentScriptNode.Name, pCtx.CurrentScriptNode.Type, pCtx.BatchInfo.ScriptURI, err.Error())
+	} else {
+		logger.DebugCtx(pCtx, "batch processed ok")
 	}
 
 	return wfmodel.NodeBatchSuccess, bs, nil
