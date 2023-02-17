@@ -29,11 +29,11 @@
     "security_groups": {
         "bastion": {
             "name": "{deployment_name}_bastion_security_group",
-            "id": "62b8e67a-9566-4d31-909e-7b6e9b59427c",
+            "id": "",
             "rules": [
                 {
                     "desc": "SSH",
-                    "id": "6fdfcde5-8097-4631-a809-999f29ed9b26",
+                    "id": "",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "0.0.0.0/0",
@@ -42,7 +42,7 @@
                 },
                 {
                     "desc": "Prometheus UI reverse proxy",
-                    "id": "21270045-d4ab-40c4-85a7-d3d565f71230",
+                    "id": "",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "0.0.0.0/0",
@@ -51,7 +51,7 @@
                 },
                 {
                     "desc": "Prometheus node exporter",
-                    "id": "ef7e610f-eb96-45c3-80d7-b0c4eba82b88",
+                    "id": "",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -60,7 +60,7 @@
                 },
                 {
                     "desc": "RabbitMQ UI reverse proxy",
-                    "id": "adc94476-b11c-4464-9660-93a4be0e8edc",
+                    "id": "",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "0.0.0.0/0",
@@ -69,7 +69,7 @@
                 },
                 {
                     "desc": "rsyslog receiver",
-                    "id": "6dc8c92b-ae60-4477-9686-b4b7e80e3a21",
+                    "id": "",
                     "protocol": "udp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -78,7 +78,7 @@
                 },
                 {
                     "desc": "Capillaries webapi",
-                    "id": "aa9fa13f-a45a-46cf-8b1a-7892f205f01d",
+                    "id": "",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "0.0.0.0/0",
@@ -87,7 +87,7 @@
                 },
                 {
                     "desc": "Capillaries UI nginx",
-                    "id": "6d03a38e-50f7-4581-a705-b843f123a57a",
+                    "id": "",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "0.0.0.0/0",
@@ -98,11 +98,11 @@
         },
         "internal": {
             "name": "{deployment_name}_internal_security_group",
-            "id": "caac8e1d-3df5-4470-9e45-70a76a6c988a",
+            "id": "",
             "rules": [
                 {
                     "desc": "SSH",
-                    "id": "5d59948c-1239-47dc-8d3d-60a3805d27f0",
+                    "id": "",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -111,7 +111,7 @@
                 },
                 {
                     "desc": "Prometheus UI internal",
-                    "id": "7c7cd7b9-a5bb-4d7e-8e18-3b66528af8d0",
+                    "id": "",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -120,7 +120,7 @@
                 },
                 {
                     "desc": "Prometheus node exporter",
-                    "id": "81b1a633-3855-4cbc-a8e8-0cc43d1fb5ea",
+                    "id": "",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -129,7 +129,7 @@
                 },
                 {
                     "desc": "Cassandra JMX",
-                    "id": "826ab54b-330c-41bb-ad3a-f3e5c3cf21f3",
+                    "id": "",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -138,7 +138,7 @@
                 },
                 {
                     "desc": "Cassandra cluster comm",
-                    "id": "2229e6ee-e403-4d33-9ca7-aee2bb7d9d8f",
+                    "id": "",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -147,7 +147,7 @@
                 },
                 {
                     "desc": "Cassandra API",
-                    "id": "90de9470-afca-435d-aad1-5c8fc3c392cc",
+                    "id": "",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -156,7 +156,7 @@
                 },
                 {
                     "desc": "RabbitMQ API",
-                    "id": "de652f02-77c7-403f-8e8e-63fafce773f4",
+                    "id": "",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -165,7 +165,7 @@
                 },
                 {
                     "desc": "RabbitMQ UI",
-                    "id": "8a6ebab7-d7f0-4cc9-bd32-053297d4572f",
+                    "id": "",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "{subnet_cidr}",
@@ -177,16 +177,16 @@
     },
     "network": {
         "name": "{deployment_name}_network",
-        "id": "9acdd6f9-7684-4427-8651-3a44ea55df04",
+        "id": "",
         "subnet": {
             "name": "{deployment_name}_subnet",
-            "id": "e47f42f7-670d-44f9-a371-dddd621ee263",
+            "id": "",
             "cidr": "{subnet_cidr}",
             "allocation_pool": "start=10.5.0.240,end=10.5.0.254"
         },
         "router": {
             "name": "{deployment_name}_router",
-            "id": "80697fb2-1d4c-4d20-a317-32e7725763b2",
+            "id": "",
             "external_gateway_network_name": "ext-net"
         }
     },
@@ -198,7 +198,7 @@
             "type": "gp1",
             "permissions": 777,
             "owner": "{sftp_user}",
-            "id": "e14d7ed0-ffd3-47d9-afd1-54a0411ba329"
+            "id": ""
         },
         "in": {
             "name": "{deployment_name}_in",
@@ -207,7 +207,7 @@
             "type": "gp1",
             "permissions": 777,
             "owner": "{sftp_user}",
-            "id": "6f7e276c-c406-4833-825d-3f4573989509"
+            "id": ""
         },
         "out": {
             "name": "{deployment_name}_out",
@@ -216,7 +216,7 @@
             "type": "gp1",
             "permissions": 777,
             "owner": "{sftp_user}",
-            "id": "e9a7fada-6def-40c3-8d5f-da8ff7295009"
+            "id": ""
         }
     },
     "file_groups_up": {
@@ -670,8 +670,8 @@
                 "env": {
                     "AMQP_URL": "amqp://{rabbitmq_user_name}:{rabbitmq_user_pass}@{rabbitmq_ip}/",
                     "CASSANDRA_HOSTS": "{cassandra_hosts}",
-                    "DAEMON_THREAD_POOL_SIZE": "{daemon_thread_pool_size}",
                     "DAEMON_DB_WRITERS": "{daemon_db_writers}",
+                    "DAEMON_THREAD_POOL_SIZE": "{daemon_thread_pool_size}",
                     "INTERNAL_BASTION_IP": "{internal_bastion_ip}",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
                     "SFTP_USER": "{sftp_user}",
@@ -718,8 +718,8 @@
                 "env": {
                     "AMQP_URL": "amqp://{rabbitmq_user_name}:{rabbitmq_user_pass}@{rabbitmq_ip}/",
                     "CASSANDRA_HOSTS": "{cassandra_hosts}",
-                    "DAEMON_THREAD_POOL_SIZE": "{daemon_thread_pool_size}",
                     "DAEMON_DB_WRITERS": "{daemon_db_writers}",
+                    "DAEMON_THREAD_POOL_SIZE": "{daemon_thread_pool_size}",
                     "INTERNAL_BASTION_IP": "{internal_bastion_ip}",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
                     "SFTP_USER": "{sftp_user}",

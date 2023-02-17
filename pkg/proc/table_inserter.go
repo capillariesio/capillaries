@@ -23,6 +23,7 @@ type TableInserter struct {
 	RowidRand       *rand.Rand
 	RandMutex       sync.Mutex
 	NumWorkers      int
+	MinWriterRate   int
 	WorkerWaitGroup sync.WaitGroup
 	RecordsSent     int // Records sent to RecordsIn
 	// TODO: the only reason we have this is because we decided to end handlers
@@ -52,6 +53,7 @@ func newTableInserter(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.Mess
 		ErrorsOut:     make(chan error, batchSize),
 		RowidRand:     rand.New(rand.NewSource(newSeed())),
 		NumWorkers:    envConfig.Cassandra.WriterWorkers,
+		MinWriterRate: envConfig.Cassandra.MinInserterRate,
 		RecordsInOpen: false,
 		//Logger:        logger,
 	}
@@ -127,36 +129,36 @@ func (instr *TableInserter) waitForWorkers(logger *l.Logger, pCtx *ctx.MessagePr
 
 	logger.DebugCtx(pCtx, "started reading RecordsSent=%d from instr.ErrorsOut", instr.RecordsSent)
 
-	timeoutChannel := make(chan bool, 1)
-	go func() {
-		time.Sleep(60 * time.Second)
-		timeoutChannel <- true
-	}()
-
 	errors := make([]string, 0)
-	errCount := 0
-	startTime := time.Now()
-	// 1. It's crucial that the number of errors to receive eventually should match instr.RecordsSent
-	// 2. We do not need an extra select/timeout here - we are guaranteed to receive something in instr.ErrorsOut because of cassndra read timeouts (5-15s or so)
-	for i := 0; i < instr.RecordsSent; i++ {
-		err := <-instr.ErrorsOut
-		if err != nil {
-			errors = append(errors, err.Error())
-			errCount++
-		}
-		logger.DebugCtx(pCtx, "got result for sent record %d out of %d from instr.ErrorsOut, %d errors so far", i, instr.RecordsSent, errCount)
+	if instr.RecordsSent > 0 {
+		errCount := 0
+		startTime := time.Now()
+		// 1. It's crucial that the number of errors to receive eventually should match instr.RecordsSent
+		// 2. We do not need an extra select/timeout here - we are guaranteed to receive something in instr.ErrorsOut because of cassndra read timeouts (5-15s or so)
+		for i := 0; i < instr.RecordsSent; i++ {
+			err := <-instr.ErrorsOut
+			if err != nil {
+				errors = append(errors, err.Error())
+				errCount++
+			}
+			//logger.DebugCtx(pCtx, "got result for sent record %d out of %d from instr.ErrorsOut, %d errors so far", i, instr.RecordsSent, errCount)
 
-		inserterRate := float64(i+1) / time.Now().Sub(startTime).Seconds()
-		// TODO: make DAEMON_MIN_INSERTER_RATE configurable, 10 records/s is really slow indeed
-		if i > 5 && inserterRate < 10 {
-			errors = append(errors, fmt.Sprintf("table inserter detected slow db insertion rate %.0f records/s, wrote %d records out of %d", inserterRate, i, instr.RecordsSent))
-			break
+			inserterRate := float64(i+1) / time.Now().Sub(startTime).Seconds()
+			// If it falls below min rate, it does not make sense to continue
+			if i > 5 && inserterRate < float64(instr.MinWriterRate) {
+				logger.DebugCtx(pCtx, "slow db insertion rate triggered, will stop reading from instr.ErrorsOut")
+				errors = append(errors, fmt.Sprintf("table inserter detected slow db insertion rate %.0f records/s, wrote %d records out of %d", inserterRate, i, instr.RecordsSent))
+				errCount++
+				break
+			}
 		}
+		logger.DebugCtx(pCtx, "done writing RecordsSent=%d from instr.ErrorsOut, %d errors", instr.RecordsSent, errCount)
+
+		// Reset for the next cycle, if it ever happens
+		instr.RecordsSent = 0
+	} else {
+		logger.DebugCtx(pCtx, "no need to waitfor writer results, no records were sent")
 	}
-	logger.DebugCtx(pCtx, "done writing RecordsSent=%d from instr.ErrorsOut, %d errors", instr.RecordsSent, errCount)
-
-	// Reset for the next cycle, if it ever happens
-	instr.RecordsSent = 0
 
 	// Close instr.RecordsIn, it will trigger the completion of all writer workers
 	if instr.RecordsInOpen {

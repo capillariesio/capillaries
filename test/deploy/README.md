@@ -153,6 +153,8 @@ do
     nodetoolOutput=$(ssh -o StrictHostKeyChecking=no -i $DEPLOY_ROOT_KEY -J $BASTION_IP ubuntu@$cassNodeIp 'nodetool status' 2>&1)
     if [[ "$nodetoolOutput" == *"UJ  $cassNodeIp"* ]]; then
       echo $cassNodeNickname is joining the cluster, almost there...
+    elif [[ "$nodetoolOutput" == *"InstanceNotFoundException"* ]]; then
+      echo $cassNodeNickname is not started yet, getting instance not found exception
     elif [[ "$nodetoolOutput" == *"nodetool: Failed to connect"* ]]; then 
       echo $cassNodeNickname is not online, nodetool cannot connect to 7199 
     elif [[ "$nodetoolOutput" == *"Has this node finished starting up"* ]]; then 

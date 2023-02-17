@@ -7,6 +7,7 @@
       "password": "cassandra",
       "keyspace_replication_config": "{ 'class' : 'NetworkTopologyStrategy', 'datacenter1' : 1 }",
       "writer_workers": 50,
+      "min_writer_rate": 10,
       "num_conns": 2,
       "timeout": 5000,
       "connect_timeout": 1000
