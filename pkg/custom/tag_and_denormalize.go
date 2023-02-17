@@ -11,6 +11,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/proc"
 	"github.com/capillariesio/capillaries/pkg/sc"
+	"github.com/capillariesio/capillaries/pkg/xfer"
 )
 
 const ProcessorTagAndDenormalizeName string = "tag_and_denormalize"
@@ -35,7 +36,7 @@ func (procDef *TagAndDenormalizeProcessorDef) GetUsedInTargetExpressionsFields()
 	return &procDef.UsedInCriteriaFields
 }
 
-func (procDef *TagAndDenormalizeProcessorDef) Deserialize(raw json.RawMessage, customProcSettings json.RawMessage, caPath string) error {
+func (procDef *TagAndDenormalizeProcessorDef) Deserialize(raw json.RawMessage, customProcSettings json.RawMessage, caPath string, privateKeys map[string]string) error {
 	var err error
 	if err = json.Unmarshal(raw, procDef); err != nil {
 		return fmt.Errorf("cannot unmarshal tag_and_denormalize processor def: %s", err.Error())
@@ -49,7 +50,7 @@ func (procDef *TagAndDenormalizeProcessorDef) Deserialize(raw json.RawMessage, c
 			return fmt.Errorf("cannot unmarshal both tag_criteria and tag_criteria_url - pick one")
 		}
 
-		criteriaBytes, err := sc.GetFileBytes(procDef.RawTagCriteriaUri, caPath)
+		criteriaBytes, err := xfer.GetFileBytes(procDef.RawTagCriteriaUri, caPath, privateKeys)
 		if err != nil {
 			return fmt.Errorf("cannot get criteria file [%s]: %s", procDef.RawTagCriteriaUri, err.Error())
 		}

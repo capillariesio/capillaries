@@ -2,7 +2,7 @@
 
 # Capillaries
 
-Capillaries is a distributed batch data processing framework.
+Capillaries is a supervised data processing framework. It fills the gap between distributed, scalable data processing/integration solutions and the need to produce enriched, customer-ready, production-quality, human-curated data within SLA time limits.
 
 ## TL;DR
 
@@ -40,7 +40,7 @@ Allows human data validation for selected data processing stages.
 
 ### Fault tolerance
 
-Survives temporary underlying database connectivity issues and processing node software and hardware failures.
+Survives most of the temporary underlying database connectivity issues and processing node software and hardware failures.
 
 ### Works with structured data artifacts
 
@@ -57,9 +57,10 @@ Capable of processing large amounts of data within SLA time limits, efficiently 
 ### [Testing](doc/testing.md)
 ### [Toolbelt, Daemon, and Webapi configuration](doc/binconfig.md)
 ### [Script configuration](doc/scriptconfig.md)
-### [API](doc/api.md)
+### [Capillaries API](doc/api.md)
+### [Capillaries deploy tool: Openstack cloud deployment](test/deploy/README.md)
 ### [Glossary](doc/glossary.md)
 ### [Q & A](doc/qna.md)
 ### [MIT License](LICENSE)
 
-(C) 2022 kleines.hertz[at]protonmail.com
+(C) 2023 kleines.hertz[at]protonmail.com

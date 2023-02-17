@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/ast"
 	"math"
+	"regexp"
 	"strings"
 
 	"github.com/capillariesio/capillaries/pkg/eval"
@@ -163,8 +164,8 @@ func (node *ScriptNodeDef) GetTargetName() string {
 	}
 }
 
-func (node *ScriptNodeDef) Deserialize(customProcessorDefFactory CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage, caPath string) error {
-	errors := make([]string, 0, 2)
+func (node *ScriptNodeDef) Deserialize(customProcessorDefFactory CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage, caPath string, privateKeys map[string]string) error {
+	errors := make([]string, 0)
 
 	if err := ValidateNodeType(node.Type); err != nil {
 		return err
@@ -244,8 +245,10 @@ func (node *ScriptNodeDef) Deserialize(customProcessorDefFactory CustomProcessor
 			if customProcSettings, ok := customProcessorsSettings[node.CustomProcessorType]; !ok {
 				errors = append(errors, fmt.Sprintf("cannot find custom processing settings for [%s] in the environment config file", node.CustomProcessorType))
 			} else {
-				if err := node.CustomProcessor.Deserialize(node.RawProcessorDef, customProcSettings, caPath); err != nil {
-					errors = append(errors, fmt.Sprintf("cannot deserialize custom processor [%s]: [%s]", strings.ReplaceAll(string(node.RawProcessorDef), "\n", " "), err.Error()))
+				if err := node.CustomProcessor.Deserialize(node.RawProcessorDef, customProcSettings, caPath, privateKeys); err != nil {
+					re := regexp.MustCompile("[ \r\n]+")
+					fmt.Println(re.ReplaceAllString("\r\n  aaa \r\n bbb\r\n", " "))
+					errors = append(errors, fmt.Sprintf("cannot deserialize custom processor [%s]: [%s]", re.ReplaceAllString(string(node.RawProcessorDef), ""), err.Error()))
 				}
 			}
 		}

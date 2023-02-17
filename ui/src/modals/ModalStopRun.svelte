@@ -27,10 +27,17 @@
 
     function stopAndCloseModal() {
       webapiWaiting = true;
-		  fetch(new Request(webapiUrl() + "/ks/" + keyspace + "/run/" + run_id, {method: 'DELETE', body: '{"comment": "' + stopComment +'"}'}))
+      let url = webapiUrl() + "/ks/" + keyspace + "/run/" + run_id;
+      let method = 'DELETE';
+		  fetch(new Request(url, {method: method, body: '{"comment": "' + stopComment +'"}'}))
         .then(response => response.json())
-      	.then(responseJson => { handleResponse(responseJson, setWebapiData);})
-      	.catch(error => {webapiWaiting = false; responseError = error;});
+      	.then(responseJson => {
+          handleResponse(responseJson, setWebapiData);
+        })
+      	.catch(error => {
+          webapiWaiting = false;
+          responseError = method + " " + url + ":" + error;
+        });
         
     }
   </script>

@@ -1,29 +1,68 @@
 <script>
     import {afterUpdate } from 'svelte';
     import dayjs from "dayjs";
-	import Util from '../Util.svelte';
+	import Util, {nodeStatusToColor} from '../Util.svelte';
 	let util;
 
     // Component parameters
     export let node_history = [];
     export let ks_name = "";
 
+    let svgSummary = "";
+
     afterUpdate(() => {
+        let earliestTs = null;
+        let latestTs = null;
+
         // Calculate elapsed times for each batch
         let nodeStartMap = {};
         for (let i=0; i < node_history.length; i++) {
             let e = node_history[i];
             if (e.status === 1) {
                 nodeStartMap[e.script_node] = dayjs(e.ts).valueOf();
+                if (earliestTs == null || nodeStartMap[e.script_node] < earliestTs) {
+                    earliestTs = nodeStartMap[e.script_node];
+                }
             }
         }
 
         let nodeEndMap = {};
+        let nodeStatusMap = {};
         for (let i=0; i < node_history.length; i++) {
             let e = node_history[i];
             if (e.status > 1 && !(e.script_node in nodeEndMap)) {
                 nodeEndMap[e.script_node] = dayjs(e.ts).valueOf();
+                if (latestTs == null || nodeEndMap[e.script_node] > latestTs) {
+                    latestTs = nodeEndMap[e.script_node];
+                }
+                nodeStatusMap[e.script_node] = e.status;
             }
+        }
+
+        let nodesTotal = Object.keys(nodeStartMap).length;
+        if (earliestTs != null && latestTs != null && nodesTotal > 1) {
+            let svgWidth = 800;
+            let svgHeight = 600; // Max height
+            let lineWidth = 10;
+            if (lineWidth * nodesTotal < svgHeight) {
+                svgHeight = lineWidth * nodesTotal;
+            } else {
+                lineWidth = svgHeight / nodesTotal;
+            }
+            svgSummary = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${svgWidth} ${svgHeight}" width="${svgWidth}px" height="${svgHeight}px">\n`;
+            svgSummary += `<rect width="${svgWidth}" height="${svgHeight}" fill="lightgray" />`;
+            let nodeIdx = 0;
+            for (var node in nodeStartMap) {
+                if (node in nodeEndMap) {
+                    let startX = (nodeStartMap[node] - earliestTs) / (latestTs - earliestTs) * svgWidth;
+                    let topY = nodeIdx * lineWidth;
+                    let endX = (nodeEndMap[node] - earliestTs) / (latestTs - earliestTs) * svgWidth;
+                    let bottomY = (nodeIdx + 1) * lineWidth;
+                    svgSummary += `<path d="M${startX},${topY} L${endX},${topY} L${endX},${bottomY} L${startX},${bottomY} Z" fill="${nodeStatusToColor(nodeStatusMap[node])}" ><title>${node} ${Math.ceil((nodeEndMap[node]-nodeStartMap[node])/1000).toString()}s</title></path>`;
+                    nodeIdx++;
+                }
+            }
+            svgSummary += '</svg>';
         }
 
         for (let i=0; i < node_history.length; i++) {
@@ -40,7 +79,7 @@
 </script>
 
 <Util bind:this={util} />
-
+{@html svgSummary}
 <style>
     th {white-space: nowrap;}
     img {width: 20px;}

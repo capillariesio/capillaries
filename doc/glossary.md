@@ -142,17 +142,25 @@ A command-line executable that performs common Capillaries operations by:
 - reading Capillaries [script files](#script)
 - sending commands to the [processor queue](#processor-queue)
 
+The Toolbelt:
+- can [start/stop](api.md) [runs](#run), so solution developers can use it in their scripts
+- gives very basic access to the [workflow tables](#workflow-table), see `get_*_history` commands
+- can produce rudimentary visuals using [DOT diagram language](#dot-diagrams) - see `validate_script`, `get_run_status_diagram` commands
+
 See [Toolbelt and Daemon configuration](binconfig.md) for configuration settings.
 
 One of the main purposes of the toolbelt is to give system integrators easy access to [Capillaries API](api.md). Also, the toolbelt can be useful for visualizing [scripts](#script) and the status of their execution with [DOT diagrams](#dot-diagrams), for example:
 
 ```
 # Can be executed anytime
-go run toolbelt.go validate_script -script_file=../../../test/data/cfg/lookup/script.json -params_file=../../../test/data/cfg/lookup/script_params_two_runs.json -idx_dag=true
+go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/lookup/script.json -params_file=../../../test/data/cfg/lookup/script_params_two_runs.json -idx_dag=true
 
 # Can be executed when the lookup script is running using two runs
-go run toolbelt.go get_run_status_diagram -script_file=../../../test/data/cfg/lookup/script.json -params_file=../../../test/data/cfg/lookup/script_params_two_runs.json -keyspace=test_lookup -run_id=1
+go run capitoolbelt.go get_run_status_diagram -script_file=../../../test/data/cfg/lookup/script.json -params_file=../../../test/data/cfg/lookup/script_params_two_runs.json -keyspace=lookup_quicktest -run_id=1
 ```
+
+## Deploy tool
+This is not part of Capillaries framework. It's a command line tool that can be used to deploy a complete Capillaries-based solution in the public or private cloud that implements Openstack API. See full documentation [here](../test/deploy/README.md).
 
 ## Daemon
 An executable that implements one or more [processors](#processor). Capillaries source code comes with a stock daemon that implements all supported [processor types](#processor-types), including [py_calc processor](#py_calc-processor) implemented as a [custom processor](#table_custom_tfm_table).
@@ -185,7 +193,7 @@ A simple web UI application that provides user access to Capillaries environment
 
 ## Logger
 
-Capillaries uses [zap by Uber](https://github.com/uber-go/zap) for logging. Logger settings can be changed in env_config.json. For log analysis, use free or commercial tools of your choice.
+Capillaries uses [zap by Uber](https://github.com/uber-go/zap) for logging. Logger settings can be changed in [environment config](./binconfig.md#toolbelt-daemon-and-webapi-configuration) JSON file. For log analysis, use free or commercial tools of your choice.
 
 ## rowid
 
@@ -275,3 +283,25 @@ There is no need to perform any setup steps beyond specifying [Cassandra connect
 ![sequence](../doc/cassandra-tables.png)
 
 All [data](#data-table), [index](#index-table) and [workflow](#workflow-table) tables are in place here.
+
+
+## SFTP URIs
+
+Capillaries supports reading source data and configuration files, and writing result data files via SFTP. SFTP URI format used is as follows:
+
+`sftp://user@host[:port]/path/to/file`
+
+where
+
+`user`: name of the user on the targeted host; no user passwords authentication supported; only private key authentication supported, and the path to the private key is given by the [private_keys](./binconfig.md#private_keys) map: a `user` entry corresponds to a path to the private key.
+
+`host`: target host name or IP address
+
+`port`: optional, default is 22
+
+`/path/to/file`: full absolute path to the file
+
+Here is the full list of configuration settings where SFTP URIs can be used:
+- [file reader source URIs](./scriptconfig.md#rurls)
+- script_file and script_params URIs used in [Capillaries API](./api.md) and exposed via the [Toolbelt](./glossary.md#toolbelt) or the [Webapi](./glossary.md#webapi)
+- [file writer target URIs](./scriptconfig.md#wurl_template)

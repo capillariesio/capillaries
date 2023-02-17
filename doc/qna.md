@@ -1,6 +1,19 @@
 Q&A
 ===
 
+## Data connections
+
+Q. What kind of data providers can I use as data source? What media the results can be written to?
+
+A. At the moment, Capillaries can only read and write CSV files. It can read from:
+- local file system
+- http/https
+- [sftp](./glossary.md#sftp-uris) URIs
+
+and write to:
+- local file system
+- [sftp](./glossary.md#sftp-uris) URIs
+
 ## Limits
 
 Q. Is there a limit on the number of nodes, runs, and indexes?
@@ -17,9 +30,9 @@ A. There is no support for NULL values. To mitigate it, Capillaries offers suppo
 
 Q. OK, Capillaries offers [runs](glossary.md#run) as a tool to handle scenarios when some data was not processed properly. After making all necessary fixes, operators can re-start a run (or multiple runs) to overwrite data for all nodes affected by this run - in intermediate Cassandra [tables](glossary.md#table) and in the result files. But it may unnecessarily affect too many nodes and take too long. Can I re-process a single failed [script node](glossary.md#script-node)? A single failed [batch](glossary.md#data-batch)?
 
-A. Re-processing nodes: yes, to some extent. But it has to be part of the script design. You can design your Capillaries [script](glossary.md#script) in a way so the node in question and all its dependants can only be started [manually](scriptconfig.md#start_policy). This means that even on successful script execution, the operator will have to manually start a run that pocesses only one node in question, and manually start a run that processes its dependants.  
+A. Re-processing nodes: yes, to some extent. But it has to be part of the script design. You can design your Capillaries [script](glossary.md#script) in a way so the node in question and all its dependants can only be started [manually](scriptconfig.md#start_policy). This means that even on successful script execution, the operator will have to manually start a run that processes only one node in question, and manually start a run that processes its dependants.  
 
-Re-running batches: no. Capillaries [data tables](glossary.md#data-table) that hold results of a run are immutable, re-running batches would violate this restriction.
+Re-running single batches: no. Capillaries [data tables](glossary.md#data-table) that hold results of a run are immutable, re-running batches would violate this restriction.
 
 ## dead-letter-exchange
 
@@ -40,9 +53,9 @@ Q. Can Capilaries survive RabbitMQ service disruption?
 
 A. No. Guaranteed delivery of RabbitMQ messages for each Capillaries [batch](glossary.md#data-batch) is one of the cornerstones of Capillaries architecture.
 
-## External data acquisition
+## External data acquisition/processing
 
-Q. For each row in my [data table](glossary.md#data-table), I need to acquire data from an external source (say, via web service), providing some row fields as arguments.
+Q. For each row in my [data table](glossary.md#data-table), I need to acquire some new data from an external source (say, via web service), providing some row fields as arguments.
 
 A. Start a run that dumps the table into files via [file writer](glossary.md#table_file) with some unique row identifiers, acquire data from the external source, save acquired data into new files that use the same unique row identifiers, and start a run that uses those new files.
 
@@ -50,12 +63,9 @@ A. Start a run that dumps the table into files via [file writer](glossary.md#tab
 
 Q. Is there a UI for Capillaries?
 
-A. Yes. See [Capillaries UI](../ui/README.md) project, which is a simple web single-page application. UI requirements tend to be very business-specific, it's not an easy task to come up with a cookie-cutter UI framework that would be flexible enough. Solution developers are encouraged to develop their own UI for Capillaries workflows using Capillaries [API](api.md).
+A. Yes. See [Capillaries UI](../ui/README.md) project, which is a simple web single-page application that shows the status of every [run](glossary.md#run) in every [keyspace](glossary.md#keyspace). UI requirements tend to be very business-specific, it's not an easy task to come up with a cookie-cutter UI framework that would be flexible enough. Dedicated solution developers are encouraged to develop their own UI for Capillaries workflows, using [Capillaries Webapi](glossary.md#webapi) and [Capillaries UI](../ui/README.md) as an example.
 
-Also please note that [Toolbelt](glossary.md#toolbelt):
-- can [start/stop](api.md) [runs](glossary.md#run)
-- gives very basic access to the [workflow tables](glossary.md#workflow-table)
-- can produce rudimentary visuals using [DOT diagram language](glossary.md#dot-diagrams) (see `validate_script`, `get_run_status_diagram` commands)
+Also please note that [Toolbelt](glossary.md#toolbelt) can produce rudimentary visuals using [DOT diagram language](glossary.md#dot-diagrams) - see [Toolbelt](glossary.md#toolbelt) `validate_script`, `get_run_status_diagram` commands.
 
 ## Can Capillaries run in a Docker container?
 
@@ -70,7 +80,7 @@ A. While processing [nodes](glossary.md#script-node) that create [tables](glossa
 This situation can be potentially mitigated by creating all tables for a specific [run](glossary.md#run) in advance. A [toolbelt](glossary.md#toolbelt) command producing CQL statements that creates all tables for a [run](glossary.md#run) may look like this:
 
 ``` 
-go run toolbelt.go get_table_cql -script_file=... -params_file=... -keyspace=... -run_id=... -start_nodes=...
+go run capitoolbelt.go get_table_cql -script_file=... -params_file=... -keyspace=... -run_id=... -start_nodes=...
 ```
 
 The tricky part is to specify the correct run id for a run that has not started yet.

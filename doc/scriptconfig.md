@@ -92,7 +92,10 @@ Configures table or file reader, depending on the [processor type](glossary.md#p
 Table reader only. Name of the [data table](glossary.md#table) to read from.
 
 #### r.expected_batches_total
-Table reader only. Number of data batches to supply to the node in parallel. Choose these settings according to your hardware environment specifics.
+Table reader only. Number of data batches to supply to the node in parallel. Choose these settings according to your hardware environment specifics. Things to keep in mind:
+- each batch will be triggered by a separate RabbitMQ message
+- data for each batch will be read in a single worker thread and, if result written to a table (not file), written multiple writer threads
+What is a good size of a batch? Really depends on your specific case: anything between 100 and 100000 records.
 
 Default: 1 (no [parallelism](glossary.md#parallellism)).
 
@@ -102,7 +105,12 @@ Table reader only. The number of data rows to read from the source table at once
 Default: 1000
 
 #### r.urls
-File reader only. List of files to read from. One file - one batch. Supports file and http/https URLs. Most Capillaries integration tests use file URLS. [tag_and_denormalize test](../test/code/tag_and_denormalize/README.md) has an option to run against test data stored in GitHub.
+File reader only. List of files to read from. One file - one batch. Supported schemes:
+- local file path
+- http/https
+- [sftp](./glossary.md#sftp-uris)
+
+Most Capillaries integration tests use file URLs. [tag_and_denormalize test](../test/code/tag_and_denormalize/README.md) has an option to run against test data stored in GitHub, accessing it via https.
 
 #### r.columns
 File reader only. Array of file reader [column definitions](glossary.md#file-reader-column-definition)
@@ -129,6 +137,8 @@ File writer only: used only when file output has to be sorted.
 
 `limit`: maximum number of sorted rows to write; default (and maximum allowed): 500000
 
+If expected output exceeds the `limit`, remove `top` configuration entry altogether.
+
 #### w.columns
 
 File writer only: array of file writer [column definitions](glossary.md#file-writer-column-definition)
@@ -140,6 +150,11 @@ File writer only: array of file writer [column definitions](glossary.md#file-wri
 #### w.indexes
 
 Table writer only. index_name->[index_definition](glossary.md#index-definition) map.
+
+### w.url_template
+File writer only. Specifies  the URI of the target file(s). Supported schemes:
+- local file path
+- [sftp](./glossary.md#sftp-uris)
 
 
 ## dependency_policies

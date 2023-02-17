@@ -15,13 +15,13 @@ In production environments, Capillaries server components ([Daemon](glossary.md#
 Run these commands from the root project directory, they will create those data directories and populate them with sample configurations and sample source data:
 
 ```
-mkdir /tmp/capitest_cfg
-mkdir /tmp/capitest_in
-mkdir /tmp/capitest_out
+mkdir /tmp/capi_cfg
+mkdir /tmp/capi_in
+mkdir /tmp/capi_out
 
-cp -r ./test/data/cfg/* /tmp/capitest_cfg
-cp -r ./test/data/in/* /tmp/capitest_in
-cp -r ./test/data/out/* /tmp/capitest_out
+cp -r ./test/data/cfg/* /tmp/capi_cfg
+cp -r ./test/data/in/* /tmp/capi_in
+cp -r ./test/data/out/* /tmp/capi_out
 ```
 
 ## Run 100% dockerized Capillaries demo
@@ -40,10 +40,10 @@ This command will create bridge network `capinet`, and will create and start the
 - [Capillaries-UI](glossary.md#capillaries-ui) container (user interface to Capillaries)
 - Graylog container (and a couple of dependencies - MongoDB and ElasticSearch containers)
 
-While the containers are being built and started (Cassandra will take a while to initialize, you may want to wait for `Created default superuser role 'cassandra'`), check out the source data for this demo:
+While the containers are being built and started (Cassandra will take a while to initialize, you may want to wait for `Created default superuser role 'cassandra'`), get familiar with the source data for this demo:
 ```
-head -10 /tmp/capitest_in/tag_and_denormalize/flipcart_products.tsv
-cat /tmp/capitest_in/tag_and_denormalize/tags.csv
+head -10 /tmp/capi_in/tag_and_denormalize/flipcart_products.tsv
+cat /tmp/capi_in/tag_and_denormalize/tags.csv
 ```
 
 The demo will process this data as described in the [sample use scenario](what.md#sample-use).
@@ -52,42 +52,42 @@ Wait until all containers are started.
 
 You may want to see all log output from all Capillaries components running in the containers. To do that:
 - navigate to Graylog UI at `http://localhost:9000` using admin/admin credentials;
-- add a new `GELF UDP` input bound to `10.5.0.13` listening on 12201, call it, say, `gelf_udp`.
+- add a new `GELF UDP` input (menu System/Inputs) bound to `10.5.0.60` (Graylog server IP in the Docker network) listening on `12201`, call it, say, `gelf_udp`; click `Show received messages` to start monitoring messages coming to this input (you may want to click `Every 1 second` in the top right corner of the input message view screen to see live updates).
 
 Now you can navigate to Capillaries UI at `http://localhost:8080`. On the displayed `Keyspaces` page, click `New run` enter the following pramaters and click `OK`:
 
 | Field | Value |
 |- | - |
-| Keyspace | test_tag_and_denormalize |
-| Script URI | /tmp/capitest_cfg/tag_and_denormalize/script.json |
-| Script parameters URI | /tmp/capitest_cfg/tag_and_denormalize/script_params_two_runs.json |
+| Keyspace | tag_and_denormalize_quicktest |
+| Script URI | /tmp/capi_cfg/tag_and_denormalize_quicktest/script.json |
+| Script parameters URI | /tmp/capi_cfg/tag_and_denormalize_quicktest/script_params_two_runs.json |
 | Start nodes |	read_tags,read_products |
 
 A [keyspace](glossary.md#keyspace) named `test_tag_and_denormalize` will appear on the list, click on it and watch the started [run](glossary.md#run) handling [script nodes](glossary.md#script-node).
 
 When the run is complete, check out data processing intermediate results:
 ```
-head -10 /tmp/capitest_out/tag_and_denormalize/tagged_products_for_operator_review.csv
+head -10 /tmp/capi_out/tag_and_denormalize/tagged_products_for_operator_review.csv
 ```
 
 Let's assume the operator is satisfied with those tagging results, now it's time to start the second (and final) run. Either from the root `Keyspaces` screen, or from the `test_tag_and_denormalize` matrix screen, start a new run - provide almost the same input, but `Start nodes` will look different now - this second run will start from handling `tag_totals` node and calculating totals for each tag:
 
 | Field | Value |
 |- | - |
-| Keyspace | test_tag_and_denormalize |
-| Script URI | /tmp/capitest_cfg/tag_and_denormalize/script.json |
-| Script parameters URI | /tmp/capitest_cfg/tag_and_denormalize/script_params_two_runs.json |
+| Keyspace | tag_and_denormalize_quicktest |
+| Script URI | /tmp/capi_cfg/tag_and_denormalize_quicktest/script.json |
+| Script parameters URI | /tmp/capi_cfg/tag_and_denormalize_quicktest/script_params_two_runs.json |
 | Start nodes |	**tag_totals** |
 
 When this run is complete, see final results at:
 ```
-cat /tmp/capitest_out/tag_and_denormalize/tag_totals.tsv
+cat /tmp/capi_out/tag_and_denormalize_quicktest/tag_totals.tsv
 ```
 
-To see log messages in Graylog, navigate to Graylog UI again and:
-- add new extractor (say, `capi_json_extractor`) to `gelf_udp` input: it will parse JSON received in the `message` field of the log message;
-- add a new stream (say, `capi_all`), add a new rule to it - it should take messages from `gelf_udp`, and  select `always match` as a rule so all messages make it to this stream;
-- start this new stream `capi_all` and start another run in Capillaries UI or run an integration test - you should see parsed log events in `capi_all`.
+If you want to see parsed Capillaries log messages in Graylog, navigate to Graylog UI again and:
+- add new `JSON` extractor (say, `capi_json_extractor`) to `gelf_udp` input (menu System/Inputs, `Manage extractors` for `gelf_udp`): it will parse JSON received in the `message` field of the log message;
+- add a new stream (nemu `Streams`/`Create stream`, call it `capi_all`), add a new rule to it - it should take messages from `gelf_udp`, and  select `always match` (in `Add stream rule`) as a rule so all messages make it to this stream;
+- start this new stream `capi_all` (menu Streams) and start another run in Capillaries UI or run an integration test - you should see parsed log events in `capi_all`.
 
 Drop the keyspace using Capillaries UI `Drop` button after experimenting with it.
 
@@ -123,7 +123,7 @@ You may also want to make sure you have cqlsh tool installed, it may be helpful 
 
 This section may help you get started with [lookup integration test](../test/code/lookup/README.md).
 
-All settings in pkg/exe/daemon/env_config.json and pkg/exe/toolbelt/env_config.json use default RabbitMQ and Cassandra settings. If you have changed your Cassandra or RabbitMQ setup, modify both env_config.json files accordingly. More about database and queue settings:
+All settings in pkg/exe/daemon/capidaemon.json and pkg/exe/toolbelt/capitoolbelt.json use default RabbitMQ and Cassandra settings. If you have changed your Cassandra or RabbitMQ setup, modify both JSON files accordingly. More about database and queue settings:
 - Cassandra [settings](binconfig.md#cassandra), general Cassandra setup [considerations](glossary.md#cassandra-setup)
 - RabbitMQ [settings](binconfig.md#amqp), general RabbitMQ setup [considerations](glossary.md#rabbitmq-setup)
 
@@ -142,7 +142,7 @@ Run Capillaries [Daemon](glossary.md#daemon) (make sure that Daemon container is
 
 ```
 cd pkg/exe/daemon
-go run daemon.go
+go run capidaemon.go
 ```
 
 Check out its stdout- make sure it successfully connected to RabbitMQ.

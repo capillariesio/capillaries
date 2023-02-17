@@ -46,15 +46,28 @@ type ScriptParams struct {
 }
 
 func main() {
-	cfgRoot := "/tmp/capitest_cfg/lookup"
-	inRoot := "/tmp/capitest_in/lookup"
-	outRoot := "/tmp/capitest_out/lookup"
+	defaultProductId := ""
+	defaultSellerId := ""
+
+	scriptParamsPath := flag.String("script_params_path", "../../data/cfg/lookup/script_params_one_run.json", "Path to lookup script parameters")
+	inRoot := flag.String("in_root", "/tmp/capi_in/lookup_quicktest", "Root dir for in files")
+	outRoot := flag.String("out_root", "/tmp/capi_out/lookup_quicktest", "Root dir for out files")
+	totalItems := flag.Int("items", 1000, "Total number of order items to generate")
+	totalSellers := flag.Int("sellers", 20, "Total number of sellers to generate")
+	maxProductsPerSeller := flag.Int("products", 10, "Max number of products per seller to generate")
+	flag.Parse()
+
+	fileInOrdersPath := *inRoot + "/raw_orders"
+	fileInItemsPath := *inRoot + "/raw_items"
+	fileOutNoGroupInnerPath := *outRoot + "/raw_no_group_inner"
+	fileOutNoGroupLeftOuterPath := *outRoot + "/raw_no_group_outer"
+	fileOutGroupInnerPath := *outRoot + "/raw_grouped_inner"
+	fileOutGroupLeftOuterPath := *outRoot + "/raw_grouped_outer"
 
 	// Read script params file to get cutoff dates and other params
-	fileScriptParams := cfgRoot + "/script_params_one_run.json"
-	fScriptParamsFile, err := os.Open(fileScriptParams)
+	fScriptParamsFile, err := os.Open(*scriptParamsPath)
 	if err != nil {
-		log.Fatalf("cannot open file [%s]: %s", fileScriptParams, err.Error())
+		log.Fatalf("cannot open file [%s]: %s", *scriptParamsPath, err.Error())
 	}
 	defer fScriptParamsFile.Close()
 
@@ -62,7 +75,7 @@ func main() {
 
 	var sp ScriptParams
 	if err := json.Unmarshal(scriptParamsBytes, &sp); err != nil {
-		log.Fatalf("cannot unmarshal parameters [%s]: %s", fileScriptParams, err.Error())
+		log.Fatalf("cannot unmarshal parameters [%s]: %s", *scriptParamsPath, err.Error())
 	}
 
 	sp.StartDate, err = time.Parse("2006-01-02 15:04:05", sp.StartDateString)
@@ -86,74 +99,60 @@ func main() {
 		log.Fatalf("cannot unmarshal default order item value [%s]: %s", sp.DefaultOrderItemValueString, err.Error())
 	}
 
-	defaultProductId := ""
-	defaultSellerId := ""
-
-	fileInOrdersPath := flag.String("in_orders", inRoot+"/raw_orders", "Path to input file to generate: orders")
-	fileInItemsPath := flag.String("in_items", inRoot+"/raw_items", "Path to input file to generate: order items")
-	fileOutNoGroupInnerPath := flag.String("out_no_group_inner", outRoot+"/raw_no_group_inner", "Path to output file to generate: orders inner joined with items, no grouping")
-	fileOutNoGroupLeftOuterPath := flag.String("out_no_group_left_outer", outRoot+"/raw_no_group_outer", "Path to output file to generate: orders left outer joined with items, no grouping")
-	fileOutGroupInnerPath := flag.String("out_group_inner", outRoot+"/raw_grouped_inner", "Path to output file to generate: orders inner joined with items, grouped")
-	fileOutGroupLeftOuterPath := flag.String("out_group_left_outer", outRoot+"/raw_grouped_outer", "Path to output file to generate: orders left outer joined with items, grouped")
-	totalItems := flag.Int("items", 1000, "Total number of order items to generate")
-	totalSellers := flag.Int("sellers", 20, "Total number of sellers to generate")
-	maxProductsPerSeller := flag.Int("products", 10, "Max number of products per seller to generate")
-	flag.Parse()
-
 	// In files
-	fInOrders, err := os.Create(*fileInOrdersPath)
+	fInOrders, err := os.Create(fileInOrdersPath)
 	if err != nil {
-		log.Fatalf("cannot create in file [%s]: %s", *fileInOrdersPath, err.Error())
+		log.Fatalf("cannot create in file [%s]: %s", fileInOrdersPath, err.Error())
 	}
 	defer fInOrders.Close()
 
-	fInItems, err := os.Create(*fileInItemsPath)
+	fInItems, err := os.Create(fileInItemsPath)
 	if err != nil {
-		log.Fatalf("cannot create in file [%s]: %s", *fileInItemsPath, err.Error())
+		log.Fatalf("cannot create in file [%s]: %s", fileInItemsPath, err.Error())
 	}
 	defer fInItems.Close()
 
 	if _, err := fInOrders.WriteString("order_id,customer_id,order_status,order_purchase_timestamp,order_approved_at,order_delivered_carrier_date,order_delivered_customer_date,order_estimated_delivery_date\n"); err != nil {
-		log.Fatalf("cannot write file [%s] header line: [%s]", *fileInOrdersPath, err.Error())
+		log.Fatalf("cannot write file [%s] header line: [%s]", fileInOrdersPath, err.Error())
 	}
 
 	if _, err := fInItems.WriteString("order_id,order_item_id,product_id,seller_id,shipping_limit_date,price,freight_value\n"); err != nil {
-		log.Fatalf("cannot write file [%s] header line: [%s]", *fileInItemsPath, err.Error())
+		log.Fatalf("cannot write file [%s] header line: [%s]", fileInItemsPath, err.Error())
 	}
 
 	// Out files
-	fOutNoGroupInner, err := os.Create(*fileOutNoGroupInnerPath)
+	fOutNoGroupInner, err := os.Create(fileOutNoGroupInnerPath)
 	if err != nil {
-		log.Fatalf("cannot create out file [%s]: %s", *fileOutNoGroupInnerPath, err.Error())
+		log.Fatalf("cannot create out file [%s]: %s", fileOutNoGroupInnerPath, err.Error())
 	}
 	defer fOutNoGroupInner.Close()
-	fOutNoGroupLeftOuter, err := os.Create(*fileOutNoGroupLeftOuterPath)
+	fOutNoGroupLeftOuter, err := os.Create(fileOutNoGroupLeftOuterPath)
 	if err != nil {
-		log.Fatalf("cannot create out file [%s]: %s", *fileOutNoGroupLeftOuterPath, err.Error())
+		log.Fatalf("cannot create out file [%s]: %s", fileOutNoGroupLeftOuterPath, err.Error())
 	}
 	defer fOutNoGroupLeftOuter.Close()
-	fOutGroupInner, err := os.Create(*fileOutGroupInnerPath)
+	fOutGroupInner, err := os.Create(fileOutGroupInnerPath)
 	if err != nil {
-		log.Fatalf("cannot create out file [%s]: %s", *fileOutGroupInnerPath, err.Error())
+		log.Fatalf("cannot create out file [%s]: %s", fileOutGroupInnerPath, err.Error())
 	}
 	defer fOutGroupInner.Close()
-	fOutGroupLeftOuter, err := os.Create(*fileOutGroupLeftOuterPath)
+	fOutGroupLeftOuter, err := os.Create(fileOutGroupLeftOuterPath)
 	if err != nil {
-		log.Fatalf("cannot create out file [%s]: %s", *fileOutGroupLeftOuterPath, err.Error())
+		log.Fatalf("cannot create out file [%s]: %s", fileOutGroupLeftOuterPath, err.Error())
 	}
 	defer fOutGroupLeftOuter.Close()
 
 	if _, err := fOutNoGroupInner.WriteString("order_id,order_item_id,product_id,seller_id,shipping_limit_date,value\n"); err != nil {
-		log.Fatalf("cannot write file [%s] header line: [%s]", *fileOutNoGroupInnerPath, err.Error())
+		log.Fatalf("cannot write file [%s] header line: [%s]", fileOutNoGroupInnerPath, err.Error())
 	}
 	if _, err := fOutNoGroupLeftOuter.WriteString("order_id,order_item_id,product_id,seller_id,shipping_limit_date,value\n"); err != nil {
-		log.Fatalf("cannot write file [%s] header line: [%s]", *fileOutNoGroupLeftOuterPath, err.Error())
+		log.Fatalf("cannot write file [%s] header line: [%s]", fileOutNoGroupLeftOuterPath, err.Error())
 	}
 	if _, err := fOutGroupInner.WriteString("total_value,order_purchase_timestamp,order_id,avg_value,min_value,max_value,min_product_id,max_product_id,item_count\n"); err != nil {
-		log.Fatalf("cannot write file [%s] header line: [%s]", *fileOutGroupInnerPath, err.Error())
+		log.Fatalf("cannot write file [%s] header line: [%s]", fileOutGroupInnerPath, err.Error())
 	}
 	if _, err := fOutGroupLeftOuter.WriteString("total_value,order_purchase_timestamp,order_id,avg_value,min_value,max_value,min_product_id,max_product_id,item_count\n"); err != nil {
-		log.Fatalf("cannot write file [%s] header line: [%s]", *fileOutGroupLeftOuterPath, err.Error())
+		log.Fatalf("cannot write file [%s] header line: [%s]", fileOutGroupLeftOuterPath, err.Error())
 	}
 
 	seed := (time.Now().Unix() << 32) + time.Now().UnixMilli()
@@ -176,7 +175,7 @@ func main() {
 	itemIdx := 0
 	for itemIdx < *totalItems {
 		orderId := randomId(rnd)
-		projectedItemsInOrder := rnd.Intn(3) // There may be 0 items in order
+		projectedItemsInOrder := rnd.Intn(5) // There may be [0,4] items in order
 		orderStatus := "invoiced"
 		orderPurchaseTs := time.Date(2016, 1, 1, 0, 0, 0, 0, time.UTC).Add(time.Duration(rnd.Intn(100000000) * int(time.Second)))
 		orderEstimateDeliveryTs := orderPurchaseTs.Add(time.Duration(rnd.Intn(100000) * int(time.Second)))

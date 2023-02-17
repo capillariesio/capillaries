@@ -78,10 +78,17 @@
         // For this ks, cache last used run parameters
         $ksRunMap[keyspace] = {"scriptUri": scriptUri, "paramsUri": paramsUri};
         webapiWaiting = true;
-        fetch(new Request(webapiUrl() + "/ks/" + keyspace + "/run", {method: 'POST', body: JSON.stringify({"script_uri": scriptUri, "script_params_uri": paramsUri, "start_nodes": startNodes, "run_description": runDesc})}))
+        let url = webapiUrl() + "/ks/" + keyspace + "/run";
+        let method = 'POST';
+        fetch(new Request(url, {method: method, body: JSON.stringify({"script_uri": scriptUri, "script_params_uri": paramsUri, "start_nodes": startNodes, "run_description": runDesc})}))
               .then(response => response.json())
-              .then(responseJson => { handleResponse(responseJson, setWebapiData);})
-              .catch(error => {webapiWaiting = false;responseError = error;});
+              .then(responseJson => {
+                handleResponse(responseJson, setWebapiData);
+              })
+              .catch(error => {
+                webapiWaiting = false;
+                responseError = method + " " + url + ":" + error;
+              });
       }
     }
   </script>

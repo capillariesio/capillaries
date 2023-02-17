@@ -1,6 +1,6 @@
 #!/bin/bash
 
-outDir=/tmp/capitest_out/lookup
+outDir=/tmp/capi_out/lookup_quicktest
 
 if ! diff -b $outDir/order_item_date_inner_baseline.csv $outDir/order_item_date_inner.csv ||
   ! diff -b $outDir/order_item_date_left_outer_baseline.csv $outDir/order_item_date_left_outer.csv ||

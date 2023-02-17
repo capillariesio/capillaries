@@ -1,0 +1,783 @@
+{
+    "nodes": {
+        "read_orders": {
+            "type": "file_table",
+            "desc": "Load order data from CSV file",
+            "start_policy": "manual",
+            "r": {
+                "urls": [
+                    "{dir_in}/olist_orders_dataset00.csv",
+                    "{dir_in}/olist_orders_dataset01.csv",
+                    "{dir_in}/olist_orders_dataset02.csv",
+                    "{dir_in}/olist_orders_dataset03.csv",
+                    "{dir_in}/olist_orders_dataset04.csv",
+                    "{dir_in}/olist_orders_dataset05.csv",
+                    "{dir_in}/olist_orders_dataset06.csv",
+                    "{dir_in}/olist_orders_dataset07.csv",
+                    "{dir_in}/olist_orders_dataset08.csv",
+                    "{dir_in}/olist_orders_dataset09.csv"
+                ],
+                "hdr_line_idx": 0,
+                "first_data_line_idx": 1,
+                "columns": {
+                    "col_order_id": {
+                        "col_hdr": "order_id",
+                        "col_type": "string"
+                    },
+                    "col_order_status": {
+                        "col_hdr": "order_status",
+                        "col_type": "string"
+                    },
+                    "col_order_purchase_timestamp": {
+                        "col_hdr": "order_purchase_timestamp",
+                        "col_format": "2006-01-02 15:04:05",
+                        "col_type": "datetime"
+                    }
+                }
+            },
+            "w": {
+                "name": "orders",
+                "having": "w.order_purchase_timestamp >= time.Parse(\"2006-01-02 15:04:05\",\"{start_date}\") && w.order_purchase_timestamp <= time.Parse(\"2006-01-02 15:04:05\",\"{end_date}\")",
+                "fields": {
+                    "order_id": {
+                        "expression": "r.col_order_id",
+                        "type": "string"
+                    },
+                    "order_status": {
+                        "expression": "r.col_order_status",
+                        "type": "string"
+                    },
+                    "order_purchase_timestamp": {
+                        "expression": "r.col_order_purchase_timestamp",
+                        "type": "datetime"
+                    }
+                },
+                "indexes": {
+                    "idx_orders_order_id_just_to_check_uniqueness": "unique(order_id(case_sensitive))"
+                }
+            }
+        },
+        "read_order_items": {
+            "type": "file_table",
+            "desc": "Load order item data from CSV file",
+            "start_policy": "manual",
+            "r": {
+                "urls": [
+                    "{dir_in}/olist_orders_item_dataset00.csv",
+                    "{dir_in}/olist_orders_item_dataset01.csv",
+                    "{dir_in}/olist_orders_item_dataset02.csv",
+                    "{dir_in}/olist_orders_item_dataset03.csv",
+                    "{dir_in}/olist_orders_item_dataset04.csv",
+                    "{dir_in}/olist_orders_item_dataset05.csv",
+                    "{dir_in}/olist_orders_item_dataset06.csv",
+                    "{dir_in}/olist_orders_item_dataset07.csv",
+                    "{dir_in}/olist_orders_item_dataset08.csv",
+                    "{dir_in}/olist_orders_item_dataset09.csv",
+                    "{dir_in}/olist_orders_item_dataset10.csv",
+                    "{dir_in}/olist_orders_item_dataset11.csv",
+                    "{dir_in}/olist_orders_item_dataset12.csv",
+                    "{dir_in}/olist_orders_item_dataset13.csv",
+                    "{dir_in}/olist_orders_item_dataset14.csv",
+                    "{dir_in}/olist_orders_item_dataset15.csv",
+                    "{dir_in}/olist_orders_item_dataset16.csv",
+                    "{dir_in}/olist_orders_item_dataset17.csv",
+                    "{dir_in}/olist_orders_item_dataset18.csv",
+                    "{dir_in}/olist_orders_item_dataset19.csv",
+                    "{dir_in}/olist_orders_item_dataset20.csv",
+                    "{dir_in}/olist_orders_item_dataset21.csv",
+                    "{dir_in}/olist_orders_item_dataset22.csv",
+                    "{dir_in}/olist_orders_item_dataset23.csv",
+                    "{dir_in}/olist_orders_item_dataset24.csv",
+                    "{dir_in}/olist_orders_item_dataset25.csv",
+                    "{dir_in}/olist_orders_item_dataset26.csv",
+                    "{dir_in}/olist_orders_item_dataset27.csv",
+                    "{dir_in}/olist_orders_item_dataset28.csv",
+                    "{dir_in}/olist_orders_item_dataset29.csv",
+                    "{dir_in}/olist_orders_item_dataset30.csv",
+                    "{dir_in}/olist_orders_item_dataset31.csv",
+                    "{dir_in}/olist_orders_item_dataset32.csv",
+                    "{dir_in}/olist_orders_item_dataset33.csv",
+                    "{dir_in}/olist_orders_item_dataset34.csv",
+                    "{dir_in}/olist_orders_item_dataset35.csv",
+                    "{dir_in}/olist_orders_item_dataset36.csv",
+                    "{dir_in}/olist_orders_item_dataset37.csv",
+                    "{dir_in}/olist_orders_item_dataset38.csv",
+                    "{dir_in}/olist_orders_item_dataset39.csv",
+                    "{dir_in}/olist_orders_item_dataset40.csv",
+                    "{dir_in}/olist_orders_item_dataset41.csv",
+                    "{dir_in}/olist_orders_item_dataset42.csv",
+                    "{dir_in}/olist_orders_item_dataset43.csv",
+                    "{dir_in}/olist_orders_item_dataset44.csv",
+                    "{dir_in}/olist_orders_item_dataset45.csv",
+                    "{dir_in}/olist_orders_item_dataset46.csv",
+                    "{dir_in}/olist_orders_item_dataset47.csv",
+                    "{dir_in}/olist_orders_item_dataset48.csv",
+                    "{dir_in}/olist_orders_item_dataset49.csv",
+                    "{dir_in}/olist_orders_item_dataset50.csv",
+                    "{dir_in}/olist_orders_item_dataset51.csv",
+                    "{dir_in}/olist_orders_item_dataset52.csv",
+                    "{dir_in}/olist_orders_item_dataset53.csv",
+                    "{dir_in}/olist_orders_item_dataset54.csv",
+                    "{dir_in}/olist_orders_item_dataset55.csv",
+                    "{dir_in}/olist_orders_item_dataset56.csv",
+                    "{dir_in}/olist_orders_item_dataset57.csv",
+                    "{dir_in}/olist_orders_item_dataset58.csv",
+                    "{dir_in}/olist_orders_item_dataset59.csv",
+                    "{dir_in}/olist_orders_item_dataset60.csv",
+                    "{dir_in}/olist_orders_item_dataset61.csv",
+                    "{dir_in}/olist_orders_item_dataset62.csv",
+                    "{dir_in}/olist_orders_item_dataset63.csv",
+                    "{dir_in}/olist_orders_item_dataset64.csv",
+                    "{dir_in}/olist_orders_item_dataset65.csv",
+                    "{dir_in}/olist_orders_item_dataset66.csv",
+                    "{dir_in}/olist_orders_item_dataset67.csv",
+                    "{dir_in}/olist_orders_item_dataset68.csv",
+                    "{dir_in}/olist_orders_item_dataset69.csv",
+                    "{dir_in}/olist_orders_item_dataset70.csv",
+                    "{dir_in}/olist_orders_item_dataset71.csv",
+                    "{dir_in}/olist_orders_item_dataset72.csv",
+                    "{dir_in}/olist_orders_item_dataset73.csv",
+                    "{dir_in}/olist_orders_item_dataset74.csv",
+                    "{dir_in}/olist_orders_item_dataset75.csv",
+                    "{dir_in}/olist_orders_item_dataset76.csv",
+                    "{dir_in}/olist_orders_item_dataset77.csv",
+                    "{dir_in}/olist_orders_item_dataset78.csv",
+                    "{dir_in}/olist_orders_item_dataset79.csv",
+                    "{dir_in}/olist_orders_item_dataset80.csv",
+                    "{dir_in}/olist_orders_item_dataset81.csv",
+                    "{dir_in}/olist_orders_item_dataset82.csv",
+                    "{dir_in}/olist_orders_item_dataset83.csv",
+                    "{dir_in}/olist_orders_item_dataset84.csv",
+                    "{dir_in}/olist_orders_item_dataset85.csv",
+                    "{dir_in}/olist_orders_item_dataset86.csv",
+                    "{dir_in}/olist_orders_item_dataset87.csv",
+                    "{dir_in}/olist_orders_item_dataset88.csv",
+                    "{dir_in}/olist_orders_item_dataset89.csv",
+                    "{dir_in}/olist_orders_item_dataset90.csv",
+                    "{dir_in}/olist_orders_item_dataset91.csv",
+                    "{dir_in}/olist_orders_item_dataset92.csv",
+                    "{dir_in}/olist_orders_item_dataset93.csv",
+                    "{dir_in}/olist_orders_item_dataset94.csv",
+                    "{dir_in}/olist_orders_item_dataset95.csv",
+                    "{dir_in}/olist_orders_item_dataset96.csv",
+                    "{dir_in}/olist_orders_item_dataset97.csv",
+                    "{dir_in}/olist_orders_item_dataset98.csv",
+                    "{dir_in}/olist_orders_item_dataset99.csv"
+                ],
+                "hdr_line_idx": 0,
+                "first_data_line_idx": 1,
+                "columns": {
+                    "col_order_id": {
+                        "col_idx": 0,
+                        "col_hdr": null,
+                        "col_type": "string"
+                    },
+                    "col_order_item_id": {
+                        "col_idx": 1,
+                        "col_hdr": null,
+                        "col_format": "%d",
+                        "col_type": "int"
+                    },
+                    "col_product_id": {
+                        "col_idx": 2,
+                        "col_hdr": null,
+                        "col_type": "string"
+                    },
+                    "col_seller_id": {
+                        "col_idx": 3,
+                        "col_hdr": null,
+                        "col_type": "string"
+                    },
+                    "col_shipping_limit_date": {
+                        "col_idx": 4,
+                        "col_hdr": null,
+                        "col_format": "2006-01-02 15:04:05",
+                        "col_type": "datetime"
+                    },
+                    "col_price": {
+                        "col_idx": 5,
+                        "col_hdr": null,
+                        "col_format": "%f",
+                        "col_type": "decimal2"
+                    },
+                    "col_freight_value": {
+                        "col_idx": 6,
+                        "col_hdr": null,
+                        "col_format": "%f",
+                        "col_type": "decimal2"
+                    }
+                }
+            },
+            "w": {
+                "name": "order_items",
+                "having": null,
+                "fields": {
+                    "order_id": {
+                        "expression": "r.col_order_id",
+                        "type": "string"
+                    },
+                    "order_item_id": {
+                        "expression": "r.col_order_item_id",
+                        "type": "int"
+                    },
+                    "product_id": {
+                        "expression": "r.col_product_id",
+                        "type": "string"
+                    },
+                    "seller_id": {
+                        "expression": "r.col_seller_id",
+                        "type": "string"
+                    },
+                    "shipping_limit_date": {
+                        "expression": "r.col_shipping_limit_date",
+                        "type": "datetime"
+                    },
+                    "value": {
+                        "expression": "r.col_price+r.col_freight_value",
+                        "type": "decimal2"
+                    }
+                },
+                "indexes": {
+                    "idx_order_items_order_id": "non_unique(order_id(case_sensitive))"
+                }
+            }
+        },
+        "order_item_date_inner": {
+            "type": "table_lookup_table",
+            "start_policy": "{lookup_start_policy|string}",
+            "desc": "For each order, look up order items and perform inner join without grouping or aggregation",
+            "r": {
+                "table": "orders",
+                "expected_batches_total": "{lookup_node_batches_total|number}"
+            },
+            "l": {
+                "index_name": "idx_order_items_order_id",
+                "join_on": "r.order_id",
+                "group": false,
+                "join_type": "inner"
+            },
+            "w": {
+                "name": "order_item_date_inner",
+                "fields": {
+                    "order_id": {
+                        "expression": "r.order_id",
+                        "type": "string"
+                    },
+                    "order_purchase_timestamp": {
+                        "expression": "r.order_purchase_timestamp",
+                        "type": "datetime"
+                    },
+                    "order_item_id": {
+                        "expression": "l.order_item_id",
+                        "type": "int"
+                    },
+                    "product_id": {
+                        "expression": "l.product_id",
+                        "type": "string"
+                    },
+                    "seller_id": {
+                        "expression": "l.seller_id",
+                        "type": "string"
+                    },
+                    "shipping_limit_date": {
+                        "expression": "l.shipping_limit_date",
+                        "type": "datetime"
+                    },
+                    "value": {
+                        "expression": "l.value",
+                        "type": "decimal2"
+                    }
+                },
+                "indexes": {
+                    "idx_order_item_date_inner_order_id_item_id": "unique(order_id(case_sensitive),order_item_id())"
+                }
+            }
+        },
+        "order_item_date_left_outer": {
+            "type": "table_lookup_table",
+            "start_policy": "{lookup_start_policy|string}",
+            "desc": "For each order, look up order items and perform left outer join without grouping or aggregation",
+            "r": {
+                "table": "orders",
+                "expected_batches_total": "{lookup_node_batches_total|number}"
+            },
+            "l": {
+                "index_name": "idx_order_items_order_id",
+                "join_on": "r.order_id",
+                "group": false,
+                "join_type": "left"
+            },
+            "w": {
+                "name": "order_item_date_left_outer",
+                "fields": {
+                    "order_id": {
+                        "expression": "r.order_id",
+                        "type": "string"
+                    },
+                    "order_purchase_timestamp": {
+                        "expression": "r.order_purchase_timestamp",
+                        "type": "datetime"
+                    },
+                    "order_item_id": {
+                        "expression": "l.order_item_id",
+                        "default_value": "{default_order_item_id}",
+                        "type": "int"
+                    },
+                    "product_id": {
+                        "expression": "l.product_id",
+                        "type": "string"
+                    },
+                    "seller_id": {
+                        "expression": "l.seller_id",
+                        "type": "string"
+                    },
+                    "shipping_limit_date": {
+                        "expression": "l.shipping_limit_date",
+                        "default_value": "{default_shipping_limit_date}",
+                        "type": "datetime"
+                    },
+                    "value": {
+                        "expression": "l.value",
+                        "default_value": "{default_order_item_value}",
+                        "type": "decimal2"
+                    }
+                },
+                "indexes": {
+                    "idx_order_item_date_outer_order_id_item_id": "unique(order_id(case_sensitive),order_item_id())"
+                }
+            }
+        },
+        "order_date_value_grouped_inner": {
+            "type": "table_lookup_table",
+            "start_policy": "{lookup_start_policy|string}",
+            "desc": "For each order, look up order items and perform inner join with grouping and aggregation",
+            "r": {
+                "table": "orders",
+                "expected_batches_total": "{lookup_node_batches_total|number}"
+            },
+            "l": {
+                "index_name": "idx_order_items_order_id",
+                "join_on": "r.order_id",
+                "group": true,
+                "join_type": "inner"
+            },
+            "w": {
+                "name": "order_date_value_grouped_inner",
+                "fields": {
+                    "order_id": {
+                        "expression": "r.order_id",
+                        "type": "string"
+                    },
+                    "order_purchase_timestamp": {
+                        "expression": "r.order_purchase_timestamp",
+                        "type": "datetime"
+                    },
+                    "total_value": {
+                        "expression": "sum(l.value)",
+                        "type": "decimal2"
+                    },
+                    "avg_value": {
+                        "expression": "avg(l.value)",
+                        "type": "decimal2"
+                    },
+                    "min_value": {
+                        "expression": "min(l.value)",
+                        "type": "decimal2"
+                    },
+                    "max_value": {
+                        "expression": "max(l.value)",
+                        "type": "decimal2"
+                    },
+                    "min_product_id": {
+                        "expression": "min(l.product_id)",
+                        "type": "string"
+                    },
+                    "max_product_id": {
+                        "expression": "max(l.product_id)",
+                        "type": "string"
+                    },
+                    "item_count": {
+                        "expression": "count()",
+                        "type": "int"
+                    }
+                },
+                "indexes": {
+                    "idx_order_date_value_grouped_inner_order_id": "unique(order_id(case_sensitive))"
+                }
+            }
+        },
+        "order_date_value_grouped_left_outer": {
+            "type": "table_lookup_table",
+            "start_policy": "{lookup_start_policy|string}",
+            "desc": "For each order, look up order items and perform left outer join with grouping and aggregation",
+            "r": {
+                "table": "orders",
+                "expected_batches_total": "{lookup_node_batches_total|number}"
+            },
+            "l": {
+                "index_name": "idx_order_items_order_id",
+                "join_on": "r.order_id",
+                "group": true,
+                "join_type": "left"
+            },
+            "w": {
+                "name": "order_date_value_grouped_left_outer",
+                "fields": {
+                    "order_id": {
+                        "expression": "r.order_id",
+                        "type": "string"
+                    },
+                    "order_purchase_timestamp": {
+                        "expression": "r.order_purchase_timestamp",
+                        "type": "datetime"
+                    },
+                    "total_value": {
+                        "expression": "sum(l.value)",
+                        "type": "decimal2"
+                    },
+                    "avg_value": {
+                        "expression": "avg(l.value)",
+                        "type": "decimal2"
+                    },
+                    "min_value": {
+                        "expression": "min(l.value)",
+                        "type": "decimal2"
+                    },
+                    "max_value": {
+                        "expression": "max(l.value)",
+                        "type": "decimal2"
+                    },
+                    "min_product_id": {
+                        "expression": "min(l.product_id)",
+                        "type": "string"
+                    },
+                    "max_product_id": {
+                        "expression": "max(l.product_id)",
+                        "type": "string"
+                    },
+                    "item_count": {
+                        "expression": "count()",
+                        "type": "int"
+                    }
+                },
+                "indexes": {
+                    "idx_order_date_value_grouped_left_outer_order_id": "unique(order_id(case_sensitive))"
+                }
+            }
+        },
+        "file_order_item_date_inner": {
+            "type": "table_file",
+            "desc": "Write the results of inner join without grouping to CSV file",
+            "r": {
+                "table": "order_item_date_inner"
+            },
+            "w": {
+                "top": {
+                    "order": "order_id(asc),order_item_id(asc)"
+                },
+                "url_template": "{dir_out}/order_item_date_inner.csv",
+                "columns": [
+                    {
+                        "name": "order_id",
+                        "header": "order_id",
+                        "expression": "r.order_id",
+                        "format": "%s",
+                        "type": "string"
+                    },
+                    {
+                        "name": "order_item_id",
+                        "header": "order_item_id",
+                        "expression": "r.order_item_id",
+                        "format": "%05d",
+                        "type": "int"
+                    },
+                    {
+                        "name": "product_id",
+                        "header": "product_id",
+                        "expression": "r.product_id",
+                        "format": "%s",
+                        "type": "string"
+                    },
+                    {
+                        "name": "seller_id",
+                        "header": "seller_id",
+                        "expression": "r.seller_id",
+                        "format": "%s",
+                        "type": "string"
+                    },
+                    {
+                        "name": "shipping_limit_date",
+                        "header": "shipping_limit_date",
+                        "expression": "r.shipping_limit_date",
+                        "format": "2006-01-02 15:04:05",
+                        "type": "datetime"
+                    },
+                    {
+                        "name": "value",
+                        "header": "value",
+                        "expression": "r.value",
+                        "format": "%s",
+                        "type": "decimal2"
+                    }
+                ]
+            }
+        },
+        "file_order_item_date_left_outer": {
+            "type": "table_file",
+            "desc": "Write the results of left oter join without grouping to CSV file",
+            "r": {
+                "table": "order_item_date_left_outer"
+            },
+            "w": {
+                "top": {
+                    "order": "order_id(asc),order_item_id(asc)"
+                },
+                "url_template": "{dir_out}/order_item_date_left_outer.csv",
+                "columns": [
+                    {
+                        "name": "order_id",
+                        "header": "order_id",
+                        "expression": "r.order_id",
+                        "format": "%s",
+                        "type": "string"
+                    },
+                    {
+                        "name": "order_item_id",
+                        "header": "order_item_id",
+                        "expression": "r.order_item_id",
+                        "format": "%05d",
+                        "type": "int"
+                    },
+                    {
+                        "name": "product_id",
+                        "header": "product_id",
+                        "expression": "r.product_id",
+                        "format": "%s",
+                        "type": "string"
+                    },
+                    {
+                        "name": "seller_id",
+                        "header": "seller_id",
+                        "expression": "r.seller_id",
+                        "format": "%s",
+                        "type": "string"
+                    },
+                    {
+                        "name": "shipping_limit_date",
+                        "header": "shipping_limit_date",
+                        "expression": "r.shipping_limit_date",
+                        "format": "2006-01-02 15:04:05",
+                        "type": "datetime"
+                    },
+                    {
+                        "name": "value",
+                        "header": "value",
+                        "expression": "r.value",
+                        "format": "%s",
+                        "type": "decimal2"
+                    }
+                ]
+            }
+        },
+        "file_order_date_value_grouped_inner": {
+            "type": "table_file",
+            "desc": "Write the results of inner join with grouping to CSV file",
+            "r": {
+                "table": "order_date_value_grouped_inner"
+            },
+            "w": {
+                "top": {
+                    "order": "total_value(desc),order_purchase_timestamp(desc),order_id(desc)"
+                },
+                "url_template": "{dir_out}/order_date_value_grouped_inner.csv",
+                "columns": [
+                    {
+                        "name": "total_value",
+                        "header": "total_value",
+                        "expression": "r.total_value",
+                        "format": "%10s",
+                        "type": "decimal2"
+                    },
+                    {
+                        "name": "order_purchase_timestamp",
+                        "header": "order_purchase_timestamp",
+                        "expression": "r.order_purchase_timestamp",
+                        "format": "2006-01-02 15:04:05",
+                        "type": "datetime"
+                    },
+                    {
+                        "name": "order_id",
+                        "header": "order_id",
+                        "expression": "r.order_id",
+                        "format": "%s",
+                        "type": "string"
+                    },
+                    {
+                        "name": "avg_value",
+                        "header": "avg_value",
+                        "expression": "r.avg_value",
+                        "format": "%s",
+                        "type": "decimal2"
+                    },
+                    {
+                        "name": "min_value",
+                        "header": "min_value",
+                        "expression": "r.min_value",
+                        "format": "%s",
+                        "type": "decimal2"
+                    },
+                    {
+                        "name": "max_value",
+                        "header": "max_value",
+                        "expression": "r.max_value",
+                        "format": "%s",
+                        "type": "decimal2"
+                    },
+                    {
+                        "name": "min_product_id",
+                        "header": "min_product_id",
+                        "expression": "r.min_product_id",
+                        "format": "%s",
+                        "type": "string"
+                    },
+                    {
+                        "name": "max_product_id",
+                        "header": "max_product_id",
+                        "expression": "r.max_product_id",
+                        "format": "%s",
+                        "type": "string"
+                    },
+                    {
+                        "name": "item_count",
+                        "header": "item_count",
+                        "expression": "r.item_count",
+                        "format": "%d",
+                        "type": "int"
+                    }
+                ]
+            }
+        },
+        "file_order_date_value_grouped_left_outer": {
+            "type": "table_file",
+            "desc": "Write the results of left outer join with grouping to CSV file",
+            "r": {
+                "table": "order_date_value_grouped_left_outer"
+            },
+            "w": {
+                "top": {
+                    "order": "total_value(desc),order_purchase_timestamp(desc),order_id(desc)"
+                },
+                "url_template": "{dir_out}/order_date_value_grouped_left_outer.csv",
+                "columns": [
+                    {
+                        "name": "total_value",
+                        "header": "total_value",
+                        "expression": "r.total_value",
+                        "format": "%10s",
+                        "type": "decimal2"
+                    },
+                    {
+                        "name": "order_purchase_timestamp",
+                        "header": "order_purchase_timestamp",
+                        "expression": "r.order_purchase_timestamp",
+                        "format": "2006-01-02 15:04:05",
+                        "type": "datetime"
+                    },
+                    {
+                        "name": "order_id",
+                        "header": "order_id",
+                        "expression": "r.order_id",
+                        "format": "%s",
+                        "type": "string"
+                    },
+                    {
+                        "name": "avg_value",
+                        "header": "avg_value",
+                        "expression": "r.avg_value",
+                        "format": "%s",
+                        "type": "decimal2"
+                    },
+                    {
+                        "name": "min_value",
+                        "header": "min_value",
+                        "expression": "r.min_value",
+                        "format": "%s",
+                        "type": "decimal2"
+                    },
+                    {
+                        "name": "max_value",
+                        "header": "max_value",
+                        "expression": "r.max_value",
+                        "format": "%s",
+                        "type": "decimal2"
+                    },
+                    {
+                        "name": "min_product_id",
+                        "header": "min_product_id",
+                        "expression": "r.min_product_id",
+                        "format": "%s",
+                        "type": "string"
+                    },
+                    {
+                        "name": "max_product_id",
+                        "header": "max_product_id",
+                        "expression": "r.max_product_id",
+                        "format": "%s",
+                        "type": "string"
+                    },
+                    {
+                        "name": "item_count",
+                        "header": "item_count",
+                        "expression": "r.item_count",
+                        "format": "%d",
+                        "type": "int"
+                    }
+                ]
+            }
+        }
+    },
+    "dependency_policies": {
+        "current_active_first_stopped_nogo": {
+            "is_default": true,
+            "event_priority_order": "run_is_current(desc), node_start_ts(desc)",
+            "rules": [
+                {
+                    "cmd": "go",
+                    "expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchSuccess"
+                },
+                {
+                    "cmd": "wait",
+                    "expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchNone"
+                },
+                {
+                    "cmd": "wait",
+                    "expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchStart"
+                },
+                {
+                    "cmd": "nogo",
+                    "expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchFail"
+                },
+                {
+                    "cmd": "go",
+                    "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchSuccess"
+                },
+                {
+                    "cmd": "wait",
+                    "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchNone"
+                },
+                {
+                    "cmd": "wait",
+                    "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchStart"
+                },
+                {
+                    "cmd": "go",
+                    "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchSuccess"
+                },
+                {
+                    "cmd": "nogo",
+                    "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchFail"
+                }
+            ]
+        }
+    }
+}
