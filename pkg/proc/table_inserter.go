@@ -23,7 +23,7 @@ type TableInserter struct {
 	RowidRand       *rand.Rand
 	RandMutex       sync.Mutex
 	NumWorkers      int
-	MinWriterRate   int
+	MinInserterRate int
 	WorkerWaitGroup sync.WaitGroup
 	RecordsSent     int // Records sent to RecordsIn
 	// TODO: the only reason we have this is because we decided to end handlers
@@ -47,14 +47,14 @@ func newSeed() int64 {
 func newTableInserter(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.MessageProcessingContext, tableCreator *sc.TableCreatorDef, batchSize int) *TableInserter {
 
 	return &TableInserter{
-		PCtx:          pCtx,
-		TableCreator:  tableCreator,
-		BatchSize:     batchSize,
-		ErrorsOut:     make(chan error, batchSize),
-		RowidRand:     rand.New(rand.NewSource(newSeed())),
-		NumWorkers:    envConfig.Cassandra.WriterWorkers,
-		MinWriterRate: envConfig.Cassandra.MinInserterRate,
-		RecordsInOpen: false,
+		PCtx:            pCtx,
+		TableCreator:    tableCreator,
+		BatchSize:       batchSize,
+		ErrorsOut:       make(chan error, batchSize),
+		RowidRand:       rand.New(rand.NewSource(newSeed())),
+		NumWorkers:      envConfig.Cassandra.WriterWorkers,
+		MinInserterRate: envConfig.Cassandra.MinInserterRate,
+		RecordsInOpen:   false,
 		//Logger:        logger,
 	}
 }
@@ -145,7 +145,7 @@ func (instr *TableInserter) waitForWorkers(logger *l.Logger, pCtx *ctx.MessagePr
 
 			inserterRate := float64(i+1) / time.Now().Sub(startTime).Seconds()
 			// If it falls below min rate, it does not make sense to continue
-			if i > 5 && inserterRate < float64(instr.MinWriterRate) {
+			if i > 5 && inserterRate < float64(instr.MinInserterRate) {
 				logger.DebugCtx(pCtx, "slow db insertion rate triggered, will stop reading from instr.ErrorsOut")
 				errors = append(errors, fmt.Sprintf("table inserter detected slow db insertion rate %.0f records/s, wrote %d records out of %d", inserterRate, i, instr.RecordsSent))
 				errCount++
