@@ -21,21 +21,33 @@
 		}
 	}
 
+	var timer;
+	let isDestroyed = false;
 	function fetchData() {
-		fetch(webapiUrl() + "/ks/")
+		let url = webapiUrl() + "/ks/";
+		let method = "GET";
+		fetch(new Request(url, {method: method}))
       		.then(response => response.json())
-      		.then(responseJson => { handleResponse(responseJson, setWebapiData);})
-      		.catch(error => {responseError = error;console.log(error)});
+      		.then(responseJson => {
+				handleResponse(responseJson, setWebapiData);
+				if (!isDestroyed)
+					timer = setTimeout(fetchData, 500);
+			})
+      		.catch(error => {
+				responseError = method + " " + url + ":" + error;
+				console.log(error);
+				if (!isDestroyed)
+					timer = setTimeout(fetchData, 3000);
+			});
 	}
 
-	var timer;
 	onMount(async () => {
 		breadcrumbsPathElements = [{ title:"Keyspaces" } ];
     	fetchData();
-		timer = setInterval(fetchData, 500);
     });
 	onDestroy(async () => {
-    	clearInterval(timer);
+		isDestroyed = true;
+    	if (timer) clearTimeout(timer);
     });
 
     function onNew() {
@@ -44,15 +56,26 @@
 
 	let dropResponseError = "";
     function onDrop(keyspace) {
-		fetch(new Request(webapiUrl() + "/ks/" + keyspace, {method: 'DELETE'}))
+		let url = webapiUrl() + "/ks/" + keyspace;
+		let method = "DELETE";
+		fetch(new Request(url, {method: method}))
       		.then(response => response.json())
-      		.then(responseJson => { dropResponseError = (!!responseJson ? responseJson.error.msg : ""); })
-      		.catch(error => {dropResponseError = error;console.log(error);});
+      		.then(responseJson => {
+				dropResponseError = (!!responseJson ? responseJson.error.msg : "");
+			})
+      		.catch(error => {
+				dropResponseError = method + " " + url + ":" + error;
+				console.log(error);
+			});
     }
 </script>
 
 <Util bind:this={util} />
 <Breadcrumbs bind:pathElements={breadcrumbsPathElements}/>
+
+<p style="color:red;">{responseError}</p>
+<p style="color:red;">{dropResponseError}</p>
+
 <button on:click={onNew}>New run</button>
 <table>
 	<thead>
@@ -69,5 +92,3 @@
 	</tbody>
 </table>
 
-<p style="color:red;">{responseError}</p>
-<p style="color:red;">{dropResponseError}</p>

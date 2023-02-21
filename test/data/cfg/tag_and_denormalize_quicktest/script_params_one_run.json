@@ -1,0 +1,7 @@
+{
+    "totals_start_policy": "auto",
+    "uri_suffix": "",
+    "dir_cfg": "/tmp/capi_cfg/tag_and_denormalize_quicktest",
+    "dir_in": "/tmp/capi_in/tag_and_denormalize_quicktest",
+    "dir_out": "/tmp/capi_out/tag_and_denormalize_quicktest"
+}

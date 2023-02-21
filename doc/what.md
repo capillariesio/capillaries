@@ -2,7 +2,7 @@
 
 ## What it is
 
-Capillaries is a distributed data-processing framework that:
+Capillaries is a distributed data processing framework that:
 - works with structured row-based data
 - splits data into batches that can be processed as separate jobs on multiple machines in parallel
 - allows scenarios that involve human operator supervision and data validation
@@ -13,7 +13,7 @@ Capillaries is a distributed data-processing framework that:
 
 ## Sample use
 
-For example, this Capillaries [script](glossary.md#script) - [test/data/cfg/tag_and_denormalize/script.json](../test/data/cfg/tag_and_denormalize/script.json) - for the [tag_and_denormalize integration test](../test/code/tag_and_denormalize/README.md) can be described with this [DAG](glossary.md#DAG) diagram (open it the SVG in a separate browser window to see node tooltips, they may be helpful):
+For example, this Capillaries [script](glossary.md#script) - [test/data/cfg/tag_and_denormalize/script.json](../test/data/cfg/tag_and_denormalize_quicktest/script.json) - for the [tag_and_denormalize integration test](../test/code/tag_and_denormalize/README.md) can be described with this [DAG](glossary.md#DAG) diagram (open it the SVG in a separate browser window to see node tooltips, they may be helpful):
 
 ![dot-lookup](dot-tag-and-denormalize.svg)
 
@@ -73,15 +73,15 @@ This is how deployed Capillaries components interact. For component definitions,
 
 1. This is not a generic job scheduler or workflow engine. Capillaries can only execute [nodes](glossary.md#script-node) in a [script](glossary.md#script), reading/writing data from/to [tables](glossary.md#table) or files.
 
-2. This is not a generic data storage solution. Capillaries uses Cassandra as temporary storage for potentially very large amounts of data required for processing.
+2. This is not a generic data storage/management solution. Capillaries uses Cassandra as temporary storage for potentially very large amounts of data required for processing.
 
 3. Implementing complete relational algebra is not the goal. Do not expect complex joins support.
    
 ## Key architecture points
 
-1. Data/index/state table rows are immutable and all operations on them are idempotent. [Script](glossary.md#script) execution should survive temporary DB failures without any need for operator intervention. Data/index [table](glossary.md#table) rows can be deleted though during [batch re-runs](scriptconfig.md#rerun_policy) if needed.
+1. Data/index/state table rows are immutable and all operations on them are idempotent. [Script](glossary.md#script) execution should survive temporary DB failures without any need for operator intervention (there some exceptional cases though, unique index key writes are not idempotent). Data/index [table](glossary.md#table) rows can be deleted though during [batch re-runs](scriptconfig.md#rerun_policy) if needed.
    
-2. Capillaries follows a Cassandra-style mindset: everything that prevents scalability should be prohibited or limited. For example, Capillaries has limited [data sorting](scriptconfig.md#w_top) capabilities.
+2. Capillaries follows Cassandra-style mindset: everything that prevents scalability should be prohibited or limited. For example, Capillaries has limited [data sorting](scriptconfig.md#w_top) capabilities.
    
 3. Eventual data consistency is guaranteed by message queue (RabbitMQ): every message triggering [data batch](glossary.md#data-batch) processing will be delivered to the [processor](glossary.md#processor) as many times as needed. If message queue connectivity is unreliable, script execution consistency is not guaranteed. 
 

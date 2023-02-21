@@ -5,12 +5,138 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Deploy create security group",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
+            "args": ["create_security_groups", "-verbose"]
+        },
+        {
+            "name": "Deploy delete security group",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
+            "args": ["delete_security_group", "-verbose"]
+        },
+        {
+            "name": "Deploy create networking",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
+            "args": ["create_networking", "-verbose"]
+        },
+        {
+            "name": "Deploy delete networking",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
+            "args": ["delete_networking", "-verbose"]
+        },
+        {
+            "name": "Deploy create volumes",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
+            "args": ["create_volumes", "-verbose"]
+        },
+        {
+            "name": "Deploy delete volumes",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
+            "args": ["delete_volumes", "-verbose"]
+        },
+        {
+            "name": "Deploy create instances",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
+            "args": ["create_instances", "bastion,daemon01", "-verbose"]
+        },
+        {
+            "name": "Deploy delete instances",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
+            "args": ["delete_instances", "bastion,daemon01", "-verbose"]
+        },
+        {
+            "name": "Deploy attach volumes",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
+            "args": ["attach_volumes", "*", "-verbose"]
+        },
+        {
+            "name": "Deploy upload files",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
+            "args": ["upload_files", "up_test_in,up_test_scripts", "-verbose"]
+        },
+        {
+            "name": "Deploy download files",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
+            "args": ["download_files", "*", "-verbose"]
+        },
+        {
+            "name": "Deploy setup services",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
+            "args": ["setup_services", "daemon01", "-verbose"]
+        },
+        {
+            "name": "Deploy start services",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
+            "args": ["start_services", "*", "-verbose"]
+        },
+        {
+            "name": "Deploy stop services",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
+            "args": ["stop_services", "daemon01", "-verbose"]
+        },
+        {
             "name": "Daemon",
             "type": "go",
             "request": "launch",
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/daemon",
-            "program": "${workspaceFolder}/pkg/exe/daemon/daemon.go",
+            "program": "${workspaceFolder}/pkg/exe/daemon/capidaemon.go",
             "args": []
         },
         {
@@ -19,7 +145,7 @@
             "request": "launch",
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/webapi",
-            "program": "${workspaceFolder}/pkg/exe/webapi/webapi.go",
+            "program": "${workspaceFolder}/pkg/exe/webapi/capiwebapi.go",
             "args": []
         }
    ]

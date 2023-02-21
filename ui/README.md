@@ -17,7 +17,7 @@ Get all dependencies (used in Capillaries UI [container](docker/Dockerfile)):
 npm install
 ```
 
-Build statick bundle:
+Build static bundle:
 ```
 npm run build (used in Capillaries UI [container](docker/Dockerfile)):
 ```

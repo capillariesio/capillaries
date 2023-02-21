@@ -8,7 +8,7 @@ wait()
     local outDir=$4
     while true
     do
-        go run toolbelt.go get_run_history -keyspace=$keyspace > $outDir/runs.csv
+        go run capitoolbelt.go get_run_history -keyspace=$keyspace > $outDir/runs.csv
         while IFS="," read -r ts run_id status comment
         do
             if [ "$run_id" -eq "$runIdToCheck" ]; then
@@ -46,14 +46,14 @@ one_daemon_run()
     SECONDS=0
     pushd ../../../pkg/exe/toolbelt
 
-    go run toolbelt.go drop_keyspace -keyspace=$keyspace
+    go run capitoolbelt.go drop_keyspace -keyspace=$keyspace
     
-    go run toolbelt.go start_run -script_file=$scriptFile -params_file=$paramsFile -keyspace=$keyspace -start_nodes=$startNodes
+    go run capitoolbelt.go start_run -script_file=$scriptFile -params_file=$paramsFile -keyspace=$keyspace -start_nodes=$startNodes
     echo "Waiting for run to start..."
     wait $keyspace 1 1 $outDir
     echo "Waiting for run to finish, make sure pkg/exe/daemon is running..."
     wait $keyspace 1 2 $outDir
-    go run toolbelt.go get_node_history -keyspace=$keyspace -run_ids=1
+    go run capitoolbelt.go get_node_history -keyspace=$keyspace -run_ids=1
 
     popd
     duration=$SECONDS
@@ -72,25 +72,25 @@ two_daemon_runs()
     SECONDS=0
     pushd ../../../pkg/exe/toolbelt
 
-    go run toolbelt.go drop_keyspace -keyspace=$keyspace
+    go run capitoolbelt.go drop_keyspace -keyspace=$keyspace
 
     # Operator starts run 1
 
-    go run toolbelt.go start_run -script_file=$scriptFile -params_file=$paramsFile -keyspace=$keyspace -start_nodes=$startNodesOne
+    go run capitoolbelt.go start_run -script_file=$scriptFile -params_file=$paramsFile -keyspace=$keyspace -start_nodes=$startNodesOne
     echo "Waiting for run to start..."
     wait $keyspace 1 1 $outDir
     echo "Waiting for run to finish, make sure pkg/exe/daemon is running..."
     wait $keyspace 1 2 $outDir
-    go run toolbelt.go get_node_history -keyspace=$keyspace -run_ids=1
+    go run capitoolbelt.go get_node_history -keyspace=$keyspace -run_ids=1
 
     # Operator approves intermediate results and starts run 2
 
-    go run toolbelt.go start_run -script_file=$scriptFile -params_file=$paramsFile -keyspace=$keyspace -start_nodes=$startNodesTwo
+    go run capitoolbelt.go start_run -script_file=$scriptFile -params_file=$paramsFile -keyspace=$keyspace -start_nodes=$startNodesTwo
     echo "Waiting for run to start..."
     wait $keyspace 2 1 $outDir
     echo "Waiting for run to finish, make sure pkg/exe/daemon is running..."
     wait $keyspace 2 2 $outDir
-    go run toolbelt.go get_node_history -keyspace=$keyspace -run_ids=1,2
+    go run capitoolbelt.go get_node_history -keyspace=$keyspace -run_ids=1,2
     
     popd
     duration=$SECONDS

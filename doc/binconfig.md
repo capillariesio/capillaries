@@ -1,6 +1,6 @@
 # Toolbelt, Daemon, and Webapi configuration
 
-Executables that use Capillaries need to be able to access the message queue (RabbitMQ) and the database (Cassandra). There are also some settings that may be helpful during troubleshooting and performance tuning in specific environments. All these settings are managed by EnvConfig (env_config.json file residing in the binary's directory).
+Executables that use Capillaries need to be able to access the message queue (RabbitMQ) and the database (Cassandra). There are also some settings that may be helpful during troubleshooting and performance tuning in specific environments. All these settings are managed by EnvConfig (`capi*.json` file residing in the binary's directory).
 
 ## handler_executable_type
 Name of the [queue](glossary.md#processor-queue) this executable consumes messages from. Also used by the logger to identify the source of each log message, so it makes sense to assign a distinct handler_executable_type value to each binary - [Daemon](glossary.md#daemon), [Toolbelt](glossary.md#toolbelt), [Webapi](glossary.md#webapi).
@@ -22,16 +22,19 @@ As is, passed to gocql.PasswordAuthenticator
 As is, passed to gocql.PasswordAuthenticator
 
 ### keyspace_replication_config
-The string passed to "CREATE KEYSPACE IF NOT EXISTS %s WITH REPLICATION =" when a [keyspace](glossary.md#keyspace) is created
+The string passed to `CREATE KEYSPACE IF NOT EXISTS <keyspace_name> WITH REPLICATION = ...` when a [keyspace](glossary.md#keyspace) is created
 
 ### writer_workers
-Capillaries processors that write to [data tables](glossary.md#data-table) produce data at a rate much higher than a single-thread code writing to Cassandra can handle. Capillaries inserts into data and index from multiple threads, and the number of those threads is specified here. 10-20 threads may be considered conservative, 100 threads is more aggressive. Choose these settings according to your hardware environment specifics. 
+Capillaries processors that write to [data tables](glossary.md#data-table) produce data at a rate much higher than a single-thread code writing to Cassandra can handle. Capillaries inserts into data and index from multiple threads, and the number of those threads is specified here. 10-20 threads may be considered conservative, 50 threads is more aggressive. Choose these settings according to your hardware environment specifics. 
+
+### min_inserter_rate
+If average number of records all writer workers used by a single worker thread from the thread pool (see [thread_pool_size](#thread_pool_size)) falls below this value, chances are that Cassandra cluster performance has degraded substantially, and the user will wait for the results for too long. In this case, table inserter throws an error and the [batch](./glossary.md#data-batch) is marked as failed.
 
 ### num_conns
 Passed to gocql.ClusterConfig.NumConns
 
 ### timeout
-Milliseconds, passed to gocql.ClusterConfig.Timeout
+Milliseconds, passed to gocql.ClusterConfig.Timeout. It is expected to be larger than write_request_timeout_in_ms/read_request_timeout_in_ms set in cassandra.yaml, otherwise it may be trigger before Cassandra coordinator has a chance to handle therequest.
 
 ### connect_timeout
 Milliseconds, passed to gocql.ClusterConfig.ConnectTimeout
@@ -50,6 +53,13 @@ As is, passed to amqp.Channel.Qos()
 
 ### prefetch_size
 As is, passed to amqp.Channel.Qos()
+
+## private_keys
+Username->private_key_file_path map used for [SFTP](./glossary.md#sftp-uris) upload and download. For example, if anything in your [script configuration](./glossary.md#script) or [API](./api.md) call parameters (like script_file or script_params URIs) points to `sftp://ubuntu@somehost/some/file/path`, you will need an entry like this:
+`ubuntu -> /local/path/to/ubuntu_user_private_key` in your:
+- [Daemon](./glossary.md#daemon) capidaemon.json [env config file](./binconfig.md#toolbelt-daemon-and-webapi-configuration) (if this sftp URI points to data or configuration files)
+- [Webapi](./glossary.md#webapi) capiwebapi.json [env config file](./binconfig.md#toolbelt-daemon-and-webapi-configuration) (if this sftp URI points to configuration files)
+- [Toolbelt](./glossary.md#toolbelt) capitoolbelt.json [env config file](./binconfig.md#toolbelt-daemon-and-webapi-configuration) (if this sftp URI points to configuration files)
 
 ## custom_processors
 Placeholder for [custom processor](glossary.md#table_custom_tfm_table) configurations.

@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"go/ast"
-	"io/ioutil"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -19,6 +18,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/proc"
 	"github.com/capillariesio/capillaries/pkg/sc"
+	"github.com/capillariesio/capillaries/pkg/xfer"
 	"github.com/shopspring/decimal"
 )
 
@@ -71,7 +71,7 @@ func harvestCallExp(callExp *ast.CallExpr, sigMap map[string]struct{}) {
 	}
 }
 
-func (procDef *PyCalcProcessorDef) Deserialize(raw json.RawMessage, customProcSettings json.RawMessage, caPath string) error {
+func (procDef *PyCalcProcessorDef) Deserialize(raw json.RawMessage, customProcSettings json.RawMessage, caPath string, privateKeys map[string]string) error {
 	var err error
 	if err = json.Unmarshal(raw, procDef); err != nil {
 		return fmt.Errorf("cannot unmarshal py_calc processor def: %s", err.Error())
@@ -122,7 +122,8 @@ func (procDef *PyCalcProcessorDef) Deserialize(raw json.RawMessage, customProcSe
 	var b strings.Builder
 	procDef.PythonCode = ""
 	for _, url := range procDef.PythonUrls {
-		bytes, err := ioutil.ReadFile(url)
+		fmt.Printf("OPening %s...\n", url)
+		bytes, err := xfer.GetFileBytes(url, caPath, privateKeys)
 		if err != nil {
 			errors = append(errors, err.Error())
 		}
@@ -440,6 +441,7 @@ print("\n%s") # Provide function defs
 		// No Python interpreter errors, there may be runtime errors and good results.
 		// rawErrors is empty. Timeout error may be there too.
 		// There may be something in err. Log it, it may be helpful
+		// TODO: make sure this is never hit and remove
 		if err != nil {
 			errorText := fmt.Sprintf("err.Error():'%s';", err.Error())
 			errors.WriteString(errorText)

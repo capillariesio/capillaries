@@ -8,6 +8,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/l"
+	"github.com/capillariesio/capillaries/pkg/proc"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/wf"
 	"github.com/capillariesio/capillaries/pkg/wfdb"
@@ -35,7 +36,7 @@ func StartRun(envConfig *env.EnvConfig, logger *l.Logger, amqpChannel *amqp.Chan
 		return 0, err
 	}
 
-	script, err := sc.NewScriptFromFiles(envConfig.CaPath, scriptFilePath, paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
+	script, err, _ := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, scriptFilePath, paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
 	if err != nil {
 		return 0, err
 	}
@@ -67,7 +68,32 @@ func StartRun(envConfig *env.EnvConfig, logger *l.Logger, amqpChannel *amqp.Chan
 		return 0, err
 	}
 
-	// Create msgs to send
+	logger.Info("creating data and idx tables for run %d...", runId)
+
+	// Create all run-specific tables, do not create them in daemon on the fly to avoid INCOMPATIBLE_SCHEMA error
+	// (apparently, thrown if we try to insert immediately after creating a table)
+	tablesCreated := 0
+	for _, nodeName := range affectedNodes {
+		node, ok := script.ScriptNodes[nodeName]
+		if !ok || !node.HasTableCreator() {
+			continue
+		}
+		q := proc.CreateDataTableCql(keyspace, runId, &node.TableCreator)
+		if err := cqlSession.Query(q).Exec(); err != nil {
+			return 0, cql.WrapDbErrorWithQuery("cannot create data table", q, err)
+		}
+		tablesCreated++
+		for idxName, idxDef := range node.TableCreator.Indexes {
+			q = proc.CreateIdxTableCql(keyspace, runId, idxName, idxDef)
+			if err := cqlSession.Query(q).Exec(); err != nil {
+				return 0, cql.WrapDbErrorWithQuery("cannot create idx table", q, err)
+			}
+			tablesCreated++
+		}
+	}
+
+	logger.Info("created %d tables, creating messages to send for run %d...", tablesCreated, runId)
+
 	allMsgs := make([]*wfmodel.Message, 0)
 	allHandlerExeTypes := make([]string, 0)
 	for _, affectedNodeName := range affectedNodes {
@@ -105,7 +131,11 @@ func StartRun(envConfig *env.EnvConfig, logger *l.Logger, amqpChannel *amqp.Chan
 	if err := wfdb.SetRunStatus(logger, cqlSession, keyspace, runId, wfmodel.RunStart, "api.StartRun", cql.ThrowIfExists); err != nil {
 		return 0, err
 	}
+
+	logger.Info("sending %d messages for run %d...", len(allMsgs), runId)
+
 	// Send one msg after another
+	// TODO: there easily may be hundreds of messages, can we send them in a single shot?
 	for msgIdx := 0; msgIdx < len(allMsgs); msgIdx++ {
 		msgOutBytes, errMsgOut := allMsgs[msgIdx].Serialize()
 		if errMsgOut != nil {
@@ -130,7 +160,7 @@ func RunNode(envConfig *env.EnvConfig, logger *l.Logger, nodeName string, runId 
 	logger.PushF("api.RunNode")
 	defer logger.PopF()
 
-	script, err := sc.NewScriptFromFiles(envConfig.CaPath, scriptFilePath, paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
+	script, err, _ := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, scriptFilePath, paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
 	if err != nil {
 		return 0, err
 	}

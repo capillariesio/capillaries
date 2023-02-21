@@ -19,6 +19,7 @@ type EnvConfig struct {
 	ThreadPoolSize                    int                        `json:"thread_pool_size"`
 	DeadLetterTtl                     int                        `json:"dead_letter_ttl"`
 	CaPath                            string                     `json:"ca_path"`
+	PrivateKeys                       map[string]string          `json:"private_keys"`
 	Webapi                            WebapiConfig               `json:"webapi,omitempty"`
 	CustomProcessorsSettings          map[string]json.RawMessage `json:"custom_processors"`
 	CustomProcessorDefFactoryInstance sc.CustomProcessorDefFactory

@@ -175,7 +175,7 @@ func TestTagAndDenormalizeDef(t *testing.T) {
 	var tndProcessor *TagAndDenormalizeProcessorDef
 
 	newScript := &sc.ScriptDef{}
-	if err = newScript.Deserialize([]byte(script), &TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, ""); err != nil {
+	if err = newScript.Deserialize([]byte(script), &TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil); err != nil {
 		t.Error(err)
 	}
 	tndProcessor, _ = newScript.ScriptNodes["tag_products"].CustomProcessor.(*TagAndDenormalizeProcessorDef)
@@ -183,8 +183,8 @@ func TestTagAndDenormalizeDef(t *testing.T) {
 
 	re := regexp.MustCompile(`"tag_criteria": \{[^\}]+\}`)
 	if err = newScript.Deserialize(
-		[]byte(re.ReplaceAllString(script, `"tag_criteria_uri": "../../test/data/cfg/tag_and_denormalize/tag_criteria.json"`)),
-		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, ""); err != nil {
+		[]byte(re.ReplaceAllString(script, `"tag_criteria_uri": "../../test/data/cfg/tag_and_denormalize_quicktest/tag_criteria.json"`)),
+		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil); err != nil {
 		t.Error(err)
 	}
 	tndProcessor, _ = newScript.ScriptNodes["tag_products"].CustomProcessor.(*TagAndDenormalizeProcessorDef)
@@ -192,14 +192,14 @@ func TestTagAndDenormalizeDef(t *testing.T) {
 
 	err = newScript.Deserialize(
 		[]byte(strings.Replace(script, `"having": "len(w.tag) > 0"`, `"having": "len(p.tag) > 0"`, 1)),
-		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "")
+		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil)
 	assert.Contains(t, err.Error(), "prohibited field p.tag")
 
 	// Exercise checkFieldUsageInCustomProcessor() error code path
 
 	err = newScript.Deserialize(
 		[]byte(strings.ReplaceAll(script, `r.product_spec`, `w.product_spec`)),
-		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "")
+		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil)
 	assert.Contains(t, err.Error(), "unknown field w.product_spec")
 
 }

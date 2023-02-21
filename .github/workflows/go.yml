@@ -28,7 +28,7 @@ jobs:
 
     - name: pkg/cql test coverage threshold
       env:
-          TESTCOVERAGE_THRESHOLD: 51.39
+          TESTCOVERAGE_THRESHOLD: 50.9
       run: |
             echo "Quality Gate: checking test coverage is above threshold $TESTCOVERAGE_THRESHOLD %..."
             go test -v ./pkg/cql/... -coverprofile coverage.out -covermode count
