@@ -92,7 +92,7 @@
 			</a> 
 	  </th>
 		{/each}
-		<th><button on:click={onNew}>New</button></th>
+		<th><button title="Opens a popup to specify parameters (keyspace, script URI etc) for a new run" on:click={onNew}>New</button></th>
 	</thead>
 	<tbody>
 		<tr>

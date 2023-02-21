@@ -6,6 +6,19 @@ Capillaries [Deploy tool](../../doc/glossary.md#deploy-tool) can provision compl
 
 For troubleshooting, add `-verbose` argument to your deploy tool command line.
 
+## The goal
+
+On the diagram below, each rectangle represents a VPS instance that performs some specific task. Please note there are multiple Cassandra node instances (we need a Cassadra cluster) and multiple instances running Capillaries Daemon (this is how Capillaries scales out). Prometheus and RabbitMQ are not bottlenecks, so one instance for each is enough. Bastion instance is the gateway to the private network where the deployment is hosted, it:
+- runs a reverse proxy so users can access Prometheus and RabbitMQ web consoles
+- runs Capillaries Webapi and UI so users can start Capillaries runs and see their execution status
+- has Capillaries Toolbelt installed so SSH users an start runs from the command line
+- works as a jump host so users have SSH access to other instances in the private network
+- accumulates Capillaries Daemon logs in /var/log/capillaries using rsyslog
+
+Capillaries configuration scripts and in/out data are stored on separate volumes. In current test implementation, Bastion instances mounts them as /mnt/capi_cfg,/mnt/capi_in, /mnt/capi_out and gives Capillaries Daemons SFTP access to them. Alternatively, if cloud provider supports multi-attach volumes, Daemon instances can mount all three volumes directly. 
+
+![Public cloud deployment](./doc/cloud-deployment.svg)
+
 ## Openstack environment
 
 1. Make sure you have an Openstack project ready, with all `OS_*` variables defined in the project parameter file. Usually, Openstack cloud provider generates a shell script that sets all those variables for you. Just manually copy those values to the parameter file, one by one.
