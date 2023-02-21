@@ -21,7 +21,7 @@ Capillaries is a supervised data processing framework. It fills the gap between 
 | Data transform | SQL expressions, custom code | [Go expressions](doc/glossary.md#go-expressions), Python [formulas](doc/glossary.md#py_calc-processor) (parallel execution, maintainability) |
 | Intermediate data storage | Files, relational databases | on-the-fly-created Cassandra [keyspaces](doc/glossary.md#keyspace) and [tables](doc/glossary.md#table) (scalability, maintainability) |
 | Workflow execution | Shell scripts, custom code, workflow frameworks | RabbitMQ as the Single Point of Failure + workflow status stored in Cassandra (parallel execution, fault tolerance, incremental computing) |
-| Workflow monitoring and interaction | Custom solutions | Capillaries [API](doc/api.md) and [Toolbelt](doc/glossary.md#toolbelt) utility (transparency, operator validation support) |
+| Workflow monitoring and interaction | Custom solutions | Capillaries [UI](ui/README.md) and [Toolbelt](doc/glossary.md#toolbelt) utility (transparency, operator validation support) |
 | Workflow management | Shell scripts, custom code | Capillaries [script file](doc/glossary.md#script) with [DAG](doc/glossary.md#dag) |
 
 ## Highlights
@@ -57,6 +57,7 @@ Capable of processing large amounts of data within SLA time limits, efficiently 
 ### [Testing](doc/testing.md)
 ### [Toolbelt, Daemon, and Webapi configuration](doc/binconfig.md)
 ### [Script configuration](doc/scriptconfig.md)
+### [Capillaries UI](ui/README.md)
 ### [Capillaries API](doc/api.md)
 ### [Capillaries deploy tool: Openstack cloud deployment](test/deploy/README.md)
 ### [Glossary](doc/glossary.md)
