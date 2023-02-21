@@ -76,7 +76,7 @@
 <p style="color:red;">{responseError}</p>
 <p style="color:red;">{dropResponseError}</p>
 
-<button on:click={onNew}>New run</button>
+<button on:click={onNew} title="Opens a popup to specify parameters (keyspace, script URI etc) for a new run">New run</button>
 <table>
 	<thead>
 		<th>Keyspaces ({webapiData.length})</th>
@@ -86,7 +86,7 @@
 		{#each webapiData as ks}
     		<tr>
 	    		<td><a href={util.ksMatrixLink(ks)}>{ks}</a></td>
-				<td><button on:click={onDrop(ks)}>Drop</button></td>
+				<td><button title="Drops the keyspace without any warnings" on:click={onDrop(ks)}>Drop</button></td>
 	    	</tr>
 	    {/each}
 	</tbody>
