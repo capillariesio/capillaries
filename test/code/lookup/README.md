@@ -6,7 +6,7 @@ Created using Ubuntu WSL. Other Linux flavors and MacOS may require edits.
 
 The [DOT diagram](../../../doc/glossary.md#dot-diagrams) generated with
 ```
-go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/lookup/script.json -params_file=../../../test/data/cfg/lookup/script_params_two_runs.json -idx_dag=true
+go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/lookup_quicktest/script.json -params_file=../../../test/data/cfg/lookup_quicktest/script_params_two_runs.json -idx_dag=true
 ```
 and rendered in https://dreampuf.github.io/GraphvizOnline :
 
