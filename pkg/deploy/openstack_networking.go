@@ -328,6 +328,13 @@ func DeleteRouter(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 		return lb.Complete(nil)
 	}
 
+	// Release gateway. Some providers (genesis) will not remove port if gateway not released.
+	rows, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"router", "unset", "--external-gateway", prjPair.Live.Network.Router.Name})
+	lb.Add(er.ToString())
+	if er.Error != nil {
+		return lb.Complete(er.Error)
+	}
+
 	// Retrieve interface info
 
 	rows, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"router", "show", prjPair.Live.Network.Router.Name})

@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg"
-    xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1700 1500">
+    xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1700 1600">
     <style>
         .small { font: 40px verdana; alignment-baseline:hanging; }
         .large { font: 80px verdana; alignment-baseline:hanging; }
@@ -51,13 +51,15 @@
             <use x="80" y="130" xlink:href="#cogs"/>
         </g>
 
-        <g id="envelope" transform="scale(.8,.8) translate(0,0)">
+        <g id="envelope" transform="scale(.6,.6) translate(0,0)">
             <path d="M7.048,0h108.784c1.939,0,3.701,0.794,4.977,2.069c1.277,1.277,2.07,3.042,2.07,4.979v74.759 c0,1.461-0.451,2.822-1.221,3.951c-0.141,0.365-0.361,0.705-0.662,0.994c-0.201,0.189-0.422,0.344-0.656,0.461 c-1.225,1.021-2.799,1.643-4.508,1.643H7.048c-1.937,0-3.701-0.793-4.979-2.07C0.794,85.51,0,83.748,0,81.807V7.048 c0-1.941,0.792-3.704,2.068-4.979C3.344,0.792,5.107,0,7.048,0L7.048,0z M5.406,78.842l38.124-38.22L5.406,9.538V78.842 L5.406,78.842z M47.729,44.045L8.424,83.449h105.701L76.563,44.051L64.18,54.602l0,0c-0.971,0.83-2.425,0.877-3.453,0.043 L47.729,44.045L47.729,44.045z M80.674,40.549l36.799,38.598V9.198L80.674,40.549L80.674,40.549z M8.867,5.406l53.521,43.639 l51.223-43.639H8.867L8.867,5.406z"></path>
         </g>
         <g id="queue">
-            <rect style="fill:transparent; stroke:black;" rx="15" ry="15" x="0" y="0" width="250" height="270" />
+            <rect style="fill:transparent; stroke:black;" rx="15" ry="15" x="0" y="0" width="250" height="310" />
             <text x="15" y="20" class="small-bold">RabbitMQ</text>
-            <use x="70" y="110" xlink:href="#envelope"/>
+            <use x="80" y="80" xlink:href="#envelope"/>
+            <use x="80" y="150" xlink:href="#envelope"/>
+            <use x="80" y="220" xlink:href="#envelope"/>
         </g>
 
         <g id="db" transform="scale(1,1) translate(0,0)">
@@ -140,25 +142,18 @@
         <g id="arrow_right" transform="scale(.5,.5)">
             <path d="M58.94,24.28a14.27,14.27,0,0,1,20.35-20l39.49,40.16a14.28,14.28,0,0,1,0,20L80.09,103.79a14.27,14.27,0,1,1-20.35-20L74.82,68.41l-60.67-.29a14.27,14.27,0,0,1,.24-28.54l59.85.28L58.94,24.28Z"></path>
         </g>
-        <g id="arrow_down" transform="scale(.5,.5) rotate(90) translate(-50,0)">
-            <path d="M58.94,24.28a14.27,14.27,0,0,1,20.35-20l39.49,40.16a14.28,14.28,0,0,1,0,20L80.09,103.79a14.27,14.27,0,1,1-20.35-20L74.82,68.41l-60.67-.29a14.27,14.27,0,0,1,.24-28.54l59.85.28L58.94,24.28Z"></path>
+        <g id="arrow_left" transform="rotate(180) translate(-61.5,-54.25)">
+            <use x="0" y="0" xlink:href="#arrow_right"/>
         </g>
-        <g id="arrow_up" transform="scale(.5,.5) rotate(270)  translate(-50,0)">
-            <path d="M58.94,24.28a14.27,14.27,0,0,1,20.35-20l39.49,40.16a14.28,14.28,0,0,1,0,20L80.09,103.79a14.27,14.27,0,1,1-20.35-20L74.82,68.41l-60.67-.29a14.27,14.27,0,0,1,.24-28.54l59.85.28L58.94,24.28Z"></path>
+        <g id="arrow_down" transform="rotate(90) translate(0,-54.25)">
+            <use x="0" y="0" xlink:href="#arrow_right"/>
         </g>
-        <g id="arrow_up_down">
+        <g id="arrow_up" transform="rotate(270) translate(-61.5,0)">
+            <use x="0" y="0" xlink:href="#arrow_right"/>
+        </g>
+        <g id="arrow_down_up">
             <use x="0" y="0" xlink:href="#arrow_down"/>
-            <use x="0" y="0" xlink:href="#arrow_up"/>
-        </g>
-        <g id="queue_db_with_arrows">
-            <use x="180" y="0" xlink:href="#arrow_down"/>
-            <use x="450" y="0" xlink:href="#arrow_up_down"/>
-
-            <use x="0" y="80" xlink:href="#queue"/>
-            <use x="350" y="80" xlink:href="#cassandra"/>
-
-            <use x="180" y="450" xlink:href="#arrow_down"/>
-            <use x="450" y="450" xlink:href="#arrow_up_down"/>
+            <use x="54.25" y="0" xlink:href="#arrow_up"/>
         </g>
 
         <g id="db_bug" transform="scale(1,1) translate(0,0)">
@@ -171,27 +166,41 @@
         </g>
 
     </defs>
-    <rect fill="white" x="0" y="0" width="1700" height="1500" />
-    <rect style="fill:transparent; stroke:black; stroke-dasharray: 10 10" rx="15" ry="15" x="10" y="200" width="1680" height="1280" />
-    <text x="20" y="1430" class="small">Private network</text>
+    <rect fill="white" x="0" y="0" width="1700" height="1600" />
 
-    <use x="50" y="50" xlink:href="#bastion"/>
+    <rect style="fill:transparent; stroke:black; stroke-dasharray: 10 10" rx="15" ry="15" x="10" y="10" width="1680" height="200" />
+    <text x="20" y="40" class="small">Internet</text>
 
-    <use x="200" y="600" xlink:href="#arrow_up"><title>Webapi and Toolbelt read config file when they start a run</title></use>
+    <rect style="fill:transparent; stroke:black; stroke-dasharray: 10 10" rx="15" ry="15" x="10" y="300" width="1680" height="1280" />
+    <text x="20" y="1530" class="small">Private network</text>
 
-    <use x="510" y="370" xlink:href="#queue_db_with_arrows"/>
+    <use x="50" y="150" xlink:href="#bastion"/>
 
-    <use x="50" y="950" xlink:href="#cfg_data"/>
-    <use x="550" y="980" xlink:href="#arrow_right"/>
-    <use x="680" y="900" xlink:href="#instances"/>
+    <use x="200" y="890" xlink:href="#arrow_up"><title>Webapi and Toolbelt read configuration script when they start a run</title></use>
 
-    <use x="680" y="1230" xlink:href="#arrow_up"/>
-    <use x="950" y="1210" xlink:href="#arrow_down"/>
+    <use x="610" y="440" xlink:href="#arrow_down"><title>Webapi and Toolbelt send messages to RabbitMQ</title></use>
+    <use x="930" y="440" xlink:href="#arrow_down_up"><title>Webapi and Toolbelt read/write from/to Cassandra</title></use>
 
-    <use x="380" y="1280" xlink:href="#source_data"/>
-    <use x="880" y="1280" xlink:href="#final_data"/>
+    <use x="510" y="540" xlink:href="#queue"/>
+    <use x="860" y="540" xlink:href="#cassandra"/>
 
-    <use x="1480" y="380" xlink:href="#arrow_up"/>
-    <use x="1330" y="450" xlink:href="#prometheus"/>
+    <use x="690" y="890" xlink:href="#arrow_down"><title>Daemons process messages received from RabbitMQ</title></use>
+    <use x="890" y="890" xlink:href="#arrow_down_up"><title>Daemons read/write from/to Cassandra</title></use>
+
+    <use x="1200" y="680" xlink:href="#arrow_right"><title>Prometheus collects statistics from RabbitMQ and Cassandra instances</title></use>
+
+    <use x="50" y="1050" xlink:href="#cfg_data"/>
+    <use x="550" y="1080" xlink:href="#arrow_right"><title>Daemon reads configuration scripts when processing messages from RabbitMQ</title></use>
+    <use x="700" y="1000" xlink:href="#instances"/>
+    <use x="1200" y="1080" xlink:href="#arrow_right"><title>Prometheus collects statistics from Daemon instances</title></use>
+
+    <use x="720" y="1300" xlink:href="#arrow_up"/>
+    <use x="910" y="1300" xlink:href="#arrow_down"/>
+
+    <use x="380" y="1380" xlink:href="#source_data"/>
+    <use x="880" y="1380" xlink:href="#final_data"/>
+
+    <use x="1460" y="440" xlink:href="#arrow_up"><title>Users watch instances stats (CPU, memory etc) in Prometheus console</title></use>
+    <use x="1330" y="550" xlink:href="#prometheus"/>
 
 </svg>
