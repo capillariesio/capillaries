@@ -43,7 +43,6 @@
             <path d="M18.5,13.66h85.92a4.75,4.75,0,0,1,3.39,1.41,4.8,4.8,0,0,1,1.41,3.39V79.81a4.77,4.77,0,0,1-1.41,3.4,1.4,1.4,0,0,1-.25.22,4.67,4.67,0,0,1-3.18,1.19H99V78.88h4.51V19.37H19.4v4.2H13.65V18.46a4.81,4.81,0,0,1,4.81-4.8Z"></path>
         </g>
         <g id="instances">
-            <rect style="fill:transparent; stroke:black;" rx="15" ry="15" x="0" y="0" width="600" height="250" />
             <text x="330" y="50" class="small">Capillaries</text>
             <text x="330" y="100" class="small">Daemon</text>
             <text x="330" y="150" class="small">instances</text>
@@ -78,7 +77,7 @@
             <use x="0" y="0" xlink:href="#db_wf"/>
         </g>
         <g id="cassandra">
-            <text x="30" y="0" class="small">Cassandra</text>
+            <text x="10" y="0" class="small">Cassandra cluster</text>
             <use x="0" y="70" xlink:href="#intermediate_db"/>
             <use x="0" y="210" xlink:href="#wf_db"/>
         </g>
@@ -98,12 +97,6 @@
             <text x="120" y="30" class="small">Capillaries Webapi</text>
             <use x="0" y="0" xlink:href="#webservice"/>
         </g>
-        <g id="webapi_and_toolbelt">
-            <rect style="fill:transparent; stroke:black;" rx="15" ry="15" x="0" y="0" width="1300" height="180" />
-            <use x="50" y="50" xlink:href="#webapi"/>
-            <use x="700" y="50" xlink:href="#toolbelt"/>
-        </g>
-
         
         <g id="www"  transform="scale(0.87) translate(0,0)">
             <path d="M70.63,95.17q-2.62,2.52-5.56,5l.54-.09,1.69-.3h0a46.44,46.44,0,0,0,4.54-1.16l.34-.1,1.07,2.29,1.2,2.58-1.07.34a51.79,51.79,0,0,1-5.08,1.3q-2.58.53-5.25.79c-1.78.17-3.59.26-5.42.26s-3.62-.09-5.4-.26-3.52-.44-5.25-.79a47.41,47.41,0,0,1-5-1.26A51.35,51.35,0,0,1,37.13,102L37,102l-.09-.06q-2.34-1-4.55-2.21c-1.53-.82-3-1.72-4.44-2.67a45.3,45.3,0,0,1-4-3c-1.33-1.09-2.59-2.24-3.8-3.44v0a46.1,46.1,0,0,1-3.4-3.73,49.84,49.84,0,0,1-3-4.08A51.23,51.23,0,0,1,11,78.4c-.29-.53-.57-1.07-.84-1.61H63.36a13.65,13.65,0,0,0,.6,3c.09.27.18.55.29.82l.62,1.52H60.33V97.24c2.88-2.4,5.54-4.81,8-7.23.77,1.72,1.56,3.44,2.35,5.16ZM6,65.14,0,41H8.68l2.76,14.72h.19L14.71,41h8.43l3.21,14.59h.18L29.18,41h8.67l-6,24.15H22.45l-3.4-13H18.8l-3.39,13Zm38.73,0L38.74,41h8.67l2.77,14.72h.19L53.45,41h8.43l3.21,14.59h.18L67.91,41h8.68l-6,24.15H61.18l-3.39-13h-.25l-3.4,13Zm38.74,0L77.48,41h8.67l2.77,14.72h.18L92.19,41h8.43l3.21,14.59H104L106.65,41h8.68l-6,24.15H99.92l-3.39-13h-.25l-3.4,13Zm33.12,50.49a3.12,3.12,0,0,1-.9.61l0,0a3.32,3.32,0,0,1-1.05.27,3.2,3.2,0,0,1-1.23-.14,3.09,3.09,0,0,1-1.08-.59l-8.91-7.56-3,7.51a10.46,10.46,0,0,1-.91,1.73,7.39,7.39,0,0,1-1.16,1.35,3.67,3.67,0,0,1-5.76-.63,7.05,7.05,0,0,1-.71-1.25C86.51,103.51,79.32,90.13,74,76.68a2.39,2.39,0,0,1,2.65-3.25c12.89,2.39,29.58,7.83,42.69,11.31,4.07,1.07,4.73,4.66,1.72,7.44a9,9,0,0,1-1.56,1.17c-2.31,1.31-4.65,2.82-6.93,4.21l8.87,7.6a3.2,3.2,0,0,1,.76,1l0,.06a3,3,0,0,1,.3,1.13v0a3.6,3.6,0,0,1-.13,1.18,3.56,3.56,0,0,1-.55,1.08,71.32,71.32,0,0,1-5.17,6Zm-2.29-2.95,4.29-5c-1.89-1.63-9.95-7.91-10.83-9.43a1.84,1.84,0,0,1,.65-2.49c2.8-1.56,6.42-3.74,9.08-5.52a6.18,6.18,0,0,0,.94-.68,3.47,3.47,0,0,0,.58-.67l.12-.23-.24-.14a3.51,3.51,0,0,0-.58-.2L78.42,77.71l16.76,37.76a4.08,4.08,0,0,0,.29.53l.17.22.21-.15a3.06,3.06,0,0,0,.57-.68,5.72,5.72,0,0,0,.52-1c1.26-3.08,2.68-7.28,4.15-10.12l.18-.25a1.83,1.83,0,0,1,2.58-.21l10.49,8.89ZM50.29,100.2a112.82,112.82,0,0,1-9.15-8.66,81.1,81.1,0,0,1-7.72-9.45H19.74c.56.75,1.15,1.47,1.76,2.17.76.88,1.56,1.74,2.39,2.57q1.63,1.64,3.38,3.06a44.79,44.79,0,0,0,3.65,2.71A44.28,44.28,0,0,0,34.86,95q2,1.11,4.26,2l.08,0,.06,0c1.41.59,2.85,1.12,4.31,1.57a42.08,42.08,0,0,0,4.52,1.14c.56.11,1.13.21,1.69.3l.51.08ZM19.68,24H34.21a91.67,91.67,0,0,1,7.58-9.41,123.79,123.79,0,0,1,8.9-8.8l-.77.11c-.63.1-1.25.21-1.86.34h0a46.11,46.11,0,0,0-4.56,1.16,41.55,41.55,0,0,0-4.4,1.63q-2.21.94-4.24,2t-4,2.38a44.79,44.79,0,0,0-3.65,2.71c-1.17.95-2.29,2-3.38,3.06-.83.83-1.63,1.69-2.39,2.57-.62.71-1.22,1.44-1.79,2.2Zm45-18.17q4.89,4.39,8.87,8.76A90.07,90.07,0,0,1,81.12,24h14.5c-.56-.74-1.15-1.47-1.76-2.17-.75-.87-1.56-1.73-2.4-2.57q-1.63-1.63-3.37-3.06a44.2,44.2,0,0,0-3.65-2.71q-1.89-1.27-3.94-2.38T76.24,9.09L76.15,9l0,0c-1.42-.59-2.86-1.12-4.32-1.57A42.69,42.69,0,0,0,67.27,6.3h0C66.63,6.17,66,6.06,65.39,6l-.7-.11ZM47,1.05Q49.58.52,52.25.26C54,.09,55.84,0,57.66,0s3.62.09,5.41.26,3.52.44,5.25.79a48.07,48.07,0,0,1,5,1.27A51.27,51.27,0,0,1,78.2,4.09l.11,0,.09.05Q80.74,5.2,83,6.4h0c1.52.83,3,1.72,4.42,2.66a46.8,46.8,0,0,1,4,3q2,1.63,3.79,3.44l0,0a47.85,47.85,0,0,1,3.4,3.73,49.84,49.84,0,0,1,3,4.08c1,1.42,1.84,2.88,2.66,4.39.29.53.57,1.07.84,1.61h-95c.28-.54.56-1.09.85-1.62.82-1.51,1.71-3,2.64-4.38s1.93-2.74,3-4,2.24-2.6,3.44-3.8l0,0a49.93,49.93,0,0,1,3.73-3.4,50.63,50.63,0,0,1,4.09-3c1.41-1,2.88-1.84,4.38-2.65S35.39,4.85,37,4.17a48.92,48.92,0,0,1,5-1.82A51.79,51.79,0,0,1,47,1.05ZM60.33,9.11V24H74.56a95,95,0,0,0-6.37-7.4q-3.57-3.73-7.86-7.52ZM55,97.24V82.09H40a82.53,82.53,0,0,0,6.67,7.56A112.06,112.06,0,0,0,55,97.24ZM55,24V9.11q-4.29,3.78-7.86,7.52A95,95,0,0,0,40.77,24Z"/>
@@ -113,52 +106,53 @@
             <use x="0" y="0" xlink:href="#www"/>
         </g>
 
-        <g id="arrow_right"  transform="scale(.5,.5)">
+        <g id="arrow_right" transform="scale(.5,.5)">
             <path d="M58.94,24.28a14.27,14.27,0,0,1,20.35-20l39.49,40.16a14.28,14.28,0,0,1,0,20L80.09,103.79a14.27,14.27,0,1,1-20.35-20L74.82,68.41l-60.67-.29a14.27,14.27,0,0,1,.24-28.54l59.85.28L58.94,24.28Z"></path>
         </g>
-        <g id="arrow_down"  transform="scale(.5,.5) rotate(90) translate(-50,0)">
-            <path d="M58.94,24.28a14.27,14.27,0,0,1,20.35-20l39.49,40.16a14.28,14.28,0,0,1,0,20L80.09,103.79a14.27,14.27,0,1,1-20.35-20L74.82,68.41l-60.67-.29a14.27,14.27,0,0,1,.24-28.54l59.85.28L58.94,24.28Z"></path>
+        <g id="arrow_left" transform="rotate(180) translate(-61.5,-54.25)">
+            <use x="0" y="0" xlink:href="#arrow_right"/>
         </g>
-        <g id="arrow_up"  transform="scale(.5,.5) rotate(270)  translate(-50,0)">
-            <path d="M58.94,24.28a14.27,14.27,0,0,1,20.35-20l39.49,40.16a14.28,14.28,0,0,1,0,20L80.09,103.79a14.27,14.27,0,1,1-20.35-20L74.82,68.41l-60.67-.29a14.27,14.27,0,0,1,.24-28.54l59.85.28L58.94,24.28Z"></path>
+        <g id="arrow_down" transform="rotate(90) translate(0,-54.25)">
+            <use x="0" y="0" xlink:href="#arrow_right"/>
         </g>
-        <g id="arrow_up_down">
+        <g id="arrow_up" transform="rotate(270) translate(-61.5,0)">
+            <use x="0" y="0" xlink:href="#arrow_right"/>
+        </g>
+        <g id="arrow_down_up">
             <use x="0" y="0" xlink:href="#arrow_down"/>
-            <use x="0" y="0" xlink:href="#arrow_up"/>
+            <use x="54.25" y="0" xlink:href="#arrow_up"/>
         </g>
-        <g id="queue_db_with_arrows">
-            <use x="110" y="0" xlink:href="#arrow_down"/>
-            <use x="460" y="0" xlink:href="#arrow_up_down"/>
-
-            <use x="0" y="80" xlink:href="#queue"/>
-            <use x="350" y="80" xlink:href="#cassandra"/>
-
-            <use x="110" y="500" xlink:href="#arrow_down"/>
-            <use x="460" y="500" xlink:href="#arrow_up_down"/>
-        </g>
-
+        
 
     </defs>
     <rect fill="white" x="0" y="0" width="1400" height="1700" />
 
     <use x="50" y="50" xlink:href="#ui"/>
 
-    <use x="150" y="220" xlink:href="#arrow_up_down"/>
+    <use x="200" y="220" xlink:href="#arrow_down_up"><title>UI uses web services implemented by Webapi to control run status</title></use>
 
-    <use x="50" y="300" xlink:href="#webapi_and_toolbelt"/>
+    <use x="50" y="350" xlink:href="#webapi"/>
+    <use x="750" y="350" xlink:href="#toolbelt"/>
 
-    <use x="200" y="850" xlink:href="#arrow_up"/>
+    <use x="200" y="1050" xlink:href="#arrow_up"><title>Webapi and Toolbelt read configuration script when they start a run</title></use>
 
-    <use x="550" y="570" xlink:href="#queue_db_with_arrows"/>
+    <use x="600" y="520" xlink:href="#arrow_down"><title>Webapi and Toolbelt send messages to RabbitMQ</title></use>
+    <use x="900" y="520" xlink:href="#arrow_down_up"><title>Webapi and Toolbelt read/write from/to Cassandra</title></use>
+
+    <use x="550" y="650" xlink:href="#queue"/>
+    <use x="900" y="650" xlink:href="#cassandra"/>
+
+    <use x="600" y="1050" xlink:href="#arrow_down"><title>Daemons process messages received from RabbitMQ</title></use>
+    <use x="900" y="1050" xlink:href="#arrow_down_up"><title>Daemons read/write from/to Cassandra</title></use>
 
     <use x="50" y="1230" xlink:href="#cfg_data"/>
-    <use x="470" y="1250" xlink:href="#arrow_right"/>
-    <use x="570" y="1150" xlink:href="#instances"/>
+    <use x="470" y="1250" xlink:href="#arrow_right"><title>Daemon reads configuration scripts when processing messages from RabbitMQ</title></use>
+    <use x="550" y="1150" xlink:href="#instances"/>
 
-    <use x="600" y="1470" xlink:href="#arrow_up"/>
-    <use x="1050" y="1460" xlink:href="#arrow_down"/>
+    <use x="600" y="1420" xlink:href="#arrow_up"/>
+    <use x="920" y="1420" xlink:href="#arrow_down"/>
 
-    <use x="500" y="1530" xlink:href="#source_data"/>
-    <use x="900" y="1530" xlink:href="#final_data"/>
+    <use x="450" y="1530" xlink:href="#source_data"/>
+    <use x="850" y="1530" xlink:href="#final_data"/>
 
 </svg>
