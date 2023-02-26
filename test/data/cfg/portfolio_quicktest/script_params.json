@@ -1,0 +1,5 @@
+{
+    "dir_in": "/tmp/capi_in/portfolio_quicktest",
+    "dir_out": "/tmp/capi_out/portfolio_quicktest",
+    "dir_py": "/tmp/capi_cfg/portfolio_quicktest/py"
+}

@@ -1,5 +1,5 @@
 import json
-from portfolio_calc import txns_and_holdings_to_ticker_cashflows, ticker_cashflows_to_sector_cashflows, all_sector_cashflows, twr_cagr, txns_and_holdings_to_twr_cagr_by_sector
+from portfolio_calc import txns_and_holdings_to_ticker_cf_history, ticker_cf_history_to_group_cf_history, group_cf_history_by_sector, twr_cagr, txns_and_holdings_to_twr_cagr_by_sector
 
 test_period_start_eod = "2000-12-31"
 test_period_end_eod = "2001-01-31"
@@ -11,23 +11,28 @@ test_period_txns = [
       {"ts":"2001-01-11 00:03:65.876", "ticker":"MSFT", "qty":-1, "price":3.9}
     ]
 
-class TestSectorInfoProvider:
+class UnitTestCompanyInfoProvider:
   def get_sectors():
-    return ["All", "Automotive", "Electronics","Software"]
+    result_sectors = set(["All"])
+    for _, ticker_info in UnitTestCompanyInfoProvider.company_info.items():
+      for sector in ticker_info["sectors"]:
+        result_sectors.add(sector)
+    return sorted(list(result_sectors))
 
   def get_sector_tickers(sector):
-    if sector == "All":
-        return ["AAPL","TSLA","MSFT"]
-    elif sector == "Electronics":
-        return ["AAPL","MSFT"]
-    elif sector == "Automotive":
-        return ["TSLA"]
-    elif sector == "Software":
-        return ["MSFT"]
-    else:
-        return []
+    result_tickers = []
+    for ticker, ticker_info in UnitTestCompanyInfoProvider.company_info.items():
+      if sector in ticker_info["sectors"] or sector == "All":
+        result_tickers.append(ticker)
+    return sorted(result_tickers)
 
-class TestEodPriceProvider:
+  company_info = {
+      "AAPL": {"sectors": ["Electronics"]},
+      "MSFT": {"sectors": ["Electronics","Software"]},
+      "TSLA": {"sectors": ["Automotive"]}
+  }
+
+class UnitTestEodPriceProvider:
   eod_prices = {
     "2000-12-31":{"TSLA":0.5,"AAPL":1.0, "MSFT":3.0},
     "2001-01-05":{"TSLA":1.0,"AAPL":1.333, "MSFT":3.333},
@@ -37,9 +42,9 @@ class TestEodPriceProvider:
   }
 
   def get_price(d,ticker):
-    if d not in TestEodPriceProvider.eod_prices or ticker not in TestEodPriceProvider.eod_prices[d]:
+    if d not in UnitTestEodPriceProvider.eod_prices or ticker not in UnitTestEodPriceProvider.eod_prices[d]:
       raise RuntimeError(f"{d} price for {ticker} is not available")
-    return TestEodPriceProvider.eod_prices[d][ticker]
+    return UnitTestEodPriceProvider.eod_prices[d][ticker]
 
 expected_ticker_cashflows = {
     "AAPL": [
@@ -138,13 +143,13 @@ expected_sector_cashflows = {
     {"cf": 0.0, "d": "2001-01-31", "val_eod_before_cf": 0.0}
   ]}
 
-def test_txns_and_holdings_to_ticker_cashflows():
-  actual = json.dumps(txns_and_holdings_to_ticker_cashflows(
+def test_txns_and_holdings_to_ticker_cf_history():
+  actual = json.dumps(txns_and_holdings_to_ticker_cf_history(
     test_period_start_eod,
     test_period_end_eod,
     test_period_start_holdings,
     test_period_txns,
-    TestEodPriceProvider), sort_keys=True)
+    UnitTestEodPriceProvider), sort_keys=True)
   expected = json.dumps(expected_ticker_cashflows, sort_keys=True)
 
   if actual != expected:
@@ -153,8 +158,8 @@ def test_txns_and_holdings_to_ticker_cashflows():
   else:
     print ("OK")
 
-def test_ticker_cashflows_to_sector_cashflows():
-  actual = json.dumps(all_sector_cashflows(TestSectorInfoProvider, expected_ticker_cashflows, TestEodPriceProvider), sort_keys=True)
+def test_ticker_cf_history_to_group_cf_history():
+  actual = json.dumps(group_cf_history_by_sector(UnitTestCompanyInfoProvider, expected_ticker_cashflows, UnitTestEodPriceProvider), sort_keys=True)
   expected = json.dumps(expected_sector_cashflows, sort_keys=True)
 
   if actual != expected:
@@ -197,8 +202,8 @@ def test_txns_and_holdings_to_twr_cagr_by_sector():
     test_period_end_eod,
     json.dumps(test_period_start_holdings),
     json.dumps(test_period_txns),
-    TestEodPriceProvider,
-    TestSectorInfoProvider)
+    UnitTestEodPriceProvider,
+    UnitTestCompanyInfoProvider)
   if sector_perf_map != expected_sector_perf_map:
     print(expected_sector_perf_map)
     print(sector_perf_map)
@@ -206,7 +211,7 @@ def test_txns_and_holdings_to_twr_cagr_by_sector():
     print ("OK")
   
 
-test_txns_and_holdings_to_ticker_cashflows()
-test_ticker_cashflows_to_sector_cashflows()
+test_txns_and_holdings_to_ticker_cf_history()
+test_ticker_cf_history_to_group_cf_history()
 test_twr_cagr()
 test_txns_and_holdings_to_twr_cagr_by_sector()

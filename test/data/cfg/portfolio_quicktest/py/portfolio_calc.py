@@ -1,6 +1,6 @@
 import datetime, json
 
-def txns_and_holdings_to_ticker_cashflows(period_start_eod, period_end_eod, period_start_holdings, period_txns, eod_price_provider):
+def txns_and_holdings_to_ticker_cf_history(period_start_eod, period_end_eod, period_start_holdings, period_txns, eod_price_provider):
   ticker_cf_history_map = {}
 
   # For each holding, add a period beginning cf record
@@ -59,15 +59,15 @@ def txns_and_holdings_to_ticker_cashflows(period_start_eod, period_end_eod, peri
 
   return ticker_cf_history_map
 
-def ticker_cashflows_to_sector_cashflows(sector_ticker_set, ticker_cf_history_map, eod_price_provider):
-  sector_cashflows = []
+def ticker_cf_history_to_group_cf_history(group_ticker_set, ticker_cf_history_map, eod_price_provider):
+  group_cf_history = []
 
   # Collect all cashflow dates (for active traders,
   # chances are it will be all days except holidays)
   cashflow_dates = set()
   ticker_cf_map_map = {} # List of cf items to map for faster access
   for ticker, ticker_cf in ticker_cf_history_map.items():
-    if ticker not in sector_ticker_set:
+    if ticker not in group_ticker_set:
       continue
     ticker_cf_map_map[ticker] = {}
     
@@ -90,13 +90,13 @@ def ticker_cashflows_to_sector_cashflows(sector_ticker_set, ticker_cf_history_ma
       if d in ticker_cf_map_map[ticker]:
         total_cf += ticker_cf_map_map[ticker][d]["cf"]
 
-    sector_cashflows.append({"d":d,"val_eod_before_cf":total_val_eod_before_cf,"cf":total_cf})
-  return sector_cashflows
+    group_cf_history.append({"d":d,"val_eod_before_cf":total_val_eod_before_cf,"cf":total_cf})
+  return group_cf_history
 
-def all_sector_cashflows(sector_info_provider, ticker_cf_history, eod_price_provider):
+def group_cf_history_by_sector(company_info_provider, ticker_cf_history, eod_price_provider):
   result = {}
-  for sector_tag in sector_info_provider.get_sectors():
-    result[sector_tag] = ticker_cashflows_to_sector_cashflows(sector_info_provider.get_sector_tickers(sector_tag), ticker_cf_history, eod_price_provider)
+  for sector in company_info_provider.get_sectors():
+    result[sector] = ticker_cf_history_to_group_cf_history(company_info_provider.get_sector_tickers(sector), ticker_cf_history, eod_price_provider)
   return result
 
 def twr_cagr(cf_history):
@@ -106,7 +106,7 @@ def twr_cagr(cf_history):
     hpr = 0.0
     if prev_cf_item:
       prev_va_eod_after_cf = prev_cf_item["val_eod_before_cf"]+prev_cf_item["cf"]
-      # Do not calc hpr if: cur val is zero (it means no holdings, so hpris zero), or prev val after cf is zero (zero divisor)
+      # Do not calc hpr if: cur val is zero (it means no holdings, so hpr is zero), or prev val after cf is zero (zero divisor)
       if abs(cf_item["val_eod_before_cf"]) > 0.000001 and abs(prev_va_eod_after_cf) > 0.000000001:
         hpr = cf_item["val_eod_before_cf"] / prev_va_eod_after_cf - 1
       twr = twr * (1+hpr)
@@ -117,12 +117,12 @@ def twr_cagr(cf_history):
   cagr = pow(twr, 1/years) - 1.0
   return twr-1, cagr
 
-def txns_and_holdings_to_twr_cagr_by_sector(period_start_eod, period_end_eod, period_start_holdings_json, period_txns_json, eod_price_provider, sector_info_provider):
-  ticker_cf_history = txns_and_holdings_to_ticker_cashflows(period_start_eod,period_end_eod, json.loads(period_start_holdings_json), json.loads(period_txns_json),eod_price_provider)
-  sector_cf_history_map = all_sector_cashflows(sector_info_provider, ticker_cf_history, eod_price_provider)
+def txns_and_holdings_to_twr_cagr_by_sector(period_start_eod, period_end_eod, period_start_holdings_json, period_txns_json, eod_price_provider, company_info_provider):
+  ticker_cf_history = txns_and_holdings_to_ticker_cf_history(period_start_eod,period_end_eod, json.loads(period_start_holdings_json), json.loads(period_txns_json),eod_price_provider)
+  group_cf_history_map = group_cf_history_by_sector(company_info_provider, ticker_cf_history, eod_price_provider)
   sector_perf_map = {}
-  for sector, sector_cf_history in sector_cf_history_map.items():
-    twr, cagr = twr_cagr(sector_cf_history)
+  for sector, group_cf_history in group_cf_history_map.items():
+    twr, cagr = twr_cagr(group_cf_history)
     sector_perf_map[sector] = {"twr": round(twr,4), "cagr": round(cagr,4)}
   return json.dumps(sector_perf_map,sort_keys=True)
 
