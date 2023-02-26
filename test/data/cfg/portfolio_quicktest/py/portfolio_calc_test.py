@@ -1,8 +1,15 @@
 import json
-from portfolio_calc import txns_and_holdings_to_ticker_cashflows, ticker_cashflows_to_sector_cashflows, all_sector_cashflows, twr_cagr
+from portfolio_calc import txns_and_holdings_to_ticker_cashflows, ticker_cashflows_to_sector_cashflows, all_sector_cashflows, twr_cagr, txns_and_holdings_to_twr_cagr_by_sector
 
 test_period_start_eod = "2000-12-31"
 test_period_end_eod = "2001-01-31"
+test_period_start_holdings = {"AAPL": 2, "MSFT": 1}
+test_period_txns = [
+      {"ts":"2001-01-05 00:01:35.123", "ticker":"TSLA", "qty":5, "price":0.9},
+      {"ts":"2001-01-10 00:02:42.963", "ticker":"AAPL", "qty":1, "price":1.8},
+      {"ts":"2001-01-10 00:03:42.963", "ticker":"AAPL", "qty":1, "price":1.9},
+      {"ts":"2001-01-11 00:03:65.876", "ticker":"MSFT", "qty":-1, "price":3.9}
+    ]
 
 class TestSectorInfoProvider:
   def get_sectors():
@@ -35,42 +42,99 @@ class TestEodPriceProvider:
     return TestEodPriceProvider.eod_prices[d][ticker]
 
 expected_ticker_cashflows = {
-   "AAPL": [
-     {"d":"2000-12-31", "val_eod_before_cf":2.0, "cf":0.0, "qty_eod":2},
-     {"d":"2001-01-10", "val_eod_before_cf":8.0, "cf":1.8+1.9, "qty_eod":4},
-     {"d":"2001-01-31", "val_eod_before_cf":12.0, "cf":0.0, "qty_eod":4}
-   ],
-   "MSFT": [
-    {"d":"2000-12-31", "val_eod_before_cf":3.0, "cf":0.0, "qty_eod":1},
-    {"d":"2001-01-11", "val_eod_before_cf":0.0, "cf":-1*3.9, "qty_eod":0},
-    {"d":"2001-01-31", "val_eod_before_cf":0.0, "cf":0.0, "qty_eod":0}
-   ],
-   "TSLA": [
-    {"d":"2000-12-31", "val_eod_before_cf":0.0, "cf":0.0, "qty_eod":0},
-    {"d":"2001-01-05", "val_eod_before_cf":5.0, "cf":5*0.9, "qty_eod":5},
-    {"d":"2001-01-31", "val_eod_before_cf":10.0, "cf":0.0, "qty_eod":5}
-   ]}
+    "AAPL": [
+        {
+            "cf": 0.0,
+            "d": "2000-12-31",
+            "qty_eod_after_cf": 2,
+            "qty_eod_before_cf": 2,
+            "val_eod_before_cf": 2.0
+        },
+        {
+            "cf": 3.7,
+            "d": "2001-01-10",
+            "qty_eod_after_cf": 4,
+            "qty_eod_before_cf": 2,
+            "val_eod_before_cf": 4.0
+        },
+        {
+            "cf": 0.0,
+            "d": "2001-01-31",
+            "qty_eod_after_cf": 4,
+            "qty_eod_before_cf": 4,
+            "val_eod_before_cf": 12.0
+        }
+    ],
+    "MSFT": [
+        {
+            "cf": 0.0,
+            "d": "2000-12-31",
+            "qty_eod_after_cf": 1,
+            "qty_eod_before_cf": 1,
+            "val_eod_before_cf": 3.0
+        },
+        {
+            "cf": -3.9,
+            "d": "2001-01-11",
+            "qty_eod_after_cf": 0,
+            "qty_eod_before_cf": 1,
+            "val_eod_before_cf": 4.0
+        },
+        {
+            "cf": 0.0,
+            "d": "2001-01-31",
+            "qty_eod_after_cf": 0,
+            "qty_eod_before_cf": 0,
+            "val_eod_before_cf": 0.0
+        }
+    ],
+    "TSLA": [
+        {
+            "cf": 0.0,
+            "d": "2000-12-31",
+            "qty_eod_after_cf": 0,
+            "qty_eod_before_cf": 0,
+            "val_eod_before_cf": 0.0
+        },
+        {
+            "cf": 4.5,
+            "d": "2001-01-05",
+            "qty_eod_after_cf": 5,
+            "qty_eod_before_cf": 0,
+            "val_eod_before_cf": 0.0
+        },
+        {
+            "cf": 0.0,
+            "d": "2001-01-31",
+            "qty_eod_after_cf": 5,
+            "qty_eod_before_cf": 5,
+            "val_eod_before_cf": 10.0
+        }
+    ]
+}
 
-expected_sector_cashflows = { "All": [
-     {"d": "2000-12-31", "val_eod_before_cf":2*TestEodPriceProvider.get_price("2000-12-31","AAPL")+1*TestEodPriceProvider.get_price("2000-12-31","MSFT"), "cf":0.0},
-     {"d": "2001-01-05", "val_eod_before_cf":2*TestEodPriceProvider.get_price("2001-01-05","AAPL")+1*TestEodPriceProvider.get_price("2001-01-05","MSFT")+5*TestEodPriceProvider.get_price("2001-01-05","TSLA"), "cf":5*0.9},
-     {"d": "2001-01-10", "val_eod_before_cf":4*TestEodPriceProvider.get_price("2001-01-10","AAPL")+1*TestEodPriceProvider.get_price("2001-01-10","MSFT")+5*TestEodPriceProvider.get_price("2001-01-10","TSLA"), "cf":1.8+1.9},
-     {"d": "2001-01-11", "val_eod_before_cf":4*TestEodPriceProvider.get_price("2001-01-11","AAPL")+5*TestEodPriceProvider.get_price("2001-01-11","TSLA"), "cf":-1*3.9},
-     {"d": "2001-01-31", "val_eod_before_cf":4*TestEodPriceProvider.get_price("2001-01-31","AAPL")+5*TestEodPriceProvider.get_price("2001-01-31","TSLA"), "cf":0.0}
-   ],
-   "Automotive": [
+expected_sector_cashflows = {
+  "All": [
+    {"cf": 0.0, "d": "2000-12-31", "val_eod_before_cf": 5.0},
+    {"cf": 4.5, "d": "2001-01-05", "val_eod_before_cf": 5.9990000000000006},
+    {"cf": 3.7, "d": "2001-01-10", "val_eod_before_cf": 7.666},
+    {"cf": -3.9, "d": "2001-01-11", "val_eod_before_cf": 8.666},
+    {"cf": 0.0, "d": "2001-01-31", "val_eod_before_cf": 22.0}
+  ],
+  "Automotive": [
     {"cf": 0.0, "d": "2000-12-31", "val_eod_before_cf": 0.0},
-    {"cf": 4.5, "d": "2001-01-05", "val_eod_before_cf": 5*TestEodPriceProvider.get_price("2001-01-05","TSLA")},
-    {"cf": 0.0, "d": "2001-01-31", "val_eod_before_cf": 5*TestEodPriceProvider.get_price("2001-01-31","TSLA")}
+    {"cf": 4.5, "d": "2001-01-05", "val_eod_before_cf": 0.0},
+    {"cf": 0.0, "d": "2001-01-31", "val_eod_before_cf": 10.0}
   ],
   "Electronics": [
-    {"cf": 0.0, "d": "2000-12-31", "val_eod_before_cf": 2*TestEodPriceProvider.get_price("2000-12-31","AAPL")+1*TestEodPriceProvider.get_price("2000-12-31","MSFT")},
-    {"cf": 3.7, "d": "2001-01-10", "val_eod_before_cf": 4*TestEodPriceProvider.get_price("2001-01-10","AAPL")+1*TestEodPriceProvider.get_price("2001-01-10","MSFT")},
-    {"cf": -3.9, "d": "2001-01-11", "val_eod_before_cf": 4*TestEodPriceProvider.get_price("2001-01-11","AAPL")},
-    {"cf": 0.0, "d": "2001-01-31", "val_eod_before_cf": 4*TestEodPriceProvider.get_price("2001-01-31","AAPL")}],
+    {"cf": 0.0, "d": "2000-12-31", "val_eod_before_cf": 5.0},
+    {"cf": 3.7, "d": "2001-01-10", "val_eod_before_cf": 7.666},
+    {"cf": -3.9, "d": "2001-01-11", "val_eod_before_cf": 8.666},
+    {"cf": 0.0, "d": "2001-01-31", "val_eod_before_cf": 12.0}
+  ],
   "Software": [
-    {"cf": 0.0, "d": "2000-12-31", "val_eod_before_cf": 1*TestEodPriceProvider.get_price("2000-12-31","MSFT")},
-    {"cf": -3.9, "d": "2001-01-11", "val_eod_before_cf": 0.0},
+    {"cf": 0.0, "d": "2000-12-31", "val_eod_before_cf": 3.0},
+    {"cf": -3.9, "d": "2001-01-11", "val_eod_before_cf": 4.0},
     {"cf": 0.0, "d": "2001-01-31", "val_eod_before_cf": 0.0}
   ]}
 
@@ -78,13 +142,8 @@ def test_txns_and_holdings_to_ticker_cashflows():
   actual = json.dumps(txns_and_holdings_to_ticker_cashflows(
     test_period_start_eod,
     test_period_end_eod,
-    {"AAPL": 2, "MSFT": 1},
-    [
-      {"ts":"2001-01-05 00:01:35.123", "ticker":"TSLA", "qty":5, "price":0.9},
-      {"ts":"2001-01-10 00:02:42.963", "ticker":"AAPL", "qty":1, "price":1.8},
-      {"ts":"2001-01-10 00:03:42.963", "ticker":"AAPL", "qty":1, "price":1.9},
-      {"ts":"2001-01-11 00:03:65.876", "ticker":"MSFT", "qty":-1, "price":3.9}
-    ],
+    test_period_start_holdings,
+    test_period_txns,
     TestEodPriceProvider), sort_keys=True)
   expected = json.dumps(expected_ticker_cashflows, sort_keys=True)
 
@@ -125,6 +184,29 @@ def test_twr_cagr():
   else:
     print ("OK")
 
+expected_sector_perf_map = json.dumps({
+  "All": {"cagr": 572388.2529, "twr": 2.0833},
+  "Automotive": {"cagr": 12108.9676, "twr": 1.2222},
+  "Electronics": {"cagr": 331266.0104, "twr": 1.9433},
+  "Software": {"cagr": 28.5837, "twr": 0.3333}},
+  sort_keys=True)
+
+def test_txns_and_holdings_to_twr_cagr_by_sector():
+  sector_perf_map = txns_and_holdings_to_twr_cagr_by_sector(
+    test_period_start_eod,
+    test_period_end_eod,
+    json.dumps(test_period_start_holdings),
+    json.dumps(test_period_txns),
+    TestEodPriceProvider,
+    TestSectorInfoProvider)
+  if sector_perf_map != expected_sector_perf_map:
+    print(expected_sector_perf_map)
+    print(sector_perf_map)
+  else:
+    print ("OK")
+  
+
 test_txns_and_holdings_to_ticker_cashflows()
 test_ticker_cashflows_to_sector_cashflows()
 test_twr_cagr()
+test_txns_and_holdings_to_twr_cagr_by_sector()

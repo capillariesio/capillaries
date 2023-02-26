@@ -1,4 +1,4 @@
-import datetime
+import datetime, json
 
 def txns_and_holdings_to_ticker_cashflows(period_start_eod, period_end_eod, period_start_holdings, period_txns, eod_price_provider):
   ticker_cf_history_map = {}
@@ -10,7 +10,8 @@ def txns_and_holdings_to_ticker_cashflows(period_start_eod, period_end_eod, peri
       "d": period_start_eod,
       "val_eod_before_cf":qty * eod_price_provider.get_price(period_start_eod,ticker),
       "cf": 0.0,
-      "qty_eod":qty}]
+      "qty_eod_before_cf":qty,
+      "qty_eod_after_cf":qty}]
 
   # For each txn, add a cf record
   for txn in sorted(period_txns, key=lambda x: x["ts"], reverse=False):
@@ -21,7 +22,8 @@ def txns_and_holdings_to_ticker_cashflows(period_start_eod, period_end_eod, peri
         "d": period_start_eod,
         "val_eod_before_cf":0.0,
         "cf":0.0,
-        "qty_eod":0}]
+        "qty_eod_before_cf":0,
+        "qty_eod_after_cf":0}]
 
     txn_eod = txn["ts"].split(" ")[0]
     if txn_eod <= period_start_eod or txn_eod > period_end_eod:
@@ -30,28 +32,29 @@ def txns_and_holdings_to_ticker_cashflows(period_start_eod, period_end_eod, peri
     last_cf_item = ticker_cf_history_map[ticker][-1]
     if last_cf_item["d"] == txn_eod:
       # Recalculate last record
-      last_cf_item["qty_eod"] += txn["qty"]
+      last_cf_item["qty_eod_after_cf"] += txn["qty"]
       last_cf_item["cf"] += txn["qty"] * txn["price"] # cf uses sale price
-      last_cf_item["val_eod_before_cf"] = last_cf_item["qty_eod"] * eod_price_provider.get_price(txn_eod,ticker) # val uses eod price
     else:
       # Add new record
       ticker_cf_history_map[ticker].append({
         "d": txn_eod,
-        "qty_eod": last_cf_item["qty_eod"] + txn["qty"],
+        "qty_eod_before_cf": last_cf_item["qty_eod_after_cf"],
+        "qty_eod_after_cf": last_cf_item["qty_eod_after_cf"] + txn["qty"],
         "cf": txn["qty"] * txn["price"], # cf uses sale price
-        "val_eod_before_cf": (last_cf_item["qty_eod"] + txn["qty"]) * eod_price_provider.get_price(txn_eod,ticker) # val uses eod price
+        "val_eod_before_cf": (last_cf_item["qty_eod_before_cf"]) * eod_price_provider.get_price(txn_eod,ticker) # val uses eod price
       })
 
-  # For each cf, add a period end cf record with the official EOD price
+  # For each cf, add a period end cf record with the official EOD price (if needed)
   for ticker, cf in ticker_cf_history_map.items():
     last_cf_item = ticker_cf_history_map[ticker][-1]
     if last_cf_item["d"] != period_end_eod:
       # Add new record
       ticker_cf_history_map[ticker].append({
         "d": period_end_eod,
-        "qty_eod": last_cf_item["qty_eod"],
+        "qty_eod_before_cf": last_cf_item["qty_eod_after_cf"],
+        "qty_eod_after_cf": last_cf_item["qty_eod_after_cf"],
         "cf": 0.0,
-        "val_eod_before_cf": last_cf_item["qty_eod"] * eod_price_provider.get_price(period_end_eod, ticker) # val uses eod price
+        "val_eod_before_cf": last_cf_item["qty_eod_after_cf"] * eod_price_provider.get_price(period_end_eod, ticker) # val uses eod price
       })
 
   return ticker_cf_history_map
@@ -67,21 +70,22 @@ def ticker_cashflows_to_sector_cashflows(sector_ticker_set, ticker_cf_history_ma
     if ticker not in sector_ticker_set:
       continue
     ticker_cf_map_map[ticker] = {}
+    
     for ticker_cf_item in ticker_cf:
       cashflow_dates.add(ticker_cf_item["d"])
       ticker_cf_map_map[ticker][ticker_cf_item["d"]] = {
         "cf":ticker_cf_item["cf"],
-        "qty_eod":ticker_cf_item["qty_eod"]
+        "qty_eod_before_cf":ticker_cf_item["qty_eod_before_cf"]
       }
 
-  cur_qty_map = {k:0 for k in ticker_cf_map_map.keys()}
+  cur_qty_before_cf_map = {k:0 for k in ticker_cf_map_map.keys()}
   for d in sorted(list(cashflow_dates)):
     for ticker in ticker_cf_map_map.keys():
       if d in ticker_cf_map_map[ticker]:
-        cur_qty_map[ticker] = ticker_cf_map_map[ticker][d]["qty_eod"]
+        cur_qty_before_cf_map[ticker] = ticker_cf_map_map[ticker][d]["qty_eod_before_cf"]
     total_val_eod_before_cf = 0
     total_cf = 0
-    for ticker, qty in cur_qty_map.items():
+    for ticker, qty in cur_qty_before_cf_map.items():
       total_val_eod_before_cf += qty * eod_price_provider.get_price(d, ticker)
       if d in ticker_cf_map_map[ticker]:
         total_cf += ticker_cf_map_map[ticker][d]["cf"]
@@ -102,7 +106,8 @@ def twr_cagr(cf_history):
     hpr = 0.0
     if prev_cf_item:
       prev_va_eod_after_cf = prev_cf_item["val_eod_before_cf"]+prev_cf_item["cf"]
-      if abs(prev_va_eod_after_cf) > 0.000000001:
+      # Do not calc hpr if: cur val is zero (it means no holdings, so hpris zero), or prev val after cf is zero (zero divisor)
+      if abs(cf_item["val_eod_before_cf"]) > 0.000001 and abs(prev_va_eod_after_cf) > 0.000000001:
         hpr = cf_item["val_eod_before_cf"] / prev_va_eod_after_cf - 1
       twr = twr * (1+hpr)
     prev_cf_item = cf_item
@@ -112,5 +117,12 @@ def twr_cagr(cf_history):
   cagr = pow(twr, 1/years) - 1.0
   return twr-1, cagr
 
-def txns_and_holdings_to_twr_cagr_by_sector(period_start_eod, period_end_eod, period_start_holdings_json, period_txns_json, eod_price_provider):
-  pass
+def txns_and_holdings_to_twr_cagr_by_sector(period_start_eod, period_end_eod, period_start_holdings_json, period_txns_json, eod_price_provider, sector_info_provider):
+  ticker_cf_history = txns_and_holdings_to_ticker_cashflows(period_start_eod,period_end_eod, json.loads(period_start_holdings_json), json.loads(period_txns_json),eod_price_provider)
+  sector_cf_history_map = all_sector_cashflows(sector_info_provider, ticker_cf_history, eod_price_provider)
+  sector_perf_map = {}
+  for sector, sector_cf_history in sector_cf_history_map.items():
+    twr, cagr = twr_cagr(sector_cf_history)
+    sector_perf_map[sector] = {"twr": round(twr,4), "cagr": round(cagr,4)}
+  return json.dumps(sector_perf_map,sort_keys=True)
+
