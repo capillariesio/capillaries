@@ -19,6 +19,8 @@ func TestTimeFunctions(t *testing.T) {
 	assertEvalError(t, `time.Parse("2006-01-02T15:04:05.000-0700",123)`, "cannot evaluate time.Parse(), invalid args [2006-01-02T15:04:05.000-0700 123]", varValuesMap)
 	assertEvalError(t, `time.Parse("2006-01-02T15:04:05.000-0700","2001-01-01T01:01:01")`, `parsing time "2001-01-01T01:01:01" as "2006-01-02T15:04:05.000-0700": cannot parse "" as ".000"`, varValuesMap)
 
+	assertEqual(t, `time.Format(time.Date(2001, time.January, 1, 1, 1, 1, 100000000, time.FixedZone("", -7200)), "2006-01-02T15:04:05.000-0700")`, testTime.Format("2006-01-02T15:04:05.000-0700"), varValuesMap)
+
 	assertEqual(t, `time.Date(2001, time.January, 1, 1, 1, 1, 100000000, time.FixedZone("", -7200))`, testTime, varValuesMap)
 	assertEvalError(t, `time.Date(2001, 354, 1, 1, 1, 1, 100000000, time.FixedZone("", -7200))`, "cannot evaluate time.Date(), invalid args [2001 354 1 1 1 1 100000000 ]", varValuesMap)
 	assertEvalError(t, `time.Date(2001, time.January, 1, 1, 1, 1, 100000000, time.FixedZone("", -7200), "extraparam")`, "cannot evaluate time.Date(), requires 8 args, 9 supplied", varValuesMap)

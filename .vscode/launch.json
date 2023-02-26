@@ -140,6 +140,15 @@
             "args": []
         },
         {
+            "name": "Toolbelt",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/toolbelt",
+            "program": "${workspaceFolder}/pkg/exe/toolbelt/capitoolbelt.go",
+            "args": ["exec_node","-script_file=/tmp/capi_cfg/portfolio_quicktest/script.json", "-params_file=/tmp/capi_cfg/portfolio_quicktest/script_params.json",  "-keyspace=portfolio_quicktest", "-node_id=read_accounts"]
+        },
+        {
             "name": "Webapi",
             "type": "go",
             "request": "launch",

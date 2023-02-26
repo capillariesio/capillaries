@@ -27,9 +27,11 @@ func StringSetToStringSlice(m map[string]struct{}) []string {
 
 func DetectRootAggFunc(exp ast.Expr) (AggEnabledType, AggFuncType, []ast.Expr) {
 	if callExp, ok := exp.(*ast.CallExpr); ok {
-		funName := callExp.Fun.(*ast.Ident).Name
-		if StringToAggFunc(funName) != AggUnknown {
-			return AggFuncEnabled, StringToAggFunc(funName), callExp.Args
+		funExp := callExp.Fun
+		if funIdentExp, ok := funExp.(*ast.Ident); ok {
+			if StringToAggFunc(funIdentExp.Name) != AggUnknown {
+				return AggFuncEnabled, StringToAggFunc(funIdentExp.Name), callExp.Args
+			}
 		}
 	}
 	return AggFuncDisabled, AggUnknown, nil

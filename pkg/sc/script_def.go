@@ -329,7 +329,7 @@ func (scriptDef *ScriptDef) checkFieldUsageInCreator(node *ScriptNodeDef) error 
 		srcLkpCustomFieldRefs := JoinFieldRefs(srcFieldRefs, lookupFieldRefs, processorFieldRefs)
 		// Having: allow tgt fields, prohibit src, lkp
 		if err := checkAllowed(&node.TableCreator.UsedInHavingFields, srcLkpCustomFieldRefs, targetFieldRefs); err != nil {
-			errors = append(errors, fmt.Sprintf("invalid field in table creator 'having' condition: [%s]", err.Error()))
+			errors = append(errors, fmt.Sprintf("invalid field in table creator 'having' condition: [%s]; only target (writer) fields allowed, reader and lookup fields are prohibited", err.Error()))
 		}
 		// Tgt expressions: allow src iterator table (or src file), lkp, custom processor, prohibit target
 		// TODO: aggregate functions cannot include fields from group field list

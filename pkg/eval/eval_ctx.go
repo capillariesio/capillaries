@@ -442,6 +442,8 @@ func (eCtx *EvalCtx) EvalFunc(callExp *ast.CallExpr, funcName string, args []int
 		eCtx.Value, err = callDecimal2(args)
 	case "time.Parse":
 		eCtx.Value, err = callTimeParse(args)
+	case "time.Format":
+		eCtx.Value, err = callTimeFormat(args)
 	case "time.Date":
 		eCtx.Value, err = callTimeDate(args)
 	case "time.Now":
@@ -458,6 +460,8 @@ func (eCtx *EvalCtx) EvalFunc(callExp *ast.CallExpr, funcName string, args []int
 		eCtx.Value, err = callReMatchString(args)
 	case "strings.ReplaceAll":
 		eCtx.Value, err = callStringsReplaceAll(args)
+	case "fmt.Sprintf":
+		eCtx.Value, err = callFmtSprintf(args)
 
 	// Aggregate functions, to be used only in grouped lookups
 

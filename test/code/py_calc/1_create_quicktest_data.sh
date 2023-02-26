@@ -7,7 +7,7 @@ outDir=/tmp/capi_out/py_calc_quicktest
 if [ ! -d $cfgDir ]; then
   mkdir -p $cfgDir
 else
-  rm -f $cfgDir/*
+  rm -fR $cfgDir/*
 fi
 
 if [ ! -d $inDir ]; then
