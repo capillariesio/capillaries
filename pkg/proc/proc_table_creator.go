@@ -776,7 +776,8 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 						}
 
 						for fieldName, fieldDef := range node.TableCreator.Fields {
-							if eval.IsRootAggFunc(fieldDef.ParsedExpression) == eval.AggFuncEnabled {
+							isAggEnabled, _, _ := eval.DetectRootAggFunc(fieldDef.ParsedExpression)
+							if isAggEnabled == eval.AggFuncEnabled {
 								// Aggregate func is used in field expression - ignore the expression and produce default
 								tableRecord[fieldName], err = node.TableCreator.GetFieldDefaultReadyForDb(fieldName)
 								if err != nil {

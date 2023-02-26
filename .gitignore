@@ -6,6 +6,7 @@
 *.dylib
 __debug_bin
 .VSCodeCounter/
+.pyc
 
 # Test binary, built with `go test -c`
 *.test

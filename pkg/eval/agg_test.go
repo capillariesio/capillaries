@@ -77,6 +77,75 @@ func TestExtraAgg(t *testing.T) {
 	assert.Equal(t, err.Error(), "cannot evaluate more than one aggregate functions in the expression, extra count() found besides min()")
 }
 
+func TestDetectRootArgFunc(t *testing.T) {
+	varValuesMap := getTestValuesMap()
+
+	var exp ast.Expr
+	varValuesMap["t1"]["fieldStr"] = "a"
+
+	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr,",")`)
+	aggEnabledType, aggFuncType, aggFuncArgs := DetectRootAggFunc(exp)
+	assert.Equal(t, AggFuncEnabled, aggEnabledType)
+	assert.Equal(t, AggStringAgg, aggFuncType)
+	assert.Equal(t, 2, len(aggFuncArgs))
+
+	exp, _ = parser.ParseExpr(`sum(t1.fieldFloat)`)
+	aggEnabledType, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
+	assert.Equal(t, AggFuncEnabled, aggEnabledType)
+	assert.Equal(t, AggSum, aggFuncType)
+	assert.Equal(t, 1, len(aggFuncArgs))
+
+	exp, _ = parser.ParseExpr(`some_func(t1.fieldFloat)`)
+	aggEnabledType, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
+	assert.Equal(t, AggFuncDisabled, aggEnabledType)
+	assert.Equal(t, AggUnknown, aggFuncType)
+	assert.Equal(t, 0, len(aggFuncArgs))
+}
+func TestStringAgg(t *testing.T) {
+	varValuesMap := getTestValuesMap()
+
+	var exp ast.Expr
+	var result interface{}
+
+	varValuesMap["t1"]["fieldStr"] = "a"
+
+	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr,"-")`)
+	eCtx, _ := NewPlainEvalCtxWithVarsAndInitializedAgg(AggFuncEnabled, &varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
+	result, _ = eCtx.Eval(exp)
+	assert.Equal(t, "a", result)
+	varValuesMap["t1"]["fieldStr"] = "b"
+	result, _ = eCtx.Eval(exp)
+	assert.Equal(t, "a-b", result)
+
+	// Empty str
+	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr,",")`)
+	eCtx, _ = NewPlainEvalCtxWithVarsAndInitializedAgg(AggFuncEnabled, &varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
+	assert.Equal(t, "", eCtx.StringAgg.Sb.String())
+
+	var err error
+
+	// Bad number of args
+	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr)`)
+	eCtx, err = NewPlainEvalCtxWithVarsAndInitializedAgg(AggFuncEnabled, &varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
+	assert.Contains(t, err.Error(), "agg_string must have two parameters")
+
+	// Bad separators
+	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr, t2.someBadField)`)
+	eCtx, err = NewPlainEvalCtxWithVarsAndInitializedAgg(AggFuncEnabled, &varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
+	assert.Contains(t, err.Error(), "agg_string second parameter must be a basic literal")
+
+	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr, 123)`)
+	eCtx, err = NewPlainEvalCtxWithVarsAndInitializedAgg(AggFuncEnabled, &varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
+	assert.Contains(t, err.Error(), "agg_string second parameter must be a constant string")
+
+	// Bad data type
+	exp, _ = parser.ParseExpr(`string_agg(t1.fieldFloat, ",")`)
+	eCtx, err = NewPlainEvalCtxWithVarsAndInitializedAgg(AggFuncEnabled, &varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
+	// TODO: can we check expression type before Eval?
+	_, err = eCtx.Eval(exp)
+	assert.Contains(t, err.Error(), "unsupported type float64")
+}
+
 func TestSum(t *testing.T) {
 	varValuesMap := getTestValuesMap()
 
