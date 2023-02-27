@@ -81,12 +81,155 @@
                         "type": "datetime"
                     },
                     "txn_json": {
-                        "expression": "strings.ReplaceAll(fmt.Sprintf(`{'ts': '%s', 'ticker': '%s', 'qty': '%d', 'price': '%f'}`, time.Format(r.col_ts, `2006-01-02 15:04:05`), r.col_ticker, r.col_qty, r.col_price), `'`,`\"`)",
+                        "expression": "strings.ReplaceAll(fmt.Sprintf(`{'ts':'%s','ticker':'%s','qty':%d,'price':%s}`, time.Format(r.col_ts, `2006-01-02 15:04:05`), r.col_ticker, r.col_qty, decimal2(r.col_price)), `'`,`\"`)",
+                        "type": "string"
+                    }
+                },
+                "indexes": {
+                    "idx_txns_account_id": "non_unique(account_id)"
+                }
+            }
+        },
+        "account_txns_outer": {
+            "type": "table_lookup_table",
+            "desc": "For each account, merge all txns into single json string",
+            "r": {
+                "table": "accounts",
+                "expected_batches_total": 10
+            },
+            "l": {
+                "index_name": "idx_txns_account_id",
+                "join_on": "r.account_id",
+                "group": true,
+                "join_type": "left"
+            },
+            "w": {
+                "name": "account_txns",
+                "fields": {
+                    "account_id": {
+                        "expression": "r.account_id",
+                        "type": "string"
+                    },
+                    "txns_json": {
+                        "expression": "string_agg(l.txn_json,\",\")",
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "read_period_start_holdings": {
+            "type": "file_table",
+            "desc": "Load period start holdings from csv",
+            "explicit_run_only": true,
+            "r": {
+                "urls": ["{dir_in}/period_start_holdings.csv"],
+                "hdr_line_idx": 0,
+                "first_data_line_idx": 1,
+                "columns": {
+                    "col_eod": {
+                        "col_hdr": "d",
+                        "col_type": "string"
+                    },
+                    "col_account_id": {
+                        "col_hdr": "account_id",
+                        "col_type": "string"
+                    },
+                    "col_ticker": {
+                        "col_hdr": "ticker",
+                        "col_type": "string"
+                    },
+                    "col_qty": {
+                        "col_hdr": "qty",
+                        "col_format": "%d",
+                        "col_type": "int"
+                    }
+                }
+            },
+            "w": {
+                "name": "period_start_holdings",
+                "having": "w.eod == \"{period_start_eod}\"",
+                "fields": {
+                    "account_id": {
+                        "expression": "r.col_account_id",
+                        "type": "string"
+                    },
+                    "eod": {
+                        "expression": "r.col_eod",
+                        "type": "string"
+                    },
+                    "holding_json": {
+                        "expression": "strings.ReplaceAll(fmt.Sprintf(`{'ticker':'%s','qty':%d}`, r.col_ticker, r.col_qty), `'`,`\"`)",
+                        "type": "string"
+                    }
+                },
+                "indexes": {
+                    "idx_period_start_holdings_account_id": "non_unique(account_id)"
+                }
+            }
+        },
+        "account_period_start_holdings_outer": {
+            "type": "table_lookup_table",
+            "desc": "For each account, merge all holdings  into single json string",
+            "r": {
+                "table": "accounts",
+                "expected_batches_total": 10
+            },
+            "l": {
+                "index_name": "idx_period_start_holdings_account_id",
+                "join_on": "r.account_id",
+                "group": true,
+                "join_type": "left"
+            },
+            "w": {
+                "name": "account_period_start_holdings",
+                "fields": {
+                    "account_id": {
+                        "expression": "r.account_id",
+                        "type": "string"
+                    },
+                    "holdings_json": {
+                        "expression": "string_agg(l.holding_json,\",\")",
+                        "type": "string"
+                    }
+                },
+                "indexes": {
+                    "idx_account_period_start_holdings_account_id": "unique(account_id)"
+                }
+            }
+        },
+        "build_account_period_activity": {
+            "type": "table_lookup_table",
+            "desc": "For each account, merge period start holdings and txns",
+            "r": {
+                "table": "account_txns",
+                "expected_batches_total": 10
+            },
+            "l": {
+                "index_name": "idx_account_period_start_holdings_account_id",
+                "join_on": "r.account_id",
+                "group": false,
+                "join_type": "left"
+            },
+            "w": {
+                "name": "account_period_activity",
+                "fields": {
+                    "account_id": {
+                        "expression": "r.account_id",
+                        "type": "string"
+                    },
+                    "txns_json": {
+                        "expression": "r.txns_json",
+                        "type": "string"
+                    },
+                    "holdings_json": {
+                        "expression": "l.holdings_json",
                         "type": "string"
                     }
                 }
             }
         }
+ 
+
     },
     "dependency_policies": {
         "current_active_first_stopped_nogo": {

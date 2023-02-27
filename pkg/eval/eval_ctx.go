@@ -55,15 +55,33 @@ func defaultDecimal() decimal.Decimal {
 	return decimal.NewFromInt(0)
 }
 
+// TODO: refactor to avoid duplicated ctx creationcode
+
 func NewPlainEvalCtx(aggEnabled AggEnabledType) EvalCtx {
 	return EvalCtx{
 		AggFunc:    AggUnknown,
 		AggType:    AggTypeUnknown,
 		AggEnabled: aggEnabled,
+		StringAgg:  StringAggCollector{Separator: "", Sb: strings.Builder{}},
 		Sum:        SumCollector{Dec: defaultDecimal()},
 		Avg:        AvgCollector{Dec: defaultDecimal()},
 		Min:        MinCollector{Int: maxSupportedInt, Float: maxSupportedFloat, Dec: maxSupportedDecimal(), Str: ""},
 		Max:        MaxCollector{Int: minSupportedInt, Float: minSupportedFloat, Dec: minSupportedDecimal(), Str: ""}}
+}
+
+func NewPlainEvalCtxAndInitializedAgg(aggEnabled AggEnabledType, aggFuncType AggFuncType, aggFuncArgs []ast.Expr) (*EvalCtx, error) {
+	eCtx := NewPlainEvalCtx(aggEnabled)
+	// Special case: we need to provide eCtx.StringAgg with a separator and
+	// explicitly set its type to AggTypeString from the very beginning (instead of detecting it later, as we do for other agg functions)
+	if aggEnabled == AggFuncEnabled && aggFuncType == AggStringAgg {
+		var aggStringErr error
+		eCtx.StringAgg.Separator, aggStringErr = GetAggStringSeparator(aggFuncArgs)
+		if aggStringErr != nil {
+			return nil, aggStringErr
+		}
+		eCtx.AggType = AggTypeString
+	}
+	return &eCtx, nil
 }
 
 func NewPlainEvalCtxWithVars(aggEnabled AggEnabledType, vars *VarValuesMap) EvalCtx {
