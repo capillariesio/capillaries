@@ -80,7 +80,7 @@
                         "type": "string"
                     },
                     "txn_json": {
-                        "expression": "strings.ReplaceAll(fmt.Sprintf(`{'ts':'%s','ticker':'%s','qty':%d,'price':%s}`, r.col_ts, r.col_ticker, r.col_qty, decimal2(r.col_price)), `'`,`\"`)",
+                        "expression": "strings.ReplaceAll(fmt.Sprintf(`{'ts':'%s','t':'%s','q':%d,'p':%s}`, r.col_ts, r.col_ticker, r.col_qty, decimal2(r.col_price)), `'`,`\"`)",
                         "type": "string"
                     }
                 },
@@ -116,7 +116,7 @@
                 }
             }
         },
-        "read_period_start_holdings": {
+        "read_period_holdings": {
             "type": "file_table",
             "desc": "Load period start holdings from csv",
             "explicit_run_only": true,
@@ -145,8 +145,8 @@
                 }
             },
             "w": {
-                "name": "period_start_holdings",
-                "having": "w.eod == \"{period_start_eod}\"",
+                "name": "period_holdings",
+                "having": "\"{period_start_eod}\" <= w.eod && w.eod <= \"{period_end_eod}\"",
                 "fields": {
                     "account_id": {
                         "expression": "r.col_account_id",
@@ -157,30 +157,30 @@
                         "type": "string"
                     },
                     "holding_json": {
-                        "expression": "fmt.Sprintf(`\"%s\":%d`, r.col_ticker, r.col_qty)",
+                        "expression": "fmt.Sprintf(`{\"d\":\"%s\",\"t\":\"%s\",\"q\":%d}`, r.col_eod, r.col_ticker, r.col_qty)",
                         "type": "string"
                     }
                 },
                 "indexes": {
-                    "idx_period_start_holdings_account_id": "non_unique(account_id)"
+                    "idx_period_holdings_account_id": "non_unique(account_id)"
                 }
             }
         },
-        "account_period_start_holdings_outer": {
+        "account_period_holdings_outer": {
             "type": "table_lookup_table",
-            "desc": "For each account, merge all holdings  into single json string",
+            "desc": "For each account, merge all holdings into single json string",
             "r": {
                 "table": "accounts",
                 "expected_batches_total": 10
             },
             "l": {
-                "index_name": "idx_period_start_holdings_account_id",
+                "index_name": "idx_period_holdings_account_id",
                 "join_on": "r.account_id",
                 "group": true,
                 "join_type": "left"
             },
             "w": {
-                "name": "account_period_start_holdings",
+                "name": "account_period_holdings",
                 "fields": {
                     "account_id": {
                         "expression": "r.account_id",
@@ -192,7 +192,7 @@
                     }
                 },
                 "indexes": {
-                    "idx_account_period_start_holdings_account_id": "unique(account_id)"
+                    "idx_account_period_holdings_account_id": "unique(account_id)"
                 }
             }
         },
@@ -204,7 +204,7 @@
                 "expected_batches_total": 10
             },
             "l": {
-                "index_name": "idx_account_period_start_holdings_account_id",
+                "index_name": "idx_account_period_holdings_account_id",
                 "join_on": "r.account_id",
                 "group": false,
                 "join_type": "left"
@@ -217,11 +217,11 @@
                         "type": "string"
                     },
                     "txns_json": {
-                        "expression": "r.txns_json",
+                        "expression": " \"[\" + r.txns_json + \"]\" ",
                         "type": "string"
                     },
                     "holdings_json": {
-                        "expression": "l.holdings_json",
+                        "expression": " \"[\" + l.holdings_json + \"]\" ",
                         "type": "string"
                     }
                 }
@@ -243,7 +243,7 @@
                 ],
                 "calculated_fields": {
                     "perf_json": {
-                        "expression": "txns_and_holdings_to_twr_cagr_by_sector(\"{period_start_eod}\", \"{period_end_eod}\", \"{\" + r.holdings_json + \"}\", \"[\"+r.txns_json+\"]\", PortfolioTestEodPriceProvider, PorfolioTestCompanyInfoProvider)",
+                        "expression": "txns_and_holdings_to_twr_cagr_by_sector_year_quarter_json(\"{period_start_eod}\", \"{period_end_eod}\", r.holdings_json, r.txns_json, PortfolioTestEodPriceProvider, PortfolioTestCompanyInfoProvider)",
                         "type": "string"
                     }
                 }

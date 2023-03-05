@@ -1,29 +1,29 @@
 # This is a trivial implementation. A real-world one would probably use some distributed in-memory cache
 # that holds, say, 100 industries * 10k tickers = 1m elements
-class PorfolioTestCompanyInfoProvider:
+class PortfolioTestCompanyInfoProvider:
   def get_sectors():
     result_sectors = set(["All"])
-    for _, ticker_info in PorfolioTestCompanyInfoProvider.company_info.items():
+    for _, ticker_info in PortfolioTestCompanyInfoProvider.company_info.items():
       for sector in ticker_info["sectors"]:
         result_sectors.add(sector)
     return sorted(list(result_sectors))
 
   def get_sector_tickers(sector):
     result_tickers = []
-    for ticker, ticker_info in PorfolioTestCompanyInfoProvider.company_info.items():
+    for ticker, ticker_info in PortfolioTestCompanyInfoProvider.company_info.items():
       if sector in ticker_info["sectors"] or sector == "All":
         result_tickers.append(ticker)
     return sorted(result_tickers)
   
   def get_countries():
     result_countries = set(["All"])
-    for _, ticker_info in PorfolioTestCompanyInfoProvider.company_info.items():
+    for _, ticker_info in PortfolioTestCompanyInfoProvider.company_info.items():
       result_countries.append(ticker_info["country"])
     return sorted(list(result_countries))
 
   def get_country_tickers(country):
     result_tickers = []
-    for ticker, ticker_info in PorfolioTestCompanyInfoProvider.company_info.items():
+    for ticker, ticker_info in PortfolioTestCompanyInfoProvider.company_info.items():
       if ticker_info["country"] == country or country == "All":
         result_tickers.append(ticker)
     return sorted(result_tickers)
