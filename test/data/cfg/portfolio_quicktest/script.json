@@ -45,8 +45,7 @@
                 "columns": {
                     "col_ts": {
                         "col_hdr": "ts",
-                        "col_format": "2006-01-02 15:04:05",
-                        "col_type": "datetime"
+                        "col_type": "string"
                     },
                     "col_account_id": {
                         "col_hdr": "account_id",
@@ -70,7 +69,7 @@
             },
             "w": {
                 "name": "txns",
-                "having": "w.ts > time.Parse(\"2006-01-02\",\"{period_start_eod}\") && w.ts <= time.Parse(\"2006-01-02 15:04:05.000\",\"{period_end_eod}\"+\" 23:59:59.999\")",
+                "having": "w.ts > \"{period_start_eod}\" && w.ts <= \"{period_end_eod}\"",
                 "fields": {
                     "account_id": {
                         "expression": "r.col_account_id",
@@ -78,10 +77,10 @@
                     },
                     "ts": {
                         "expression": "r.col_ts",
-                        "type": "datetime"
+                        "type": "string"
                     },
                     "txn_json": {
-                        "expression": "strings.ReplaceAll(fmt.Sprintf(`{'ts':'%s','ticker':'%s','qty':%d,'price':%s}`, time.Format(r.col_ts, `2006-01-02 15:04:05`), r.col_ticker, r.col_qty, decimal2(r.col_price)), `'`,`\"`)",
+                        "expression": "strings.ReplaceAll(fmt.Sprintf(`{'ts':'%s','ticker':'%s','qty':%d,'price':%s}`, r.col_ts, r.col_ticker, r.col_qty, decimal2(r.col_price)), `'`,`\"`)",
                         "type": "string"
                     }
                 },
@@ -122,7 +121,7 @@
             "desc": "Load period start holdings from csv",
             "explicit_run_only": true,
             "r": {
-                "urls": ["{dir_in}/period_start_holdings.csv"],
+                "urls": ["{dir_in}/eom_holdings.csv"],
                 "hdr_line_idx": 0,
                 "first_data_line_idx": 1,
                 "columns": {
@@ -158,7 +157,7 @@
                         "type": "string"
                     },
                     "holding_json": {
-                        "expression": "strings.ReplaceAll(fmt.Sprintf(`{'ticker':'%s','qty':%d}`, r.col_ticker, r.col_qty), `'`,`\"`)",
+                        "expression": "fmt.Sprintf(`\"%s\":%d`, r.col_ticker, r.col_qty)",
                         "type": "string"
                     }
                 },
@@ -227,9 +226,42 @@
                     }
                 }
             }
+        },
+        "calc_account_period_perf": {
+            "type": "table_custom_tfm_table",
+            "custom_proc_type": "py_calc",
+            "desc": "Apply Python-based calculations to accounts holdings and txns",
+            "r": {
+                "table": "account_period_activity",
+                "expected_batches_total": 10
+            },
+            "p": {
+                "python_code_urls": [
+                    "{dir_py}/portfolio_test_company_info_provider.py",
+                    "{dir_py}/portfolio_test_eod_price_provider.py",
+                    "{dir_py}/portfolio_calc.py"
+                ],
+                "calculated_fields": {
+                    "perf_json": {
+                        "expression": "txns_and_holdings_to_twr_cagr_by_sector(\"{period_start_eod}\", \"{period_end_eod}\", \"{\" + r.holdings_json + \"}\", \"[\"+r.txns_json+\"]\", PortfolioTestEodPriceProvider, PorfolioTestCompanyInfoProvider)",
+                        "type": "string"
+                    }
+                }
+            },
+            "w": {
+                "name": "account_period_perf",
+                "fields": {
+                    "account_id": {
+                        "expression": "r.account_id",
+                        "type": "string"
+                    },
+                    "perf_json": {
+                        "expression": "p.perf_json",
+                        "type": "string"
+                    }
+                }
+            }
         }
- 
-
     },
     "dependency_policies": {
         "current_active_first_stopped_nogo": {

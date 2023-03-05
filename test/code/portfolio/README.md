@@ -43,7 +43,7 @@ For the date of `period_start_eod`, read each holding for all accounts:
 
 # 5. Group holdings by account
 
-Left outer join accounts with holdings into account_period_start_holdings via string_agg() function with "," separator so the result is only 5 records (one record per account) that look like this:
+Left outer join accounts with holdings into account_period_eom_holdings via string_agg() function with "," separator so the result is only 5 records (one record per account) that look like this:
 
 | account_id | holdings_json |
 | ---------- | ------------- |
@@ -58,7 +58,7 @@ Left outer join accounts with holdings into account_period_start_holdings via st
 
 
 
-Join account_period_start_holdings/account_period_txns->account_period_activity
+Join account_period_eom_holdings/account_period_txns->account_period_activity
 
 | account_id | holdings_json | txns_json |
 | ---------- | ------------- |----------- |

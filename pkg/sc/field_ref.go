@@ -243,20 +243,33 @@ func checkAllowed(fieldRefsToCheck *FieldRefs, prohibitedFieldRefs *FieldRefs, a
 
 }
 
-func harvestFieldRefsFromParsedExpression(exp ast.Expr, usedFields *FieldRefs) error {
+type FieldRefParserFlag uint32
+
+func (f FieldRefParserFlag) HasFlag(flag FieldRefParserFlag) bool { return f&flag != 0 }
+func (f *FieldRefParserFlag) AddFlag(flag FieldRefParserFlag)     { *f |= flag }
+func (f *FieldRefParserFlag) ClearFlag(flag FieldRefParserFlag)   { *f &= ^flag }
+func (f *FieldRefParserFlag) ToggleFlag(flag FieldRefParserFlag)  { *f ^= flag }
+
+const (
+	FieldRefStrict             FieldRefParserFlag = 0
+	FieldRefAllowUnknownIdents FieldRefParserFlag = 1 << iota
+	FieldRefAllowWhateverFeatureYouAreAddingHere
+)
+
+func harvestFieldRefsFromParsedExpression(exp ast.Expr, usedFields *FieldRefs, parserFlags FieldRefParserFlag) error {
 	switch assertedExp := exp.(type) {
 	case *ast.BinaryExpr:
-		if err := harvestFieldRefsFromParsedExpression(assertedExp.X, usedFields); err != nil {
+		if err := harvestFieldRefsFromParsedExpression(assertedExp.X, usedFields, parserFlags); err != nil {
 			return err
 		}
-		return harvestFieldRefsFromParsedExpression(assertedExp.Y, usedFields)
+		return harvestFieldRefsFromParsedExpression(assertedExp.Y, usedFields, parserFlags)
 
 	case *ast.UnaryExpr:
-		return harvestFieldRefsFromParsedExpression(assertedExp.X, usedFields)
+		return harvestFieldRefsFromParsedExpression(assertedExp.X, usedFields, parserFlags)
 
 	case *ast.CallExpr:
 		for _, v := range assertedExp.Args {
-			if err := harvestFieldRefsFromParsedExpression(v, usedFields); err != nil {
+			if err := harvestFieldRefsFromParsedExpression(v, usedFields, parserFlags); err != nil {
 				return err
 			}
 		}
@@ -269,14 +282,17 @@ func harvestFieldRefsFromParsedExpression(exp ast.Expr, usedFields *FieldRefs) e
 				usedFields.contributeUnresolved(assertedExpIdent.Name, assertedExp.Sel.Name)
 			}
 		default:
-			return fmt.Errorf("selectors starting with non-ident are not allowed, found '%v'; for file readers, use '%s' alias; for file creators, use '%s' alias",
-				assertedExp.X, ReaderAlias, CreatorAlias)
+			return fmt.Errorf("selectors starting with non-ident are not allowed, found '%v'; aliases to use: readers - '%s', creators - '%s', custom processors - '%s', lookups - '%s'",
+				assertedExp.X, ReaderAlias, CreatorAlias, CustomProcessorAlias, LookupAlias)
 		}
 
 	case *ast.Ident:
-		if assertedExp.Name != "true" && assertedExp.Name != "false" {
-			return fmt.Errorf("plain (non-selector) identifiers are not allowed, expected field qualifiers (tableor_lkp_alias.field_name), found '%s'; for file readers, use '%s' alias; for file creators, use '%s' alias",
-				assertedExp.Name, ReaderAlias, CreatorAlias)
+		// Keep in mind we may use this parser for Python expressions. Allow unknown constructs for those cases.
+		if !parserFlags.HasFlag(FieldRefAllowUnknownIdents) {
+			if assertedExp.Name != "true" && assertedExp.Name != "false" {
+				return fmt.Errorf("plain (non-selector) identifiers are not allowed, expected field qualifiers (tableor_lkp_alias.field_name), found '%s'; for file readers, use '%s' alias; for file creators, use '%s' alias",
+					assertedExp.Name, ReaderAlias, CreatorAlias)
+			}
 		}
 	}
 
@@ -290,11 +306,30 @@ func ParseRawGolangExpressionStringAndHarvestFieldRefs(strExp string, usedFields
 
 	expCondition, err := parser.ParseExpr(strExp)
 	if err != nil {
-		return nil, fmt.Errorf("parsing error: [%s]", err.Error())
+		return nil, fmt.Errorf("strict parsing error: [%s]", err.Error())
 	}
 
 	if usedFields != nil {
-		if err := harvestFieldRefsFromParsedExpression(expCondition, usedFields); err != nil {
+		if err := harvestFieldRefsFromParsedExpression(expCondition, usedFields, FieldRefStrict); err != nil {
+			return nil, err
+		}
+	}
+
+	return expCondition, nil
+}
+
+func ParseRawRelaxedGolangExpressionStringAndHarvestFieldRefs(strExp string, usedFields *FieldRefs, parserFlags FieldRefParserFlag) (ast.Expr, error) {
+	if len(strings.TrimSpace(strExp)) == 0 {
+		return nil, nil
+	}
+
+	expCondition, err := parser.ParseExpr(strExp)
+	if err != nil {
+		return nil, fmt.Errorf("relaxed parsing error: [%s]", err.Error())
+	}
+
+	if usedFields != nil {
+		if err := harvestFieldRefsFromParsedExpression(expCondition, usedFields, parserFlags); err != nil {
 			return nil, err
 		}
 	}
