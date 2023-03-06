@@ -1,3 +1,5 @@
+# This is not a production-quality code for actual financial calculations. Use for testing purposes only.
+ 
 import datetime
 import json
 from json import JSONEncoder
