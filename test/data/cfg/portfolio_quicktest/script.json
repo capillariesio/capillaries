@@ -118,7 +118,7 @@
         },
         "read_period_holdings": {
             "type": "file_table",
-            "desc": "Load period start holdings from csv",
+            "desc": "Load holdings from csv",
             "explicit_run_only": true,
             "r": {
                 "urls": ["{dir_in}/eom_holdings.csv"],
@@ -198,7 +198,7 @@
         },
         "build_account_period_activity": {
             "type": "table_lookup_table",
-            "desc": "For each account, merge period start holdings and txns",
+            "desc": "For each account, merge holdings and txns",
             "r": {
                 "table": "account_txns",
                 "expected_batches_total": 10
@@ -230,7 +230,7 @@
         "calc_account_period_perf": {
             "type": "table_custom_tfm_table",
             "custom_proc_type": "py_calc",
-            "desc": "Apply Python-based calculations to accounts holdings and txns",
+            "desc": "Apply Python-based calculations to account holdings and txns",
             "r": {
                 "table": "account_period_activity",
                 "expected_batches_total": 10
@@ -265,7 +265,7 @@
         "tag_by_period": {
             "type": "table_custom_tfm_table",
             "custom_proc_type": "tag_and_denormalize",
-            "desc": "Tag account records so we can split them by period name",
+            "desc": "Tag accounts by period name",
             "r": {
                 "table": "account_period_perf",
                 "expected_batches_total": 10
@@ -306,7 +306,7 @@
         "tag_by_sector": {
             "type": "table_custom_tfm_table",
             "custom_proc_type": "tag_and_denormalize",
-            "desc": "Tag account records so we can split them by sector",
+            "desc": "Tag accounts by sector",
             "r": {
                 "table": "account_period_perf_by_period",
                 "expected_batches_total": 10
@@ -398,7 +398,7 @@
         },
         "file_account_period_sector_perf": {
             "type": "table_file",
-            "desc": "Write the results to CSV file",
+            "desc": "Write yearly/quarterly perf results by sector to CSV file",
             "r": {
                 "table": "account_period_sector_twr_cagr"
             },
@@ -441,7 +441,7 @@
         },
         "file_account_year_perf": {
             "type": "table_file",
-            "desc": "Write the results to CSV file",
+            "desc": "Write yearly perf results for all sectors to CSV file",
             "r": {
                 "table": "account_period_sector_twr_cagr"
             },

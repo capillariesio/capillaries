@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/api"
@@ -148,11 +149,51 @@ type WebapiNodeStatus struct {
 
 type WebapiNodeRunMatrixRow struct {
 	NodeName     string             `json:"node_name"`
+	NodeDesc     string             `json:"node_desc"`
 	NodeStatuses []WebapiNodeStatus `json:"node_statuses"`
 }
 type WebapiNodeRunMatrix struct {
 	RunLifespans []*wfmodel.RunLifespan   `json:"run_lifespans"`
 	Nodes        []WebapiNodeRunMatrixRow `json:"nodes"`
+}
+
+// Poor man's cache
+var NodeDescCache map[string]string = map[string]string{}
+var NodeDescCacheLock = sync.RWMutex{}
+
+func (h *UrlHandler) getNodeDesc(cqlSession *gocql.Session, keyspace string, runId int16, nodeName string) (string, error) {
+
+	NodeDescCacheLock.RLock()
+	nodeDesc, ok := NodeDescCache[nodeName]
+	NodeDescCacheLock.RUnlock()
+	if ok {
+		return nodeDesc, nil
+	}
+
+	allRunsProps, err := api.GetRunProperties(h.L, cqlSession, keyspace, int16(runId))
+	if err != nil {
+		return "", err
+	}
+
+	if len(allRunsProps) != 1 {
+		return "", fmt.Errorf("invalid number of matching runs (%d), expected 1; this usually happens when webapi caller makes wrong assumptions about the process status", len(allRunsProps))
+	}
+
+	script, err, _ := sc.NewScriptFromFiles(h.Env.CaPath, h.Env.PrivateKeys, allRunsProps[0].ScriptUri, allRunsProps[0].ScriptParamsUri, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
+	if err != nil {
+		return "", err
+	}
+
+	nodeDef, ok := script.ScriptNodes[nodeName]
+	if !ok {
+		return "", fmt.Errorf("cannot find node %s", nodeName)
+	}
+
+	NodeDescCacheLock.RLock()
+	NodeDescCache[nodeName] = nodeDef.Desc
+	NodeDescCacheLock.RUnlock()
+
+	return nodeDef.Desc, nil
 }
 
 func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
@@ -208,7 +249,12 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 	mx.Nodes = make([]WebapiNodeRunMatrixRow, len(nodeRunStatusMap))
 	nodeCount := 0
 	for nodeName, runNodeStatusMap := range nodeRunStatusMap {
-		mx.Nodes[nodeCount] = WebapiNodeRunMatrixRow{NodeName: nodeName, NodeStatuses: make([]WebapiNodeStatus, len(mx.RunLifespans))}
+		nodeDesc, err := h.getNodeDesc(cqlSession, keyspace, runLifespanMap[1].RunId, nodeName)
+		if err != nil {
+			WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot get node description: %s", err.Error()), http.StatusInternalServerError)
+			return
+		}
+		mx.Nodes[nodeCount] = WebapiNodeRunMatrixRow{NodeName: nodeName, NodeDesc: nodeDesc, NodeStatuses: make([]WebapiNodeStatus, len(mx.RunLifespans))}
 		for runIdx, matrixRunLifespan := range mx.RunLifespans {
 			if nodeStatus, ok := runNodeStatusMap[matrixRunLifespan.RunId]; ok {
 				mx.Nodes[nodeCount].NodeStatuses[runIdx] = nodeStatus

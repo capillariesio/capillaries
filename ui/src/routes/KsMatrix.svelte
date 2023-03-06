@@ -111,7 +111,7 @@
 		</tr>
 		{#each webapiData.nodes as node}
 		<tr>
-			<td>{node.node_name}</td>
+			<td>{node.node_name}: {node.node_desc}</td>
 			{#each node.node_statuses as ns}
 			<td>
 				{#if ns.status > 0}
