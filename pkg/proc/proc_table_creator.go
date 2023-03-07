@@ -564,8 +564,6 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 						return bs, newCtxErr
 					}
 					eCtxMap[rowid][fieldName] = newCtx
-					//newCtx := eval.NewPlainEvalCtx(eval.AggFuncEnabled)
-					//eCtxMap[rowid][fieldName] = &newCtx
 				}
 			}
 		}

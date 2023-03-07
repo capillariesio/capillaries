@@ -335,7 +335,7 @@ func TestReadDatetime(t *testing.T) {
 	_, err = testReader(confGoodFormatBadDefault, srcLineEmpty)
 	assertErrorPrefix(t, `cannot read time column col_1 from default value string '2001-07-07aaa11:22:33.700': parsing time "2001-07-07aaa11:22:33.700" as "2006-01-02T15:04:05.000": cannot parse "aaa11:22:33.700" as "T"`, err.Error())
 	_, err = testReader(confGoodFormatGoodDefault, srcLineBad)
-	assertErrorPrefix(t, `cannot read datetime column col_1, data '2017-10-02bbb10:56:33.155', format '2006-01-02T15:04:05.000': parsing time "2017-10-02a.txt10:56:33.155" as "2006-01-02T15:04:05.000": cannot parse "bbb10:56:33.155" as "T"`, err.Error())
+	assertErrorPrefix(t, `cannot read datetime column col_1, data '2017-10-02bbb10:56:33.155', format '2006-01-02T15:04:05.000': parsing time "2017-10-02bbb10:56:33.155" as "2006-01-02T15:04:05.000": cannot parse "bbb10:56:33.155" as "T"`, err.Error())
 }
 
 func TestReadInt(t *testing.T) {
