@@ -1,6 +1,6 @@
 {
     "nodes": {
-        "read_accounts": {
+        "1_read_accounts": {
             "type": "file_table",
             "desc": "Load accounts from csv",
             "explicit_run_only": true,
@@ -34,7 +34,7 @@
                 }
             }
         },
-        "read_txns": {
+        "1_read_txns": {
             "type": "file_table",
             "desc": "Load txns from csv",
             "explicit_run_only": true,
@@ -89,7 +89,7 @@
                 }
             }
         },
-        "account_txns_outer": {
+        "2_account_txns_outer": {
             "type": "table_lookup_table",
             "desc": "For each account, merge all txns into single json string",
             "r": {
@@ -116,12 +116,12 @@
                 }
             }
         },
-        "read_period_holdings": {
+        "1_read_period_holdings": {
             "type": "file_table",
             "desc": "Load holdings from csv",
             "explicit_run_only": true,
             "r": {
-                "urls": ["{dir_in}/eom_holdings.csv"],
+                "urls": ["{dir_in}/holdings.csv"],
                 "hdr_line_idx": 0,
                 "first_data_line_idx": 1,
                 "columns": {
@@ -166,7 +166,7 @@
                 }
             }
         },
-        "account_period_holdings_outer": {
+        "2_account_period_holdings_outer": {
             "type": "table_lookup_table",
             "desc": "For each account, merge all holdings into single json string",
             "r": {
@@ -196,7 +196,7 @@
                 }
             }
         },
-        "build_account_period_activity": {
+        "3_build_account_period_activity": {
             "type": "table_lookup_table",
             "desc": "For each account, merge holdings and txns",
             "r": {
@@ -227,7 +227,7 @@
                 }
             }
         },
-        "calc_account_period_perf": {
+        "4_calc_account_period_perf": {
             "type": "table_custom_tfm_table",
             "custom_proc_type": "py_calc",
             "desc": "Apply Python-based calculations to account holdings and txns",
@@ -262,7 +262,7 @@
                 }
             }
         },
-        "tag_by_period": {
+        "5_tag_by_period": {
             "type": "table_custom_tfm_table",
             "custom_proc_type": "tag_and_denormalize",
             "desc": "Tag accounts by period name",
@@ -303,7 +303,7 @@
                 }
             }
         },
-        "tag_by_sector": {
+        "5_tag_by_sector": {
             "type": "table_custom_tfm_table",
             "custom_proc_type": "tag_and_denormalize",
             "desc": "Tag accounts by sector",
@@ -347,7 +347,7 @@
                 }
             }
         },
-        "perf_json_to_columns": {
+        "6_perf_json_to_columns": {
             "type": "table_custom_tfm_table",
             "custom_proc_type": "py_calc",
             "desc": "Use Python to read perf json and save stats as columns",
@@ -396,7 +396,7 @@
                 }
             }
         },
-        "file_account_period_sector_perf": {
+        "7_file_account_period_sector_perf": {
             "type": "table_file",
             "desc": "Write yearly/quarterly perf results by sector to CSV file",
             "r": {
@@ -439,7 +439,7 @@
                 ]
             }
         },
-        "file_account_year_perf": {
+        "7_file_account_year_perf": {
             "type": "table_file",
             "desc": "Write yearly perf results for all sectors to CSV file",
             "r": {

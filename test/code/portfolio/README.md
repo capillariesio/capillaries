@@ -1,86 +1,98 @@
-# 1. Read accounts
+# Portfolio performance calculation integration test
 
-We can workonly with accounts that have they first EOM holdings record not later than `period_start_eod`, otherwise we simply cannot calculate their performance. Source data in accounts.csv looks like this:
+Created using Ubuntu WSL. Other Linux flavors and MacOS may require edits.
+
+## Workflow
+
+The [DOT diagram](../../../doc/glossary.md#dot-diagrams) generated with
 ```
-account_id,earliest_period_start
-ARKK,2020-12-31
-ARKW,2020-12-31
-ARKF,2020-12-31
-ARKQ,2020-12-31
-ARKG,2020-12-31
-ARKX,2021-03-31
+go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/portfolio_quicktest/script.json -params_file=../../../test/data/cfg/portfolio_quicktest/script_params.json -idx_dag=true
 ```
-If  `period_start_eod` paramater is set to `2020-12-31`, only first 5 accounts will be loaded.
+and rendered in https://dreampuf.github.io/GraphvizOnline :
 
-# 2. Read txns as JSON
+![drawing](./doc/dot-portfolio.svg)
 
-Read only transactions that happen after `period_start_eod` and not after `period_end_eod`. We need to convert the data to JSON, so it can be grouped and processed by our Python portfolio performance calculator (remember, Capillaries processors cannot handle more than one row at a time). So, a source transaction from txns.csv
-```
-ts,account_id,ticker,qty,price
-2021-03-30 01:18:07,ARKG,MASS,100453,44.99
-```
-becomes
+Or, here is a bit more low-level walkthrough
 
-| account_id | txn_json |
-| ---------- | -------- |
-| ARKG | {"ts": "2021-03-30 01:18:07", "ticker": "MASS", "qty": "100453", "price": "44.99"} |
+### Data preparation
 
-# 3. Group transactions by account
+First few script nodes read CSV files and produce Cassandra records with JSON:
 
-Left outer join accounts with txns into account_txns via string_agg() function with "," separator so the result is only 5 records (one record per account) that look like this:
+![Prepare data](doc/prepare-data.svg)
 
-| account_id | txns_json |
-| ---------- | --------- |
-| ARKG | {"ts":"2021-01-19 00:20:06","ticker":"BMY","qty":"328990","price":"66.74"},{"ts":"2021-01-08 02:09:04","ticker":"REGN","qty":"27300","price":"498.73"}, ... |
+In other words, we have to collect all holdings/txn data for an account in a single record, so it can be processed by [py_calc](../../../doc/glossary.md#py_calc-processor).
 
-# 4. Read period start holdings as JSON
+### Calculation
 
-For the date of `period_start_eod`, read each holding for all accounts:
+For each account_id, [py_calc](../../../doc/glossary.md#py_calc-processor) node calc_account_period_perf takes both JSON fields and calculates annualized returns for the range specified by `period_start_eod` and `period_end_eod` script [parameters](../../../doc/scriptconfig.
+md#template-parameters).
 
-| account_id | holding_json |
-| ---------- | ------------ |
-| ARKW       | {"ticker":"SNAP","qty":2378023} |
+After calculating portfolio returns, we end up with data looking as follows:
 
-# 5. Group holdings by account
+| account_id | perf_json |
+| --- | --- |
+| ARKK | {"2021": {"All": {"cagr": -0.2398, "twr": -0.2398}, "Communication Services": {"cagr": -0.3183, "twr": -0.3183}, "Consumer Cyclical": {"cagr": 0.1764, "twr": 0.1764}, ... } |
+| ARKW | {"2021": {"All": {"cagr": -0.1949, "twr": -0.1949}, "Communication Services": {"cagr": -0.293, "twr": -0.293}, "Consumer Cyclical": {"cagr": -0.0385, "twr": -0.0385}, ... } |
 
-Left outer join accounts with holdings into account_period_eom_holdings via string_agg() function with "," separator so the result is only 5 records (one record per account) that look like this:
+### Reporting
 
-| account_id | holdings_json |
-| ---------- | ------------- |
-| ARKW | {"ticker":"SNAP","qty":2378023}, {"ticker":"ROKU","qty":987824}, ...
+Technicaly speaking, we already have what we want. Next few steps make this JSON data relational:
 
-# 6. Combine period start holdings and txns
+| ARK fund | Period | Sector | Time-weighted annualized return |
+| --- |  --- | --- | --- |
+| ARKK | 2021 | All | -23.98 |
+| ARKK | 2021 |  Communication Services |  -31.83 |
+| ARKK | 2021 |  Consumer Cyclical |  17.64 |
+| ARKW | 2021 |  All |  -19.49 |
+| ARKW | 2021 |  Communication Services |  -29.30 |
+| ARKW | 2021 |  Consumer Cyclical |  -3.85 |
 
+See results in /tmp/capi_out/portfolio_quicktest.
 
+## What's tested:
 
+- file_table read from file directly into JSON fields
+- table_lookup_table with parallelism, left outer grouped joins, string_agg() aggregate function
+- py_calc calculations taking JSON as input and producing JSON
+- table_file with top/orderto produce ordered performance data matrix
 
+## How to test
 
+### Direct node execution
 
+Run [test_exec_nodes.sh](test_exec_nodes.sh)  - the [Toolbelt](../../../doc/glossary.md#toolbelt) executes [script](../../data/cfg/portfolio_quicktest/script.json) [nodes](../../../doc/glossary.md#script-node) one by one, without invoking RabbitMQ workflow.
 
+### Using RabbitMQ workflow (single run)
 
-Join account_period_eom_holdings/account_period_txns->account_period_activity
+Make sure the [Daemon](../../../doc/glossary.md#daemon) is running:
+- either run `go run capidaemon.go` to start it in pkg/exe/daemon
+- or start the Daemon container (`docker compose -p "test_capillaries_containers" start daemon`)
 
-| account_id | holdings_json | txns_json |
-| ---------- | ------------- |----------- |
-| ARKF | {"ticker":"WDAY","qty":163133},{"ticker":"JD","qty":270154},{"ticker":"SI","qty":617539}, ...  | {"ts":"2021-03-24 01:52:26","ticker":"PDD","qty":78761,"price":136.06},{"ts":"2021-02-24 02:37:37","ticker":"SQ","qty":97051,"price":237.32}, ...
+Run [test_one_run.sh](test_one_run.sh) - the [Toolbelt](../../../doc/glossary.md#toolbelt) publishes [batch messages](../../../doc/glossary.md#data-batch) to RabbitMQ and the [Daemon](../../../doc/glossary.md#daemon) consumes them and executes all [script](../../data/cfg/portfolio_quicktest/script.json) [nodes](../../../doc/glossary.md#script-node) in parallel as part of a single [run](../../../doc/glossary.md#run).
 
-# acc_number: 12345, holdings: {"ticker":"AAPL", "qty":2},{"ticker":"MSFT", "qty":1}, txn: {"ts":"2001-01-05 00:01:35.123", "ticker":"TSLA", "qty":5, "price":1.00},{"ts":"2001-01-10 00:02:42.123", "ticker":"APPL", "qty":2, "price":2.00}
-# acc_number: 98765, holdings: {"ticker":"XOM", "qty":2} txn:
+## Webapi
 
-# 7. py_calc: produce twr numbers in accounts_period_perf
-# acc_number: 12345, {"All": {"twr": 0.2345, "cagr": 0.1432}, "Automotive": {"twr": 0.2345, "cagr": 0.1432}}
-# acc_number: 98765, {"All": {"twr": 0.2345, "cagr": 0.1432}, "Automotive": {"twr": 0.0, "cagr": 0.0}}
+Make sure the [Daemon](../../../doc/glossary.md#daemon) is running:
+- either run `go run capidaemon.go` to start it in pkg/exe/daemon
+- or start the Daemon container (`docker compose -p "test_capillaries_containers" start daemon`)
 
-# 8. denormalize_and_tag: now we split one record of accounts_period_perf into 4 and tag in sector field to accounts_period_perf_tagged
-# acc_number: 12345, sector: All, {"All": {"twr": 0.2345, "cagr": 0.1432}, "Automotive": {"twr": 0.2345, "cagr": 0.1432}}
-# acc_number: 12345, sector: Automotive, {"All": {"twr": 0.2345, "cagr": 0.1432}, "Automotive": {"twr": 0.2345, "cagr": 0.1432}}
-# acc_number: 98765, sector: All, {"All": {"twr": 0.2345, "cagr": 0.1432}, "Automotive": {"twr": 0.0, "cagr": 0.0}}
-# acc_number: 98765, sector: Automotive, {"All": {"twr": 0.2345, "cagr": 0.1432}, "Automotive": {"twr": 0.0, "cagr": 0.0}}
+Make sure the [Webapi](../../../doc/glossary.md#webapi) is running:
+- either run `go run capiwebapi.go` to start it in pkg/exe/webapi
+- or start the Webapi container (`docker compose -p "test_capillaries_containers" start webapi`)
 
-# 9. py_calc accounts_period_perf_tagged -> accounts_period_perf_normalized
-# acc_number: 12345, sector: All, twr: 0.2345, cagr: 0.1432
-# acc_number: 12345, sector: Automotive, twr: 0.2345, cagr: 0.1432
-# acc_number: 98765, sector: All, twr: 0.2345, cagr": 0.1432
-# acc_number: 98765, sector: Automotive, twr: 0.0, cagr: 0.0
+The test runs the same scenario as the previous [two runs test](#using-rabbitmq-workflow-two-runs) above, but uses [Webapi](../../../doc/glossary.md#webapi) instead of the [Toolbelt](../../../doc/glossary.md#toolbelt)
 
-# 10. Save to file
+## Possible edits
+
+Stretch goal: change portfolio_calc.py and script.json (period tags) to produce montly, not quarterly returns for each account.
+
+## How accurate are these numbers?
+
+Not very. The data was borrowed from free projects that scrape ARK websites, there are a few problems with it:
+- we do not have exact trade prices, we use EOD prices instead
+- holding information for some funds and stocks is missing, so we have to fill the gaps by creating non-existing trades
+- exact price information would take too much space in our test price provider, so we store only some key points and interpolate price for specific stock and specific date
+- we do not know how close our TWR/CAGR calculation formula is to the method used in the official calculation of ARK funds performance
+
+Given all that, the numbers this test gets are relatively close to the official returns published by ARK, compare these two files in /mnt/capi_out/portfolio_quicktest: account_year_perf_official.csv,
+account_year_perf_baseline.csv.
