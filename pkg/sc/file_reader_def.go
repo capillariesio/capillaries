@@ -251,14 +251,14 @@ func (frDef *FileReaderDef) ReadLineToValuesMap(line *[]string, colVars eval.Var
 			}
 
 		case FieldTypeDecimal2:
+			// Round to 2 digits after decimal point right away
 			if len(strings.TrimSpace(colData)) == 0 {
 				if len(strings.TrimSpace(colDef.DefaultValue)) > 0 {
 					valDec, err := decimal.NewFromString(colDef.DefaultValue)
 					if err != nil {
 						return fmt.Errorf("cannot read decimal2 column %s from default value string '%s': %s", colName, colDef.DefaultValue, err.Error())
 					}
-					// TODO: round to 2 digits after decimal point
-					colVars[ReaderAlias][colName] = valDec
+					colVars[ReaderAlias][colName] = valDec.Round(2)
 				} else {
 					colVars[ReaderAlias][colName] = GetDefaultFieldTypeValue(FieldTypeDecimal2)
 				}
@@ -270,13 +270,13 @@ func (frDef *FileReaderDef) ReadLineToValuesMap(line *[]string, colVars eval.Var
 					if err != nil {
 						return fmt.Errorf("cannot read decimal2 column %s, data '%s', format '%s': %s", colName, colData, colDef.SrcColFormat, err.Error())
 					}
-					colVars[ReaderAlias][colName] = decimal.NewFromFloat(valFloat)
+					colVars[ReaderAlias][colName] = decimal.NewFromFloat(valFloat).Round(2)
 				} else {
-					var err error
-					colVars[ReaderAlias][colName], err = decimal.NewFromString(colData)
+					valDec, err := decimal.NewFromString(colData)
 					if err != nil {
 						return fmt.Errorf("cannot read decimal2 column %s, cannot parse data '%s': %s", colName, colData, err.Error())
 					}
+					colVars[ReaderAlias][colName] = valDec.Round(2)
 				}
 			}
 

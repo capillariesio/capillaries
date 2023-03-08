@@ -24,8 +24,7 @@ In other words, we have to collect all holdings/txn data for an account in a sin
 
 ### Calculation
 
-For each account_id, [py_calc](../../../doc/glossary.md#py_calc-processor) node calc_account_period_perf takes both JSON fields and calculates annualized returns for the range specified by `period_start_eod` and `period_end_eod` script [parameters](../../../doc/scriptconfig.
-md#template-parameters).
+For each account_id, [py_calc](../../../doc/glossary.md#py_calc-processor) node calc_account_period_perf takes both JSON fields and calculates annualized returns for the range specified by `period_start_eod` and `period_end_eod` script [parameters](../../../doc/scriptconfig.md#template-parameters).
 
 After calculating portfolio returns, we end up with data looking as follows:
 
@@ -58,29 +57,11 @@ See results in /tmp/capi_out/portfolio_quicktest.
 
 ## How to test
 
-### Direct node execution
+See [integration tests](../../../doc/testing.md#integration-tests) section for generic instructions on how to run integration tests.
 
-Run [test_exec_nodes.sh](test_exec_nodes.sh)  - the [Toolbelt](../../../doc/glossary.md#toolbelt) executes [script](../../data/cfg/portfolio_quicktest/script.json) [nodes](../../../doc/glossary.md#script-node) one by one, without invoking RabbitMQ workflow.
+## User-supplied formulas
 
-### Using RabbitMQ workflow (single run)
-
-Make sure the [Daemon](../../../doc/glossary.md#daemon) is running:
-- either run `go run capidaemon.go` to start it in pkg/exe/daemon
-- or start the Daemon container (`docker compose -p "test_capillaries_containers" start daemon`)
-
-Run [test_one_run.sh](test_one_run.sh) - the [Toolbelt](../../../doc/glossary.md#toolbelt) publishes [batch messages](../../../doc/glossary.md#data-batch) to RabbitMQ and the [Daemon](../../../doc/glossary.md#daemon) consumes them and executes all [script](../../data/cfg/portfolio_quicktest/script.json) [nodes](../../../doc/glossary.md#script-node) in parallel as part of a single [run](../../../doc/glossary.md#run).
-
-## Webapi
-
-Make sure the [Daemon](../../../doc/glossary.md#daemon) is running:
-- either run `go run capidaemon.go` to start it in pkg/exe/daemon
-- or start the Daemon container (`docker compose -p "test_capillaries_containers" start daemon`)
-
-Make sure the [Webapi](../../../doc/glossary.md#webapi) is running:
-- either run `go run capiwebapi.go` to start it in pkg/exe/webapi
-- or start the Webapi container (`docker compose -p "test_capillaries_containers" start webapi`)
-
-The test runs the same scenario as the previous [two runs test](#using-rabbitmq-workflow-two-runs) above, but uses [Webapi](../../../doc/glossary.md#webapi) instead of the [Toolbelt](../../../doc/glossary.md#toolbelt)
+There are files in `test/data/cfg/portfolio_quicktest/py` directory: some contains Python functions called by Capillaries [py_calc processor](../../../doc/glossary.md#py_calc-processor), other (with `_test` suffix) files are user-provided set of tests for those functions (yes, user-provided code can/should be tested too). 
 
 ## Possible edits
 
@@ -90,9 +71,12 @@ Stretch goal: change portfolio_calc.py and script.json (period tags) to produce 
 
 Not very. The data was borrowed from free projects that scrape ARK websites, there are a few problems with it:
 - we do not have exact trade prices, we use EOD prices instead
-- holding information for some funds and stocks is missing, so we have to fill the gaps by creating non-existing trades
-- exact price information would take too much space in our test price provider, so we store only some key points and interpolate price for specific stock and specific date
+- holding information for some funds and stocks has gaps, so we have to fill them by creating non-existing trades
+- exact price information would take too much space in our test price provider, so we store only some key points and interpolate price for specific stock and date
 - we do not know how close our TWR/CAGR calculation formula is to the method used in the official calculation of ARK funds performance
 
-Given all that, the numbers this test gets are relatively close to the official returns published by ARK, compare these two files in /mnt/capi_out/portfolio_quicktest: account_year_perf_official.csv,
-account_year_perf_baseline.csv.
+Given all that, the numbers returned by this test are relatively close to the official returns published by ARK, compare these two files to see the difference:
+```
+cd /mnt/capi_out/portfolio_quicktest
+diff account_year_perf_official.csv account_year_perf_baseline.csv
+```

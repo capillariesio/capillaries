@@ -437,18 +437,10 @@ print("\n%s") # Provide function defs
 			return fmt.Errorf("Unexpected calculation errors, see logs for details: %s", rawErrors)
 		}
 	} else {
-		var errors strings.Builder
-		//var logText strings.Builder
+		// No Python interpreter errors, but there may be runtime errors and good results.
+		// Timeout error may be there too.
 
-		// No Python interpreter errors, there may be runtime errors and good results.
-		// rawErrors is empty. Timeout error may be there too.
-		// There may be something in err. Log it, it may be helpful
-		// TODO: make sure this is never hit and remove
-		if err != nil {
-			errorText := fmt.Sprintf("err.Error():'%s';", err.Error())
-			errors.WriteString(errorText)
-			//logText.WriteString(errorText)
-		}
+		var errors strings.Builder
 
 		if cmdCtx.Err() == context.DeadlineExceeded {
 			// Timeout occurred, err.Error() is probably: 'signal: killed'
