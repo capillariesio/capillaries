@@ -557,9 +557,13 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 			for rowIdx := 0; rowIdx < rsLeft.RowCount; rowIdx++ {
 				rowid := *((*rsLeft.Rows[rowIdx])[rsLeft.FieldsByFieldName["rowid"]].(*int64))
 				eCtxMap[rowid] = map[string]*eval.EvalCtx{}
-				for fieldName, _ := range node.TableCreator.Fields {
-					newCtx := eval.NewPlainEvalCtx(eval.AggFuncEnabled)
-					eCtxMap[rowid][fieldName] = &newCtx
+				for fieldName, fieldDef := range node.TableCreator.Fields {
+					aggFuncEnabled, aggFuncType, aggFuncArgs := eval.DetectRootAggFunc(fieldDef.ParsedExpression)
+					newCtx, newCtxErr := eval.NewPlainEvalCtxAndInitializedAgg(aggFuncEnabled, aggFuncType, aggFuncArgs)
+					if newCtxErr != nil {
+						return bs, newCtxErr
+					}
+					eCtxMap[rowid][fieldName] = newCtx
 				}
 			}
 		}
@@ -776,7 +780,8 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 						}
 
 						for fieldName, fieldDef := range node.TableCreator.Fields {
-							if eval.IsRootAggFunc(fieldDef.ParsedExpression) == eval.AggFuncEnabled {
+							isAggEnabled, _, _ := eval.DetectRootAggFunc(fieldDef.ParsedExpression)
+							if isAggEnabled == eval.AggFuncEnabled {
 								// Aggregate func is used in field expression - ignore the expression and produce default
 								tableRecord[fieldName], err = node.TableCreator.GetFieldDefaultReadyForDb(fieldName)
 								if err != nil {

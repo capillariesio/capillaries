@@ -3,6 +3,7 @@ package eval
 import (
 	"fmt"
 	"go/ast"
+	"strings"
 
 	"github.com/shopspring/decimal"
 )
@@ -10,16 +11,19 @@ import (
 type AggFuncType string
 
 const (
-	AggSum     AggFuncType = "sum"
-	AggCount   AggFuncType = "count"
-	AggAvg     AggFuncType = "avg"
-	AggMin     AggFuncType = "min"
-	AggMax     AggFuncType = "max"
-	AggUnknown AggFuncType = "unknown"
+	AggStringAgg AggFuncType = "string_agg"
+	AggSum       AggFuncType = "sum"
+	AggCount     AggFuncType = "count"
+	AggAvg       AggFuncType = "avg"
+	AggMin       AggFuncType = "min"
+	AggMax       AggFuncType = "max"
+	AggUnknown   AggFuncType = "unknown"
 )
 
 func StringToAggFunc(testString string) AggFuncType {
 	switch testString {
+	case string(AggStringAgg):
+		return AggStringAgg
 	case string(AggSum):
 		return AggSum
 	case string(AggCount):
@@ -63,6 +67,11 @@ type MaxCollector struct {
 	Count int64
 }
 
+type StringAggCollector struct {
+	Sb        strings.Builder
+	Separator string
+}
+
 type AggDataType string
 
 const (
@@ -83,6 +92,30 @@ func (eCtx *EvalCtx) checkAgg(funcName string, callExp *ast.CallExpr, aggFunc Ag
 		eCtx.AggFunc = aggFunc
 	}
 	return nil
+}
+
+func (eCtx *EvalCtx) CallAggStringAgg(callExp *ast.CallExpr, args []interface{}) (interface{}, error) {
+	if err := eCtx.checkAgg("string_agg", callExp, AggSum); err != nil {
+		return nil, err
+	}
+	if err := checkArgs("string_agg", 2, len(args)); err != nil {
+		return nil, err
+	}
+
+	switch typedArg0 := args[0].(type) {
+	case string:
+		if eCtx.AggEnabled != AggFuncEnabled {
+			return nil, fmt.Errorf("cannot evaluate string_agg(string,separator), context aggregate not enabled")
+		}
+		if eCtx.StringAgg.Sb.Len() > 0 {
+			eCtx.StringAgg.Sb.WriteString(eCtx.StringAgg.Separator)
+		}
+		eCtx.StringAgg.Sb.WriteString(typedArg0)
+		return eCtx.StringAgg.Sb.String(), nil
+
+	default:
+		return nil, fmt.Errorf("cannot evaluate string_agg(), argument %v of unsupported type %T", args[0], args[0])
+	}
 }
 
 func (eCtx *EvalCtx) CallAggSum(callExp *ast.CallExpr, args []interface{}) (interface{}, error) {

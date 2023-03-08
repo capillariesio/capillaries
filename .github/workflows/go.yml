@@ -60,7 +60,7 @@ jobs:
 
     - name: pkg/eval test coverage threshold
       env:
-          TESTCOVERAGE_THRESHOLD: 80.1
+          TESTCOVERAGE_THRESHOLD: 80.89
       run: |
             echo "Quality Gate: checking test coverage is above threshold $TESTCOVERAGE_THRESHOLD %..."
             go test -v ./pkg/eval/... -coverprofile coverage.out -covermode count

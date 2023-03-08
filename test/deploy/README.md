@@ -1,8 +1,8 @@
 # Working with Capillaries deploy tool
 
-Capillaries [Deploy tool](../../doc/glossary.md#deploy-tool) can provision complete Capillaries cloud environment in public/private clouds that support Openstack API.
+Capillaries [Deploy tool](../../doc/glossary.md#deploy-tool) can provision complete Capillaries cloud environment in public/private clouds that support [Openstack API](https://www.openstack.org).
 
-`test/deploy` directory contains two sample projects (capideploy_project_dreamhost.json and capideploy_project_genesis.json) used by [Deploy tool](../../doc/glossary.md#deploy-tool). Sensitive and repetitive configuration can be stored in project parameter files (capideploy_project_params_dreamhost.json and capideploy_project_params_genesis.json), andit's a good idea to store parameter files at somewhat secure location (like user home dir).
+`test/deploy` directory contains two sample projects (capideploy_project_dreamhost.json and capideploy_project_genesis.json) used by [Deploy tool](../../doc/glossary.md#deploy-tool). Sensitive and repetitive configuration can be stored in project parameter files (capideploy_project_params_dreamhost.json and capideploy_project_params_genesis.json), and it's a good idea to store parameter files at somewhat secure location (like user home dir).
 
 For troubleshooting, add `-verbose` argument to your deploy tool command line.
 
@@ -15,7 +15,7 @@ On the diagram below, each rectangle represents a VPS instance that performs som
 - works as a jump host so users have SSH access to other instances in the private network
 - accumulates Capillaries Daemon logs in /var/log/capillaries using rsyslog
 
-Capillaries configuration scripts and in/out data are stored on separate volumes. In current test implementation, Bastion instances mounts them as /mnt/capi_cfg,/mnt/capi_in, /mnt/capi_out and gives Capillaries Daemons SFTP access to them. Alternatively, if cloud provider supports multi-attach volumes, Daemon instances can mount all three volumes directly. 
+Capillaries configuration scripts and in/out data are stored on separate volumes. In current test implementation, Bastion instances mounts them as /mnt/capi_cfg,/mnt/capi_in, /mnt/capi_out and gives Capillaries Daemons SFTP access to them. Alternatively, if cloud provider supports multi-attach volumes, Daemon instances can mount all three volumes directly, so there will be no need for SFTP file access. 
 
 ![Public cloud deployment](./doc/cloud-deployment.svg)
 
@@ -135,9 +135,7 @@ $capideploy config_services bastion,rabbitmq,prometheus,daemon01,daemon02 $DEPLO
 
 ## Starting cassandra cluster
 
-This is probably the most fragile part of the provisioning process, as Cassandra nodes, if started simultaneously, may get into token collision situation. To avoid it, consider two approaches.
-
-### Add nodes to Cassandra cluster one by one
+This is probably the most fragile part of the provisioning process, as Cassandra nodes, if started simultaneously, may get into token collision situation. To avoid it, you can either pre-configure nodes to avoid/reduce bootstrapping (this is beyond the scope of this README), or add nodes to Cassandra cluster one by one as described below.
 
 The script below calls `config_service` deploy command for each Cassandra node and waits until `nodetool status` confirms that the node joined the cluster. It's worth running this script in a separate shell session right after `install_services` command is complete.
 
@@ -185,37 +183,6 @@ do
 done
 ssh -o StrictHostKeyChecking=no -i $DEPLOY_ROOT_KEY -J $BASTION_IP ubuntu@10.5.0.11 'nodetool status'
 ```
-
-### Speed up bootstrapping
-
-Alternatively, you may decide not to wait for each node to join the cluster, and provide INITIAL_TOKEN setting for each Cassandra node to speed up the bootstrapping pocess. For example, for a 5-node cluster:
-
-| Node | Project setting |
-|- | - |
-| cass01 | "INITIAL_TOKEN": "-8986562708977859996,-8008417256461745920,-686298450977230434,-6229782955638158791,-5133741055403220502,-4042443944711008242,-3198067297219846486,-1757799067317263246,1149224886377547375,2224980767603126914,2960896460314020555,331552953765196581,4040269267761622213,5283789273442214185,6251153516520749684,7841158069034648322" |
-| cass02 | "INITIAL_TOKEN": "-8388099018021121169,-75477045641999772,-7353798371345716802,-6927511870064587412,-5577310043489909528,-4519933526560951311,-2398238626558716202,-1139818035415063168,1744527255337946625,3621591584850932654,4790546508029947033,5839670308359138121,6775583481150653541,7191221140722293421,8402901487394274566,8800224339742987357" |
-| cass03 | "INITIAL_TOKEN": "-8621714953883084700,-7643824097489596036,-6496500389133919328,-5829569640212978492,-4772012955522929933,-3529574640842797781,-313735575954833661,-2702728184104684511,-2038219481927426436,-1376087975625185200,2656306692390144012,3370602156787805005,4487840607659502599,7559564332349068739,824390963435061329,9192045296353332790", |
-| cass04 | "INITIAL_TOKEN": "-913058243196146801,-7826120676975670978,-7140655120705152107,-6363141672386039060,-3786009292776903012,-2550483405331700357,1446876070857747000,2440643729996635463,3830930426306277433,5037167890736080609,577971958600128955,6045411912439943902,6513368498835701612,7375392736535681080,8122029778214461444,8601562913568630961" |
-| cass05 | "INITIAL_TOKEN": "-7034083495384869760,-5355525549446565015,-4645973241041940622,-4281188735635979777,-3363820969031322134,-1898009274622344841,-1257953005520124184,1984754011470536769,2808601576352082283,4264054937710562406,5561729790900676153,6644475989993177576,7467478534442374909,8262465632804368005,8996134818048160073,986807924906304352" |
-
-Initial token values can be borrowed from a running cluster using `nodetool ring` command, or pre-calculated using some custom tool. 
-
-While you may be tempted to configure all nodes at once with `$capideploy config_services cass01,cass02,cass03,cass04,cass05 $DEPLOY_ARGS` command, this approach does not guarantee that Cassandra nodes do not throw errors like this:
-`Other bootstrapping/leaving/moving nodes detected, cannot bootstrap while cassandra.consistent.rangemovement is true`. To mitigate this issue, try starting nodes one by one with some interval:
-
-```
-$capideploy config_services cass01 $DEPLOY_ARGS
-sleep 30
-$capideploy config_services cass02 $DEPLOY_ARGS
-sleep 30
-$capideploy config_services cass03 $DEPLOY_ARGS
-sleep 30
-$capideploy config_services cass04 $DEPLOY_ARGS
-sleep 30
-$capideploy config_services cass05 $DEPLOY_ARGS
-```
-
-After that, if `nodetool status` shows than some nodes did not join the cluster, try `stop_services` and `start_services` commands for each node in question, one by one. Or, start troubleshooting nodes by examining their `/var/log/cassandra/debug.log` files.
 
 ## Monitoring test environment
 
@@ -363,6 +330,6 @@ A. At the moment, no.
 
 ### Why should I use another custom deploy tool?
 
-Q. I am familiar with widely used infrastructure provisioning tools (Ansible, Saltstack etc). Can I use them instead of Capillaries Deploy tool?
+Q. I am familiar with widely used infrastructure provisioning tools (Ansible, Saltstack etc). Can I use them to deploy Capillaries components instead of using Capillaries Deploy tool?
 
 A. Absolutely. Capillaries Deploy tool was created to serve only one goal: to demonstrate that production-scale Capillaries deployment can be provisioned very quickly (within a few minutes) without using complex third-party software.

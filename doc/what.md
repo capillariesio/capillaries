@@ -73,7 +73,7 @@ This is how deployed Capillaries components interact. For component definitions,
 
 1. This is not a generic job scheduler or workflow engine. Capillaries can only execute [nodes](glossary.md#script-node) in a [script](glossary.md#script), reading/writing data from/to [tables](glossary.md#table) or files.
 
-2. This is not a generic data storage/management solution. Capillaries uses Cassandra as temporary storage for potentially very large amounts of data required for processing.
+2. This is not a generic data storage/management solution. Capillaries uses Cassandra as a temporary storage for potentially very large amounts of processed data.
 
 3. Implementing complete relational algebra is not the goal. Do not expect complex joins support.
    
@@ -83,7 +83,9 @@ This is how deployed Capillaries components interact. For component definitions,
    
 2. Capillaries follows Cassandra-style mindset: everything that prevents scalability should be prohibited or limited. For example, Capillaries has limited [data sorting](scriptconfig.md#w_top) capabilities.
    
-3. Eventual data consistency is guaranteed by message queue (RabbitMQ): every message triggering [data batch](glossary.md#data-batch) processing will be delivered to the [processor](glossary.md#processor) as many times as needed. If message queue connectivity is unreliable, script execution consistency is not guaranteed. 
+3. Eventual data consistency is guaranteed by message queue (RabbitMQ): every message triggering [data batch](glossary.md#data-batch) processing will be delivered to the [processor](glossary.md#processor) as many times as needed. If message queue connectivity is unreliable, script execution consistency is not guaranteed.
+
+4. Capillaries [processors](glossary.md#processor) work with only one data row at a time. Exception: processors explicitly designed to either merge rows ([lookups](glossary.md#lookup)), or split one row into multiple ([tag_and_denormaize](glossary.md#tag_and_denormalize-processor)). 
 
 The following sequence diagram shows Cassandra components interaction in more detail:
 

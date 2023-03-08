@@ -195,6 +195,32 @@ func RunNode(envConfig *env.EnvConfig, logger *l.Logger, nodeName string, runId 
 		return 0, err
 	}
 
+	logger.Info("creating data and idx tables for run %d...", runId)
+
+	// Create all run-specific tables, do not create them in daemon on the fly to avoid INCOMPATIBLE_SCHEMA error
+	// (apparently, thrown if we try to insert immediately after creating a table)
+	tablesCreated := 0
+	for _, nodeName := range affectedNodes {
+		node, ok := script.ScriptNodes[nodeName]
+		if !ok || !node.HasTableCreator() {
+			continue
+		}
+		q := proc.CreateDataTableCql(keyspace, runId, &node.TableCreator)
+		if err := cqlSession.Query(q).Exec(); err != nil {
+			return 0, cql.WrapDbErrorWithQuery("cannot create data table", q, err)
+		}
+		tablesCreated++
+		for idxName, idxDef := range node.TableCreator.Indexes {
+			q = proc.CreateIdxTableCql(keyspace, runId, idxName, idxDef)
+			if err := cqlSession.Query(q).Exec(); err != nil {
+				return 0, cql.WrapDbErrorWithQuery("cannot create idx table", q, err)
+			}
+			tablesCreated++
+		}
+	}
+
+	logger.Info("created %d tables, creating messages to send for run %d...", tablesCreated, runId)
+
 	for i := 0; i < len(intervals); i++ {
 		batchStartTs := time.Now()
 		logger.Info("BatchStarted: [%d,%d]...", intervals[i][0], intervals[i][1])

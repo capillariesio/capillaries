@@ -1,0 +1,12 @@
+digraph G {
+  accounts[shape=record label="{account_id|ARKK|ARKW}|{...|...|...}"]
+  holdings[shape=record label="{account_id|ARKK|ARKK|ARKW|ARKW}|{d|2022-01-31|2022-08-31|2021-08-31|2021-10-31}|{ticker|BEAM|PD|ETSY|ADBE}|{qty|6060272|7664041|446069|32735}"]
+  txns[shape=record label="{account_id|ARKK|ARKK|ARKW|ARKW}|{ts|2022-12-21|2022-06-06|2022-01-05|2021-02-02}|{ticker|BEAM|PD|ETSY|ADBE}|{qty|11046|-26143|-1520|3515}|{price|43.23|26.68|188.35|484.93}"]
+
+  account_activity[shape=record label="{account_id|ARKK|ARKW}|{holdings_json|[\{\"d\": \"2022-01-31\",\"t\": \"BEAM\",\"q\": 6060272\},\{\"d\":\"2022-08-31\",\"t\":\"PD\",\"q\": 7664041\}, ... ]|[\{\"d\":\"2021-08-31\",\"t\":\"ETSY\",\"q\":446069\},\{\"d\":\"2021-10-31\",\"t\":\"ADBE\",\"q\":32735\}, ...]}|{txns_json|[\{\"ts\":\"2022-12-21\",\"t\":\"BEAM\",\"q\":11046,\"p\":43.23\},\{\"ts\":\"2022-06-06\",\"t\":\"PD\",\"q\":-26143,\"p\":26.68\}, ...]|[\{\"ts\": \"2022-01-05\",    \"t\": \"ETSY\",\"q\": -1512,\"p\": 188.35\},\{\"ts\": \"2021-02-02\",\"t\": \"ADBE\",\"q\": 3515,\"p\": 484.93\},...]}"]
+  
+  accounts->account_activity [label="accounts.csv"]
+  holdings->account_activity [label=" holdings.csv"]
+  txns->account_activity [label="txns.csv"]
+}
+  

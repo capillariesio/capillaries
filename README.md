@@ -8,7 +8,7 @@ Capillaries is a supervised data processing framework. It fills the gap between 
 
 [What Capillaries is and what it is not, with a use case discussion and diagrams](doc/what.md)
 
-[Getting started guide with instructions on how to run a quick Docker-based demo without building any code](doc/started.md)
+[Getting started guide on how to run a quick Docker-based demo without compiling code](doc/started.md)
 
 ## Why Capillaries?
 ![Capillaries: before and after](doc/beforeafter.png)
@@ -21,7 +21,7 @@ Capillaries is a supervised data processing framework. It fills the gap between 
 | Data transform | SQL expressions, custom code | [Go expressions](doc/glossary.md#go-expressions), Python [formulas](doc/glossary.md#py_calc-processor) (parallel execution, maintainability) |
 | Intermediate data storage | Files, relational databases | on-the-fly-created Cassandra [keyspaces](doc/glossary.md#keyspace) and [tables](doc/glossary.md#table) (scalability, maintainability) |
 | Workflow execution | Shell scripts, custom code, workflow frameworks | RabbitMQ as the Single Point of Failure + workflow status stored in Cassandra (parallel execution, fault tolerance, incremental computing) |
-| Workflow monitoring and interaction | Custom solutions | Capillaries [UI](ui/README.md) and [Toolbelt](doc/glossary.md#toolbelt) utility (transparency, operator validation support) |
+| Workflow monitoring and interaction | Custom solutions | Capillaries [UI](ui/README.md), [Toolbelt](doc/glossary.md#toolbelt) utility, [API](doc/api.md), [Web API](doc/glossary.md#webapi) (transparency, operator validation support) |
 | Workflow management | Shell scripts, custom code | Capillaries [script file](doc/glossary.md#script) with [DAG](doc/glossary.md#dag) |
 
 ## Highlights
