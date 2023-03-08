@@ -17,6 +17,18 @@ func callTimeParse(args []interface{}) (interface{}, error) {
 	return time.Parse(arg0, arg1)
 }
 
+func callTimeFormat(args []interface{}) (interface{}, error) {
+	if err := checkArgs("time.Format", 2, len(args)); err != nil {
+		return nil, err
+	}
+	arg0, ok0 := args[0].(time.Time)
+	arg1, ok1 := args[1].(string)
+	if !ok0 || !ok1 {
+		return nil, fmt.Errorf("cannot evaluate time.Format(), invalid args %v", args)
+	}
+	return arg0.Format(arg1), nil
+}
+
 func callTimeFixedZone(args []interface{}) (interface{}, error) {
 	if err := checkArgs("time.FixedZone", 2, len(args)); err != nil {
 		return nil, err

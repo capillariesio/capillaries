@@ -25,6 +25,7 @@ type EvalCtx struct {
 	AggType    AggDataType
 	AggCallExp *ast.CallExpr
 	Count      int64
+	StringAgg  StringAggCollector
 	Sum        SumCollector
 	Avg        AvgCollector
 	Min        MinCollector
@@ -54,15 +55,33 @@ func defaultDecimal() decimal.Decimal {
 	return decimal.NewFromInt(0)
 }
 
+// TODO: refactor to avoid duplicated ctx creationcode
+
 func NewPlainEvalCtx(aggEnabled AggEnabledType) EvalCtx {
 	return EvalCtx{
 		AggFunc:    AggUnknown,
 		AggType:    AggTypeUnknown,
 		AggEnabled: aggEnabled,
+		StringAgg:  StringAggCollector{Separator: "", Sb: strings.Builder{}},
 		Sum:        SumCollector{Dec: defaultDecimal()},
 		Avg:        AvgCollector{Dec: defaultDecimal()},
 		Min:        MinCollector{Int: maxSupportedInt, Float: maxSupportedFloat, Dec: maxSupportedDecimal(), Str: ""},
 		Max:        MaxCollector{Int: minSupportedInt, Float: minSupportedFloat, Dec: minSupportedDecimal(), Str: ""}}
+}
+
+func NewPlainEvalCtxAndInitializedAgg(aggEnabled AggEnabledType, aggFuncType AggFuncType, aggFuncArgs []ast.Expr) (*EvalCtx, error) {
+	eCtx := NewPlainEvalCtx(aggEnabled)
+	// Special case: we need to provide eCtx.StringAgg with a separator and
+	// explicitly set its type to AggTypeString from the very beginning (instead of detecting it later, as we do for other agg functions)
+	if aggEnabled == AggFuncEnabled && aggFuncType == AggStringAgg {
+		var aggStringErr error
+		eCtx.StringAgg.Separator, aggStringErr = GetAggStringSeparator(aggFuncArgs)
+		if aggStringErr != nil {
+			return nil, aggStringErr
+		}
+		eCtx.AggType = AggTypeString
+	}
+	return &eCtx, nil
 }
 
 func NewPlainEvalCtxWithVars(aggEnabled AggEnabledType, vars *VarValuesMap) EvalCtx {
@@ -71,10 +90,26 @@ func NewPlainEvalCtxWithVars(aggEnabled AggEnabledType, vars *VarValuesMap) Eval
 		Vars:       vars,
 		AggType:    AggTypeUnknown,
 		AggEnabled: aggEnabled,
+		StringAgg:  StringAggCollector{Separator: "", Sb: strings.Builder{}},
 		Sum:        SumCollector{Dec: defaultDecimal()},
 		Avg:        AvgCollector{Dec: defaultDecimal()},
 		Min:        MinCollector{Int: maxSupportedInt, Float: maxSupportedFloat, Dec: maxSupportedDecimal(), Str: ""},
 		Max:        MaxCollector{Int: minSupportedInt, Float: minSupportedFloat, Dec: minSupportedDecimal(), Str: ""}}
+}
+
+func NewPlainEvalCtxWithVarsAndInitializedAgg(aggEnabled AggEnabledType, vars *VarValuesMap, aggFuncType AggFuncType, aggFuncArgs []ast.Expr) (*EvalCtx, error) {
+	eCtx := NewPlainEvalCtxWithVars(aggEnabled, vars)
+	// Special case: we need to provide eCtx.StringAgg with a separator and
+	// explicitly set its type to AggTypeString from the very beginning (instead of detecting it later, as we do for other agg functions)
+	if aggEnabled == AggFuncEnabled && aggFuncType == AggStringAgg {
+		var aggStringErr error
+		eCtx.StringAgg.Separator, aggStringErr = GetAggStringSeparator(aggFuncArgs)
+		if aggStringErr != nil {
+			return nil, aggStringErr
+		}
+		eCtx.AggType = AggTypeString
+	}
+	return &eCtx, nil
 }
 
 func checkArgs(funcName string, requiredArgCount int, actualArgCount int) error {
@@ -425,6 +460,8 @@ func (eCtx *EvalCtx) EvalFunc(callExp *ast.CallExpr, funcName string, args []int
 		eCtx.Value, err = callDecimal2(args)
 	case "time.Parse":
 		eCtx.Value, err = callTimeParse(args)
+	case "time.Format":
+		eCtx.Value, err = callTimeFormat(args)
 	case "time.Date":
 		eCtx.Value, err = callTimeDate(args)
 	case "time.Now":
@@ -441,9 +478,13 @@ func (eCtx *EvalCtx) EvalFunc(callExp *ast.CallExpr, funcName string, args []int
 		eCtx.Value, err = callReMatchString(args)
 	case "strings.ReplaceAll":
 		eCtx.Value, err = callStringsReplaceAll(args)
+	case "fmt.Sprintf":
+		eCtx.Value, err = callFmtSprintf(args)
 
 	// Aggregate functions, to be used only in grouped lookups
 
+	case "string_agg":
+		eCtx.Value, err = eCtx.CallAggStringAgg(callExp, args)
 	case "sum":
 		eCtx.Value, err = eCtx.CallAggSum(callExp, args)
 	case "count":

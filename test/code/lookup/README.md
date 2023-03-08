@@ -23,41 +23,7 @@ Multi-run test simulates the scenario when an operator validates loaded order an
 
 ## How to test
 
-### Direct node execution
-
-Run [test_exec_nodes.sh](test_exec_nodes.sh)  - the [Toolbelt](../../../doc/glossary.md#toolbelt) executes [script](../../data/cfg/lookup_quicktest/script.json) [nodes](../../../doc/glossary.md#script-node) one by one, without invoking RabbitMQ workflow.
-
-### Using RabbitMQ workflow (single run)
-
-Make sure the [Daemon](../../../doc/glossary.md#daemon) is running:
-- either run `go run capidaemon.go` to start it in pkg/exe/daemon
-- or start the Daemon container (`docker compose -p "test_capillaries_containers" start daemon`)
-
-Run [test_one_run.sh](test_one_run.sh) - the [Toolbelt](../../../doc/glossary.md#toolbelt) publishes [batch messages](../../../doc/glossary.md#data-batch) to RabbitMQ and the [Daemon](../../../doc/glossary.md#daemon) consumes them and executes all [script](../../data/cfg/lookup_quicktest/script.json) [nodes](../../../doc/glossary.md#script-node) in parallel as part of a single [run](../../../doc/glossary.md#run).
-
-### Using RabbitMQ workflow (two runs)
-
-Make sure the [Daemon](../../../doc/glossary.md#daemon) is running:
-- either run `go run capidaemon.go` to start it in pkg/exe/daemon
-- or start the Daemon container (`docker compose -p "test_capillaries_containers" start daemon`)
-
-Run [test_two_runs.sh](test_two_runs.sh) - the [Toolbelt](../../../doc/glossary.md#toolbelt) publishes [batch messages](../../../doc/glossary.md#data-batch) to RabbitMQ and the [Daemon](../../../doc/glossary.md#daemon) consumes them and executes [script](../../data/cfg/lookup_quicktest/script.json) [nodes](../../../doc/glossary.md#script-node) that load data from files as part of the first [run](../../../doc/glossary.md#run).
-
-After the first [run](../../../doc/glossary.md#run) is complete, the [Toolbelt](../../../doc/glossary.md#toolbelt) publishes [batch messages](../../../doc/glossary.md#data-batch) to RabbitMQ and the [Daemon](../../../doc/glossary.md#daemon) consumes them and executes [script](../../data/cfg/lookup_quicktest/script.json) [nodes](../../../doc/glossary.md#script-node) that process the data as part of the second [run](../../../doc/glossary.md#run).
-
-This test mimics the "operator validation" scenario.
-
-## Webapi
-
-Make sure the [Daemon](../../../doc/glossary.md#daemon) is running:
-- either run `go run capidaemon.go` to start it in pkg/exe/daemon
-- or start the Daemon container (`docker compose -p "test_capillaries_containers" start daemon`)
-
-Make sure the [Webapi](../../../doc/glossary.md#webapi) is running:
-- either run `go run capiwebapi.go` to start it in pkg/exe/webapi
-- or start the Webapi container (`docker compose -p "test_capillaries_containers" start webapi`)
-
-The test runs the same scenario as the previous [two runs test](#using-rabbitmq-workflow-two-runs) above, but uses [Webapi](../../../doc/glossary.md#webapi) instead of the [Toolbelt](../../../doc/glossary.md#toolbelt)
+See [integration tests](../../../doc/testing.md#integration-tests) section for generic instructions on how to run integration tests.
 
 ## Possible edits
 

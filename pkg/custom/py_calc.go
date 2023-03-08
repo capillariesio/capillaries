@@ -94,7 +94,9 @@ func (procDef *PyCalcProcessorDef) Deserialize(raw json.RawMessage, customProcSe
 
 	// Calculated fields
 	for _, fieldDef := range procDef.CalculatedFields {
-		if fieldDef.ParsedExpression, err = sc.ParseRawGolangExpressionStringAndHarvestFieldRefs(fieldDef.RawExpression, &fieldDef.UsedFields); err != nil {
+
+		// Use relaxed Go parser for Python - we are lucky that Go designers liked Python, so we do not have to implement a separate Python partser (for now)
+		if fieldDef.ParsedExpression, err = sc.ParseRawRelaxedGolangExpressionStringAndHarvestFieldRefs(fieldDef.RawExpression, &fieldDef.UsedFields, sc.FieldRefAllowUnknownIdents); err != nil {
 			errors = append(errors, fmt.Sprintf("cannot parse field expression [%s]: [%s]", fieldDef.RawExpression, err.Error()))
 		} else if !sc.IsValidFieldType(fieldDef.Type) {
 			errors = append(errors, fmt.Sprintf("invalid field type [%s]", fieldDef.Type))
@@ -122,7 +124,6 @@ func (procDef *PyCalcProcessorDef) Deserialize(raw json.RawMessage, customProcSe
 	var b strings.Builder
 	procDef.PythonCode = ""
 	for _, url := range procDef.PythonUrls {
-		fmt.Printf("OPening %s...\n", url)
 		bytes, err := xfer.GetFileBytes(url, caPath, privateKeys)
 		if err != nil {
 			errors = append(errors, err.Error())
@@ -184,7 +185,7 @@ func valueToPythonExpr(val interface{}) string {
 	case float64:
 		return fmt.Sprintf("%f", typedVal)
 	case string:
-		return fmt.Sprintf("\"%s\"", typedVal)
+		return fmt.Sprintf("'%s'", strings.ReplaceAll(typedVal, "'", `\'`)) // Use single commas in Python - this may go to logs
 	case bool:
 		if typedVal {
 			return "TRUE"
@@ -407,8 +408,9 @@ print("\n%s") # Provide function defs
 	rawOutput := string(stdout.Bytes())
 	rawErrors := string(stderr.Bytes())
 
-	// Verbose
-	//fmt.Println(codeBase.String(), rawOutput)
+	// Really verbose, use for troubleshooting only
+	// fmt.Println(codeBase.String(), rawOutput)
+
 	//fmt.Println(fmt.Sprintf("err.Error():'%s', cmdCtx.Err():'%v'", err.Error(), cmdCtx.Err()))
 
 	if err != nil {
@@ -435,18 +437,10 @@ print("\n%s") # Provide function defs
 			return fmt.Errorf("Unexpected calculation errors, see logs for details: %s", rawErrors)
 		}
 	} else {
-		var errors strings.Builder
-		//var logText strings.Builder
+		// No Python interpreter errors, but there may be runtime errors and good results.
+		// Timeout error may be there too.
 
-		// No Python interpreter errors, there may be runtime errors and good results.
-		// rawErrors is empty. Timeout error may be there too.
-		// There may be something in err. Log it, it may be helpful
-		// TODO: make sure this is never hit and remove
-		if err != nil {
-			errorText := fmt.Sprintf("err.Error():'%s';", err.Error())
-			errors.WriteString(errorText)
-			//logText.WriteString(errorText)
-		}
+		var errors strings.Builder
 
 		if cmdCtx.Err() == context.DeadlineExceeded {
 			// Timeout occurred, err.Error() is probably: 'signal: killed'
@@ -481,8 +475,8 @@ print("\n%s") # Provide function defs
 					}
 				}
 				errorText = fmt.Sprintf("%d:Cannot calculate data points;%s; ", rowIdx, errorText)
-				errors.WriteString(errorText)
-				//logText.WriteString(fmt.Sprintf("%s\n%s", errorText, getErrorLineNumberInfo(codeBase.String(), rawSectionOutput)))
+				// errors.WriteString(errorText)
+				errors.WriteString(fmt.Sprintf("%s\n%s", errorText, getErrorLineNumberInfo(codeBase.String(), rawSectionOutput)))
 			} else {
 				// SUCESS code snippet is there, try to get the result JSON
 				var itemResults map[string]interface{}
@@ -612,16 +606,17 @@ func (procDef *PyCalcProcessorDef) printItemCalculationCode(rowIdx int, rsIn *pr
 	}
 
 	const codeBaseSkeleton = `
-print("\n%s:%d")
+print('')
+print('%s:%d')
 try:
 %s
-  print("%s:%d")
+  print('%s:%d')
 %s
-  print("%s:%d")
+  print('%s:%d')
   print(json.dumps({%s}))
 except:
   print(traceback.format_exc()) 
-print("%s:%d")
+print('%s:%d')
 `
 	return fmt.Sprintf(codeBaseSkeleton,
 		FORMULA_MARKER_DATA_POINTS_INITIALIZATION, rowIdx,

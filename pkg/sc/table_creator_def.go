@@ -209,11 +209,16 @@ func (creatorDef *TableCreatorDef) GetFieldDefaultReadyForDb(fieldName string) (
 }
 
 func CalculateFieldValue(fieldName string, fieldDef *WriteTableFieldDef, srcVars eval.VarValuesMap, canUseAggFunc bool) (interface{}, error) {
-	calcWithAggFunc := eval.IsRootAggFunc(fieldDef.ParsedExpression)
+	calcWithAggFunc, aggFuncType, aggFuncArgs := eval.DetectRootAggFunc(fieldDef.ParsedExpression)
 	if !canUseAggFunc {
 		calcWithAggFunc = eval.AggFuncDisabled
 	}
-	eCtx := eval.NewPlainEvalCtxWithVars(calcWithAggFunc, &srcVars)
+
+	eCtx, err := eval.NewPlainEvalCtxWithVarsAndInitializedAgg(calcWithAggFunc, &srcVars, aggFuncType, aggFuncArgs)
+	if err != nil {
+		return nil, err
+	}
+
 	valVolatile, err := eCtx.Eval(fieldDef.ParsedExpression)
 	if err != nil {
 		return nil, fmt.Errorf("cannot evaluate expression for field %s: [%s]", fieldName, err.Error())

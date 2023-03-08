@@ -93,9 +93,9 @@ Bottom line: Capillaries' use of cloud-based Cassandra is questionable at the mo
 
 Q. What are the potential directions to improve Capillaries?
 
-A. Here are some:
+A. Here are some, in no particular order:
 
-1. Database connectors, in addition to file read/write capabilities.
+1. Read/write from/to other file formats, maybe databases.
 
 2. Creating node configuration is a tedious job. Consider adding a toolbelt command that takes a CSV file as an input and generates JSON for a corresponding file_table/table_file node.
 
@@ -106,3 +106,5 @@ A. Here are some:
 5. Keep an eye on Azure/AWS/GCP progress with Cassandra-compatible databases (latency!) and RabbitMQ offerings.
 
 6. Select distinct field values from a table: it can be implemented easily using a set, but it will not scale and it will be limited by the size of the map. Alternatively, it can be implemented using Cassandra features, but it will require Capillaries to support tables without [rowid](glossary.md#rowid) (so the unique values are stored in a partitioning key field).
+
+7. Keep adding support for Go library functions

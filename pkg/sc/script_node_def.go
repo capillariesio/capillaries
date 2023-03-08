@@ -247,7 +247,6 @@ func (node *ScriptNodeDef) Deserialize(customProcessorDefFactory CustomProcessor
 			} else {
 				if err := node.CustomProcessor.Deserialize(node.RawProcessorDef, customProcSettings, caPath, privateKeys); err != nil {
 					re := regexp.MustCompile("[ \r\n]+")
-					fmt.Println(re.ReplaceAllString("\r\n  aaa \r\n bbb\r\n", " "))
 					errors = append(errors, fmt.Sprintf("cannot deserialize custom processor [%s]: [%s]", re.ReplaceAllString(string(node.RawProcessorDef), ""), err.Error()))
 				}
 			}
