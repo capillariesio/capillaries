@@ -44,8 +44,8 @@ Host <genesis_bastion_ip>
 Just for convenience, let's store deploy tool arguments and other configuration settings in shell variables, for example:
 ```
 export capideploy=../../build/capideploy.exe
-export DEPLOY_ARGS="-prj capideploy_project_dreamhost.json -prj_params $HOME/capideploy_project_params_dreamhost.json"
-export DEPLOY_ROOT_KEY=$HOME/.ssh/sampledeployment001_rsa
+export DEPLOY_ARGS="-prj capideploy_project_genesis.json -prj_params $HOME/capideploy_project_params_genesis.json"
+export DEPLOY_ROOT_KEY=$HOME/.ssh/sampledeployment002_rsa
 export BASTION_IP=<dreamhost_bastion_ip>
 ```
 
@@ -97,7 +97,9 @@ This command will populate /tmp/capi_in, /tmp/capi_cfg, /tmp/capi_out
 cd ./test/code/lookup
 ./1_create_quicktest_data.sh
 ./create_bigtest_data.sh
-cd test/code/tag_and_denormalize
+cd ../py_calc
+./1_create_quicktest_data.sh
+cd ../tag_and_denormalize
 ./1_create_quicktest_data.sh
 ```
 

@@ -10,7 +10,7 @@ If you are running Windows, you will be using WSL for development, so make sure 
 
 ## Prepare data directories
 
-In production environments, Capillaries server components ([Daemon](glossary.md#daemon), [Toolbelt](glossary.md#toolbelt), [Webapi](glossary.md#webapi)) need access to configuration files, source data files and target directories. In dev environments, we want Capillaries components to access those files and directories in the uniform way: for dockerized component and for the scenarios when [Daemon](glossary.md#daemon), [Toolbelt](glossary.md#toolbelt), and [Webapi](glossary.md#webapi) are run by developers. We use `/tmp/capitest_*` directories that can be accessed using the same path - from the host machine and from containers (see [docker-compose.yml](../docker-compose.yml) for volume definitions). 
+In production environments, Capillaries server components ([Daemon](glossary.md#daemon), [Toolbelt](glossary.md#toolbelt), [Webapi](glossary.md#webapi)) need access to configuration files, source data files and target directories. In dev environments, we want Capillaries components to access those files and directories in the uniform way: for dockerized component and for the scenarios when [Daemon](glossary.md#daemon), [Toolbelt](glossary.md#toolbelt), and [Webapi](glossary.md#webapi) are run by developers. We use `/tmp/capi_*` directories that can be accessed using the same path - from the host machine and from containers (see [docker-compose.yml](../docker-compose.yml) for volume definitions). 
 
 Run these commands from the root project directory, they will create those data directories and populate them with sample configurations and sample source data:
 
@@ -103,7 +103,7 @@ If you are running Windows, you will be using WSL for development, so make sure 
 
 Is there a way to develop and debug Capillaries server components in a dev environment like VSCode without running it from WSL? Yes, but you will have to solve two problems.
 
-1. Data directories `/tmp/capitest_*` will not be available from Windows, so you will have to tweak all configuration files and shell scripts so they reference Windows paths. This is doable, but it's a tedious job.
+1. Data directories `/tmp/capi_*` will not be available from Windows, so you will have to tweak all configuration files and shell scripts so they reference Windows paths. This is doable, but it's a tedious job.
 
 2. When [test_tag_and_denormalize](../test/code/tag_and_denormalize/README.md) integration test runs in WSL and uses Webapi executed from Windows dev environment, `curl` command will not be able to connect to Webapi's `http://localhost:6543` because of the known WSL limitation descussed at https://github.com/microsoft/WSL/issues/5211 and at https://superuser.com/questions/1679757/how-to-access-windows-localhost-from-wsl2 . You will need to use host IP address or use `$(localhost).local` instead of `localhost` in the shell script.
 
