@@ -28,6 +28,9 @@ sed -i -e 's~"hosts":[ ]*\[[0-9a-zA-Z\.\,\-_ "]*\]~"hosts": '$CASSANDRA_HOSTS"~g
 sed -i -e "s~\"sftpuser\":[ ]*\"[^\"]*\"~\"sftpuser\": \"/home/"$SSH_USER"/.ssh/$SFTP_USER\"~g" $ENV_CONFIG_FILE
 sed -i -e 's~"python_interpreter_path":[ ]*"[a-zA-Z0-9]*"~"python_interpreter_path": "python3"~g' $ENV_CONFIG_FILE
 
+# For our perf testing purposes, decrease latency at the expense of the message queue load
+# sed -i -e 's~"dead_letter_ttl":[ ]*[0-9]*~"dead_letter_ttl": 100~g' $ENV_CONFIG_FILE
+
 # If you use your test Cassandra setup up to the limit, try to avoid "Operation timed out - received only 0 responses"
 # Make replication factor at least 2 to make reads more available, 1 for faster writes
 # https://stackoverflow.com/questions/38231621/cassandra-operation-timed-out

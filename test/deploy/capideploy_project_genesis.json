@@ -298,6 +298,14 @@
             "owner": "{sftp_user}",
             "after": {}
         },
+        "up_portfolio_quicktest_in": {
+            "src": "/tmp/capi_in/portfolio_quicktest",
+            "dst": "/mnt/capi_in/portfolio_quicktest",
+            "dir_permissions": 777,
+            "file_permissions": 666,
+            "owner": "{sftp_user}",
+            "after": {}
+        },
         "up_py_calc_quicktest_in": {
             "src": "/tmp/capi_in/py_calc_quicktest",
             "dst": "/mnt/capi_in/py_calc_quicktest",
@@ -479,6 +487,7 @@
                 "up_tag_and_denormalize_quicktest_out",
                 "up_py_calc_quicktest_in",
                 "up_py_calc_quicktest_out",
+                "up_portfolio_quicktest_in",
                 "up_webapi_binary",
                 "up_webapi_env_config",
                 "up_toolbelt_binary",
@@ -653,6 +662,105 @@
                 }
             }
         },
+        "cass06": {
+            "host_name": "{deployment_name}-cassandra06",
+            "security_group": "internal",
+            "ip_address": "10.5.0.16",
+            "flavor": "{instance_flavor_cassandra}",
+            "image": "{instance_image_name}",
+            "id": "",
+            "service": {
+                "env": {
+                    "CASSANDRA_IP": "10.5.0.16",
+                    "CASSANDRA_SEEDS": "{cassandra_seeds}",
+                    "INITIAL_TOKEN": "",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
+                },
+                "cmd": {
+                    "install": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/install_node_exporter.sh",
+                        "sh/cassandra/install.sh"
+                    ],
+                    "config": [
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/cassandra/config.sh"
+                    ],
+                    "start": [
+                        "sh/cassandra/start.sh"
+                    ],
+                    "stop": [
+                        "sh/cassandra/stop.sh"
+                    ]
+                }
+            }
+        },
+        "cass07": {
+            "host_name": "{deployment_name}-cassandra07",
+            "security_group": "internal",
+            "ip_address": "10.5.0.17",
+            "flavor": "{instance_flavor_cassandra}",
+            "image": "{instance_image_name}",
+            "id": "",
+            "service": {
+                "env": {
+                    "CASSANDRA_IP": "10.5.0.17",
+                    "CASSANDRA_SEEDS": "{cassandra_seeds}",
+                    "INITIAL_TOKEN": "",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
+                },
+                "cmd": {
+                    "install": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/install_node_exporter.sh",
+                        "sh/cassandra/install.sh"
+                    ],
+                    "config": [
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/cassandra/config.sh"
+                    ],
+                    "start": [
+                        "sh/cassandra/start.sh"
+                    ],
+                    "stop": [
+                        "sh/cassandra/stop.sh"
+                    ]
+                }
+            }
+        },
+        "cass08": {
+            "host_name": "{deployment_name}-cassandra08",
+            "security_group": "internal",
+            "ip_address": "10.5.0.18",
+            "flavor": "{instance_flavor_cassandra}",
+            "image": "{instance_image_name}",
+            "id": "",
+            "service": {
+                "env": {
+                    "CASSANDRA_IP": "10.5.0.18",
+                    "CASSANDRA_SEEDS": "{cassandra_seeds}",
+                    "INITIAL_TOKEN": "",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
+                },
+                "cmd": {
+                    "install": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/install_node_exporter.sh",
+                        "sh/cassandra/install.sh"
+                    ],
+                    "config": [
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/cassandra/config.sh"
+                    ],
+                    "start": [
+                        "sh/cassandra/start.sh"
+                    ],
+                    "stop": [
+                        "sh/cassandra/stop.sh"
+                    ]
+                }
+            }
+        },
         "daemon01": {
             "host_name": "{deployment_name}-daemon01",
             "security_group": "internal",
@@ -749,6 +857,102 @@
                 "up_daemon_env_config"
             ]
         },
+        "daemon03": {
+            "host_name": "{deployment_name}-daemon03",
+            "security_group": "internal",
+            "ip_address": "10.5.0.103",
+            "flavor": "{instance_flavor_daemon}",
+            "image": "{instance_image_name}",
+            "id": "",
+            "private_keys": [
+                {
+                    "name": "{sftp_user}",
+                    "private_key": "{sftp_user_private_key}"
+                }
+            ],
+            "service": {
+                "env": {
+                    "AMQP_URL": "amqp://{rabbitmq_user_name}:{rabbitmq_user_pass}@{rabbitmq_ip}/",
+                    "CASSANDRA_HOSTS": "{cassandra_hosts}",
+                    "DAEMON_DB_WRITERS": "{daemon_db_writers}",
+                    "DAEMON_THREAD_POOL_SIZE": "{daemon_thread_pool_size}",
+                    "INTERNAL_BASTION_IP": "{internal_bastion_ip}",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
+                    "SFTP_USER": "{sftp_user}",
+                    "SSH_USER": "{ssh_user}"
+                },
+                "cmd": {
+                    "install": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/install_node_exporter.sh"
+                    ],
+                    "config": [
+                        "sh/logrotate/config_capidaemon_logrotate.sh",
+                        "sh/rsyslog/config_capidaemon_log_sender.sh",
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/daemon/config.sh"
+                    ],
+                    "start": [
+                        "sh/daemon/start.sh"
+                    ],
+                    "stop": [
+                        "sh/daemon/stop.sh"
+                    ]
+                }
+            },
+            "applicable_file_groups": [
+                "up_daemon_binary",
+                "up_daemon_env_config"
+            ]
+        },
+        "daemon04": {
+            "host_name": "{deployment_name}-daemon04",
+            "security_group": "internal",
+            "ip_address": "10.5.0.104",
+            "flavor": "{instance_flavor_daemon}",
+            "image": "{instance_image_name}",
+            "id": "",
+            "private_keys": [
+                {
+                    "name": "{sftp_user}",
+                    "private_key": "{sftp_user_private_key}"
+                }
+            ],
+            "service": {
+                "env": {
+                    "AMQP_URL": "amqp://{rabbitmq_user_name}:{rabbitmq_user_pass}@{rabbitmq_ip}/",
+                    "CASSANDRA_HOSTS": "{cassandra_hosts}",
+                    "DAEMON_DB_WRITERS": "{daemon_db_writers}",
+                    "DAEMON_THREAD_POOL_SIZE": "{daemon_thread_pool_size}",
+                    "INTERNAL_BASTION_IP": "{internal_bastion_ip}",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
+                    "SFTP_USER": "{sftp_user}",
+                    "SSH_USER": "{ssh_user}"
+                },
+                "cmd": {
+                    "install": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/install_node_exporter.sh"
+                    ],
+                    "config": [
+                        "sh/logrotate/config_capidaemon_logrotate.sh",
+                        "sh/rsyslog/config_capidaemon_log_sender.sh",
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/daemon/config.sh"
+                    ],
+                    "start": [
+                        "sh/daemon/start.sh"
+                    ],
+                    "stop": [
+                        "sh/daemon/stop.sh"
+                    ]
+                }
+            },
+            "applicable_file_groups": [
+                "up_daemon_binary",
+                "up_daemon_env_config"
+            ]
+        },
         "prometheus": {
             "host_name": "{deployment_name}-prometheus",
             "security_group": "internal",
@@ -759,7 +963,7 @@
             "service": {
                 "env": {
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
-                    "PROMETHEUS_TARGETS": "\\'localhost:9100\\',\\'{internal_bastion_ip}:9100\\',\\'10.5.0.5:9100\\',\\'10.5.0.11:9100\\',\\'10.5.0.12:9100\\',\\'10.5.0.13:9100\\',\\'10.5.0.14:9100\\',\\'10.5.0.15:9100\\',\\'10.5.0.101:9100\\',\\'10.5.0.102:9100\\'",
+                    "PROMETHEUS_TARGETS": "\\'localhost:9100\\',\\'{internal_bastion_ip}:9100\\',\\'10.5.0.5:9100\\',\\'10.5.0.11:9100\\',\\'10.5.0.12:9100\\',\\'10.5.0.13:9100\\',\\'10.5.0.14:9100\\',\\'10.5.0.15:9100\\',\\'10.5.0.16:9100\\',\\'10.5.0.17:9100\\',\\'10.5.0.18:9100\\',\\'10.5.0.101:9100\\',\\'10.5.0.102:9100\\',\\'10.5.0.103:9100\\',\\'10.5.0.104:9100\\'",
                     "PROMETHEUS_VERSION": "{prometheus_version}"
                 },
                 "cmd": {
@@ -807,10 +1011,10 @@
                         "sh/rabbitmq/config.sh"
                     ],
                     "start": [
-                        "sh/cassandra/start.sh"
+                        "sh/rabbitmq/start.sh"
                     ],
                     "stop": [
-                        "sh/cassandra/stop.sh"
+                        "sh/rabbitmq/stop.sh"
                     ]
                 }
             }

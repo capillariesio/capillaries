@@ -313,6 +313,14 @@
             "owner": "{sftp_user}",
             "after": {}
         },
+        "up_portfolio_quicktest_in": {
+            "src": "/tmp/capi_in/portfolio_quicktest",
+            "dst": "/mnt/capi_in/portfolio_quicktest",
+            "dir_permissions": 777,
+            "file_permissions": 666,
+            "owner": "{sftp_user}",
+            "after": {}
+        },
         "up_tag_and_denormalize_quicktest_in": {
             "src": "/tmp/capi_in/tag_and_denormalize_quicktest",
             "dst": "/mnt/capi_in/tag_and_denormalize_quicktest",
@@ -477,6 +485,7 @@
                 "up_tag_and_denormalize_quicktest_out",
                 "up_py_calc_quicktest_in",
                 "up_py_calc_quicktest_out",
+                "up_portfolio_quicktest_in",
                 "up_webapi_binary",
                 "up_webapi_env_config",
                 "up_toolbelt_binary",
