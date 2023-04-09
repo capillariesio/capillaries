@@ -29,6 +29,7 @@
       "tag_and_denormalize":{}
     },
     "thread_pool_size": 5,
+    "dead_letter_ttl": 1000,
     "ca_path":"../../../test/ca",
     "zap_config":{
           "level": "debug",

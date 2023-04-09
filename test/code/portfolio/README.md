@@ -53,7 +53,7 @@ See results in /tmp/capi_out/portfolio_quicktest.
 - file_table read from file directly into JSON fields
 - table_lookup_table with parallelism, left outer grouped joins, string_agg() aggregate function
 - py_calc calculations taking JSON as input and producing JSON
-- table_file with top/orderto produce ordered performance data matrix
+- table_file with top/order to produce ordered performance data matrix
 
 ## How to test
 

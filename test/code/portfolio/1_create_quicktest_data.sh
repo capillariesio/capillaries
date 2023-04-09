@@ -24,8 +24,8 @@ echo "Copying config files to "$cfgDir
 cp -r ../../data/cfg/portfolio_quicktest/* $cfgDir/
 
 echo "Copying in files to "$inDir
-cp -r ../../data/in/portfolio/* $inDir/
+cp -r ../../data/in/portfolio_quicktest/* $inDir/
 
 echo "Copying out files to "$outDir
 echo "Placeholder for portfolio_quicktest output files" > $outDir/readme.txt
-cp -r ../../data/out/portfolio/* $outDir/
+cp -r ../../data/out/portfolio_quicktest/* $outDir/
