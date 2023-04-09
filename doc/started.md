@@ -42,8 +42,8 @@ This command will create bridge network `capinet`, and will create and start the
 
 While the containers are being built and started (Cassandra will take a while to initialize, you may want to wait for `Created default superuser role 'cassandra'`), get familiar with the source data for this demo:
 ```
-head -10 /tmp/capi_in/tag_and_denormalize/flipcart_products.tsv
-cat /tmp/capi_in/tag_and_denormalize/tags.csv
+head -10 /tmp/capi_in/tag_and_denormalize_quicktest/flipcart_products.tsv
+cat /tmp/capi_in/tag_and_denormalize_quicktest/tags.csv
 ```
 
 The demo will process this data as described in the [sample use scenario](what.md#sample-use).
@@ -67,7 +67,7 @@ A [keyspace](glossary.md#keyspace) named `test_tag_and_denormalize` will appear 
 
 When the run is complete, check out data processing intermediate results:
 ```
-head -10 /tmp/capi_out/tag_and_denormalize/tagged_products_for_operator_review.csv
+head -10 /tmp/capi_out/tag_and_denormalize_quicktest/tagged_products_for_operator_review.csv
 ```
 
 Let's assume the operator is satisfied with those tagging results, now it's time to start the second (and final) run. Either from the root `Keyspaces` screen, or from the `test_tag_and_denormalize` matrix screen, start a new run - provide almost the same input, but `Start nodes` will look different now - this second run will start from handling `tag_totals` node and calculating totals for each tag:

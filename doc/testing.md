@@ -25,11 +25,13 @@ There is a number of extensive integration tests that cover a big part of Capill
 
 All tests require running Cassandra and (in most cases) RabbitMQ containers (see [Getting started](started.md) for details). All tests run [Toolbelt](glossary.md#toolbelt) to send work batches to the queue and to check Capillaries workflow status.
 
+Before running an integration test (before you build Docker containers, if you choose to do so), make sure you have copied all test configuration and data files to /tmp/capi_* directories as described in [Prepare Data Directories](./started.md#prepare-data-directories).
+
 How to run integration tests?
 
 ### Direct node execution
 
-Run `test_exec_nodes.sh`  - the [Toolbelt](glossary.md#toolbelt) executes test's `script.json` [nodes](glossary.md#script-node) one by one, without invoking RabbitMQ workflow. Running nodes one by one can be particulary convenient when troubleshooting specific script nodes.
+Run `test_exec_nodes.sh`  - the [Toolbelt](glossary.md#toolbelt) executes test's `script.json` [nodes](glossary.md#script-node) one by one, without invoking RabbitMQ workflow. Running nodes one by one is not something you want to do in production environment, but in can be particulary convenient when troubleshooting specific script nodes.
 
 ### Using RabbitMQ workflow (single run)
 

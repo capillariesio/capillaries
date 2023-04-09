@@ -119,20 +119,21 @@ $capideploy install_services all $DEPLOY_ARGS
 
 # Now it's a good time to start Cassandra cluster in a separate shell session (see next section)
 
-# Create sftp user (we assume that Openstack provider does not support multi-attach volumes, so we have to use sftp to read and write data files)
+# 1. Create sftp user (we assume that Openstack provider does not support multi-attach volumes, so we have to use sftp to read and write data files)
+# 2. Allow these instances to connect to data via sftp
+# 3. Attach volumes and make sftpuser owner
 $capideploy create_instance_users bastion $DEPLOY_ARGS
-
-# Allow these instances to connect to data via sftp
-$capideploy copy_private_keys bastion,daemon01,daemon02 $DEPLOY_ARGS
-
-# Attach volumes and make sftpuser owner
+$capideploy copy_private_keys bastion,daemon01,daemon02,daemon03,daemon04 $DEPLOY_ARGS
 $capideploy attach_volumes bastion $DEPLOY_ARGS
 
 # Upload all files in one shot. Make sure you have all binaries and test data built before uploading them (see above).
-$capideploy upload_files up_daemon_binary,up_daemon_env_config,up_webapi_env_config,up_webapi_binary,up_ui,up_toolbelt_env_config,up_toolbelt_binary,up_all_cfg,up_lookup_bigtest_in,up_lookup_bigtest_out,up_lookup_quicktest_in,up_lookup_quicktest_out,up_tag_and_denormalize_quicktest_in,up_tag_and_denormalize_quicktest_out,up_py_calc_quicktest_in,up_py_calc_quicktest_out $DEPLOY_ARGS
+$capideploy upload_files up_daemon_binary,up_daemon_env_config,up_webapi_env_config,up_webapi_binary,up_ui,up_toolbelt_env_config,up_toolbelt_binary,up_all_cfg,up_lookup_bigtest_in,up_lookup_bigtest_out,up_lookup_quicktest_in,up_lookup_quicktest_out $DEPLOY_ARGS
+
+# If you want to run these tests, upload corresponding data files
+$capideploy upload_files up_tag_and_denormalize_quicktest_in,up_tag_and_denormalize_quicktest_out,up_py_calc_quicktest_in,up_py_calc_quicktest_out,up_portfolio_quicktest_in $DEPLOY_ARGS
 
 # Configure all services except Cassandra (which requires extra care)
-$capideploy config_services bastion,rabbitmq,prometheus,daemon01,daemon02 $DEPLOY_ARGS
+$capideploy config_services bastion,rabbitmq,prometheus,daemon01,daemon02,daemon03,daemon04 $DEPLOY_ARGS
 ```
 
 ## Starting cassandra cluster
@@ -147,9 +148,9 @@ Keep in mind that `config_service` command also restarts Cassandra on each node.
 #! /bin/bash
 
 echo Stopping all nodes in the cluster...
-$capideploy stop_services cass01,cass02,cass03,cass04,cass05 $DEPLOY_ARGS
+$capideploy stop_services cass01,cass02,cass03,cass04,cass05,cass06,cass07,cass08 $DEPLOY_ARGS
 
-cassNodes=('cass01:10.5.0.11' 'cass02:10.5.0.12' 'cass03:10.5.0.13' 'cass04:10.5.0.14' 'cass05:10.5.0.15')
+cassNodes=('cass01:10.5.0.11' 'cass02:10.5.0.12' 'cass03:10.5.0.13' 'cass04:10.5.0.14' 'cass05:10.5.0.15' 'cass06:10.5.0.16' 'cass07:10.5.0.17' 'cass08:10.5.0.18')
 for cassNode in ${cassNodes[@]}
 do
   cassNodeParts=(${cassNode//:/ })
