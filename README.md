@@ -2,7 +2,11 @@
 
 # Capillaries
 
-Capillaries is a supervised data processing framework. It fills the gap between distributed, scalable data processing/integration solutions and the need to produce enriched, customer-ready, production-quality, human-curated data within SLA time limits.
+Capillaries is a supervised data processing framework.
+
+It fills the gap between distributed, scalable data processing/integration solutions and the need to produce enriched, customer-ready, production-quality, human-curated data within SLA time limits.
+
+It takes care of the scalability issues and intermediate data store, allowing users to focus on data transforms and quality control.
 
 ## TL;DR
 
