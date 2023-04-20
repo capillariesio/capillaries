@@ -2,17 +2,9 @@
 
 # Capillaries
 
-Capillaries is a supervised data processing framework.
-
-It fills the gap between distributed, scalable data processing/integration solutions and the need to produce enriched, customer-ready, production-quality, human-curated data within SLA time limits.
-
-It takes care of the scalability issues and intermediate data store, allowing users to focus on data transforms and quality control.
-
-## TL;DR
-
-[What Capillaries is and what it is not, with a use case discussion and diagrams](doc/what.md)
-
-[Getting started guide on how to run a quick Docker-based demo without compiling code](doc/started.md)
+Capillaries is a data processing framework that:
+- takes care of the scalability issues and intermediate data store, allowing users to focus on data transforms and data quality control;
+- fills the gap between distributed, scalable data processing/integration solutions and the need to produce enriched, customer-ready, production-quality, human-curated data within SLA time limits.
 
 ## Why Capillaries?
 ![Capillaries: before and after](doc/beforeafter.png)
@@ -56,8 +48,8 @@ Capable of processing large amounts of data within SLA time limits, efficiently 
 
 ## Capillaries in depth
 
-### [What it is and what it is not](doc/what.md)
-### [Getting started](doc/started.md)
+### [What it is and what it is not](doc/what.md) (with a use case discussion and diagrams)
+### [Getting started](doc/started.md) (how to run a quick Docker-based demo without compiling a single line of code)
 ### [Testing](doc/testing.md)
 ### [Toolbelt, Daemon, and Webapi configuration](doc/binconfig.md)
 ### [Script configuration](doc/scriptconfig.md)
