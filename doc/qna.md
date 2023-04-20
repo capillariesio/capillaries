@@ -18,7 +18,7 @@ and write to:
 
 Q. Is there a limit on the number of nodes, runs, and indexes?
 
-A. The number of nodes in the script and runs performed for a keyspace are virtually unlimited. But keep in mind that each run-node pair creates a separate [table](glossary.md#table) in Cassandra (if an index is created, account for an extra table for each run-node-index triad), and Cassandra does not scale well when the number of tables in a keyspace exceeds a couple of hundred.
+A. The number of nodes in the script and runs performed for a keyspace are virtually unlimited. But keep in mind that each run-node pair creates a separate [table](glossary.md#table) in Cassandra (if an index is created, account for an extra table for each run-node-index triad), and Cassandra does not scale well when the number of tables in a keyspace exceeds a couple of hundreds.
 
 ## NULL support
 
