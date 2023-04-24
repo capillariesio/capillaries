@@ -40,7 +40,7 @@ Navigate to http://localhost:8080/, click "New run" and start a new data process
 | Script parameters URI | /tmp/capi_cfg/tag_and_denormalize_quicktest/script_params_one_run.json |
 | Start nodes |	read_tags,read_products |
 
-A new keyspace `tag_and_denormalize_quicktest` will appear in the keyspace list. Click on it and watch the run to complete.
+A new keyspace `tag_and_denormalize_quicktest` will appear in the keyspace list. Click on it and watch the run complete.
 
 Check out results:
 ```
