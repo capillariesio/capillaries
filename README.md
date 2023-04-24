@@ -20,31 +20,34 @@ Capillaries is a data processing framework that:
 | Workflow monitoring and interaction | Custom solutions | Capillaries [UI](ui/README.md), [Toolbelt](doc/glossary.md#toolbelt) utility, [API](doc/api.md), [Web API](doc/glossary.md#webapi) (transparency, operator validation support) |
 | Workflow management | Shell scripts, custom code | Capillaries [script file](doc/glossary.md#script) with [DAG](doc/glossary.md#dag) |
 
-## Highlights
+## Getting started
 
-### Incremental computing
+```
+git clone https://github.com/capillariesio/capillaries.git
+cd capillaries
+./copy_demo_data.sh
+docker-compose -p "test_capillaries_containers" up
+```
 
-Allows splitting the whole data processing pipeline into separate runs that can be started independently and re-run if needed.
+Wait until all containers are started and Cassandra is fully initialized (it will log something like "Created default superuser role 'cassandra'"). Now Capillaries is ready to process data.
 
-### Parallel processing
+Navigate to http://localhost:8080/, click "New run" and start a new data processing run with the following parameters:
 
-Splits large data volumes into smaller batches processed in parallel. Executes multiple data processing tasks ([DAG](doc/glossary.md#dag) nodes) in parallel.
+| Field | Value |
+|- | - |
+| Keyspace | tag_and_denormalize_quicktest |
+| Script URI | /tmp/capi_cfg/tag_and_denormalize_quicktest/script.json |
+| Script parameters URI | /tmp/capi_cfg/tag_and_denormalize_quicktest/script_params_one_run.json |
+| Start nodes |	read_tags,read_products |
 
-### Operator interaction
+A new keyspace `tag_and_denormalize_quicktest` will appear in the keyspace list. Click on it and watch the run to complete.
 
-Allows human data validation for selected data processing stages.
+Check out results:
+```
+cat /tmp/capi_out/tag_and_denormalize_quicktest/tag_totals.tsv
+```
 
-### Fault tolerance
-
-Survives most of the temporary underlying database connectivity issues and processing node software and hardware failures.
-
-### Works with structured data artifacts
-
-Consumes and produces delimited text files, uses database tables internally. Provides ETL/ELT capabilities. Implements a subset of the relational algebra.
-
-### Use scenarios
-
-Capable of processing large amounts of data within SLA time limits, efficiently utilizing powerful computational (hardware, VM, containers) and storage (Cassandra) resources, with or without human monitoring/validation/intervention.
+For more details, see [Getting started](doc/started.md).
 
 ## Capillaries in depth
 
