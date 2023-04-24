@@ -2,7 +2,7 @@
 
 ## Docker desktop
 
-Install Docker desktop with Docker Compose.
+Make sure you have Docker desktop with Docker Compose installed.
 
 ## Windows users: WSL
 
@@ -12,24 +12,14 @@ If you are running Windows, you will be using WSL for development, so make sure 
 
 In production environments, Capillaries server components ([Daemon](glossary.md#daemon), [Toolbelt](glossary.md#toolbelt), [Webapi](glossary.md#webapi)) need access to configuration files, source data files and target directories. In dev environments, we want Capillaries components to access those files and directories in the uniform way: for dockerized component and for the scenarios when [Daemon](glossary.md#daemon), [Toolbelt](glossary.md#toolbelt), and [Webapi](glossary.md#webapi) are run by developers. We use `/tmp/capi_*` directories that can be accessed using the same path - from the host machine and from containers (see [docker-compose.yml](../docker-compose.yml) for volume definitions). 
 
-Run these commands from the root project directory, they will create those data directories and populate them with sample configurations and sample source data:
-
-```
-mkdir /tmp/capi_cfg
-mkdir /tmp/capi_in
-mkdir /tmp/capi_out
-
-cp -r ./test/data/cfg/* /tmp/capi_cfg
-cp -r ./test/data/in/* /tmp/capi_in
-cp -r ./test/data/out/* /tmp/capi_out
-```
+The command `copy_demo_data.sh` run from the root project directory will create those data directories and populate them with sample configurations and sample source data.
 
 ## Run 100% dockerized Capillaries demo
 
 No coding or compiling required, just run from the root project directory:
 
 ```
-docker compose -p "test_capillaries_containers" up
+docker-compose -p "test_capillaries_containers" up
 ```
 
 This command will create bridge network `capinet`, and will create and start the following containers:
