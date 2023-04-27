@@ -22,6 +22,8 @@ Capillaries is a data processing framework that:
 
 ## Getting started
 
+On Mac, WSL or Linux, run:
+
 ```
 git clone https://github.com/capillariesio/capillaries.git
 cd capillaries
@@ -29,25 +31,25 @@ cd capillaries
 docker-compose -p "test_capillaries_containers" up
 ```
 
-Wait until all containers are started and Cassandra is fully initialized (it will log something like "Created default superuser role 'cassandra'"). Now Capillaries is ready to process data.
+Wait until all containers are started and Cassandra is fully initialized (it will log something like `Created default superuser role 'cassandra'`). Now Capillaries is ready to process data.
 
-Navigate to http://localhost:8080/, click "New run" and start a new data processing run with the following parameters:
+Navigate to `http://localhost:8080`, click "New run" and start a new data processing run with the following parameters:
 
 | Field | Value |
 |- | - |
-| Keyspace | tag_and_denormalize_quicktest |
-| Script URI | /tmp/capi_cfg/tag_and_denormalize_quicktest/script.json |
-| Script parameters URI | /tmp/capi_cfg/tag_and_denormalize_quicktest/script_params_one_run.json |
-| Start nodes |	read_tags,read_products |
+| Keyspace | portfolio_quicktest |
+| Script URI | /tmp/capi_cfg/portfolio_quicktest/script.json |
+| Script parameters URI | /tmp/capi_cfg/portfolio_quicktest/script_params.json |
+| Start nodes |	1_read_accounts,1_read_txns,1_read_period_holdings |
 
-A new keyspace `tag_and_denormalize_quicktest` will appear in the keyspace list. Click on it and watch the run complete.
+A new keyspace `portfolio_quicktest` will appear in the keyspace list. Click on it and watch the run complete - nodes `7_file_account_period_sector_perf` and `7_file_account_year_perf` should produce result files:
 
-Check out results:
 ```
-cat /tmp/capi_out/tag_and_denormalize_quicktest/tag_totals.tsv
+cat /tmp/capi_out/portfolio_quicktest/account_period_sector_perf.csv
+cat /tmp/capi_out/portfolio_quicktest/account_year_perf.csv
 ```
 
-For more details, see [Getting started](doc/started.md).
+For more details about getting started, see [Getting started](doc/started.md). For more details about this particular demo, see Capillaries blog: [Use Capillaries to calculate ARK portfolio performance](https://capillaries.io/blog/2023-04-08-portfolio/index.html)
 
 ## Capillaries in depth
 
