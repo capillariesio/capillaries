@@ -12,7 +12,13 @@ If you are running Windows, you will be using WSL for development, so make sure 
 
 In production environments, Capillaries server components ([Daemon](glossary.md#daemon), [Toolbelt](glossary.md#toolbelt), [Webapi](glossary.md#webapi)) need access to configuration files, source data files and target directories. In dev environments, we want Capillaries components to access those files and directories in the uniform way: for dockerized component and for the scenarios when [Daemon](glossary.md#daemon), [Toolbelt](glossary.md#toolbelt), and [Webapi](glossary.md#webapi) are run by developers. We use `/tmp/capi_*` directories that can be accessed using the same path - from the host machine and from containers (see [docker-compose.yml](../docker-compose.yml) for volume definitions). 
 
-The command `copy_demo_data.sh` run from the root project directory will create those data directories and populate them with sample configurations and sample source data.
+Run 
+
+```
+./copy_demo_data.sh
+```
+
+from the root project directory to create those data directories and populate them with sample configurations and sample source data.
 
 ## Run 100% dockerized Capillaries demo
 
@@ -74,7 +80,7 @@ When this run is complete, see final results at:
 cat /tmp/capi_out/tag_and_denormalize_quicktest/tag_totals.tsv
 ```
 
-If you want to see parsed Capillaries log messages in Graylog, navigate to Graylog UI again and:
+Optional. If you want to see parsed Capillaries log messages in Graylog, navigate to Graylog UI again and:
 - add new `JSON` extractor (say, `capi_json_extractor`) to `gelf_udp` input (menu System/Inputs, `Manage extractors` for `gelf_udp`): it will parse JSON received in the `message` field of the log message;
 - add a new stream (nemu `Streams`/`Create stream`, call it `capi_all`), add a new rule to it - it should take messages from `gelf_udp`, and  select `always match` (in `Add stream rule`) as a rule so all messages make it to this stream;
 - start this new stream `capi_all` (menu Streams) and start another run in Capillaries UI or run an integration test - you should see parsed log events in `capi_all`.
