@@ -15,7 +15,6 @@ services:
   rabbitmq:
     container_name: capillaries_rabbitmq
     image: rabbitmq:3-management
-    network_mode: bridge
     networks:
       capinet:
         ipv4_address: 10.5.0.5
@@ -26,7 +25,6 @@ services:
   cassandra:
     container_name: capillaries_cassandra
     image: cassandra
-    network_mode: bridge
     networks:
       capinet:
         ipv4_address: 10.5.0.11
@@ -45,7 +43,6 @@ services:
     environment:
       AMQP_URL: amqp://guest:guest@10.5.0.5/
       CASSANDRA_HOSTS: '["10.5.0.11"]'
-    network_mode: bridge
     networks:
       capinet:
         ipv4_address: 10.5.0.101
@@ -71,7 +68,6 @@ services:
       ACCESS_CONTROL_ACCESS_ORIGIN: 'http://localhost:8080,http://127.0.0.1:8080' # Adjust if needed
     ports:
       - 6543:6543      
-    network_mode: bridge
     networks:
       capinet:
         ipv4_address: 10.5.0.20
@@ -90,7 +86,6 @@ services:
       CAPILLARIES_WEBAPI_URL: 'http://10.5.0.20:6543'
     ports:
       - 8080:8080      
-    network_mode: bridge
     networks:
       capinet:
         ipv4_address: 10.5.0.30
@@ -107,7 +102,6 @@ services:
       - mongo_data:/data/db
     ports:
       - 27017:27017
-    network_mode: bridge
     networks:
       capinet:
         ipv4_address: 10.5.0.40
@@ -129,7 +123,6 @@ services:
     mem_limit: 1g
     ports:
       - 9200:9200
-    network_mode: bridge
     networks:
       capinet:
         ipv4_address: 10.5.0.50
@@ -147,7 +140,6 @@ services:
       - GRAYLOG_WEB_ENDPOINT_URI=http://127.0.0.1:9000/api
       - GRAYLOG_ELASTICSEARCH_HOSTS=http://10.5.0.50:9200 # IP address in capinet
       - GRAYLOG_MONGODB_URI=mongodb://10.5.0.40:27017/graylog # IP address in capinet
-    network_mode: bridge
     networks:
       capinet:
         ipv4_address: 10.5.0.60
