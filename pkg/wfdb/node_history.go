@@ -137,7 +137,7 @@ func SetNodeStatus(logger *l.Logger, pCtx *ctx.MessageProcessingContext, status 
 		Write("script_node", pCtx.CurrentScriptNode.Name).
 		Write("status", status).
 		Write("comment", comment).
-		Insert(wfmodel.TableNameNodeHistory, cql.IgnoreIfExists) // If not exists. First one wins.
+		InsertUnpreparedQuery(wfmodel.TableNameNodeHistory, cql.IgnoreIfExists) // If not exists. First one wins.
 
 	existingDataRow := map[string]interface{}{}
 	isApplied, err := pCtx.CqlSession.Query(q).MapScanCAS(existingDataRow)

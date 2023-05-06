@@ -108,7 +108,7 @@ func SetRunStatus(logger *l.Logger, cqlSession *gocql.Session, keyspace string, 
 		Write("run_id", runId).
 		Write("status", status).
 		Write("comment", comment).
-		Insert(wfmodel.TableNameRunHistory, ifNotExistsFlag)
+		InsertUnpreparedQuery(wfmodel.TableNameRunHistory, ifNotExistsFlag)
 	err := cqlSession.Query(q).Exec()
 	if err != nil {
 		return cql.WrapDbErrorWithQuery("cannot write run status", q, err)

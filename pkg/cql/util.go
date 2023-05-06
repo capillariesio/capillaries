@@ -93,7 +93,7 @@ func NewSession(envConfig *env.EnvConfig, keyspace string, createKeyspace Create
 				Keyspace(keyspace).
 				Write("ks", keyspace).
 				Write("last_run", 0)
-			q := qb.Insert(wfmodel.TableNameRunCounter, IgnoreIfExists) // If not exists. Insert only once.
+			q := qb.InsertUnpreparedQuery(wfmodel.TableNameRunCounter, IgnoreIfExists) // If not exists. Insert only once.
 			err = cqlSession.Query(q).Exec()
 			if err != nil {
 				return nil, WrapDbErrorWithQuery("cannot initialize run counter", q, err)

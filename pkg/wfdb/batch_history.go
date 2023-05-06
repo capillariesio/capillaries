@@ -163,7 +163,7 @@ func SetBatchStatus(logger *l.Logger, pCtx *ctx.MessageProcessingContext, status
 		qb.Write("comment", comment)
 	}
 
-	q := qb.Insert(wfmodel.TableNameBatchHistory, cql.IgnoreIfExists) // If not exists. First one wins.
+	q := qb.InsertUnpreparedQuery(wfmodel.TableNameBatchHistory, cql.IgnoreIfExists) // If not exists. First one wins.
 	err := pCtx.CqlSession.Query(q).Exec()
 	if err != nil {
 		err := cql.WrapDbErrorWithQuery(fmt.Sprintf("cannot write batch %s status %d", pCtx.BatchInfo.FullBatchId(), status), q, err)

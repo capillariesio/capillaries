@@ -2,10 +2,13 @@ package cql
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/sc"
+	"github.com/shopspring/decimal"
+	"gopkg.in/inf.v0"
 )
 
 type IfNotExistsType int
@@ -52,6 +55,17 @@ func valueToString(value interface{}, quotePolicy QuotePolicyType) string {
 		}
 	default:
 		return fmt.Sprintf("%v", v)
+	}
+}
+
+func valueToCqlParam(value interface{}) interface{} {
+	switch v := value.(type) {
+	case decimal.Decimal:
+		f, _ := v.Float64()
+		scaled := int64(math.Round(f * 100))
+		return inf.NewDec(scaled, 2)
+	default:
+		return v
 	}
 }
 
@@ -103,7 +117,7 @@ func (cd *queryBuilderPreparedColumnData) addColumnValue(column string, value in
 	if !ok {
 		return fmt.Errorf("cannot set value for non-prepared column %s, available columns are %v", column, cd.Columns)
 	}
-	cd.Values[colIdx] = value
+	cd.Values[colIdx] = valueToCqlParam(value)
 	cd.ValueIdxMap[column] = colIdx
 	return nil
 }
@@ -226,14 +240,12 @@ func (qb *QueryBuilder) Write(column string, value interface{}) *QueryBuilder {
 	return qb
 }
 
-func (qb *QueryBuilder) WriteColumn(column string) *QueryBuilder {
-	qb.PreparedColumnData.addColumnName(column)
-	return qb
+func (qb *QueryBuilder) WriteColumn(column string) error {
+	return qb.PreparedColumnData.addColumnName(column)
 }
 
-func (qb *QueryBuilder) WriteValue(column string, value interface{}) *QueryBuilder {
-	qb.PreparedColumnData.addColumnValue(column, value)
-	return qb
+func (qb *QueryBuilder) WriteValue(column string, value interface{}) error {
+	return qb.PreparedColumnData.addColumnValue(column, value)
 }
 
 /*
@@ -290,10 +302,10 @@ Insert - build INSERT query
 */
 const RunIdForEmptyRun = -1
 
-func (qb *QueryBuilder) Insert(tableName string, ifNotExists IfNotExistsType) string {
-	return qb.InsertRun(tableName, RunIdForEmptyRun, ifNotExists)
+func (qb *QueryBuilder) InsertUnpreparedQuery(tableName string, ifNotExists IfNotExistsType) string {
+	return qb.insertRunUnpreparedQuery(tableName, RunIdForEmptyRun, ifNotExists)
 }
-func (qb *QueryBuilder) InsertRun(tableName string, runId int16, ifNotExists IfNotExistsType) string {
+func (qb *QueryBuilder) insertRunUnpreparedQuery(tableName string, runId int16, ifNotExists IfNotExistsType) string {
 	ifNotExistsStr := ""
 	if ifNotExists == IgnoreIfExists {
 		ifNotExistsStr = "IF NOT EXISTS"
@@ -316,15 +328,16 @@ func (qb *QueryBuilder) InsertRunPreparedQuery(tableName string, runId int16, if
 	if ifNotExists == IgnoreIfExists {
 		ifNotExistsStr = "IF NOT EXISTS"
 	}
-	paramArray := make([]string, len(qb.PreparedColumnData.ColumnIdxMap))
-	for paramIdx := 0; paramIdx < len(paramArray); paramIdx++ {
+	columnCount := len(qb.PreparedColumnData.ColumnIdxMap)
+	paramArray := make([]string, columnCount)
+	for paramIdx := 0; paramIdx < columnCount; paramIdx++ {
 		paramArray[paramIdx] = "?"
 	}
 	q := fmt.Sprintf("INSERT INTO %s%s%s ( %s ) VALUES ( %s ) %s;",
 		qb.FormattedKeyspace,
 		tableName,
 		RunIdSuffix(runId),
-		strings.Join(qb.ColumnData.Columns[:qb.ColumnData.Len], ", "),
+		strings.Join(qb.PreparedColumnData.Columns[:columnCount], ", "),
 		strings.Join(paramArray, ", "),
 		ifNotExistsStr)
 	if runId == 0 {
@@ -335,7 +348,7 @@ func (qb *QueryBuilder) InsertRunPreparedQuery(tableName string, runId int16, if
 
 func (qb *QueryBuilder) InsertRunParams() ([]interface{}, error) {
 	if len(qb.PreparedColumnData.ColumnIdxMap) != len(qb.PreparedColumnData.ValueIdxMap) {
-		return nil, fmt.Errorf("cannot produce insert params, length mismatch: columns %v, values %v", qb.PreparedColumnData.ColumnIdxMap, qb.PreparedColumnData.ColumnIdxMap)
+		return nil, fmt.Errorf("cannot produce insert params, length mismatch: columns %v, values %v", qb.PreparedColumnData.ColumnIdxMap, qb.PreparedColumnData.ValueIdxMap)
 	}
 	return qb.PreparedColumnData.Values[:len(qb.PreparedColumnData.ValueIdxMap)], nil
 }
