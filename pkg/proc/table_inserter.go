@@ -60,7 +60,7 @@ func newTableInserter(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.Mess
 }
 
 func CreateDataTableCql(keyspace string, runId int16, tableCreator *sc.TableCreatorDef) string {
-	qb := cql.QueryBuilder{}
+	qb := cql.NewQB()
 	qb.ColumnDef("rowid", sc.FieldTypeInt)
 	qb.ColumnDef("batch_idx", sc.FieldTypeInt)
 	for fieldName, fieldDef := range tableCreator.Fields {
@@ -70,7 +70,7 @@ func CreateDataTableCql(keyspace string, runId int16, tableCreator *sc.TableCrea
 }
 
 func CreateIdxTableCql(keyspace string, runId int16, idxName string, idxDef *sc.IdxDef) string {
-	qb := cql.QueryBuilder{}
+	qb := cql.NewQB()
 	qb.Keyspace(keyspace).
 		ColumnDef("key", sc.FieldTypeString).
 		ColumnDef("rowid", sc.FieldTypeInt)
@@ -215,6 +215,17 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 	logger.DebugCtx(pCtx, "writer started reading from RecordsIn")
 	dataTableName := instr.TableCreator.Name + cql.RunIdSuffix(instr.PCtx.BatchInfo.RunId)
 
+	dataQb := cql.NewQB().WriteColumn("batch_idx")
+	preparedDataQuery, err := dataQb.Keyspace(instr.PCtx.BatchInfo.DataKeyspace).
+		InsertRunPreparedQuery(instr.TableCreator.Name, instr.PCtx.BatchInfo.RunId, cql.IgnoreIfExists) // INSERT IF NOT EXISTS; if exists,  returned isApplied = false
+	if err != nil {
+		instr.ErrorsOut <- fmt.Errorf("cannot prepare data query: %s", err)
+		logger.ErrorCtx(pCtx, "done reading from RecordsIn, cannot prepare insert query: %s", err.Error)
+		// Decrease busy worker count
+		instr.WorkerWaitGroup.Done()
+		return
+	}
+
 	handledRecordCount := 0
 	for writeItem := range instr.RecordsIn {
 		handledRecordCount++
@@ -226,18 +237,27 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 		(*writeItem.TableRecord)["rowid"] = instr.RowidRand.Int63()
 		instr.RandMutex.Unlock()
 
-		qb := cql.QueryBuilder{}
-		qb.Write("batch_idx", instr.PCtx.BatchInfo.BatchIdx)
+		// qb := cql.QueryBuilder{}
+		// qb.Write("batch_idx", instr.PCtx.BatchInfo.BatchIdx)
+		// for fieldName, fieldValue := range *writeItem.TableRecord {
+		// 	qb.Write(fieldName, fieldValue)
+		// }
+		// q := qb.Keyspace(instr.PCtx.BatchInfo.DataKeyspace).
+		// 	InsertRun(instr.TableCreator.Name, instr.PCtx.BatchInfo.RunId, cql.IgnoreIfExists) // INSERT IF NOT EXISTS; if exists,  returned isApplied = false
+
 		for fieldName, fieldValue := range *writeItem.TableRecord {
-			qb.Write(fieldName, fieldValue)
+			dataQb.WriteValue(fieldName, fieldValue)
 		}
-		q := qb.Keyspace(instr.PCtx.BatchInfo.DataKeyspace).
-			InsertRun(instr.TableCreator.Name, instr.PCtx.BatchInfo.RunId, cql.IgnoreIfExists) // INSERT IF NOT EXISTS; if exists,  returned isApplied = false
+		preparedDataQueryParams, err := dataQb.InsertRunParams()
+		if err != nil {
+			errorToReport = fmt.Errorf("cannot provide insert params for prepared query %s: %s", preparedDataQuery, err.Error())
+			break
+		}
 
 		for dataRetryCount := 0; dataRetryCount < maxDataRetries; dataRetryCount++ {
 
 			existingDataRow := map[string]interface{}{}
-			isApplied, err := instr.PCtx.CqlSession.Query(q).MapScanCAS(existingDataRow)
+			isApplied, err := instr.PCtx.CqlSession.Query(preparedDataQuery, preparedDataQueryParams).MapScanCAS(existingDataRow)
 
 			if err == nil {
 				if isApplied {
@@ -246,23 +266,27 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 				} else {
 					if dataRetryCount < maxDataRetries-1 {
 						// Retry now with a new rowid
-						logger.InfoCtx(instr.PCtx, "duplicate rowid not written [%s], existing record [%v], retry count %d", q, existingDataRow, dataRetryCount)
+						logger.InfoCtx(instr.PCtx, "duplicate rowid not written [%s], existing record [%v], retry count %d", preparedDataQuery, existingDataRow, dataRetryCount)
 						instr.RandMutex.Lock()
 						instr.RowidRand = rand.New(rand.NewSource(newSeed()))
 						(*writeItem.TableRecord)["rowid"] = instr.RowidRand.Int63()
 						instr.RandMutex.Unlock()
 
-						newQb := cql.QueryBuilder{}
-						newQb.Write("batch_idx", instr.PCtx.BatchInfo.BatchIdx)
-						for fieldName, fieldValue := range *writeItem.TableRecord {
-							newQb.Write(fieldName, fieldValue)
-						}
-						q = newQb.Keyspace(instr.PCtx.BatchInfo.DataKeyspace).
-							InsertRun(instr.TableCreator.Name, instr.PCtx.BatchInfo.RunId, cql.IgnoreIfExists) // INSERT IF NOT EXISTS; if exists,  returned isApplied = false
+						// newQb := cql.QueryBuilder{}
+						// newQb.Write("batch_idx", instr.PCtx.BatchInfo.BatchIdx)
+						// for fieldName, fieldValue := range *writeItem.TableRecord {
+						// 	newQb.Write(fieldName, fieldValue)
+						// }
+						// q = newQb.Keyspace(instr.PCtx.BatchInfo.DataKeyspace).
+						// 	InsertRun(instr.TableCreator.Name, instr.PCtx.BatchInfo.RunId, cql.IgnoreIfExists) // INSERT IF NOT EXISTS; if exists,  returned isApplied = false
+
+						// Re-build query params array
+						dataQb.WriteValue("rowid", (*writeItem.TableRecord)["rowid"])
+						preparedDataQueryParams, _ = dataQb.InsertRunParams()
 					} else {
 						// No more retries
-						logger.ErrorCtx(instr.PCtx, "duplicate rowid not written [%s], existing record [%v], retry count %d reached, giving up", q, existingDataRow, dataRetryCount)
-						errorToReport = fmt.Errorf("cannot write to data table after multiple attempts, keep getting rowid duplicates [%s]", q)
+						logger.ErrorCtx(instr.PCtx, "duplicate rowid not written [%s], existing record [%v], retry count %d reached, giving up", preparedDataQuery, existingDataRow, dataRetryCount)
+						errorToReport = fmt.Errorf("cannot write to data table after multiple attempts, keep getting rowid duplicates [%s]", preparedDataQuery)
 						break
 					}
 				}
@@ -289,7 +313,7 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 					}
 				} else {
 					// Some serious error happened, stop trying this rowid
-					errorToReport = cql.WrapDbErrorWithQuery("cannot write to data table", q, err)
+					errorToReport = cql.WrapDbErrorWithQuery("cannot write to data table", preparedDataQuery, err)
 					break
 				}
 			}
@@ -307,11 +331,23 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 				if idxDef.Uniqueness == sc.IdxUnique {
 					ifNotExistsFlag = cql.IgnoreIfExists
 				}
-				qb := cql.QueryBuilder{}
-				qb.Write("key", writeItem.IndexKeyMap[idxName])
-				qb.Write("rowid", (*writeItem.TableRecord)["rowid"])
-				q := qb.Keyspace(instr.PCtx.BatchInfo.DataKeyspace).
-					InsertRun(idxName, instr.PCtx.BatchInfo.RunId, ifNotExistsFlag)
+				// qb := cql.QueryBuilder{}
+				// qb.Write("key", writeItem.IndexKeyMap[idxName])
+				// qb.Write("rowid", (*writeItem.TableRecord)["rowid"])
+				// q := qb.Keyspace(instr.PCtx.BatchInfo.DataKeyspace).
+				// 	InsertRun(idxName, instr.PCtx.BatchInfo.RunId, ifNotExistsFlag)
+
+				idxQb := cql.NewQB().WriteColumn("key").WriteColumn("rowid")
+				preparedIdxQuery, err := idxQb.Keyspace(instr.PCtx.BatchInfo.DataKeyspace).InsertRunPreparedQuery(idxName, instr.PCtx.BatchInfo.RunId, ifNotExistsFlag)
+				if err != nil {
+					errorToReport = fmt.Errorf("cannot prepare idx query: %s", err.Error())
+					break
+				}
+				preparedIdxQueryParams, err := idxQb.InsertRunParams()
+				if err != nil {
+					errorToReport = fmt.Errorf("cannot provide idx query params for %s: %s", preparedIdxQuery, err.Error())
+					break
+				}
 
 				for idxRetryCount := 0; idxRetryCount < maxIdxRetries; idxRetryCount++ {
 					existingIdxRow := map[string]interface{}{}
@@ -319,10 +355,10 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 					var err error
 					if idxDef.Uniqueness == sc.IdxUnique {
 						// Unique idx assumed, check isApplied
-						isApplied, err = instr.PCtx.CqlSession.Query(q).MapScanCAS(existingIdxRow)
+						isApplied, err = instr.PCtx.CqlSession.Query(preparedIdxQuery, preparedIdxQueryParams).MapScanCAS(existingIdxRow)
 					} else {
 						// No uniqueness assumed, just insert
-						err = instr.PCtx.CqlSession.Query(q).Exec()
+						err = instr.PCtx.CqlSession.Query(preparedIdxQuery, preparedIdxQueryParams).Exec()
 					}
 
 					if err == nil {
@@ -333,7 +369,7 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 								logger.WarnCtx(instr.PCtx, "duplicate idx record found (%s) in idx %s on retry %d when writing (%d,'%s'), assuming this retry was successful, proceeding as usual", idxName, existingIdxRow, idxRetryCount, (*writeItem.TableRecord)["rowid"], writeItem.IndexKeyMap[idxName])
 							} else {
 								// We screwed up, report everything we can
-								errorToReport = fmt.Errorf("cannot write duplicate index key [%s] on retry %d, existing record [%v]", q, idxRetryCount, existingIdxRow)
+								errorToReport = fmt.Errorf("cannot write duplicate index key [%s] on retry %d, existing record [%v]", preparedDataQuery, idxRetryCount, existingIdxRow)
 							}
 						}
 						// Success or not - we are done
@@ -361,7 +397,7 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 							}
 						} else {
 							// Some serious error happened, stop trying this idx record
-							errorToReport = cql.WrapDbErrorWithQuery("cannot write to idx table", q, err)
+							errorToReport = cql.WrapDbErrorWithQuery("cannot write to idx table", preparedDataQuery, err)
 							break
 						}
 					}
