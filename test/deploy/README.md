@@ -46,16 +46,17 @@ Just for convenience, let's store deploy tool arguments and other configuration 
 export capideploy=../../build/capideploy.exe
 export DEPLOY_ARGS="-prj capideploy_project_genesis.json -prj_params $HOME/capideploy_project_params_genesis.json"
 export DEPLOY_ROOT_KEY=$HOME/.ssh/sampledeployment002_rsa
-export BASTION_IP=<dreamhost_bastion_ip>
+export BASTION_IP=<genesis_bastion_ip>
 ```
 
 ## Build Capillaries components
 
-Build deploy tool to run on your dev/devops machine (this is a Windows example):
+Build deploy tool to run on your dev/devops machine (this is a WSL example):
 
 ```
 cd ./test/deploy
 go build -o ../../build/capideploy.exe -ldflags="-s -w" ../../pkg/exe/deploy/capideploy.go
+chmod 755 ../../build/capideploy.exe
 ```
 
 Build binaries for the cloud
@@ -74,7 +75,7 @@ Build [Capillaries UI](../../doc/glossary.md#capillaries-ui):
 
 ```
 cd ./ui
-set CAPILLARIES_WEBAPI_URL=http://$BASTION_IP
+export CAPILLARIES_WEBAPI_URL=http://$BASTION_IP:6543
 npm run build
 ```
 
@@ -82,6 +83,19 @@ npm run build
 
 This step does not have to be performed often, assuming the Openstack provider does not charge for networking and volumes.
 
+To reserve a floating IP (if you haven't done that yet), use
+```
+openstack floating ip create <external network name, for example, ext-net>
+```
+After reserving the IP address, make sure you update `floating_ip_address` parameter in your capideploy parameter JSON file.
+
+When you think you do not need the floating IP address anymore, run:
+
+```
+openstack floating ip delete $BASTION_IP
+```
+
+The following commands will perform Openstack networking/volume setup according to your Capideploy project settings:
 ```
 cd ./test/deploy
 $capideploy create_security_groups $DEPLOY_ARGS
@@ -126,8 +140,11 @@ $capideploy create_instance_users bastion $DEPLOY_ARGS
 $capideploy copy_private_keys bastion,daemon01,daemon02,daemon03,daemon04 $DEPLOY_ARGS
 $capideploy attach_volumes bastion $DEPLOY_ARGS
 
-# Upload all files in one shot. Make sure you have all binaries and test data built before uploading them (see above).
-$capideploy upload_files up_daemon_binary,up_daemon_env_config,up_webapi_env_config,up_webapi_binary,up_ui,up_toolbelt_env_config,up_toolbelt_binary,up_all_cfg,up_lookup_bigtest_in,up_lookup_bigtest_out,up_lookup_quicktest_in,up_lookup_quicktest_out $DEPLOY_ARGS
+# Upload binaries and their configs in one shot. Make sure you have all binaries and test data built before uploading them (see above).
+$capideploy upload_files up_daemon_binary,up_daemon_env_config,up_webapi_env_config,up_webapi_binary,up_ui,up_toolbelt_env_config,up_toolbelt_binary $DEPLOY_ARGS
+
+# Upload test files in one shot
+$capideploy upload_files up_all_cfg,up_lookup_bigtest_in,up_lookup_bigtest_out,up_lookup_quicktest_in,up_lookup_quicktest_out $DEPLOY_ARGS
 
 # If you want to run these tests, upload corresponding data files
 $capideploy upload_files up_tag_and_denormalize_quicktest_in,up_tag_and_denormalize_quicktest_out,up_py_calc_quicktest_in,up_py_calc_quicktest_out,up_portfolio_quicktest_in $DEPLOY_ARGS

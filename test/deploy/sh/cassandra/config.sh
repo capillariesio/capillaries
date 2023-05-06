@@ -20,7 +20,8 @@ sudo sed -i -e "s~rpc_address:[\: \"a-zA-Z0-9\.]*~rpc_address: $CASSANDRA_IP~g" 
 sudo sed -i -e "s~endpoint_snitch:[\: \"a-zA-Z0-9\.]*~endpoint_snitch: SimpleSnitch~g" /etc/cassandra/cassandra.yaml
 
 # Minimal number of vnodes, we do not need elasticity
-sudo sed -i -e "s~num_tokens:[ 0-9]*~num_tokens: 4~g" /etc/cassandra/cassandra.yaml
+sudo sed -i -e "s~num_tokens:[ 0-9]*~num_tokens: 1~g" /etc/cassandra/cassandra.yaml
+
 # No redundancy
 sudo sed -i -e "s~allocate_tokens_for_local_replication_factor: [ 0-9]*~allocate_tokens_for_local_replication_factor: 1~g" /etc/cassandra/cassandra.yaml
 
