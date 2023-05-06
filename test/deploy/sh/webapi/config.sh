@@ -11,7 +11,7 @@ if [ "$WEBAPI_PORT" = "" ]; then
  exit 1
 fi
 if [ "$WEBAPI_ACCESS_CONTROL_ACCESS_ORIGIN" = "" ]; then
-  echo Error, missing: WEBAPI_ACCESS_CONTROL_ACCESS_ORIGIN=http://floating_ip_address
+  echo Error, missing: WEBAPI_ACCESS_CONTROL_ACCESS_ORIGIN=http://floating_ip_address[:port]
  exit 1
 fi
 if [ "$SSH_USER" = "" ]; then
