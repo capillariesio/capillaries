@@ -231,12 +231,12 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 			continue
 		} else if dataQb == nil {
 			dataQb = cql.NewQB()
-			dataQb.WriteColumn("rowid")
-			dataQb.WriteColumn("batch_idx")
-			dataQb.WriteValue("batch_idx", instr.PCtx.BatchInfo.BatchIdx)
+			dataQb.WritePreparedColumn("rowid")
+			dataQb.WritePreparedColumn("batch_idx")
+			dataQb.WritePreparedValue("batch_idx", instr.PCtx.BatchInfo.BatchIdx)
 
 			for fieldName, _ := range *writeItem.TableRecord {
-				if err := dataQb.WriteColumn(fieldName); err != nil {
+				if err := dataQb.WritePreparedColumn(fieldName); err != nil {
 					errorToReport = fmt.Errorf("cannot prepare data query: %s", err)
 					break
 				}
@@ -268,7 +268,7 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 		// 	InsertRun(instr.TableCreator.Name, instr.PCtx.BatchInfo.RunId, cql.IgnoreIfExists) // INSERT IF NOT EXISTS; if exists,  returned isApplied = false
 
 		for fieldName, fieldValue := range *writeItem.TableRecord {
-			dataQb.WriteValue(fieldName, fieldValue)
+			dataQb.WritePreparedValue(fieldName, fieldValue)
 		}
 		preparedDataQueryParams, err := dataQb.InsertRunParams()
 		if err != nil {
@@ -303,7 +303,7 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 						// 	InsertRun(instr.TableCreator.Name, instr.PCtx.BatchInfo.RunId, cql.IgnoreIfExists) // INSERT IF NOT EXISTS; if exists,  returned isApplied = false
 
 						// Set new rowid and re-build query params array (shouldn't throw errors this time)
-						dataQb.WriteValue("rowid", (*writeItem.TableRecord)["rowid"])
+						dataQb.WritePreparedValue("rowid", (*writeItem.TableRecord)["rowid"])
 						preparedDataQueryParams, _ = dataQb.InsertRunParams()
 					} else {
 						// No more retries
@@ -360,10 +360,10 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 				// 	InsertRun(idxName, instr.PCtx.BatchInfo.RunId, ifNotExistsFlag)
 
 				idxQb := cql.NewQB()
-				idxQb.WriteColumn("key")
-				idxQb.WriteValue("key", writeItem.IndexKeyMap[idxName])
-				idxQb.WriteColumn("rowid")
-				idxQb.WriteValue("rowid", (*writeItem.TableRecord)["rowid"])
+				idxQb.WritePreparedColumn("key")
+				idxQb.WritePreparedValue("key", writeItem.IndexKeyMap[idxName])
+				idxQb.WritePreparedColumn("rowid")
+				idxQb.WritePreparedValue("rowid", (*writeItem.TableRecord)["rowid"])
 
 				preparedIdxQuery, err := idxQb.Keyspace(instr.PCtx.BatchInfo.DataKeyspace).InsertRunPreparedQuery(idxName, instr.PCtx.BatchInfo.RunId, ifNotExistsFlag)
 				if err != nil {

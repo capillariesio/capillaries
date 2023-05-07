@@ -240,11 +240,11 @@ func (qb *QueryBuilder) Write(column string, value interface{}) *QueryBuilder {
 	return qb
 }
 
-func (qb *QueryBuilder) WriteColumn(column string) error {
+func (qb *QueryBuilder) WritePreparedColumn(column string) error {
 	return qb.PreparedColumnData.addColumnName(column)
 }
 
-func (qb *QueryBuilder) WriteValue(column string, value interface{}) error {
+func (qb *QueryBuilder) WritePreparedValue(column string, value interface{}) error {
 	return qb.PreparedColumnData.addColumnValue(column, value)
 }
 
