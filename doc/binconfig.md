@@ -25,10 +25,10 @@ As is, passed to gocql.PasswordAuthenticator
 The string passed to `CREATE KEYSPACE IF NOT EXISTS <keyspace_name> WITH REPLICATION = ...` when a [keyspace](glossary.md#keyspace) is created
 
 ### writer_workers
-Capillaries processors that write to [data tables](glossary.md#data-table) produce data at a rate much higher than a single-thread code writing to Cassandra can handle. Capillaries inserts into data and index from multiple threads, and the number of those threads is specified here. 10-20 threads may be considered conservative, 50 threads is more aggressive. Choose these settings according to your hardware environment specifics. 
+Capillaries processors that write to [data tables](glossary.md#data-table) produce data at a rate much higher than a single-thread code writing to Cassandra can handle. Capillaries inserts into data and index from multiple threads, and the number of those threads is specified here. 10 threads may be considered conservative, 50 threads is aggressive. Choose these settings according to your hardware environment specifics. 
 
 ### min_inserter_rate
-If average number of records all writer workers used by a single worker thread from the thread pool (see [thread_pool_size](#thread_pool_size)) falls below this value, chances are that Cassandra cluster performance has degraded substantially, and the user will wait for the results for too long. In this case, table inserter throws an error and the [batch](./glossary.md#data-batch) is marked as failed.
+If average number of records written per second by all writer workers used by a single worker thread from the thread pool (see [thread_pool_size](#thread_pool_size)) falls below this value, chances are that Cassandra cluster performance has degraded substantially, and the user will wait for the results for too long. In this case, table inserter throws an error and the [batch](./glossary.md#data-batch) is marked as failed.
 
 ### num_conns
 Passed to gocql.ClusterConfig.NumConns

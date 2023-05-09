@@ -42,8 +42,8 @@ sed -i -e "s~\"keyspace_replication_config\":[ ]*\"[^\"]*\"~\"keyspace_replicati
 # In prod environments, increasing write_request_timeout_in_ms and corresponding client timeout is not a solution.
 sed -i -e "s~\"timeout\":[ ]*[0-9]*~\"timeout\": 15000~g" $ENV_CONFIG_FILE
 
-# Default value of 50 writer workers may be pretty aggressive,
-# watch for "Operation timed out - received only 0 responses" on writes, throttle it down to 30 or lower if needed
+# Default number writer workers may be pretty aggressive,
+# watch for "Operation timed out - received only 0 responses" on writes, throttle it down to 10 or lower if needed
 if [ "$DAEMON_DB_WRITERS" != "" ]; then
   sed -i -e "s~\"writer_workers\":[ 0-9]*~\"writer_workers\": $DAEMON_DB_WRITERS~g" $ENV_CONFIG_FILE
 fi

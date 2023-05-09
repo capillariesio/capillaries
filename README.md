@@ -33,7 +33,7 @@ docker-compose -p "test_capillaries_containers" up
 
 Wait until all containers are started and Cassandra is fully initialized (it will log something like `Created default superuser role 'cassandra'`). Now Capillaries is ready to process data.
 
-Navigate to `http://localhost:8080`, click "New run" and start a new data processing run with the following parameters:
+Navigate to `http://localhost:8080`, click "New run" and start a new data processing run with the following parameters (no tabs or spaces allowed):
 
 | Field | Value |
 |- | - |
