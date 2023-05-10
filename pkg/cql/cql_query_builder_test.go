@@ -4,7 +4,33 @@ import (
 	"testing"
 
 	"github.com/capillariesio/capillaries/pkg/sc"
+	"github.com/shopspring/decimal"
+	"gopkg.in/inf.v0"
 )
+
+func TestValueToCqlParam(t *testing.T) {
+	// Simple
+	expected := "1.23"
+	actual := valueToCqlParam(decimal.NewFromFloat(1.23)).(*inf.Dec).String()
+	if actual != expected {
+		t.Errorf("Unmatch:\n%v\n%v\n", expected, actual)
+	}
+
+	// big round up
+	expected = "1.24"
+	actual = valueToCqlParam(decimal.NewFromFloat(1.235)).(*inf.Dec).String()
+	if actual != expected {
+		t.Errorf("Unmatch:\n%v\n%v\n", expected, actual)
+	}
+
+	// small round down
+	expected = "0.03"
+	actual = valueToCqlParam(decimal.NewFromFloat(0.0345)).(*inf.Dec).String()
+	if actual != expected {
+		t.Errorf("Unmatch:\n%v\n%v\n", expected, actual)
+	}
+
+}
 
 func TestInsert(t *testing.T) {
 	const q = "INSERT INTO table1_00123 ( col1, col2, col3 ) VALUES ( 'val1', 2, now() ) IF NOT EXISTS;"
@@ -13,7 +39,7 @@ func TestInsert(t *testing.T) {
 		Write("col1", "val1").
 		Write("col2", 2).
 		WriteForceUnquote("col3", "now()").
-		InsertRun("table1", 123, IgnoreIfExists)
+		insertRunUnpreparedQuery("table1", 123, IgnoreIfExists)
 	if s != q {
 		t.Errorf("Unmatch:\n%v\n%v\n", q, s)
 	}

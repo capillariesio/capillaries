@@ -22,9 +22,22 @@ Capillaries configuration scripts and in/out data are stored on separate volumes
 ## Openstack environment
 
 1. Make sure you have an Openstack project ready, with all `OS_*` variables defined in the project parameter file. Usually, Openstack cloud provider generates a shell script that sets all those variables for you. Just manually copy those values to the parameter file, one by one.
-2. Make sure you have created the key pair for SSH access to the Openstack instances, key pair name stored in `root_key_name` in the project file.
+2. Make sure you have created the key pair for SSH access to the Openstack instances, key pair name stored in `root_key_name` in the project file. Through this document, we will be assuming the key pair is stored in `~/.ssh/` and the private key file this kind of name:  `sampledeploymentXXX_rsa`.
 3. Make sure all configuration values in the project parameters file are up-to-date. Some paramaters, like `sftp_user_private_key` may contain multi-line content - make sure you replace all line endings with `\n`.
-4. This guide assumes you have reserved a floating IP address with your Openstack provider, this address will be assigned to the `bastion` instance and will be your gateway to all of your instances. Make sure `floating_ip_address` in your project parameter file is set to this floating IP address. You may want to use bastion instance as an SSH  jumphost, make sure you have set up this IP address for a jump host in `~/.ssh/config` file:
+4. Reserve a floating IP address with your Openstack provider, this address will be assigned to the `bastion` instance and will be your gateway to all of your instances. You can do that either in Openstack UI or by running this command:
+```
+openstack floating ip create <external network name, for example, ext-net>
+```
+After reserving the IP address, make sure you:
+- update `floating_ip_address` parameter in your capideploy parameter JSON file
+- reference it in the commands using BASTION_IP environment variable (see below)
+- provide a jumphost configuration for this IP address (see below), Cassandra cluster setup will need it
+When you think you do not need the floating IP address anymore, run:
+```
+openstack floating ip delete $BASTION_IP
+```
+
+To use bastion instance as an SSH jumphost, make sure you have set up this IP address for a jump host in `~/.ssh/config` file:
 
 ```
 Host <dreamhost_bastion_ip>
@@ -46,7 +59,7 @@ Just for convenience, let's store deploy tool arguments and other configuration 
 export capideploy=../../build/capideploy.exe
 export DEPLOY_ARGS="-prj capideploy_project_genesis.json -prj_params $HOME/capideploy_project_params_genesis.json"
 export DEPLOY_ROOT_KEY=$HOME/.ssh/sampledeployment002_rsa
-export BASTION_IP=<genesis_bastion_ip>
+export BASTION_IP=<floating_ip_reserved_above>
 ```
 
 ## Build Capillaries components
@@ -82,18 +95,6 @@ npm run build
 ## Openstack networking and volumes
 
 This step does not have to be performed often, assuming the Openstack provider does not charge for networking and volumes.
-
-To reserve a floating IP (if you haven't done that yet), use
-```
-openstack floating ip create <external network name, for example, ext-net>
-```
-After reserving the IP address, make sure you update `floating_ip_address` parameter in your capideploy parameter JSON file.
-
-When you think you do not need the floating IP address anymore, run:
-
-```
-openstack floating ip delete $BASTION_IP
-```
 
 The following commands will perform Openstack networking/volume setup according to your Capideploy project settings:
 ```

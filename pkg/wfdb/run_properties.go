@@ -108,7 +108,7 @@ func WriteRunProperties(logger *l.Logger, cqlSession *gocql.Session, keyspace st
 		Write("script_uri", scriptUri).
 		Write("script_params_uri", scriptParamsUri).
 		Write("run_description", runDescription).
-		Insert(wfmodel.TableNameRunAffectedNodes, cql.IgnoreIfExists) // If not exists. First one wins.
+		InsertUnpreparedQuery(wfmodel.TableNameRunAffectedNodes, cql.IgnoreIfExists) // If not exists. First one wins.
 	err := cqlSession.Query(q).Exec()
 	if err != nil {
 		return cql.WrapDbErrorWithQuery("cannot write affected nodes", q, err)

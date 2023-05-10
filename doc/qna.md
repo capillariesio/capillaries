@@ -75,9 +75,9 @@ Yes. See Capillaries [100% Docker-based demo](started.md#run-100-dockerized-capi
 
 Q. Can I run Capillaries against cloud-based Cassandra?
 
-A. While processing [nodes](glossary.md#script-node) that create [tables](glossary.md#table), Capillaries creates [keyspaces](glossary.md#keyspace) and [tables](glossary.md#table) on-the-fly as a [processor](glossary.md#processor) handles the node. As of this writing (2022), Azure CosmosDB and AWS Keyspaces have notoriously high latency. For example, Azure can complete "CREATE TABLE" command successfully, but an "INSERT" command executed immediately after that may return an error saying that the table does not exist.
+A. As of this writing (2022), Azure CosmosDB and AWS Keyspaces have notoriously high latency. For example, Azure can complete "CREATE TABLE" command successfully, but an "INSERT" command executed immediately after that may return an error saying that the table does not exist.
 
-This situation can be potentially mitigated by creating all tables for a specific [run](glossary.md#run) in advance. A [toolbelt](glossary.md#toolbelt) command producing CQL statements that creates all tables for a [run](glossary.md#run) may look like this:
+This situation can be mitigated to some extent by creating all tables for a specific [run](glossary.md#run) in advance and verifying that all tables are in place. A [toolbelt](glossary.md#toolbelt) command producing CQL statements that creates all tables for a [run](glossary.md#run) may look like this:
 
 ``` 
 go run capitoolbelt.go get_table_cql -script_file=... -params_file=... -keyspace=... -run_id=... -start_nodes=...
@@ -91,20 +91,22 @@ Bottom line: Capillaries' use of cloud-based Cassandra is questionable at the mo
 
 ## What's next?
 
-Q. What are the potential directions to improve Capillaries?
+Q. What are the potential directions for improvement?
 
 A. Here are some, in no particular order:
 
-1. Read/write from/to other file formats, maybe databases.
+1. Performance enhancements, espcecially those related to the efficient use of Cassandra.
 
-2. Creating node configuration is a tedious job. Consider adding a toolbelt command that takes a CSV file as an input and generates JSON for a corresponding file_table/table_file node.
+2. Read/write from/to other file formats, maybe databases.
 
-3. Is the lack of NULL support a deal-breaker?
+3. Creating node configuration is a tedious job. Consider adding a toolbelt command that takes a CSV file as an input and generates JSON for a corresponding file_table/table_file node.
 
-4. Need a strategy to mitigate potential security threats introduced by py_calc. SELinux/AppArmor?
+4. Is the lack of NULL support a deal-breaker?
 
-5. Keep an eye on Azure/AWS/GCP progress with Cassandra-compatible databases (latency!) and RabbitMQ offerings.
+5. Need a strategy to mitigate potential security threats introduced by py_calc. SELinux/AppArmor?
 
-6. Select distinct field values from a table: it can be implemented easily using a set, but it will not scale and it will be limited by the size of the map. Alternatively, it can be implemented using Cassandra features, but it will require Capillaries to support tables without [rowid](glossary.md#rowid) (so the unique values are stored in a partitioning key field).
+6. Keep an eye on Azure/AWS/GCP progress with Cassandra-compatible databases (latency!) and RabbitMQ offerings.
 
-7. Keep adding support for Go library functions
+7. Select distinct field values from a table: it can be implemented easily using a set, but it will not scale and it will be limited by the size of the map. Alternatively, it can be implemented using Cassandra features, but it will require Capillaries to support tables without [rowid](glossary.md#rowid) (so the unique values are stored in a partitioning key field).
+
+8. Keep adding support for Go library functions
