@@ -139,15 +139,6 @@ type queryBuilderConditions struct {
 	Len   int
 }
 
-func (cc *queryBuilderConditions) addIn(column string, values []interface{}) {
-	inValues := make([]string, len(values))
-	for i, v := range values {
-		inValues[i] = valueToString(v, LeaveQuoteAsIs)
-	}
-	cc.Items[cc.Len] = fmt.Sprintf("%s IN ( %s )", column, strings.Join(inValues, ", "))
-	cc.Len++
-}
-
 func (cc *queryBuilderConditions) addInInt(column string, values []int64) {
 	inValues := make([]string, len(values))
 	for i, v := range values {
@@ -173,6 +164,10 @@ func (cc *queryBuilderConditions) addInString(column string, values []string) {
 
 func (cc *queryBuilderConditions) addSimple(column string, op string, value interface{}) {
 	cc.Items[cc.Len] = fmt.Sprintf("%s %s %s", column, op, valueToString(value, LeaveQuoteAsIs))
+	cc.Len++
+}
+func (cc *queryBuilderConditions) addSimpleForceUnquote(column string, op string, value interface{}) {
+	cc.Items[cc.Len] = fmt.Sprintf("%s %s %s", column, op, valueToString(value, ForceUnquote))
 	cc.Len++
 }
 
@@ -264,14 +259,19 @@ func (qb *QueryBuilder) Cond(column string, op string, value interface{}) *Query
 	return qb
 }
 
-/*
-CondIn - add IN condition for SELECT, UPDATE or DELETE
-*/
-func (qb *QueryBuilder) CondIn(column string, values []interface{}) *QueryBuilder {
-	qb.Conditions.addIn(column, values)
+func (qb *QueryBuilder) CondPrepared(column string, op string) *QueryBuilder {
+	qb.Conditions.addSimpleForceUnquote(column, op, "?")
 	return qb
 }
 
+func (qb *QueryBuilder) CondInPrepared(column string) *QueryBuilder {
+	qb.Conditions.addSimpleForceUnquote(column, "IN", "?")
+	return qb
+}
+
+/*
+CondIn - add IN condition for SELECT, UPDATE or DELETE
+*/
 func (qb *QueryBuilder) CondInInt(column string, values []int64) *QueryBuilder {
 	qb.Conditions.addInInt(column, values)
 	return qb

@@ -508,7 +508,7 @@
                 "env": {
                     "CASSANDRA_IP": "10.5.0.11",
                     "CASSANDRA_SEEDS": "{cassandra_seeds}",
-                    "INITIAL_TOKEN": "",
+                    "INITIAL_TOKEN": "-9223372036854775808",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
                 },
                 "cmd": {
@@ -541,7 +541,7 @@
                 "env": {
                     "CASSANDRA_IP": "10.5.0.12",
                     "CASSANDRA_SEEDS": "{cassandra_seeds}",
-                    "INITIAL_TOKEN": "",
+                    "INITIAL_TOKEN": "-6917529027641081856",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
                 },
                 "cmd": {
@@ -574,7 +574,7 @@
                 "env": {
                     "CASSANDRA_IP": "10.5.0.13",
                     "CASSANDRA_SEEDS": "{cassandra_seeds}",
-                    "INITIAL_TOKEN": "",
+                    "INITIAL_TOKEN": "-4611686018427387904",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
                 },
                 "cmd": {
@@ -607,7 +607,7 @@
                 "env": {
                     "CASSANDRA_IP": "10.5.0.14",
                     "CASSANDRA_SEEDS": "{cassandra_seeds}",
-                    "INITIAL_TOKEN": "",
+                    "INITIAL_TOKEN": "-2305843009213693952",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
                 },
                 "cmd": {
@@ -640,7 +640,7 @@
                 "env": {
                     "CASSANDRA_IP": "10.5.0.15",
                     "CASSANDRA_SEEDS": "{cassandra_seeds}",
-                    "INITIAL_TOKEN": "",
+                    "INITIAL_TOKEN": "0",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
                 },
                 "cmd": {
@@ -673,7 +673,7 @@
                 "env": {
                     "CASSANDRA_IP": "10.5.0.16",
                     "CASSANDRA_SEEDS": "{cassandra_seeds}",
-                    "INITIAL_TOKEN": "",
+                    "INITIAL_TOKEN": "2305843009213693952",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
                 },
                 "cmd": {
@@ -706,7 +706,7 @@
                 "env": {
                     "CASSANDRA_IP": "10.5.0.17",
                     "CASSANDRA_SEEDS": "{cassandra_seeds}",
-                    "INITIAL_TOKEN": "",
+                    "INITIAL_TOKEN": "4611686018427387904",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
                 },
                 "cmd": {
@@ -739,7 +739,7 @@
                 "env": {
                     "CASSANDRA_IP": "10.5.0.18",
                     "CASSANDRA_SEEDS": "{cassandra_seeds}",
-                    "INITIAL_TOKEN": "",
+                    "INITIAL_TOKEN": "6917529027641081856",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}"
                 },
                 "cmd": {

@@ -52,8 +52,8 @@ func TestSelect(t *testing.T) {
 		Keyspace("somekeyspace").
 		Cond("col1", ">", 1).
 		Cond("col2", "=", 2).
-		CondIn("col3", []interface{}{"val31", "val32"}).
-		CondIn("col7", []interface{}{1, 2}).
+		CondInString("col3", []string{"val31", "val32"}).
+		CondInInt16("col7", []int16{1, 2}).
 		SelectRun("table1", 123, []string{"col3", "col4"})
 	if s != q {
 		t.Errorf("Unmatch:\n%v\n%v\n", q, s)
@@ -66,8 +66,8 @@ func TestDelete(t *testing.T) {
 	s := qb.
 		Cond("col1", ">", 1).
 		Cond("col2", "=", 2).
-		CondIn("col3", []interface{}{"val31", "val32"}).
-		CondIn("col7", []interface{}{1, 2}).
+		CondInString("col3", []string{"val31", "val32"}).
+		CondInInt("col7", []int64{1, 2}).
 		DeleteRun("table1", 123)
 	if s != q {
 		t.Errorf("Unmatch:\n%v\n%v\n", q, s)
@@ -102,6 +102,17 @@ func TestCreate(t *testing.T) {
 		PartitionKey("col_int", "col_decimal2").
 		ClusteringKey("col_bool", "col_float").
 		CreateRun("table1", 123, IgnoreIfExists)
+	if s != q {
+		t.Errorf("Unmatch:\n%v\n%v\n", q, s)
+	}
+}
+
+func TestInsertPrepared(t *testing.T) {
+	const q = "INSERT INTO table1_00123 ( col_int ) VALUES ( ? ) IF NOT EXISTS;"
+	dataQb := NewQB()
+	dataQb.WritePreparedColumn("col_int")
+	dataQb.WritePreparedValue("col_int", 2)
+	s, _ := dataQb.InsertRunPreparedQuery("table1", 123, IgnoreIfExists)
 	if s != q {
 		t.Errorf("Unmatch:\n%v\n%v\n", q, s)
 	}
