@@ -259,14 +259,6 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 		(*writeItem.TableRecord)["rowid"] = instr.RowidRand.Int63()
 		instr.RandMutex.Unlock()
 
-		// qb := cql.QueryBuilder{}
-		// qb.Write("batch_idx", instr.PCtx.BatchInfo.BatchIdx)
-		// for fieldName, fieldValue := range *writeItem.TableRecord {
-		// 	qb.Write(fieldName, fieldValue)
-		// }
-		// q := qb.Keyspace(instr.PCtx.BatchInfo.DataKeyspace).
-		// 	InsertRun(instr.TableCreator.Name, instr.PCtx.BatchInfo.RunId, cql.IgnoreIfExists) // INSERT IF NOT EXISTS; if exists,  returned isApplied = false
-
 		for fieldName, fieldValue := range *writeItem.TableRecord {
 			dataQb.WritePreparedValue(fieldName, fieldValue)
 		}
@@ -293,14 +285,6 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 						instr.RowidRand = rand.New(rand.NewSource(newSeed()))
 						(*writeItem.TableRecord)["rowid"] = instr.RowidRand.Int63()
 						instr.RandMutex.Unlock()
-
-						// newQb := cql.QueryBuilder{}
-						// newQb.Write("batch_idx", instr.PCtx.BatchInfo.BatchIdx)
-						// for fieldName, fieldValue := range *writeItem.TableRecord {
-						// 	newQb.Write(fieldName, fieldValue)
-						// }
-						// q = newQb.Keyspace(instr.PCtx.BatchInfo.DataKeyspace).
-						// 	InsertRun(instr.TableCreator.Name, instr.PCtx.BatchInfo.RunId, cql.IgnoreIfExists) // INSERT IF NOT EXISTS; if exists,  returned isApplied = false
 
 						// Set new rowid and re-build query params array (shouldn't throw errors this time)
 						dataQb.WritePreparedValue("rowid", (*writeItem.TableRecord)["rowid"])
@@ -353,11 +337,6 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 				if idxDef.Uniqueness == sc.IdxUnique {
 					ifNotExistsFlag = cql.IgnoreIfExists
 				}
-				// qb := cql.QueryBuilder{}
-				// qb.Write("key", writeItem.IndexKeyMap[idxName])
-				// qb.Write("rowid", (*writeItem.TableRecord)["rowid"])
-				// q := qb.Keyspace(instr.PCtx.BatchInfo.DataKeyspace).
-				// 	InsertRun(idxName, instr.PCtx.BatchInfo.RunId, ifNotExistsFlag)
 
 				idxQb := cql.NewQB()
 				idxQb.WritePreparedColumn("key")

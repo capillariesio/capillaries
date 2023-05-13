@@ -70,14 +70,14 @@ func selectBatchFromDataTablePaged(logger *l.Logger,
 	qb := cql.QueryBuilder{}
 	q := qb.
 		Keyspace(pCtx.BatchInfo.DataKeyspace).
-		CondInInt("rowid", rowids). // This is a right-side lookup table, select by rowid
+		CondInPrepared("rowid"). // This is a right-side lookup table, select by rowid
 		SelectRun(tableName, lookupNodeRunId, *rs.GetFieldNames())
 
 	var iter *gocql.Iter
 	selectRetryIdx := 0
 	curSelectExpBackoffFactor := 1
 	for {
-		iter = pCtx.CqlSession.Query(q).PageSize(batchSize).PageState(pageState).Iter()
+		iter = pCtx.CqlSession.Query(q, rowids).PageSize(batchSize).PageState(pageState).Iter()
 
 		dbWarnings := iter.Warnings()
 		if len(dbWarnings) > 0 {
@@ -179,10 +179,10 @@ func selectBatchFromIdxTablePaged(logger *l.Logger,
 
 	qb := cql.QueryBuilder{}
 	q := qb.Keyspace(pCtx.BatchInfo.DataKeyspace).
-		CondInString("key", *keysToFind). // This is an index table, select only selected keys
+		CondInPrepared("key"). // This is an index table, select only selected keys
 		SelectRun(tableName, lookupNodeRunId, *rs.GetFieldNames())
 
-	iter := pCtx.CqlSession.Query(q).PageSize(batchSize).PageState(pageState).Iter()
+	iter := pCtx.CqlSession.Query(q, *keysToFind).PageSize(batchSize).PageState(pageState).Iter()
 
 	dbWarnings := iter.Warnings()
 	if len(dbWarnings) > 0 {
@@ -227,13 +227,14 @@ func selectBatchFromTableByToken(logger *l.Logger,
 	qb := cql.QueryBuilder{}
 	q := qb.Keyspace(pCtx.BatchInfo.DataKeyspace).
 		Limit(batchSize).
-		Cond("token(rowid)", ">=", startToken).
-		Cond("token(rowid)", "<=", endToken).
+		CondPrepared("token(rowid)", ">=").
+		CondPrepared("token(rowid)", "<=").
 		SelectRun(tableName, readerNodeRunId, *rs.GetFieldNames())
 
 	// TODO: consider retries as we do in selectBatchFromDataTablePaged(); although no timeouts were detected so far here
 
-	iter := pCtx.CqlSession.Query(q).Iter()
+	iter := pCtx.CqlSession.Query(q, startToken, endToken).Iter()
+
 	dbWarnings := iter.Warnings()
 	if len(dbWarnings) > 0 {
 		logger.WarnCtx(pCtx, strings.Join(dbWarnings, ";"))
