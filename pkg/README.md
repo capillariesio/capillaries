@@ -15,7 +15,7 @@ Custom [processors](../doc/glossary.md#processor):
 - [tag_and_denormalize](../doc/glossary.md#tag_and_denormalize-processor)
 
 ## deploy
-Utility functions used by [Deploy tool](../doc/glossary#deploy-tool)
+Utility functions used by [Deploy tool](../doc/glossary.md#deploy-tool)
 
 ## env
 Environment configuration for Capillaries [binaries](../doc/binconfig.md)
@@ -45,4 +45,4 @@ Workflow db access functions
 Workflow model
 
 ## xfer
-SSH/HTTP/SFTP utility functions used by [processors](../doc/glossary.md#processor) and [Deploy tool](../doc/glossary#deploy-tool)
+SSH/HTTP/SFTP utility functions used by [processors](../doc/glossary.md#processor) and [Deploy tool](../doc/glossary.md#deploy-tool)
