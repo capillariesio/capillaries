@@ -63,7 +63,7 @@ For more details about getting started, see [Getting started](doc/started.md). F
 ### [Capillaries deploy tool: Openstack cloud deployment](test/deploy/README.md)
 ### [Glossary](doc/glossary.md)
 ### [Q & A](doc/qna.md)
-### [Capillaries Blog](https://capillaries.io/blog/index.html)
+### [Capillaries blog](https://capillaries.io/blog/index.html)
 ### [MIT License](LICENSE)
 
 (C) 2023 kleines.hertz[at]protonmail.com
