@@ -45,4 +45,4 @@ Workflow db access functions
 Workflow model
 
 ## xfer
-SSH/HTTP/SFTP utility functions used by [processors](../doc/glossary.md#processor) and [Deploy tool](../doc/glossary#deploy-tool)
+SSH/HTTP/SFTP utility functions used by [processors](../doc/glossary.md#processor) and [Deploy tool](../doc/glossary#deploy-tool.md)
