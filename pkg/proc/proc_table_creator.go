@@ -126,85 +126,89 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.M
 		return bs, fmt.Errorf("uri scheme %s not supported: %s", u.Scheme, filePath)
 	}
 
-	r := csv.NewReader(fileReader)
-	r.Comma = rune(node.FileReader.Separator[0])
+	if node.FileReader.ReaderFileType == sc.ReaderFileTypeCsv {
+		r := csv.NewReader(fileReader)
+		r.Comma = rune(node.FileReader.Csv.Separator[0])
 
-	// To avoid bare \" error: https://stackoverflow.com/questions/31326659/golang-csv-error-bare-in-non-quoted-field
-	r.LazyQuotes = true
+		// To avoid bare \" error: https://stackoverflow.com/questions/31326659/golang-csv-error-bare-in-non-quoted-field
+		r.LazyQuotes = true
 
-	var lineIdx int64 = 0
-	tableRecordBatchCount := 0
+		var lineIdx int64 = 0
+		tableRecordBatchCount := 0
 
-	instr := newTableInserter(envConfig, logger, pCtx, &node.TableCreator, DefaultInserterBatchSize)
-	//instr.verifyTablesExist()
-	if err := instr.startWorkers(logger, pCtx); err != nil {
-		return bs, err
-	}
-	defer instr.waitForWorkersAndCloseErrorsOut(logger, pCtx)
-
-	for {
-		line, err := r.Read()
-		if err == io.EOF {
-			break
+		instr := newTableInserter(envConfig, logger, pCtx, &node.TableCreator, DefaultInserterBatchSize)
+		//instr.verifyTablesExist()
+		if err := instr.startWorkers(logger, pCtx); err != nil {
+			return bs, err
 		}
-		if err != nil {
-			return bs, fmt.Errorf("cannot read file [%s]: [%s]", filePath, err.Error())
-		}
-		if node.FileReader.ColumnIndexingMode == sc.FileColumnIndexingName && int64(node.FileReader.SrcFileHdrLineIdx) == lineIdx {
-			if err := node.FileReader.ResolveColumnIndexesFromNames(line); err != nil {
-				return bs, fmt.Errorf("cannot parse column headers of [%s]: [%s]", filePath, err.Error())
-			}
-		} else if lineIdx >= int64(node.FileReader.SrcFileFirstDataLineIdx) {
+		defer instr.waitForWorkersAndCloseErrorsOut(logger, pCtx)
 
-			// FileReader: read columns
-			colVars := eval.VarValuesMap{}
-			if err := node.FileReader.ReadLineToValuesMap(&line, colVars); err != nil {
-				return bs, fmt.Errorf("cannot read values from [%s], line %d: [%s]", filePath, lineIdx, err.Error())
+		for {
+			line, err := r.Read()
+			if err == io.EOF {
+				break
 			}
-
-			// TableCreator: evaluate table column expressions
-			tableRecord, err := node.TableCreator.CalculateTableRecordFromSrcVars(false, colVars)
 			if err != nil {
-				return bs, fmt.Errorf("cannot populate table record from [%s], line %d: [%s]", filePath, lineIdx, err.Error())
+				return bs, fmt.Errorf("cannot read file [%s]: [%s]", filePath, err.Error())
 			}
-
-			// Check table creator having
-			inResult, err := node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
-			if err != nil {
-				return bs, fmt.Errorf("cannot check having condition [%s], table record [%v]: [%s]", node.TableCreator.RawHaving, tableRecord, err.Error())
-			}
-
-			// Write batch if needed
-			if inResult {
-				instr.add(tableRecord)
-				tableRecordBatchCount++
-				if tableRecordBatchCount == DefaultInserterBatchSize {
-					if err := instr.waitForWorkers(logger, pCtx); err != nil {
-						return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
-					}
-					reportWriteTable(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
-					batchStartTime = time.Now()
-					tableRecordBatchCount = 0
-					if err := instr.startWorkers(logger, pCtx); err != nil {
-						return bs, err
-					}
-
+			if node.FileReader.Csv.ColumnIndexingMode == sc.FileColumnIndexingName && int64(node.FileReader.Csv.SrcFileHdrLineIdx) == lineIdx {
+				if err := node.FileReader.ResolveCsvColumnIndexesFromNames(line); err != nil {
+					return bs, fmt.Errorf("cannot parse column headers of [%s]: [%s]", filePath, err.Error())
 				}
-				bs.RowsWritten++
+			} else if lineIdx >= int64(node.FileReader.Csv.SrcFileFirstDataLineIdx) {
+
+				// FileReader: read columns
+				colVars := eval.VarValuesMap{}
+				if err := node.FileReader.ReadCsvLineToValuesMap(&line, colVars); err != nil {
+					return bs, fmt.Errorf("cannot read values from [%s], line %d: [%s]", filePath, lineIdx, err.Error())
+				}
+
+				// TableCreator: evaluate table column expressions
+				tableRecord, err := node.TableCreator.CalculateTableRecordFromSrcVars(false, colVars)
+				if err != nil {
+					return bs, fmt.Errorf("cannot populate table record from [%s], line %d: [%s]", filePath, lineIdx, err.Error())
+				}
+
+				// Check table creator having
+				inResult, err := node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
+				if err != nil {
+					return bs, fmt.Errorf("cannot check having condition [%s], table record [%v]: [%s]", node.TableCreator.RawHaving, tableRecord, err.Error())
+				}
+
+				// Write batch if needed
+				if inResult {
+					instr.add(tableRecord)
+					tableRecordBatchCount++
+					if tableRecordBatchCount == DefaultInserterBatchSize {
+						if err := instr.waitForWorkers(logger, pCtx); err != nil {
+							return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+						}
+						reportWriteTable(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
+						batchStartTime = time.Now()
+						tableRecordBatchCount = 0
+						if err := instr.startWorkers(logger, pCtx); err != nil {
+							return bs, err
+						}
+
+					}
+					bs.RowsWritten++
+				}
+				bs.RowsRead++
 			}
-			bs.RowsRead++
+			lineIdx++
 		}
-		lineIdx++
-	}
 
-	// Write leftovers regardless of tableRecordBatchCount == 0
-	if err := instr.waitForWorkers(logger, pCtx); err != nil {
-		return bs, fmt.Errorf("cannot save leftover record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
-	}
-	reportWriteTableLeftovers(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
+		// Write leftovers regardless of tableRecordBatchCount == 0
+		if err := instr.waitForWorkers(logger, pCtx); err != nil {
+			return bs, fmt.Errorf("cannot save leftover record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+		}
+		reportWriteTableLeftovers(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
 
-	bs.Elapsed = time.Since(totalStartTime)
-	reportWriteTableComplete(logger, pCtx, bs.RowsRead, bs.RowsWritten, bs.Elapsed, len(node.TableCreator.Indexes), instr.NumWorkers)
+		bs.Elapsed = time.Since(totalStartTime)
+		reportWriteTableComplete(logger, pCtx, bs.RowsRead, bs.RowsWritten, bs.Elapsed, len(node.TableCreator.Indexes), instr.NumWorkers)
+	} else {
+		return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("unknown reader file type: %d", node.FileReader.ReaderFileType)
+	}
 
 	return bs, nil
 }

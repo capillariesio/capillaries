@@ -23,15 +23,15 @@ func testReader(fileReaderJson string, srcLine []string) (eval.VarValuesMap, err
 		return nil, err
 	}
 
-	if fileReader.ColumnIndexingMode == FileColumnIndexingName {
+	if fileReader.Csv.ColumnIndexingMode == FileColumnIndexingName {
 		srcHdrLine := []string{"order_id", "customer_id", "order_status", "order_purchase_timestamp"}
-		if err := fileReader.ResolveColumnIndexesFromNames(srcHdrLine); err != nil {
+		if err := fileReader.ResolveCsvColumnIndexesFromNames(srcHdrLine); err != nil {
 			return nil, err
 		}
 	}
 
 	colRecord := eval.VarValuesMap{}
-	if err := fileReader.ReadLineToValuesMap(&srcLine, colRecord); err != nil {
+	if err := fileReader.ReadCsvLineToValuesMap(&srcLine, colRecord); err != nil {
 		return nil, err
 	}
 

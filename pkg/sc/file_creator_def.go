@@ -9,12 +9,21 @@ import (
 	"github.com/capillariesio/capillaries/pkg/eval"
 )
 
+const (
+	CreatorFileTypeUnknown int = 0
+	CreatorFileTypeCsv     int = 1
+)
+
+type WriteCsvColumnSettings struct {
+	Format string `json:"format"`
+	Header string `json:"header"`
+}
+
 type WriteFileColumnDef struct {
-	RawExpression    string         `json:"expression"`
-	Format           string         `json:"format"`
-	Header           string         `json:"header"`
-	Name             string         `json:"name"` // To be used in Having
-	Type             TableFieldType `json:"type"` // To be checked when checking expressions and to be used in Having
+	RawExpression    string                 `json:"expression"`
+	Name             string                 `json:"name"` // To be used in Having
+	Type             TableFieldType         `json:"type"` // To be checked when checking expressions and to be used in Having
+	Csv              WriteCsvColumnSettings `json:"csv,omitempty"`
 	ParsedExpression ast.Expr
 	UsedFields       FieldRefs
 }
@@ -25,6 +34,10 @@ type TopDef struct {
 	OrderIdxDef IdxDef // Not an index really, we just re-use IdxDef infrastructure
 }
 
+type CsvCreatorSettings struct {
+	Separator string `json:"separator"`
+}
+
 type FileCreatorDef struct {
 	RawHaving                     string `json:"having"`
 	Having                        ast.Expr
@@ -33,7 +46,8 @@ type FileCreatorDef struct {
 	Columns                       []WriteFileColumnDef `json:"columns"`
 	UrlTemplate                   string               `json:"url_template"`
 	Top                           TopDef               `json:"top"`
-	Separator                     string               `json:"separator"`
+	Csv                           CsvCreatorSettings   `json:"csv,omitempty"`
+	CreatorFileType               int
 }
 
 const MaxFileCreatorTopLimit int = 500000
@@ -81,6 +95,21 @@ func (creatorDef *FileCreatorDef) Deserialize(rawWriter json.RawMessage) error {
 		return fmt.Errorf("cannot unmarshal file creator: [%s]", err.Error())
 	}
 
+	// TODO: add more file types here
+	if len(creatorDef.Csv.Separator) > 0 {
+		creatorDef.CreatorFileType = CreatorFileTypeCsv
+	} else {
+		// By default it's a CSV writer
+		creatorDef.CreatorFileType = CreatorFileTypeCsv
+	}
+
+	if creatorDef.CreatorFileType == CreatorFileTypeCsv {
+		// Default CSV field Separator
+		if len(creatorDef.Csv.Separator) == 0 {
+			creatorDef.Csv.Separator = ","
+		}
+	}
+
 	// Having
 	var err error
 	creatorDef.Having, err = ParseRawGolangExpressionStringAndHarvestFieldRefs(creatorDef.RawHaving, &creatorDef.UsedInHavingFields)
@@ -110,11 +139,6 @@ func (creatorDef *FileCreatorDef) Deserialize(rawWriter json.RawMessage) error {
 		rawIndexes := map[string]string{"top": fmt.Sprintf("non_unique(%s)", creatorDef.Top.RawOrder)}
 		idxDefMap.parseRawIndexDefMap(rawIndexes, creatorDef.getFieldRefs())
 		creatorDef.Top.OrderIdxDef = *idxDefMap["top"]
-	}
-
-	// CSV field Separator
-	if len(creatorDef.Separator) == 0 {
-		creatorDef.Separator = ","
 	}
 
 	creatorDef.UsedInTargetExpressionsFields = creatorDef.GetFieldRefsUsedInAllTargetFileExpressions()

@@ -11,21 +11,35 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+const (
+	ReaderFileTypeUnknown int = 0
+	ReaderFileTypeCsv     int = 1
+)
+
+type CsvReaderColumnSettings struct {
+	SrcColIdx    int    `json:"col_idx"`
+	SrcColHeader string `json:"col_hdr"`
+	SrcColFormat string `json:"col_format"` // Optional for all except datetime
+}
+
 type FileReaderColumnDef struct {
-	SrcColIdx    int            `json:"col_idx"`
-	SrcColHeader string         `json:"col_hdr"`
-	SrcColFormat string         `json:"col_format"`        // Optional for all except datetime
-	DefaultValue string         `json:"col_default_value"` // Optional. If omitted, zero value is used
-	Type         TableFieldType `json:"col_type"`
+	DefaultValue string                  `json:"col_default_value"` // Optional. If omitted, zero value is used
+	Type         TableFieldType          `json:"col_type"`
+	Csv          CsvReaderColumnSettings `json:"csv,omitempty"`
+}
+
+type CsvReaderSettings struct {
+	SrcFileHdrLineIdx       int    `json:"hdr_line_idx"`
+	SrcFileFirstDataLineIdx int    `json:"first_data_line_idx"`
+	Separator               string `json:"separator"`
+	ColumnIndexingMode      FileColumnIndexingMode
 }
 
 type FileReaderDef struct {
-	SrcFileUrls             []string                        `json:"urls"`
-	SrcFileHdrLineIdx       int                             `json:"hdr_line_idx"`
-	SrcFileFirstDataLineIdx int                             `json:"first_data_line_idx"`
-	Columns                 map[string]*FileReaderColumnDef `json:"columns"` // Keys are names used in table writer
-	Separator               string                          `json:"separator"`
-	ColumnIndexingMode      FileColumnIndexingMode
+	SrcFileUrls    []string                        `json:"urls"`
+	Columns        map[string]*FileReaderColumnDef `json:"columns"` // Keys are names used in table writer
+	Csv            CsvReaderSettings               `json:"csv,omitempty"`
+	ReaderFileType int
 }
 
 func (frDef *FileReaderDef) getFieldRefs() *FieldRefs {
@@ -49,17 +63,17 @@ const (
 	FileColumnIndexingUnknown FileColumnIndexingMode = "unknown"
 )
 
-func (frDef *FileReaderDef) getColumnIndexingMode() (FileColumnIndexingMode, error) {
+func (frDef *FileReaderDef) getCsvColumnIndexingMode() (FileColumnIndexingMode, error) {
 	usesIdxCount := 0
 	usesHdrNameCount := 0
 	for _, colDef := range frDef.Columns {
-		if len(colDef.SrcColHeader) > 0 {
+		if len(colDef.Csv.SrcColHeader) > 0 {
 			usesHdrNameCount++ // We have a name, ignore col idx, it's probably zero (default)
-		} else if colDef.SrcColIdx >= 0 {
+		} else if colDef.Csv.SrcColIdx >= 0 {
 			usesIdxCount++
 		} else {
-			if colDef.SrcColIdx < 0 {
-				return "", fmt.Errorf("file reader column definition cannot use negative column index: %d", colDef.SrcColIdx)
+			if colDef.Csv.SrcColIdx < 0 {
+				return "", fmt.Errorf("file reader column definition cannot use negative column index: %d", colDef.Csv.SrcColIdx)
 			}
 		}
 	}
@@ -88,23 +102,31 @@ func (frDef *FileReaderDef) Deserialize(rawReader json.RawMessage) error {
 		errors = append(errors, err.Error())
 	}
 
-	// File urls - substitute template values
-
 	if len(frDef.SrcFileUrls) == 0 {
 		errors = append(errors, "no source file urls specified, need at least one")
 	}
 
-	// Detect column indexing mode: by idx or by name
-
-	var err error
-	frDef.ColumnIndexingMode, err = frDef.getColumnIndexingMode()
-	if err != nil {
-		errors = append(errors, fmt.Sprintf("cannot detect column indexing mode: [%s]", err.Error()))
+	// TODO: add more file types here
+	if len(frDef.Csv.Separator) > 0 || frDef.Csv.SrcFileFirstDataLineIdx > 0 {
+		frDef.ReaderFileType = ReaderFileTypeCsv
+	} else {
+		// CSV reader by default
+		frDef.ReaderFileType = ReaderFileTypeCsv
 	}
 
-	// CSV field Separator
-	if len(frDef.Separator) == 0 {
-		frDef.Separator = ","
+	if frDef.ReaderFileType == ReaderFileTypeCsv {
+		// Detect column indexing mode: by idx or by name
+		var err error
+		frDef.Csv.ColumnIndexingMode, err = frDef.getCsvColumnIndexingMode()
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("cannot detect csv column indexing mode: [%s]", err.Error()))
+		}
+		// Default CSV field Separator
+		if len(frDef.Csv.Separator) == 0 {
+			frDef.Csv.Separator = ","
+		}
+	} else {
+		errors = append(errors, "unknown reader file type")
 	}
 
 	if len(errors) > 0 {
@@ -114,12 +136,12 @@ func (frDef *FileReaderDef) Deserialize(rawReader json.RawMessage) error {
 	}
 }
 
-func (frDef *FileReaderDef) ResolveColumnIndexesFromNames(srcHdrLine []string) error {
+func (frDef *FileReaderDef) ResolveCsvColumnIndexesFromNames(srcHdrLine []string) error {
 	columnsResolved := 0
 	for _, colDef := range frDef.Columns {
 		for i := 0; i < len(srcHdrLine); i++ {
-			if len(colDef.SrcColHeader) > 0 && srcHdrLine[i] == colDef.SrcColHeader {
-				colDef.SrcColIdx = i
+			if len(colDef.Csv.SrcColHeader) > 0 && srcHdrLine[i] == colDef.Csv.SrcColHeader {
+				colDef.Csv.SrcColIdx = i
 				columnsResolved++
 			}
 		}
@@ -130,14 +152,14 @@ func (frDef *FileReaderDef) ResolveColumnIndexesFromNames(srcHdrLine []string) e
 	return nil
 }
 
-func (frDef *FileReaderDef) ReadLineToValuesMap(line *[]string, colVars eval.VarValuesMap) error {
+func (frDef *FileReaderDef) ReadCsvLineToValuesMap(line *[]string, colVars eval.VarValuesMap) error {
 	colVars[ReaderAlias] = map[string]interface{}{}
 	for colName, colDef := range frDef.Columns {
-		colData := (*line)[colDef.SrcColIdx]
+		colData := (*line)[colDef.Csv.SrcColIdx]
 		switch colDef.Type {
 		case FieldTypeString:
-			if len(colDef.SrcColFormat) > 0 {
-				return fmt.Errorf("cannot read string column %s, data '%s': format '%s' was specified, but string fields do not accept format specifier, remove this setting", colName, colData, colDef.SrcColFormat)
+			if len(colDef.Csv.SrcColFormat) > 0 {
+				return fmt.Errorf("cannot read string column %s, data '%s': format '%s' was specified, but string fields do not accept format specifier, remove this setting", colName, colData, colDef.Csv.SrcColFormat)
 			}
 			if len(colData) == 0 {
 				if len(colDef.DefaultValue) > 0 {
@@ -150,8 +172,8 @@ func (frDef *FileReaderDef) ReadLineToValuesMap(line *[]string, colVars eval.Var
 			}
 
 		case FieldTypeBool:
-			if len(colDef.SrcColFormat) > 0 {
-				return fmt.Errorf("cannot read bool column %s, data '%s': format '%s' was specified, but bool fields do not accept format specifier, remove this setting", colName, colData, colDef.SrcColFormat)
+			if len(colDef.Csv.SrcColFormat) > 0 {
+				return fmt.Errorf("cannot read bool column %s, data '%s': format '%s' was specified, but bool fields do not accept format specifier, remove this setting", colName, colData, colDef.Csv.SrcColFormat)
 			}
 
 			var err error
@@ -183,11 +205,11 @@ func (frDef *FileReaderDef) ReadLineToValuesMap(line *[]string, colVars eval.Var
 					colVars[ReaderAlias][colName] = GetDefaultFieldTypeValue(FieldTypeInt)
 				}
 			} else {
-				if len(colDef.SrcColFormat) > 0 {
+				if len(colDef.Csv.SrcColFormat) > 0 {
 					var valInt int64
-					_, err := fmt.Sscanf(colData, colDef.SrcColFormat, &valInt)
+					_, err := fmt.Sscanf(colData, colDef.Csv.SrcColFormat, &valInt)
 					if err != nil {
-						return fmt.Errorf("cannot read int64 column %s, data '%s', format '%s': %s", colName, colData, colDef.SrcColFormat, err.Error())
+						return fmt.Errorf("cannot read int64 column %s, data '%s', format '%s': %s", colName, colData, colDef.Csv.SrcColFormat, err.Error())
 					}
 					colVars[ReaderAlias][colName] = valInt
 				} else {
@@ -202,7 +224,7 @@ func (frDef *FileReaderDef) ReadLineToValuesMap(line *[]string, colVars eval.Var
 		case FieldTypeDateTime:
 			if len(strings.TrimSpace(colData)) == 0 {
 				if len(strings.TrimSpace(colDef.DefaultValue)) > 0 {
-					valTime, err := time.Parse(colDef.SrcColFormat, colDef.DefaultValue)
+					valTime, err := time.Parse(colDef.Csv.SrcColFormat, colDef.DefaultValue)
 					if err != nil {
 						return fmt.Errorf("cannot read time column %s from default value string '%s': %s", colName, colDef.DefaultValue, err.Error())
 					}
@@ -211,13 +233,13 @@ func (frDef *FileReaderDef) ReadLineToValuesMap(line *[]string, colVars eval.Var
 					colVars[ReaderAlias][colName] = GetDefaultFieldTypeValue(FieldTypeDateTime)
 				}
 			} else {
-				if len(colDef.SrcColFormat) == 0 {
+				if len(colDef.Csv.SrcColFormat) == 0 {
 					return fmt.Errorf("cannot read datetime column %s, data '%s': column format is missing, consider specifying something like 2006-01-02T15:04:05.000-0700, see go datetime format documentation for details", colName, colData)
 				}
 
-				valTime, err := time.Parse(colDef.SrcColFormat, colData)
+				valTime, err := time.Parse(colDef.Csv.SrcColFormat, colData)
 				if err != nil {
-					return fmt.Errorf("cannot read datetime column %s, data '%s', format '%s': %s", colName, colData, colDef.SrcColFormat, err.Error())
+					return fmt.Errorf("cannot read datetime column %s, data '%s', format '%s': %s", colName, colData, colDef.Csv.SrcColFormat, err.Error())
 				}
 				colVars[ReaderAlias][colName] = valTime
 			}
@@ -234,11 +256,11 @@ func (frDef *FileReaderDef) ReadLineToValuesMap(line *[]string, colVars eval.Var
 					colVars[ReaderAlias][colName] = GetDefaultFieldTypeValue(FieldTypeFloat)
 				}
 			} else {
-				if len(colDef.SrcColFormat) > 0 {
+				if len(colDef.Csv.SrcColFormat) > 0 {
 					var valFloat float64
-					_, err := fmt.Sscanf(colData, colDef.SrcColFormat, &valFloat)
+					_, err := fmt.Sscanf(colData, colDef.Csv.SrcColFormat, &valFloat)
 					if err != nil {
-						return fmt.Errorf("cannot read float64 column %s, data '%s', format '%s': %s", colName, colData, colDef.SrcColFormat, err.Error())
+						return fmt.Errorf("cannot read float64 column %s, data '%s', format '%s': %s", colName, colData, colDef.Csv.SrcColFormat, err.Error())
 					}
 					colVars[ReaderAlias][colName] = valFloat
 				} else {
@@ -264,11 +286,11 @@ func (frDef *FileReaderDef) ReadLineToValuesMap(line *[]string, colVars eval.Var
 				}
 			} else {
 				var valFloat float64
-				if len(colDef.SrcColFormat) > 0 {
+				if len(colDef.Csv.SrcColFormat) > 0 {
 					// Decimal type does not support sscanf, so sscanf string first
-					_, err := fmt.Sscanf(colData, colDef.SrcColFormat, &valFloat)
+					_, err := fmt.Sscanf(colData, colDef.Csv.SrcColFormat, &valFloat)
 					if err != nil {
-						return fmt.Errorf("cannot read decimal2 column %s, data '%s', format '%s': %s", colName, colData, colDef.SrcColFormat, err.Error())
+						return fmt.Errorf("cannot read decimal2 column %s, data '%s', format '%s': %s", colName, colData, colDef.Csv.SrcColFormat, err.Error())
 					}
 					colVars[ReaderAlias][colName] = decimal.NewFromFloat(valFloat).Round(2)
 				} else {
