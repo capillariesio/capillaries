@@ -14,6 +14,7 @@ import (
 const (
 	ReaderFileTypeUnknown int = 0
 	ReaderFileTypeCsv     int = 1
+	ReaderFileTypeParquet int = 2
 )
 
 type CsvReaderColumnSettings struct {
