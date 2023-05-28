@@ -42,23 +42,31 @@ func TestFieldRefs(t *testing.T) {
 	conf := `
 	{
 		"urls": [""],
-		"hdr_line_idx": 0,
-		"first_data_line_idx": 1,
+		"csv":{
+			"hdr_line_idx": 0,
+			"first_data_line_idx": 1
+		},
 		"columns":  {
 			"col_order_id": {
-				"col_idx": 0,
-				"col_hdr": null,
+				"csv":{
+					"col_idx": 0,
+					"col_hdr": null
+				},
 				"col_type": "string"
 			},
 			"col_order_status": {
-				"col_idx": 2,
-				"col_hdr": null,
+				"csv":{
+					"col_idx": 2,
+					"col_hdr": null
+				},
 				"col_type": "string"
 			},
 			"col_order_purchase_timestamp": {
-				"col_idx": 3,
-				"col_hdr": null,
-				"col_format": "2006-01-02 15:04:05",
+				"csv":{
+					"col_idx": 3,
+					"col_hdr": null,
+					"col_format": "2006-01-02 15:04:05"
+				},
 				"col_type": "datetime"
 			}
 		}
@@ -88,23 +96,31 @@ func TestColumnIndexing(t *testing.T) {
 	colRecord, err := testReader(`
 		{
 			"urls": [""],
-			"hdr_line_idx": 0,
-			"first_data_line_idx": 1,
+			"csv":{
+				"hdr_line_idx": 0,
+				"first_data_line_idx": 1
+			},
 			"columns":  {
 				"col_order_id": {
-					"col_idx": 0,
-					"col_hdr": null,
+					"csv":{
+						"col_idx": 0,
+						"col_hdr": null
+					},
 					"col_type": "string"
 				},
 				"col_order_status": {
-					"col_idx": 2,
-					"col_hdr": null,
+					"csv":{
+						"col_idx": 2,
+						"col_hdr": null
+					},
 					"col_type": "string"
 				},
 				"col_order_purchase_timestamp": {
-					"col_idx": 3,
-					"col_hdr": null,
-					"col_format": "2006-01-02 15:04:05",
+					"csv":{
+						"col_idx": 3,
+						"col_hdr": null,
+						"col_format": "2006-01-02 15:04:05"
+					},
 					"col_type": "datetime"
 				}
 			}
@@ -121,20 +137,28 @@ func TestColumnIndexing(t *testing.T) {
 	colRecord, err = testReader(`
 		{
 			"urls": [""],
-			"hdr_line_idx": 0,
-			"first_data_line_idx": 1,
+			"csv":{
+				"hdr_line_idx": 0,
+				"first_data_line_idx": 1
+			},
 			"columns":  {
 				"col_order_id": {
-					"col_hdr": "order_id",
+					"csv":{
+						"col_hdr": "order_id"
+					},
 					"col_type": "string"
 				},
 				"col_order_status": {
-					"col_hdr": "order_status",
+					"csv":{
+						"col_hdr": "order_status"
+					},
 					"col_type": "string"
 				},
 				"col_order_purchase_timestamp": {
-					"col_hdr": "order_purchase_timestamp",
-					"col_format": "2006-01-02 15:04:05",
+					"csv":{
+						"col_hdr": "order_purchase_timestamp",
+						"col_format": "2006-01-02 15:04:05"
+					},
 					"col_type": "datetime"
 				}
 			}
@@ -147,36 +171,48 @@ func TestColumnIndexing(t *testing.T) {
 	_, err = testReader(`
 		{
 			"urls": [""],
-			"hdr_line_idx": 0,
-			"first_data_line_idx": 1,
+			"csv":{
+				"hdr_line_idx": 0,
+				"first_data_line_idx": 1
+			},
 			"columns":  {
 				"col_order_id": {
-					"col_idx": -1,
+					"csv":{
+						"col_idx": -1
+					},
 					"col_type": "string"
 				}
 			}
 		}`, srcLine)
 
-	assertErrorPrefix(t, "cannot detect column indexing mode: [file reader column definition cannot use negative column index: -1]", err.Error())
+	assertErrorPrefix(t, "cannot detect csv column indexing mode: [file reader column definition cannot use negative column index: -1]", err.Error())
 
 	// Bad number of source files
 	_, err = testReader(`
 		{
 			"urls": [],
-			"hdr_line_idx": 0,
-			"first_data_line_idx": 1,
+			"csv":{
+				"hdr_line_idx": 0,
+				"first_data_line_idx": 1
+			},
 			"columns":  {
 				"col_order_id": {
-					"col_hdr": "order_id",
+					"csv":{
+						"col_hdr": "order_id"
+					},
 					"col_type": "string"
 				},
 				"col_order_status": {
-					"col_hdr": "order_status",
+					"csv":{
+						"col_hdr": "order_status"
+					},
 					"col_type": "string"
 				},
 				"col_order_purchase_timestamp": {
-					"col_hdr": "order_purchase_timestamp",
-					"col_format": "2006-01-02 15:04:05",
+					"csv":{
+						"col_hdr": "order_purchase_timestamp",
+						"col_format": "2006-01-02 15:04:05"
+					},
 					"col_type": "datetime"
 				}
 			}
@@ -187,47 +223,63 @@ func TestColumnIndexing(t *testing.T) {
 	_, err = testReader(`
 		{
 			"urls": [""],
-			"hdr_line_idx": 0,
-			"first_data_line_idx": 1,
+			"csv":{
+				"hdr_line_idx": 0,
+				"first_data_line_idx": 1
+			},
 			"columns":  {
 				"col_order_id": {
-					"col_idx": 1,
-					"col_hdr": "order_id",
+					"csv":{
+						"col_idx": 1,
+						"col_hdr": "order_id"
+					},
 					"col_type": "string"
 				},
 				"col_order_status": {
-					"col_idx": 2,
+					"csv":{
+						"col_idx": 2
+					},
 					"col_type": "string"
 				},
 				"col_order_purchase_timestamp": {
-					"col_hdr": "order_purchase_timestamp",
-					"col_format": "2006-01-02 15:04:05",
+					"csv":{
+						"col_hdr": "order_purchase_timestamp",
+						"col_format": "2006-01-02 15:04:05"
+					},
 					"col_type": "datetime"
 				}
 			}
 		}`, srcLine)
-	assertErrorPrefix(t, "cannot detect column indexing mode", err.Error())
+	assertErrorPrefix(t, "cannot detect csv column indexing mode", err.Error())
 
 	// Bad: cannot find file header some_unknown_col
 	_, err = testReader(`
 		{
 			"urls": [""],
-			"hdr_line_idx": 0,
-			"first_data_line_idx": 1,
+			"csv":{
+				"hdr_line_idx": 0,
+				"first_data_line_idx": 1
+			},
 			"columns":  {
 				"col_order_id": {
-					"col_idx": 1,
-					"col_hdr": "order_id",
+					"csv":{
+						"col_idx": 1,
+						"col_hdr": "order_id"
+					},
 					"col_type": "string"
 				},
 				"col_order_status": {
-					"col_idx": 2,
-					"col_hdr": "some_unknown_col",
+					"csv":{
+						"col_idx": 2,
+						"col_hdr": "some_unknown_col"
+					},
 					"col_type": "string"
 				},
 				"col_order_purchase_timestamp": {
-					"col_hdr": "order_purchase_timestamp",
-					"col_format": "2006-01-02 15:04:05",
+					"csv":{
+						"col_hdr": "order_purchase_timestamp",
+						"col_format": "2006-01-02 15:04:05"
+					},
 					"col_type": "datetime"
 				}
 			}
@@ -239,20 +291,25 @@ func TestReadString(t *testing.T) {
 	confTemplate := `
 	{
 		"urls": [""],
-		"hdr_line_idx": 0,
-		"first_data_line_idx": 1,
+		"csv":{
+			"hdr_line_idx": 0,
+			"first_data_line_idx": 1
+		},
 		"columns":  {
 			"col_1": {
-				"col_idx": 1,
+				"csv":{
+					%s
+					"col_idx": 1
+				},
 				%s
 				"col_type": "string"
 			}
 		}
 	}`
 
-	confNoFormatNoDefault := fmt.Sprintf(confTemplate, ``)
-	confNoFormatWithDefault := fmt.Sprintf(confTemplate, `"col_default_value":"default_str",`)
-	confWithFormat := fmt.Sprintf(confTemplate, `"col_format": "some_format",`)
+	confNoFormatNoDefault := fmt.Sprintf(confTemplate, ``, ``)
+	confNoFormatWithDefault := fmt.Sprintf(confTemplate, ``, `"col_default_value":"default_str",`)
+	confWithFormat := fmt.Sprintf(confTemplate, `"col_format": "some_format",`, ``)
 
 	srcLineWithData := []string{"", "data_str", ""}
 	srcLineEmpty := []string{"", "", ""}
@@ -281,24 +338,29 @@ func TestReadDatetime(t *testing.T) {
 	confTemplate := `
 	{
 		"urls": [""],
-		"hdr_line_idx": 0,
-		"first_data_line_idx": 1,
+		"csv":{
+			"hdr_line_idx": 0,
+			"first_data_line_idx": 1
+		},
 		"columns":  {
 			"col_1": {
-				"col_idx": 1,
+				"csv":{
+					%s
+					"col_idx": 1
+				},
 				%s
 				"col_type": "datetime"
 			}
 		}
 	}`
 
-	confGoodFormatGoodDefault := fmt.Sprintf(confTemplate, `"col_format": "2006-01-02T15:04:05.000","col_default_value":"2001-07-07T11:22:33.700",`)
-	confGoodFormatNoDefault := fmt.Sprintf(confTemplate, `"col_format": "2006-01-02T15:04:05.000",`)
-	confNoFormatNoDefault := fmt.Sprintf(confTemplate, ``)
-	confNoFormatGoodDefault := fmt.Sprintf(confTemplate, `"col_default_value":"2001-07-07T11:22:33.700",`)
-	confGoodFormatBadDefault := fmt.Sprintf(confTemplate, `"col_format": "2006-01-02T15:04:05.000","col_default_value":"2001-07-07aaa11:22:33.700",`)
-	confBadFormatGoodDefault := fmt.Sprintf(confTemplate, `"col_format": "2006-01-02ccc15:04:05.000","col_default_value":"2001-07-07T11:22:33.700",`)
-	confBadFormatBadDefault := fmt.Sprintf(confTemplate, `"col_format": "2006-01-02ccc15:04:05.000","col_default_value":"2001-07-07aaa11:22:33.700",`)
+	confGoodFormatGoodDefault := fmt.Sprintf(confTemplate, `"col_format": "2006-01-02T15:04:05.000",`, `"col_default_value":"2001-07-07T11:22:33.700",`)
+	confGoodFormatNoDefault := fmt.Sprintf(confTemplate, `"col_format": "2006-01-02T15:04:05.000",`, ``)
+	confNoFormatNoDefault := fmt.Sprintf(confTemplate, ``, ``)
+	confNoFormatGoodDefault := fmt.Sprintf(confTemplate, ``, `"col_default_value":"2001-07-07T11:22:33.700",`)
+	confGoodFormatBadDefault := fmt.Sprintf(confTemplate, `"col_format": "2006-01-02T15:04:05.000",`, `"col_default_value":"2001-07-07aaa11:22:33.700",`)
+	confBadFormatGoodDefault := fmt.Sprintf(confTemplate, `"col_format": "2006-01-02ccc15:04:05.000",`, `"col_default_value":"2001-07-07T11:22:33.700",`)
+	confBadFormatBadDefault := fmt.Sprintf(confTemplate, `"col_format": "2006-01-02ccc15:04:05.000",`, `"col_default_value":"2001-07-07aaa11:22:33.700",`)
 
 	srcLineGood := []string{"", "2017-10-02T10:56:33.155"}
 	srcLineBad := []string{"", "2017-10-02bbb10:56:33.155"}
@@ -342,21 +404,26 @@ func TestReadInt(t *testing.T) {
 	confTemplate := `
 	{
 		"urls": [""],
-		"hdr_line_idx": 0,
-		"first_data_line_idx": 1,
+		"csv":{
+			"hdr_line_idx": 0,
+			"first_data_line_idx": 1
+		},
 		"columns":  {
 			"col_1": {
-				"col_idx": 1,
+				"csv":{
+					%s
+					"col_idx": 1
+				},
 				%s
 				"col_type": "int"
 			}
 		}
 	}`
 
-	confComplexFormatWithDefault := fmt.Sprintf(confTemplate, `"col_format": "value(%d)","col_default_value":"123",`)
-	confSimpleFormatNoDefault := fmt.Sprintf(confTemplate, `"col_format": "%d",`)
-	confNoFormatNoDefault := fmt.Sprintf(confTemplate, ``)
-	confNoFormatBadDefault := fmt.Sprintf(confTemplate, `"col_default_value":"badstring",`)
+	confComplexFormatWithDefault := fmt.Sprintf(confTemplate, `"col_format": "value(%d)",`, `"col_default_value":"123",`)
+	confSimpleFormatNoDefault := fmt.Sprintf(confTemplate, `"col_format": "%d",`, ``)
+	confNoFormatNoDefault := fmt.Sprintf(confTemplate, ``, ``)
+	confNoFormatBadDefault := fmt.Sprintf(confTemplate, ``, `"col_default_value":"badstring",`)
 
 	srcLineComplexFormat := []string{"", "value(111)", ""}
 	srcLineSimpleFormat := []string{"", "111", ""}
@@ -394,21 +461,26 @@ func TestReadFloat(t *testing.T) {
 	confTemplate := `
 	{
 		"urls": [""],
-		"hdr_line_idx": 0,
-		"first_data_line_idx": 1,
+		"csv":{
+			"hdr_line_idx": 0,
+			"first_data_line_idx": 1
+		},
 		"columns":  {
 			"col_1": {
-				"col_idx": 1,
+				"csv":{
+					%s
+					"col_idx": 1
+				},
 				%s
 				"col_type": "float"
 			}
 		}
 	}`
 
-	confComplexFormatWithDefault := fmt.Sprintf(confTemplate, `"col_format": "value(%f)","col_default_value":"5.697",`)
-	confSimpleFormatNoDefault := fmt.Sprintf(confTemplate, `"col_format": "%f",`)
-	confNoFormatNoDefault := fmt.Sprintf(confTemplate, ``)
-	confNoFormatBadDefault := fmt.Sprintf(confTemplate, `"col_default_value":"badstring",`)
+	confComplexFormatWithDefault := fmt.Sprintf(confTemplate, `"col_format": "value(%f)",`, `"col_default_value":"5.697",`)
+	confSimpleFormatNoDefault := fmt.Sprintf(confTemplate, `"col_format": "%f",`, ``)
+	confNoFormatNoDefault := fmt.Sprintf(confTemplate, ``, ``)
+	confNoFormatBadDefault := fmt.Sprintf(confTemplate, ``, `"col_default_value":"badstring",`)
 
 	srcLineComplexFormat := []string{"", "value(111.222)", ""}
 	srcLineSimpleFormat := []string{"", "111.222", ""}
@@ -446,21 +518,26 @@ func TestReadDecimal(t *testing.T) {
 	confTemplate := `
 	{
 		"urls": [""],
-		"hdr_line_idx": 0,
-		"first_data_line_idx": 1,
+		"csv":{
+			"hdr_line_idx": 0,
+			"first_data_line_idx": 1
+		},
 		"columns":  {
 			"col_1": {
-				"col_idx": 1,
+				"csv":{
+					%s
+					"col_idx": 1
+				},
 				%s
 				"col_type": "decimal2"
 			}
 		}
 	}`
 
-	confComplexFormatWithDefault := fmt.Sprintf(confTemplate, `"col_format": "value(%f)","col_default_value":"-56.78",`)
-	confSimpleFormatNoDefault := fmt.Sprintf(confTemplate, `"col_format": "%f",`)
-	confNoFormatNoDefault := fmt.Sprintf(confTemplate, ``)
-	confNoFormatBadDefault := fmt.Sprintf(confTemplate, `"col_default_value":"badstring",`)
+	confComplexFormatWithDefault := fmt.Sprintf(confTemplate, `"col_format": "value(%f)",`, `"col_default_value":"-56.78",`)
+	confSimpleFormatNoDefault := fmt.Sprintf(confTemplate, `"col_format": "%f",`, ``)
+	confNoFormatNoDefault := fmt.Sprintf(confTemplate, ``, ``)
+	confNoFormatBadDefault := fmt.Sprintf(confTemplate, ``, `"col_default_value":"badstring",`)
 
 	srcLineComplexFormat := []string{"", "value(12.34)", ""}
 	srcLineSimpleFormat := []string{"", "12.34", ""}
@@ -498,21 +575,26 @@ func TestReadBool(t *testing.T) {
 	confTemplate := `
 	{
 		"urls": [""],
-		"hdr_line_idx": 0,
-		"first_data_line_idx": 1,
+		"csv":{
+			"hdr_line_idx": 0,
+			"first_data_line_idx": 1
+		},
 		"columns":  {
 			"col_1": {
-				"col_idx": 1,
+				"csv":{
+					%s
+					"col_idx": 1
+				},
 				%s
 				"col_type": "bool"
 			}
 		}
 	}`
 
-	confNoFormatNoDefault := fmt.Sprintf(confTemplate, ``)
-	confNoFormatWithDefault := fmt.Sprintf(confTemplate, `"col_default_value":"TRUE",`)
-	confNoFormatBadDefault := fmt.Sprintf(confTemplate, `"col_default_value":"baddefault",`)
-	confWithFormat := fmt.Sprintf(confTemplate, `"col_format": "some_format",`)
+	confNoFormatNoDefault := fmt.Sprintf(confTemplate, ``, ``)
+	confNoFormatWithDefault := fmt.Sprintf(confTemplate, ``, `"col_default_value":"TRUE",`)
+	confNoFormatBadDefault := fmt.Sprintf(confTemplate, ``, `"col_default_value":"baddefault",`)
+	confWithFormat := fmt.Sprintf(confTemplate, `"col_format": "some_format",`, ``)
 
 	srcLineTrue := []string{"", "True", ""}
 	srcLineFalse := []string{"", "False", ""}
