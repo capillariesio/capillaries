@@ -6,31 +6,39 @@
             "start_policy": "manual",
             "r": {
                 "urls": [
-                    "{dir_in}/olist_orders_dataset00.csv",
-                    "{dir_in}/olist_orders_dataset01.csv",
-                    "{dir_in}/olist_orders_dataset02.csv",
-                    "{dir_in}/olist_orders_dataset03.csv",
-                    "{dir_in}/olist_orders_dataset04.csv",
-                    "{dir_in}/olist_orders_dataset05.csv",
-                    "{dir_in}/olist_orders_dataset06.csv",
-                    "{dir_in}/olist_orders_dataset07.csv",
-                    "{dir_in}/olist_orders_dataset08.csv",
-                    "{dir_in}/olist_orders_dataset09.csv"
+                    "{dir_in}/olist_orders_dataset_00.csv",
+                    "{dir_in}/olist_orders_dataset_01.csv",
+                    "{dir_in}/olist_orders_dataset_02.csv",
+                    "{dir_in}/olist_orders_dataset_03.csv",
+                    "{dir_in}/olist_orders_dataset_04.csv",
+                    "{dir_in}/olist_orders_dataset_05.csv",
+                    "{dir_in}/olist_orders_dataset_06.csv",
+                    "{dir_in}/olist_orders_dataset_07.csv",
+                    "{dir_in}/olist_orders_dataset_08.csv",
+                    "{dir_in}/olist_orders_dataset_09.csv"
                 ],
-                "hdr_line_idx": 0,
-                "first_data_line_idx": 1,
+                "csv": {
+                    "hdr_line_idx": 0,
+                    "first_data_line_idx": 1
+                },
                 "columns": {
                     "col_order_id": {
-                        "col_hdr": "order_id",
+                        "csv": {
+                            "col_hdr": "order_id"
+                        },
                         "col_type": "string"
                     },
                     "col_order_status": {
-                        "col_hdr": "order_status",
+                        "csv": {
+                            "col_hdr": "order_status"
+                        },
                         "col_type": "string"
                     },
                     "col_order_purchase_timestamp": {
-                        "col_hdr": "order_purchase_timestamp",
-                        "col_format": "2006-01-02 15:04:05",
+                        "csv": {
+                            "col_hdr": "order_purchase_timestamp",
+                            "col_format": "2006-01-02 15:04:05"
+                        },
                         "col_type": "datetime"
                     }
                 }
@@ -63,147 +71,163 @@
             "start_policy": "manual",
             "r": {
                 "urls": [
-                    "{dir_in}/olist_orders_item_dataset00.csv",
-                    "{dir_in}/olist_orders_item_dataset01.csv",
-                    "{dir_in}/olist_orders_item_dataset02.csv",
-                    "{dir_in}/olist_orders_item_dataset03.csv",
-                    "{dir_in}/olist_orders_item_dataset04.csv",
-                    "{dir_in}/olist_orders_item_dataset05.csv",
-                    "{dir_in}/olist_orders_item_dataset06.csv",
-                    "{dir_in}/olist_orders_item_dataset07.csv",
-                    "{dir_in}/olist_orders_item_dataset08.csv",
-                    "{dir_in}/olist_orders_item_dataset09.csv",
-                    "{dir_in}/olist_orders_item_dataset10.csv",
-                    "{dir_in}/olist_orders_item_dataset11.csv",
-                    "{dir_in}/olist_orders_item_dataset12.csv",
-                    "{dir_in}/olist_orders_item_dataset13.csv",
-                    "{dir_in}/olist_orders_item_dataset14.csv",
-                    "{dir_in}/olist_orders_item_dataset15.csv",
-                    "{dir_in}/olist_orders_item_dataset16.csv",
-                    "{dir_in}/olist_orders_item_dataset17.csv",
-                    "{dir_in}/olist_orders_item_dataset18.csv",
-                    "{dir_in}/olist_orders_item_dataset19.csv",
-                    "{dir_in}/olist_orders_item_dataset20.csv",
-                    "{dir_in}/olist_orders_item_dataset21.csv",
-                    "{dir_in}/olist_orders_item_dataset22.csv",
-                    "{dir_in}/olist_orders_item_dataset23.csv",
-                    "{dir_in}/olist_orders_item_dataset24.csv",
-                    "{dir_in}/olist_orders_item_dataset25.csv",
-                    "{dir_in}/olist_orders_item_dataset26.csv",
-                    "{dir_in}/olist_orders_item_dataset27.csv",
-                    "{dir_in}/olist_orders_item_dataset28.csv",
-                    "{dir_in}/olist_orders_item_dataset29.csv",
-                    "{dir_in}/olist_orders_item_dataset30.csv",
-                    "{dir_in}/olist_orders_item_dataset31.csv",
-                    "{dir_in}/olist_orders_item_dataset32.csv",
-                    "{dir_in}/olist_orders_item_dataset33.csv",
-                    "{dir_in}/olist_orders_item_dataset34.csv",
-                    "{dir_in}/olist_orders_item_dataset35.csv",
-                    "{dir_in}/olist_orders_item_dataset36.csv",
-                    "{dir_in}/olist_orders_item_dataset37.csv",
-                    "{dir_in}/olist_orders_item_dataset38.csv",
-                    "{dir_in}/olist_orders_item_dataset39.csv",
-                    "{dir_in}/olist_orders_item_dataset40.csv",
-                    "{dir_in}/olist_orders_item_dataset41.csv",
-                    "{dir_in}/olist_orders_item_dataset42.csv",
-                    "{dir_in}/olist_orders_item_dataset43.csv",
-                    "{dir_in}/olist_orders_item_dataset44.csv",
-                    "{dir_in}/olist_orders_item_dataset45.csv",
-                    "{dir_in}/olist_orders_item_dataset46.csv",
-                    "{dir_in}/olist_orders_item_dataset47.csv",
-                    "{dir_in}/olist_orders_item_dataset48.csv",
-                    "{dir_in}/olist_orders_item_dataset49.csv",
-                    "{dir_in}/olist_orders_item_dataset50.csv",
-                    "{dir_in}/olist_orders_item_dataset51.csv",
-                    "{dir_in}/olist_orders_item_dataset52.csv",
-                    "{dir_in}/olist_orders_item_dataset53.csv",
-                    "{dir_in}/olist_orders_item_dataset54.csv",
-                    "{dir_in}/olist_orders_item_dataset55.csv",
-                    "{dir_in}/olist_orders_item_dataset56.csv",
-                    "{dir_in}/olist_orders_item_dataset57.csv",
-                    "{dir_in}/olist_orders_item_dataset58.csv",
-                    "{dir_in}/olist_orders_item_dataset59.csv",
-                    "{dir_in}/olist_orders_item_dataset60.csv",
-                    "{dir_in}/olist_orders_item_dataset61.csv",
-                    "{dir_in}/olist_orders_item_dataset62.csv",
-                    "{dir_in}/olist_orders_item_dataset63.csv",
-                    "{dir_in}/olist_orders_item_dataset64.csv",
-                    "{dir_in}/olist_orders_item_dataset65.csv",
-                    "{dir_in}/olist_orders_item_dataset66.csv",
-                    "{dir_in}/olist_orders_item_dataset67.csv",
-                    "{dir_in}/olist_orders_item_dataset68.csv",
-                    "{dir_in}/olist_orders_item_dataset69.csv",
-                    "{dir_in}/olist_orders_item_dataset70.csv",
-                    "{dir_in}/olist_orders_item_dataset71.csv",
-                    "{dir_in}/olist_orders_item_dataset72.csv",
-                    "{dir_in}/olist_orders_item_dataset73.csv",
-                    "{dir_in}/olist_orders_item_dataset74.csv",
-                    "{dir_in}/olist_orders_item_dataset75.csv",
-                    "{dir_in}/olist_orders_item_dataset76.csv",
-                    "{dir_in}/olist_orders_item_dataset77.csv",
-                    "{dir_in}/olist_orders_item_dataset78.csv",
-                    "{dir_in}/olist_orders_item_dataset79.csv",
-                    "{dir_in}/olist_orders_item_dataset80.csv",
-                    "{dir_in}/olist_orders_item_dataset81.csv",
-                    "{dir_in}/olist_orders_item_dataset82.csv",
-                    "{dir_in}/olist_orders_item_dataset83.csv",
-                    "{dir_in}/olist_orders_item_dataset84.csv",
-                    "{dir_in}/olist_orders_item_dataset85.csv",
-                    "{dir_in}/olist_orders_item_dataset86.csv",
-                    "{dir_in}/olist_orders_item_dataset87.csv",
-                    "{dir_in}/olist_orders_item_dataset88.csv",
-                    "{dir_in}/olist_orders_item_dataset89.csv",
-                    "{dir_in}/olist_orders_item_dataset90.csv",
-                    "{dir_in}/olist_orders_item_dataset91.csv",
-                    "{dir_in}/olist_orders_item_dataset92.csv",
-                    "{dir_in}/olist_orders_item_dataset93.csv",
-                    "{dir_in}/olist_orders_item_dataset94.csv",
-                    "{dir_in}/olist_orders_item_dataset95.csv",
-                    "{dir_in}/olist_orders_item_dataset96.csv",
-                    "{dir_in}/olist_orders_item_dataset97.csv",
-                    "{dir_in}/olist_orders_item_dataset98.csv",
-                    "{dir_in}/olist_orders_item_dataset99.csv"
+                    "{dir_in}/olist_order_items_dataset_00.csv",
+                    "{dir_in}/olist_order_items_dataset_01.csv",
+                    "{dir_in}/olist_order_items_dataset_02.csv",
+                    "{dir_in}/olist_order_items_dataset_03.csv",
+                    "{dir_in}/olist_order_items_dataset_04.csv",
+                    "{dir_in}/olist_order_items_dataset_05.csv",
+                    "{dir_in}/olist_order_items_dataset_06.csv",
+                    "{dir_in}/olist_order_items_dataset_07.csv",
+                    "{dir_in}/olist_order_items_dataset_08.csv",
+                    "{dir_in}/olist_order_items_dataset_09.csv",
+                    "{dir_in}/olist_order_items_dataset_10.csv",
+                    "{dir_in}/olist_order_items_dataset_11.csv",
+                    "{dir_in}/olist_order_items_dataset_12.csv",
+                    "{dir_in}/olist_order_items_dataset_13.csv",
+                    "{dir_in}/olist_order_items_dataset_14.csv",
+                    "{dir_in}/olist_order_items_dataset_15.csv",
+                    "{dir_in}/olist_order_items_dataset_16.csv",
+                    "{dir_in}/olist_order_items_dataset_17.csv",
+                    "{dir_in}/olist_order_items_dataset_18.csv",
+                    "{dir_in}/olist_order_items_dataset_19.csv",
+                    "{dir_in}/olist_order_items_dataset_20.csv",
+                    "{dir_in}/olist_order_items_dataset_21.csv",
+                    "{dir_in}/olist_order_items_dataset_22.csv",
+                    "{dir_in}/olist_order_items_dataset_23.csv",
+                    "{dir_in}/olist_order_items_dataset_24.csv",
+                    "{dir_in}/olist_order_items_dataset_25.csv",
+                    "{dir_in}/olist_order_items_dataset_26.csv",
+                    "{dir_in}/olist_order_items_dataset_27.csv",
+                    "{dir_in}/olist_order_items_dataset_28.csv",
+                    "{dir_in}/olist_order_items_dataset_29.csv",
+                    "{dir_in}/olist_order_items_dataset_30.csv",
+                    "{dir_in}/olist_order_items_dataset_31.csv",
+                    "{dir_in}/olist_order_items_dataset_32.csv",
+                    "{dir_in}/olist_order_items_dataset_33.csv",
+                    "{dir_in}/olist_order_items_dataset_34.csv",
+                    "{dir_in}/olist_order_items_dataset_35.csv",
+                    "{dir_in}/olist_order_items_dataset_36.csv",
+                    "{dir_in}/olist_order_items_dataset_37.csv",
+                    "{dir_in}/olist_order_items_dataset_38.csv",
+                    "{dir_in}/olist_order_items_dataset_39.csv",
+                    "{dir_in}/olist_order_items_dataset_40.csv",
+                    "{dir_in}/olist_order_items_dataset_41.csv",
+                    "{dir_in}/olist_order_items_dataset_42.csv",
+                    "{dir_in}/olist_order_items_dataset_43.csv",
+                    "{dir_in}/olist_order_items_dataset_44.csv",
+                    "{dir_in}/olist_order_items_dataset_45.csv",
+                    "{dir_in}/olist_order_items_dataset_46.csv",
+                    "{dir_in}/olist_order_items_dataset_47.csv",
+                    "{dir_in}/olist_order_items_dataset_48.csv",
+                    "{dir_in}/olist_order_items_dataset_49.csv",
+                    "{dir_in}/olist_order_items_dataset_50.csv",
+                    "{dir_in}/olist_order_items_dataset_51.csv",
+                    "{dir_in}/olist_order_items_dataset_52.csv",
+                    "{dir_in}/olist_order_items_dataset_53.csv",
+                    "{dir_in}/olist_order_items_dataset_54.csv",
+                    "{dir_in}/olist_order_items_dataset_55.csv",
+                    "{dir_in}/olist_order_items_dataset_56.csv",
+                    "{dir_in}/olist_order_items_dataset_57.csv",
+                    "{dir_in}/olist_order_items_dataset_58.csv",
+                    "{dir_in}/olist_order_items_dataset_59.csv",
+                    "{dir_in}/olist_order_items_dataset_60.csv",
+                    "{dir_in}/olist_order_items_dataset_61.csv",
+                    "{dir_in}/olist_order_items_dataset_62.csv",
+                    "{dir_in}/olist_order_items_dataset_63.csv",
+                    "{dir_in}/olist_order_items_dataset_64.csv",
+                    "{dir_in}/olist_order_items_dataset_65.csv",
+                    "{dir_in}/olist_order_items_dataset_66.csv",
+                    "{dir_in}/olist_order_items_dataset_67.csv",
+                    "{dir_in}/olist_order_items_dataset_68.csv",
+                    "{dir_in}/olist_order_items_dataset_69.csv",
+                    "{dir_in}/olist_order_items_dataset_70.csv",
+                    "{dir_in}/olist_order_items_dataset_71.csv",
+                    "{dir_in}/olist_order_items_dataset_72.csv",
+                    "{dir_in}/olist_order_items_dataset_73.csv",
+                    "{dir_in}/olist_order_items_dataset_74.csv",
+                    "{dir_in}/olist_order_items_dataset_75.csv",
+                    "{dir_in}/olist_order_items_dataset_76.csv",
+                    "{dir_in}/olist_order_items_dataset_77.csv",
+                    "{dir_in}/olist_order_items_dataset_78.csv",
+                    "{dir_in}/olist_order_items_dataset_79.csv",
+                    "{dir_in}/olist_order_items_dataset_80.csv",
+                    "{dir_in}/olist_order_items_dataset_81.csv",
+                    "{dir_in}/olist_order_items_dataset_82.csv",
+                    "{dir_in}/olist_order_items_dataset_83.csv",
+                    "{dir_in}/olist_order_items_dataset_84.csv",
+                    "{dir_in}/olist_order_items_dataset_85.csv",
+                    "{dir_in}/olist_order_items_dataset_86.csv",
+                    "{dir_in}/olist_order_items_dataset_87.csv",
+                    "{dir_in}/olist_order_items_dataset_88.csv",
+                    "{dir_in}/olist_order_items_dataset_89.csv",
+                    "{dir_in}/olist_order_items_dataset_90.csv",
+                    "{dir_in}/olist_order_items_dataset_91.csv",
+                    "{dir_in}/olist_order_items_dataset_92.csv",
+                    "{dir_in}/olist_order_items_dataset_93.csv",
+                    "{dir_in}/olist_order_items_dataset_94.csv",
+                    "{dir_in}/olist_order_items_dataset_95.csv",
+                    "{dir_in}/olist_order_items_dataset_96.csv",
+                    "{dir_in}/olist_order_items_dataset_97.csv",
+                    "{dir_in}/olist_order_items_dataset_98.csv",
+                    "{dir_in}/olist_order_items_dataset_99.csv"
                 ],
-                "hdr_line_idx": 0,
-                "first_data_line_idx": 1,
+                "csv":{
+                    "hdr_line_idx": 0,
+                    "first_data_line_idx": 1
+                },
                 "columns": {
                     "col_order_id": {
-                        "col_idx": 0,
-                        "col_hdr": null,
+                        "csv": {
+                            "col_idx": 0,
+                            "col_hdr": null
+                        },
                         "col_type": "string"
                     },
                     "col_order_item_id": {
-                        "col_idx": 1,
-                        "col_hdr": null,
+                        "csv": {
+                            "col_idx": 1,
+                            "col_hdr": null
+                        },
                         "col_format": "%d",
                         "col_type": "int"
                     },
                     "col_product_id": {
-                        "col_idx": 2,
-                        "col_hdr": null,
+                        "csv": {
+                            "col_idx": 2,
+                            "col_hdr": null
+                        },
                         "col_type": "string"
                     },
                     "col_seller_id": {
-                        "col_idx": 3,
-                        "col_hdr": null,
+                        "csv": {
+                            "col_idx": 3,
+                            "col_hdr": null
+                        },
                         "col_type": "string"
                     },
                     "col_shipping_limit_date": {
-                        "col_idx": 4,
-                        "col_hdr": null,
-                        "col_format": "2006-01-02 15:04:05",
+                        "csv": {
+                            "col_idx": 4,
+                            "col_hdr": null,
+                            "col_format": "2006-01-02 15:04:05"
+                        },
                         "col_type": "datetime"
                     },
                     "col_price": {
-                        "col_idx": 5,
-                        "col_hdr": null,
-                        "col_format": "%f",
+                        "csv": {
+                            "col_idx": 5,
+                            "col_hdr": null,
+                            "col_format": "%f"
+                        },
                         "col_type": "decimal2"
                     },
                     "col_freight_value": {
-                        "col_idx": 6,
-                        "col_hdr": null,
-                        "col_format": "%f",
+                        "csv": {
+                            "col_idx": 6,
+                            "col_hdr": null,
+                            "col_format": "%f"
+                        },
                         "col_type": "decimal2"
                     }
                 }
@@ -478,45 +502,57 @@
                 "url_template": "{dir_out}/order_item_date_inner.csv",
                 "columns": [
                     {
+                        "csv": {
+                            "header": "order_id",
+                            "format": "%s"
+                        },
                         "name": "order_id",
-                        "header": "order_id",
                         "expression": "r.order_id",
-                        "format": "%s",
                         "type": "string"
                     },
                     {
+                        "csv": {
+                            "header": "order_item_id",
+                            "format": "%05d"
+                        },
                         "name": "order_item_id",
-                        "header": "order_item_id",
                         "expression": "r.order_item_id",
-                        "format": "%05d",
                         "type": "int"
                     },
                     {
+                        "csv": {
+                            "header": "product_id",
+                            "format": "%s"
+                        },
                         "name": "product_id",
-                        "header": "product_id",
                         "expression": "r.product_id",
-                        "format": "%s",
                         "type": "string"
                     },
                     {
+                        "csv": {
+                            "header": "seller_id",
+                            "format": "%s"
+                        },
                         "name": "seller_id",
-                        "header": "seller_id",
                         "expression": "r.seller_id",
-                        "format": "%s",
                         "type": "string"
                     },
                     {
+                        "csv": {
+                            "header": "shipping_limit_date",
+                            "format": "2006-01-02 15:04:05"
+                        },
                         "name": "shipping_limit_date",
-                        "header": "shipping_limit_date",
                         "expression": "r.shipping_limit_date",
-                        "format": "2006-01-02 15:04:05",
                         "type": "datetime"
                     },
                     {
+                        "csv": {
+                            "header": "value",
+                            "format": "%s"
+                        },
                         "name": "value",
-                        "header": "value",
                         "expression": "r.value",
-                        "format": "%s",
                         "type": "decimal2"
                     }
                 ]
@@ -535,45 +571,57 @@
                 "url_template": "{dir_out}/order_item_date_left_outer.csv",
                 "columns": [
                     {
+                        "csv": {
+                            "header": "order_id",
+                            "format": "%s"
+                        },
                         "name": "order_id",
-                        "header": "order_id",
                         "expression": "r.order_id",
-                        "format": "%s",
                         "type": "string"
                     },
                     {
+                        "csv": {
+                            "header": "order_item_id",
+                            "format": "%05d"
+                        },
                         "name": "order_item_id",
-                        "header": "order_item_id",
                         "expression": "r.order_item_id",
-                        "format": "%05d",
                         "type": "int"
                     },
                     {
+                        "csv": {
+                            "header": "product_id",
+                            "format": "%s"
+                        },
                         "name": "product_id",
-                        "header": "product_id",
                         "expression": "r.product_id",
-                        "format": "%s",
                         "type": "string"
                     },
                     {
+                        "csv": {
+                            "header": "seller_id",
+                            "format": "%s"
+                        },
                         "name": "seller_id",
-                        "header": "seller_id",
                         "expression": "r.seller_id",
-                        "format": "%s",
                         "type": "string"
                     },
                     {
+                        "csv": {
+                            "header": "shipping_limit_date",
+                            "format": "2006-01-02 15:04:05"
+                        },
                         "name": "shipping_limit_date",
-                        "header": "shipping_limit_date",
                         "expression": "r.shipping_limit_date",
-                        "format": "2006-01-02 15:04:05",
                         "type": "datetime"
                     },
                     {
+                        "csv": {
+                            "header": "value",
+                            "format": "%s"
+                        },
                         "name": "value",
-                        "header": "value",
                         "expression": "r.value",
-                        "format": "%s",
                         "type": "decimal2"
                     }
                 ]
@@ -592,66 +640,84 @@
                 "url_template": "{dir_out}/order_date_value_grouped_inner.csv",
                 "columns": [
                     {
+                        "csv": {
+                            "header": "total_value",
+                            "format": "%10s"
+                        },
                         "name": "total_value",
-                        "header": "total_value",
                         "expression": "r.total_value",
-                        "format": "%10s",
                         "type": "decimal2"
                     },
                     {
+                        "csv": {
+                            "header": "order_purchase_timestamp",
+                            "format": "2006-01-02 15:04:05"
+                        },
                         "name": "order_purchase_timestamp",
-                        "header": "order_purchase_timestamp",
                         "expression": "r.order_purchase_timestamp",
-                        "format": "2006-01-02 15:04:05",
                         "type": "datetime"
                     },
                     {
+                        "csv": {
+                            "header": "order_id",
+                            "format": "%s"
+                        },
                         "name": "order_id",
-                        "header": "order_id",
                         "expression": "r.order_id",
-                        "format": "%s",
                         "type": "string"
                     },
                     {
+                        "csv": {
+                            "header": "avg_value",
+                            "format": "%s"
+                        },
                         "name": "avg_value",
-                        "header": "avg_value",
                         "expression": "r.avg_value",
-                        "format": "%s",
                         "type": "decimal2"
                     },
                     {
+                        "csv": {
+                            "header": "min_value",
+                            "format": "%s"
+                        },
                         "name": "min_value",
-                        "header": "min_value",
                         "expression": "r.min_value",
-                        "format": "%s",
                         "type": "decimal2"
                     },
                     {
+                        "csv": {
+                            "header": "max_value",
+                            "format": "%s"
+                        },
                         "name": "max_value",
-                        "header": "max_value",
                         "expression": "r.max_value",
-                        "format": "%s",
                         "type": "decimal2"
                     },
                     {
+                        "csv": {
+                            "header": "min_product_id",
+                            "format": "%s"
+                        },
                         "name": "min_product_id",
-                        "header": "min_product_id",
                         "expression": "r.min_product_id",
-                        "format": "%s",
                         "type": "string"
                     },
                     {
+                        "csv": {
+                            "header": "max_product_id",
+                            "format": "%s"
+                        },
                         "name": "max_product_id",
-                        "header": "max_product_id",
                         "expression": "r.max_product_id",
-                        "format": "%s",
                         "type": "string"
                     },
                     {
+                        "csv": {
+                            "header": "item_count",
+                            "format": "%d"
+                        },
                         "name": "item_count",
-                        "header": "item_count",
                         "expression": "r.item_count",
-                        "format": "%d",
                         "type": "int"
                     }
                 ]
@@ -670,66 +736,84 @@
                 "url_template": "{dir_out}/order_date_value_grouped_left_outer.csv",
                 "columns": [
                     {
+                        "csv": {
+                            "header": "total_value",
+                            "format": "%10s"
+                        },
                         "name": "total_value",
-                        "header": "total_value",
                         "expression": "r.total_value",
-                        "format": "%10s",
                         "type": "decimal2"
                     },
                     {
+                        "csv": {
+                            "header": "order_purchase_timestamp",
+                            "format": "2006-01-02 15:04:05"
+                        },
                         "name": "order_purchase_timestamp",
-                        "header": "order_purchase_timestamp",
                         "expression": "r.order_purchase_timestamp",
-                        "format": "2006-01-02 15:04:05",
                         "type": "datetime"
                     },
                     {
+                        "csv": {
+                            "header": "order_id",
+                            "format": "%s"
+                        },
                         "name": "order_id",
-                        "header": "order_id",
                         "expression": "r.order_id",
-                        "format": "%s",
                         "type": "string"
                     },
                     {
+                        "csv": {
+                            "header": "avg_value",
+                            "format": "%s"
+                        },
                         "name": "avg_value",
-                        "header": "avg_value",
                         "expression": "r.avg_value",
-                        "format": "%s",
                         "type": "decimal2"
                     },
                     {
+                        "csv": {
+                            "header": "min_value",
+                            "format": "%s"
+                        },
                         "name": "min_value",
-                        "header": "min_value",
                         "expression": "r.min_value",
-                        "format": "%s",
                         "type": "decimal2"
                     },
                     {
+                        "csv": {
+                            "header": "max_value",
+                            "format": "%s"
+                        },
                         "name": "max_value",
-                        "header": "max_value",
                         "expression": "r.max_value",
-                        "format": "%s",
                         "type": "decimal2"
                     },
                     {
+                        "csv": {
+                            "header": "min_product_id",
+                            "format": "%s"
+                        },
                         "name": "min_product_id",
-                        "header": "min_product_id",
                         "expression": "r.min_product_id",
-                        "format": "%s",
                         "type": "string"
                     },
                     {
+                        "csv": {
+                            "header": "max_product_id",
+                            "format": "%s"
+                        },
                         "name": "max_product_id",
-                        "header": "max_product_id",
                         "expression": "r.max_product_id",
-                        "format": "%s",
                         "type": "string"
                     },
                     {
+                        "csv": {
+                            "header": "item_count",
+                            "format": "%d"
+                        },
                         "name": "item_count",
-                        "header": "item_count",
                         "expression": "r.item_count",
-                        "format": "%d",
                         "type": "int"
                     }
                 ]

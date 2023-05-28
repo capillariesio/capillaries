@@ -29,77 +29,77 @@ echo "Generating files..."
 
 echo "Placeholder for lookup_bigtest output files" > $outDir/readme.txt
 
-go run generate_data.go -items=100000 -products=100 -sellers=200 -script_params_path=$cfgDir/script_params_one_run.json -in_root=$inDir -out_root=$outDir
+go run generate_data.go -items=100000 -products=100 -sellers=200 -script_params_path=$cfgDir/script_params_one_run.json -in_root=$inDir -out_root=$outDir -split_orders=10 -split_items=100
 if [ "$?" -ne "0" ]; then
  exit 1
 fi
 
 # Orders
 
-head -n1 $inDir/raw_orders > $inDir/header
-tail -n+2 $inDir/raw_orders > $inDir/data
+#head -n1 $inDir/raw_orders > $inDir/header
+#tail -n+2 $inDir/raw_orders > $inDir/data
 
-echo "Shuffling orders..."
-shuf $inDir/data -o $inDir/data
+#echo "Shuffling orders..."
+#shuf $inDir/data -o $inDir/data
 
-echo "Splitting order file..."
-split -d -nl/10 $inDir/data $inDir/data_chunk
+#echo "Splitting order file..."
+#split -d -nl/10 $inDir/data $inDir/data_chunk
 
-echo "Finalizing order files..."
-for i in $(seq -f "%02g" 00 09)
-do
-  cat $inDir/header $inDir/data_chunk$i > $inDir/olist_orders_dataset$i.csv
-done
+#echo "Finalizing order files..."
+#for i in $(seq -f "%02g" 00 09)
+#do
+#  cat $inDir/header $inDir/data_chunk$i > $inDir/olist_orders_dataset$i.csv
+#done
 
 # Items
 
-head -n1 $inDir/raw_items > $inDir/header
-tail -n+2 $inDir/raw_items > $inDir/data
+#head -n1 $inDir/raw_items > $inDir/header
+#tail -n+2 $inDir/raw_items > $inDir/data
 
-echo "Shuffling order items..."
-shuf $inDir/data -o $inDir/data
+#echo "Shuffling order items..."
+#shuf $inDir/data -o $inDir/data
 
-echo "Splitting order items file..."
-split -d -nl/100 $inDir/data $inDir/data_chunk
+#echo "Splitting order items file..."
+#split -d -nl/100 $inDir/data $inDir/data_chunk
 
-echo "Finalizing order items files..."
-for i in $(seq -f "%02g" 00 99)
-do
-  cat $inDir/header $inDir/data_chunk$i > $inDir/olist_orders_item_dataset$i.csv
-done
+#echo "Finalizing order items files..."
+#for i in $(seq -f "%02g" 00 99)
+#do
+#  cat $inDir/header $inDir/data_chunk$i > $inDir/olist_orders_item_dataset$i.csv
+#done
 
-rm $inDir/raw* $inDir/header $inDir/data*
+#rm $inDir/raw* $inDir/header $inDir/data*
 
 echo "Packing input files..."
 
 pushd $inDir
-tar -czf $inDir/all.tgz .
+tar -czf $inDir/all.tgz *.csv
 popd
 
 # Out
 
-echo "Sorting baseline files..."
+# echo "Sorting baseline files..."
 
-head -n1 $outDir/raw_no_group_inner > $outDir/header
-tail -n+2 $outDir/raw_no_group_inner > $outDir/data
-sort $outDir/data -o $outDir/data
-cat $outDir/header $outDir/data > $outDir/order_item_date_inner_baseline.csv
+# head -n1 $outDir/raw_no_group_inner > $outDir/header
+# tail -n+2 $outDir/raw_no_group_inner > $outDir/data
+# sort $outDir/data -o $outDir/data
+# cat $outDir/header $outDir/data > $outDir/order_item_date_inner_baseline.csv
 
-head -n1 $outDir/raw_no_group_outer > $outDir/header
-tail -n+2 $outDir/raw_no_group_outer > $outDir/data
-sort $outDir/data -o $outDir/data
-cat $outDir/header $outDir/data > $outDir/order_item_date_left_outer_baseline.csv
+# head -n1 $outDir/raw_no_group_outer > $outDir/header
+# tail -n+2 $outDir/raw_no_group_outer > $outDir/data
+# sort $outDir/data -o $outDir/data
+# cat $outDir/header $outDir/data > $outDir/order_item_date_left_outer_baseline.csv
 
-head -n1 $outDir/raw_grouped_inner > $outDir/header
-tail -n+2 $outDir/raw_grouped_inner > $outDir/data
-sort -r $outDir/data -o $outDir/data
-cat $outDir/header $outDir/data > $outDir/order_date_value_grouped_inner_baseline.csv
+# head -n1 $outDir/raw_grouped_inner > $outDir/header
+# tail -n+2 $outDir/raw_grouped_inner > $outDir/data
+# sort -r $outDir/data -o $outDir/data
+# cat $outDir/header $outDir/data > $outDir/order_date_value_grouped_inner_baseline.csv
 
-head -n1 $outDir/raw_grouped_outer > $outDir/header
-tail -n+2 $outDir/raw_grouped_outer > $outDir/data
-sort -r $outDir/data -o $outDir/data
-cat $outDir/header $outDir/data > $outDir/order_date_value_grouped_left_outer_baseline.csv
+# head -n1 $outDir/raw_grouped_outer > $outDir/header
+# tail -n+2 $outDir/raw_grouped_outer > $outDir/data
+# sort -r $outDir/data -o $outDir/data
+# cat $outDir/header $outDir/data > $outDir/order_date_value_grouped_left_outer_baseline.csv
 
-rm $outDir/raw* $outDir/header $outDir/data*
+# rm $outDir/raw* $outDir/header $outDir/data*
 
 

@@ -4,11 +4,17 @@
             "type": "file_table",
             "desc": "Load tags from file",
             "r": {
-                "urls": ["{dir_in}/tags.csv{uri_suffix}"],
-                "first_data_line_idx": 0,
+                "urls": [
+                    "{dir_in}/tags.csv{uri_suffix}"
+                ],
+                "csv": {
+                    "first_data_line_idx": 0
+                },
                 "columns": {
                     "col_tag": {
-                        "col_idx": 0,
+                        "csv": {
+                            "col_idx": 0
+                        },
                         "col_type": "string"
                     }
                 }
@@ -28,31 +34,45 @@
             "desc": "Load product data from CSV files to a table, one input file - one batch",
             "explicit_run_only": true,
             "r": {
-                "urls": ["{dir_in}/flipcart_products.tsv{uri_suffix}"],
-                "separator": "\t",
-                "hdr_line_idx": 0,
-                "first_data_line_idx": 1,
+                "urls": [
+                    "{dir_in}/flipcart_products.tsv{uri_suffix}"
+                ],
+                "csv": {
+                    "separator": "\t",
+                    "hdr_line_idx": 0,
+                    "first_data_line_idx": 1
+                },
                 "columns": {
                     "col_product_id": {
-                        "col_idx": 0,
-                        "col_format": "%d",
+                        "csv": {
+                            "col_idx": 0,
+                            "col_format": "%d"
+                        },
                         "col_type": "int"
                     },
                     "col_product_name": {
-                        "col_idx": 1,
+                        "csv": {
+                            "col_idx": 1
+                        },
                         "col_type": "string"
                     },
                     "col_product_category_tree": {
-                        "col_idx": 2,
+                        "csv": {
+                            "col_idx": 2
+                        },
                         "col_type": "string"
                     },
                     "col_retail_price": {
-                        "col_idx": 3,
-                        "col_format": "%f",
+                        "csv": {
+                            "col_idx": 3,
+                            "col_format": "%f"
+                        },
                         "col_type": "decimal2"
                     },
                     "col_product_specifications": {
-                        "col_idx": 4,
+                        "csv": {
+                            "col_idx": 4
+                        },
                         "col_type": "string"
                     }
                 }
@@ -123,28 +143,36 @@
                 "table": "tagged_products"
             },
             "w": {
-                "separator": "\t",
+                "csv": {
+                    "separator": "\t"
+                },
                 "url_template": "{dir_out}/tagged_products_for_operator_review.csv",
                 "columns": [
                     {
+                        "csv": {
+                            "header": "tag",
+                            "format": "%s"
+                        },
                         "name": "tag",
-                        "header": "tag",
                         "expression": "r.tag",
-                        "format": "%s",
                         "type": "string"
                     },
                     {
+                        "csv": {
+                            "header": "product_id",
+                            "format": "%d"
+                        },
                         "name": "product_id",
-                        "header": "product_id",
                         "expression": "r.product_id",
-                        "format": "%d",
                         "type": "int"
                     },
                     {
+                        "csv": {
+                            "header": "price",
+                            "format": "%s"
+                        },
                         "name": "price",
-                        "header": "price",
                         "expression": "r.price",
-                        "format": "%s",
                         "type": "decimal2"
                     }
                 ]
@@ -204,49 +232,63 @@
                 "top": {
                     "order": "tag(asc)"
                 },
-                "separator": "\t",
+                "csv": {
+                    "separator": "\t"
+                },
                 "url_template": "{dir_out}/tag_totals.tsv",
                 "columns": [
                     {
+                        "csv": {
+                            "header": "tag",
+                            "format": "%s"
+                        },
                         "name": "tag",
-                        "header": "tag",
                         "expression": "r.tag",
-                        "format": "%s",
                         "type": "string"
                     },
                     {
+                        "csv": {
+                            "header": "total_value",
+                            "format": "%s"
+                        },
                         "name": "total_value",
-                        "header": "total_value",
                         "expression": "r.total_value",
-                        "format": "%s",
                         "type": "decimal2"
                     },
                     {
+                        "csv": {
+                            "header": "avg_value",
+                            "format": "%s"
+                        },
                         "name": "avg_value",
-                        "header": "avg_value",
                         "expression": "r.avg_value",
-                        "format": "%s",
                         "type": "decimal2"
                     },
                     {
+                        "csv": {
+                            "header": "min_value",
+                            "format": "%s"
+                        },
                         "name": "min_value",
-                        "header": "min_value",
                         "expression": "r.min_value",
-                        "format": "%s",
                         "type": "decimal2"
                     },
                     {
+                        "csv": {
+                            "header": "max_value",
+                            "format": "%s"
+                        },
                         "name": "max_value",
-                        "header": "max_value",
                         "expression": "r.max_value",
-                        "format": "%s",
                         "type": "decimal2"
                     },
                     {
+                        "csv": {
+                            "header": "item_count",
+                            "format": "%d"
+                        },
                         "name": "item_count",
-                        "header": "item_count",
                         "expression": "r.item_count",
-                        "format": "%d",
                         "type": "int"
                     }
                 ]

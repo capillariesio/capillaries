@@ -12,36 +12,48 @@
                     "{dir_in}/olist_order_items_dataset03.csv",
                     "{dir_in}/olist_order_items_dataset04.csv"
                 ],
-                "hdr_line_idx": 0,
-                "first_data_line_idx": 1,
+                "csv": {
+                    "hdr_line_idx": 0,
+                    "first_data_line_idx": 1
+                },
                 "columns": {
                     "col_order_id": {
-                        "col_idx": 0,
-                        "col_hdr": null,
+                        "csv": {
+                            "col_idx": 0,
+                            "col_hdr": null
+                        },
                         "col_type": "string"
                     },
                     "col_order_item_id": {
-                        "col_idx": 1,
-                        "col_hdr": null,
-                        "col_format": "%d",
+                        "csv": {
+                            "col_idx": 1,
+                            "col_hdr": null,
+                            "col_format": "%d"
+                        },
                         "col_type": "int"
                     },
                     "col_shipping_limit_date": {
-                        "col_idx": 4,
-                        "col_hdr": null,
-                        "col_format": "2006-01-02 15:04:05",
+                        "csv": {
+                            "col_idx": 4,
+                            "col_hdr": null,
+                            "col_format": "2006-01-02 15:04:05"
+                        },
                         "col_type": "datetime"
                     },
                     "col_price": {
-                        "col_idx": 5,
-                        "col_hdr": null,
-                        "col_format": "%f",
+                        "csv": {
+                            "col_idx": 5,
+                            "col_hdr": null,
+                            "col_format": "%f"
+                        },
                         "col_type": "decimal2"
                     },
                     "col_freight_value": {
-                        "col_idx": 6,
-                        "col_hdr": null,
-                        "col_format": "%f",
+                        "csv": {
+                            "col_idx": 6,
+                            "col_hdr": null,
+                            "col_format": "%f"
+                        },
                         "col_type": "decimal2"
                     }
                 }
@@ -142,71 +154,89 @@
                 "url_template": "{dir_out}/taxed_order_items_go_{batch_idx}.csv",
                 "columns": [
                     {
+                        "csv": {
+                            "header": "order_id",
+                            "format": "%s"
+                        },
                         "name": "order_id",
-                        "header": "order_id",
                         "expression": "r.order_id",
-                        "format": "%s",
                         "type": "string"
                     },
                     {
+                        "csv": {
+                            "header": "order_item_id",
+                            "format": "%05d"
+                        },
                         "name": "order_item_id",
-                        "header": "order_item_id",
                         "expression": "r.order_item_id",
-                        "format": "%05d",
                         "type": "int"
                     },
                     {
+                        "csv": {
+                            "header": "shipping_limit_date",
+                            "format": "2006-01-02 15:04:05"
+                        },
                         "name": "shipping_limit_date",
-                        "header": "shipping_limit_date",
                         "expression": "r.shipping_limit_date",
-                        "format": "2006-01-02 15:04:05",
                         "type": "datetime"
                     },
                     {
+                        "csv": {
+                            "header": "price",
+                            "format": "%s"
+                        },
                         "name": "price",
-                        "header": "price",
                         "expression": "r.price",
-                        "format": "%s",
                         "type": "decimal2"
                     },
                     {
+                        "csv": {
+                            "header": "freight_value",
+                            "format": "%s"
+                        },
                         "name": "freigh_value",
-                        "header": "freight_value",
                         "expression": "r.freight_value",
-                        "format": "%s",
                         "type": "decimal2"
                     },
                     {
+                        "csv": {
+                            "header": "value",
+                            "format": "%s"
+                        },
                         "name": "value",
-                        "header": "value",
                         "expression": "r.value",
-                        "format": "%s",
                         "type": "decimal2"
                     },
                     {
+                        "csv": {
+                            "header": "taxed_value",
+                            "format": "%s"
+                        },
                         "name": "taxed_value",
-                        "header": "taxed_value",
                         "expression": "r.taxed_value",
-                        "format": "%s",
                         "type": "decimal2"
                     },
                     {
+                        "csv": {
+                            "header": "taxed_value_divided_by_nine_float",
+                            "format": "%f"
+                        },
                         "name": "taxed_value_divided_by_nine_float",
-                        "header": "taxed_value_divided_by_nine_float",
                         "expression": "r.taxed_value_divided_by_nine_float",
-                        "format": "%f",
                         "type": "float"
                     },
                     {
+                        "csv": {
+                            "header": "taxed_value_divided_by_nine_decimal",
+                            "format": "%s"
+                        },
                         "name": "taxed_value_divided_by_nine_decimal",
-                        "header": "taxed_value_divided_by_nine_decimal",
                         "expression": "r.taxed_value_divided_by_nine_decimal",
-                        "format": "%s",
                         "type": "decimal2"
                     }
                 ]
             }
-        },        
+        },
         "taxed_order_items_py": {
             "type": "table_custom_tfm_table",
             "custom_proc_type": "py_calc",
@@ -323,87 +353,111 @@
                 "url_template": "{dir_out}/taxed_order_items_py_{batch_idx}.csv",
                 "columns": [
                     {
+                        "csv": {
+                            "header": "order_id",
+                            "format": "%s"
+                        },
                         "name": "order_id",
-                        "header": "order_id",
                         "expression": "r.order_id",
-                        "format": "%s",
                         "type": "string"
                     },
                     {
+                        "csv": {
+                            "header": "order_item_id",
+                            "format": "%05d"
+                        },
                         "name": "order_item_id",
-                        "header": "order_item_id",
                         "expression": "r.order_item_id",
-                        "format": "%05d",
                         "type": "int"
                     },
                     {
+                        "csv": {
+                            "header": "shipping_limit_date",
+                            "format": "2006-01-02 15:04:05"
+                        },
                         "name": "shipping_limit_date",
-                        "header": "shipping_limit_date",
                         "expression": "r.shipping_limit_date",
-                        "format": "2006-01-02 15:04:05",
                         "type": "datetime"
                     },
                     {
+                        "csv": {
+                            "header": "price",
+                            "format": "%s"
+                        },
                         "name": "price",
-                        "header": "price",
                         "expression": "r.price",
-                        "format": "%s",
                         "type": "decimal2"
                     },
                     {
+                        "csv": {
+                            "header": "freight_value",
+                            "format": "%s"
+                        },
                         "name": "freigh_value",
-                        "header": "freight_value",
                         "expression": "r.freight_value",
-                        "format": "%s",
                         "type": "decimal2"
                     },
                     {
+                        "csv": {
+                            "header": "value",
+                            "format": "%s"
+                        },
                         "name": "value",
-                        "header": "value",
                         "expression": "r.value",
-                        "format": "%s",
                         "type": "decimal2"
                     },
                     {
+                        "csv": {
+                            "header": "taxed_value",
+                            "format": "%s"
+                        },
                         "name": "taxed_value",
-                        "header": "taxed_value",
                         "expression": "r.taxed_value",
-                        "format": "%s",
                         "type": "decimal2"
                     },
                     {
+                        "csv": {
+                            "header": "taxed_value_divided_by_nine_float",
+                            "format": "%f"
+                        },
                         "name": "taxed_value_divided_by_nine_float",
-                        "header": "taxed_value_divided_by_nine_float",
                         "expression": "r.taxed_value_divided_by_nine_float",
-                        "format": "%f",
                         "type": "float"
                     },
                     {
+                        "csv": {
+                            "header": "taxed_value_divided_by_nine_decimal",
+                            "format": "%s"
+                        },
                         "name": "taxed_value_divided_by_nine_decimal",
-                        "header": "taxed_value_divided_by_nine_decimal",
                         "expression": "r.taxed_value_divided_by_nine_decimal",
-                        "format": "%s",
                         "type": "decimal2"
                     },
                     {
+                        "csv": {
+                            "header": "shipping_limit_date_monday",
+                            "format": "2006-01-02 15:04:05"
+                        },
                         "name": "shipping_limit_date_monday",
-                        "header": "shipping_limit_date_monday",
                         "expression": "r.shipping_limit_date_monday",
-                        "format": "2006-01-02 15:04:05",
                         "type": "datetime"
                     },
                     {
+                        "csv": {
+                            "header": "shipping_limit_day_of_week",
+                            "format": "%s"
+                        },
                         "name": "shipping_limit_day_of_week",
-                        "header": "shipping_limit_day_of_week",
                         "expression": "r.shipping_limit_day_of_week",
-                        "format": "%s",
                         "type": "string"
                     },
                     {
+                        "csv": {
+                            "header": "shipping_limit_is_weekend",
+                            "format": "%t"
+                        },
                         "name": "shipping_limit_is_weekend",
-                        "header": "shipping_limit_is_weekend",
                         "expression": "r.shipping_limit_is_weekend",
-                        "format": "%t",
                         "type": "bool"
                     }
                 ]
