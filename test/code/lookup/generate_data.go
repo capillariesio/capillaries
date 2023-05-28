@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"math/rand"
 	"os"
+	"sort"
 	"strconv"
 	"time"
 
@@ -18,6 +20,48 @@ type Product struct {
 	Id           string
 	Price        decimal.Decimal
 	FreightValue decimal.Decimal
+}
+
+type Order struct {
+	OrderId                  string
+	CustomerId               string
+	OrderStatus              string
+	OrderPurchaseTs          time.Time
+	OrderApprovedTs          time.Time
+	OrderDeliveredCarrierTs  time.Time
+	OrderDeliveredCustomerTs time.Time
+	OrderEstimateDeliveryTs  time.Time
+}
+
+type OrderItem struct {
+	OrderId           string
+	OrderItemId       int64
+	ProductId         string
+	SellerId          string
+	ShippingLimitDate time.Time
+	Price             decimal.Decimal
+	FreightValue      decimal.Decimal
+}
+
+type NoGroupItem struct {
+	OrderId           string
+	OrderItemId       int64
+	ProductId         string
+	SellerId          string
+	ShippingLimitDate time.Time
+	OrderItemValue    decimal.Decimal
+}
+
+type GroupItem struct {
+	TotalOrderValue    decimal.Decimal
+	OrderPurchaseTs    time.Time
+	OrderId            string
+	AvgOrderValue      decimal.Decimal
+	MinOrderValue      decimal.Decimal
+	MaxOrderValue      decimal.Decimal
+	MinProductId       string
+	MaxProductId       string
+	ActualItemsInOrder int64
 }
 
 func randomId(rnd *rand.Rand) string {
@@ -45,6 +89,246 @@ type ScriptParams struct {
 	DefaultOrderItemValue          decimal.Decimal
 }
 
+func shuffleAndSaveInOrders(inOrders []*Order, totalChunks int, basePath string) {
+	rnd := rand.New(rand.NewSource((time.Now().Unix() << 32) + time.Now().UnixMilli()))
+
+	for i := 0; i < len(inOrders); i++ {
+		j := i
+		for j == i {
+			j = rnd.Intn(len(inOrders))
+		}
+		tmp := inOrders[i]
+		inOrders[i] = inOrders[j]
+		inOrders[j] = tmp
+	}
+
+	chunkSize := len(inOrders)
+	if totalChunks > 1 {
+		chunkSize = int(math.Ceil(float64(len(inOrders)) / float64(totalChunks)))
+	}
+
+	var fInOrders *os.File
+	chunkLineCount := 0
+	chunkIdx := 0
+	var err error
+	for i := 0; i < len(inOrders); i++ {
+		if chunkLineCount == 0 {
+			finalFilePath := basePath
+			if totalChunks > 1 {
+				finalFilePath = fmt.Sprintf("%s_%02d", basePath, chunkIdx)
+			}
+			if fInOrders != nil {
+				fInOrders.Close()
+			}
+			fInOrders, err = os.Create(finalFilePath + ".csv")
+			if err != nil {
+				log.Fatalf("cannot create in file [%s]: %s", finalFilePath, err.Error())
+			}
+			if _, err := fInOrders.WriteString("order_id,customer_id,order_status,order_purchase_timestamp,order_approved_at,order_delivered_carrier_date,order_delivered_customer_date,order_estimated_delivery_date\n"); err != nil {
+				log.Fatalf("cannot write file [%s] header line: [%s]", finalFilePath, err.Error())
+			}
+		}
+		fInOrders.WriteString(fmt.Sprintf("%s,%s,%s,%s,%s,%s,%s,%s\n",
+			inOrders[i].OrderId,
+			inOrders[i].CustomerId,
+			inOrders[i].OrderStatus,
+			timeStr(inOrders[i].OrderPurchaseTs),
+			timeStr(inOrders[i].OrderApprovedTs),
+			timeStr(inOrders[i].OrderDeliveredCarrierTs),
+			timeStr(inOrders[i].OrderDeliveredCustomerTs),
+			timeStr(inOrders[i].OrderEstimateDeliveryTs)))
+		chunkLineCount++
+		if chunkLineCount == chunkSize {
+			chunkLineCount = 0
+			chunkIdx++
+		}
+	}
+	fInOrders.Close()
+}
+
+func shuffleAndSaveInOrderItems(inOrderItems []*OrderItem, totalChunks int, basePath string) {
+	rnd := rand.New(rand.NewSource((time.Now().Unix() << 32) + time.Now().UnixMilli()))
+	for i := 0; i < len(inOrderItems); i++ {
+		j := i
+		for j == i {
+			j = rnd.Intn(len(inOrderItems))
+		}
+		tmp := inOrderItems[i]
+		inOrderItems[i] = inOrderItems[j]
+		inOrderItems[j] = tmp
+	}
+
+	chunkSize := len(inOrderItems)
+	if totalChunks > 1 {
+		chunkSize = int(math.Ceil(float64(len(inOrderItems)) / float64(totalChunks)))
+	}
+
+	var fInItems *os.File
+	chunkLineCount := 0
+	chunkIdx := 0
+	var err error
+	for i := 0; i < len(inOrderItems); i++ {
+		if chunkLineCount == 0 {
+			finalFilePath := basePath
+			if totalChunks > 1 {
+				finalFilePath = fmt.Sprintf("%s_%02d", basePath, chunkIdx)
+			}
+			if fInItems != nil {
+				fInItems.Close()
+			}
+			fInItems, err = os.Create(finalFilePath + ".csv")
+			if err != nil {
+				log.Fatalf("cannot create in file [%s]: %s", finalFilePath, err.Error())
+			}
+			if _, err := fInItems.WriteString("order_id,order_item_id,product_id,seller_id,shipping_limit_date,price,freight_value\n"); err != nil {
+				log.Fatalf("cannot write file [%s] header line: [%s]", finalFilePath, err.Error())
+			}
+		}
+		fInItems.WriteString(fmt.Sprintf("%s,%05d,%s,%s,%s,%s,%s\n",
+			inOrderItems[i].OrderId,
+			inOrderItems[i].OrderItemId,
+			inOrderItems[i].ProductId,
+			inOrderItems[i].SellerId,
+			timeStr(inOrderItems[i].ShippingLimitDate),
+			inOrderItems[i].Price,
+			inOrderItems[i].FreightValue))
+		chunkLineCount++
+		if chunkLineCount == chunkSize {
+			chunkLineCount = 0
+			chunkIdx++
+		}
+	}
+	fInItems.Close()
+}
+
+func sortAndSaveNoGroupInner(items []*NoGroupItem, filePath string) {
+	// "order": "order_id(asc),order_item_id(asc)"
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].OrderId != items[j].OrderId {
+			return items[i].OrderId < items[j].OrderId
+		} else {
+			return items[i].OrderItemId < items[j].OrderItemId
+		}
+	})
+
+	fOutNoGroupInner, err := os.Create(filePath)
+	if err != nil {
+		log.Fatalf("cannot create out file [%s]: %s", filePath, err.Error())
+	}
+	defer fOutNoGroupInner.Close()
+
+	if _, err := fOutNoGroupInner.WriteString("order_id,order_item_id,product_id,seller_id,shipping_limit_date,value\n"); err != nil {
+		log.Fatalf("cannot write file [%s] header line: [%s]", filePath, err.Error())
+	}
+
+	for i := 0; i < len(items); i++ {
+		fOutNoGroupInner.WriteString(fmt.Sprintf("%s,%05d,%s,%s,%s,%s\n",
+			items[i].OrderId,
+			items[i].OrderItemId,
+			items[i].ProductId,
+			items[i].SellerId,
+			timeStr(items[i].ShippingLimitDate),
+			items[i].OrderItemValue.StringFixed(2)))
+	}
+}
+
+func sortAndSaveNoGroupOuter(items []*NoGroupItem, filePath string) {
+	// "order": "order_id(asc),order_item_id(asc)"
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].OrderId != items[j].OrderId {
+			return items[i].OrderId < items[j].OrderId
+		} else {
+			return items[i].OrderItemId < items[j].OrderItemId
+		}
+	})
+
+	fOutNoGroupLeftOuter, err := os.Create(filePath)
+	if err != nil {
+		log.Fatalf("cannot create out file [%s]: %s", filePath, err.Error())
+	}
+	defer fOutNoGroupLeftOuter.Close()
+	if _, err := fOutNoGroupLeftOuter.WriteString("order_id,order_item_id,product_id,seller_id,shipping_limit_date,value\n"); err != nil {
+		log.Fatalf("cannot write file [%s] header line: [%s]", filePath, err.Error())
+	}
+
+	for i := 0; i < len(items); i++ {
+		fOutNoGroupLeftOuter.WriteString(fmt.Sprintf("%s,%05d,%s,%s,%s,%s\n",
+			items[i].OrderId,
+			items[i].OrderItemId,
+			items[i].ProductId,
+			items[i].SellerId,
+			timeStr(items[i].ShippingLimitDate),
+			items[i].OrderItemValue.StringFixed(2)))
+	}
+}
+
+func sortAndSaveGroupInner(items []*GroupItem, filePath string) {
+	// "order": "total_value(desc),order_purchase_timestamp(desc),order_id(desc)"
+	sort.Slice(items, func(i, j int) bool {
+		if !items[i].TotalOrderValue.Equal(items[j].TotalOrderValue) {
+			return items[i].TotalOrderValue.GreaterThan(items[j].TotalOrderValue)
+		} else {
+			return items[i].OrderPurchaseTs.After(items[j].OrderPurchaseTs)
+		}
+	})
+
+	fOutGroupInner, err := os.Create(filePath)
+	if err != nil {
+		log.Fatalf("cannot create out file [%s]: %s", filePath, err.Error())
+	}
+	defer fOutGroupInner.Close()
+	if _, err := fOutGroupInner.WriteString("total_value,order_purchase_timestamp,order_id,avg_value,min_value,max_value,min_product_id,max_product_id,item_count\n"); err != nil {
+		log.Fatalf("cannot write file [%s] header line: [%s]", filePath, err.Error())
+	}
+
+	for i := 0; i < len(items); i++ {
+		fOutGroupInner.WriteString(fmt.Sprintf("%10s,%s,%s,%s,%s,%s,%s,%s,%d\n",
+			items[i].TotalOrderValue.StringFixed(2),
+			timeStr(items[i].OrderPurchaseTs),
+			items[i].OrderId,
+			items[i].AvgOrderValue.StringFixed(2),
+			items[i].MinOrderValue.StringFixed(2),
+			items[i].MaxOrderValue.StringFixed(2),
+			items[i].MinProductId,
+			items[i].MaxProductId,
+			items[i].ActualItemsInOrder))
+	}
+}
+
+func sortAndSaveGroupOuter(items []*GroupItem, filePath string) {
+	// "order": "total_value(desc),order_purchase_timestamp(desc),order_id(desc)"
+	sort.Slice(items, func(i, j int) bool {
+		if !items[i].TotalOrderValue.Equal(items[j].TotalOrderValue) {
+			return items[i].TotalOrderValue.GreaterThan(items[j].TotalOrderValue)
+		} else {
+			return items[i].OrderPurchaseTs.After(items[j].OrderPurchaseTs)
+		}
+	})
+
+	fOutGroupLeftOuter, err := os.Create(filePath)
+	if err != nil {
+		log.Fatalf("cannot create out file [%s]: %s", filePath, err.Error())
+	}
+	defer fOutGroupLeftOuter.Close()
+
+	if _, err := fOutGroupLeftOuter.WriteString("total_value,order_purchase_timestamp,order_id,avg_value,min_value,max_value,min_product_id,max_product_id,item_count\n"); err != nil {
+		log.Fatalf("cannot write file [%s] header line: [%s]", filePath, err.Error())
+	}
+
+	for i := 0; i < len(items); i++ {
+		fOutGroupLeftOuter.WriteString(fmt.Sprintf("%10s,%s,%s,%s,%s,%s,%s,%s,%d\n",
+			items[i].TotalOrderValue.StringFixed(2),
+			timeStr(items[i].OrderPurchaseTs),
+			items[i].OrderId,
+			items[i].AvgOrderValue.StringFixed(2),
+			items[i].MinOrderValue.StringFixed(2),
+			items[i].MaxOrderValue.StringFixed(2),
+			items[i].MinProductId,
+			items[i].MaxProductId,
+			items[i].ActualItemsInOrder))
+	}
+}
+
 func main() {
 	defaultProductId := ""
 	defaultSellerId := ""
@@ -55,14 +339,16 @@ func main() {
 	totalItems := flag.Int("items", 1000, "Total number of order items to generate")
 	totalSellers := flag.Int("sellers", 20, "Total number of sellers to generate")
 	maxProductsPerSeller := flag.Int("products", 10, "Max number of products per seller to generate")
+	splitOrders := flag.Int("split_orders", 1, "Number of in order files to generate")
+	splitOrderItems := flag.Int("split_items", 1, "Number of in order item files to generate")
 	flag.Parse()
 
-	fileInOrdersPath := *inRoot + "/raw_orders"
-	fileInItemsPath := *inRoot + "/raw_items"
-	fileOutNoGroupInnerPath := *outRoot + "/raw_no_group_inner"
-	fileOutNoGroupLeftOuterPath := *outRoot + "/raw_no_group_outer"
-	fileOutGroupInnerPath := *outRoot + "/raw_grouped_inner"
-	fileOutGroupLeftOuterPath := *outRoot + "/raw_grouped_outer"
+	fileInOrdersPath := *inRoot + "/olist_orders_dataset"
+	fileInItemsPath := *inRoot + "/olist_order_items_dataset"
+	fileOutNoGroupInnerPath := *outRoot + "/order_item_date_inner_baseline.csv"
+	fileOutNoGroupLeftOuterPath := *outRoot + "/order_item_date_left_outer_baseline.csv"
+	fileOutGroupInnerPath := *outRoot + "/order_date_value_grouped_inner_baseline.csv"
+	fileOutGroupLeftOuterPath := *outRoot + "/order_date_value_grouped_left_outer_baseline.csv"
 
 	// Read script params file to get cutoff dates and other params
 	fScriptParamsFile, err := os.Open(*scriptParamsPath)
@@ -99,61 +385,15 @@ func main() {
 		log.Fatalf("cannot unmarshal default order item value [%s]: %s", sp.DefaultOrderItemValueString, err.Error())
 	}
 
-	// In files
-	fInOrders, err := os.Create(fileInOrdersPath)
-	if err != nil {
-		log.Fatalf("cannot create in file [%s]: %s", fileInOrdersPath, err.Error())
-	}
-	defer fInOrders.Close()
+	// Data in
+	inOrders := make([]*Order, 0)
+	inOrderItems := make([]*OrderItem, 0)
 
-	fInItems, err := os.Create(fileInItemsPath)
-	if err != nil {
-		log.Fatalf("cannot create in file [%s]: %s", fileInItemsPath, err.Error())
-	}
-	defer fInItems.Close()
-
-	if _, err := fInOrders.WriteString("order_id,customer_id,order_status,order_purchase_timestamp,order_approved_at,order_delivered_carrier_date,order_delivered_customer_date,order_estimated_delivery_date\n"); err != nil {
-		log.Fatalf("cannot write file [%s] header line: [%s]", fileInOrdersPath, err.Error())
-	}
-
-	if _, err := fInItems.WriteString("order_id,order_item_id,product_id,seller_id,shipping_limit_date,price,freight_value\n"); err != nil {
-		log.Fatalf("cannot write file [%s] header line: [%s]", fileInItemsPath, err.Error())
-	}
-
-	// Out files
-	fOutNoGroupInner, err := os.Create(fileOutNoGroupInnerPath)
-	if err != nil {
-		log.Fatalf("cannot create out file [%s]: %s", fileOutNoGroupInnerPath, err.Error())
-	}
-	defer fOutNoGroupInner.Close()
-	fOutNoGroupLeftOuter, err := os.Create(fileOutNoGroupLeftOuterPath)
-	if err != nil {
-		log.Fatalf("cannot create out file [%s]: %s", fileOutNoGroupLeftOuterPath, err.Error())
-	}
-	defer fOutNoGroupLeftOuter.Close()
-	fOutGroupInner, err := os.Create(fileOutGroupInnerPath)
-	if err != nil {
-		log.Fatalf("cannot create out file [%s]: %s", fileOutGroupInnerPath, err.Error())
-	}
-	defer fOutGroupInner.Close()
-	fOutGroupLeftOuter, err := os.Create(fileOutGroupLeftOuterPath)
-	if err != nil {
-		log.Fatalf("cannot create out file [%s]: %s", fileOutGroupLeftOuterPath, err.Error())
-	}
-	defer fOutGroupLeftOuter.Close()
-
-	if _, err := fOutNoGroupInner.WriteString("order_id,order_item_id,product_id,seller_id,shipping_limit_date,value\n"); err != nil {
-		log.Fatalf("cannot write file [%s] header line: [%s]", fileOutNoGroupInnerPath, err.Error())
-	}
-	if _, err := fOutNoGroupLeftOuter.WriteString("order_id,order_item_id,product_id,seller_id,shipping_limit_date,value\n"); err != nil {
-		log.Fatalf("cannot write file [%s] header line: [%s]", fileOutNoGroupLeftOuterPath, err.Error())
-	}
-	if _, err := fOutGroupInner.WriteString("total_value,order_purchase_timestamp,order_id,avg_value,min_value,max_value,min_product_id,max_product_id,item_count\n"); err != nil {
-		log.Fatalf("cannot write file [%s] header line: [%s]", fileOutGroupInnerPath, err.Error())
-	}
-	if _, err := fOutGroupLeftOuter.WriteString("total_value,order_purchase_timestamp,order_id,avg_value,min_value,max_value,min_product_id,max_product_id,item_count\n"); err != nil {
-		log.Fatalf("cannot write file [%s] header line: [%s]", fileOutGroupLeftOuterPath, err.Error())
-	}
+	// Data out
+	noGroupInnerItems := make([]*NoGroupItem, 0)
+	noGroupOuterItems := make([]*NoGroupItem, 0)
+	groupInnerItems := make([]*GroupItem, 0)
+	groupOuterItems := make([]*GroupItem, 0)
 
 	seed := (time.Now().Unix() << 32) + time.Now().UnixMilli()
 	fmt.Println("Seed:", seed)
@@ -174,6 +414,7 @@ func main() {
 
 	itemIdx := 0
 	for itemIdx < *totalItems {
+		// Generate random order data
 		orderId := randomId(rnd)
 		projectedItemsInOrder := rnd.Intn(5) // There may be [0,4] items in order
 		orderStatus := "invoiced"
@@ -202,16 +443,20 @@ func main() {
 			orderStatus = "unavailable"
 		}
 		customerId := randomId(rnd)
-		fInOrders.WriteString(fmt.Sprintf("%s,%s,%s,%s,%s,%s,%s,%s\n",
+
+		// Create order from data
+		inOrders = append(inOrders, &Order{
 			orderId,
 			customerId,
 			orderStatus,
-			timeStr(orderPurchaseTs),
-			timeStr(orderApprovedTs),
-			timeStr(orderDeliveredCarrierTs),
-			timeStr(orderDeliveredCustomerTs),
-			timeStr(orderEstimateDeliveryTs)))
+			orderPurchaseTs,
+			orderApprovedTs,
+			orderDeliveredCarrierTs,
+			orderDeliveredCustomerTs,
+			orderEstimateDeliveryTs,
+		})
 
+		// Generate order items
 		totalOrderValue := decimal.NewFromInt(0)
 		minOrderValue := decimal.NewFromInt(0)
 		maxOrderValue := decimal.NewFromInt(0)
@@ -221,37 +466,42 @@ func main() {
 		actualItemsInOrder := 0
 
 		for orderItemId := 1; orderItemId <= projectedItemsInOrder; orderItemId++ {
+			// Generate random item data
 			sellerIdx := rnd.Intn(len(sellerIds))
 			productIdx := rnd.Intn(len(sellerProducts[sellerIdx]))
 			shippingLimitDate := orderEstimateDeliveryTs.Add(time.Duration(rnd.Intn(100000) * int(time.Second)))
 			product := sellerProducts[sellerIdx][productIdx]
-			fInItems.WriteString(fmt.Sprintf("%s,%05d,%s,%s,%s,%s,%s\n",
+
+			// Create item from data
+			inOrderItems = append(inOrderItems, &OrderItem{
 				orderId,
-				orderItemId,
+				int64(orderItemId),
 				product.Id,
 				sellerIds[sellerIdx],
-				timeStr(shippingLimitDate),
+				shippingLimitDate,
 				product.Price,
-				product.FreightValue))
+				product.FreightValue,
+			})
 
+			// Compute baseline outputs
 			if !(sp.StartDate.After(orderPurchaseTs) || sp.EndDate.Before(orderPurchaseTs)) {
 				orderItemValue := product.Price.Add(product.FreightValue)
-				fOutNoGroupInner.WriteString(fmt.Sprintf("%s,%05d,%s,%s,%s,%s\n",
+				noGroupInnerItems = append(noGroupInnerItems, &NoGroupItem{
 					orderId,
-					orderItemId,
+					int64(orderItemId),
 					product.Id,
 					sellerIds[sellerIdx],
-					timeStr(shippingLimitDate),
-					orderItemValue.StringFixed(2)))
-
-				fOutNoGroupLeftOuter.WriteString(fmt.Sprintf("%s,%05d,%s,%s,%s,%s\n",
+					shippingLimitDate,
+					orderItemValue,
+				})
+				noGroupOuterItems = append(noGroupOuterItems, &NoGroupItem{
 					orderId,
-					orderItemId,
+					int64(orderItemId),
 					product.Id,
 					sellerIds[sellerIdx],
-					timeStr(shippingLimitDate),
-					orderItemValue.StringFixed(2)))
-
+					shippingLimitDate,
+					orderItemValue,
+				})
 				totalOrderValue = totalOrderValue.Add(orderItemValue)
 				if orderItemValue.LessThan(minOrderValue) || orderItemId == 1 {
 					minOrderValue = orderItemValue
@@ -281,13 +531,14 @@ func main() {
 
 		if actualItemsInOrder == 0 {
 			// Blank joined items for outer
-			fOutNoGroupLeftOuter.WriteString(fmt.Sprintf("%s,%05d,%s,%s,%s,%s\n",
+			noGroupOuterItems = append(noGroupOuterItems, &NoGroupItem{
 				orderId,
 				sp.DefaultOrderItemId,
 				defaultProductId,
 				defaultSellerId,
-				timeStr(sp.DefaultShippingLimitDate),
-				sp.DefaultOrderItemValue.StringFixed(2)))
+				sp.DefaultShippingLimitDate,
+				sp.DefaultOrderItemValue,
+			})
 		}
 
 		// Grouped
@@ -303,28 +554,38 @@ func main() {
 
 		// Inner
 		if actualItemsInOrder > 0 {
-			fOutGroupInner.WriteString(fmt.Sprintf("%10s,%s,%s,%s,%s,%s,%s,%s,%d\n",
-				totalOrderValue.StringFixed(2),
-				timeStr(orderPurchaseTs),
+			groupInnerItems = append(groupInnerItems, &GroupItem{
+				totalOrderValue,
+				orderPurchaseTs,
 				orderId,
-				avgOrderValue.StringFixed(2),
-				minOrderValue.StringFixed(2),
-				maxOrderValue.StringFixed(2),
+				avgOrderValue,
+				minOrderValue,
+				maxOrderValue,
 				minProductId,
 				maxProductId,
-				actualItemsInOrder))
+				int64(actualItemsInOrder),
+			})
 		}
 
 		// Outer
-		fOutGroupLeftOuter.WriteString(fmt.Sprintf("%10s,%s,%s,%s,%s,%s,%s,%s,%d\n",
-			totalOrderValue.StringFixed(2),
-			timeStr(orderPurchaseTs),
+		groupOuterItems = append(groupOuterItems, &GroupItem{
+			totalOrderValue,
+			orderPurchaseTs,
 			orderId,
-			avgOrderValue.StringFixed(2),
-			minOrderValue.StringFixed(2),
-			maxOrderValue.StringFixed(2),
+			avgOrderValue,
+			minOrderValue,
+			maxOrderValue,
 			minProductId,
 			maxProductId,
-			actualItemsInOrder))
+			int64(actualItemsInOrder),
+		})
 	}
+
+	shuffleAndSaveInOrders(inOrders, *splitOrders, fileInOrdersPath)
+	shuffleAndSaveInOrderItems(inOrderItems, *splitOrderItems, fileInItemsPath)
+
+	sortAndSaveNoGroupInner(noGroupInnerItems, fileOutNoGroupInnerPath)
+	sortAndSaveNoGroupOuter(noGroupOuterItems, fileOutNoGroupLeftOuterPath)
+	sortAndSaveGroupInner(groupInnerItems, fileOutGroupInnerPath)
+	sortAndSaveGroupOuter(groupOuterItems, fileOutGroupLeftOuterPath)
 }

@@ -2,16 +2,13 @@ package proc
 
 import (
 	"fmt"
-	"net/url"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/xfer"
-	"github.com/shopspring/decimal"
 )
 
 type FileInserter struct {
@@ -52,61 +49,6 @@ func newFileInserter(pCtx *ctx.MessageProcessingContext, fileCreator *sc.FileCre
 	}
 
 	return &instr
-}
-
-func (instr *FileInserter) createFileAndStartWorker(logger *l.Logger) error {
-	logger.PushF("proc.createFileAndStartWorker")
-	defer logger.PopF()
-
-	u, err := url.Parse(instr.FinalFileUrl)
-	if err != nil {
-		return fmt.Errorf("cannot parse file uri %s: %s", instr.FinalFileUrl, err.Error())
-	}
-
-	var f *os.File
-	if u.Scheme == xfer.UriSchemeSftp {
-		f, err = os.CreateTemp("", "capi")
-		if err != nil {
-			return fmt.Errorf("cannot create temp file for %s: %s", instr.FinalFileUrl, err.Error())
-		}
-		instr.TempFilePath = f.Name()
-	} else {
-		f, err = os.Create(instr.FinalFileUrl)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Header
-	b := strings.Builder{}
-	for i := 0; i < len(instr.FileCreator.Columns); i++ {
-		if strings.Contains(instr.FileCreator.Columns[i].Header, ",") {
-			b.WriteString("\"")
-		}
-		b.WriteString(instr.FileCreator.Columns[i].Header)
-		if strings.Contains(instr.FileCreator.Columns[i].Header, ",") {
-			b.WriteString("\"")
-		}
-		if i == len(instr.FileCreator.Columns)-1 {
-			b.WriteString("\r\n")
-		} else {
-			b.WriteString(instr.FileCreator.Separator)
-		}
-	}
-	if _, err := f.WriteString(b.String()); err != nil {
-		f.Close()
-		return fmt.Errorf("cannot write file [%s] header line: [%s]", instr.FinalFileUrl, err.Error())
-	}
-
-	f.Close()
-
-	newLogger, err := l.NewLoggerFromLogger(logger)
-	if err != nil {
-		return err
-	}
-	go instr.fileInserterWorker(newLogger)
-
-	return nil
 }
 
 func (instr *FileInserter) checkWorkerOutputForErrors() error {
@@ -190,66 +132,6 @@ func (instr *FileInserter) add(row []interface{}) {
 		instr.BatchesIn <- instr.CurrentBatch
 		instr.BatchesSent++
 		instr.CurrentBatch = nil
-	}
-}
-
-func (instr *FileInserter) fileInserterWorker(logger *l.Logger) {
-	logger.PushF("proc.fileInserterWorker")
-	defer logger.PopF()
-
-	var localFilePath string
-	if instr.TempFilePath != "" {
-		localFilePath = instr.TempFilePath
-	} else {
-		localFilePath = instr.FinalFileUrl
-	}
-
-	f, err := os.OpenFile(localFilePath, os.O_APPEND|os.O_WRONLY, 0644)
-	if err != nil {
-		instr.ErrorsOut <- fmt.Errorf("cannot open %s(temp %s) for appending: [%s]", instr.FinalFileUrl, instr.TempFilePath, err.Error())
-	} else {
-		defer f.Close()
-	}
-
-	for batch := range instr.BatchesIn {
-		batchStartTime := time.Now()
-		b := strings.Builder{}
-		for rowIdx := 0; rowIdx < batch.RowCount; rowIdx++ {
-			for i := 0; i < len(instr.FileCreator.Columns); i++ {
-				var stringVal string
-				switch assertedVal := batch.Rows[rowIdx][i].(type) {
-				case time.Time:
-					stringVal = assertedVal.Format(instr.FileCreator.Columns[i].Format)
-				case decimal.Decimal:
-					stringVal = fmt.Sprintf(instr.FileCreator.Columns[i].Format, assertedVal.StringFixed(2))
-				default:
-					stringVal = fmt.Sprintf(instr.FileCreator.Columns[i].Format, batch.Rows[rowIdx][i])
-				}
-
-				isQuote := strings.Contains(stringVal, ",")
-				if isQuote {
-					b.WriteString("\"")
-				}
-				b.WriteString(stringVal)
-				if isQuote {
-					b.WriteString("\"")
-				}
-				if i == len(instr.FileCreator.Columns)-1 {
-					b.WriteString("\n")
-				} else {
-					b.WriteString(instr.FileCreator.Separator)
-				}
-			}
-		}
-
-		f.Sync()
-		if _, err := f.WriteString(b.String()); err != nil {
-			instr.ErrorsOut <- fmt.Errorf("cannot write string to %s(temp %s): [%s]", instr.FinalFileUrl, instr.TempFilePath, err.Error())
-		} else {
-			instr.ErrorsOut <- nil
-		}
-		dur := time.Since(batchStartTime)
-		logger.InfoCtx(instr.PCtx, "%d items in %.3fs (%.0f items/s)", batch.RowCount, dur.Seconds(), float64(batch.RowCount)/dur.Seconds())
 	}
 }
 

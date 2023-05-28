@@ -5,16 +5,24 @@
             "desc": "Load accounts from csv",
             "explicit_run_only": true,
             "r": {
-                "urls": ["{dir_in}/accounts.csv"],
-                "hdr_line_idx": 0,
-                "first_data_line_idx": 1,
+                "urls": [
+                    "{dir_in}/accounts.csv"
+                ],
+                "csv": {
+                    "hdr_line_idx": 0,
+                    "first_data_line_idx": 1
+                },
                 "columns": {
                     "col_account_id": {
-                        "col_hdr": "account_id",
+                        "csv": {
+                            "col_hdr": "account_id"
+                        },
                         "col_type": "string"
                     },
                     "col_earliest_period_start": {
-                        "col_hdr": "earliest_period_start",
+                        "csv": {
+                            "col_hdr": "earliest_period_start"
+                        },
                         "col_type": "string"
                     }
                 }
@@ -39,30 +47,44 @@
             "desc": "Load txns from csv",
             "explicit_run_only": true,
             "r": {
-                "urls": ["{dir_in}/txns.csv"],
-                "hdr_line_idx": 0,
-                "first_data_line_idx": 1,
+                "urls": [
+                    "{dir_in}/txns.csv"
+                ],
+                "csv": {
+                    "hdr_line_idx": 0,
+                    "first_data_line_idx": 1
+                },
                 "columns": {
                     "col_ts": {
-                        "col_hdr": "ts",
+                        "csv": {
+                            "col_hdr": "ts"
+                        },
                         "col_type": "string"
                     },
                     "col_account_id": {
-                        "col_hdr": "account_id",
+                        "csv": {
+                            "col_hdr": "account_id"
+                        },
                         "col_type": "string"
                     },
                     "col_ticker": {
-                        "col_hdr": "ticker",
+                        "csv": {
+                            "col_hdr": "ticker"
+                        },
                         "col_type": "string"
                     },
                     "col_qty": {
-                        "col_hdr": "qty",
-                        "col_format": "%d",
+                        "csv": {
+                            "col_hdr": "qty",
+                            "col_format": "%d"
+                        },
                         "col_type": "int"
                     },
                     "col_price": {
-                        "col_hdr": "price",
-                        "col_format": "%f",
+                        "csv": {
+                            "col_hdr": "price",
+                            "col_format": "%f"
+                        },
                         "col_type": "float"
                     }
                 }
@@ -121,25 +143,37 @@
             "desc": "Load holdings from csv",
             "explicit_run_only": true,
             "r": {
-                "urls": ["{dir_in}/holdings.csv"],
-                "hdr_line_idx": 0,
-                "first_data_line_idx": 1,
+                "urls": [
+                    "{dir_in}/holdings.csv"
+                ],
+                "csv": {
+                    "hdr_line_idx": 0,
+                    "first_data_line_idx": 1
+                },
                 "columns": {
                     "col_eod": {
-                        "col_hdr": "d",
+                        "csv": {
+                            "col_hdr": "d"
+                        },
                         "col_type": "string"
                     },
                     "col_account_id": {
-                        "col_hdr": "account_id",
+                        "csv": {
+                            "col_hdr": "account_id"
+                        },
                         "col_type": "string"
                     },
                     "col_ticker": {
-                        "col_hdr": "ticker",
+                        "csv": {
+                            "col_hdr": "ticker"
+                        },
                         "col_type": "string"
                     },
                     "col_qty": {
-                        "col_hdr": "qty",
-                        "col_format": "%d",
+                        "csv": {
+                            "col_hdr": "qty",
+                            "col_format": "%d"
+                        },
                         "col_type": "int"
                     }
                 }
@@ -273,16 +307,16 @@
             "p": {
                 "tag_field_name": "period",
                 "tag_criteria": {
-                    "2021":"re.MatchString(`\"2021\":`, r.perf_json)",
-                    "2021Q1":"re.MatchString(`\"2021Q1\":`, r.perf_json)",
-                    "2021Q2":"re.MatchString(`\"2021Q2\":`, r.perf_json)",
-                    "2021Q3":"re.MatchString(`\"2021Q3\":`, r.perf_json)",
-                    "2021Q4":"re.MatchString(`\"2021Q4\":`, r.perf_json)",
-                    "2022":"re.MatchString(`\"2022\":`, r.perf_json)",
-                    "2022Q1":"re.MatchString(`\"2022Q1\":`, r.perf_json)",
-                    "2022Q2":"re.MatchString(`\"2022Q2\":`, r.perf_json)",
-                    "2022Q3":"re.MatchString(`\"2022Q3\":`, r.perf_json)",
-                    "2022Q4":"re.MatchString(`\"2022Q4\":`, r.perf_json)"
+                    "2021": "re.MatchString(`\"2021\":`, r.perf_json)",
+                    "2021Q1": "re.MatchString(`\"2021Q1\":`, r.perf_json)",
+                    "2021Q2": "re.MatchString(`\"2021Q2\":`, r.perf_json)",
+                    "2021Q3": "re.MatchString(`\"2021Q3\":`, r.perf_json)",
+                    "2021Q4": "re.MatchString(`\"2021Q4\":`, r.perf_json)",
+                    "2022": "re.MatchString(`\"2022\":`, r.perf_json)",
+                    "2022Q1": "re.MatchString(`\"2022Q1\":`, r.perf_json)",
+                    "2022Q2": "re.MatchString(`\"2022Q2\":`, r.perf_json)",
+                    "2022Q3": "re.MatchString(`\"2022Q3\":`, r.perf_json)",
+                    "2022Q4": "re.MatchString(`\"2022Q4\":`, r.perf_json)"
                 }
             },
             "w": {
@@ -314,15 +348,15 @@
             "p": {
                 "tag_field_name": "sector",
                 "tag_criteria": {
-                    "All":"re.MatchString(`\"All\":`, r.perf_json)",
-                    "Communication Services":"re.MatchString(`\"Communication Services\":`, r.perf_json)",
-                    "Consumer Cyclical":"re.MatchString(`\"Consumer Cyclical\":`, r.perf_json)",
-                    "Consumer Defensive":"re.MatchString(`\"Consumer Defensive\":`, r.perf_json)",
-                    "Financial Services":"re.MatchString(`\"Financial Services\":`, r.perf_json)",
-                    "Healthcare":"re.MatchString(`\"Healthcare\":`, r.perf_json)",
-                    "Industrials":"re.MatchString(`\"Industrials\":`, r.perf_json)",
-                    "Real Estate":"re.MatchString(`\"Real Estate\":`, r.perf_json)",
-                    "Technology":"re.MatchString(`\"Technology\":`, r.perf_json)"
+                    "All": "re.MatchString(`\"All\":`, r.perf_json)",
+                    "Communication Services": "re.MatchString(`\"Communication Services\":`, r.perf_json)",
+                    "Consumer Cyclical": "re.MatchString(`\"Consumer Cyclical\":`, r.perf_json)",
+                    "Consumer Defensive": "re.MatchString(`\"Consumer Defensive\":`, r.perf_json)",
+                    "Financial Services": "re.MatchString(`\"Financial Services\":`, r.perf_json)",
+                    "Healthcare": "re.MatchString(`\"Healthcare\":`, r.perf_json)",
+                    "Industrials": "re.MatchString(`\"Industrials\":`, r.perf_json)",
+                    "Real Estate": "re.MatchString(`\"Real Estate\":`, r.perf_json)",
+                    "Technology": "re.MatchString(`\"Technology\":`, r.perf_json)"
                 }
             },
             "w": {
@@ -409,31 +443,39 @@
                 "url_template": "{dir_out}/account_period_sector_perf.csv",
                 "columns": [
                     {
+                        "csv": {
+                            "header": "ARK fund",
+                            "format": "%s"
+                        },
                         "name": "account_id",
-                        "header": "ARK fund",
                         "expression": "r.account_id",
-                        "format": "%s",
                         "type": "string"
                     },
                     {
+                        "csv": {
+                            "header": "Period",
+                            "format": "%s"
+                        },
                         "name": "period",
-                        "header": "Period",
                         "expression": "r.period",
-                        "format": "%s",
                         "type": "string"
                     },
                     {
+                        "csv": {
+                            "header": "Sector",
+                            "format": "%s"
+                        },
                         "name": "sector",
-                        "header": "Sector",
                         "expression": "r.sector",
-                        "format": "%s",
                         "type": "string"
                     },
                     {
+                        "csv": {
+                            "header": "Time-weighted annualized return %",
+                            "format": "%.2f"
+                        },
                         "name": "cagr",
-                        "header": "Time-weighted annualized return %",
                         "expression": "r.cagr",
-                        "format": "%.2f",
                         "type": "float"
                     }
                 ]
@@ -453,37 +495,45 @@
                 "url_template": "{dir_out}/account_year_perf.csv",
                 "columns": [
                     {
+                        "csv": {
+                            "header": "ARK fund",
+                            "format": "%s"
+                        },
                         "name": "account_id",
-                        "header": "ARK fund",
                         "expression": "r.account_id",
-                        "format": "%s",
                         "type": "string"
                     },
                     {
+                        "csv": {
+                            "header": "Period",
+                            "format": "%s"
+                        },
                         "name": "period",
-                        "header": "Period",
                         "expression": "r.period",
-                        "format": "%s",
                         "type": "string"
                     },
                     {
+                        "csv": {
+                            "header": "Sector",
+                            "format": "%s"
+                        },
                         "name": "sector",
-                        "header": "Sector",
                         "expression": "r.sector",
-                        "format": "%s",
                         "type": "string"
                     },
                     {
+                        "csv": {
+                            "header": "Time-weighted annualized return %",
+                            "format": "%.2f"
+                        },
                         "name": "cagr",
-                        "header": "Time-weighted annualized return %",
                         "expression": "r.cagr",
-                        "format": "%.2f",
                         "type": "float"
                     }
                 ]
             }
         }
-     },
+    },
     "dependency_policies": {
         "current_active_first_stopped_nogo": {
             "is_default": true,

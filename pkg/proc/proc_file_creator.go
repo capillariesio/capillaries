@@ -164,8 +164,13 @@ func RunCreateFile(envConfig *env.EnvConfig,
 		srcFieldRefs)
 
 	instr := newFileInserter(pCtx, &node.FileCreator, pCtx.BatchInfo.RunId, pCtx.BatchInfo.BatchIdx)
-	if err := instr.createFileAndStartWorker(logger); err != nil {
-		return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("cannot start file inserter worker: %s", err.Error())
+
+	if node.FileCreator.CreatorFileType == sc.CreatorFileTypeCsv {
+		if err := instr.createCsvFileAndStartWorker(logger); err != nil {
+			return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("cannot start file inserter worker: %s", err.Error())
+		}
+	} else {
+		return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("unknown inserter file type: %d", node.FileCreator.CreatorFileType)
 	}
 
 	bs, err := readAndInsert(logger, pCtx, node.TableReader.TableName, rs, instr, readerNodeRunId, startToken, endToken, node.TableReader.RowsetSize)

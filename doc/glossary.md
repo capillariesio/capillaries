@@ -201,17 +201,21 @@ Unique int64 identifier assigned by Capillaries to every data row. Used internal
 
 ## File reader column definition
 
-Defines how file reader reads columns from the source CSV file.
+Defines how file reader reads columns from the source file.
 
-`col_idx`: zero-based column index in the source file; prohibited if col_hdr is specified
-
-`col_hdr`: source file column header; prohibited if col_idx is specified
-
-`col_format`: optional for `int`, `float` and `decimal2` fields (will be used by `fmt.Sscanf()` if provided); required for `datetime` fields (will be used by `time.Parse()` if provided); prohibited for `string` and `bool` fields
+### Generic column properties
 
 `col_default_value`: default value (specified as string in this setting: "0.0", "true" etc) to be used if the source file contains no value for this field; if omitted, the default Go value for this type is used
 
 `col_type`: one of the [supported types](#supported-types)
+
+### CSV column properties
+`csv.col_idx`: zero-based column index in the source file; prohibited if col_hdr is specified
+
+`csv.col_hdr`: source file column header; prohibited if col_idx is specified
+
+`csv.col_format`: optional for `int`, `float` and `decimal2` fields (will be used by `fmt.Sscanf()` if provided); required for `datetime` fields (will be used by `time.Parse()` if provided); prohibited for `string` and `bool` fields
+
 
 ## Table writer field definition
 
@@ -225,17 +229,21 @@ Defines how table writer saves values to the target table.
 
 ## File writer column definition
 
-Defines how file writer saves values to the target CSV file.
+Defines how file writer saves values to the target file.
 
-`expression`: [Go expression](#go-expression), can use reader fields only (`r.*`)
-
-`format`: Go format string to be used when writing a value as text to the file
-
-`header`: column header to be used in the target file
+### Generic column properties
 
 `name`: column name to be used in [having](#w.having)
 
 `type`: one of the [supported types](#supported-types)
+
+`expression`: [Go expression](#go-expression), can use reader fields only (`r.*`)
+
+### CSV-specific column properties
+
+`format`: Go format string to be used when writing a value as text to the file
+
+`header`: column header to be used in the target file
 
 ## Index definition
 

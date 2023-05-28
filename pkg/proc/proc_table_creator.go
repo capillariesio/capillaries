@@ -55,79 +55,12 @@ func reportWriteTableComplete(logger *l.Logger, pCtx *ctx.MessageProcessingConte
 		workerCount)
 }
 
-func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.MessageProcessingContext, srcFileIdx int) (BatchStats, error) {
-	logger.PushF("proc.RunReadFileForBatch")
-	defer logger.PopF()
-
-	batchStartTime := time.Now()
-	totalStartTime := time.Now()
+func readCsv(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.MessageProcessingContext, totalStartTime time.Time, filePath string, fileReader io.Reader) (BatchStats, error) {
 	bs := BatchStats{RowsRead: 0, RowsWritten: 0}
-
 	node := pCtx.CurrentScriptNode
 
-	if !node.HasFileReader() {
-		return bs, fmt.Errorf("node does not have file reader")
-	}
-	if !node.HasTableCreator() {
-		return bs, fmt.Errorf("node does not have table creator")
-	}
-
-	if srcFileIdx < 0 || srcFileIdx >= len(node.FileReader.SrcFileUrls) {
-		return bs, fmt.Errorf("cannot find file to read: asked to read src file with index %d while there are only %d source files available", srcFileIdx, len(node.FileReader.SrcFileUrls))
-	}
-	filePath := node.FileReader.SrcFileUrls[srcFileIdx]
-
-	u, err := url.Parse(filePath)
-	if err != nil {
-		return bs, fmt.Errorf("cannot parse file uri %s: %s", filePath, err.Error())
-	}
-
-	bs.Src = filePath
-	bs.Dst = node.TableCreator.Name + cql.RunIdSuffix(pCtx.BatchInfo.RunId)
-
-	var csvFile *os.File
-	var fileReader io.Reader
-	if u.Scheme == xfer.UriSchemeFile || len(u.Scheme) == 0 {
-		csvFile, err = os.Open(filePath)
-		if err != nil {
-			return bs, err
-		}
-		fileReader = bufio.NewReader(csvFile)
-	} else if u.Scheme == xfer.UriSchemeHttp || u.Scheme == xfer.UriSchemeHttps {
-		readCloser, err := xfer.GetHttpReadCloser(filePath, u.Scheme, envConfig.CaPath)
-		if err != nil {
-			return bs, err
-		}
-		fileReader = readCloser
-		defer readCloser.Close()
-	} else if u.Scheme == xfer.UriSchemeSftp {
-		// When dealing with sftp, we download the *whole* file, instead of providing a reader
-		dstFile, err := os.CreateTemp("", "capi")
-		if err != nil {
-			return bs, fmt.Errorf("cannot creeate temp file for %s: %s", filePath, err.Error())
-		}
-
-		// Download and schedule delete
-		if err = xfer.DownloadSftpFile(filePath, envConfig.PrivateKeys, dstFile); err != nil {
-			dstFile.Close()
-			return bs, err
-		}
-		logger.Info("downloaded sftp file %s to %s", filePath, dstFile.Name())
-		dstFile.Close()
-		defer os.Remove(dstFile.Name())
-
-		// Create a reader for the temp file
-		csvFile, err = os.Open(dstFile.Name())
-		if err != nil {
-			return bs, fmt.Errorf("cannot read from file %s downloaded from %s: %s", dstFile.Name(), filePath, err.Error())
-		}
-		fileReader = bufio.NewReader(csvFile)
-	} else {
-		return bs, fmt.Errorf("uri scheme %s not supported: %s", u.Scheme, filePath)
-	}
-
 	r := csv.NewReader(fileReader)
-	r.Comma = rune(node.FileReader.Separator[0])
+	r.Comma = rune(node.FileReader.Csv.Separator[0])
 
 	// To avoid bare \" error: https://stackoverflow.com/questions/31326659/golang-csv-error-bare-in-non-quoted-field
 	r.LazyQuotes = true
@@ -142,6 +75,8 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.M
 	}
 	defer instr.waitForWorkersAndCloseErrorsOut(logger, pCtx)
 
+	batchStartTime := time.Now()
+
 	for {
 		line, err := r.Read()
 		if err == io.EOF {
@@ -150,15 +85,15 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.M
 		if err != nil {
 			return bs, fmt.Errorf("cannot read file [%s]: [%s]", filePath, err.Error())
 		}
-		if node.FileReader.ColumnIndexingMode == sc.FileColumnIndexingName && int64(node.FileReader.SrcFileHdrLineIdx) == lineIdx {
-			if err := node.FileReader.ResolveColumnIndexesFromNames(line); err != nil {
+		if node.FileReader.Csv.ColumnIndexingMode == sc.FileColumnIndexingName && int64(node.FileReader.Csv.SrcFileHdrLineIdx) == lineIdx {
+			if err := node.FileReader.ResolveCsvColumnIndexesFromNames(line); err != nil {
 				return bs, fmt.Errorf("cannot parse column headers of [%s]: [%s]", filePath, err.Error())
 			}
-		} else if lineIdx >= int64(node.FileReader.SrcFileFirstDataLineIdx) {
+		} else if lineIdx >= int64(node.FileReader.Csv.SrcFileFirstDataLineIdx) {
 
 			// FileReader: read columns
 			colVars := eval.VarValuesMap{}
-			if err := node.FileReader.ReadLineToValuesMap(&line, colVars); err != nil {
+			if err := node.FileReader.ReadCsvLineToValuesMap(&line, colVars); err != nil {
 				return bs, fmt.Errorf("cannot read values from [%s], line %d: [%s]", filePath, lineIdx, err.Error())
 			}
 
@@ -207,6 +142,98 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.M
 	reportWriteTableComplete(logger, pCtx, bs.RowsRead, bs.RowsWritten, bs.Elapsed, len(node.TableCreator.Indexes), instr.NumWorkers)
 
 	return bs, nil
+}
+
+func readParquet(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.MessageProcessingContext, totalStartTime time.Time, filePath string, fileReader io.Reader) (BatchStats, error) {
+	bs := BatchStats{RowsRead: 0, RowsWritten: 0}
+	return bs, nil
+}
+
+func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.MessageProcessingContext, srcFileIdx int) (BatchStats, error) {
+	logger.PushF("proc.RunReadFileForBatch")
+	defer logger.PopF()
+
+	totalStartTime := time.Now()
+	bs := BatchStats{RowsRead: 0, RowsWritten: 0}
+
+	node := pCtx.CurrentScriptNode
+
+	if !node.HasFileReader() {
+		return bs, fmt.Errorf("node does not have file reader")
+	}
+	if !node.HasTableCreator() {
+		return bs, fmt.Errorf("node does not have table creator")
+	}
+
+	if srcFileIdx < 0 || srcFileIdx >= len(node.FileReader.SrcFileUrls) {
+		return bs, fmt.Errorf("cannot find file to read: asked to read src file with index %d while there are only %d source files available", srcFileIdx, len(node.FileReader.SrcFileUrls))
+	}
+	filePath := node.FileReader.SrcFileUrls[srcFileIdx]
+
+	u, err := url.Parse(filePath)
+	if err != nil {
+		return bs, fmt.Errorf("cannot parse file uri %s: %s", filePath, err.Error())
+	}
+
+	bs.Src = filePath
+	bs.Dst = node.TableCreator.Name + cql.RunIdSuffix(pCtx.BatchInfo.RunId)
+
+	var localSrcFile *os.File
+	var fileReader io.Reader
+	var fileReadSeeker io.ReadSeeker
+	if u.Scheme == xfer.UriSchemeFile || len(u.Scheme) == 0 {
+		localSrcFile, err = os.Open(filePath)
+		if err != nil {
+			return bs, err
+		}
+		defer localSrcFile.Close()
+		fileReader = bufio.NewReader(localSrcFile)
+		fileReadSeeker = localSrcFile
+	} else if u.Scheme == xfer.UriSchemeHttp || u.Scheme == xfer.UriSchemeHttps {
+		readCloser, err := xfer.GetHttpReadCloser(filePath, u.Scheme, envConfig.CaPath)
+		if err != nil {
+			return bs, err
+		}
+		fileReader = readCloser
+		defer readCloser.Close()
+	} else if u.Scheme == xfer.UriSchemeSftp {
+		// When dealing with sftp, we download the *whole* file, instead of providing a reader
+		dstFile, err := os.CreateTemp("", "capi")
+		if err != nil {
+			return bs, fmt.Errorf("cannot creeate temp file for %s: %s", filePath, err.Error())
+		}
+
+		// Download and schedule delete
+		if err = xfer.DownloadSftpFile(filePath, envConfig.PrivateKeys, dstFile); err != nil {
+			dstFile.Close()
+			return bs, err
+		}
+		logger.Info("downloaded sftp file %s to %s", filePath, dstFile.Name())
+		dstFile.Close()
+		defer os.Remove(dstFile.Name())
+
+		// Create a reader for the temp file
+		localSrcFile, err = os.Open(dstFile.Name())
+		if err != nil {
+			return bs, fmt.Errorf("cannot read from file %s downloaded from %s: %s", dstFile.Name(), filePath, err.Error())
+		}
+		defer localSrcFile.Close()
+		fileReader = bufio.NewReader(localSrcFile)
+		fileReadSeeker = localSrcFile
+	} else {
+		return bs, fmt.Errorf("uri scheme %s not supported: %s", u.Scheme, filePath)
+	}
+
+	if node.FileReader.ReaderFileType == sc.ReaderFileTypeCsv {
+		return readCsv(envConfig, logger, pCtx, totalStartTime, filePath, fileReader)
+	} else if node.FileReader.ReaderFileType == sc.ReaderFileTypeParquet {
+		if fileReadSeeker == nil {
+			return bs, fmt.Errorf("cannot read parquet file without io.ReadSeeker: %s", filePath)
+		}
+		return readParquet(envConfig, logger, pCtx, totalStartTime, filePath, fileReadSeeker)
+	} else {
+		return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("unknown reader file type: %d", node.FileReader.ReaderFileType)
+	}
 }
 
 func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,

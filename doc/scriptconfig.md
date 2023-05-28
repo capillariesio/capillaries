@@ -115,6 +115,14 @@ Most Capillaries integration tests use file URLs. [tag_and_denormalize test](../
 #### r.columns
 File reader only. Array of file reader [column definitions](glossary.md#file-reader-column-definition)
 
+#### r.csv.hdr_line_idx
+CSV reader only: line index to read header values from
+
+#### r.csv.first_data_line_idx
+CSV reader only: first data line index
+
+#### r.csv.separator
+CSV reader only: field separator, default is comma
 
 
 ### w - writer
@@ -151,11 +159,13 @@ File writer only: array of file writer [column definitions](glossary.md#file-wri
 
 Table writer only. index_name->[index_definition](glossary.md#index-definition) map.
 
-### w.url_template
+#### w.url_template
 File writer only. Specifies  the URI of the target file(s). Supported schemes:
 - local file path
 - [sftp](./glossary.md#sftp-uris)
 
+#### w.csv.separator
+CSV writer only: field separator, default is comma
 
 ## dependency_policies
 
