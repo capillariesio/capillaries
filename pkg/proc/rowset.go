@@ -238,7 +238,7 @@ func (rs *Rowset) InitRows(capacity int) error {
 				v := false
 				(*rs.Rows[rowIdx])[colIdx] = &v
 			case sc.FieldTypeDateTime:
-				v := time.Date(1901, 1, 1, 0, 0, 0, 0, time.UTC)
+				v := sc.DefaultDateTime() //time.Date(1901, 1, 1, 0, 0, 0, 0, time.UTC)
 				(*rs.Rows[rowIdx])[colIdx] = &v
 			default:
 				return fmt.Errorf("InitRows unsupported field type %s, field %s.%s", rs.Fields[colIdx].FieldType, rs.Fields[colIdx].TableName, rs.Fields[colIdx].FieldName)

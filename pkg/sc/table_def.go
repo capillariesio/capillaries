@@ -46,7 +46,7 @@ const DefaultBool bool = false
 
 func DefaultDecimal2() decimal.Decimal   { return decimal.NewFromFloat(0.0) }
 func DefaultCassandraDecimal2() *inf.Dec { return inf.NewDec(0, 0) }
-func DefaultDateTime() time.Time         { return time.Date(1901, 1, 1, 0, 0, 0, 0, time.UTC) }
+func DefaultDateTime() time.Time         { return time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC) } // Same as time.Time default
 
 func GetDefaultFieldTypeValue(fieldType TableFieldType) interface{} {
 	switch fieldType {

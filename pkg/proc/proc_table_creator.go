@@ -144,8 +144,13 @@ func readCsv(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.MessageProces
 	return bs, nil
 }
 
-func readParquet(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.MessageProcessingContext, totalStartTime time.Time, filePath string, fileReader io.Reader) (BatchStats, error) {
+func readParquet(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.MessageProcessingContext, totalStartTime time.Time, filePath string, fileReadSeeker io.ReadSeeker) (BatchStats, error) {
 	bs := BatchStats{RowsRead: 0, RowsWritten: 0}
+
+	if fileReadSeeker == nil {
+		return bs, fmt.Errorf("cannot read parquet file without io.ReadSeeker: %s", filePath)
+	}
+
 	return bs, nil
 }
 
@@ -190,17 +195,49 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.M
 		fileReader = bufio.NewReader(localSrcFile)
 		fileReadSeeker = localSrcFile
 	} else if u.Scheme == xfer.UriSchemeHttp || u.Scheme == xfer.UriSchemeHttps {
-		readCloser, err := xfer.GetHttpReadCloser(filePath, u.Scheme, envConfig.CaPath)
-		if err != nil {
-			return bs, err
+		// If this is a parquet file, download it and then open so we have fileReadSeeker
+		if node.FileReader.ReaderFileType == sc.ReaderFileTypeParquet {
+			dstFile, err := os.CreateTemp("", "capi")
+			if err != nil {
+				return bs, fmt.Errorf("cannot create temp file for %s: %s", filePath, err.Error())
+			}
+
+			readCloser, err := xfer.GetHttpReadCloser(filePath, u.Scheme, envConfig.CaPath)
+			if err != nil {
+				dstFile.Close()
+				return bs, fmt.Errorf("cannot open http file %s: %s", filePath, err.Error())
+			}
+			defer readCloser.Close()
+
+			if _, err := io.Copy(dstFile, readCloser); err != nil {
+				dstFile.Close()
+				return bs, fmt.Errorf("cannot save http file %s to temp file %s: %s", filePath, dstFile.Name(), err.Error())
+			}
+
+			logger.Info("downloaded http file %s to %s", filePath, dstFile.Name())
+			dstFile.Close()
+			defer os.Remove(dstFile.Name())
+
+			localSrcFile, err = os.Open(dstFile.Name())
+			if err != nil {
+				return bs, fmt.Errorf("cannot read from file %s downloaded from %s: %s", dstFile.Name(), filePath, err.Error())
+			}
+			defer localSrcFile.Close()
+			fileReadSeeker = localSrcFile
+		} else {
+			// Just read from the net
+			readCloser, err := xfer.GetHttpReadCloser(filePath, u.Scheme, envConfig.CaPath)
+			if err != nil {
+				return bs, err
+			}
+			fileReader = readCloser
+			defer readCloser.Close()
 		}
-		fileReader = readCloser
-		defer readCloser.Close()
 	} else if u.Scheme == xfer.UriSchemeSftp {
 		// When dealing with sftp, we download the *whole* file, instead of providing a reader
 		dstFile, err := os.CreateTemp("", "capi")
 		if err != nil {
-			return bs, fmt.Errorf("cannot creeate temp file for %s: %s", filePath, err.Error())
+			return bs, fmt.Errorf("cannot create temp file for %s: %s", filePath, err.Error())
 		}
 
 		// Download and schedule delete
@@ -227,9 +264,6 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.M
 	if node.FileReader.ReaderFileType == sc.ReaderFileTypeCsv {
 		return readCsv(envConfig, logger, pCtx, totalStartTime, filePath, fileReader)
 	} else if node.FileReader.ReaderFileType == sc.ReaderFileTypeParquet {
-		if fileReadSeeker == nil {
-			return bs, fmt.Errorf("cannot read parquet file without io.ReadSeeker: %s", filePath)
-		}
 		return readParquet(envConfig, logger, pCtx, totalStartTime, filePath, fileReadSeeker)
 	} else {
 		return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("unknown reader file type: %d", node.FileReader.ReaderFileType)

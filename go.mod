@@ -14,7 +14,10 @@ require (
 )
 
 require (
+	github.com/apache/thrift v0.16.0 // indirect
+	github.com/fraugster/parquet-go v0.12.0 // indirect
 	github.com/kr/fs v0.1.0 // indirect
+	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1 // indirect
 	golang.org/x/sys v0.7.0 // indirect
 )
 
