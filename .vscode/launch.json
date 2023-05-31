@@ -156,6 +156,15 @@
             "cwd":"${workspaceFolder}/pkg/exe/webapi",
             "program": "${workspaceFolder}/pkg/exe/webapi/capiwebapi.go",
             "args": []
+        },
+        {
+            "name": "caparquet diff",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/webapi",
+            "program": "${workspaceFolder}/test/code/parquet/caparquet.go",
+            "args": ["diff", "/tmp/capi_out/lookup_quicktest/order_date_value_grouped_left_outer_baseline.parquet", "/tmp/capi_out/lookup_quicktest/order_item_date_inner_baseline.parquet"]
         }
    ]
 }

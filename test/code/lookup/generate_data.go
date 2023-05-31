@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"math"
@@ -14,9 +13,8 @@ import (
 	"strconv"
 	"time"
 
-	sc "github.com/capillariesio/capillaries/pkg/sc"
-	gp "github.com/fraugster/parquet-go"
-	gpparquet "github.com/fraugster/parquet-go/parquet"
+	"github.com/capillariesio/capillaries/pkg/sc"
+	"github.com/capillariesio/capillaries/pkg/storage"
 	"github.com/shopspring/decimal"
 )
 
@@ -93,94 +91,6 @@ type ScriptParams struct {
 	DefaultOrderItemValue          decimal.Decimal
 }
 
-type ParquetWriter struct {
-	FileWriter *gp.FileWriter
-	StoreMap   map[string]*gp.ColumnStore
-}
-
-func NewParquetWriter(ioWriter io.Writer) *ParquetWriter {
-	return &ParquetWriter{
-		StoreMap:   map[string]*gp.ColumnStore{},
-		FileWriter: gp.NewFileWriter(ioWriter, gp.WithCompressionCodec(gpparquet.CompressionCodec_GZIP), gp.WithCreator("capillaries")),
-	}
-}
-
-func (w *ParquetWriter) AddColumn(name string, fieldType sc.TableFieldType) error {
-	if _, ok := w.StoreMap[name]; ok {
-		return fmt.Errorf("cannot add duplicate column %s", name)
-	}
-
-	var s *gp.ColumnStore
-	var err error
-	switch fieldType {
-	case sc.FieldTypeString:
-		params := &gp.ColumnParameters{LogicalType: gpparquet.NewLogicalType()}
-		params.LogicalType.STRING = gpparquet.NewStringType()
-		params.ConvertedType = gpparquet.ConvertedTypePtr(gpparquet.ConvertedType_UTF8)
-		s, err = gp.NewByteArrayStore(gpparquet.Encoding_PLAIN, true, params)
-	case sc.FieldTypeDateTime:
-		params := &gp.ColumnParameters{LogicalType: gpparquet.NewLogicalType()}
-		params.LogicalType.TIMESTAMP = gpparquet.NewTimestampType()
-		params.LogicalType.TIMESTAMP.Unit = gpparquet.NewTimeUnit()
-		// Go and Parquet support nanoseconds. Unfortunately, Cassandra supports only milliseconds. Millis are our lingua franca.
-		params.LogicalType.TIMESTAMP.Unit.MILLIS = gpparquet.NewMilliSeconds()
-		params.ConvertedType = gpparquet.ConvertedTypePtr(gpparquet.ConvertedType_TIMESTAMP_MILLIS)
-		s, err = gp.NewInt64Store(gpparquet.Encoding_PLAIN, true, params)
-	case sc.FieldTypeInt:
-		s, err = gp.NewInt64Store(gpparquet.Encoding_PLAIN, true, &gp.ColumnParameters{})
-	case sc.FieldTypeDecimal2:
-		params := &gp.ColumnParameters{LogicalType: gpparquet.NewLogicalType()}
-		params.LogicalType.DECIMAL = gpparquet.NewDecimalType()
-		params.LogicalType.DECIMAL.Scale = 2
-		params.LogicalType.DECIMAL.Precision = 2
-		// This is to make fraugster/go-parquet happy so it writes this metadata,
-		// see buildElement() implementation in schema.go
-		params.Scale = &params.LogicalType.DECIMAL.Scale
-		params.Precision = &params.LogicalType.DECIMAL.Precision
-		params.ConvertedType = gpparquet.ConvertedTypePtr(gpparquet.ConvertedType_DECIMAL)
-		s, err = gp.NewInt64Store(gpparquet.Encoding_PLAIN, true, params)
-	case sc.FieldTypeFloat:
-		s, err = gp.NewDoubleStore(gpparquet.Encoding_PLAIN, true, &gp.ColumnParameters{})
-	case sc.FieldTypeBool:
-		s, err = gp.NewBooleanStore(gpparquet.Encoding_PLAIN, &gp.ColumnParameters{})
-	default:
-		return fmt.Errorf("cannot add %s column %s: unsupported field type", fieldType, name)
-	}
-	if err != nil {
-		return fmt.Errorf("cannot create store for %s column %s: %s", fieldType, name, err.Error())
-	}
-	if err := w.FileWriter.AddColumn(name, gp.NewDataColumn(s, gpparquet.FieldRepetitionType_OPTIONAL)); err != nil {
-		return fmt.Errorf("cannot add %s column %s: %s", fieldType, name, err.Error())
-	}
-	w.StoreMap[name] = s
-	return nil
-}
-
-func (w *ParquetWriter) Close() error {
-	if w.FileWriter != nil {
-		if err := w.FileWriter.FlushRowGroup(); err != nil {
-			return fmt.Errorf("cannot flush row group: %s", err.Error())
-		}
-
-		if err := w.FileWriter.Close(); err != nil {
-			return fmt.Errorf("cannot close writer: %s", err.Error())
-		}
-	}
-	return nil
-}
-func ParquetWriterMilliTs(t time.Time) interface{} {
-	if t.Equal(sc.DefaultDateTime()) {
-		return nil
-	} else {
-		// Go and Parquet support nanoseconds. Unfortunately, Cassandra supports only milliseconds. Millis are our lingua franca.
-		return t.UnixMilli()
-	}
-}
-
-func ParquetWriterDecimal2(dec decimal.Decimal) interface{} {
-	return dec.Mul(decimal.NewFromInt(100)).IntPart()
-}
-
 func shuffleAndSaveInOrders(inOrders []*Order, totalChunks int, basePath string) {
 	rnd := rand.New(rand.NewSource((time.Now().Unix() << 32) + time.Now().UnixMilli()))
 
@@ -242,7 +152,7 @@ func shuffleAndSaveInOrders(inOrders []*Order, totalChunks int, basePath string)
 		log.Fatalf("cannot create file %s: %s", basePath, err.Error())
 	}
 
-	w := NewParquetWriter(fParquet)
+	w := storage.NewParquetWriter(fParquet)
 
 	if err := w.AddColumn("order_id", sc.FieldTypeString); err != nil {
 		log.Fatalf(err.Error())
@@ -278,11 +188,11 @@ func shuffleAndSaveInOrders(inOrders []*Order, totalChunks int, basePath string)
 			"order_id":                 item.OrderId,
 			"customer_id":              item.CustomerId,
 			"order_status":             item.OrderStatus,
-			"order_purchase_ts":        ParquetWriterMilliTs(item.OrderPurchaseTs),
-			"order_approved_ts":        ParquetWriterMilliTs(item.OrderApprovedTs),
-			"order_delivered_carrier":  ParquetWriterMilliTs(item.OrderDeliveredCarrierTs),
-			"order_delivered_customer": ParquetWriterMilliTs(item.OrderDeliveredCustomerTs),
-			"order_estimate_delivery":  ParquetWriterMilliTs(item.OrderEstimateDeliveryTs),
+			"order_purchase_ts":        storage.ParquetWriterMilliTs(item.OrderPurchaseTs),
+			"order_approved_ts":        storage.ParquetWriterMilliTs(item.OrderApprovedTs),
+			"order_delivered_carrier":  storage.ParquetWriterMilliTs(item.OrderDeliveredCarrierTs),
+			"order_delivered_customer": storage.ParquetWriterMilliTs(item.OrderDeliveredCustomerTs),
+			"order_estimate_delivery":  storage.ParquetWriterMilliTs(item.OrderEstimateDeliveryTs),
 			// "is_sent":                  !item.OrderDeliveredCarrierTs.Equal(sc.DefaultDateTime()),
 		}); err != nil {
 			log.Fatalf("3" + err.Error())
@@ -355,7 +265,7 @@ func shuffleAndSaveInOrderItems(inOrderItems []*OrderItem, totalChunks int, base
 		log.Fatalf("cannot create file %s: %s", basePath, err.Error())
 	}
 
-	w := NewParquetWriter(fParquet)
+	w := storage.NewParquetWriter(fParquet)
 
 	if err := w.AddColumn("order_id", sc.FieldTypeString); err != nil {
 		log.Fatalf(err.Error())
@@ -385,9 +295,9 @@ func shuffleAndSaveInOrderItems(inOrderItems []*OrderItem, totalChunks int, base
 			"order_item_id":       item.OrderItemId,
 			"product_id":          item.ProductId,
 			"seller_id":           item.SellerId,
-			"shipping_limit_date": ParquetWriterMilliTs(item.ShippingLimitDate),
-			"price":               ParquetWriterDecimal2(item.Price),
-			"freight_value":       ParquetWriterDecimal2(item.FreightValue),
+			"shipping_limit_date": storage.ParquetWriterMilliTs(item.ShippingLimitDate),
+			"price":               storage.ParquetWriterDecimal2(item.Price),
+			"freight_value":       storage.ParquetWriterDecimal2(item.FreightValue),
 		}); err != nil {
 			log.Fatalf("3" + err.Error())
 		}
@@ -440,7 +350,7 @@ func sortAndSaveNoGroup(items []*NoGroupItem, fileBase string) {
 		log.Fatalf("cannot create file '%s': %s", parquetFilePath, err.Error())
 	}
 
-	w := NewParquetWriter(fParquet)
+	w := storage.NewParquetWriter(fParquet)
 
 	if err := w.AddColumn("order_id", sc.FieldTypeString); err != nil {
 		log.Fatalf(err.Error())
@@ -467,8 +377,8 @@ func sortAndSaveNoGroup(items []*NoGroupItem, fileBase string) {
 			"order_item_id":       item.OrderItemId,
 			"product_id":          item.ProductId,
 			"seller_id":           item.SellerId,
-			"shipping_limit_date": ParquetWriterMilliTs(item.ShippingLimitDate),
-			"order_item_value":    ParquetWriterDecimal2(item.OrderItemValue),
+			"shipping_limit_date": storage.ParquetWriterMilliTs(item.ShippingLimitDate),
+			"order_item_value":    storage.ParquetWriterDecimal2(item.OrderItemValue),
 		}); err != nil {
 			log.Fatalf(err.Error())
 		}
@@ -525,7 +435,7 @@ func sortAndSaveGroup(items []*GroupItem, fileBase string) {
 		log.Fatalf("cannot create file '%s': %s", parquetFilePath, err.Error())
 	}
 
-	w := NewParquetWriter(fParquet)
+	w := storage.NewParquetWriter(fParquet)
 
 	if err := w.AddColumn("total_order_value", sc.FieldTypeDecimal2); err != nil {
 		log.Fatalf(err.Error())
@@ -557,12 +467,12 @@ func sortAndSaveGroup(items []*GroupItem, fileBase string) {
 
 	for _, item := range items {
 		if err := w.FileWriter.AddData(map[string]interface{}{
-			"total_order_value":     ParquetWriterDecimal2(item.TotalOrderValue),
-			"order_purchase_ts":     ParquetWriterMilliTs(item.OrderPurchaseTs),
+			"total_order_value":     storage.ParquetWriterDecimal2(item.TotalOrderValue),
+			"order_purchase_ts":     storage.ParquetWriterMilliTs(item.OrderPurchaseTs),
 			"order_id":              item.OrderId,
-			"avg_order_value":       ParquetWriterDecimal2(item.AvgOrderValue),
-			"min_order_value":       ParquetWriterDecimal2(item.MinOrderValue),
-			"max_order_value":       ParquetWriterDecimal2(item.MaxOrderValue),
+			"avg_order_value":       storage.ParquetWriterDecimal2(item.AvgOrderValue),
+			"min_order_value":       storage.ParquetWriterDecimal2(item.MinOrderValue),
+			"max_order_value":       storage.ParquetWriterDecimal2(item.MaxOrderValue),
 			"min_product_id":        item.MinProductId,
 			"max_product_id":        item.MaxProductId,
 			"actual_items_in_order": item.ActualItemsInOrder,
