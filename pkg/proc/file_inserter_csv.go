@@ -78,14 +78,19 @@ func (instr *FileInserter) csvFileInserterWorker(logger *l.Logger) {
 		localFilePath = instr.FinalFileUrl
 	}
 
+	var errOpen error
 	f, err := os.OpenFile(localFilePath, os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
-		instr.ErrorsOut <- fmt.Errorf("cannot open %s(temp %s) for appending: [%s]", instr.FinalFileUrl, instr.TempFilePath, err.Error())
+		errOpen = fmt.Errorf("cannot open %s(temp %s) for appending: [%s]", instr.FinalFileUrl, instr.TempFilePath, err.Error())
 	} else {
 		defer f.Close()
 	}
 
 	for batch := range instr.BatchesIn {
+		if errOpen != nil {
+			instr.ErrorsOut <- errOpen
+			continue
+		}
 		batchStartTime := time.Now()
 		b := strings.Builder{}
 		for rowIdx := 0; rowIdx < batch.RowCount; rowIdx++ {
@@ -120,9 +125,9 @@ func (instr *FileInserter) csvFileInserterWorker(logger *l.Logger) {
 		if _, err := f.WriteString(b.String()); err != nil {
 			instr.ErrorsOut <- fmt.Errorf("cannot write string to %s(temp %s): [%s]", instr.FinalFileUrl, instr.TempFilePath, err.Error())
 		} else {
+			dur := time.Since(batchStartTime)
+			logger.InfoCtx(instr.PCtx, "%d items in %.3fs (%.0f items/s)", batch.RowCount, dur.Seconds(), float64(batch.RowCount)/dur.Seconds())
 			instr.ErrorsOut <- nil
 		}
-		dur := time.Since(batchStartTime)
-		logger.InfoCtx(instr.PCtx, "%d items in %.3fs (%.0f items/s)", batch.RowCount, dur.Seconds(), float64(batch.RowCount)/dur.Seconds())
-	}
+	} // next batch
 }

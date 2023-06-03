@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/capillariesio/capillaries/pkg/sc"
@@ -287,7 +288,7 @@ func cat(path string) error {
 				if err != nil {
 					return fmt.Errorf("cannot read float row %d, column %s: %s", rowIdx, fieldName, err.Error())
 				}
-				sb.WriteString(fmt.Sprintf("%f", typedVal))
+				sb.WriteString(strconv.FormatFloat(typedVal, 'f', -1, 64))
 
 			case sc.FieldTypeBool:
 				typedVal, err := storage.ParquetReadBool(volatile, se)
@@ -308,11 +309,7 @@ func cat(path string) error {
 				if err != nil {
 					return fmt.Errorf("cannot read decimal2 row %d, column %s: %s", rowIdx, fieldName, err.Error())
 				}
-				if *se.Precision > 0 {
-					sb.WriteString(typedVal.StringFixed(*se.Precision))
-				} else {
-					sb.WriteString(typedVal.String())
-				}
+				sb.WriteString(typedVal.String())
 			default:
 				sb.WriteString("NaN")
 			}

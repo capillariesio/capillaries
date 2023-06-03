@@ -11,6 +11,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/sc"
@@ -91,7 +92,7 @@ type ScriptParams struct {
 	DefaultOrderItemValue          decimal.Decimal
 }
 
-func shuffleAndSaveInOrders(inOrders []*Order, totalChunks int, basePath string) {
+func shuffleAndSaveInOrders(inOrders []*Order, totalChunks int, basePath string, formats string) {
 	rnd := rand.New(rand.NewSource((time.Now().Unix() << 32) + time.Now().UnixMilli()))
 
 	for i := 0; i < len(inOrders); i++ {
@@ -109,104 +110,116 @@ func shuffleAndSaveInOrders(inOrders []*Order, totalChunks int, basePath string)
 		chunkSize = int(math.Ceil(float64(len(inOrders)) / float64(totalChunks)))
 	}
 
-	var fInOrders *os.File
+	var fCsv *os.File
+	var fParquet *os.File
+	var parquetWriter *storage.ParquetWriter
 	chunkLineCount := 0
 	chunkIdx := 0
 	var err error
-	for i := 0; i < len(inOrders); i++ {
+	for itemIdx, item := range inOrders {
 		if chunkLineCount == 0 {
 			finalFilePath := basePath
 			if totalChunks > 1 {
 				finalFilePath = fmt.Sprintf("%s_%02d", basePath, chunkIdx)
 			}
-			if fInOrders != nil {
-				fInOrders.Close()
+
+			if strings.Contains(formats, "csv") {
+				fCsv, err = os.Create(finalFilePath + ".csv")
+				if err != nil {
+					log.Fatalf("cannot create in file [%s]: %s", finalFilePath, err.Error())
+				}
+				if _, err := fCsv.WriteString("order_id,customer_id,order_status,order_purchase_timestamp,order_approved_at,order_delivered_carrier_date,order_delivered_customer_date,order_estimated_delivery_date\n"); err != nil {
+					log.Fatalf("cannot write file [%s] header line: [%s]", finalFilePath, err.Error())
+				}
 			}
-			fInOrders, err = os.Create(finalFilePath + ".csv")
-			if err != nil {
-				log.Fatalf("cannot create in file [%s]: %s", finalFilePath, err.Error())
-			}
-			if _, err := fInOrders.WriteString("order_id,customer_id,order_status,order_purchase_timestamp,order_approved_at,order_delivered_carrier_date,order_delivered_customer_date,order_estimated_delivery_date\n"); err != nil {
-				log.Fatalf("cannot write file [%s] header line: [%s]", finalFilePath, err.Error())
+
+			if strings.Contains(formats, "parquet") {
+				fParquet, err = os.Create(finalFilePath + ".parquet")
+				if err != nil {
+					log.Fatalf("cannot create in file [%s]: %s", finalFilePath, err.Error())
+				}
+				parquetWriter, err = storage.NewParquetWriter(fParquet, sc.ParquetCodecGzip)
+				if err != nil {
+					log.Fatalf(err.Error())
+				}
+				if err := parquetWriter.AddColumn("order_id", sc.FieldTypeString); err != nil {
+					log.Fatalf(err.Error())
+				}
+				if err := parquetWriter.AddColumn("customer_id", sc.FieldTypeString); err != nil {
+					log.Fatalf(err.Error())
+				}
+				if err := parquetWriter.AddColumn("order_status", sc.FieldTypeString); err != nil {
+					log.Fatalf(err.Error())
+				}
+				if err := parquetWriter.AddColumn("order_purchase_timestamp", sc.FieldTypeDateTime); err != nil {
+					log.Fatalf(err.Error())
+				}
+				if err := parquetWriter.AddColumn("order_approved_at", sc.FieldTypeDateTime); err != nil {
+					log.Fatalf(err.Error())
+				}
+				if err := parquetWriter.AddColumn("order_delivered_carrier_date", sc.FieldTypeDateTime); err != nil {
+					log.Fatalf(err.Error())
+				}
+				if err := parquetWriter.AddColumn("order_delivered_customer_date", sc.FieldTypeDateTime); err != nil {
+					log.Fatalf(err.Error())
+				}
+				if err := parquetWriter.AddColumn("order_estimated_delivery_date", sc.FieldTypeDateTime); err != nil {
+					log.Fatalf(err.Error())
+				}
+				// Test only
+				// if err := w.AddColumn("is_sent", sc.FieldTypeBool); err != nil {
+				// 	log.Fatalf(err.Error())
+				// }
 			}
 		}
-		fInOrders.WriteString(fmt.Sprintf("%s,%s,%s,%s,%s,%s,%s,%s\n",
-			inOrders[i].OrderId,
-			inOrders[i].CustomerId,
-			inOrders[i].OrderStatus,
-			timeStr(inOrders[i].OrderPurchaseTs),
-			timeStr(inOrders[i].OrderApprovedTs),
-			timeStr(inOrders[i].OrderDeliveredCarrierTs),
-			timeStr(inOrders[i].OrderDeliveredCustomerTs),
-			timeStr(inOrders[i].OrderEstimateDeliveryTs)))
+
+		if strings.Contains(formats, "csv") {
+			fCsv.WriteString(fmt.Sprintf("%s,%s,%s,%s,%s,%s,%s,%s\n",
+				item.OrderId,
+				item.CustomerId,
+				item.OrderStatus,
+				timeStr(item.OrderPurchaseTs),
+				timeStr(item.OrderApprovedTs),
+				timeStr(item.OrderDeliveredCarrierTs),
+				timeStr(item.OrderDeliveredCustomerTs),
+				timeStr(item.OrderEstimateDeliveryTs)))
+		}
+
+		if strings.Contains(formats, "parquet") {
+			if err := parquetWriter.FileWriter.AddData(map[string]interface{}{
+				"order_id":                      item.OrderId,
+				"customer_id":                   item.CustomerId,
+				"order_status":                  item.OrderStatus,
+				"order_purchase_timestamp":      storage.ParquetWriterMilliTs(item.OrderPurchaseTs),
+				"order_approved_at":             storage.ParquetWriterMilliTs(item.OrderApprovedTs),
+				"order_delivered_carrier_date":  storage.ParquetWriterMilliTs(item.OrderDeliveredCarrierTs),
+				"order_delivered_customer_date": storage.ParquetWriterMilliTs(item.OrderDeliveredCustomerTs),
+				"order_estimated_delivery_date": storage.ParquetWriterMilliTs(item.OrderEstimateDeliveryTs),
+				// "is_sent":                  !item.OrderDeliveredCarrierTs.Equal(sc.DefaultDateTime()),
+			}); err != nil {
+				log.Fatalf(err.Error())
+			}
+		}
 		chunkLineCount++
-		if chunkLineCount == chunkSize {
+		if chunkLineCount == chunkSize || itemIdx == len(inOrders)-1 {
+			if strings.Contains(formats, "csv") {
+				fCsv.Close()
+			}
+			if strings.Contains(formats, "parquet") {
+				if fParquet != nil {
+					if err := parquetWriter.Close(); err != nil {
+						log.Fatalf("cannot complete parquet file [%s]: %s", basePath, err.Error())
+					}
+					fParquet.Close()
+				}
+			}
 			chunkLineCount = 0
 			chunkIdx++
 		}
 	}
-	fInOrders.Close()
-
-	fParquet, err := os.Create(basePath + ".parquet")
-	if err != nil {
-		log.Fatalf("cannot create file %s: %s", basePath, err.Error())
-	}
-
-	w := storage.NewParquetWriter(fParquet)
-
-	if err := w.AddColumn("order_id", sc.FieldTypeString); err != nil {
-		log.Fatalf(err.Error())
-	}
-	if err := w.AddColumn("customer_id", sc.FieldTypeString); err != nil {
-		log.Fatalf(err.Error())
-	}
-	if err := w.AddColumn("order_status", sc.FieldTypeString); err != nil {
-		log.Fatalf(err.Error())
-	}
-	if err := w.AddColumn("order_purchase_ts", sc.FieldTypeDateTime); err != nil {
-		log.Fatalf(err.Error())
-	}
-	if err := w.AddColumn("order_approved_ts", sc.FieldTypeDateTime); err != nil {
-		log.Fatalf(err.Error())
-	}
-	if err := w.AddColumn("order_delivered_carrier", sc.FieldTypeDateTime); err != nil {
-		log.Fatalf(err.Error())
-	}
-	if err := w.AddColumn("order_delivered_customer", sc.FieldTypeDateTime); err != nil {
-		log.Fatalf(err.Error())
-	}
-	if err := w.AddColumn("order_estimate_delivery", sc.FieldTypeDateTime); err != nil {
-		log.Fatalf(err.Error())
-	}
-	// Test only
-	// if err := w.AddColumn("is_sent", sc.FieldTypeBool); err != nil {
-	// 	log.Fatalf(err.Error())
-	// }
-
-	for _, item := range inOrders {
-		if err := w.FileWriter.AddData(map[string]interface{}{
-			"order_id":                 item.OrderId,
-			"customer_id":              item.CustomerId,
-			"order_status":             item.OrderStatus,
-			"order_purchase_ts":        storage.ParquetWriterMilliTs(item.OrderPurchaseTs),
-			"order_approved_ts":        storage.ParquetWriterMilliTs(item.OrderApprovedTs),
-			"order_delivered_carrier":  storage.ParquetWriterMilliTs(item.OrderDeliveredCarrierTs),
-			"order_delivered_customer": storage.ParquetWriterMilliTs(item.OrderDeliveredCustomerTs),
-			"order_estimate_delivery":  storage.ParquetWriterMilliTs(item.OrderEstimateDeliveryTs),
-			// "is_sent":                  !item.OrderDeliveredCarrierTs.Equal(sc.DefaultDateTime()),
-		}); err != nil {
-			log.Fatalf("3" + err.Error())
-		}
-	}
-
-	w.Close()
-
-	if err := fParquet.Close(); err != nil {
-		log.Fatalf("cannot close file for orders: %s", err.Error())
-	}
 }
 
-func shuffleAndSaveInOrderItems(inOrderItems []*OrderItem, totalChunks int, basePath string) {
+func shuffleAndSaveInOrderItems(inOrderItems []*OrderItem, totalChunks int, basePath string, formats string) {
 	rnd := rand.New(rand.NewSource((time.Now().Unix() << 32) + time.Now().UnixMilli()))
 	for i := 0; i < len(inOrderItems); i++ {
 		j := i
@@ -223,94 +236,103 @@ func shuffleAndSaveInOrderItems(inOrderItems []*OrderItem, totalChunks int, base
 		chunkSize = int(math.Ceil(float64(len(inOrderItems)) / float64(totalChunks)))
 	}
 
-	var fInItems *os.File
+	var fCsv *os.File
+	var fParquet *os.File
+	var parquetWriter *storage.ParquetWriter
 	chunkLineCount := 0
 	chunkIdx := 0
 	var err error
-	for i := 0; i < len(inOrderItems); i++ {
+	for itemIdx, item := range inOrderItems {
 		if chunkLineCount == 0 {
 			finalFilePath := basePath
 			if totalChunks > 1 {
 				finalFilePath = fmt.Sprintf("%s_%02d", basePath, chunkIdx)
 			}
-			if fInItems != nil {
-				fInItems.Close()
+			if strings.Contains(formats, "csv") {
+				fCsv, err = os.Create(finalFilePath + ".csv")
+				if err != nil {
+					log.Fatalf("cannot create in file [%s]: %s", finalFilePath, err.Error())
+				}
+				if _, err := fCsv.WriteString("order_id,order_item_id,product_id,seller_id,shipping_limit_date,price,freight_value\n"); err != nil {
+					log.Fatalf("cannot write file [%s] header line: [%s]", finalFilePath, err.Error())
+				}
 			}
-			fInItems, err = os.Create(finalFilePath + ".csv")
-			if err != nil {
-				log.Fatalf("cannot create in file [%s]: %s", finalFilePath, err.Error())
-			}
-			if _, err := fInItems.WriteString("order_id,order_item_id,product_id,seller_id,shipping_limit_date,price,freight_value\n"); err != nil {
-				log.Fatalf("cannot write file [%s] header line: [%s]", finalFilePath, err.Error())
+			if strings.Contains(formats, "parquet") {
+				fParquet, err = os.Create(finalFilePath + ".parquet")
+				if err != nil {
+					log.Fatalf("cannot create in file [%s]: %s", finalFilePath, err.Error())
+				}
+				parquetWriter, err = storage.NewParquetWriter(fParquet, sc.ParquetCodecGzip)
+				if err != nil {
+					log.Fatalf(err.Error())
+				}
+				if err := parquetWriter.AddColumn("order_id", sc.FieldTypeString); err != nil {
+					log.Fatalf(err.Error())
+				}
+				if err := parquetWriter.AddColumn("order_item_id", sc.FieldTypeInt); err != nil {
+					log.Fatalf(err.Error())
+				}
+				if err := parquetWriter.AddColumn("product_id", sc.FieldTypeString); err != nil {
+					log.Fatalf(err.Error())
+				}
+				if err := parquetWriter.AddColumn("seller_id", sc.FieldTypeString); err != nil {
+					log.Fatalf(err.Error())
+				}
+				if err := parquetWriter.AddColumn("shipping_limit_date", sc.FieldTypeDateTime); err != nil {
+					log.Fatalf(err.Error())
+				}
+				if err := parquetWriter.AddColumn("price", sc.FieldTypeDecimal2); err != nil {
+					log.Fatalf(err.Error())
+				}
+				if err := parquetWriter.AddColumn("freight_value", sc.FieldTypeDecimal2); err != nil {
+					log.Fatalf(err.Error())
+				}
 			}
 		}
-		fInItems.WriteString(fmt.Sprintf("%s,%05d,%s,%s,%s,%s,%s\n",
-			inOrderItems[i].OrderId,
-			inOrderItems[i].OrderItemId,
-			inOrderItems[i].ProductId,
-			inOrderItems[i].SellerId,
-			timeStr(inOrderItems[i].ShippingLimitDate),
-			inOrderItems[i].Price,
-			inOrderItems[i].FreightValue))
+		if strings.Contains(formats, "csv") {
+			fCsv.WriteString(fmt.Sprintf("%s,%05d,%s,%s,%s,%s,%s\n",
+				item.OrderId,
+				item.OrderItemId,
+				item.ProductId,
+				item.SellerId,
+				timeStr(item.ShippingLimitDate),
+				item.Price,
+				item.FreightValue))
+		}
+		if strings.Contains(formats, "parquet") {
+			if err := parquetWriter.FileWriter.AddData(map[string]interface{}{
+				"order_id":            item.OrderId,
+				"order_item_id":       item.OrderItemId,
+				"product_id":          item.ProductId,
+				"seller_id":           item.SellerId,
+				"shipping_limit_date": storage.ParquetWriterMilliTs(item.ShippingLimitDate),
+				"price":               storage.ParquetWriterDecimal2(item.Price),
+				"freight_value":       storage.ParquetWriterDecimal2(item.FreightValue),
+			}); err != nil {
+				log.Fatalf(err.Error())
+			}
+		}
+
 		chunkLineCount++
-		if chunkLineCount == chunkSize {
+		if chunkLineCount == chunkSize || itemIdx == len(inOrderItems)-1 {
+			if strings.Contains(formats, "csv") {
+				fCsv.Close()
+			}
+			if strings.Contains(formats, "parquet") {
+				if fParquet != nil {
+					if err := parquetWriter.Close(); err != nil {
+						log.Fatalf("cannot complete parquet file [%s]: %s", basePath, err.Error())
+					}
+					fParquet.Close()
+				}
+			}
 			chunkLineCount = 0
 			chunkIdx++
 		}
 	}
-	fInItems.Close()
-
-	fParquet, err := os.Create(basePath + ".parquet")
-	if err != nil {
-		log.Fatalf("cannot create file %s: %s", basePath, err.Error())
-	}
-
-	w := storage.NewParquetWriter(fParquet)
-
-	if err := w.AddColumn("order_id", sc.FieldTypeString); err != nil {
-		log.Fatalf(err.Error())
-	}
-	if err := w.AddColumn("order_item_id", sc.FieldTypeInt); err != nil {
-		log.Fatalf(err.Error())
-	}
-	if err := w.AddColumn("product_id", sc.FieldTypeString); err != nil {
-		log.Fatalf(err.Error())
-	}
-	if err := w.AddColumn("seller_id", sc.FieldTypeString); err != nil {
-		log.Fatalf(err.Error())
-	}
-	if err := w.AddColumn("shipping_limit_date", sc.FieldTypeDateTime); err != nil {
-		log.Fatalf(err.Error())
-	}
-	if err := w.AddColumn("price", sc.FieldTypeDecimal2); err != nil {
-		log.Fatalf(err.Error())
-	}
-	if err := w.AddColumn("freight_value", sc.FieldTypeDecimal2); err != nil {
-		log.Fatalf(err.Error())
-	}
-
-	for _, item := range inOrderItems {
-		if err := w.FileWriter.AddData(map[string]interface{}{
-			"order_id":            item.OrderId,
-			"order_item_id":       item.OrderItemId,
-			"product_id":          item.ProductId,
-			"seller_id":           item.SellerId,
-			"shipping_limit_date": storage.ParquetWriterMilliTs(item.ShippingLimitDate),
-			"price":               storage.ParquetWriterDecimal2(item.Price),
-			"freight_value":       storage.ParquetWriterDecimal2(item.FreightValue),
-		}); err != nil {
-			log.Fatalf("3" + err.Error())
-		}
-	}
-
-	w.Close()
-
-	if err := fParquet.Close(); err != nil {
-		log.Fatalf("cannot close file for order items: %s", err.Error())
-	}
 }
 
-func sortAndSaveNoGroup(items []*NoGroupItem, fileBase string) {
+func sortAndSaveNoGroup(items []*NoGroupItem, fileBase string, formats string) {
 	// "order": "order_id(asc),order_item_id(asc)"
 	sort.Slice(items, func(i, j int) bool {
 		if items[i].OrderId != items[j].OrderId {
@@ -319,81 +341,87 @@ func sortAndSaveNoGroup(items []*NoGroupItem, fileBase string) {
 			return items[i].OrderItemId < items[j].OrderItemId
 		}
 	})
+	if strings.Contains(formats, "csv") {
+		csvFilePath := fileBase + ".csv"
+		fCsv, err := os.Create(csvFilePath)
+		if err != nil {
+			log.Fatalf("cannot create file '%s': %s", csvFilePath, err.Error())
+		}
+		defer fCsv.Close()
 
-	csvFilePath := fileBase + ".csv"
-	fCsv, err := os.Create(csvFilePath)
-	if err != nil {
-		log.Fatalf("cannot create file '%s': %s", csvFilePath, err.Error())
-	}
-	defer fCsv.Close()
-
-	if _, err := fCsv.WriteString("order_id,order_item_id,product_id,seller_id,shipping_limit_date,value\n"); err != nil {
-		log.Fatalf("cannot write file '%s' header line: %s", csvFilePath, err.Error())
-	}
-
-	for i := 0; i < len(items); i++ {
-		if _, err := fCsv.WriteString(fmt.Sprintf("%s,%05d,%s,%s,%s,%s\n",
-			items[i].OrderId,
-			items[i].OrderItemId,
-			items[i].ProductId,
-			items[i].SellerId,
-			timeStr(items[i].ShippingLimitDate),
-			items[i].OrderItemValue.StringFixed(2))); err != nil {
-			log.Fatalf("cannot write file '%s': %s", csvFilePath, err.Error())
+		if _, err := fCsv.WriteString("order_id,order_item_id,product_id,seller_id,shipping_limit_date,value\n"); err != nil {
+			log.Fatalf("cannot write file '%s' header line: %s", csvFilePath, err.Error())
 		}
 
+		for i := 0; i < len(items); i++ {
+			if _, err := fCsv.WriteString(fmt.Sprintf("%s,%05d,%s,%s,%s,%s\n",
+				items[i].OrderId,
+				items[i].OrderItemId,
+				items[i].ProductId,
+				items[i].SellerId,
+				timeStr(items[i].ShippingLimitDate),
+				items[i].OrderItemValue.StringFixed(2))); err != nil {
+				log.Fatalf("cannot write file '%s': %s", csvFilePath, err.Error())
+			}
+
+		}
 	}
 
-	parquetFilePath := fileBase + ".parquet"
-	fParquet, err := os.Create(parquetFilePath)
-	if err != nil {
-		log.Fatalf("cannot create file '%s': %s", parquetFilePath, err.Error())
-	}
+	if strings.Contains(formats, "parquet") {
+		parquetFilePath := fileBase + ".parquet"
+		fParquet, err := os.Create(parquetFilePath)
+		if err != nil {
+			log.Fatalf("cannot create file '%s': %s", parquetFilePath, err.Error())
+		}
 
-	w := storage.NewParquetWriter(fParquet)
-
-	if err := w.AddColumn("order_id", sc.FieldTypeString); err != nil {
-		log.Fatalf(err.Error())
-	}
-	if err := w.AddColumn("order_item_id", sc.FieldTypeInt); err != nil {
-		log.Fatalf(err.Error())
-	}
-	if err := w.AddColumn("product_id", sc.FieldTypeString); err != nil {
-		log.Fatalf(err.Error())
-	}
-	if err := w.AddColumn("seller_id", sc.FieldTypeString); err != nil {
-		log.Fatalf(err.Error())
-	}
-	if err := w.AddColumn("shipping_limit_date", sc.FieldTypeDateTime); err != nil {
-		log.Fatalf(err.Error())
-	}
-	if err := w.AddColumn("order_item_value", sc.FieldTypeDecimal2); err != nil {
-		log.Fatalf(err.Error())
-	}
-
-	for _, item := range items {
-		if err := w.FileWriter.AddData(map[string]interface{}{
-			"order_id":            item.OrderId,
-			"order_item_id":       item.OrderItemId,
-			"product_id":          item.ProductId,
-			"seller_id":           item.SellerId,
-			"shipping_limit_date": storage.ParquetWriterMilliTs(item.ShippingLimitDate),
-			"order_item_value":    storage.ParquetWriterDecimal2(item.OrderItemValue),
-		}); err != nil {
+		w, err := storage.NewParquetWriter(fParquet, sc.ParquetCodecGzip)
+		if err != nil {
 			log.Fatalf(err.Error())
 		}
-	}
 
-	if err := w.Close(); err != nil {
-		log.Fatalf("cannot close parquet writer '%s': %s", parquetFilePath, err.Error())
-	}
+		if err := w.AddColumn("order_id", sc.FieldTypeString); err != nil {
+			log.Fatalf(err.Error())
+		}
+		if err := w.AddColumn("order_item_id", sc.FieldTypeInt); err != nil {
+			log.Fatalf(err.Error())
+		}
+		if err := w.AddColumn("product_id", sc.FieldTypeString); err != nil {
+			log.Fatalf(err.Error())
+		}
+		if err := w.AddColumn("seller_id", sc.FieldTypeString); err != nil {
+			log.Fatalf(err.Error())
+		}
+		if err := w.AddColumn("shipping_limit_date", sc.FieldTypeDateTime); err != nil {
+			log.Fatalf(err.Error())
+		}
+		if err := w.AddColumn("value", sc.FieldTypeDecimal2); err != nil {
+			log.Fatalf(err.Error())
+		}
 
-	if err := fParquet.Close(); err != nil {
-		log.Fatalf("cannot close file '%s': %s", parquetFilePath, err.Error())
+		for _, item := range items {
+			if err := w.FileWriter.AddData(map[string]interface{}{
+				"order_id":            item.OrderId,
+				"order_item_id":       item.OrderItemId,
+				"product_id":          item.ProductId,
+				"seller_id":           item.SellerId,
+				"shipping_limit_date": storage.ParquetWriterMilliTs(item.ShippingLimitDate),
+				"value":               storage.ParquetWriterDecimal2(item.OrderItemValue),
+			}); err != nil {
+				log.Fatalf(err.Error())
+			}
+		}
+
+		if err := w.Close(); err != nil {
+			log.Fatalf("cannot close parquet writer '%s': %s", parquetFilePath, err.Error())
+		}
+
+		if err := fParquet.Close(); err != nil {
+			log.Fatalf("cannot close file '%s': %s", parquetFilePath, err.Error())
+		}
 	}
 }
 
-func sortAndSaveGroup(items []*GroupItem, fileBase string) {
+func sortAndSaveGroup(items []*GroupItem, fileBase string, formats string) {
 	// "order": "total_value(desc),order_purchase_timestamp(desc),order_id(desc)"
 	sort.Slice(items, func(i, j int) bool {
 		if !items[i].TotalOrderValue.Equal(items[j].TotalOrderValue) {
@@ -403,90 +431,97 @@ func sortAndSaveGroup(items []*GroupItem, fileBase string) {
 		}
 	})
 
-	csvFilePath := fileBase + ".csv"
-	fCsv, err := os.Create(csvFilePath)
-	if err != nil {
-		log.Fatalf("cannot create out file '%s': %s", csvFilePath, err.Error())
-	}
-	defer fCsv.Close()
+	if strings.Contains(formats, "csv") {
+		csvFilePath := fileBase + ".csv"
+		fCsv, err := os.Create(csvFilePath)
+		if err != nil {
+			log.Fatalf("cannot create out file '%s': %s", csvFilePath, err.Error())
+		}
+		defer fCsv.Close()
 
-	if _, err := fCsv.WriteString("total_value,order_purchase_timestamp,order_id,avg_value,min_value,max_value,min_product_id,max_product_id,item_count\n"); err != nil {
-		log.Fatalf("cannot write file '%s' header line: %s", csvFilePath, err.Error())
-	}
+		if _, err := fCsv.WriteString("total_value,order_purchase_timestamp,order_id,avg_value,min_value,max_value,min_product_id,max_product_id,item_count\n"); err != nil {
+			log.Fatalf("cannot write file '%s' header line: %s", csvFilePath, err.Error())
+		}
 
-	for i := 0; i < len(items); i++ {
-		if _, err := fCsv.WriteString(fmt.Sprintf("%10s,%s,%s,%s,%s,%s,%s,%s,%d\n",
-			items[i].TotalOrderValue.StringFixed(2),
-			timeStr(items[i].OrderPurchaseTs),
-			items[i].OrderId,
-			items[i].AvgOrderValue.StringFixed(2),
-			items[i].MinOrderValue.StringFixed(2),
-			items[i].MaxOrderValue.StringFixed(2),
-			items[i].MinProductId,
-			items[i].MaxProductId,
-			items[i].ActualItemsInOrder)); err != nil {
-			log.Fatalf("cannot write file '%s': %s", csvFilePath, err.Error())
+		for i := 0; i < len(items); i++ {
+			if _, err := fCsv.WriteString(fmt.Sprintf("%10s,%s,%s,%s,%s,%s,%s,%s,%d\n",
+				items[i].TotalOrderValue.StringFixed(2),
+				timeStr(items[i].OrderPurchaseTs),
+				items[i].OrderId,
+				items[i].AvgOrderValue.StringFixed(2),
+				items[i].MinOrderValue.StringFixed(2),
+				items[i].MaxOrderValue.StringFixed(2),
+				items[i].MinProductId,
+				items[i].MaxProductId,
+				items[i].ActualItemsInOrder)); err != nil {
+				log.Fatalf("cannot write file '%s': %s", csvFilePath, err.Error())
+			}
 		}
 	}
 
-	parquetFilePath := fileBase + ".parquet"
-	fParquet, err := os.Create(parquetFilePath)
-	if err != nil {
-		log.Fatalf("cannot create file '%s': %s", parquetFilePath, err.Error())
-	}
+	if strings.Contains(formats, "parquet") {
+		parquetFilePath := fileBase + ".parquet"
+		fParquet, err := os.Create(parquetFilePath)
+		if err != nil {
+			log.Fatalf("cannot create file '%s': %s", parquetFilePath, err.Error())
+		}
 
-	w := storage.NewParquetWriter(fParquet)
-
-	if err := w.AddColumn("total_order_value", sc.FieldTypeDecimal2); err != nil {
-		log.Fatalf(err.Error())
-	}
-	if err := w.AddColumn("order_purchase_ts", sc.FieldTypeDateTime); err != nil {
-		log.Fatalf(err.Error())
-	}
-	if err := w.AddColumn("order_id", sc.FieldTypeString); err != nil {
-		log.Fatalf(err.Error())
-	}
-	if err := w.AddColumn("avg_order_value", sc.FieldTypeDecimal2); err != nil {
-		log.Fatalf(err.Error())
-	}
-	if err := w.AddColumn("min_order_value", sc.FieldTypeDecimal2); err != nil {
-		log.Fatalf(err.Error())
-	}
-	if err := w.AddColumn("max_order_value", sc.FieldTypeDecimal2); err != nil {
-		log.Fatalf(err.Error())
-	}
-	if err := w.AddColumn("min_product_id", sc.FieldTypeString); err != nil {
-		log.Fatalf(err.Error())
-	}
-	if err := w.AddColumn("max_product_id", sc.FieldTypeString); err != nil {
-		log.Fatalf(err.Error())
-	}
-	if err := w.AddColumn("actual_items_in_order", sc.FieldTypeInt); err != nil {
-		log.Fatalf(err.Error())
-	}
-
-	for _, item := range items {
-		if err := w.FileWriter.AddData(map[string]interface{}{
-			"total_order_value":     storage.ParquetWriterDecimal2(item.TotalOrderValue),
-			"order_purchase_ts":     storage.ParquetWriterMilliTs(item.OrderPurchaseTs),
-			"order_id":              item.OrderId,
-			"avg_order_value":       storage.ParquetWriterDecimal2(item.AvgOrderValue),
-			"min_order_value":       storage.ParquetWriterDecimal2(item.MinOrderValue),
-			"max_order_value":       storage.ParquetWriterDecimal2(item.MaxOrderValue),
-			"min_product_id":        item.MinProductId,
-			"max_product_id":        item.MaxProductId,
-			"actual_items_in_order": item.ActualItemsInOrder,
-		}); err != nil {
+		w, err := storage.NewParquetWriter(fParquet, sc.ParquetCodecGzip)
+		if err != nil {
 			log.Fatalf(err.Error())
 		}
-	}
 
-	if err := w.Close(); err != nil {
-		log.Fatalf("cannot close parquet writer '%s': %s", parquetFilePath, err.Error())
-	}
+		if err := w.AddColumn("total_value", sc.FieldTypeDecimal2); err != nil {
+			log.Fatalf(err.Error())
+		}
+		if err := w.AddColumn("order_purchase_timestamp", sc.FieldTypeDateTime); err != nil {
+			log.Fatalf(err.Error())
+		}
+		if err := w.AddColumn("order_id", sc.FieldTypeString); err != nil {
+			log.Fatalf(err.Error())
+		}
+		if err := w.AddColumn("avg_value", sc.FieldTypeDecimal2); err != nil {
+			log.Fatalf(err.Error())
+		}
+		if err := w.AddColumn("min_value", sc.FieldTypeDecimal2); err != nil {
+			log.Fatalf(err.Error())
+		}
+		if err := w.AddColumn("max_value", sc.FieldTypeDecimal2); err != nil {
+			log.Fatalf(err.Error())
+		}
+		if err := w.AddColumn("min_product_id", sc.FieldTypeString); err != nil {
+			log.Fatalf(err.Error())
+		}
+		if err := w.AddColumn("max_product_id", sc.FieldTypeString); err != nil {
+			log.Fatalf(err.Error())
+		}
+		if err := w.AddColumn("item_count", sc.FieldTypeInt); err != nil {
+			log.Fatalf(err.Error())
+		}
 
-	if err := fParquet.Close(); err != nil {
-		log.Fatalf("cannot close file '%s': %s", parquetFilePath, err.Error())
+		for _, item := range items {
+			if err := w.FileWriter.AddData(map[string]interface{}{
+				"total_value":              storage.ParquetWriterDecimal2(item.TotalOrderValue),
+				"order_purchase_timestamp": storage.ParquetWriterMilliTs(item.OrderPurchaseTs),
+				"order_id":                 item.OrderId,
+				"avg_value":                storage.ParquetWriterDecimal2(item.AvgOrderValue),
+				"min_value":                storage.ParquetWriterDecimal2(item.MinOrderValue),
+				"max_value":                storage.ParquetWriterDecimal2(item.MaxOrderValue),
+				"min_product_id":           item.MinProductId,
+				"max_product_id":           item.MaxProductId,
+				"item_count":               item.ActualItemsInOrder,
+			}); err != nil {
+				log.Fatalf(err.Error())
+			}
+		}
+
+		if err := w.Close(); err != nil {
+			log.Fatalf("cannot close parquet writer '%s': %s", parquetFilePath, err.Error())
+		}
+
+		if err := fParquet.Close(); err != nil {
+			log.Fatalf("cannot close file '%s': %s", parquetFilePath, err.Error())
+		}
 	}
 }
 
@@ -495,6 +530,7 @@ func main() {
 	defaultSellerId := ""
 
 	scriptParamsPath := flag.String("script_params_path", "../../data/cfg/lookup/script_params_one_run.json", "Path to lookup script parameters")
+	formats := flag.String("formats", "csv", "Comma-separated list of file formats to produce, for exanple: csv,parquet")
 	inRoot := flag.String("in_root", "/tmp/capi_in/lookup_quicktest", "Root dir for in files")
 	outRoot := flag.String("out_root", "/tmp/capi_out/lookup_quicktest", "Root dir for out files")
 	totalItems := flag.Int("items", 1000, "Total number of order items to generate")
@@ -742,11 +778,11 @@ func main() {
 		})
 	}
 
-	shuffleAndSaveInOrders(inOrders, *splitOrders, fileInOrdersPath)
-	shuffleAndSaveInOrderItems(inOrderItems, *splitOrderItems, fileInItemsPath)
+	shuffleAndSaveInOrders(inOrders, *splitOrders, fileInOrdersPath, *formats)
+	shuffleAndSaveInOrderItems(inOrderItems, *splitOrderItems, fileInItemsPath, *formats)
 
-	sortAndSaveNoGroup(noGroupInnerItems, fileOutNoGroupInnerPath)
-	sortAndSaveNoGroup(noGroupOuterItems, fileOutNoGroupLeftOuterPath)
-	sortAndSaveGroup(groupInnerItems, fileOutGroupInnerPath)
-	sortAndSaveGroup(groupOuterItems, fileOutGroupLeftOuterPath)
+	sortAndSaveNoGroup(noGroupInnerItems, fileOutNoGroupInnerPath, *formats)
+	sortAndSaveNoGroup(noGroupOuterItems, fileOutNoGroupLeftOuterPath, *formats)
+	sortAndSaveGroup(groupInnerItems, fileOutGroupInnerPath, *formats)
+	sortAndSaveGroup(groupOuterItems, fileOutGroupLeftOuterPath, *formats)
 }

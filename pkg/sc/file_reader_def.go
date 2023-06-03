@@ -11,22 +11,21 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-const (
-	ReaderFileTypeUnknown int = 0
-	ReaderFileTypeCsv     int = 1
-	ReaderFileTypeParquet int = 2
-)
-
 type CsvReaderColumnSettings struct {
 	SrcColIdx    int    `json:"col_idx"`
 	SrcColHeader string `json:"col_hdr"`
 	SrcColFormat string `json:"col_format"` // Optional for all except datetime
 }
 
+type ParquetReaderColumnSettings struct {
+	SrcColName string `json:"col_name"`
+}
+
 type FileReaderColumnDef struct {
-	DefaultValue string                  `json:"col_default_value"` // Optional. If omitted, zero value is used
-	Type         TableFieldType          `json:"col_type"`
-	Csv          CsvReaderColumnSettings `json:"csv,omitempty"`
+	DefaultValue string                      `json:"col_default_value"` // Optional. If omitted, zero value is used
+	Type         TableFieldType              `json:"col_type"`
+	Csv          CsvReaderColumnSettings     `json:"csv,omitempty"`
+	Parquet      ParquetReaderColumnSettings `json:"parquet,omitempty"`
 }
 
 type CsvReaderSettings struct {
@@ -35,6 +34,12 @@ type CsvReaderSettings struct {
 	Separator               string `json:"separator"`
 	ColumnIndexingMode      FileColumnIndexingMode
 }
+
+const (
+	ReaderFileTypeUnknown int = 0
+	ReaderFileTypeCsv     int = 1
+	ReaderFileTypeParquet int = 2
+)
 
 type FileReaderDef struct {
 	SrcFileUrls    []string                        `json:"urls"`
@@ -107,27 +112,32 @@ func (frDef *FileReaderDef) Deserialize(rawReader json.RawMessage) error {
 		errors = append(errors, "no source file urls specified, need at least one")
 	}
 
-	// TODO: add more file types here
-	if len(frDef.Csv.Separator) > 0 || frDef.Csv.SrcFileFirstDataLineIdx > 0 {
-		frDef.ReaderFileType = ReaderFileTypeCsv
-	} else {
-		// CSV reader by default
-		frDef.ReaderFileType = ReaderFileTypeCsv
+	frDef.ReaderFileType = ReaderFileTypeUnknown
+	for _, colDef := range frDef.Columns {
+		if colDef.Parquet.SrcColName != "" {
+			frDef.ReaderFileType = ReaderFileTypeParquet
+			break
+		} else if (colDef.Csv.SrcColHeader != "" || colDef.Csv.SrcColIdx > 0) ||
+			len(frDef.Columns) == 1 { // Special CSV case: no headers, only one column
+			frDef.ReaderFileType = ReaderFileTypeCsv
+
+			// Detect column indexing mode: by idx or by name
+			var err error
+			frDef.Csv.ColumnIndexingMode, err = frDef.getCsvColumnIndexingMode()
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("cannot detect csv column indexing mode: [%s]", err.Error()))
+			}
+
+			// Default CSV field Separator
+			if len(frDef.Csv.Separator) == 0 {
+				frDef.Csv.Separator = ","
+			}
+			break
+		}
 	}
 
-	if frDef.ReaderFileType == ReaderFileTypeCsv {
-		// Detect column indexing mode: by idx or by name
-		var err error
-		frDef.Csv.ColumnIndexingMode, err = frDef.getCsvColumnIndexingMode()
-		if err != nil {
-			errors = append(errors, fmt.Sprintf("cannot detect csv column indexing mode: [%s]", err.Error()))
-		}
-		// Default CSV field Separator
-		if len(frDef.Csv.Separator) == 0 {
-			frDef.Csv.Separator = ","
-		}
-	} else {
-		errors = append(errors, "unknown reader file type")
+	if frDef.ReaderFileType == ReaderFileTypeUnknown {
+		errors = append(errors, "cannot detect file reader type")
 	}
 
 	if len(errors) > 0 {

@@ -8,7 +8,7 @@ paramsFile=$cfgDir/script_params_one_run.json
 
 SECONDS=0
 
-pushd ../../../pkg/exe/toolbelt
+pushd ../../../../pkg/exe/toolbelt
 set -x
 
 go run capitoolbelt.go exec_node -script_file=$scriptFile -params_file=$paramsFile -keyspace=$keyspace -node_id=read_orders

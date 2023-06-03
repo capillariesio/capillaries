@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 	"time"
@@ -16,11 +17,20 @@ type ParquetWriter struct {
 	StoreMap   map[string]*gp.ColumnStore // TODO: consider using w.FileWriter.GetColumnByName() instead and abandon ParquetWriter
 }
 
-func NewParquetWriter(ioWriter io.Writer) *ParquetWriter {
+func NewParquetWriter(ioWriter io.Writer, codec sc.ParquetCodecType) (*ParquetWriter, error) {
+	codecMap := map[sc.ParquetCodecType]gp_parquet.CompressionCodec{
+		sc.ParquetCodecGzip:         gp_parquet.CompressionCodec_GZIP,
+		sc.ParquetCodecSnappy:       gp_parquet.CompressionCodec_SNAPPY,
+		sc.ParquetCodecUncompressed: gp_parquet.CompressionCodec_UNCOMPRESSED,
+	}
+	gpCodec, ok := codecMap[codec]
+	if !ok {
+		return nil, fmt.Errorf("unsupported parquet codec %s", codec)
+	}
 	return &ParquetWriter{
 		StoreMap:   map[string]*gp.ColumnStore{},
-		FileWriter: gp.NewFileWriter(ioWriter, gp.WithCompressionCodec(gp_parquet.CompressionCodec_GZIP), gp.WithCreator("capillaries")),
-	}
+		FileWriter: gp.NewFileWriter(ioWriter, gp.WithCompressionCodec(gpCodec), gp.WithCreator("capillaries")),
+	}, nil
 }
 
 func (w *ParquetWriter) AddColumn(name string, fieldType sc.TableFieldType) error {
@@ -99,53 +109,78 @@ func ParquetWriterDecimal2(dec decimal.Decimal) interface{} {
 	return dec.Mul(decimal.NewFromInt(100)).IntPart()
 }
 
-func isParquetString(se *gp_parquet.SchemaElement) bool {
-	return se.LogicalType != nil && se.LogicalType.STRING != nil &&
-		*se.Type == gp_parquet.Type_BYTE_ARRAY &&
-		*se.ConvertedType == gp_parquet.ConvertedType_UTF8
+func isType(se *gp_parquet.SchemaElement, t gp_parquet.Type) bool {
+	return se.Type != nil && *se.Type == t
 }
 
-func isParquetDecimal2(se *gp_parquet.SchemaElement) bool {
-	return se.LogicalType != nil && se.LogicalType.DECIMAL != nil &&
-		(*se.Type == gp_parquet.Type_INT32 || *se.Type == gp_parquet.Type_INT64) &&
-		se.Scale != nil && *se.Scale > -10 && *se.Scale < 10 &&
-		se.Precision != nil && *se.Precision >= 0 && *se.Precision < 10 &&
-		*se.ConvertedType == gp_parquet.ConvertedType_DECIMAL
+func isLogicalOrConvertedString(se *gp_parquet.SchemaElement) bool {
+	return se.LogicalType != nil && se.LogicalType.STRING != nil ||
+		se.ConvertedType != nil && *se.ConvertedType == gp_parquet.ConvertedType_UTF8
+}
+
+func isLogicalOrConvertedDecimal(se *gp_parquet.SchemaElement) bool {
+	return se.LogicalType != nil && se.LogicalType.DECIMAL != nil ||
+		se.ConvertedType != nil && *se.ConvertedType == gp_parquet.ConvertedType_DECIMAL
+}
+
+func isLogicalOrConvertedDateTime(se *gp_parquet.SchemaElement) bool {
+	return se.LogicalType != nil && se.LogicalType.TIMESTAMP != nil ||
+		se.ConvertedType != nil && (*se.ConvertedType == gp_parquet.ConvertedType_TIMESTAMP_MILLIS || *se.ConvertedType == gp_parquet.ConvertedType_TIMESTAMP_MICROS)
+}
+
+func isParquetString(se *gp_parquet.SchemaElement) bool {
+	return isLogicalOrConvertedString(se) && isType(se, gp_parquet.Type_BYTE_ARRAY)
+}
+
+func isParquetIntDecimal2(se *gp_parquet.SchemaElement) bool {
+	return isLogicalOrConvertedDecimal(se) &&
+		(isType(se, gp_parquet.Type_INT32) || isType(se, gp_parquet.Type_INT64)) &&
+		se.Scale != nil && *se.Scale > -20 && *se.Scale < 20 &&
+		se.Precision != nil && *se.Precision >= 0 && *se.Precision < 18
+}
+
+func isParquetFixedLengthByteArrayDecimal2(se *gp_parquet.SchemaElement) bool {
+	return isLogicalOrConvertedDecimal(se) &&
+		isType(se, gp_parquet.Type_FIXED_LEN_BYTE_ARRAY) &&
+		se.Scale != nil && *se.Scale > -20 && *se.Scale < 20 &&
+		se.Precision != nil && *se.Precision >= 0 && *se.Precision <= 38
 }
 
 func isParquetDateTime(se *gp_parquet.SchemaElement) bool {
-	return se.LogicalType != nil && se.LogicalType.TIMESTAMP != nil &&
-		(*se.Type == gp_parquet.Type_INT32 || *se.Type == gp_parquet.Type_INT64) &&
-		(*se.ConvertedType == gp_parquet.ConvertedType_TIMESTAMP_MILLIS || *se.ConvertedType == gp_parquet.ConvertedType_TIMESTAMP_MICROS)
+	return isLogicalOrConvertedDateTime(se) &&
+		(isType(se, gp_parquet.Type_INT32) || isType(se, gp_parquet.Type_INT64))
 }
 
-func isParquetInt96(se *gp_parquet.SchemaElement) bool {
-	return *se.Type == gp_parquet.Type_INT96
+func isParquetInt96Date(se *gp_parquet.SchemaElement) bool {
+	return isType(se, gp_parquet.Type_INT96)
 }
 
 func isParquetInt32Date(se *gp_parquet.SchemaElement) bool {
-	return *se.Type == gp_parquet.Type_INT32 && se.LogicalType.DATE != nil
+	return se.Type != nil && *se.Type == gp_parquet.Type_INT32 &&
+		se.LogicalType != nil && se.LogicalType.DATE != nil
 }
 
 func isParquetInt(se *gp_parquet.SchemaElement) bool {
 	return (se.LogicalType == nil || se.LogicalType != nil && se.LogicalType.INTEGER != nil) &&
-		(*se.Type == gp_parquet.Type_INT32 || *se.Type == gp_parquet.Type_INT64)
+		se.Type != nil && (*se.Type == gp_parquet.Type_INT32 || *se.Type == gp_parquet.Type_INT64)
 }
 
 func isParquetFloat(se *gp_parquet.SchemaElement) bool {
-	return se.LogicalType == nil && (*se.Type == gp_parquet.Type_FLOAT || *se.Type == gp_parquet.Type_DOUBLE)
+	return se.LogicalType == nil &&
+		se.Type != nil && (*se.Type == gp_parquet.Type_FLOAT || *se.Type == gp_parquet.Type_DOUBLE)
 }
 
 func isParquetBool(se *gp_parquet.SchemaElement) bool {
-	return se.LogicalType == nil && *se.Type == gp_parquet.Type_BOOLEAN
+	return se.LogicalType == nil &&
+		se.Type != nil && *se.Type == gp_parquet.Type_BOOLEAN
 }
 
 func ParquetGuessCapiType(se *gp_parquet.SchemaElement) (sc.TableFieldType, error) {
 	if isParquetString(se) {
 		return sc.FieldTypeString, nil
-	} else if isParquetDecimal2(se) {
+	} else if isParquetIntDecimal2(se) || isParquetFixedLengthByteArrayDecimal2(se) {
 		return sc.FieldTypeDecimal2, nil
-	} else if isParquetDateTime(se) || isParquetInt96(se) || isParquetInt32Date(se) {
+	} else if isParquetDateTime(se) || isParquetInt96Date(se) || isParquetInt32Date(se) {
 		return sc.FieldTypeDateTime, nil
 	} else if isParquetInt(se) {
 		return sc.FieldTypeInt, nil
@@ -170,7 +205,7 @@ func ParquetReadString(val interface{}, se *gp_parquet.SchemaElement) (string, e
 }
 
 func ParquetReadDateTime(val interface{}, se *gp_parquet.SchemaElement) (time.Time, error) {
-	if !isParquetDateTime(se) && !isParquetInt96(se) && !isParquetInt32Date(se) {
+	if !isParquetDateTime(se) && !isParquetInt96Date(se) && !isParquetInt32Date(se) {
 		return sc.DefaultDateTime(), fmt.Errorf("cannot read parquet datetime, schema %v", se)
 	}
 	switch typedVal := val.(type) {
@@ -232,7 +267,7 @@ func ParquetReadInt(val interface{}, se *gp_parquet.SchemaElement) (int64, error
 }
 
 func ParquetReadDecimal2(val interface{}, se *gp_parquet.SchemaElement) (decimal.Decimal, error) {
-	if !isParquetDecimal2(se) {
+	if !isParquetIntDecimal2(se) && !isParquetFixedLengthByteArrayDecimal2(se) {
 		return sc.DefaultDecimal2(), fmt.Errorf("cannot read parquet decimal2, schema %v", se)
 	}
 	switch typedVal := val.(type) {
@@ -240,6 +275,34 @@ func ParquetReadDecimal2(val interface{}, se *gp_parquet.SchemaElement) (decimal
 		return decimal.New(int64(typedVal), -*se.Scale), nil
 	case int64:
 		return decimal.New(typedVal, -*se.Scale), nil
+	case []byte:
+		if len(typedVal) == 0 {
+			return sc.DefaultDecimal2(), fmt.Errorf("cannot read parquet decimal2 from byte array of zero length, schema %v", se)
+		}
+		var uintVal uint64
+		if len(typedVal) < 8 {
+			// Pad with zeroes or ones
+			padByte := byte(0)
+			if (typedVal[0] & 0x10) != 0 {
+				padByte = 0xFF
+			}
+			paddedVal := make([]byte, 8)
+			firstActualByteIdx := 8 - len(typedVal)
+			for i := 0; i < 8; i++ {
+				if i < firstActualByteIdx {
+					paddedVal[i] = padByte
+				} else {
+					paddedVal[i] = typedVal[i-firstActualByteIdx]
+				}
+			}
+			uintVal = binary.BigEndian.Uint64(paddedVal)
+		} else {
+			// TODO: handle first len-8 bytes, they should be either all be 0xFF (negative number) or all 0x00 (positive),
+			// otherwise, we are losing data. Also, pay attention to the first bit of the resulting uint64 -
+			// we either lose that bit to the int64 sign (throw then), or we have to adjust the sign
+			uintVal = binary.BigEndian.Uint64(typedVal[len(typedVal)-8:])
+		}
+		return decimal.New(int64(uintVal), -*se.Scale), nil
 	default:
 		return sc.DefaultDecimal2(), fmt.Errorf("cannot read parquet decimal2 from %T, schema %v", se, typedVal)
 	}

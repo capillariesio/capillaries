@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source ../common/util.sh
+source ../../common/util.sh
 
 keyspace="lookup_quicktest"
 cfgDir=/tmp/capi_cfg/lookup_quicktest

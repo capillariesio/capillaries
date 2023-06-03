@@ -44,7 +44,12 @@ one_daemon_run()
     local startNodes=$5
 
     SECONDS=0
-    pushd ../../../pkg/exe/toolbelt
+
+    if [ -d "../../../../pkg/exe/toolbelt" ]; then
+        pushd ../../../../pkg/exe/toolbelt
+    else
+        pushd ../../../pkg/exe/toolbelt
+    fi
 
     go run capitoolbelt.go drop_keyspace -keyspace=$keyspace
     
@@ -70,7 +75,12 @@ two_daemon_runs()
     local startNodesTwo=$6
 
     SECONDS=0
-    pushd ../../../pkg/exe/toolbelt
+
+    if [ -d "../../../../pkg/exe/toolbelt" ]; then
+        pushd ../../../../pkg/exe/toolbelt
+    else
+        pushd ../../../pkg/exe/toolbelt
+    fi
 
     go run capitoolbelt.go drop_keyspace -keyspace=$keyspace
 
@@ -108,7 +118,12 @@ two_daemon_runs_webapi()
     local startNodesTwo=$6
 
     SECONDS=0
-    pushd ../../../pkg/exe/toolbelt
+
+    if [ -d "../../../../pkg/exe/toolbelt" ]; then
+        pushd ../../../../pkg/exe/toolbelt
+    else
+        pushd ../../../pkg/exe/toolbelt
+    fi
 
     curl -H "Content-Type: application/json" -X DELETE "http://localhost:6543/ks/$keyspace"
 

@@ -2,42 +2,37 @@
     "nodes": {
         "read_orders": {
             "type": "file_table",
-            "desc": "Load order data from CSV file",
+            "desc": "Load order data from Parquet file",
             "start_policy": "manual",
             "r": {
                 "urls": [
-                    "{dir_in}/olist_orders_dataset_00.csv",
-                    "{dir_in}/olist_orders_dataset_01.csv",
-                    "{dir_in}/olist_orders_dataset_02.csv",
-                    "{dir_in}/olist_orders_dataset_03.csv",
-                    "{dir_in}/olist_orders_dataset_04.csv",
-                    "{dir_in}/olist_orders_dataset_05.csv",
-                    "{dir_in}/olist_orders_dataset_06.csv",
-                    "{dir_in}/olist_orders_dataset_07.csv",
-                    "{dir_in}/olist_orders_dataset_08.csv",
-                    "{dir_in}/olist_orders_dataset_09.csv"
+                    "{dir_in}/olist_orders_dataset_00.parquet",
+                    "{dir_in}/olist_orders_dataset_01.parquet",
+                    "{dir_in}/olist_orders_dataset_02.parquet",
+                    "{dir_in}/olist_orders_dataset_03.parquet",
+                    "{dir_in}/olist_orders_dataset_04.parquet",
+                    "{dir_in}/olist_orders_dataset_05.parquet",
+                    "{dir_in}/olist_orders_dataset_06.parquet",
+                    "{dir_in}/olist_orders_dataset_07.parquet",
+                    "{dir_in}/olist_orders_dataset_08.parquet",
+                    "{dir_in}/olist_orders_dataset_09.parquet"
                 ],
-                "csv": {
-                    "hdr_line_idx": 0,
-                    "first_data_line_idx": 1
-                },
                 "columns": {
                     "col_order_id": {
-                        "csv": {
-                            "col_hdr": "order_id"
+                        "parquet": {
+                            "col_name": "order_id"
                         },
                         "col_type": "string"
                     },
                     "col_order_status": {
-                        "csv": {
-                            "col_hdr": "order_status"
+                        "parquet": {
+                            "col_name": "order_status"
                         },
                         "col_type": "string"
                     },
                     "col_order_purchase_timestamp": {
-                        "csv": {
-                            "col_hdr": "order_purchase_timestamp",
-                            "col_format": "2006-01-02 15:04:05"
+                        "parquet": {
+                            "col_name": "order_purchase_timestamp"
                         },
                         "col_type": "datetime"
                     }
@@ -67,166 +62,151 @@
         },
         "read_order_items": {
             "type": "file_table",
-            "desc": "Load order item data from CSV file",
+            "desc": "Load order item data from Parquet file",
             "start_policy": "manual",
             "r": {
                 "urls": [
-                    "{dir_in}/olist_order_items_dataset_00.csv",
-                    "{dir_in}/olist_order_items_dataset_01.csv",
-                    "{dir_in}/olist_order_items_dataset_02.csv",
-                    "{dir_in}/olist_order_items_dataset_03.csv",
-                    "{dir_in}/olist_order_items_dataset_04.csv",
-                    "{dir_in}/olist_order_items_dataset_05.csv",
-                    "{dir_in}/olist_order_items_dataset_06.csv",
-                    "{dir_in}/olist_order_items_dataset_07.csv",
-                    "{dir_in}/olist_order_items_dataset_08.csv",
-                    "{dir_in}/olist_order_items_dataset_09.csv",
-                    "{dir_in}/olist_order_items_dataset_10.csv",
-                    "{dir_in}/olist_order_items_dataset_11.csv",
-                    "{dir_in}/olist_order_items_dataset_12.csv",
-                    "{dir_in}/olist_order_items_dataset_13.csv",
-                    "{dir_in}/olist_order_items_dataset_14.csv",
-                    "{dir_in}/olist_order_items_dataset_15.csv",
-                    "{dir_in}/olist_order_items_dataset_16.csv",
-                    "{dir_in}/olist_order_items_dataset_17.csv",
-                    "{dir_in}/olist_order_items_dataset_18.csv",
-                    "{dir_in}/olist_order_items_dataset_19.csv",
-                    "{dir_in}/olist_order_items_dataset_20.csv",
-                    "{dir_in}/olist_order_items_dataset_21.csv",
-                    "{dir_in}/olist_order_items_dataset_22.csv",
-                    "{dir_in}/olist_order_items_dataset_23.csv",
-                    "{dir_in}/olist_order_items_dataset_24.csv",
-                    "{dir_in}/olist_order_items_dataset_25.csv",
-                    "{dir_in}/olist_order_items_dataset_26.csv",
-                    "{dir_in}/olist_order_items_dataset_27.csv",
-                    "{dir_in}/olist_order_items_dataset_28.csv",
-                    "{dir_in}/olist_order_items_dataset_29.csv",
-                    "{dir_in}/olist_order_items_dataset_30.csv",
-                    "{dir_in}/olist_order_items_dataset_31.csv",
-                    "{dir_in}/olist_order_items_dataset_32.csv",
-                    "{dir_in}/olist_order_items_dataset_33.csv",
-                    "{dir_in}/olist_order_items_dataset_34.csv",
-                    "{dir_in}/olist_order_items_dataset_35.csv",
-                    "{dir_in}/olist_order_items_dataset_36.csv",
-                    "{dir_in}/olist_order_items_dataset_37.csv",
-                    "{dir_in}/olist_order_items_dataset_38.csv",
-                    "{dir_in}/olist_order_items_dataset_39.csv",
-                    "{dir_in}/olist_order_items_dataset_40.csv",
-                    "{dir_in}/olist_order_items_dataset_41.csv",
-                    "{dir_in}/olist_order_items_dataset_42.csv",
-                    "{dir_in}/olist_order_items_dataset_43.csv",
-                    "{dir_in}/olist_order_items_dataset_44.csv",
-                    "{dir_in}/olist_order_items_dataset_45.csv",
-                    "{dir_in}/olist_order_items_dataset_46.csv",
-                    "{dir_in}/olist_order_items_dataset_47.csv",
-                    "{dir_in}/olist_order_items_dataset_48.csv",
-                    "{dir_in}/olist_order_items_dataset_49.csv",
-                    "{dir_in}/olist_order_items_dataset_50.csv",
-                    "{dir_in}/olist_order_items_dataset_51.csv",
-                    "{dir_in}/olist_order_items_dataset_52.csv",
-                    "{dir_in}/olist_order_items_dataset_53.csv",
-                    "{dir_in}/olist_order_items_dataset_54.csv",
-                    "{dir_in}/olist_order_items_dataset_55.csv",
-                    "{dir_in}/olist_order_items_dataset_56.csv",
-                    "{dir_in}/olist_order_items_dataset_57.csv",
-                    "{dir_in}/olist_order_items_dataset_58.csv",
-                    "{dir_in}/olist_order_items_dataset_59.csv",
-                    "{dir_in}/olist_order_items_dataset_60.csv",
-                    "{dir_in}/olist_order_items_dataset_61.csv",
-                    "{dir_in}/olist_order_items_dataset_62.csv",
-                    "{dir_in}/olist_order_items_dataset_63.csv",
-                    "{dir_in}/olist_order_items_dataset_64.csv",
-                    "{dir_in}/olist_order_items_dataset_65.csv",
-                    "{dir_in}/olist_order_items_dataset_66.csv",
-                    "{dir_in}/olist_order_items_dataset_67.csv",
-                    "{dir_in}/olist_order_items_dataset_68.csv",
-                    "{dir_in}/olist_order_items_dataset_69.csv",
-                    "{dir_in}/olist_order_items_dataset_70.csv",
-                    "{dir_in}/olist_order_items_dataset_71.csv",
-                    "{dir_in}/olist_order_items_dataset_72.csv",
-                    "{dir_in}/olist_order_items_dataset_73.csv",
-                    "{dir_in}/olist_order_items_dataset_74.csv",
-                    "{dir_in}/olist_order_items_dataset_75.csv",
-                    "{dir_in}/olist_order_items_dataset_76.csv",
-                    "{dir_in}/olist_order_items_dataset_77.csv",
-                    "{dir_in}/olist_order_items_dataset_78.csv",
-                    "{dir_in}/olist_order_items_dataset_79.csv",
-                    "{dir_in}/olist_order_items_dataset_80.csv",
-                    "{dir_in}/olist_order_items_dataset_81.csv",
-                    "{dir_in}/olist_order_items_dataset_82.csv",
-                    "{dir_in}/olist_order_items_dataset_83.csv",
-                    "{dir_in}/olist_order_items_dataset_84.csv",
-                    "{dir_in}/olist_order_items_dataset_85.csv",
-                    "{dir_in}/olist_order_items_dataset_86.csv",
-                    "{dir_in}/olist_order_items_dataset_87.csv",
-                    "{dir_in}/olist_order_items_dataset_88.csv",
-                    "{dir_in}/olist_order_items_dataset_89.csv",
-                    "{dir_in}/olist_order_items_dataset_90.csv",
-                    "{dir_in}/olist_order_items_dataset_91.csv",
-                    "{dir_in}/olist_order_items_dataset_92.csv",
-                    "{dir_in}/olist_order_items_dataset_93.csv",
-                    "{dir_in}/olist_order_items_dataset_94.csv",
-                    "{dir_in}/olist_order_items_dataset_95.csv",
-                    "{dir_in}/olist_order_items_dataset_96.csv",
-                    "{dir_in}/olist_order_items_dataset_97.csv",
-                    "{dir_in}/olist_order_items_dataset_98.csv",
-                    "{dir_in}/olist_order_items_dataset_99.csv"
+                    "{dir_in}/olist_order_items_dataset_00.parquet",
+                    "{dir_in}/olist_order_items_dataset_01.parquet",
+                    "{dir_in}/olist_order_items_dataset_02.parquet",
+                    "{dir_in}/olist_order_items_dataset_03.parquet",
+                    "{dir_in}/olist_order_items_dataset_04.parquet",
+                    "{dir_in}/olist_order_items_dataset_05.parquet",
+                    "{dir_in}/olist_order_items_dataset_06.parquet",
+                    "{dir_in}/olist_order_items_dataset_07.parquet",
+                    "{dir_in}/olist_order_items_dataset_08.parquet",
+                    "{dir_in}/olist_order_items_dataset_09.parquet",
+                    "{dir_in}/olist_order_items_dataset_10.parquet",
+                    "{dir_in}/olist_order_items_dataset_11.parquet",
+                    "{dir_in}/olist_order_items_dataset_12.parquet",
+                    "{dir_in}/olist_order_items_dataset_13.parquet",
+                    "{dir_in}/olist_order_items_dataset_14.parquet",
+                    "{dir_in}/olist_order_items_dataset_15.parquet",
+                    "{dir_in}/olist_order_items_dataset_16.parquet",
+                    "{dir_in}/olist_order_items_dataset_17.parquet",
+                    "{dir_in}/olist_order_items_dataset_18.parquet",
+                    "{dir_in}/olist_order_items_dataset_19.parquet",
+                    "{dir_in}/olist_order_items_dataset_20.parquet",
+                    "{dir_in}/olist_order_items_dataset_21.parquet",
+                    "{dir_in}/olist_order_items_dataset_22.parquet",
+                    "{dir_in}/olist_order_items_dataset_23.parquet",
+                    "{dir_in}/olist_order_items_dataset_24.parquet",
+                    "{dir_in}/olist_order_items_dataset_25.parquet",
+                    "{dir_in}/olist_order_items_dataset_26.parquet",
+                    "{dir_in}/olist_order_items_dataset_27.parquet",
+                    "{dir_in}/olist_order_items_dataset_28.parquet",
+                    "{dir_in}/olist_order_items_dataset_29.parquet",
+                    "{dir_in}/olist_order_items_dataset_30.parquet",
+                    "{dir_in}/olist_order_items_dataset_31.parquet",
+                    "{dir_in}/olist_order_items_dataset_32.parquet",
+                    "{dir_in}/olist_order_items_dataset_33.parquet",
+                    "{dir_in}/olist_order_items_dataset_34.parquet",
+                    "{dir_in}/olist_order_items_dataset_35.parquet",
+                    "{dir_in}/olist_order_items_dataset_36.parquet",
+                    "{dir_in}/olist_order_items_dataset_37.parquet",
+                    "{dir_in}/olist_order_items_dataset_38.parquet",
+                    "{dir_in}/olist_order_items_dataset_39.parquet",
+                    "{dir_in}/olist_order_items_dataset_40.parquet",
+                    "{dir_in}/olist_order_items_dataset_41.parquet",
+                    "{dir_in}/olist_order_items_dataset_42.parquet",
+                    "{dir_in}/olist_order_items_dataset_43.parquet",
+                    "{dir_in}/olist_order_items_dataset_44.parquet",
+                    "{dir_in}/olist_order_items_dataset_45.parquet",
+                    "{dir_in}/olist_order_items_dataset_46.parquet",
+                    "{dir_in}/olist_order_items_dataset_47.parquet",
+                    "{dir_in}/olist_order_items_dataset_48.parquet",
+                    "{dir_in}/olist_order_items_dataset_49.parquet",
+                    "{dir_in}/olist_order_items_dataset_50.parquet",
+                    "{dir_in}/olist_order_items_dataset_51.parquet",
+                    "{dir_in}/olist_order_items_dataset_52.parquet",
+                    "{dir_in}/olist_order_items_dataset_53.parquet",
+                    "{dir_in}/olist_order_items_dataset_54.parquet",
+                    "{dir_in}/olist_order_items_dataset_55.parquet",
+                    "{dir_in}/olist_order_items_dataset_56.parquet",
+                    "{dir_in}/olist_order_items_dataset_57.parquet",
+                    "{dir_in}/olist_order_items_dataset_58.parquet",
+                    "{dir_in}/olist_order_items_dataset_59.parquet",
+                    "{dir_in}/olist_order_items_dataset_60.parquet",
+                    "{dir_in}/olist_order_items_dataset_61.parquet",
+                    "{dir_in}/olist_order_items_dataset_62.parquet",
+                    "{dir_in}/olist_order_items_dataset_63.parquet",
+                    "{dir_in}/olist_order_items_dataset_64.parquet",
+                    "{dir_in}/olist_order_items_dataset_65.parquet",
+                    "{dir_in}/olist_order_items_dataset_66.parquet",
+                    "{dir_in}/olist_order_items_dataset_67.parquet",
+                    "{dir_in}/olist_order_items_dataset_68.parquet",
+                    "{dir_in}/olist_order_items_dataset_69.parquet",
+                    "{dir_in}/olist_order_items_dataset_70.parquet",
+                    "{dir_in}/olist_order_items_dataset_71.parquet",
+                    "{dir_in}/olist_order_items_dataset_72.parquet",
+                    "{dir_in}/olist_order_items_dataset_73.parquet",
+                    "{dir_in}/olist_order_items_dataset_74.parquet",
+                    "{dir_in}/olist_order_items_dataset_75.parquet",
+                    "{dir_in}/olist_order_items_dataset_76.parquet",
+                    "{dir_in}/olist_order_items_dataset_77.parquet",
+                    "{dir_in}/olist_order_items_dataset_78.parquet",
+                    "{dir_in}/olist_order_items_dataset_79.parquet",
+                    "{dir_in}/olist_order_items_dataset_80.parquet",
+                    "{dir_in}/olist_order_items_dataset_81.parquet",
+                    "{dir_in}/olist_order_items_dataset_82.parquet",
+                    "{dir_in}/olist_order_items_dataset_83.parquet",
+                    "{dir_in}/olist_order_items_dataset_84.parquet",
+                    "{dir_in}/olist_order_items_dataset_85.parquet",
+                    "{dir_in}/olist_order_items_dataset_86.parquet",
+                    "{dir_in}/olist_order_items_dataset_87.parquet",
+                    "{dir_in}/olist_order_items_dataset_88.parquet",
+                    "{dir_in}/olist_order_items_dataset_89.parquet",
+                    "{dir_in}/olist_order_items_dataset_90.parquet",
+                    "{dir_in}/olist_order_items_dataset_91.parquet",
+                    "{dir_in}/olist_order_items_dataset_92.parquet",
+                    "{dir_in}/olist_order_items_dataset_93.parquet",
+                    "{dir_in}/olist_order_items_dataset_94.parquet",
+                    "{dir_in}/olist_order_items_dataset_95.parquet",
+                    "{dir_in}/olist_order_items_dataset_96.parquet",
+                    "{dir_in}/olist_order_items_dataset_97.parquet",
+                    "{dir_in}/olist_order_items_dataset_98.parquet",
+                    "{dir_in}/olist_order_items_dataset_99.parquet"
                 ],
-                "csv":{
-                    "hdr_line_idx": 0,
-                    "first_data_line_idx": 1
-                },
                 "columns": {
                     "col_order_id": {
-                        "csv": {
-                            "col_idx": 0,
-                            "col_hdr": null
+                        "parquet": {
+                            "col_name": "order_id"
                         },
                         "col_type": "string"
                     },
                     "col_order_item_id": {
-                        "csv": {
-                            "col_idx": 1,
-                            "col_hdr": null
+                        "parquet": {
+                            "col_name": "order_item_id"
                         },
-                        "col_format": "%d",
                         "col_type": "int"
                     },
                     "col_product_id": {
-                        "csv": {
-                            "col_idx": 2,
-                            "col_hdr": null
+                        "parquet": {
+                            "col_name": "product_id"
                         },
                         "col_type": "string"
                     },
                     "col_seller_id": {
-                        "csv": {
-                            "col_idx": 3,
-                            "col_hdr": null
+                        "parquet": {
+                            "col_name": "seller_id"
                         },
                         "col_type": "string"
                     },
                     "col_shipping_limit_date": {
-                        "csv": {
-                            "col_idx": 4,
-                            "col_hdr": null,
-                            "col_format": "2006-01-02 15:04:05"
+                        "parquet": {
+                            "col_name": "shipping_limit_date"
                         },
                         "col_type": "datetime"
                     },
                     "col_price": {
-                        "csv": {
-                            "col_idx": 5,
-                            "col_hdr": null,
-                            "col_format": "%f"
+                        "parquet": {
+                            "col_name": "price"
                         },
                         "col_type": "decimal2"
                     },
                     "col_freight_value": {
-                        "csv": {
-                            "col_idx": 6,
-                            "col_hdr": null,
-                            "col_format": "%f"
+                        "parquet": {
+                            "col_name": "freight_value"
                         },
                         "col_type": "decimal2"
                     }
@@ -491,7 +471,7 @@
         },
         "file_order_item_date_inner": {
             "type": "table_file",
-            "desc": "Write the results of inner join without grouping to CSV file",
+            "desc": "Write the results of inner join without grouping to Parquet file",
             "r": {
                 "table": "order_item_date_inner"
             },
@@ -499,57 +479,51 @@
                 "top": {
                     "order": "order_id(asc),order_item_id(asc)"
                 },
-                "url_template": "{dir_out}/order_item_date_inner.csv",
+                "url_template": "{dir_out}/order_item_date_inner.parquet",
                 "columns": [
                     {
-                        "csv": {
-                            "header": "order_id",
-                            "format": "%s"
+                        "parquet": {
+                            "column_name": "order_id"
                         },
                         "name": "order_id",
                         "expression": "r.order_id",
                         "type": "string"
                     },
                     {
-                        "csv": {
-                            "header": "order_item_id",
-                            "format": "%05d"
+                        "parquet": {
+                            "column_name": "order_item_id"
                         },
                         "name": "order_item_id",
                         "expression": "r.order_item_id",
                         "type": "int"
                     },
                     {
-                        "csv": {
-                            "header": "product_id",
-                            "format": "%s"
+                        "parquet": {
+                            "column_name": "product_id"
                         },
                         "name": "product_id",
                         "expression": "r.product_id",
                         "type": "string"
                     },
                     {
-                        "csv": {
-                            "header": "seller_id",
-                            "format": "%s"
+                        "parquet": {
+                            "column_name": "seller_id"
                         },
                         "name": "seller_id",
                         "expression": "r.seller_id",
                         "type": "string"
                     },
                     {
-                        "csv": {
-                            "header": "shipping_limit_date",
-                            "format": "2006-01-02 15:04:05"
+                        "parquet": {
+                            "column_name": "shipping_limit_date"
                         },
                         "name": "shipping_limit_date",
                         "expression": "r.shipping_limit_date",
                         "type": "datetime"
                     },
                     {
-                        "csv": {
-                            "header": "value",
-                            "format": "%s"
+                        "parquet": {
+                            "column_name": "value"
                         },
                         "name": "value",
                         "expression": "r.value",
@@ -560,7 +534,7 @@
         },
         "file_order_item_date_left_outer": {
             "type": "table_file",
-            "desc": "Write the results of left oter join without grouping to CSV file",
+            "desc": "Write the results of left oter join without grouping to Parquet file",
             "r": {
                 "table": "order_item_date_left_outer"
             },
@@ -568,57 +542,51 @@
                 "top": {
                     "order": "order_id(asc),order_item_id(asc)"
                 },
-                "url_template": "{dir_out}/order_item_date_left_outer.csv",
+                "url_template": "{dir_out}/order_item_date_left_outer.parquet",
                 "columns": [
                     {
-                        "csv": {
-                            "header": "order_id",
-                            "format": "%s"
+                        "parquet": {
+                            "column_name": "order_id"
                         },
                         "name": "order_id",
                         "expression": "r.order_id",
                         "type": "string"
                     },
                     {
-                        "csv": {
-                            "header": "order_item_id",
-                            "format": "%05d"
+                        "parquet": {
+                            "column_name": "order_item_id"
                         },
                         "name": "order_item_id",
                         "expression": "r.order_item_id",
                         "type": "int"
                     },
                     {
-                        "csv": {
-                            "header": "product_id",
-                            "format": "%s"
+                        "parquet": {
+                            "column_name": "product_id"
                         },
                         "name": "product_id",
                         "expression": "r.product_id",
                         "type": "string"
                     },
                     {
-                        "csv": {
-                            "header": "seller_id",
-                            "format": "%s"
+                        "parquet": {
+                            "column_name": "seller_id"
                         },
                         "name": "seller_id",
                         "expression": "r.seller_id",
                         "type": "string"
                     },
                     {
-                        "csv": {
-                            "header": "shipping_limit_date",
-                            "format": "2006-01-02 15:04:05"
+                        "parquet": {
+                            "column_name": "shipping_limit_date"
                         },
                         "name": "shipping_limit_date",
                         "expression": "r.shipping_limit_date",
                         "type": "datetime"
                     },
                     {
-                        "csv": {
-                            "header": "value",
-                            "format": "%s"
+                        "parquet": {
+                            "column_name": "value"
                         },
                         "name": "value",
                         "expression": "r.value",
@@ -629,7 +597,7 @@
         },
         "file_order_date_value_grouped_inner": {
             "type": "table_file",
-            "desc": "Write the results of inner join with grouping to CSV file",
+            "desc": "Write the results of inner join with grouping to Parquet file",
             "r": {
                 "table": "order_date_value_grouped_inner"
             },
@@ -637,84 +605,75 @@
                 "top": {
                     "order": "total_value(desc),order_purchase_timestamp(desc),order_id(desc)"
                 },
-                "url_template": "{dir_out}/order_date_value_grouped_inner.csv",
+                "url_template": "{dir_out}/order_date_value_grouped_inner.parquet",
                 "columns": [
                     {
-                        "csv": {
-                            "header": "total_value",
-                            "format": "%10s"
+                        "parquet": {
+                            "column_name": "total_value"
                         },
                         "name": "total_value",
                         "expression": "r.total_value",
                         "type": "decimal2"
                     },
                     {
-                        "csv": {
-                            "header": "order_purchase_timestamp",
-                            "format": "2006-01-02 15:04:05"
+                        "parquet": {
+                            "column_name": "order_purchase_timestamp"
                         },
                         "name": "order_purchase_timestamp",
                         "expression": "r.order_purchase_timestamp",
                         "type": "datetime"
                     },
                     {
-                        "csv": {
-                            "header": "order_id",
-                            "format": "%s"
+                        "parquet": {
+                            "column_name": "order_id"
                         },
                         "name": "order_id",
                         "expression": "r.order_id",
                         "type": "string"
                     },
                     {
-                        "csv": {
-                            "header": "avg_value",
-                            "format": "%s"
+                        "parquet": {
+                            "column_name": "avg_value"
                         },
                         "name": "avg_value",
                         "expression": "r.avg_value",
                         "type": "decimal2"
                     },
                     {
-                        "csv": {
-                            "header": "min_value",
-                            "format": "%s"
+                        "parquet": {
+                            "column_name": "min_value"
                         },
                         "name": "min_value",
                         "expression": "r.min_value",
                         "type": "decimal2"
                     },
                     {
-                        "csv": {
-                            "header": "max_value",
-                            "format": "%s"
+                        "parquet": {
+                            "column_name": "max_value"
                         },
                         "name": "max_value",
                         "expression": "r.max_value",
                         "type": "decimal2"
                     },
                     {
-                        "csv": {
-                            "header": "min_product_id",
-                            "format": "%s"
+                        "parquet": {
+                            "column_name": "min_product_id"
                         },
                         "name": "min_product_id",
                         "expression": "r.min_product_id",
                         "type": "string"
                     },
                     {
-                        "csv": {
-                            "header": "max_product_id",
-                            "format": "%s"
+                        "parquet": {
+                            "column_name": "max_product_id"
                         },
                         "name": "max_product_id",
                         "expression": "r.max_product_id",
                         "type": "string"
                     },
                     {
-                        "csv": {
-                            "header": "item_count",
-                            "format": "%d"
+                        "parquet": {
+                            "column_name": "item_count"
                         },
                         "name": "item_count",
                         "expression": "r.item_count",
@@ -725,7 +684,7 @@
         },
         "file_order_date_value_grouped_left_outer": {
             "type": "table_file",
-            "desc": "Write the results of left outer join with grouping to CSV file",
+            "desc": "Write the results of left outer join with grouping to Parquet file",
             "r": {
                 "table": "order_date_value_grouped_left_outer"
             },
@@ -733,84 +692,75 @@
                 "top": {
                     "order": "total_value(desc),order_purchase_timestamp(desc),order_id(desc)"
                 },
-                "url_template": "{dir_out}/order_date_value_grouped_left_outer.csv",
+                "url_template": "{dir_out}/order_date_value_grouped_left_outer.parquet",
                 "columns": [
                     {
-                        "csv": {
-                            "header": "total_value",
-                            "format": "%10s"
+                        "parquet": {
+                            "column_name": "total_value"
                         },
                         "name": "total_value",
                         "expression": "r.total_value",
                         "type": "decimal2"
                     },
                     {
-                        "csv": {
-                            "header": "order_purchase_timestamp",
-                            "format": "2006-01-02 15:04:05"
+                        "parquet": {
+                            "column_name": "order_purchase_timestamp"
                         },
                         "name": "order_purchase_timestamp",
                         "expression": "r.order_purchase_timestamp",
                         "type": "datetime"
                     },
                     {
-                        "csv": {
-                            "header": "order_id",
-                            "format": "%s"
+                        "parquet": {
+                            "column_name": "order_id"
                         },
                         "name": "order_id",
                         "expression": "r.order_id",
                         "type": "string"
                     },
                     {
-                        "csv": {
-                            "header": "avg_value",
-                            "format": "%s"
+                        "parquet": {
+                            "column_name": "avg_value"
                         },
                         "name": "avg_value",
                         "expression": "r.avg_value",
                         "type": "decimal2"
                     },
                     {
-                        "csv": {
-                            "header": "min_value",
-                            "format": "%s"
+                        "parquet": {
+                            "column_name": "min_value"
                         },
                         "name": "min_value",
                         "expression": "r.min_value",
                         "type": "decimal2"
                     },
                     {
-                        "csv": {
-                            "header": "max_value",
-                            "format": "%s"
+                        "parquet": {
+                            "column_name": "max_value"
                         },
                         "name": "max_value",
                         "expression": "r.max_value",
                         "type": "decimal2"
                     },
                     {
-                        "csv": {
-                            "header": "min_product_id",
-                            "format": "%s"
+                        "parquet": {
+                            "column_name": "min_product_id"
                         },
                         "name": "min_product_id",
                         "expression": "r.min_product_id",
                         "type": "string"
                     },
                     {
-                        "csv": {
-                            "header": "max_product_id",
-                            "format": "%s"
+                        "parquet": {
+                            "column_name": "max_product_id"
                         },
                         "name": "max_product_id",
                         "expression": "r.max_product_id",
                         "type": "string"
                     },
                     {
-                        "csv": {
-                            "header": "item_count",
-                            "format": "%d"
+                        "parquet": {
+                            "column_name": "item_count"
                         },
                         "name": "item_count",
                         "expression": "r.item_count",
@@ -819,7 +769,7 @@
                 ]
             }
         }
-    },
+     },
     "dependency_policies": {
         "current_active_first_stopped_nogo": {
             "is_default": true,
