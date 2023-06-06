@@ -72,7 +72,7 @@ go build -o ../../build/capideploy.exe -ldflags="-s -w" ../../pkg/exe/deploy/cap
 chmod 755 ../../build/capideploy.exe
 ```
 
-Build binaries for the cloud
+Build binaries for the cloud (Linux):
 
 ```
 cd ./test/deploy
@@ -82,6 +82,8 @@ GOOS=linux GOARCH=amd64 go build -o ../../build/linux/amd64/capiwebapi -ldflags=
 gzip -f ../../build/linux/amd64/capiwebapi
 GOOS=linux GOARCH=amd64 go build -o ../../build/linux/amd64/capitoolbelt -ldflags="-s -w" ../../pkg/exe/toolbelt/capitoolbelt.go
 gzip -f ../../build/linux/amd64/capitoolbelt
+GOOS=linux GOARCH=amd64 go build -o ../../build/linux/amd64/capiparquet -ldflags="-s -w" ../code/parquet/capiparquet.go
+gzip -f ../../build/linux/amd64/capiparquet
 ```
 
 Build [Capillaries UI](../../doc/glossary.md#capillaries-ui):
@@ -142,7 +144,7 @@ $capideploy copy_private_keys bastion,daemon01,daemon02,daemon03,daemon04 $DEPLO
 $capideploy attach_volumes bastion $DEPLOY_ARGS
 
 # Upload binaries and their configs in one shot. Make sure you have all binaries and test data built before uploading them (see above).
-$capideploy upload_files up_daemon_binary,up_daemon_env_config,up_webapi_env_config,up_webapi_binary,up_ui,up_toolbelt_env_config,up_toolbelt_binary $DEPLOY_ARGS
+$capideploy upload_files up_daemon_binary,up_daemon_env_config,up_webapi_env_config,up_webapi_binary,up_ui,up_toolbelt_env_config,up_toolbelt_binary,up_capiparquet_binary $DEPLOY_ARGS
 
 # Upload test files in one shot
 $capideploy upload_files up_all_cfg,up_lookup_bigtest_in,up_lookup_bigtest_out,up_lookup_quicktest_in,up_lookup_quicktest_out $DEPLOY_ARGS

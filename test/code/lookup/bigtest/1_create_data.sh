@@ -37,11 +37,9 @@ fi
 echo "Packing input and ouput files..."
 
 pushd $inDir
-tar -czf $inDir/all_csv.tgz *.csv
-tar -czf $inDir/all_parquet.tgz *.parquet
+tar -czf $inDir/all.tgz *csv *.parquet
 popd
 
 pushd $outDir
-tar -czf $outDir/all_csv.tgz *.csv
-tar -czf $outDir/all_parquet.tgz *.parquet
+tar -czf $outDir/all.tgz *csv *.parquet
 popd

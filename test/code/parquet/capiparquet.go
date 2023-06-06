@@ -23,7 +23,7 @@ const (
 )
 
 func usage(flagset *flag.FlagSet) {
-	fmt.Printf("Capillaries parquet tool\nUsage: caparquet <command> <command parameters>\nCommands:\n")
+	fmt.Printf("Capillaries parquet tool\nUsage: capiparquet <command> <command parameters>\nCommands:\n")
 	fmt.Printf("  %s %s %s\n",
 		CmdDiff, "<left file>", "<right file>")
 	if flagset != nil {
