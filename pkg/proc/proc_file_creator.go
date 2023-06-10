@@ -167,7 +167,11 @@ func RunCreateFile(envConfig *env.EnvConfig,
 
 	if node.FileCreator.CreatorFileType == sc.CreatorFileTypeCsv {
 		if err := instr.createCsvFileAndStartWorker(logger); err != nil {
-			return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("cannot start file inserter worker: %s", err.Error())
+			return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("cannot start csv inserter worker: %s", err.Error())
+		}
+	} else if node.FileCreator.CreatorFileType == sc.CreatorFileTypeParquet {
+		if err := instr.createParquetFileAndStartWorker(logger, node.FileCreator.Parquet.Codec); err != nil {
+			return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("cannot start parquet inserter worker: %s", err.Error())
 		}
 	} else {
 		return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("unknown inserter file type: %d", node.FileCreator.CreatorFileType)

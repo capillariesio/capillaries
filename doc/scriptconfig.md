@@ -153,7 +153,7 @@ File writer only: array of file writer [column definitions](glossary.md#file-wri
 
 #### w.having
 
-[Go expression](#glossary.mdgo-expression) used as a filter before the row/line is about to be written to the target table/file. Allows writer (`w.*`) fields (for table writer) and columns (for file writers) only.
+[Go expression](#glossary.mdgo-expression) used as a filter before the row/line is about to be written to the target table/file. Allows writer (`w.*`) fields (for table writer) and columns (for file writers) only (no `r.*` or `p.*` fields allowed).
 
 #### w.indexes
 
@@ -167,9 +167,14 @@ File writer only. Specifies  the URI of the target file(s). Supported schemes:
 #### w.csv.separator
 CSV writer only: field separator, default is comma
 
+#### w.parquet.codec
+Parquet writer only: 'gzip' (default), 'snappy' or 'uncompressed'
+
 ## dependency_policies
 
 Map of dependency_policy definitions. Currently, there is only one dependency policy offered: "current_active_first_stopped_nogo".
+
+What is this?
 
 Every time Capillaries receives a queue message that tells it to handle a [script](glossary.md#script) [node](glossary.md#script-node), it checks if all dependency nodes are successfully completed. Since multiple [runs](glossary.md#run) can be involved, the decision-making process may be not trivial. This is how it works.
 

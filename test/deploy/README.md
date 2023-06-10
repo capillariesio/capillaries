@@ -72,7 +72,7 @@ go build -o ../../build/capideploy.exe -ldflags="-s -w" ../../pkg/exe/deploy/cap
 chmod 755 ../../build/capideploy.exe
 ```
 
-Build binaries for the cloud
+Build binaries for the cloud (Linux):
 
 ```
 cd ./test/deploy
@@ -82,6 +82,8 @@ GOOS=linux GOARCH=amd64 go build -o ../../build/linux/amd64/capiwebapi -ldflags=
 gzip -f ../../build/linux/amd64/capiwebapi
 GOOS=linux GOARCH=amd64 go build -o ../../build/linux/amd64/capitoolbelt -ldflags="-s -w" ../../pkg/exe/toolbelt/capitoolbelt.go
 gzip -f ../../build/linux/amd64/capitoolbelt
+GOOS=linux GOARCH=amd64 go build -o ../../build/linux/amd64/capiparquet -ldflags="-s -w" ../code/parquet/capiparquet.go
+gzip -f ../../build/linux/amd64/capiparquet
 ```
 
 Build [Capillaries UI](../../doc/glossary.md#capillaries-ui):
@@ -111,11 +113,15 @@ This command will populate /tmp/capi_in, /tmp/capi_cfg, /tmp/capi_out
 ```
 cd ./test/code/lookup
 ./1_create_quicktest_data.sh
-./create_bigtest_data.sh
 cd ../py_calc
 ./1_create_quicktest_data.sh
 cd ../tag_and_denormalize
 ./1_create_quicktest_data.sh
+```
+
+```
+cd ./test/code/lookup/bigtest
+./1_create_data.sh
 ```
 
 Deployment projects are configured to tell deploy tool to pick up the files to upload from those locations.
@@ -142,7 +148,7 @@ $capideploy copy_private_keys bastion,daemon01,daemon02,daemon03,daemon04 $DEPLO
 $capideploy attach_volumes bastion $DEPLOY_ARGS
 
 # Upload binaries and their configs in one shot. Make sure you have all binaries and test data built before uploading them (see above).
-$capideploy upload_files up_daemon_binary,up_daemon_env_config,up_webapi_env_config,up_webapi_binary,up_ui,up_toolbelt_env_config,up_toolbelt_binary $DEPLOY_ARGS
+$capideploy upload_files up_daemon_binary,up_daemon_env_config,up_webapi_env_config,up_webapi_binary,up_ui,up_toolbelt_env_config,up_toolbelt_binary,up_capiparquet_binary,up_diff_scripts $DEPLOY_ARGS
 
 # Upload test files in one shot
 $capideploy upload_files up_all_cfg,up_lookup_bigtest_in,up_lookup_bigtest_out,up_lookup_quicktest_in,up_lookup_quicktest_out $DEPLOY_ARGS
@@ -248,14 +254,14 @@ ssh -o StrictHostKeyChecking=no -i $DEPLOY_ROOT_KEY ubuntu@$BASTION_IP '~/bin/ca
 | Field | Value |
 |- | - |
 | Keyspace | lookup_bigtest |
-| Script URI | sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_bigtest/script.json |
+| Script URI | sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_bigtest/script_parquet.json |
 | Script parameters URI | sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_bigtest/script_params_one_run.json |
 | Start nodes |	read_orders,read_order_items |
 
 or
 
 ```
-ssh -o StrictHostKeyChecking=no -i $DEPLOY_ROOT_KEY ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_bigtest/script.json -params_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_bigtest/script_params_one_run.json -keyspace=lookup_bigtest -start_nodes=read_orders,read_order_items'
+ssh -o StrictHostKeyChecking=no -i $DEPLOY_ROOT_KEY ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_bigtest/script_parquet.json -params_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_bigtest/script_params_one_run.json -keyspace=lookup_bigtest -start_nodes=read_orders,read_order_items'
 ```
 
 ### py_calc_quicktest

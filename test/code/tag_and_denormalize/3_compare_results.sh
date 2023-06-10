@@ -6,8 +6,8 @@ sort $outDir/tagged_products_for_operator_review.csv -o $outDir/tagged_products_
 
 if ! diff -b $outDir/tag_totals.tsv $outDir/tag_totals_baseline.tsv ||
   ! diff -b $outDir/tagged_products_for_operator_review_sorted.csv $outDir/tagged_products_for_operator_review_baseline.csv; then
-  echo "FAILED"
+  echo -e "\033[0;31mdiff FAILED\e[0m"
   exit 1
 else
-  echo "SUCCESS"
+  echo -e "\033[0;32mdiff OK\e[0m"
 fi

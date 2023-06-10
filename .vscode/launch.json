@@ -156,6 +156,24 @@
             "cwd":"${workspaceFolder}/pkg/exe/webapi",
             "program": "${workspaceFolder}/pkg/exe/webapi/capiwebapi.go",
             "args": []
+        },
+        {
+            "name": "capiparquet diff",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/test/code/parquet/",
+            "program": "${workspaceFolder}/test/code/parquet/capiparquet.go",
+            "args": ["diff", "/tmp/capi_out/lookup_quicktest/order_date_value_grouped_left_outer_baseline.parquet", "/tmp/capi_out/lookup_quicktest/order_item_date_inner_baseline.parquet"]
+        },
+        {
+            "name": "capiparquet cat",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/test/code/parquet/",
+            "program": "${workspaceFolder}/test/code/parquet/capiparquet.go",
+            "args": ["cat", "../../data/parquet/dms_test_table_LOAD00000001.parquet"]
         }
    ]
 }

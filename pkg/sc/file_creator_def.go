@@ -12,6 +12,15 @@ import (
 const (
 	CreatorFileTypeUnknown int = 0
 	CreatorFileTypeCsv     int = 1
+	CreatorFileTypeParquet int = 2
+)
+
+type ParquetCodecType string
+
+const (
+	ParquetCodecGzip         ParquetCodecType = "gzip"
+	ParquetCodecSnappy       ParquetCodecType = "snappy"
+	ParquetCodecUncompressed ParquetCodecType = "uncompressed"
 )
 
 type WriteCsvColumnSettings struct {
@@ -19,11 +28,16 @@ type WriteCsvColumnSettings struct {
 	Header string `json:"header"`
 }
 
+type WriteParquetColumnSettings struct {
+	ColumnName string `json:"column_name"`
+}
+
 type WriteFileColumnDef struct {
-	RawExpression    string                 `json:"expression"`
-	Name             string                 `json:"name"` // To be used in Having
-	Type             TableFieldType         `json:"type"` // To be checked when checking expressions and to be used in Having
-	Csv              WriteCsvColumnSettings `json:"csv,omitempty"`
+	RawExpression    string                     `json:"expression"`
+	Name             string                     `json:"name"` // To be used in Having
+	Type             TableFieldType             `json:"type"` // To be checked when checking expressions and to be used in Having
+	Csv              WriteCsvColumnSettings     `json:"csv,omitempty"`
+	Parquet          WriteParquetColumnSettings `json:"parquet,omitempty"`
 	ParsedExpression ast.Expr
 	UsedFields       FieldRefs
 }
@@ -38,15 +52,20 @@ type CsvCreatorSettings struct {
 	Separator string `json:"separator"`
 }
 
+type ParquetCreatorSettings struct {
+	Codec ParquetCodecType `json:"codec"`
+}
+
 type FileCreatorDef struct {
 	RawHaving                     string `json:"having"`
 	Having                        ast.Expr
 	UsedInHavingFields            FieldRefs
 	UsedInTargetExpressionsFields FieldRefs
-	Columns                       []WriteFileColumnDef `json:"columns"`
-	UrlTemplate                   string               `json:"url_template"`
-	Top                           TopDef               `json:"top"`
-	Csv                           CsvCreatorSettings   `json:"csv,omitempty"`
+	Columns                       []WriteFileColumnDef   `json:"columns"`
+	UrlTemplate                   string                 `json:"url_template"`
+	Top                           TopDef                 `json:"top"`
+	Csv                           CsvCreatorSettings     `json:"csv,omitempty"`
+	Parquet                       ParquetCreatorSettings `json:"parquet,omitempty"`
 	CreatorFileType               int
 }
 
@@ -95,19 +114,18 @@ func (creatorDef *FileCreatorDef) Deserialize(rawWriter json.RawMessage) error {
 		return fmt.Errorf("cannot unmarshal file creator: [%s]", err.Error())
 	}
 
-	// TODO: add more file types here
-	if len(creatorDef.Csv.Separator) > 0 {
+	if len(creatorDef.Columns) > 0 && creatorDef.Columns[0].Parquet.ColumnName != "" {
+		creatorDef.CreatorFileType = CreatorFileTypeParquet
+		if creatorDef.Parquet.Codec == "" {
+			creatorDef.Parquet.Codec = ParquetCodecGzip
+		}
+	} else if len(creatorDef.Columns) > 0 && creatorDef.Columns[0].Csv.Header != "" {
 		creatorDef.CreatorFileType = CreatorFileTypeCsv
-	} else {
-		// By default it's a CSV writer
-		creatorDef.CreatorFileType = CreatorFileTypeCsv
-	}
-
-	if creatorDef.CreatorFileType == CreatorFileTypeCsv {
-		// Default CSV field Separator
 		if len(creatorDef.Csv.Separator) == 0 {
 			creatorDef.Csv.Separator = ","
 		}
+	} else {
+		return fmt.Errorf("cannot cannot detect file creator type")
 	}
 
 	// Having

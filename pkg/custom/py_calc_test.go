@@ -31,14 +31,16 @@ func TestPyCalcDef(t *testing.T) {
 					"urls": [
 						"file1.csv"
 					],
-					"first_data_line_idx": 0,
+					"csv":{
+					    "first_data_line_idx": 0
+					},
 					"columns": {
 						"col_field_int": {
-							"col_idx": 0,
+							"csv":{"col_idx": 0},
 							"col_type": "int"
 						},
 						"col_field_string": {
-							"col_idx": 1,
+							"csv":{"col_idx": 1},
 							"col_type": "string"
 						}
 					}
@@ -106,24 +108,30 @@ func TestPyCalcDef(t *testing.T) {
 					"url_template": "taxed_table1.csv",
 					"columns": [
 						{
+							"csv":{
+								"header": "field_int1",
+								"format": "%d"
+							},
 							"name": "field_int1",
-							"header": "field_int1",
 							"expression": "r.field_int1",
-							"format": "%d",
 							"type": "int"
 						},
 						{
+							"csv":{
+								"header": "field_string1",
+								"format": "%s"
+							},
 							"name": "field_string1",
-							"header": "field_string1",
 							"expression": "r.field_string1",
-							"format": "%s",
 							"type": "string"
 						},
 						{
+							"csv":{
+								"header": "taxed_field_decimal",
+								"format": "%s"
+							},
 							"name": "taxed_field_decimal",
-							"header": "taxed_field_decimal",
 							"expression": "r.taxed_field_decimal",
-							"format": "%s",
 							"type": "decimal2"
 						}
 					]

@@ -238,6 +238,20 @@
                 ]
             }
         },
+        "up_capiparquet_binary": {
+            "src": "../../build/linux/amd64/capiparquet.gz",
+            "dst": "/home/{ssh_user}/bin",
+            "dir_permissions": 744,
+            "file_permissions": 644,
+            "after": {
+                "env": {
+                    "CAPI_BINARY": "/home/{ssh_user}/bin/capiparquet"
+                },
+                "cmd": [
+                    "sh/capiscripts/unpack_capi_binary.sh"
+                ]
+            }
+        },
         "up_daemon_binary": {
             "src": "../../build/linux/amd64/capidaemon.gz",
             "dst": "/home/{ssh_user}/bin",
@@ -259,6 +273,13 @@
             "file_permissions": 644,
             "after": {}
         },
+        "up_diff_scripts": {
+            "src": "./diff",
+            "dst": "/home/{ssh_user}/bin",
+            "dir_permissions": 744,
+            "file_permissions": 744,
+            "after": {}
+        },
         "up_lookup_bigtest_in": {
             "src": "/tmp/capi_in/lookup_bigtest/all.tgz",
             "dst": "/mnt/capi_in/lookup_bigtest",
@@ -275,12 +296,19 @@
             }
         },
         "up_lookup_bigtest_out": {
-            "src": "/tmp/capi_out/lookup_bigtest/readme.txt",
+            "src": "/tmp/capi_out/lookup_bigtest/all.tgz",
             "dst": "/mnt/capi_out/lookup_bigtest",
             "dir_permissions": 777,
             "file_permissions": 666,
             "owner": "{sftp_user}",
-            "after": {}
+            "after": {
+                "env": {
+                    "SFTP_USER": "{sftp_user}"
+                },
+                "cmd": [
+                    "sh/capiscripts/unpack_lookup_big_out.sh"
+                ]
+            }
         },
         "up_lookup_quicktest_in": {
             "src": "/tmp/capi_in/lookup_quicktest",
@@ -492,7 +520,9 @@
                 "up_webapi_env_config",
                 "up_toolbelt_binary",
                 "up_toolbelt_env_config",
+                "up_capiparquet_binary",
                 "up_ui",
+                "up_diff_scripts",
                 "down_capi_out",
                 "down_capi_logs"
             ]

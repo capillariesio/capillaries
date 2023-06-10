@@ -32,30 +32,42 @@ func TestTagAndDenormalizeDef(t *testing.T) {
 				"explicit_run_only": true,
 				"r": {
 					"urls": ["{test_root_dir}/data/in/flipcart_products.tsv"],
-					"separator": "\t",
-					"hdr_line_idx": 0,
-					"first_data_line_idx": 1,
+					"csv":{
+						"separator": "\t",
+						"hdr_line_idx": 0,
+						"first_data_line_idx": 1
+					},
 					"columns": {
 						"col_product_id": {
-							"col_idx": 0,
-							"col_format": "%d",
+							"csv":{
+								"col_idx": 0,
+								"col_format": "%d"
+							},
 							"col_type": "int"
 						},
 						"col_product_name": {
-							"col_idx": 1,
+							"csv":{
+								"col_idx": 1
+							},
 							"col_type": "string"
 						},
 						"col_product_category_tree": {
-							"col_idx": 2,
+							"csv":{
+								"col_idx": 2
+							},
 							"col_type": "string"
 						},
 						"col_retail_price": {
-							"col_idx": 3,
-							"col_format": "%f",
+							"csv":{
+								"col_idx": 3,
+								"col_format": "%f"
+							},
 							"col_type": "decimal2"
 						},
 						"col_product_specifications": {
-							"col_idx": 4,
+							"csv":{
+								"col_idx": 4
+							},
 							"col_type": "string"
 						}
 					}
