@@ -1,6 +1,6 @@
 rm -fR /tmp/capi_cfg
-rm -fR mkdir /tmp/capi_in
-rm -fR mkdir /tmp/capi_out
+rm -fR /tmp/capi_in
+rm -fR /tmp/capi_out
 
 mkdir /tmp/capi_cfg
 mkdir /tmp/capi_in

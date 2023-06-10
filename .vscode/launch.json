@@ -173,7 +173,7 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/test/code/parquet/",
             "program": "${workspaceFolder}/test/code/parquet/capiparquet.go",
-            "args": ["cat", "../../data/parquet/dms_test_table_LOAD00000001.parquet"]
+            "args": ["cat", "../../data/parquet/multi/alltypes_tiny_pages.parquet"]
         }
    ]
 }
