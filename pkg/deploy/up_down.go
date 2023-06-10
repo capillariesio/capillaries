@@ -34,14 +34,18 @@ func FileGroupUpDefsToSpecs(prj *Project, fileGroupsToUpload map[string]*FileGro
 		ipAddress := iDef.BestIpAddress()
 		for _, fgName := range iDef.ApplicableFileGroups {
 			if fgDef, ok := fileGroupsToUpload[fgName]; ok {
-				fi, err := os.Stat(fgDef.Src)
+				srcAbsPath, err := filepath.Abs(fgDef.Src)
 				if err != nil {
-					return nil, nil, fmt.Errorf("cannot analyze path %s in %s: %s", fgDef.Src, fgName, err.Error())
+					return nil, nil, fmt.Errorf("cannot resolve absolute src path from %s: %s", fgDef.Src, err.Error())
+				}
+				fi, err := os.Stat(srcAbsPath)
+				if err != nil {
+					return nil, nil, fmt.Errorf("cannot analyze path %s in %s: %s", srcAbsPath, fgName, err.Error())
 				}
 				if fi.IsDir() {
-					if err := filepath.WalkDir(fgDef.Src, func(path string, d fs.DirEntry, err error) error {
+					if err := filepath.WalkDir(srcAbsPath, func(path string, d fs.DirEntry, err error) error {
 						if !d.IsDir() {
-							fileSubpath := strings.ReplaceAll(path, fgDef.Src, "")
+							fileSubpath := strings.ReplaceAll(path, srcAbsPath, "")
 							fileUploadSpecs = append(fileUploadSpecs, &FileUploadSpec{
 								IpAddress:       ipAddress,
 								Src:             path,
@@ -58,8 +62,8 @@ func FileGroupUpDefsToSpecs(prj *Project, fileGroupsToUpload map[string]*FileGro
 				} else {
 					fileUploadSpecs = append(fileUploadSpecs, &FileUploadSpec{
 						IpAddress:       ipAddress,
-						Src:             fgDef.Src,
-						Dst:             filepath.Join(fgDef.Dst, filepath.Base(fgDef.Src)),
+						Src:             srcAbsPath,
+						Dst:             filepath.Join(fgDef.Dst, filepath.Base(srcAbsPath)),
 						DirPermissions:  fgDef.DirPermissions,
 						FilePermissions: fgDef.FilePermissions,
 						Owner:           fgDef.Owner,

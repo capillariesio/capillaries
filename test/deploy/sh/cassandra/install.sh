@@ -1,11 +1,11 @@
 
-echo "deb http://www.apache.org/dist/cassandra/debian 40x main" | sudo tee -a /etc/apt/sources.list.d/cassandra.sources.list
+echo "deb https://debian.cassandra.apache.org 41x main" | sudo tee -a /etc/apt/sources.list.d/cassandra.sources.list
 
-wget -q -O - https://www.apache.org/dist/cassandra/KEYS | sudo tee /etc/apt/trusted.gpg.d/cassandra.asc > /dev/null
+curl https://downloads.apache.org/cassandra/KEYS | sudo apt-key add -
 
-sudo apt -y update
+sudo apt-get update
 
-sudo apt -y install cassandra
+sudo apt-get install -y cassandra
 
 sudo systemctl status cassandra
 if [ "$?" -ne "0" ]; then

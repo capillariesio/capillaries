@@ -238,6 +238,20 @@
                 ]
             }
         },
+        "up_capiparquet_binary": {
+            "src": "../../build/linux/amd64/capiparquet.gz",
+            "dst": "/home/{ssh_user}/bin",
+            "dir_permissions": 744,
+            "file_permissions": 644,
+            "after": {
+                "env": {
+                    "CAPI_BINARY": "/home/{ssh_user}/bin/capiparquet"
+                },
+                "cmd": [
+                    "sh/capiscripts/unpack_capi_binary.sh"
+                ]
+            }
+        },
         "up_daemon_binary": {
             "src": "../../build/linux/amd64/capidaemon.gz",
             "dst": "/home/{ssh_user}/bin",
@@ -257,6 +271,13 @@
             "dst": "/home/{ssh_user}/bin",
             "dir_permissions": 744,
             "file_permissions": 644,
+            "after": {}
+        },
+        "up_diff_scripts": {
+            "src": "./diff",
+            "dst": "/home/{ssh_user}/bin",
+            "dir_permissions": 744,
+            "file_permissions": 744,
             "after": {}
         },
         "up_lookup_bigtest_in": {
@@ -365,20 +386,6 @@
             "dir_permissions": 744,
             "file_permissions": 644,
             "after": {}
-        },
-        "up_capiparquet_binary": {
-            "src": "../../build/linux/amd64/capiparquet.gz",
-            "dst": "/home/{ssh_user}/bin",
-            "dir_permissions": 744,
-            "file_permissions": 644,
-            "after": {
-                "env": {
-                    "CAPI_BINARY": "/home/{ssh_user}/bin/capiparquet"
-                },
-                "cmd": [
-                    "sh/capiscripts/unpack_capi_binary.sh"
-                ]
-            }
         },
         "up_ui": {
             "src": "../../ui/public",
@@ -515,6 +522,7 @@
                 "up_toolbelt_env_config",
                 "up_capiparquet_binary",
                 "up_ui",
+                "up_diff_scripts",
                 "down_capi_out",
                 "down_capi_logs"
             ]
