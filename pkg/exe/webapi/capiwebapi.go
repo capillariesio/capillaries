@@ -164,7 +164,7 @@ var NodeDescCacheLock = sync.RWMutex{}
 func (h *UrlHandler) getNodeDesc(cqlSession *gocql.Session, keyspace string, runId int16, nodeName string) (string, error) {
 
 	NodeDescCacheLock.RLock()
-	nodeDesc, ok := NodeDescCache[nodeName]
+	nodeDesc, ok := NodeDescCache[keyspace+nodeName]
 	NodeDescCacheLock.RUnlock()
 	if ok {
 		return nodeDesc, nil
@@ -190,7 +190,7 @@ func (h *UrlHandler) getNodeDesc(cqlSession *gocql.Session, keyspace string, run
 	}
 
 	NodeDescCacheLock.RLock()
-	NodeDescCache[nodeName] = nodeDef.Desc
+	NodeDescCache[keyspace+nodeName] = nodeDef.Desc
 	NodeDescCacheLock.RUnlock()
 
 	return nodeDef.Desc, nil

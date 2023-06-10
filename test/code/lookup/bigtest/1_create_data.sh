@@ -28,7 +28,7 @@ echo "Generating files..."
 
 echo "Placeholder for lookup_bigtest output files" > $outDir/readme.txt
 
-go run ../generate_data.go -formats=csv,parquet -items=100000 -products=100 -sellers=200 -script_params_path=$cfgDir/script_params_one_run.json -in_root=$inDir -out_root=$outDir -split_orders=10 -split_items=100
+go run ../generate_data.go -formats=parquet -items=100000 -products=100 -sellers=200 -script_params_path=$cfgDir/script_params_one_run.json -in_root=$inDir -out_root=$outDir -split_orders=10 -split_items=100
 if [ "$?" -ne "0" ]; then
  exit 1
 fi
@@ -37,9 +37,9 @@ fi
 echo "Packing input and ouput files..."
 
 pushd $inDir
-tar -czf $inDir/all.tgz *csv *.parquet
+tar -czf $inDir/all.tgz *.parquet
 popd
 
 pushd $outDir
-tar -czf $outDir/all.tgz *csv *.parquet
+tar -czf $outDir/all.tgz *.parquet
 popd

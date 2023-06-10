@@ -11,7 +11,3 @@ if ! $cmdDiff diff $outDir/order_item_date_inner_baseline.parquet $outDir/order_
 else
   echo -e "\033[0;32mdiff OK\e[0m"
 fi
-#~/bin/capiparquet diff /mnt/capi_out/lookup_bigtest/order_date_value_grouped_inner.parquet /mnt/capi_out/lookup_bigtest/order_date_value_grouped_inner_baseline.parquet
-#~/bin/capiparquet diff /mnt/capi_out/lookup_bigtest/order_date_value_grouped_left_outer.parquet /mnt/capi_out/lookup_bigtest/order_date_value_grouped_left_outer_baseline.parquet
-#~/bin/capiparquet diff /mnt/capi_out/lookup_bigtest/order_item_date_inner.parquet /mnt/capi_out/lookup_bigtest/order_item_date_inner_baseline.parquet
-#~/bin/capiparquet diff /mnt/capi_out/lookup_bigtest/order_item_date_left_outer.parquet /mnt/capi_out/lookup_bigtest/order_item_date_left_outer_baseline.parquet
