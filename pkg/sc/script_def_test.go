@@ -18,14 +18,20 @@ const script string = `
 				"urls": [
 					"file1.csv"
 				],
-				"first_data_line_idx": 0,
+				"csv":{
+					"first_data_line_idx": 0
+				},
 				"columns": {
 					"col_field_int": {
-						"col_idx": 0,
+						"csv":{
+							"col_idx": 0
+						},
 						"col_type": "int"
 					},
 					"col_field_string": {
-						"col_idx": 1,
+						"csv":{
+							"col_idx": 1
+						},
 						"col_type": "string"
 					}
 				}
@@ -51,14 +57,20 @@ const script string = `
 				"urls": [
 					"file2.tsv"
 				],
-				"first_data_line_idx": 0,
+				"csv":{
+					"first_data_line_idx": 0
+				},
 				"columns": {
 					"col_field_int": {
-						"col_idx": 0,
+						"csv":{
+							"col_idx": 0
+						},
 						"col_type": "int"
 					},
 					"col_field_string": {
-						"col_idx": 1,
+						"csv":{
+							"col_idx": 1
+						},
 						"col_type": "string"
 					}
 				}
@@ -131,31 +143,39 @@ const script string = `
 				"url_template": "file_totals.csv",
 				"columns": [
 					{
+						"csv":{
+							"header": "field_int1",
+							"format": "%d"
+						},
 						"name": "field_int1",
-						"header": "field_int1",
 						"expression": "r.field_int1",
-						"format": "%d",
 						"type": "int"
 					},
 					{
+						"csv":{
+							"header": "field_string1",
+							"format": "%s"
+						},
 						"name": "field_string1",
-						"header": "field_string1",
 						"expression": "r.field_string1",
-						"format": "%s",
 						"type": "string"
 					},
 					{
+						"csv":{
+							"header": "total_value",
+							"format": "%s"
+						},
 						"name": "total_value",
-						"header": "total_value",
 						"expression": "decimal2(r.total_value)",
-						"format": "%s",
 						"type": "decimal2"
 					},
 					{
+						"csv":{
+							"header": "item_count",
+							"format": "%d"
+						},
 						"name": "item_count",
-						"header": "item_count",
 						"expression": "r.item_count",
-						"format": "%d",
 						"type": "int"
 					}
 				]
