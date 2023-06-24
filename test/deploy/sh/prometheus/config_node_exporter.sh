@@ -1,3 +1,5 @@
+# Make it as idempotent as possible, it can be called over and over
+
 # Prometheus node exporter
 # https://www.digitalocean.com/community/tutorials/how-to-install-prometheus-on-ubuntu-16-04
 

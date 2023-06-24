@@ -111,17 +111,15 @@ $capideploy create_volumes $DEPLOY_ARGS
 This command will populate /tmp/capi_in, /tmp/capi_cfg, /tmp/capi_out
 
 ```
-cd ./test/code/lookup
-./1_create_quicktest_data.sh
-cd ../py_calc
+cd ./test/code/lookup/quicktest
+./1_create_data.sh
+cd ../bigtest
+./1_create_data.sh
+cd ../../py_calc
 ./1_create_quicktest_data.sh
 cd ../tag_and_denormalize
 ./1_create_quicktest_data.sh
-```
-
-```
-cd ./test/code/lookup/bigtest
-./1_create_data.sh
+cd ../../..
 ```
 
 Deployment projects are configured to tell deploy tool to pick up the files to upload from those locations.
@@ -138,14 +136,15 @@ $capideploy ping_instances all $DEPLOY_ARGS
 # Install all pre-requisite software
 $capideploy install_services all $DEPLOY_ARGS
 
-# Now it's a good time to start Cassandra cluster in a separate shell session (see next section)
-
 # 1. Create sftp user (we assume that Openstack provider does not support multi-attach volumes, so we have to use sftp to read and write data files)
 # 2. Allow these instances to connect to data via sftp
-# 3. Attach volumes and make sftpuser owner
-$capideploy create_instance_users bastion $DEPLOY_ARGS
-$capideploy copy_private_keys bastion,daemon01,daemon02,daemon03,daemon04 $DEPLOY_ARGS
-$capideploy attach_volumes bastion $DEPLOY_ARGS
+#$capideploy create_instance_users bastion $DEPLOY_ARGS
+#$capideploy copy_private_keys bastion,daemon01,daemon02,daemon03,daemon04 $DEPLOY_ARGS
+
+# Attach bastion and Cassandra volumes (data and maybe commitlog), make ssh_user (or sftp_user, if you use sftp instead of nfs) owner
+$capideploy attach_volumes bastion,cass01,cass02,cass03,cass04,cass05,cass06,cass07,cass08 $DEPLOY_ARGS
+
+# Now it's a good time to start Cassandra cluster in a separate shell session (see next section)
 
 # Upload binaries and their configs in one shot. Make sure you have all binaries and test data built before uploading them (see above).
 $capideploy upload_files up_daemon_binary,up_daemon_env_config,up_webapi_env_config,up_webapi_binary,up_ui,up_toolbelt_env_config,up_toolbelt_binary,up_capiparquet_binary,up_diff_scripts $DEPLOY_ARGS
@@ -156,8 +155,9 @@ $capideploy upload_files up_all_cfg,up_lookup_bigtest_in,up_lookup_bigtest_out,u
 # If you want to run these tests, upload corresponding data files
 $capideploy upload_files up_tag_and_denormalize_quicktest_in,up_tag_and_denormalize_quicktest_out,up_py_calc_quicktest_in,up_py_calc_quicktest_out,up_portfolio_quicktest_in $DEPLOY_ARGS
 
-# Configure all services except Cassandra (which requires extra care)
-$capideploy config_services bastion,rabbitmq,prometheus,daemon01,daemon02,daemon03,daemon04 $DEPLOY_ARGS
+# Configure all services except Cassandra (which requires extra care), bastion first (it configs NFS)
+$capideploy config_services bastion $DEPLOY_ARGS
+$capideploy config_services rabbitmq,prometheus,daemon01,daemon02,daemon03,daemon04 $DEPLOY_ARGS
 ```
 
 ## Starting cassandra cluster
@@ -262,6 +262,12 @@ or
 
 ```
 ssh -o StrictHostKeyChecking=no -i $DEPLOY_ROOT_KEY ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_bigtest/script_parquet.json -params_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_bigtest/script_params_one_run.json -keyspace=lookup_bigtest -start_nodes=read_orders,read_order_items'
+```
+
+or
+
+```
+ssh -o StrictHostKeyChecking=no -i $DEPLOY_ROOT_KEY ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=/mnt/capi_cfg/lookup_bigtest/script_parquet.json -params_file=/mnt/capi_cfg/lookup_bigtest/script_params_one_run.json -keyspace=lookup_bigtest -start_nodes=read_orders,read_order_items'
 ```
 
 ### py_calc_quicktest
