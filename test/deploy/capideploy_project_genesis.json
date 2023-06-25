@@ -236,78 +236,6 @@
             "owner": "{ssh_user}",
             "id": ""
         },
-        "data01": {
-            "name": "{deployment_name}_data01",
-            "mount_point": "/mnt/data",
-            "size": 50,
-            "type": "piops3",
-            "permissions": 777,
-            "owner": "",
-            "id": ""
-        },
-        "data02": {
-            "name": "{deployment_name}_data02",
-            "mount_point": "/mnt/data",
-            "size": 50,
-            "type": "piops3",
-            "permissions": 777,
-            "owner": "",
-            "id": ""
-        },
-        "data03": {
-            "name": "{deployment_name}_data03",
-            "mount_point": "/mnt/data",
-            "size": 50,
-            "type": "piops3",
-            "permissions": 777,
-            "owner": "",
-            "id": ""
-        },
-        "data04": {
-            "name": "{deployment_name}_data04",
-            "mount_point": "/mnt/data",
-            "size": 50,
-            "type": "piops3",
-            "permissions": 777,
-            "owner": "",
-            "id": ""
-        },
-        "data05": {
-            "name": "{deployment_name}_data05",
-            "mount_point": "/mnt/data",
-            "size": 50,
-            "type": "piops3",
-            "permissions": 777,
-            "owner": "",
-            "id": ""
-        },
-        "data06": {
-            "name": "{deployment_name}_data06",
-            "mount_point": "/mnt/data",
-            "size": 50,
-            "type": "piops3",
-            "permissions": 777,
-            "owner": "",
-            "id": ""
-        },
-        "data07": {
-            "name": "{deployment_name}_data07",
-            "mount_point": "/mnt/data",
-            "size": 50,
-            "type": "piops3",
-            "permissions": 777,
-            "owner": "",
-            "id": ""
-        },
-        "data08": {
-            "name": "{deployment_name}_data08",
-            "mount_point": "/mnt/data",
-            "size": 50,
-            "type": "piops3",
-            "permissions": 777,
-            "owner": "",
-            "id": ""
-        },
         "in": {
             "name": "{deployment_name}_in",
             "mount_point": "/mnt/capi_in",
@@ -336,8 +264,8 @@
             "owner": "{ssh_user}",
             "after": {
                 "env": {
+                    "LOCAL_CFG_LOCATION": "/mnt/capi_cfg",
                     "MOUNT_POINT_CFG": "/mnt/capi_cfg",
-                    "MOUNT_POINT_CFG_LOCAL": "/mnt/capi_cfg",
                     "MOUNT_POINT_IN": "/mnt/capi_in",
                     "MOUNT_POINT_OUT": "/mnt/capi_out"
                 },

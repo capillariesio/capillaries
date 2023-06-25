@@ -142,7 +142,8 @@ $capideploy install_services all $DEPLOY_ARGS
 #$capideploy copy_private_keys bastion,daemon01,daemon02,daemon03,daemon04 $DEPLOY_ARGS
 
 # Attach bastion and Cassandra volumes (data and maybe commitlog), make ssh_user (or sftp_user, if you use sftp instead of nfs) owner
-$capideploy attach_volumes bastion,cass01,cass02,cass03,cass04,cass05,cass06,cass07,cass08 $DEPLOY_ARGS
+#$capideploy attach_volumes bastion,cass01,cass02,cass03,cass04,cass05,cass06,cass07,cass08 $DEPLOY_ARGS
+$capideploy attach_volumes bastion $DEPLOY_ARGS
 
 # Now it's a good time to start Cassandra cluster in a separate shell session (see next section)
 
@@ -190,7 +191,7 @@ do
   do
     nodetoolOutput=$(ssh -o StrictHostKeyChecking=no -i $DEPLOY_ROOT_KEY -J $BASTION_IP ubuntu@$cassNodeIp 'nodetool status' 2>&1)
     if [[ "$nodetoolOutput" == *"UJ  $cassNodeIp"* ]]; then
-      echo $cassNodeNickname is joining the cluster, almost there...
+      echo $cassNodeNickname is joining the cluster, almost there, UJ ...
     elif [[ "$nodetoolOutput" == *"InstanceNotFoundException"* ]]; then
       echo $cassNodeNickname is not started yet, getting instance not found exception
     elif [[ "$nodetoolOutput" == *"nodetool: Failed to connect"* ]]; then 
@@ -201,7 +202,7 @@ do
       echo $cassNodeNickname joined the cluster
       break
     elif [[ "$nodetoolOutput" == *"Normal/Leaving/Joining/Moving"* ]]; then
-      echo $cassNodeNickname is about to start joining the cluster, nodetool functioning
+      echo $cassNodeNickname is about to start joining the cluster, nodetool functioning, but no UN/UJ...
     else
       echo $nodetoolOutput
     fi

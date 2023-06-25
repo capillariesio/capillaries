@@ -20,8 +20,13 @@ sudo sed -i -e "s~rpc_address:[\: \"a-zA-Z0-9\.]*~rpc_address: $CASSANDRA_IP~g" 
 sudo sed -i -e "s~endpoint_snitch:[\: \"a-zA-Z0-9\.]*~endpoint_snitch: SimpleSnitch~g" /etc/cassandra/cassandra.yaml
 
 # Data on attached volume
-echo 'data_file_directories:' | sudo tee -a /etc/cassandra/cassandra.yaml
-echo '  - /mnt/data' | sudo tee -a /etc/cassandra/cassandra.yaml
+#echo 'data_file_directories:' | sudo tee -a /etc/cassandra/cassandra.yaml
+#echo '  - /mnt/data' | sudo tee -a /etc/cassandra/cassandra.yaml
+#sudo sed -i -e "s~data_file_directories:~#data_file_directories:~g" /etc/cassandra/cassandra.yaml
+#sudo sed -i -e "s~  - /mnt/data~#  - /mnt/data~g" /etc/cassandra/cassandra.yaml
+
+#sudo sed -i -e "s~- /var/lib/cassandra/data~- /mnt/data~g" /etc/cassandra/cassandra.yaml
+
 
 # Commitlog on attached volume
 #echo 'commitlog_directory: /mnt/commitlog' | sudo tee -a /etc/cassandra/cassandra.yaml
