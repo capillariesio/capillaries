@@ -6,7 +6,7 @@ sudo sed -i "s/nameserver[ ]*[0-9.]*/nameserver 8.8.8.8/" /etc/resolv.conf
 
 sudo resolvectl flush-caches
 
-sudo apt -y update
+sudo apt-get -y update
 
 # Utilities for checking cloud performance, feel free to comment this out
 sudo apt-get install -y iperf

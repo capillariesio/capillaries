@@ -1,3 +1,5 @@
+# Make it as idempotent as possible, it can be called over and over
+
 # Logrotate
 LOGROTATE_CONFIG_FILE=/etc/logrotate.d/capidaemon_logrotate.conf
 

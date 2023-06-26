@@ -6,6 +6,7 @@ fi
 rm -f /mnt/capi_in/lookup_bigtest/*.csv /mnt/capi_in/lookup_bigtest/*.parquet
 
 sudo tar -zxf /mnt/capi_in/lookup_bigtest/all.tgz --directory /mnt/capi_in/lookup_bigtest
+rm /mnt/capi_in/lookup_bigtest/all.tgz
 
 sudo chown $SFTP_USER /mnt/capi_in/lookup_bigtest/*.csv
 sudo chmod 644 /mnt/capi_in/lookup_bigtest/*.csv

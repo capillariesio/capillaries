@@ -1,3 +1,5 @@
+# Make it as idempotent as possible, it can be called over and over
+
 if [ "$INTERNAL_BASTION_IP" = "" ]; then
   echo Error, missing: INTERNAL_BASTION_IP=10.5.0.10
  exit 1

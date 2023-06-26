@@ -41,6 +41,42 @@
                     "direction": "ingress"
                 },
                 {
+                    "desc": "NFS PortMapper TCP",
+                    "id": "",
+                    "protocol": "tcp",
+                    "ethertype": "IPv4",
+                    "remote_ip": "{subnet_cidr}",
+                    "port": 111,
+                    "direction": "ingress"
+                },
+                {
+                    "desc": "NFS PortMapper UDP",
+                    "id": "",
+                    "protocol": "udp",
+                    "ethertype": "IPv4",
+                    "remote_ip": "{subnet_cidr}",
+                    "port": 111,
+                    "direction": "ingress"
+                },
+                {
+                    "desc": "NFS Server TCP",
+                    "id": "",
+                    "protocol": "tcp",
+                    "ethertype": "IPv4",
+                    "remote_ip": "{subnet_cidr}",
+                    "port": 2049,
+                    "direction": "ingress"
+                },
+                {
+                    "desc": "NFS Server UDP",
+                    "id": "",
+                    "protocol": "udp",
+                    "ethertype": "IPv4",
+                    "remote_ip": "{subnet_cidr}",
+                    "port": 2049,
+                    "direction": "ingress"
+                },
+                {
                     "desc": "Prometheus UI reverse proxy",
                     "id": "",
                     "protocol": "tcp",
@@ -197,7 +233,7 @@
             "size": 1,
             "type": "gp1",
             "permissions": 777,
-            "owner": "{sftp_user}",
+            "owner": "{ssh_user}",
             "id": ""
         },
         "in": {
@@ -206,7 +242,7 @@
             "size": 1,
             "type": "gp1",
             "permissions": 777,
-            "owner": "{sftp_user}",
+            "owner": "{ssh_user}",
             "id": ""
         },
         "out": {
@@ -215,7 +251,7 @@
             "size": 1,
             "type": "gp1",
             "permissions": 777,
-            "owner": "{sftp_user}",
+            "owner": "{ssh_user}",
             "id": ""
         }
     },
@@ -225,13 +261,13 @@
             "dst": "/mnt/capi_cfg",
             "dir_permissions": 777,
             "file_permissions": 666,
-            "owner": "{sftp_user}",
+            "owner": "{ssh_user}",
             "after": {
                 "env": {
-                    "MOUNT_POINT_CFG": "sftp://{sftp_user}@{internal_bastion_ip}/mnt/capi_cfg",
-                    "MOUNT_POINT_CFG_LOCAL": "/mnt/capi_cfg",
-                    "MOUNT_POINT_IN": "sftp://{sftp_user}@{internal_bastion_ip}/mnt/capi_in",
-                    "MOUNT_POINT_OUT": "sftp://{sftp_user}@{internal_bastion_ip}/mnt/capi_out"
+                    "LOCAL_CFG_LOCATION": "/mnt/capi_cfg",
+                    "MOUNT_POINT_CFG": "/mnt/capi_cfg",
+                    "MOUNT_POINT_IN": "/mnt/capi_in",
+                    "MOUNT_POINT_OUT": "/mnt/capi_out"
                 },
                 "cmd": [
                     "sh/capiscripts/adjust_cfg_in_out.sh"
@@ -285,7 +321,7 @@
             "dst": "/mnt/capi_in/lookup_bigtest",
             "dir_permissions": 777,
             "file_permissions": 666,
-            "owner": "{sftp_user}",
+            "owner": "{ssh_user}",
             "after": {
                 "env": {
                     "SFTP_USER": "{sftp_user}"
@@ -300,7 +336,7 @@
             "dst": "/mnt/capi_out/lookup_bigtest",
             "dir_permissions": 777,
             "file_permissions": 666,
-            "owner": "{sftp_user}",
+            "owner": "{ssh_user}",
             "after": {
                 "env": {
                     "SFTP_USER": "{sftp_user}"
@@ -315,7 +351,7 @@
             "dst": "/mnt/capi_in/lookup_quicktest",
             "dir_permissions": 777,
             "file_permissions": 666,
-            "owner": "{sftp_user}",
+            "owner": "{ssh_user}",
             "after": {}
         },
         "up_lookup_quicktest_out": {
@@ -323,7 +359,7 @@
             "dst": "/mnt/capi_out/lookup_quicktest",
             "dir_permissions": 777,
             "file_permissions": 666,
-            "owner": "{sftp_user}",
+            "owner": "{ssh_user}",
             "after": {}
         },
         "up_portfolio_quicktest_in": {
@@ -331,7 +367,7 @@
             "dst": "/mnt/capi_in/portfolio_quicktest",
             "dir_permissions": 777,
             "file_permissions": 666,
-            "owner": "{sftp_user}",
+            "owner": "{ssh_user}",
             "after": {}
         },
         "up_py_calc_quicktest_in": {
@@ -339,7 +375,7 @@
             "dst": "/mnt/capi_in/py_calc_quicktest",
             "dir_permissions": 777,
             "file_permissions": 666,
-            "owner": "{sftp_user}",
+            "owner": "{ssh_user}",
             "after": {}
         },
         "up_py_calc_quicktest_out": {
@@ -347,7 +383,7 @@
             "dst": "/mnt/capi_out/py_calc_quicktest",
             "dir_permissions": 777,
             "file_permissions": 666,
-            "owner": "{sftp_user}",
+            "owner": "{ssh_user}",
             "after": {}
         },
         "up_tag_and_denormalize_quicktest_in": {
@@ -355,7 +391,7 @@
             "dst": "/mnt/capi_in/tag_and_denormalize_quicktest",
             "dir_permissions": 777,
             "file_permissions": 666,
-            "owner": "{sftp_user}",
+            "owner": "{ssh_user}",
             "after": {}
         },
         "up_tag_and_denormalize_quicktest_out": {
@@ -363,7 +399,7 @@
             "dst": "/mnt/capi_out/tag_and_denormalize_quicktest",
             "dir_permissions": 777,
             "file_permissions": 666,
-            "owner": "{sftp_user}",
+            "owner": "{ssh_user}",
             "after": {}
         },
         "up_toolbelt_binary": {
@@ -468,11 +504,13 @@
                 "env": {
                     "AMQP_URL": "amqp://{rabbitmq_user_name}:{rabbitmq_user_pass}@{rabbitmq_ip}/",
                     "CASSANDRA_HOSTS": "{cassandra_hosts}",
+                    "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
                     "PROMETHEUS_IP": "{prometheus_ip}",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
                     "RABBITMQ_IP": "{rabbitmq_ip}",
                     "SFTP_USER": "{sftp_user}",
                     "SSH_USER": "{ssh_user}",
+                    "SUBNET_CIDR": "{subnet_cidr}",
                     "WEBAPI_ACCESS_CONTROL_ACCESS_ORIGIN": "http://{floating_ip_address}",
                     "WEBAPI_IP": "{floating_ip_address}",
                     "WEBAPI_PORT": "6543"
@@ -482,6 +520,7 @@
                         "sh/common/replace_nameserver.sh",
                         "sh/common/increase_ssh_connection_limit.sh",
                         "sh/prometheus/install_node_exporter.sh",
+                        "sh/nfs/install_server.sh",
                         "sh/nginx/install.sh"
                     ],
                     "config": [
@@ -492,6 +531,7 @@
                         "sh/webapi/config.sh",
                         "sh/ui/config.sh",
                         "sh/nginx/config_ui.sh",
+                        "sh/nfs/config_server.sh",
                         "sh/nginx/config_prometheus_reverse_proxy.sh",
                         "sh/nginx/config_rabbitmq_reverse_proxy.sh"
                     ],
@@ -811,6 +851,7 @@
                     "DAEMON_DB_WRITERS": "{daemon_db_writers}",
                     "DAEMON_THREAD_POOL_SIZE": "{daemon_thread_pool_size}",
                     "INTERNAL_BASTION_IP": "{internal_bastion_ip}",
+                    "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
                     "SFTP_USER": "{sftp_user}",
                     "SSH_USER": "{ssh_user}"
@@ -818,9 +859,11 @@
                 "cmd": {
                     "install": [
                         "sh/common/replace_nameserver.sh",
+                        "sh/nfs/install_client.sh",
                         "sh/prometheus/install_node_exporter.sh"
                     ],
                     "config": [
+                        "sh/nfs/config_client.sh",
                         "sh/logrotate/config_capidaemon_logrotate.sh",
                         "sh/rsyslog/config_capidaemon_log_sender.sh",
                         "sh/prometheus/config_node_exporter.sh",
@@ -859,6 +902,7 @@
                     "DAEMON_DB_WRITERS": "{daemon_db_writers}",
                     "DAEMON_THREAD_POOL_SIZE": "{daemon_thread_pool_size}",
                     "INTERNAL_BASTION_IP": "{internal_bastion_ip}",
+                    "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
                     "SFTP_USER": "{sftp_user}",
                     "SSH_USER": "{ssh_user}"
@@ -866,9 +910,11 @@
                 "cmd": {
                     "install": [
                         "sh/common/replace_nameserver.sh",
+                        "sh/nfs/install_client.sh",
                         "sh/prometheus/install_node_exporter.sh"
                     ],
                     "config": [
+                        "sh/nfs/config_client.sh",
                         "sh/logrotate/config_capidaemon_logrotate.sh",
                         "sh/rsyslog/config_capidaemon_log_sender.sh",
                         "sh/prometheus/config_node_exporter.sh",
@@ -907,6 +953,7 @@
                     "DAEMON_DB_WRITERS": "{daemon_db_writers}",
                     "DAEMON_THREAD_POOL_SIZE": "{daemon_thread_pool_size}",
                     "INTERNAL_BASTION_IP": "{internal_bastion_ip}",
+                    "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
                     "SFTP_USER": "{sftp_user}",
                     "SSH_USER": "{ssh_user}"
@@ -914,9 +961,11 @@
                 "cmd": {
                     "install": [
                         "sh/common/replace_nameserver.sh",
+                        "sh/nfs/install_client.sh",
                         "sh/prometheus/install_node_exporter.sh"
                     ],
                     "config": [
+                        "sh/nfs/config_client.sh",
                         "sh/logrotate/config_capidaemon_logrotate.sh",
                         "sh/rsyslog/config_capidaemon_log_sender.sh",
                         "sh/prometheus/config_node_exporter.sh",
@@ -955,6 +1004,7 @@
                     "DAEMON_DB_WRITERS": "{daemon_db_writers}",
                     "DAEMON_THREAD_POOL_SIZE": "{daemon_thread_pool_size}",
                     "INTERNAL_BASTION_IP": "{internal_bastion_ip}",
+                    "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "{prometheus_node_exporter_version}",
                     "SFTP_USER": "{sftp_user}",
                     "SSH_USER": "{ssh_user}"
@@ -962,9 +1012,11 @@
                 "cmd": {
                     "install": [
                         "sh/common/replace_nameserver.sh",
+                        "sh/nfs/install_client.sh",
                         "sh/prometheus/install_node_exporter.sh"
                     ],
                     "config": [
+                        "sh/nfs/config_client.sh",
                         "sh/logrotate/config_capidaemon_logrotate.sh",
                         "sh/rsyslog/config_capidaemon_log_sender.sh",
                         "sh/prometheus/config_node_exporter.sh",
