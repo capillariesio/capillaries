@@ -573,13 +573,6 @@
             "ip_address": "10.5.0.11",
             "flavor": "{instance_flavor_cassandra}",
             "image": "{instance_image_name}",
-            "attached_volumes": {
-                "data01": {
-                    "attachment_id": "",
-                    "device": "",
-                    "block_device_id": ""
-                }
-            },
             "id": "",
             "service": {
                 "env": {
@@ -613,13 +606,6 @@
             "ip_address": "10.5.0.12",
             "flavor": "{instance_flavor_cassandra}",
             "image": "{instance_image_name}",
-            "attached_volumes": {
-                "data02": {
-                    "attachment_id": "",
-                    "device": "",
-                    "block_device_id": ""
-                }
-            },
             "id": "",
             "service": {
                 "env": {
@@ -653,13 +639,6 @@
             "ip_address": "10.5.0.13",
             "flavor": "{instance_flavor_cassandra}",
             "image": "{instance_image_name}",
-            "attached_volumes": {
-                "data03": {
-                    "attachment_id": "",
-                    "device": "",
-                    "block_device_id": ""
-                }
-            },
             "id": "",
             "service": {
                 "env": {
@@ -693,13 +672,6 @@
             "ip_address": "10.5.0.14",
             "flavor": "{instance_flavor_cassandra}",
             "image": "{instance_image_name}",
-            "attached_volumes": {
-                "data04": {
-                    "attachment_id": "",
-                    "device": "",
-                    "block_device_id": ""
-                }
-            },
             "id": "",
             "service": {
                 "env": {
@@ -733,13 +705,6 @@
             "ip_address": "10.5.0.15",
             "flavor": "{instance_flavor_cassandra}",
             "image": "{instance_image_name}",
-            "attached_volumes": {
-                "data05": {
-                    "attachment_id": "",
-                    "device": "",
-                    "block_device_id": ""
-                }
-            },
             "id": "",
             "service": {
                 "env": {
@@ -773,13 +738,6 @@
             "ip_address": "10.5.0.16",
             "flavor": "{instance_flavor_cassandra}",
             "image": "{instance_image_name}",
-            "attached_volumes": {
-                "data06": {
-                    "attachment_id": "",
-                    "device": "",
-                    "block_device_id": ""
-                }
-            },
             "id": "",
             "service": {
                 "env": {
@@ -813,13 +771,6 @@
             "ip_address": "10.5.0.17",
             "flavor": "{instance_flavor_cassandra}",
             "image": "{instance_image_name}",
-            "attached_volumes": {
-                "data07": {
-                    "attachment_id": "",
-                    "device": "",
-                    "block_device_id": ""
-                }
-            },
             "id": "",
             "service": {
                 "env": {
@@ -853,13 +804,6 @@
             "ip_address": "10.5.0.18",
             "flavor": "{instance_flavor_cassandra}",
             "image": "{instance_image_name}",
-            "attached_volumes": {
-                "data08": {
-                    "attachment_id": "",
-                    "device": "",
-                    "block_device_id": ""
-                }
-            },
             "id": "",
             "service": {
                 "env": {
