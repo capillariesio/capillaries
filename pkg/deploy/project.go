@@ -278,7 +278,7 @@ func (prj *Project) validate() error {
 
 		if iDef.UsesSshConfigExternalIpAddress {
 			if externalIpInstanceNickname != "" {
-				return fmt.Errorf("instances share external ip address %s", externalIpInstanceNickname, iNickname)
+				return fmt.Errorf("instances (%s) share external ip address %s", iNickname, externalIpInstanceNickname)
 			}
 			externalIpInstanceNickname = iNickname
 		}
