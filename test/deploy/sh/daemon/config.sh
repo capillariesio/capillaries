@@ -2,19 +2,15 @@
 
 if [ "$CASSANDRA_HOSTS" = "" ]; then
   echo Error, missing: CASSANDRA_HOSTS='["10.5.0.11","10.5.0.12","10.5.0.13"]'
- exit 1
+  exit 1
 fi
 if [ "$AMQP_URL" = "" ]; then
   echo Error, missing: AMQP_URL=amqp://guest:guest@10.5.0.5/
- exit 1
+  exit 1
 fi
 if [ "$SSH_USER" = "" ]; then
   echo Error, missing: SSH_USER=ubuntu
- exit 1
-fi
-if [ "$SFTP_USER" = "" ]; then
-  echo Error, missing: SFTP_USER=sftpuser
- exit 1
+  exit 1
 fi
 
 pkill -2 capidaemon
@@ -33,8 +29,11 @@ ENV_CONFIG_FILE=/home/$SSH_USER/bin/capidaemon.json
 
 sed -i -e 's~"url":[ ]*"[a-zA-Z0-9@\.:\/\-_$ ]*"~"url": "'"$AMQP_URL"'"~g' $ENV_CONFIG_FILE
 sed -i -e 's~"hosts":[ ]*\[[0-9a-zA-Z\.\,\-_ "]*\]~"hosts": '$CASSANDRA_HOSTS"~g" $ENV_CONFIG_FILE
-sed -i -e "s~\"sftpuser\":[ ]*\"[^\"]*\"~\"sftpuser\": \"/home/"$SSH_USER"/.ssh/$SFTP_USER\"~g" $ENV_CONFIG_FILE
 sed -i -e 's~"python_interpreter_path":[ ]*"[a-zA-Z0-9]*"~"python_interpreter_path": "python3"~g' $ENV_CONFIG_FILE
+
+if [ ! "$SFTP_USER" != "" ]; then
+  sed -i -e "s~\"sftpuser\":[ ]*\"[^\"]*\"~\"sftpuser\": \"/home/"$SSH_USER"/.ssh/$SFTP_USER\"~g" $ENV_CONFIG_FILE
+fi
 
 # For our perf testing purposes, decrease latency at the expense of the message queue load
 # sed -i -e 's~"dead_letter_ttl":[ ]*[0-9]*~"dead_letter_ttl": 100~g' $ENV_CONFIG_FILE

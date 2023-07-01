@@ -70,7 +70,7 @@ func FindOpenstackFieldValue(rows []map[string]string, fieldName string) string 
 }
 
 func ExecLocalAndParseOpenstackOutput(prj *Project, cmdPath string, params []string) ([]map[string]string, ExecResult) {
-	er := ExecLocal(prj, cmdPath, params)
+	er := ExecLocal(prj, cmdPath, params, prj.OpenstackVars, "")
 	if er.Error != nil {
 		return nil, er
 	}

@@ -11,7 +11,7 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
-            "args": ["create_security_groups", "-verbose"]
+            "args": ["create_security_groups", "-prj", "sampledeployment002.json", "-verbose"]
         },
         {
             "name": "Deploy delete security group",
@@ -20,7 +20,7 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
-            "args": ["delete_security_group", "-verbose"]
+            "args": ["delete_security_group", "-prj", "sampledeployment002.json", "-verbose"]
         },
         {
             "name": "Deploy create networking",
@@ -29,7 +29,7 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
-            "args": ["create_networking", "-verbose"]
+            "args": ["create_networking", "-prj", "sampledeployment002.json", "-verbose"]
         },
         {
             "name": "Deploy delete networking",
@@ -38,16 +38,16 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
-            "args": ["delete_networking", "-verbose"]
+            "args": ["delete_networking", "-prj", "sampledeployment002.json", "-verbose"]
         },
         {
             "name": "Deploy create volumes",
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "cwd":"${workspaceFolder}/test/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
-            "args": ["create_volumes", "-verbose"]
+            "args": ["create_volumes", "all", "-prj", "sampledeployment002.json", "-verbose"]
         },
         {
             "name": "Deploy delete volumes",
@@ -56,7 +56,7 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
-            "args": ["delete_volumes", "-verbose"]
+            "args": ["delete_volumes", "-prj", "sampledeployment002.json", "-verbose"]
         },
         {
             "name": "Deploy create instances",
@@ -65,7 +65,7 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
-            "args": ["create_instances", "bastion,daemon01", "-verbose"]
+            "args": ["create_instances", "bastion,daemon001", "-prj", "sampledeployment002.json", "-verbose"]
         },
         {
             "name": "Deploy delete instances",
@@ -74,7 +74,7 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
-            "args": ["delete_instances", "bastion,daemon01", "-verbose"]
+            "args": ["delete_instances", "bastion,daemon001", "-prj", "sampledeployment002.json", "-verbose"]
         },
         {
             "name": "Deploy attach volumes",
@@ -83,7 +83,7 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
-            "args": ["attach_volumes", "*", "-verbose"]
+            "args": ["attach_volumes", "bastion", "-prj", "sampledeployment002.json", "-verbose"]
         },
         {
             "name": "Deploy upload files",
@@ -92,7 +92,7 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
-            "args": ["upload_files", "up_test_in,up_test_scripts", "-verbose"]
+            "args": ["upload_files", "up_test_in,up_test_scripts", "-prj", "sampledeployment002.json", "-verbose"]
         },
         {
             "name": "Deploy download files",
@@ -101,7 +101,7 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
-            "args": ["download_files", "*", "-verbose"]
+            "args": ["download_files", "all", "-prj", "sampledeployment002.json", "-verbose"]
         },
         {
             "name": "Deploy setup services",
@@ -110,7 +110,7 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
-            "args": ["setup_services", "daemon01", "-verbose"]
+            "args": ["setup_services", "daemon001", "-prj", "sampledeployment002.json", "-verbose"]
         },
         {
             "name": "Deploy start services",
@@ -119,7 +119,7 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
-            "args": ["start_services", "*", "-verbose"]
+            "args": ["start_services", "daemon001", "-prj", "sampledeployment002.json", "-verbose"]
         },
         {
             "name": "Deploy stop services",
@@ -128,7 +128,7 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
-            "args": ["stop_services", "daemon01", "-verbose"]
+            "args": ["stop_services", "daemon001", "-prj", "sampledeployment002.json", "-verbose"]
         },
         {
             "name": "Daemon",

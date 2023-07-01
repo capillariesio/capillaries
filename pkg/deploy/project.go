@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/user"
 	"path/filepath"
 	"strings"
 )
@@ -60,19 +59,17 @@ type NetworkDef struct {
 }
 
 type VolumeDef struct {
-	Name        string `json:"name"`
-	MountPoint  string `json:"mount_point"`
-	Size        int    `json:"size"`
-	Type        string `json:"type"`
-	Permissions int    `json:"permissions"`
-	Owner       string `json:"owner"`
-	Id          string `json:"id"`
-}
-
-type AttachedVolumeDef struct {
-	AttachmentId  string `json:"attachment_id"`
-	Device        string `json:"device"`
-	BlockDeviceId string `json:"block_device_id"`
+	Name             string `json:"name"`
+	MountPoint       string `json:"mount_point"`
+	Size             int    `json:"size"`
+	Type             string `json:"type"`
+	Permissions      int    `json:"permissions"`
+	Owner            string `json:"owner"`
+	AvailabilityZone string `json:"availability_zone"`
+	VolumeId         string `json:"id"`
+	AttachmentId     string `json:"attachment_id"`
+	Device           string `json:"device"`
+	BlockDeviceId    string `json:"block_device_id"`
 }
 
 type ServiceCommandsDef struct {
@@ -87,46 +84,50 @@ type ServiceDef struct {
 }
 
 type UserDef struct {
-	Name      string `json:"name"`
-	PublicKey string `json:"public_key"`
+	Name          string `json:"name"`
+	PublicKeyPath string `json:"public_key_path"`
 }
 type PrivateKeyDef struct {
-	Name       string `json:"name"`
-	PrivateKey string `json:"private_key"`
+	Name           string `json:"name"`
+	PrivateKeyPath string `json:"private_key_path"`
 }
 type InstanceDef struct {
-	HostName              string                        `json:"host_name"`
-	SecurityGroupNickname string                        `json:"security_group"`
-	IpAddress             string                        `json:"ip_address"`
-	FloatingIpAddress     string                        `json:"floating_ip_address,omitempty"`
-	FlavorName            string                        `json:"flavor"`
-	ImageName             string                        `json:"image"`
-	AttachedVolumes       map[string]*AttachedVolumeDef `json:"attached_volumes,omitempty"`
-	Id                    string                        `json:"id"`
-	Users                 []UserDef                     `json:"users,omitempty"`
-	PrivateKeys           []PrivateKeyDef               `json:"private_keys,omitempty"`
-	Service               ServiceDef                    `json:"service"`
-	ApplicableFileGroups  []string                      `json:"applicable_file_groups,omitempty"`
+	HostName                       string                `json:"host_name"`
+	SecurityGroupNickname          string                `json:"security_group"`
+	RootKeyName                    string                `json:"root_key_name"`
+	IpAddress                      string                `json:"ip_address"`
+	UsesSshConfigExternalIpAddress bool                  `json:"uses_ssh_config_external_ip_address,omitempty"`
+	ExternalIpAddress              string                `json:"external_ip_address,omitempty"`
+	FlavorName                     string                `json:"flavor"`
+	ImageName                      string                `json:"image"`
+	AvailabilityZone               string                `json:"availability_zone"`
+	Volumes                        map[string]*VolumeDef `json:"volumes,omitempty"`
+	Id                             string                `json:"id"`
+	Users                          []UserDef             `json:"users,omitempty"`
+	PrivateKeys                    []PrivateKeyDef       `json:"private_keys,omitempty"`
+	Service                        ServiceDef            `json:"service"`
+	ApplicableFileGroups           []string              `json:"applicable_file_groups,omitempty"`
 }
 
 func (iDef *InstanceDef) BestIpAddress() string {
-	if iDef.FloatingIpAddress != "" {
-		return iDef.FloatingIpAddress
+	if iDef.ExternalIpAddress != "" {
+		return iDef.ExternalIpAddress
 	}
 	return iDef.IpAddress
 }
 
 func (iDef *InstanceDef) Clean() {
 	iDef.Id = ""
-	for _, volAttachDef := range iDef.AttachedVolumes {
+	for _, volAttachDef := range iDef.Volumes {
 		volAttachDef.AttachmentId = ""
 		volAttachDef.Device = ""
 		volAttachDef.BlockDeviceId = ""
+		// Do not clean volAttachDef.VolumeId, it should be handled by delete_volumes
 	}
 }
 
 type SshConfigDef struct {
-	BastionIpAddress   string `json:"bastion_ip_address"`
+	ExternalIpAddress  string `json:"external_ip_address"`
 	Port               int    `json:"port"`
 	User               string `json:"user"`
 	PrivateKeyPath     string `json:"private_key_path"`
@@ -151,19 +152,23 @@ type FileGroupDownDef struct {
 	Src string `json:"src"`
 	Dst string `json:"dst"`
 }
+
+type BuildArtifactsDef struct {
+	Env map[string]string `json:"env"`
+	Cmd []string          `json:"cmd"`
+}
+
 type Project struct {
-	DeploymentName        string                       `json:"deployment_name"`
-	SshConfig             *SshConfigDef                `json:"ssh_config"`
-	RootKeyName           string                       `json:"root_key_name"`
-	AvailabilityZone      string                       `json:"availability_zone"`
-	Timeouts              ExecTimeouts                 `json:"timeouts"`
-	OpenstackEnvVariables map[string]string            `json:"openstack_environment_variables"`
-	SecurityGroups        map[string]*SecurityGroupDef `json:"security_groups"`
-	Network               NetworkDef                   `json:"network"`
-	Volumes               map[string]*VolumeDef        `json:"volumes"`
-	FileGroupsUp          map[string]*FileGroupUpDef   `json:"file_groups_up"`
-	FileGroupsDown        map[string]*FileGroupDownDef `json:"file_groups_down"`
-	Instances             map[string]*InstanceDef      `json:"instances"`
+	Artifacts        BuildArtifactsDef            `json:"artifacts"`
+	SshConfig        *SshConfigDef                `json:"ssh_config"`
+	Timeouts         ExecTimeouts                 `json:"timeouts"`
+	EnvVariablesUsed []string                     `json:"env_variables_used"`
+	SecurityGroups   map[string]*SecurityGroupDef `json:"security_groups"`
+	Network          NetworkDef                   `json:"network"`
+	FileGroupsUp     map[string]*FileGroupUpDef   `json:"file_groups_up"`
+	FileGroupsDown   map[string]*FileGroupDownDef `json:"file_groups_down"`
+	Instances        map[string]*InstanceDef      `json:"instances"`
+	OpenstackVars    map[string]string
 }
 
 type ProjectPair struct {
@@ -197,29 +202,44 @@ func (prjPair *ProjectPair) SetRouterId(newId string) {
 	prjPair.Live.Network.Router.Id = newId
 }
 
+func (prjPair *ProjectPair) SetSshExternalIp(newIp string) {
+	prjPair.Template.SshConfig.ExternalIpAddress = newIp
+	prjPair.Live.SshConfig.ExternalIpAddress = newIp
+	for _, iDef := range prjPair.Template.Instances {
+		if iDef.UsesSshConfigExternalIpAddress {
+			iDef.ExternalIpAddress = newIp
+		}
+	}
+	for _, iDef := range prjPair.Live.Instances {
+		if iDef.UsesSshConfigExternalIpAddress {
+			iDef.ExternalIpAddress = newIp
+		}
+	}
+}
+
 func (prjPair *ProjectPair) SetSubnetId(newId string) {
 	prjPair.Template.Network.Subnet.Id = newId
 	prjPair.Live.Network.Subnet.Id = newId
 }
 
-func (prjPair *ProjectPair) SetVolumeId(volNickname string, newId string) {
-	prjPair.Template.Volumes[volNickname].Id = newId
-	prjPair.Live.Volumes[volNickname].Id = newId
+func (prjPair *ProjectPair) SetVolumeId(iNickname string, volNickname string, newId string) {
+	prjPair.Template.Instances[iNickname].Volumes[volNickname].VolumeId = newId
+	prjPair.Live.Instances[iNickname].Volumes[volNickname].VolumeId = newId
 }
 
 func (prjPair *ProjectPair) SetAttachedVolumeDevice(iNickname string, volNickname string, device string) {
-	prjPair.Template.Instances[iNickname].AttachedVolumes[volNickname].Device = device
-	prjPair.Live.Instances[iNickname].AttachedVolumes[volNickname].Device = device
+	prjPair.Template.Instances[iNickname].Volumes[volNickname].Device = device
+	prjPair.Live.Instances[iNickname].Volumes[volNickname].Device = device
 }
 
 func (prjPair *ProjectPair) SetVolumeAttachmentId(iNickname string, volNickname string, newId string) {
-	prjPair.Template.Instances[iNickname].AttachedVolumes[volNickname].AttachmentId = newId
-	prjPair.Live.Instances[iNickname].AttachedVolumes[volNickname].AttachmentId = newId
+	prjPair.Template.Instances[iNickname].Volumes[volNickname].AttachmentId = newId
+	prjPair.Live.Instances[iNickname].Volumes[volNickname].AttachmentId = newId
 }
 
 func (prjPair *ProjectPair) SetVolumeBlockDeviceId(iNickname string, volNickname string, newId string) {
-	prjPair.Template.Instances[iNickname].AttachedVolumes[volNickname].BlockDeviceId = newId
-	prjPair.Live.Instances[iNickname].AttachedVolumes[volNickname].BlockDeviceId = newId
+	prjPair.Template.Instances[iNickname].Volumes[volNickname].BlockDeviceId = newId
+	prjPair.Live.Instances[iNickname].Volumes[volNickname].BlockDeviceId = newId
 }
 
 func (prjPair *ProjectPair) CleanInstance(iNickname string) {
@@ -236,7 +256,7 @@ func (prj *Project) validate() error {
 	// Check instance presence and uniqueness: hostnames, ip addresses, security groups
 	hostnameMap := map[string]struct{}{}
 	internalIpMap := map[string]struct{}{}
-	floatingIpMap := map[string]struct{}{}
+	externalIpInstanceNickname := ""
 	referencedUpFileGroups := map[string]struct{}{}
 	referencedDownFileGroups := map[string]struct{}{}
 	for iNickname, iDef := range prj.Instances {
@@ -256,11 +276,11 @@ func (prj *Project) validate() error {
 		}
 		internalIpMap[iDef.IpAddress] = struct{}{}
 
-		if iDef.FloatingIpAddress != "" {
-			if _, ok := floatingIpMap[iDef.FloatingIpAddress]; ok {
-				return fmt.Errorf("instances share floating ip %s", iDef.FloatingIpAddress)
+		if iDef.UsesSshConfigExternalIpAddress {
+			if externalIpInstanceNickname != "" {
+				return fmt.Errorf("instances (%s) share external ip address %s", iNickname, externalIpInstanceNickname)
 			}
-			floatingIpMap[iDef.FloatingIpAddress] = struct{}{}
+			externalIpInstanceNickname = iNickname
 		}
 
 		// Security groups
@@ -288,11 +308,11 @@ func (prj *Project) validate() error {
 	}
 
 	// Need at least one floating ip address
-	if len(floatingIpMap) == 0 {
-		return fmt.Errorf("none of the instances has floating ip address, at least one must have it")
+	if externalIpInstanceNickname == "" {
+		return fmt.Errorf("none of the instances is using ssh_config_external_ip, at least one must have it")
 	}
 
-	// All file groups shpuld be referenced, otherwise useless
+	// All file groups should be referenced, otherwise useless
 	for fgName, _ := range prj.FileGroupsUp {
 		if _, ok := referencedUpFileGroups[fgName]; !ok {
 			return fmt.Errorf("up file group %s not reference by any instance, consider removing it", fgName)
@@ -307,65 +327,19 @@ func (prj *Project) validate() error {
 	return nil
 }
 
-func LoadProject(prjFile string, prjParamsFile string) (*ProjectPair, string, error) {
-	exec, err := os.Executable()
+func LoadProject(prjFile string) (*ProjectPair, string, error) {
+	prjFullPath, err := filepath.Abs(prjFile)
 	if err != nil {
-		return nil, "", fmt.Errorf("cannot find current executable path: %s", err.Error())
-	}
-	cwd, err := os.Getwd()
-	if err != nil {
-		return nil, "", fmt.Errorf("cannot get current dir: [%s]", err.Error())
-	}
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return nil, "", fmt.Errorf("cannot get home dir: [%s]", err.Error())
-	}
-
-	usr, err := user.Current()
-	if err != nil {
-		return nil, "", fmt.Errorf("cannot get current user: [%s]", err.Error())
-	}
-
-	prjFullPath := prjFile
-	if strings.HasPrefix(prjFile, "~/") {
-		prjFullPath = filepath.Join(usr.HomeDir, prjFile[2:])
+		return nil, "", fmt.Errorf("cannot get absolute path of %s: %s", prjFile, err.Error())
 	}
 
 	if _, err := os.Stat(prjFullPath); err != nil {
-		prjFullPath = filepath.Join(filepath.Dir(exec), prjFile)
-		if _, err := os.Stat(prjFullPath); err != nil {
-			prjFullPath = filepath.Join(cwd, prjFile)
-			if _, err := os.Stat(prjFullPath); err != nil {
-				return nil, "", fmt.Errorf("cannot find project file [%s], neither at [%s] nor at current dir [%s]: [%s]", prjFile, filepath.Dir(exec), filepath.Join(cwd, prjFile), err.Error())
-			}
-		}
-	}
-
-	prjParamsFullPath := prjParamsFile
-	if strings.HasPrefix(prjParamsFile, "~/") {
-		prjFullPath = filepath.Join(usr.HomeDir, prjParamsFile[2:])
-	}
-	if _, err := os.Stat(prjParamsFullPath); err != nil {
-		prjParamsFullPath = filepath.Join(filepath.Dir(exec), prjParamsFile)
-		if _, err := os.Stat(prjParamsFullPath); err != nil {
-			prjParamsFullPath = filepath.Join(cwd, prjParamsFile)
-			if _, err := os.Stat(prjParamsFullPath); err != nil {
-				prjParamsFullPath = filepath.Join(homeDir, prjParamsFile)
-				if _, err := os.Stat(prjParamsFullPath); err != nil {
-					return nil, "", fmt.Errorf("cannot find project params file [%s]: neither at [%s], at current dir [%s], at home dir [%s]: [%s]", prjParamsFile, filepath.Dir(exec), filepath.Join(cwd, prjParamsFile), filepath.Join(homeDir, prjParamsFile), err.Error())
-				}
-			}
-		}
+		return nil, "", fmt.Errorf("cannot find project file [%s]: [%s]", prjFullPath, err.Error())
 	}
 
 	prjBytes, err := ioutil.ReadFile(prjFullPath)
 	if err != nil {
 		return nil, "", fmt.Errorf("cannot read project file %s: %s", prjFullPath, err.Error())
-	}
-
-	prjParamsBytes, err := ioutil.ReadFile(prjParamsFullPath)
-	if err != nil {
-		return nil, "", fmt.Errorf("cannot read project params file %s: %s", prjParamsFullPath, err.Error())
 	}
 
 	prjPair := ProjectPair{ProjectFileDirPath: filepath.Dir(prjFullPath)}
@@ -379,24 +353,36 @@ func LoadProject(prjFile string, prjParamsFile string) (*ProjectPair, string, er
 
 	prjString := string(prjBytes)
 
-	// Read project params
+	// Read params from env variables, save OS_* vars in prjPair.Live.OpenstackVars
 
-	var prjParams map[string]string
-	if err := json.Unmarshal(prjParamsBytes, &prjParams); err != nil {
-		return nil, "", fmt.Errorf("cannot parse project params file %s: %s", prjParamsFullPath, err.Error())
+	envVars := map[string]string{}
+	for _, envVar := range prjPair.Template.EnvVariablesUsed {
+		envVars[envVar] = os.Getenv(envVar)
 	}
 
-	// Replace project params
+	// Replace env vars
+
 	// Revert unescaping in parameter values caused by JSON - we want to preserve `\n"` and `\"`
 	escapeReplacer := strings.NewReplacer("\n", "\\n", `"`, `\"`)
-	for k, v := range prjParams {
+	for k, v := range envVars {
 		prjString = strings.ReplaceAll(prjString, fmt.Sprintf("{%s}", k), escapeReplacer.Replace(v))
 	}
+
+	// Hacky way to provide bastion ip
+	prjString = strings.ReplaceAll(prjString, "{EXTERNAL_IP_ADDRESS}", prjPair.Template.SshConfig.ExternalIpAddress)
 
 	// Re-deserialize, now with replaced params
 
 	if err := json.Unmarshal([]byte(prjString), &prjPair.Live); err != nil {
 		return nil, "", fmt.Errorf("cannot parse project file with replaced vars %s: %s", prjFullPath, err.Error())
+	}
+
+	// Initialize OpenstackVars for calling openstack cmd locally
+	prjPair.Live.OpenstackVars = map[string]string{}
+	for k, v := range envVars {
+		if strings.HasPrefix(k, "OS_") {
+			prjPair.Live.OpenstackVars[k] = v
+		}
 	}
 
 	if err := prjPair.Live.validate(); err != nil {

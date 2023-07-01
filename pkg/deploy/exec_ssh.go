@@ -65,7 +65,7 @@ func (tsc *TunneledSshClient) Close() {
 func NewTunneledSshClient(sshConfig *SshConfigDef, ipAddress string) (*TunneledSshClient, error) {
 	bastionSshClientConfig, err := xfer.NewSshClientConfig(
 		sshConfig.User,
-		sshConfig.BastionIpAddress,
+		sshConfig.ExternalIpAddress,
 		sshConfig.Port,
 		sshConfig.PrivateKeyPath,
 		sshConfig.PrivateKeyPassword)
@@ -73,11 +73,11 @@ func NewTunneledSshClient(sshConfig *SshConfigDef, ipAddress string) (*TunneledS
 		return nil, err
 	}
 
-	bastionUrl := fmt.Sprintf("%s:%d", sshConfig.BastionIpAddress, sshConfig.Port)
+	bastionUrl := fmt.Sprintf("%s:%d", sshConfig.ExternalIpAddress, sshConfig.Port)
 
 	tsc := TunneledSshClient{}
 
-	if ipAddress == sshConfig.BastionIpAddress {
+	if ipAddress == sshConfig.ExternalIpAddress {
 		// Go directly to bastion
 		tsc.SshClient, err = ssh.Dial("tcp", bastionUrl, bastionSshClientConfig)
 		if err != nil {

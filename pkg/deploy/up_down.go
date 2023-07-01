@@ -269,7 +269,7 @@ func DownloadFileSftp(prj *Project, ipAddress string, srcPath string, dstPath st
 	}
 	defer sftp.Close()
 
-	if err := os.MkdirAll(filepath.Dir(dstPath), 0666); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dstPath), 0777); err != nil {
 		return lb.Complete(fmt.Errorf("cannot create target dir for %s: %s", dstPath, err.Error()))
 	}
 
