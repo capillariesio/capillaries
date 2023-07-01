@@ -62,12 +62,21 @@ init_volume_attachment()
 }
 `
 
-func CreateVolume(prjPair *ProjectPair, volNickname string, isVerbose bool) (LogMsg, error) {
+func CreateVolume(prjPair *ProjectPair, iNickname string, volNickname string, isVerbose bool) (LogMsg, error) {
 	lb := NewLogBuilder(fmt.Sprintf("CreateVolume: %s", volNickname), isVerbose)
-	if prjPair.Live.Volumes[volNickname].Name == "" ||
-		prjPair.Live.Volumes[volNickname].MountPoint == "" ||
-		prjPair.Live.Volumes[volNickname].Size == 0 {
-		return lb.Complete(fmt.Errorf("volume name, mount point, size cannot be empty"))
+	if prjPair.Live.Instances[iNickname].Volumes[volNickname].MountPoint == "" ||
+		prjPair.Live.Instances[iNickname].Volumes[volNickname].AvailabilityZone == "" ||
+		prjPair.Live.Instances[iNickname].Volumes[volNickname].Name == "" ||
+		prjPair.Live.Instances[iNickname].Volumes[volNickname].Permissions == 0 ||
+		prjPair.Live.Instances[iNickname].Volumes[volNickname].Owner == "" ||
+		prjPair.Live.Instances[iNickname].Volumes[volNickname].Size == 0 {
+		return lb.Complete(fmt.Errorf("volume name(%s), mount point(%s), availability zone(%s), size(%d), permissions(%d), owner(%s) cannot be empty",
+			prjPair.Live.Instances[iNickname].Volumes[volNickname].Name,
+			prjPair.Live.Instances[iNickname].Volumes[volNickname].MountPoint,
+			prjPair.Live.Instances[iNickname].Volumes[volNickname].AvailabilityZone,
+			prjPair.Live.Instances[iNickname].Volumes[volNickname].Size,
+			prjPair.Live.Instances[iNickname].Volumes[volNickname].Permissions,
+			prjPair.Live.Instances[iNickname].Volumes[volNickname].Owner))
 	}
 
 	rows, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"volume", "list"})
@@ -78,32 +87,36 @@ func CreateVolume(prjPair *ProjectPair, volNickname string, isVerbose bool) (Log
 
 	// | ID                                   | Name                       | Status    | Size | Attached to |
 	// | 8aa8a5e8-2aad-4006-8911-af7de31b08fb | sample_deployment_name_cfg | available |    1 |             |
-	foundVolIdByName := FindOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.Volumes[volNickname].Name)
-	if prjPair.Live.Volumes[volNickname].Id == "" {
+	foundVolIdByName := FindOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.Instances[iNickname].Volumes[volNickname].Name)
+	if prjPair.Live.Instances[iNickname].Volumes[volNickname].VolumeId == "" {
 		// If it was already created, save it for future use, but do not create
 		if foundVolIdByName != "" {
-			lb.Add(fmt.Sprintf("volume %s(%s) already there, updating project", prjPair.Live.Volumes[volNickname].Name, foundVolIdByName))
-			prjPair.SetVolumeId(volNickname, foundVolIdByName)
+			lb.Add(fmt.Sprintf("volume %s(%s) already there, updating project", prjPair.Live.Instances[iNickname].Volumes[volNickname].Name, foundVolIdByName))
+			//fmt.Printf("Setting existing %s-%s %s\n", iNickname, volNickname, foundVolIdByName)
+			prjPair.SetVolumeId(iNickname, volNickname, foundVolIdByName)
 		}
 	} else {
 		if foundVolIdByName == "" {
 			// It was supposed to be there, but it's not present, complain
-			return lb.Complete(fmt.Errorf("requested volume id %s not present, consider removing this id from the project file", prjPair.Live.Volumes[volNickname].Id))
-		} else if prjPair.Live.Volumes[volNickname].Id != foundVolIdByName {
+			return lb.Complete(fmt.Errorf("requested volume id %s not present, consider removing this id from the project file", prjPair.Live.Instances[iNickname].Volumes[volNickname].VolumeId))
+		} else if prjPair.Live.Instances[iNickname].Volumes[volNickname].VolumeId != foundVolIdByName {
 			// It is already there, but has different id, complain
-			return lb.Complete(fmt.Errorf("requested volume id %s not matching existing volume id %s", prjPair.Live.Volumes[volNickname].Id, foundVolIdByName))
+			return lb.Complete(fmt.Errorf("requested volume id %s not matching existing volume id %s", prjPair.Live.Instances[iNickname].Volumes[volNickname].VolumeId, foundVolIdByName))
 		}
 	}
 
-	if prjPair.Live.Volumes[volNickname].Id != "" {
-		lb.Add(fmt.Sprintf("volume %s(%s) already there, no need to create", prjPair.Live.Volumes[volNickname].Name, foundVolIdByName))
+	if prjPair.Live.Instances[iNickname].Volumes[volNickname].VolumeId != "" {
+		lb.Add(fmt.Sprintf("volume %s(%s) already there, no need to create", prjPair.Live.Instances[iNickname].Volumes[volNickname].Name, foundVolIdByName))
 		return lb.Complete(nil)
 	}
 
-	volCreateParams := []string{"volume", "create", "--size", fmt.Sprintf("%d", prjPair.Live.Volumes[volNickname].Size), "--availability-zone", prjPair.Live.AvailabilityZone, prjPair.Live.Volumes[volNickname].Name}
-	if prjPair.Live.Volumes[volNickname].Type != "" {
+	volCreateParams := []string{"volume", "create",
+		"--size", fmt.Sprintf("%d", prjPair.Live.Instances[iNickname].Volumes[volNickname].Size),
+		"--availability-zone", prjPair.Live.Instances[iNickname].Volumes[volNickname].AvailabilityZone,
+		prjPair.Live.Instances[iNickname].Volumes[volNickname].Name}
+	if prjPair.Live.Instances[iNickname].Volumes[volNickname].Type != "" {
 		volCreateParams = append(volCreateParams, "--type")
-		volCreateParams = append(volCreateParams, prjPair.Live.Volumes[volNickname].Type)
+		volCreateParams = append(volCreateParams, prjPair.Live.Instances[iNickname].Volumes[volNickname].Type)
 	}
 
 	rows, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", volCreateParams)
@@ -118,16 +131,17 @@ func CreateVolume(prjPair *ProjectPair, volNickname string, isVerbose bool) (Log
 		return lb.Complete(fmt.Errorf("openstack returned empty volume id"))
 	}
 
-	lb.Add(fmt.Sprintf("created volume %s: %s(%s)", volNickname, prjPair.Live.Volumes[volNickname].Name, newId))
-	prjPair.SetVolumeId(volNickname, newId)
+	lb.Add(fmt.Sprintf("created volume %s: %s(%s)", volNickname, prjPair.Live.Instances[iNickname].Volumes[volNickname].Name, newId))
+	prjPair.SetVolumeId(iNickname, volNickname, newId)
+	//fmt.Printf("Setting id %s-%s %s\n", iNickname, volNickname, newId)
 
 	return lb.Complete(nil)
 }
 
-func DeleteVolume(prjPair *ProjectPair, volNickname string, isVerbose bool) (LogMsg, error) {
+func DeleteVolume(prjPair *ProjectPair, iNickname string, volNickname string, isVerbose bool) (LogMsg, error) {
 	lb := NewLogBuilder(fmt.Sprintf("DeleteVolume: %s", volNickname), isVerbose)
-	if prjPair.Live.Volumes[volNickname].Name == "" {
-		return lb.Complete(fmt.Errorf("volume name, mount point, size cannot be empty"))
+	if prjPair.Live.Instances[iNickname].Volumes[volNickname].VolumeId == "" {
+		return lb.Complete(fmt.Errorf("volume id cannot be empty"))
 	}
 
 	rows, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"volume", "list"})
@@ -138,27 +152,27 @@ func DeleteVolume(prjPair *ProjectPair, volNickname string, isVerbose bool) (Log
 
 	// | ID                                   | Name                       | Status    | Size | Attached to |
 	// | 8aa8a5e8-2aad-4006-8911-af7de31b08fb | sample_deployment_name_cfg | available |    1 |             |
-	foundVolIdByName := FindOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.Volumes[volNickname].Name)
+	foundVolIdByName := FindOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.Instances[iNickname].Volumes[volNickname].Name)
 	if foundVolIdByName == "" {
-		lb.Add(fmt.Sprintf("volume %s not found, nothing to delete", prjPair.Live.Volumes[volNickname].Name))
-		prjPair.SetVolumeId(volNickname, "")
+		lb.Add(fmt.Sprintf("volume %s not found, nothing to delete", prjPair.Live.Instances[iNickname].Volumes[volNickname].Name))
+		prjPair.SetVolumeId(iNickname, volNickname, "")
 		return lb.Complete(nil)
 	}
 
-	_, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"volume", "delete", prjPair.Live.Volumes[volNickname].Name})
+	_, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"volume", "delete", prjPair.Live.Instances[iNickname].Volumes[volNickname].Name})
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)
 	}
 
-	lb.Add(fmt.Sprintf("deleted volume %s, updating project file", prjPair.Live.Volumes[volNickname].Name))
-	prjPair.SetVolumeId(volNickname, "")
+	lb.Add(fmt.Sprintf("deleted volume %s_%s, updating project file", iNickname, volNickname))
+	prjPair.SetVolumeId(iNickname, volNickname, "")
 
 	return lb.Complete(nil)
 }
 
 func ShowVolumeAttachment(prj *Project, volNickname string, iNickname string, isVerbose bool) (string, LogMsg, error) {
-	rows, er := ExecLocalAndParseOpenstackOutput(prj, "openstack", []string{"volume", "show", prj.Volumes[volNickname].Id})
+	rows, er := ExecLocalAndParseOpenstackOutput(prj, "openstack", []string{"volume", "show", prj.Instances[iNickname].Volumes[volNickname].VolumeId})
 	lb := NewLogBuilder(fmt.Sprintf("%s on %s", er.Cmd, iNickname), isVerbose)
 	lb.Add(er.ToString())
 	if er.Error != nil {
@@ -169,7 +183,7 @@ func ShowVolumeAttachment(prj *Project, volNickname string, iNickname string, is
 	// | attachments  | [{'server_id': '...', 'attachment_id': '...', ...}] |
 	foundAttachmentsJson := FindOpenstackFieldValue(rows, "attachments")
 	if foundAttachmentsJson == "" {
-		logMsg, err := lb.Complete(fmt.Errorf("cannot find attachments for volume %s, expected to see the newly created one", prj.Volumes[volNickname].Id))
+		logMsg, err := lb.Complete(fmt.Errorf("cannot find attachments for volume %s, expected to see the newly created one", prj.Instances[iNickname].Volumes[volNickname].VolumeId))
 		return "", logMsg, err
 	}
 	var foundAttachmentsArray []map[string]string
@@ -194,8 +208,8 @@ func ShowVolumeAttachment(prj *Project, volNickname string, iNickname string, is
 
 func AttachVolume(prjPair *ProjectPair, iNickname string, volNickname string, isVerbose bool) (LogMsg, error) {
 	lb := NewLogBuilder(fmt.Sprintf("AttachVolume: %s to %s", volNickname, iNickname), isVerbose)
-	if prjPair.Live.Volumes[volNickname].Id == "" || prjPair.Live.Instances[iNickname].Id == "" {
-		return lb.Complete(fmt.Errorf("cannot attach volume %s(%s) to %s(%s), no empty ids allowed", volNickname, prjPair.Live.Volumes[volNickname].Id, iNickname, prjPair.Live.Instances[iNickname].Id))
+	if prjPair.Live.Instances[iNickname].Volumes[volNickname].VolumeId == "" || prjPair.Live.Instances[iNickname].Id == "" {
+		return lb.Complete(fmt.Errorf("cannot attach volume %s(%s) to %s(%s), no empty ids allowed", volNickname, prjPair.Live.Instances[iNickname].Volumes[volNickname].VolumeId, iNickname, prjPair.Live.Instances[iNickname].Id))
 	}
 
 	rows, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"server", "volume", "list", prjPair.Live.Instances[iNickname].Id})
@@ -206,9 +220,9 @@ func AttachVolume(prjPair *ProjectPair, iNickname string, volNickname string, is
 
 	// | ID                                   | Device   | Server ID                            | Volume ID                            |
 	// | 8b9b3491-f083-4485-8374-258372f3db35 | /dev/vdb | 216f9481-4c9d-4530-b865-51cedfa4b8e7 | 8b9b3491-f083-4485-8374-258372f3db35 |
-	foundDevice := FindOpenstackColumnValue(rows, "Device", "Volume ID", prjPair.Live.Volumes[volNickname].Id)
+	foundDevice := FindOpenstackColumnValue(rows, "Device", "Volume ID", prjPair.Live.Instances[iNickname].Volumes[volNickname].VolumeId)
 	// Do not compare/complain, just overwrite: the number of attachment does not help catch unaccounted cloud resources anyways
-	if prjPair.Live.Instances[iNickname].AttachedVolumes[volNickname].Device != "" {
+	if prjPair.Live.Instances[iNickname].Volumes[volNickname].Device != "" {
 		if foundDevice != "" {
 			lb.Add(fmt.Sprintf("volume %s already attached to %s, device %s, updating project", volNickname, iNickname, foundDevice))
 		} else {
@@ -216,14 +230,14 @@ func AttachVolume(prjPair *ProjectPair, iNickname string, volNickname string, is
 		}
 		prjPair.SetAttachedVolumeDevice(iNickname, volNickname, foundDevice)
 	} else {
-		if foundDevice != "" && foundDevice != prjPair.Live.Instances[iNickname].AttachedVolumes[volNickname].Device {
-			lb.Add(fmt.Sprintf("volume %s already to %s, but with a different device(%s->%s), updating project", volNickname, iNickname, prjPair.Live.Instances[iNickname].AttachedVolumes[volNickname].Device, foundDevice))
+		if foundDevice != "" && foundDevice != prjPair.Live.Instances[iNickname].Volumes[volNickname].Device {
+			lb.Add(fmt.Sprintf("volume %s already to %s, but with a different device(%s->%s), updating project", volNickname, iNickname, prjPair.Live.Instances[iNickname].Volumes[volNickname].Device, foundDevice))
 			prjPair.SetAttachedVolumeDevice(iNickname, volNickname, foundDevice)
 		}
 	}
 
-	if prjPair.Live.Instances[iNickname].AttachedVolumes[volNickname].Device == "" {
-		rows, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"server", "add", "volume", prjPair.Live.Instances[iNickname].Id, prjPair.Live.Volumes[volNickname].Id})
+	if prjPair.Live.Instances[iNickname].Volumes[volNickname].Device == "" {
+		rows, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"server", "add", "volume", prjPair.Live.Instances[iNickname].Id, prjPair.Live.Instances[iNickname].Volumes[volNickname].VolumeId})
 		lb.Add(er.ToString())
 		if er.Error != nil {
 			return lb.Complete(er.Error)
@@ -260,19 +274,23 @@ func AttachVolume(prjPair *ProjectPair, iNickname string, volNickname string, is
 		time.Sleep(5 * time.Second)
 	}
 
-	if prjPair.Live.Instances[iNickname].AttachedVolumes[volNickname].AttachmentId == "" {
+	if prjPair.Live.Instances[iNickname].Volumes[volNickname].AttachmentId == "" {
 		return lb.Complete(fmt.Errorf("cannot find newly created attachment, volume %s, instance %s", volNickname, iNickname))
 	}
 
 	blockDeviceId, er := ExecSshAndReturnLastLine(prjPair.Live.SshConfig, prjPair.Live.Instances[iNickname].BestIpAddress(), fmt.Sprintf("%s\ninit_volume_attachment %s %s %d '%s'",
 		InitVolumeAttachmentFunc,
-		prjPair.Live.Instances[iNickname].AttachedVolumes[volNickname].Device,
-		prjPair.Live.Volumes[volNickname].MountPoint,
-		prjPair.Live.Volumes[volNickname].Permissions,
-		prjPair.Live.Volumes[volNickname].Owner))
+		prjPair.Live.Instances[iNickname].Volumes[volNickname].Device,
+		prjPair.Live.Instances[iNickname].Volumes[volNickname].MountPoint,
+		prjPair.Live.Instances[iNickname].Volumes[volNickname].Permissions,
+		prjPair.Live.Instances[iNickname].Volumes[volNickname].Owner))
 	lb.Add(er.ToString())
 	if er.Error != nil {
-		return lb.Complete(er.Error)
+		return lb.Complete(fmt.Errorf("cannot attach volume %s, instance %s: %s", volNickname, iNickname, er.Error.Error()))
+	}
+
+	if blockDeviceId == "" {
+		return lb.Complete(fmt.Errorf("cannot attach volume %s, instance %s, returned blockDeviceId is empty, try -verbose", volNickname, iNickname))
 	}
 
 	lb.Add(fmt.Sprintf("initialized volume %s on %s, uuid %s", volNickname, iNickname, blockDeviceId))

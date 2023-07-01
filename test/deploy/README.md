@@ -15,201 +15,132 @@ On the diagram below, each rectangle represents a VPS instance that performs som
 - works as a jump host so users have SSH access to other instances in the private network
 - accumulates Capillaries Daemon logs in /var/log/capillaries using rsyslog
 
-Capillaries configuration scripts and in/out data are stored on separate volumes. In current test implementation, Bastion instances mounts them as /mnt/capi_cfg,/mnt/capi_in, /mnt/capi_out and gives Capillaries Daemons SFTP access to them. Alternatively, if cloud provider supports multi-attach volumes, Daemon instances can mount all three volumes directly, so there will be no need for SFTP file access. 
+Capillaries configuration scripts and in/out data are stored on separate volumes. In current test implementation, Bastion instances mounts them as /mnt/capi_cfg,/mnt/capi_in, /mnt/capi_out and gives Capillaries Daemons SFTP and NFS access to them. 
 
 ![Public cloud deployment](./doc/cloud-deployment.svg)
 
-## Openstack environment
+## Deployment project template (`*.jsonnet`) and deployment project (`*.json`) files
 
-1. Make sure you have an Openstack project ready, with all `OS_*` variables defined in the project parameter file. Usually, Openstack cloud provider generates a shell script that sets all those variables for you. Just manually copy those values to the parameter file, one by one.
-2. Make sure you have created the key pair for SSH access to the Openstack instances, key pair name stored in `root_key_name` in the project file. Through this document, we will be assuming the key pair is stored in `~/.ssh/` and the private key file this kind of name:  `sampledeploymentXXX_rsa`.
-3. Make sure all configuration values in the project parameters file are up-to-date. Some paramaters, like `sftp_user_private_key` may contain multi-line content - make sure you replace all line endings with `\n`.
-4. Reserve a floating IP address with your Openstack provider, this address will be assigned to the `bastion` instance and will be your gateway to all of your instances. You can do that either in Openstack UI or by running this command:
-```
-openstack floating ip create <external network name, for example, ext-net>
-```
-After reserving the IP address, make sure you:
-- update `floating_ip_address` parameter in your capideploy parameter JSON file
-- reference it in the commands using BASTION_IP environment variable (see below)
-- provide a jumphost configuration for this IP address (see below), Cassandra cluster setup will need it
-When you think you do not need the floating IP address anymore, run:
-```
-openstack floating ip delete $BASTION_IP
-```
+Capideploy tool uses deployment project file (see sample `sampledeployment002.json`) to:
+- configure creation of Openstack objects like instances and volumes and track status of those objects locally
+- push Capillaries data and binaries to created Openstack deployment
+- clean Openstack deployment
 
-To use bastion instance as an SSH jumphost, make sure you have set up this IP address for a jump host in `~/.ssh/config` file:
+Deployment project files contain description and status of each instance. When there are a lot of instances that perform the same tesk (like Cassandra nodes or instances running Capillaries [Daemon](../../doc/glossary.md#daemon)) which makes them pretty redundant. To avoid creating repetitive configurations manually, use [jsonnet](https://jsonnet.org) templates like `sampledeployment002.jsonnet`. Before deploying, make sure that you have generated a deployment project `*.json` file from the `*.jsonnet` template, and, under normal circumstances, avoid manual changes in your `*.json` file. Tweak `*.jsonnet` file and regenerate `*.json` instead. Feel free to use jsonnet interpreter of your choice for that.
 
-```
-Host <dreamhost_bastion_ip>
-  User ubuntu
-  StrictHostKeyChecking=no
-  UserKnownHostsFile=/dev/null
-  IdentityFile ~/.ssh/sampledeployment001_rsa
-Host <genesis_bastion_ip>
-  User ubuntu
-  StrictHostKeyChecking=no
-  UserKnownHostsFile=/dev/null
-  IdentityFile ~/.ssh/sampledeployment002_rsa
-```
+## Before deployment
 
-## Set environment variables
+1. Install [jq](https://jqlang.github.io/jq/). Adding jq to the list of requirements was not an easy decision, but without it, [start_cluster.sh](./start_cluster.sh) script that has to read configuration from the deployment project file would be unnecessary error-prone.
 
-Just for convenience, let's store deploy tool arguments and other configuration settings in shell variables, for example:
-```
-export capideploy=../../build/capideploy.exe
-export DEPLOY_ARGS="-prj capideploy_project_genesis.json -prj_params $HOME/capideploy_project_params_genesis.json"
-export DEPLOY_ROOT_KEY=$HOME/.ssh/sampledeployment002_rsa
-export BASTION_IP=<floating_ip_reserved_above>
-```
+2. Make sure you have created the key pair for SSH access to the Openstack instances, key pair name stored in `root_key_name` in the project file. Through this document, we will be assuming the key pair is stored in `~/.ssh/` and the private key file this kind of name:  
+`sampledeployment002_rsa`.
 
-## Build Capillaries components
+3. Make sure all SFTP key files used referenced in deployment project `sampledeployment002.json` are present.
 
-Build deploy tool to run on your dev/devops machine (this is a WSL example):
+4. Make sure all environment variables storing Capideploy and Openstack settings are set. For non-production environments, you may want to keep them in a separate private file and activate before deploying `source ~/sampledeployment002.rc`:
 
 ```
-cd ./test/deploy
-go build -o ../../build/capideploy.exe -ldflags="-s -w" ../../pkg/exe/deploy/capideploy.go
-chmod 755 ../../build/capideploy.exe
+export CAPIDEPLOY_SSH_USER=ubuntu
+export CAPIDEPLOY_SSH_PRIVATE_KEY_PASS=""
+export CAPIDEPLOY_SFTP_USER=...
+export CAPIDEPLOY_RABBITMQ_ADMIN_NAME=...
+export CAPIDEPLOY_RABBITMQ_ADMIN_PASS=...
+export CAPIDEPLOY_RABBITMQ_USER_NAME=...
+export CAPIDEPLOY_RABBITMQ_USER_PASS=...
+
+export OS_AUTH_URL=https://us-central-1.genesishosting.com:5000/v3
+export OS_PROJECT_ID=...
+export OS_PROJECT_NAME="..."
+export OS_USER_DOMAIN_NAME="..."
+export OS_PROJECT_DOMAIN_ID=...
+export OS_USERNAME="..."
+export OS_PASSWORD="..."
+export OS_REGION_NAME="us-central-1"
+export OS_INTERFACE=public
+export OS_IDENTITY_API_VERSION=3
 ```
 
-Build binaries for the cloud (Linux):
+5. Optionally, build deploy tool so you do not have to run `go run ../../../../build/capideploy.exe` every time and use `$capideploy` shortcut instead (this is a WSL example):
 
 ```
-cd ./test/deploy
-GOOS=linux GOARCH=amd64 go build -o ../../build/linux/amd64/capidaemon -ldflags="-s -w" ../../pkg/exe/daemon/capidaemon.go
-gzip -f ../../build/linux/amd64/capidaemon
-GOOS=linux GOARCH=amd64 go build -o ../../build/linux/amd64/capiwebapi -ldflags="-s -w" ../../pkg/exe/webapi/capiwebapi.go
-gzip -f ../../build/linux/amd64/capiwebapi
-GOOS=linux GOARCH=amd64 go build -o ../../build/linux/amd64/capitoolbelt -ldflags="-s -w" ../../pkg/exe/toolbelt/capitoolbelt.go
-gzip -f ../../build/linux/amd64/capitoolbelt
-GOOS=linux GOARCH=amd64 go build -o ../../build/linux/amd64/capiparquet -ldflags="-s -w" ../code/parquet/capiparquet.go
-gzip -f ../../build/linux/amd64/capiparquet
+go build -o ../../../../build/capideploy.exe -ldflags="-s -w" ../../pkg/exe/deploy/capideploy.go
+chmod 755 ../../../../build/capideploy.exe
+export capideploy=../../../../build/capideploy.exe
 ```
 
-Build [Capillaries UI](../../doc/glossary.md#capillaries-ui):
+From now on, this doc assumes `$capideploy` is present and functional.
+
+6. Prepare Capillaries binaries (build/linux/amd64) and data (/tmp/capi_in, /tmp/capi_cfg, /tmp/capi_out):
 
 ```
-cd ./ui
-export CAPILLARIES_WEBAPI_URL=http://$BASTION_IP:6543
-npm run build
+$capideploy build_artifacts -prj=sampledeployment002.json
 ```
 
-## Openstack networking and volumes
+7. Keep in mind that running deploy tool with `-verbose` parameter can be useful for troubleshooting.
 
-This step does not have to be performed often, assuming the Openstack provider does not charge for networking and volumes.
-
-The following commands will perform Openstack networking/volume setup according to your Capideploy project settings:
-```
-cd ./test/deploy
-$capideploy create_security_groups $DEPLOY_ARGS
-$capideploy create_networking $DEPLOY_ARGS
-$capideploy create_volumes $DEPLOY_ARGS
-```
-
-## Prepare test data
-
-This command will populate /tmp/capi_in, /tmp/capi_cfg, /tmp/capi_out
+## Deploy
 
 ```
-cd ./test/code/lookup/quicktest
-./1_create_data.sh
-cd ../bigtest
-./1_create_data.sh
-cd ../../py_calc
-./1_create_quicktest_data.sh
-cd ../tag_and_denormalize
-./1_create_quicktest_data.sh
-cd ../../..
-```
+# Reserve a floating IP address, it will be assigned to the bastion instance
+# and will be your gateway to all of your instances:
 
-Deployment projects are configured to tell deploy tool to pick up the files to upload from those locations.
+$capideploy create_floating_ip -prj=sampledeployment002.json
 
-## Build test environment 
+# If successful, create_floating_ip command will ask you to:
+# - update your ~/.ssh/config with a new jumphost (this is by [start_cluster.sh](./start_cluster.sh), see below)
+# - to use BASTION_IP environment variable when running commands against your deployment
 
-```
+# Openstack networking and volumes
+
+$capideploy create_security_groups -prj=sampledeployment002.json
+$capideploy create_networking -prj=sampledeployment002.json
+$capideploy create_volumes all -prj=sampledeployment002.json
+
 # Create all instances in one shot
-$capideploy create_instances all $DEPLOY_ARGS
 
-# Make sure we can actually login to each instance. If an instance is missing for too long, go to the provider console/logs for details
-$capideploy ping_instances all $DEPLOY_ARGS
+$capideploy create_instances all -prj=sampledeployment002.json
+
+# Make sure we can actually login to each instance. If an instance is
+# missing for too long, go to the provider console/logs for details
+
+until $capideploy ping_instances all -prj=sampledeployment002.json; do
+  echo Ping failed, wait...
+  sleep 10
+done
 
 # Install all pre-requisite software
-$capideploy install_services all $DEPLOY_ARGS
 
-# 1. Create sftp user (we assume that Openstack provider does not support multi-attach volumes, so we have to use sftp to read and write data files)
-# 2. Allow these instances to connect to data via sftp
-#$capideploy create_instance_users bastion $DEPLOY_ARGS
-#$capideploy copy_private_keys bastion,daemon01,daemon02,daemon03,daemon04 $DEPLOY_ARGS
+$capideploy install_services all -prj=sampledeployment002.json
 
-# Attach bastion and Cassandra volumes (data and maybe commitlog), make ssh_user (or sftp_user, if you use sftp instead of nfs) owner
-#$capideploy attach_volumes bastion,cass01,cass02,cass03,cass04,cass05,cass06,cass07,cass08 $DEPLOY_ARGS
-$capideploy attach_volumes bastion $DEPLOY_ARGS
+# Create sftp user on bastion host if needed and 
+# allow these instances to connect to data via sftp
 
-# Now it's a good time to start Cassandra cluster in a separate shell session (see next section)
+$capideploy create_instance_users bastion -prj=sampledeployment002.json
+$capideploy copy_private_keys bastion,daemon001,daemon002,daemon003,daemon004 -prj=sampledeployment002.json
+
+# Attach bastion (and Cassandra, if needed) volumes,
+# make ssh_user (or sftp_user, if you use sftp instead of nfs) owner
+
+$capideploy attach_volumes bastion -prj=sampledeployment002.json
+
+# Now it's a good time to start Cassandra cluster in a SEPARATE shell session (that has `CAPIDEPLOY_*` environment variables set, see above). After strating it, and letting it run in parallel, you continue running command in the original shell session.
+
+./start_cluster.sh sampledeployment002.json
 
 # Upload binaries and their configs in one shot. Make sure you have all binaries and test data built before uploading them (see above).
-$capideploy upload_files up_daemon_binary,up_daemon_env_config,up_webapi_env_config,up_webapi_binary,up_ui,up_toolbelt_env_config,up_toolbelt_binary,up_capiparquet_binary,up_diff_scripts $DEPLOY_ARGS
+
+$capideploy upload_files up_daemon_binary,up_daemon_env_config,up_webapi_env_config,up_webapi_binary,up_ui,up_toolbelt_env_config,up_toolbelt_binary,up_capiparquet_binary,up_diff_scripts -prj=sampledeployment002.json
 
 # Upload test files in one shot
-$capideploy upload_files up_all_cfg,up_lookup_bigtest_in,up_lookup_bigtest_out,up_lookup_quicktest_in,up_lookup_quicktest_out $DEPLOY_ARGS
+
+$capideploy upload_files up_all_cfg,up_lookup_bigtest_in,up_lookup_bigtest_out,up_lookup_quicktest_in,up_lookup_quicktest_out -prj=sampledeployment002.json
 
 # If you want to run these tests, upload corresponding data files
-$capideploy upload_files up_tag_and_denormalize_quicktest_in,up_tag_and_denormalize_quicktest_out,up_py_calc_quicktest_in,up_py_calc_quicktest_out,up_portfolio_quicktest_in $DEPLOY_ARGS
+$capideploy upload_files up_tag_and_denormalize_quicktest_in,up_tag_and_denormalize_quicktest_out,up_py_calc_quicktest_in,up_py_calc_quicktest_out,up_portfolio_quicktest_in -prj=sampledeployment002.json
 
 # Configure all services except Cassandra (which requires extra care), bastion first (it configs NFS)
-$capideploy config_services bastion $DEPLOY_ARGS
-$capideploy config_services rabbitmq,prometheus,daemon01,daemon02,daemon03,daemon04 $DEPLOY_ARGS
-```
-
-## Starting cassandra cluster
-
-This is probably the most fragile part of the provisioning process, as Cassandra nodes, if started simultaneously, may get into token collision situation. To avoid it, you can either pre-configure nodes to avoid/reduce bootstrapping (this is beyond the scope of this README), or add nodes to Cassandra cluster one by one as described below.
-
-The script below calls `config_service` deploy command for each Cassandra node and waits until `nodetool status` confirms that the node joined the cluster. It's worth running this script in a separate shell session right after `install_services` command is complete.
-
-Keep in mind that `config_service` command also restarts Cassandra on each node.
-
-```
-#! /bin/bash
-
-echo Stopping all nodes in the cluster...
-$capideploy stop_services cass01,cass02,cass03,cass04,cass05,cass06,cass07,cass08 $DEPLOY_ARGS
-
-cassNodes=('cass01:10.5.0.11' 'cass02:10.5.0.12' 'cass03:10.5.0.13' 'cass04:10.5.0.14' 'cass05:10.5.0.15' 'cass06:10.5.0.16' 'cass07:10.5.0.17' 'cass08:10.5.0.18')
-for cassNode in ${cassNodes[@]}
-do
-  cassNodeParts=(${cassNode//:/ })
-  cassNodeNickname=${cassNodeParts[0]}
-  cassNodeIp=${cassNodeParts[1]}
-  echo Configuring $cassNodeNickname $cassNodeIp...
-  $capideploy config_services $cassNodeNickname $DEPLOY_ARGS
-  if [ "$?" -ne "0" ]; then
-    echo Cannot configure Cassandra on $cassNodeNickname
-    return $?
-  fi
-  while :
-  do
-    nodetoolOutput=$(ssh -o StrictHostKeyChecking=no -i $DEPLOY_ROOT_KEY -J $BASTION_IP ubuntu@$cassNodeIp 'nodetool status' 2>&1)
-    if [[ "$nodetoolOutput" == *"UJ  $cassNodeIp"* ]]; then
-      echo $cassNodeNickname is joining the cluster, almost there, UJ ...
-    elif [[ "$nodetoolOutput" == *"InstanceNotFoundException"* ]]; then
-      echo $cassNodeNickname is not started yet, getting instance not found exception
-    elif [[ "$nodetoolOutput" == *"nodetool: Failed to connect"* ]]; then 
-      echo $cassNodeNickname is not online, nodetool cannot connect to 7199 
-    elif [[ "$nodetoolOutput" == *"Has this node finished starting up"* ]]; then 
-      echo $cassNodeNickname is not online, still starting up 
-    elif [[ "$nodetoolOutput" == *"UN  $cassNodeIp"* ]]; then
-      echo $cassNodeNickname joined the cluster
-      break
-    elif [[ "$nodetoolOutput" == *"Normal/Leaving/Joining/Moving"* ]]; then
-      echo $cassNodeNickname is about to start joining the cluster, nodetool functioning, but no UN/UJ...
-    else
-      echo $nodetoolOutput
-    fi
-    sleep 10
-  done
-done
-ssh -o StrictHostKeyChecking=no -i $DEPLOY_ROOT_KEY -J $BASTION_IP ubuntu@10.5.0.11 'nodetool status'
+$capideploy config_services bastion -prj=sampledeployment002.json
+$capideploy config_services rabbitmq,prometheus,daemon001,daemon002,daemon003,daemon004 -prj=sampledeployment002.json
 ```
 
 ## Monitoring test environment
@@ -227,7 +158,7 @@ Resource usage:
 Consolidated [Daemon](../../doc/glossary.md#daemon) log from all Daemon instances:
 
 ```
-ssh -o StrictHostKeyChecking=no -i $DEPLOY_ROOT_KEY ubuntu@$BASTION_IP
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP
 less /var/log/capidaemon/capidaemon.log
 ```
 
@@ -247,7 +178,7 @@ Start runs either using [Webapi](../../doc/glossary.md#webapi) at `http://$BASTI
 or
 
 ```
-ssh -o StrictHostKeyChecking=no -i $DEPLOY_ROOT_KEY ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_quicktest/script.json -params_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_quicktest/script_params_one_run.json -keyspace=lookup_quicktest -start_nodes=read_orders,read_order_items'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_quicktest/script.json -params_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_quicktest/script_params_one_run.json -keyspace=lookup_quicktest -start_nodes=read_orders,read_order_items'
 ```
 
 ### lookup_bigtest
@@ -262,13 +193,7 @@ ssh -o StrictHostKeyChecking=no -i $DEPLOY_ROOT_KEY ubuntu@$BASTION_IP '~/bin/ca
 or
 
 ```
-ssh -o StrictHostKeyChecking=no -i $DEPLOY_ROOT_KEY ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_bigtest/script_parquet.json -params_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_bigtest/script_params_one_run.json -keyspace=lookup_bigtest -start_nodes=read_orders,read_order_items'
-```
-
-or
-
-```
-ssh -o StrictHostKeyChecking=no -i $DEPLOY_ROOT_KEY ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=/mnt/capi_cfg/lookup_bigtest/script_parquet.json -params_file=/mnt/capi_cfg/lookup_bigtest/script_params_one_run.json -keyspace=lookup_bigtest -start_nodes=read_orders,read_order_items'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_bigtest/script_parquet.json -params_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_bigtest/script_params_one_run.json -keyspace=lookup_bigtest -start_nodes=read_orders,read_order_items'
 ```
 
 ### py_calc_quicktest
@@ -283,7 +208,7 @@ ssh -o StrictHostKeyChecking=no -i $DEPLOY_ROOT_KEY ubuntu@$BASTION_IP '~/bin/ca
 or
 
 ```
-ssh -o StrictHostKeyChecking=no -i $DEPLOY_ROOT_KEY ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/py_calc_quicktest/script.json -params_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/py_calc_quicktest/script_params.json -keyspace=py_calc_quicktest -start_nodes=read_order_items'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/py_calc_quicktest/script.json -params_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/py_calc_quicktest/script_params.json -keyspace=py_calc_quicktest -start_nodes=read_order_items'
 ```
 
 ### tag_and_denormalize_quicktest
@@ -298,42 +223,38 @@ ssh -o StrictHostKeyChecking=no -i $DEPLOY_ROOT_KEY ubuntu@$BASTION_IP '~/bin/ca
 or
 
 ```
-ssh -o StrictHostKeyChecking=no -i $DEPLOY_ROOT_KEY ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/tag_and_denormalize_quicktest/script.json -params_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/tag_and_denormalize_quicktest/script_params_one_run.json -keyspace=tag_and_denormalize_quicktest -start_nodes=read_tags,read_products'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/tag_and_denormalize_quicktest/script.json -params_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/tag_and_denormalize_quicktest/script_params_one_run.json -keyspace=tag_and_denormalize_quicktest -start_nodes=read_tags,read_products'
 ```
 
 ## Results
 
-Download all results from capi_out:
-
 ```
-$capideploy download_files down_capi_out $DEPLOY_ARGS
-```
+# Download all results from capi_out:
 
-Download consolidated Daemon log:
+$capideploy download_files down_capi_out -prj=sampledeployment002.json
 
-```
-$capideploy download_files down_capi_logs $DEPLOY_ARGS
+# Download consolidated Daemon log:
+
+$capideploy download_files down_capi_logs -prj=sampledeployment002.json
 ```
 
 ## Clear test environment
 
 ```
-# Shut down instances to save money
-$capideploy delete_instances all $DEPLOY_ARGS
+# Delete instances. Keep in mind that instances may be in a `deleting` state
+# even after this command is complete, check your cloud provider console to verify.
 
-# Delete everything (does not have to be performed often)
-$capideploy delete_volumes $DEPLOY_ARGS
-$capideploy delete_networking $DEPLOY_ARGS
-$capideploy delete_security_groups $DEPLOY_ARGS
+$capideploy delete_instances all -prj=sampledeployment002.json
+
+# Delete volumes, networking, security groups and floating ip
+
+$capideploy delete_volumes -prj=sampledeployment002.json
+$capideploy delete_networking -prj=sampledeployment002.json
+$capideploy delete_security_groups -prj=sampledeployment002.json
+$capideploy delete_floating_ip -prj=sampledeployment002.json
 ```
 
 ## Q&A
-
-### Wordy configuration
-
-Q. Why does project file contain repetitive configuration for each instance? Why not using templates?
-
-A. When deploying to the cloud, deploy tool writes the current status of each cloud resource (instance, volume etc) to the project file. So, project file is not just a recipe, it's also a snapshot of the cloud deployment status. It can go out of sync, in which case a user should be able to easily tweak it (usually, make the id of a deleted resource empty). If you need a more concise configuration structure, consider developing a templating mechanism that would take a recipe and produce a Capillaries deploy project JSON file.
 
 ### Openstack environment variables
 
@@ -350,11 +271,16 @@ A. Installing all Capillaries pre-requisites is a one-time job and can take a wh
 - can be executed multiple times per instance (like re-configuring Daemon thread parameters)
 - may be required to be executed in some specific order (like adding nodes to Cassandra cluster)
 
-### SFTP vs. multi-attach volumes
+### SFTP vs. NFS
 
-Q. Why these sample deployment projects use SFTP to read/write test data? Is there a more straightforward way?
+Q. Sample deployment project mentions SFTP, but doesn't seem to use it. Why?
 
-A. Volume capabilities differ from one provider to another. Some providers simply do not support multi-attach volumes, while SFTP is something that can be configured in any cloud. If your provider supports multi-attach volumes, feel free to change all file URIs used in your project from SFTP scheme to, say, `/mnt/capi_*`, so Webapi/Toolbelt/Daemon read/write directly from/to your volume.
+A. Just to demonstrate both approaches. Reading data via SFTP would require a lot of computing power on the bastion side (encription and compression), so the decision is to use NFS for all data: capi_cfg, capi_in, capi_out.
+To use SFTP instead of NFS for reading configs, make according changes in the `*.jsonnet` file:
+- set up_all_cfg.after.env.MOUNT_POINT_CFG to `'sftp://{CAPIDEPLOY_SFTP_USER}@' + internal_bastion_ip + '/mnt/capi_cfg'`
+- set bastion.volumes.owner to `"{CAPIDEPLOY_SFTP_USER}"`
+- remove `/mnt/capi_cfg` from all `NFS_DIRS` values
+and make sure you use `sftp://sftpuser@10.5.0.10/mnt/capi_cfg` (instead of `/mnt/capi_cfg`) prefixes for script and script parameter files when starting a test process (either in WebUI or in the command line).
 
 ### Non-Openstack clouds
 

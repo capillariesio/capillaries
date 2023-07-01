@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
+	"path"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -58,15 +61,24 @@ func CmdChainExecToString(title string, logContent string, err error, isVerbose 
 	}
 }
 
-func ExecLocal(prj *Project, cmdPath string, params []string) ExecResult {
+func ExecLocal(prj *Project, cmdPath string, params []string, envVars map[string]string, dir string) ExecResult {
 	// Protect it with a timeout
 	cmdCtx, cancel := context.WithTimeout(context.Background(), time.Duration(prj.Timeouts.OpenstackCmd*int(time.Second)))
 	defer cancel()
 
 	p := exec.CommandContext(cmdCtx, cmdPath, params...)
 
-	for k, v := range prj.OpenstackEnvVariables {
+	if dir != "" {
+		p.Dir = dir
+	}
+
+	for k, v := range envVars {
 		p.Env = append(p.Env, fmt.Sprintf("%s=%s", k, v))
+	}
+
+	// Inherit $HOME
+	if _, ok := envVars["HOME"]; !ok {
+		p.Env = append(p.Env, fmt.Sprintf("HOME=%s", os.Getenv("HOME")))
 	}
 
 	// Do not use pipes, work with raw data, otherwise stdout/stderr
@@ -92,4 +104,25 @@ func ExecLocal(prj *Project, cmdPath string, params []string) ExecResult {
 	} else {
 		return ExecResult{rawInput, rawOutput, rawErrors, elapsed, nil}
 	}
+}
+
+func BuildArtifacts(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
+	lb := NewLogBuilder("BuildArtifacts", isVerbose)
+	curDir, err := os.Getwd()
+	if err != nil {
+		return lb.Complete(err)
+	}
+	for _, cmd := range prjPair.Live.Artifacts.Cmd {
+		fullCmdPath, err := filepath.Abs(path.Join(curDir, cmd))
+		if err != nil {
+			return lb.Complete(err)
+		}
+		cmdDir, cmdFileName := filepath.Split(fullCmdPath)
+		er := ExecLocal(&prjPair.Live, "./"+cmdFileName, []string{}, prjPair.Live.Artifacts.Env, cmdDir)
+		lb.Add(er.ToString())
+		if er.Error != nil {
+			return lb.Complete(er.Error)
+		}
+	}
+	return lb.Complete(nil)
 }

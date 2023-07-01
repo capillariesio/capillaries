@@ -426,8 +426,10 @@ func sortAndSaveGroup(items []*GroupItem, fileBase string, formats string) {
 	sort.Slice(items, func(i, j int) bool {
 		if !items[i].TotalOrderValue.Equal(items[j].TotalOrderValue) {
 			return items[i].TotalOrderValue.GreaterThan(items[j].TotalOrderValue)
-		} else {
+		} else if !items[i].OrderPurchaseTs.Equal(items[j].OrderPurchaseTs) {
 			return items[i].OrderPurchaseTs.After(items[j].OrderPurchaseTs)
+		} else {
+			return items[i].OrderId > items[j].OrderId
 		}
 	})
 

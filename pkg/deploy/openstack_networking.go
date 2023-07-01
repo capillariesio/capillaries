@@ -6,6 +6,63 @@ import (
 	"strings"
 )
 
+func CreateFloatingIp(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
+	lb := NewLogBuilder("CreateFloatingIp", isVerbose)
+	if prjPair.Live.Network.Router.ExternalGatewayNetworkName == "" {
+		return lb.Complete(fmt.Errorf("router external_gateway_network_name cannot be empty, this is the name of the network to reserve floating IP at"))
+	}
+	rows, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"floating", "ip", "create", prjPair.Live.Network.Router.ExternalGatewayNetworkName})
+	lb.Add(er.ToString())
+	if er.Error != nil {
+		return lb.Complete(er.Error)
+	}
+
+	// | Field               | Value                                |
+	// | floating_ip_address | 104.36.110.30
+	newFloatingIp := FindOpenstackFieldValue(rows, "floating_ip_address")
+	if newFloatingIp == "" {
+		return lb.Complete(fmt.Errorf("cannot create a floating ip at %s", prjPair.Live.Network.Router.ExternalGatewayNetworkName))
+	}
+
+	prjPair.SetSshExternalIp(newFloatingIp)
+
+	fmt.Printf(`
+Floating IP reserved, now you can use it for SSH jumphost in your ~/.ssh/config:
+
+Host %s
+  User %s
+  StrictHostKeyChecking=no
+  UserKnownHostsFile=/dev/null
+  IdentityFile %s
+
+Also, you may find it convenient to use in your commands:
+
+export BASTION_IP=%s
+
+`,
+		newFloatingIp,
+		prjPair.Live.SshConfig.User,
+		prjPair.Live.SshConfig.PrivateKeyPath,
+		newFloatingIp)
+
+	return lb.Complete(nil)
+}
+
+func DeleteFloatingIp(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
+	lb := NewLogBuilder("DeleteFloatingIp", isVerbose)
+	if prjPair.Live.SshConfig.ExternalIpAddress == "" {
+		return lb.Complete(fmt.Errorf("cannot delete floating ip, ssh_config external_ip_address is already empty"))
+	}
+	_, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"floating", "ip", "delete", prjPair.Live.SshConfig.ExternalIpAddress})
+	lb.Add(er.ToString())
+	if er.Error != nil {
+		return lb.Complete(er.Error)
+	}
+
+	prjPair.SetSshExternalIp("")
+	return lb.Complete(nil)
+}
+
 func CreateSubnet(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	lb := NewLogBuilder("CreateSubnet", isVerbose)
 	if prjPair.Live.Network.Subnet.Name == "" || prjPair.Live.Network.Subnet.Cidr == "" {

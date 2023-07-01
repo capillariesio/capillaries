@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -82,9 +85,14 @@ func parsePemBlock(block *pem.Block) (interface{}, error) {
 }
 
 func NewSshClientConfig(user string, host string, port int, privateKeyPath string, privateKeyPassword string) (*ssh.ClientConfig, error) {
-	pemBytes, err := ioutil.ReadFile(privateKeyPath)
+	keyPath := privateKeyPath
+	if strings.HasPrefix(keyPath, "~/") {
+		homeDir, _ := os.UserHomeDir()
+		keyPath = filepath.Join(homeDir, keyPath[2:])
+	}
+	pemBytes, err := ioutil.ReadFile(keyPath)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read private key file %s: %s", privateKeyPath, err.Error())
+		return nil, fmt.Errorf("cannot read private key file %s: %s", keyPath, err.Error())
 	}
 
 	signer, err := signerFromPem(pemBytes, []byte(privateKeyPassword))

@@ -13,6 +13,8 @@ import (
 )
 
 const (
+	CmdCreateFloatingIp     string = "create_floating_ip"
+	CmdDeleteFloatingIp     string = "delete_floating_ip"
 	CmdCreateSecurityGroups string = "create_security_groups"
 	CmdDeleteSecurityGroups string = "delete_security_groups"
 	CmdCreateNetworking     string = "create_networking"
@@ -31,6 +33,7 @@ const (
 	CmdCreateInstanceUsers  string = "create_instance_users"
 	CmdCopyPrivateKeys      string = "copy_private_keys"
 	CmdPingInstances        string = "ping_instances"
+	CmdBuildArtifacts       string = "build_artifacts"
 )
 
 type SingleThreadCmdHandler func(*deploy.ProjectPair, bool) (deploy.LogMsg, error)
@@ -102,12 +105,14 @@ Commands:
   %s
   %s
   %s
+  %s <comma-separated list of instances to create volumes on, or 'all'>
+  %s <comma-separated list of instances to attach volumes on, or 'all'>
+  %s <comma-separated list of instances to delete volumes on, or 'all'>
   %s <comma-separated list of instances to create, or 'all'>
   %s <comma-separated list of instances to delete, or 'all'>
   %s <comma-separated list of instances to ping, or 'all'>
   %s <comma-separated list of instances to create users on, or 'all'>
   %s <comma-separated list of instances to copy private keys to, or 'all'>
-  %s <comma-separated list of instances to attach volumes to, or 'all'>
   %s <comma-separated list of upload file groups, or 'all'>
   %s <comma-separated list of download file groups, or 'all'>  
   %s <comma-separated list of instances to install services on, or 'all'>
@@ -115,11 +120,15 @@ Commands:
   %s <comma-separated list of instances to start services on, or 'all'>
   %s <comma-separated list of instances to stop services on, or 'all'>
 `,
+		CmdCreateFloatingIp,
+		CmdDeleteFloatingIp,
 		CmdCreateSecurityGroups,
 		CmdDeleteSecurityGroups,
 		CmdCreateNetworking,
 		CmdDeleteNetworking,
+
 		CmdCreateVolumes,
+		CmdAttachVolumes,
 		CmdDeleteVolumes,
 
 		CmdCreateInstances,
@@ -128,8 +137,6 @@ Commands:
 
 		CmdCreateInstanceUsers,
 		CmdCopyPrivateKeys,
-
-		CmdAttachVolumes,
 
 		CmdUploadFiles,
 		CmdDownloadFiles,
@@ -147,8 +154,7 @@ Commands:
 func main() {
 	commonArgs := flag.NewFlagSet("common args", flag.ExitOnError)
 	argVerbosity := commonArgs.Bool("verbose", false, "Debug output")
-	argPrjFile := commonArgs.String("prj", "capideploy_project.json", "Project file, looked in exe path, current dir")
-	argPrjParamsFile := commonArgs.String("prj_params", "capideploy_project_params.json", "Project params file, looked in exe path, current dir, home dir")
+	argPrjFile := commonArgs.String("prj", "capideploy.json", "Capideploy project file path")
 
 	if len(os.Args) <= 1 {
 		usage(commonArgs)
@@ -167,18 +173,22 @@ func main() {
 	var prjErr error
 
 	singleThreadCommands := map[string]SingleThreadCmdHandler{
+		CmdCreateFloatingIp:     deploy.CreateFloatingIp,
+		CmdDeleteFloatingIp:     deploy.DeleteFloatingIp,
 		CmdCreateSecurityGroups: deploy.CreateSecurityGroups,
 		CmdDeleteSecurityGroups: deploy.DeleteSecurityGroups,
 		CmdCreateNetworking:     deploy.CreateNetworking,
 		CmdDeleteNetworking:     deploy.DeleteNetworking,
+		CmdBuildArtifacts:       deploy.BuildArtifacts,
 	}
 
 	if cmdHandler, ok := singleThreadCommands[os.Args[1]]; ok {
 		commonArgs.Parse(os.Args[2:])
-		prjPair, fullPrjPath, prjErr = deploy.LoadProject(*argPrjFile, *argPrjParamsFile)
+		prjPair, fullPrjPath, prjErr = deploy.LoadProject(*argPrjFile)
 		if prjErr != nil {
 			log.Fatalf(prjErr.Error())
 		}
+
 		errChan = make(chan error, errorsExpected)
 		sem <- 1
 		go func() {
@@ -189,7 +199,7 @@ func main() {
 		}()
 	} else if os.Args[1] == CmdCreateInstances || os.Args[1] == CmdDeleteInstances {
 		commonArgs.Parse(os.Args[3:])
-		prjPair, fullPrjPath, prjErr = deploy.LoadProject(*argPrjFile, *argPrjParamsFile)
+		prjPair, fullPrjPath, prjErr = deploy.LoadProject(*argPrjFile)
 		if prjErr != nil {
 			log.Fatalf(prjErr.Error())
 		}
@@ -229,7 +239,7 @@ func main() {
 			for iNickname, _ := range instances {
 				sem <- 1
 				go func(prjPair *deploy.ProjectPair, logChan chan deploy.LogMsg, errChan chan error, iNickname string) {
-					logMsg, err := deploy.CreateInstanceAndWaitForCompletion(prjPair, iNickname, usedFlavors[prjPair.Live.Instances[iNickname].FlavorName], usedImages[prjPair.Live.Instances[iNickname].ImageName], *argVerbosity)
+					logMsg, err := deploy.CreateInstanceAndWaitForCompletion(prjPair, iNickname, usedFlavors[prjPair.Live.Instances[iNickname].FlavorName], usedImages[prjPair.Live.Instances[iNickname].ImageName], usedImages[prjPair.Live.Instances[iNickname].AvailabilityZone], *argVerbosity)
 					logChan <- logMsg
 					errChan <- err
 					<-sem
@@ -256,7 +266,7 @@ func main() {
 		os.Args[1] == CmdStartServices ||
 		os.Args[1] == CmdStopServices {
 		commonArgs.Parse(os.Args[3:])
-		prjPair, fullPrjPath, prjErr = deploy.LoadProject(*argPrjFile, *argPrjParamsFile)
+		prjPair, fullPrjPath, prjErr = deploy.LoadProject(*argPrjFile)
 		if prjErr != nil {
 			log.Fatalf(prjErr.Error())
 		}
@@ -317,44 +327,9 @@ func main() {
 			}(&prjPair.Live, logChan, errChan, iDef)
 		}
 
-	} else if os.Args[1] == CmdCreateVolumes || os.Args[1] == CmdDeleteVolumes {
-		commonArgs.Parse(os.Args[2:])
-		prjPair, fullPrjPath, prjErr = deploy.LoadProject(*argPrjFile, *argPrjParamsFile)
-		if prjErr != nil {
-			log.Fatalf(prjErr.Error())
-		}
-		switch os.Args[1] {
-		case CmdCreateVolumes:
-			errorsExpected = len(prjPair.Live.Volumes)
-			errChan = make(chan error, errorsExpected)
-			for volNickname, _ := range prjPair.Live.Volumes {
-				sem <- 1
-				go func(prjPair *deploy.ProjectPair, logChan chan deploy.LogMsg, errChan chan error, volNickname string) {
-					logMsg, err := deploy.CreateVolume(prjPair, volNickname, *argVerbosity)
-					logChan <- logMsg
-					errChan <- err
-					<-sem
-				}(prjPair, logChan, errChan, volNickname)
-			}
-
-		case CmdDeleteVolumes:
-			errorsExpected = len(prjPair.Live.Volumes)
-			errChan = make(chan error, errorsExpected)
-			for volNickname, _ := range prjPair.Live.Volumes {
-				sem <- 1
-				go func(prjPair *deploy.ProjectPair, logChan chan deploy.LogMsg, errChan chan error, volNickname string) {
-					logMsg, err := deploy.DeleteVolume(prjPair, volNickname, *argVerbosity)
-					logChan <- logMsg
-					errChan <- err
-					<-sem
-				}(prjPair, logChan, errChan, volNickname)
-			}
-		default:
-			log.Fatalf("unknown command:" + os.Args[1])
-		}
-	} else if os.Args[1] == CmdAttachVolumes {
+	} else if os.Args[1] == CmdCreateVolumes || os.Args[1] == CmdAttachVolumes || os.Args[1] == CmdDeleteVolumes {
 		commonArgs.Parse(os.Args[3:])
-		prjPair, fullPrjPath, prjErr = deploy.LoadProject(*argPrjFile, *argPrjParamsFile)
+		prjPair, fullPrjPath, prjErr = deploy.LoadProject(*argPrjFile)
 		if prjErr != nil {
 			log.Fatalf(prjErr.Error())
 		}
@@ -368,31 +343,49 @@ func main() {
 			log.Fatalf(err.Error())
 		}
 
-		attachmentCount := 0
-		for iNickname, iDef := range instances {
-			for volNickname, _ := range iDef.AttachedVolumes {
-				if _, ok := prjPair.Live.Volumes[volNickname]; !ok {
-					log.Fatalf("cannot find volume %s referenced in instance %s", volNickname, iNickname)
-				}
-				attachmentCount++
-			}
+		volCount := 0
+		for _, iDef := range instances {
+			volCount += len(iDef.Volumes)
 		}
-		errorsExpected = attachmentCount
-		errChan = make(chan error, attachmentCount)
+		if volCount == 0 {
+			fmt.Printf("No volumes to create/attach/delete")
+			os.Exit(0)
+		}
+		errorsExpected = volCount
+		errChan = make(chan error, volCount)
 		for iNickname, iDef := range instances {
-			for volNickname, _ := range iDef.AttachedVolumes {
+			for volNickname := range iDef.Volumes {
 				sem <- 1
-				go func(prjPair *deploy.ProjectPair, logChan chan deploy.LogMsg, errChan chan error, iNickname string, volNickname string) {
-					logMsg, err := deploy.AttachVolume(prjPair, iNickname, volNickname, *argVerbosity)
-					logChan <- logMsg
-					errChan <- err
-					<-sem
-				}(prjPair, logChan, errChan, iNickname, volNickname)
+				switch os.Args[1] {
+				case CmdCreateVolumes:
+					go func(prjPair *deploy.ProjectPair, logChan chan deploy.LogMsg, errChan chan error, iNickname string, volNickname string) {
+						logMsg, err := deploy.CreateVolume(prjPair, iNickname, volNickname, *argVerbosity)
+						logChan <- logMsg
+						errChan <- err
+						<-sem
+					}(prjPair, logChan, errChan, iNickname, volNickname)
+				case CmdAttachVolumes:
+					go func(prjPair *deploy.ProjectPair, logChan chan deploy.LogMsg, errChan chan error, iNickname string, volNickname string) {
+						logMsg, err := deploy.AttachVolume(prjPair, iNickname, volNickname, *argVerbosity)
+						logChan <- logMsg
+						errChan <- err
+						<-sem
+					}(prjPair, logChan, errChan, iNickname, volNickname)
+				case CmdDeleteVolumes:
+					go func(prjPair *deploy.ProjectPair, logChan chan deploy.LogMsg, errChan chan error, iNickname string, volNickname string) {
+						logMsg, err := deploy.DeleteVolume(prjPair, iNickname, volNickname, *argVerbosity)
+						logChan <- logMsg
+						errChan <- err
+						<-sem
+					}(prjPair, logChan, errChan, iNickname, volNickname)
+				default:
+					log.Fatalf("unknown command:" + os.Args[1])
+				}
 			}
 		}
 	} else {
 		commonArgs.Parse(os.Args[3:])
-		prjPair, fullPrjPath, prjErr = deploy.LoadProject(*argPrjFile, *argPrjParamsFile)
+		prjPair, fullPrjPath, prjErr = deploy.LoadProject(*argPrjFile)
 		if prjErr != nil {
 			log.Fatalf(prjErr.Error())
 		}
