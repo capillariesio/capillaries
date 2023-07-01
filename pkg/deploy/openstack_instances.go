@@ -45,6 +45,25 @@ func GetImageIds(prjPair *ProjectPair, imageMap map[string]string, isVerbose boo
 	return lb.Complete(nil)
 }
 
+func GetKeypairs(prjPair *ProjectPair, keypairMap map[string]struct{}, isVerbose bool) (LogMsg, error) {
+	lb := NewLogBuilder("GetKeypairs", isVerbose)
+
+	rows, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"keypair", "list"})
+	lb.Add(er.ToString())
+	if er.Error != nil {
+		return lb.Complete(er.Error)
+	}
+
+	for keypairName, _ := range keypairMap {
+		foundName := FindOpenstackColumnValue(rows, "Fingerprint", "Name", keypairName)
+		if foundName == "" {
+			return lb.Complete(fmt.Errorf("cannot find keypair %s, you have to create it before running this command", keypairName))
+		}
+	}
+
+	return lb.Complete(nil)
+}
+
 func CreateInstanceAndWaitForCompletion(prjPair *ProjectPair, iNickname string, flavorId string, imageId string, availabilityZone string, isVerbose bool) (LogMsg, error) {
 	sb := strings.Builder{}
 
@@ -86,7 +105,7 @@ func CreateInstance(prjPair *ProjectPair, iNickname string, flavorId string, ima
 	lb := NewLogBuilder("CreateInstance:"+prjPair.Live.Instances[iNickname].HostName, isVerbose)
 	if prjPair.Live.Instances[iNickname].HostName == "" ||
 		prjPair.Live.Instances[iNickname].IpAddress == "" {
-		return lb.Complete(fmt.Errorf("instance hostname, ip address cannot be empty"))
+		return lb.Complete(fmt.Errorf("instance hostname(%s), ip address(%s) cannot be empty", prjPair.Live.Instances[iNickname].HostName, prjPair.Live.Instances[iNickname].IpAddress))
 	}
 
 	// If floating ip is requested and it's already assigned, fail
@@ -166,7 +185,7 @@ func CreateInstance(prjPair *ProjectPair, iNickname string, flavorId string, ima
 func DeleteInstance(prjPair *ProjectPair, iNickname string, isVerbose bool) (LogMsg, error) {
 	lb := NewLogBuilder("DeleteInstance:"+prjPair.Live.Instances[iNickname].HostName, isVerbose)
 	if prjPair.Live.Instances[iNickname].HostName == "" {
-		return lb.Complete(fmt.Errorf("instance hostname cannot be empty"))
+		return lb.Complete(fmt.Errorf("instance %s hostname cannot be empty", iNickname))
 	}
 
 	_, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"server", "delete", prjPair.Live.Instances[iNickname].HostName})

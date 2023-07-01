@@ -21,7 +21,7 @@ init_volume_attachment()
     # Make file system
     sudo mkfs.ext4 $deviceName
     if [ "$?" -ne "0" ]; then
-      echo Cannot make file system
+      echo Error $?, cannot make file system
       return $?
     fi
   fi
@@ -34,21 +34,21 @@ init_volume_attachment()
     # Create mount point
     sudo mkdir -p $volumeMountPath
     if [ "$?" -ne "0" ]; then
-      echo Cannot create mount dir $volumeMountPath
+      echo Error $?, cannot create mount dir $volumeMountPath
       return $?
     fi
 
     # Set permissions
     sudo chmod $permissions $volumeMountPath
     if [ "$?" -ne "0" ]; then
-        echo Cannot change $volumeMountPath permissions to $permissions
+		echo Error $?, cannot change $volumeMountPath permissions to $permissions
         return $?
     fi
 
 	if [ -n "$owner" ]; then
 	    sudo chown $owner $volumeMountPath
 		if [ "$?" -ne "0" ]; then
-		    echo Cannot change $volumeMountPath owner to $owner
+			echo Error $?, cannot change $volumeMountPath owner to $owner
 		    return $?
 		fi
 	fi
@@ -59,6 +59,7 @@ init_volume_attachment()
 
   # Report UUID
   echo $deviceBlockId
+  return 0
 }
 `
 
@@ -141,7 +142,7 @@ func CreateVolume(prjPair *ProjectPair, iNickname string, volNickname string, is
 func DeleteVolume(prjPair *ProjectPair, iNickname string, volNickname string, isVerbose bool) (LogMsg, error) {
 	lb := NewLogBuilder(fmt.Sprintf("DeleteVolume: %s", volNickname), isVerbose)
 	if prjPair.Live.Instances[iNickname].Volumes[volNickname].VolumeId == "" {
-		return lb.Complete(fmt.Errorf("volume id cannot be empty"))
+		return lb.Complete(fmt.Errorf("volume id for %s.%s cannot be empty", iNickname, volNickname))
 	}
 
 	rows, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"volume", "list"})
@@ -278,7 +279,7 @@ func AttachVolume(prjPair *ProjectPair, iNickname string, volNickname string, is
 		return lb.Complete(fmt.Errorf("cannot find newly created attachment, volume %s, instance %s", volNickname, iNickname))
 	}
 
-	blockDeviceId, er := ExecSshAndReturnLastLine(prjPair.Live.SshConfig, prjPair.Live.Instances[iNickname].BestIpAddress(), fmt.Sprintf("%s\ninit_volume_attachment %s %s %d '%s'",
+	deviceBlockId, er := ExecSshAndReturnLastLine(prjPair.Live.SshConfig, prjPair.Live.Instances[iNickname].BestIpAddress(), fmt.Sprintf("%s\ninit_volume_attachment %s %s %d '%s'",
 		InitVolumeAttachmentFunc,
 		prjPair.Live.Instances[iNickname].Volumes[volNickname].Device,
 		prjPair.Live.Instances[iNickname].Volumes[volNickname].MountPoint,
@@ -289,12 +290,12 @@ func AttachVolume(prjPair *ProjectPair, iNickname string, volNickname string, is
 		return lb.Complete(fmt.Errorf("cannot attach volume %s, instance %s: %s", volNickname, iNickname, er.Error.Error()))
 	}
 
-	if blockDeviceId == "" {
-		return lb.Complete(fmt.Errorf("cannot attach volume %s, instance %s, returned blockDeviceId is empty, try -verbose", volNickname, iNickname))
+	if deviceBlockId == "" || strings.HasPrefix(deviceBlockId, "Error") {
+		return lb.Complete(fmt.Errorf("cannot attach volume %s, instance %s, returned blockDeviceId is: %s", volNickname, iNickname, deviceBlockId))
 	}
 
-	lb.Add(fmt.Sprintf("initialized volume %s on %s, uuid %s", volNickname, iNickname, blockDeviceId))
-	prjPair.SetVolumeBlockDeviceId(iNickname, volNickname, blockDeviceId)
+	lb.Add(fmt.Sprintf("initialized volume %s on %s, uuid %s", volNickname, iNickname, deviceBlockId))
+	prjPair.SetVolumeBlockDeviceId(iNickname, volNickname, deviceBlockId)
 
 	return lb.Complete(nil)
 }

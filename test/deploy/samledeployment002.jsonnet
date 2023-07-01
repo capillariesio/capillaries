@@ -1,6 +1,6 @@
 {
-  local deployment_name = 'sampledeployment002',  // Can be any combination of alphanumeric characters
-  local default_root_key_name = deployment_name + '-root-key',  // This should match the name of the keypair you alredy created in Openstack
+  local deployment_name = 'sampledeployment002',  // Can be any combination of alphanumeric characters. Make it unique.
+  local default_root_key_name = deployment_name + '-root-key',  // This should match the name of the keypair you already created in Openstack
   // Network
   local external_gateway_network_name = 'ext-net',  // This is what external network is called for this cloud provider, yours may be different
   local subnet_cidr = '10.5.0.0/24',  // Your choice
@@ -476,6 +476,8 @@
     },
   },
 
+  // Only alphanumeric characters allowed in instance names! No underscores, no dashes, no dots, no spaces - nada.
+
   local bastion_instance = {
     bastion: {
       host_name: deployment_name + '-bastion',
@@ -632,7 +634,6 @@
       },
     },
   },
-
 
   local prometheus_instance = {
     prometheus: {

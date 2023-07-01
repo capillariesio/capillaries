@@ -66,7 +66,7 @@ func DeleteFloatingIp(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 func CreateSubnet(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	lb := NewLogBuilder("CreateSubnet", isVerbose)
 	if prjPair.Live.Network.Subnet.Name == "" || prjPair.Live.Network.Subnet.Cidr == "" {
-		return lb.Complete(fmt.Errorf("subnet name and cidr cannot be empty"))
+		return lb.Complete(fmt.Errorf("subnet name(%s) and cidr(%s) cannot be empty", prjPair.Live.Network.Subnet.Name, prjPair.Live.Network.Subnet.Cidr))
 	}
 
 	rows, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"subnet", "list"})
@@ -146,7 +146,7 @@ func CreateSubnet(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 func DeleteSubnet(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	lb := NewLogBuilder("DeleteSubnet", isVerbose)
 	if prjPair.Live.Network.Subnet.Name == "" {
-		return lb.Complete(fmt.Errorf("subnet name and cidr cannot be empty"))
+		return lb.Complete(fmt.Errorf("subnet name cannot be empty"))
 	}
 
 	rows, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"subnet", "list"})

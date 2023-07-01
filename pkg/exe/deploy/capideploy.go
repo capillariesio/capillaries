@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"regexp"
 	"strings"
 	"time"
 
@@ -61,13 +62,28 @@ func filterByNickname[GenericDef deploy.FileGroupUpDef | deploy.FileGroupDownDef
 	if nicknames == "all" {
 		defMap = sourceMap
 	} else {
+		rawNicknames := strings.Split(nicknames, ",")
 		defMap = map[string]*GenericDef{}
-		for _, defNickname := range strings.Split(nicknames, ",") {
-			fgDef, ok := sourceMap[defNickname]
-			if !ok {
-				return nil, fmt.Errorf("definition for %s '%s' not found, available definitions: %s", entityName, defNickname, reflect.ValueOf(sourceMap).MapKeys())
+		for _, rawNickname := range rawNicknames {
+			if strings.Contains(rawNickname, "*") {
+				matchFound := false
+				reNickname := regexp.MustCompile("^" + strings.ReplaceAll(rawNickname, "*", "[a-zA-Z0-9]*") + "$")
+				for fgNickname, fgDef := range sourceMap {
+					if reNickname.MatchString(fgNickname) {
+						matchFound = true
+						defMap[fgNickname] = fgDef
+					}
+				}
+				if !matchFound {
+					return nil, fmt.Errorf("no match found for %s '%s', available definitions: %s", entityName, rawNickname, reflect.ValueOf(sourceMap).MapKeys())
+				}
+			} else {
+				fgDef, ok := sourceMap[rawNickname]
+				if !ok {
+					return nil, fmt.Errorf("definition for %s '%s' not found, available definitions: %s", entityName, rawNickname, reflect.ValueOf(sourceMap).MapKeys())
+				}
+				defMap[rawNickname] = fgDef
 			}
-			defMap[defNickname] = fgDef
 		}
 	}
 	return defMap, nil
@@ -218,9 +234,11 @@ func main() {
 			// Make sure image/flavor is supported
 			usedFlavors := map[string]string{}
 			usedImages := map[string]string{}
+			usedKeypairs := map[string]struct{}{}
 			for _, instDef := range instances {
 				usedFlavors[instDef.FlavorName] = ""
 				usedImages[instDef.ImageName] = ""
+				usedKeypairs[instDef.RootKeyName] = struct{}{}
 			}
 			logMsg, err := deploy.GetFlavorIds(prjPair, usedFlavors, *argVerbosity)
 			logChan <- logMsg
@@ -236,10 +254,23 @@ func main() {
 				log.Fatalf(err.Error())
 			}
 
+			logMsg, err = deploy.GetKeypairs(prjPair, usedKeypairs, *argVerbosity)
+			logChan <- logMsg
+			DumpLogChan(logChan)
+			if err != nil {
+				log.Fatalf(err.Error())
+			}
+
 			for iNickname, _ := range instances {
 				sem <- 1
 				go func(prjPair *deploy.ProjectPair, logChan chan deploy.LogMsg, errChan chan error, iNickname string) {
-					logMsg, err := deploy.CreateInstanceAndWaitForCompletion(prjPair, iNickname, usedFlavors[prjPair.Live.Instances[iNickname].FlavorName], usedImages[prjPair.Live.Instances[iNickname].ImageName], usedImages[prjPair.Live.Instances[iNickname].AvailabilityZone], *argVerbosity)
+					logMsg, err := deploy.CreateInstanceAndWaitForCompletion(
+						prjPair,
+						iNickname,
+						usedFlavors[prjPair.Live.Instances[iNickname].FlavorName],
+						usedImages[prjPair.Live.Instances[iNickname].ImageName],
+						usedImages[prjPair.Live.Instances[iNickname].AvailabilityZone],
+						*argVerbosity)
 					logChan <- logMsg
 					errChan <- err
 					<-sem

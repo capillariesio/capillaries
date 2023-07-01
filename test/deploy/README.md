@@ -60,12 +60,12 @@ export OS_INTERFACE=public
 export OS_IDENTITY_API_VERSION=3
 ```
 
-5. Optionally, build deploy tool so you do not have to run `go run ../../../../build/capideploy.exe` every time and use `$capideploy` shortcut instead (this is a WSL example):
+5. Optionally, build deploy tool so you do not have to run `go run ../../build/capideploy.exe` every time and use `$capideploy` shortcut instead (this is a WSL example):
 
 ```
-go build -o ../../../../build/capideploy.exe -ldflags="-s -w" ../../pkg/exe/deploy/capideploy.go
-chmod 755 ../../../../build/capideploy.exe
-export capideploy=../../../../build/capideploy.exe
+go build -o ../../build/capideploy.exe -ldflags="-s -w" ../../pkg/exe/deploy/capideploy.go
+chmod 755 ../../build/capideploy.exe
+export capideploy=../../build/capideploy.exe
 ```
 
 From now on, this doc assumes `$capideploy` is present and functional.
@@ -94,29 +94,29 @@ $capideploy create_floating_ip -prj=sampledeployment002.json
 
 $capideploy create_security_groups -prj=sampledeployment002.json
 $capideploy create_networking -prj=sampledeployment002.json
-$capideploy create_volumes all -prj=sampledeployment002.json
+$capideploy create_volumes '*' -prj=sampledeployment002.json
 
 # Create all instances in one shot
 
-$capideploy create_instances all -prj=sampledeployment002.json
+$capideploy create_instances '*' -prj=sampledeployment002.json
 
 # Make sure we can actually login to each instance. If an instance is
 # missing for too long, go to the provider console/logs for details
 
-until $capideploy ping_instances all -prj=sampledeployment002.json; do
+until $capideploy ping_instances '*' -prj=sampledeployment002.json; do
   echo Ping failed, wait...
   sleep 10
 done
 
 # Install all pre-requisite software
 
-$capideploy install_services all -prj=sampledeployment002.json
+$capideploy install_services '*' -prj=sampledeployment002.json
 
 # Create sftp user on bastion host if needed and 
 # allow these instances to connect to data via sftp
 
 $capideploy create_instance_users bastion -prj=sampledeployment002.json
-$capideploy copy_private_keys bastion,daemon001,daemon002,daemon003,daemon004 -prj=sampledeployment002.json
+$capideploy copy_private_keys 'bastion,daemon*' -prj=sampledeployment002.json
 
 # Attach bastion (and Cassandra, if needed) volumes,
 # make ssh_user (or sftp_user, if you use sftp instead of nfs) owner
@@ -140,7 +140,7 @@ $capideploy upload_files up_tag_and_denormalize_quicktest_in,up_tag_and_denormal
 
 # Configure all services except Cassandra (which requires extra care), bastion first (it configs NFS)
 $capideploy config_services bastion -prj=sampledeployment002.json
-$capideploy config_services rabbitmq,prometheus,daemon001,daemon002,daemon003,daemon004 -prj=sampledeployment002.json
+$capideploy config_services 'rabbitmq,prometheus,daemon*' -prj=sampledeployment002.json
 ```
 
 ## Monitoring test environment
@@ -171,14 +171,14 @@ Start runs either using [Webapi](../../doc/glossary.md#webapi) at `http://$BASTI
 | Field | Value |
 |- | - |
 | Keyspace | lookup_quicktest |
-| Script URI | sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_quicktest/script.json |
-| Script parameters URI | sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_quicktest/script_params_one_run.json |
+| Script URI | /mnt/capi_cfg/lookup_quicktest/script.json |
+| Script parameters URI | /mnt/capi_cfg/lookup_quicktest/script_params_one_run.json |
 | Start nodes |	read_orders,read_order_items |
 
 or
 
 ```
-ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_quicktest/script.json -params_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_quicktest/script_params_one_run.json -keyspace=lookup_quicktest -start_nodes=read_orders,read_order_items'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=/mnt/capi_cfg/lookup_quicktest/script.json -params_file=/mnt/capi_cfg/lookup_quicktest/script_params_one_run.json -keyspace=lookup_quicktest -start_nodes=read_orders,read_order_items'
 ```
 
 ### lookup_bigtest
@@ -186,14 +186,14 @@ ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTIO
 | Field | Value |
 |- | - |
 | Keyspace | lookup_bigtest |
-| Script URI | sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_bigtest/script_parquet.json |
-| Script parameters URI | sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_bigtest/script_params_one_run.json |
+| Script URI | /mnt/capi_cfg/lookup_bigtest/script_parquet.json |
+| Script parameters URI | /mnt/capi_cfg/lookup_bigtest/script_params_one_run.json |
 | Start nodes |	read_orders,read_order_items |
 
 or
 
 ```
-ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_bigtest/script_parquet.json -params_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/lookup_bigtest/script_params_one_run.json -keyspace=lookup_bigtest -start_nodes=read_orders,read_order_items'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=/mnt/capi_cfg/lookup_bigtest/script_parquet.json -params_file=/mnt/capi_cfg/lookup_bigtest/script_params_one_run.json -keyspace=lookup_bigtest -start_nodes=read_orders,read_order_items'
 ```
 
 ### py_calc_quicktest
@@ -201,14 +201,14 @@ ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTIO
 | Field | Value |
 |- | - |
 | Keyspace | py_calc_bigtest |
-| Script URI | sftp://sftpuser@10.5.0.10/mnt/capi_cfg/py_calc_bigtest/script.json |
-| Script parameters URI | sftp://sftpuser@10.5.0.10/mnt/capi_cfg/py_calc_bigtest/script_params.json |
+| Script URI | /mnt/capi_cfg/py_calc_bigtest/script.json |
+| Script parameters URI | /mnt/capi_cfg/py_calc_bigtest/script_params.json |
 | Start nodes |	read_order_items |
 
 or
 
 ```
-ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/py_calc_quicktest/script.json -params_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/py_calc_quicktest/script_params.json -keyspace=py_calc_quicktest -start_nodes=read_order_items'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=/mnt/capi_cfg/py_calc_quicktest/script.json -params_file=/mnt/capi_cfg/py_calc_quicktest/script_params.json -keyspace=py_calc_quicktest -start_nodes=read_order_items'
 ```
 
 ### tag_and_denormalize_quicktest
@@ -216,14 +216,14 @@ ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTIO
 | Field | Value |
 |- | - |
 | Keyspace | tag_and_denormalize_quicktest |
-| Script URI | sftp://sftpuser@10.5.0.10/mnt/capi_cfg/tag_and_denormalize_quicktest/script.json |
-| Script parameters URI | sftp://sftpuser@10.5.0.10/mnt/capi_cfg/tag_and_denormalize_quicktest/script_params_one_run.json |
+| Script URI | /mnt/capi_cfg/tag_and_denormalize_quicktest/script.json |
+| Script parameters URI | /mnt/capi_cfg/tag_and_denormalize_quicktest/script_params_one_run.json |
 | Start nodes |	read_tags,read_products |
 
 or
 
 ```
-ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/tag_and_denormalize_quicktest/script.json -params_file=sftp://sftpuser@10.5.0.10/mnt/capi_cfg/tag_and_denormalize_quicktest/script_params_one_run.json -keyspace=tag_and_denormalize_quicktest -start_nodes=read_tags,read_products'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=/mnt/capi_cfg/tag_and_denormalize_quicktest/script.json -params_file=/mnt/capi_cfg/tag_and_denormalize_quicktest/script_params_one_run.json -keyspace=tag_and_denormalize_quicktest -start_nodes=read_tags,read_products'
 ```
 
 ## Results
@@ -244,7 +244,7 @@ $capideploy download_files down_capi_logs -prj=sampledeployment002.json
 # Delete instances. Keep in mind that instances may be in a `deleting` state
 # even after this command is complete, check your cloud provider console to verify.
 
-$capideploy delete_instances all -prj=sampledeployment002.json
+$capideploy delete_instances '*' -prj=sampledeployment002.json
 
 # Delete volumes, networking, security groups and floating ip
 
@@ -281,6 +281,16 @@ To use SFTP instead of NFS for reading configs, make according changes in the `*
 - set bastion.volumes.owner to `"{CAPIDEPLOY_SFTP_USER}"`
 - remove `/mnt/capi_cfg` from all `NFS_DIRS` values
 and make sure you use `sftp://sftpuser@10.5.0.10/mnt/capi_cfg` (instead of `/mnt/capi_cfg`) prefixes for script and script parameter files when starting a test process (either in WebUI or in the command line).
+
+### Cassandra initial_token and num_tokens
+
+Q. Sample project uses `num_tokens`=1 and predefined `initial_token` in cassandra.yaml. But I want to use multiple vnodes and I want my add/remove Cassandra nodes dynamically.
+
+A. This example works well when you need to quickly provision an environment with a predefined number of Cassandra nodes in the cluster with zero redundancy and configure it for maximum uniform distribution. If you want more flexibility:
+- disable `num_tokens` override in sh/cassandra.config.sh
+- disable `allocate_tokens_for_local_replication_factor` override in sh/cassandra.config.sh
+- do not specify `INITIAL_TOKEN` variable in the deployment project
+- start Cassandra cluster without using [start_cluster.sh](./start_cluster.sh) script
 
 ### Non-Openstack clouds
 
