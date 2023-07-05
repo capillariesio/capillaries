@@ -26,7 +26,7 @@ Capideploy tool uses deployment project file (see sample `sampledeployment002.js
 - push Capillaries data and binaries to created Openstack deployment
 - clean Openstack deployment
 
-Deployment project files contain description and status of each instance. When there are a lot of instances that perform the same tesk (like Cassandra nodes or instances running Capillaries [Daemon](../../doc/glossary.md#daemon)) which makes them pretty redundant. To avoid creating repetitive configurations manually, use [jsonnet](https://jsonnet.org) templates like `sampledeployment002.jsonnet`. Before deploying, make sure that you have generated a deployment project `*.json` file from the `*.jsonnet` template, and, under normal circumstances, avoid manual changes in your `*.json` file. Tweak `*.jsonnet` file and regenerate `*.json` instead. Feel free to use jsonnet interpreter of your choice for that.
+Deployment project files contain description and status of each instance. When there are a lot of instances that perform the same tesk (like Cassandra nodes or instances running Capillaries [Daemon](../../doc/glossary.md#daemon)) which makes them pretty redundant. To avoid creating repetitive configurations manually, use [jsonnet](https://jsonnet.org) templates like `sampledeployment002.jsonnet`. Before deploying, make sure that you have generated a deployment project `*.json` file from the `*.jsonnet` template, and, under normal circumstances, avoid manual changes in your `*.json` file. Tweak `*.jsonnet` file and regenerate `*.json` instead, using jsonnet interpreter of your choice. Feel free to manually tweak `*.json` file if you really think you know what you are doing.
 
 ## Before deployment
 
@@ -135,9 +135,9 @@ $capideploy upload_files up_daemon_binary,up_daemon_env_config,up_webapi_env_con
 
 $capideploy upload_files up_all_cfg,up_lookup_bigtest_in,up_lookup_bigtest_out,up_lookup_quicktest_in,up_lookup_quicktest_out -prj=sampledeployment002.json
 
-# If you want to run these tests, upload corresponding data files
+# If you want to run tag_and_denormalize_quicktest, py_calc_quicktest, and portfolio_quicktest upload corresponding data files
 
-$capideploy upload_files up_tag_and_denormalize_quicktest_in,up_tag_and_denormalize_quicktest_out,up_py_calc_quicktest_in,up_py_calc_quicktest_out,up_portfolio_quicktest_in -prj=sampledeployment002.json
+$capideploy upload_files up_tag_and_denormalize_quicktest_in,up_tag_and_denormalize_quicktest_out,up_py_calc_quicktest_in,up_py_calc_quicktest_out,up_portfolio_quicktest_in,up_portfolio_quicktest_out -prj=sampledeployment002.json
 
 # Configure all services except Cassandra (which requires extra care), bastion first (it configs NFS)
 
@@ -228,17 +228,56 @@ or
 ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=/mnt/capi_cfg/tag_and_denormalize_quicktest/script.json -params_file=/mnt/capi_cfg/tag_and_denormalize_quicktest/script_params_one_run.json -keyspace=tag_and_denormalize_quicktest -start_nodes=read_tags,read_products'
 ```
 
+
+### portfolio_quicktest
+
+| Field | Value |
+|- | - |
+| Keyspace | portfolio_quicktest |
+| Script URI | /mnt/capi_cfg/portfolio_quicktest/script.json |
+| Script parameters URI | /mnt/capi_cfg/portfolio_quicktest/script_params.json |
+| Start nodes |	1_read_accounts,1_read_txns,1_read_period_holdings |
+
+or
+
+```
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=/mnt/capi_cfg/portfolio_quicktest/script.json -params_file=/mnt/capi_cfg/portfolio_quicktest/script_params.json -keyspace=portfolio_quicktest -start_nodes=1_read_accounts,1_read_txns,1_read_period_holdings'
+```
+
 ## Results
 
+# capi_out
+
+Download all results from capi_out (may take a while):
+
 ```
-# Download all results from capi_out:
-
 $capideploy download_files down_capi_out -prj=sampledeployment002.json
+```
 
-# Download consolidated Daemon log:
+Alternatively, verify results against the baseline remotely:
 
+```
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/compare_results_lookup_bigtest_parquet.sh'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/compare_results_lookup_quicktest.sh'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/compare_results_portfolio.sh'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/compare_results_py_calc_quicktest.sh'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/compare_results_tag_and_denormalize.sh'
+```
+
+# Logs
+
+Download consolidated Daemon log (may be large, as debug logging is on by default):
+
+```
 $capideploy download_files down_capi_logs -prj=sampledeployment002.json
 ```
+
+Alternatively, check it out on bastion:
+
+```
+less /var/log/capidaemon/capidaemon.log
+```
+
 
 ## Clear test environment
 
