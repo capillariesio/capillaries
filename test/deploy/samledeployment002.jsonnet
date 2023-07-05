@@ -28,7 +28,7 @@
   local cassandra_hosts = "'[\"" + std.join('","', cass_ips) + "\"]'",  // Used by daemons "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\"]'",
   // Instance details
   local default_availability_zone = 'us-central-1a',  // Specified when volume/instance is created
-  local instance_image_name = 'ubuntu-22.04_LTS-jammy-server-cloudimg-amd64-20220902_raw',
+  local instance_image_name = 'ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw',
   local instance_flavor_rabbitmq = 't5sd.large',
   local instance_flavor_prometheus = 't5sd.large',
   local instance_flavor_bastion = 'c5sd.large',
@@ -45,8 +45,8 @@
   local sftp_config_private_key_path = '~/.ssh/sampledeployment002_sftp',
   local ssh_config_private_key_path = '~/.ssh/sampledeployment002_rsa',
   // Prometheus versions
-  local prometheus_node_exporter_version = '1.5.0',
-  local prometheus_server_version = '2.41.0',
+  local prometheus_node_exporter_version = '1.6.0',
+  local prometheus_server_version = '2.45.0',
 
   // Used by Prometheus "\\'localhost:9100\\',\\'10.5.0.10:9100\\',\\'10.5.0.5:9100\\',\\'10.5.0.11:9100\\'...",
   local prometheus_targets = std.format("\\'localhost:9100\\',\\'%s:9100\\',\\'%s:9100\\',", [internal_bastion_ip, rabbitmq_ip]) +
@@ -379,7 +379,7 @@
       after: {},
     },
     up_lookup_quicktest_out: {
-      src: '/tmp/capi_out/lookup_quicktest/readme.txt',
+      src: '/tmp/capi_out/lookup_quicktest',
       dst: '/mnt/capi_out/lookup_quicktest',
       dir_permissions: 777,
       file_permissions: 666,
@@ -394,6 +394,14 @@
       owner: $.ssh_config.user,
       after: {},
     },
+    up_portfolio_quicktest_out: {
+      src: '/tmp/capi_out/portfolio_quicktest',
+      dst: '/mnt/capi_out/portfolio_quicktest',
+      dir_permissions: 777,
+      file_permissions: 666,
+      owner: $.ssh_config.user,
+      after: {},
+    },
     up_py_calc_quicktest_in: {
       src: '/tmp/capi_in/py_calc_quicktest',
       dst: '/mnt/capi_in/py_calc_quicktest',
@@ -403,7 +411,7 @@
       after: {},
     },
     up_py_calc_quicktest_out: {
-      src: '/tmp/capi_out/py_calc_quicktest/readme.txt',
+      src: '/tmp/capi_out/py_calc_quicktest',
       dst: '/mnt/capi_out/py_calc_quicktest',
       dir_permissions: 777,
       file_permissions: 666,
@@ -419,7 +427,7 @@
       after: {},
     },
     up_tag_and_denormalize_quicktest_out: {
-      src: '/tmp/capi_out/tag_and_denormalize_quicktest/readme.txt',
+      src: '/tmp/capi_out/tag_and_denormalize_quicktest',
       dst: '/mnt/capi_out/tag_and_denormalize_quicktest',
       dir_permissions: 777,
       file_permissions: 666,
@@ -595,6 +603,7 @@
         'up_py_calc_quicktest_in',
         'up_py_calc_quicktest_out',
         'up_portfolio_quicktest_in',
+        'up_portfolio_quicktest_out',
         'up_webapi_binary',
         'up_webapi_env_config',
         'up_toolbelt_binary',
@@ -756,6 +765,7 @@
           install: [
             'sh/common/replace_nameserver.sh',
             'sh/nfs/install_client.sh',
+            "sh/daemon/install.sh",
             'sh/prometheus/install_node_exporter.sh',
           ],
           config: [
