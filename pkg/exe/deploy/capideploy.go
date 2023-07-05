@@ -59,31 +59,27 @@ func getNicknamesArg(commonArgs *flag.FlagSet, entityName string) (string, error
 
 func filterByNickname[GenericDef deploy.FileGroupUpDef | deploy.FileGroupDownDef | deploy.InstanceDef](nicknames string, sourceMap map[string]*GenericDef, entityName string) (map[string]*GenericDef, error) {
 	var defMap map[string]*GenericDef
-	if nicknames == "all" {
-		defMap = sourceMap
-	} else {
-		rawNicknames := strings.Split(nicknames, ",")
-		defMap = map[string]*GenericDef{}
-		for _, rawNickname := range rawNicknames {
-			if strings.Contains(rawNickname, "*") {
-				matchFound := false
-				reNickname := regexp.MustCompile("^" + strings.ReplaceAll(rawNickname, "*", "[a-zA-Z0-9]*") + "$")
-				for fgNickname, fgDef := range sourceMap {
-					if reNickname.MatchString(fgNickname) {
-						matchFound = true
-						defMap[fgNickname] = fgDef
-					}
+	rawNicknames := strings.Split(nicknames, ",")
+	defMap = map[string]*GenericDef{}
+	for _, rawNickname := range rawNicknames {
+		if strings.Contains(rawNickname, "*") {
+			matchFound := false
+			reNickname := regexp.MustCompile("^" + strings.ReplaceAll(rawNickname, "*", "[a-zA-Z0-9]*") + "$")
+			for fgNickname, fgDef := range sourceMap {
+				if reNickname.MatchString(fgNickname) {
+					matchFound = true
+					defMap[fgNickname] = fgDef
 				}
-				if !matchFound {
-					return nil, fmt.Errorf("no match found for %s '%s', available definitions: %s", entityName, rawNickname, reflect.ValueOf(sourceMap).MapKeys())
-				}
-			} else {
-				fgDef, ok := sourceMap[rawNickname]
-				if !ok {
-					return nil, fmt.Errorf("definition for %s '%s' not found, available definitions: %s", entityName, rawNickname, reflect.ValueOf(sourceMap).MapKeys())
-				}
-				defMap[rawNickname] = fgDef
 			}
+			if !matchFound {
+				return nil, fmt.Errorf("no match found for %s '%s', available definitions: %s", entityName, rawNickname, reflect.ValueOf(sourceMap).MapKeys())
+			}
+		} else {
+			fgDef, ok := sourceMap[rawNickname]
+			if !ok {
+				return nil, fmt.Errorf("definition for %s '%s' not found, available definitions: %s", entityName, rawNickname, reflect.ValueOf(sourceMap).MapKeys())
+			}
+			defMap[rawNickname] = fgDef
 		}
 	}
 	return defMap, nil

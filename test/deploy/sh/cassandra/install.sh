@@ -3,7 +3,7 @@ echo "deb https://debian.cassandra.apache.org 41x main" | sudo tee -a /etc/apt/s
 
 curl https://downloads.apache.org/cassandra/KEYS | sudo apt-key add -
 
-sudo apt-get update
+sudo apt-get -y update
 
 sudo apt-get install -y cassandra
 

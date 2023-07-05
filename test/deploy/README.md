@@ -121,7 +121,7 @@ $capideploy copy_private_keys 'bastion,daemon*' -prj=sampledeployment002.json
 # Attach bastion (and Cassandra, if needed) volumes,
 # make ssh_user (or sftp_user, if you use sftp instead of nfs) owner
 
-$capideploy attach_volumes bastion -prj=sampledeployment002.json
+$capideploy attach_volumes '*' -prj=sampledeployment002.json
 
 # Now it's a good time to start Cassandra cluster in a SEPARATE shell session (that has `CAPIDEPLOY_*` environment variables set, see above). After strating it, and letting it run in parallel, you continue running command in the original shell session.
 
@@ -136,9 +136,11 @@ $capideploy upload_files up_daemon_binary,up_daemon_env_config,up_webapi_env_con
 $capideploy upload_files up_all_cfg,up_lookup_bigtest_in,up_lookup_bigtest_out,up_lookup_quicktest_in,up_lookup_quicktest_out -prj=sampledeployment002.json
 
 # If you want to run these tests, upload corresponding data files
+
 $capideploy upload_files up_tag_and_denormalize_quicktest_in,up_tag_and_denormalize_quicktest_out,up_py_calc_quicktest_in,up_py_calc_quicktest_out,up_portfolio_quicktest_in -prj=sampledeployment002.json
 
 # Configure all services except Cassandra (which requires extra care), bastion first (it configs NFS)
+
 $capideploy config_services bastion -prj=sampledeployment002.json
 $capideploy config_services 'rabbitmq,prometheus,daemon*' -prj=sampledeployment002.json
 ```
@@ -248,7 +250,7 @@ $capideploy delete_instances '*' -prj=sampledeployment002.json
 
 # Delete volumes, networking, security groups and floating ip
 
-$capideploy delete_volumes -prj=sampledeployment002.json
+$capideploy delete_volumes '*' -prj=sampledeployment002.json
 $capideploy delete_networking -prj=sampledeployment002.json
 $capideploy delete_security_groups -prj=sampledeployment002.json
 $capideploy delete_floating_ip -prj=sampledeployment002.json
