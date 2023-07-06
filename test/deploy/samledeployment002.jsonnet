@@ -11,19 +11,22 @@
   local internal_bastion_ip = '10.5.0.10',
   local prometheus_ip = '10.5.0.4',
   local rabbitmq_ip = '10.5.0.5',
+  // 2 daemons: ['10.5.0.101', '10.5.0.102'],
   // 4 daemons: ['10.5.0.101', '10.5.0.102', '10.5.0.103', '10.5.0.104'],
   // 8 daemons: ['10.5.0.101', '10.5.0.102', '10.5.0.103', '10.5.0.104', '10.5.0.105', '10.5.0.106', '10.5.0.107', '10.5.0.108'],
-  local daemon_ips = ['10.5.0.101', '10.5.0.102', '10.5.0.103', '10.5.0.104'],
+  local daemon_ips = ['10.5.0.101', '10.5.0.102'],
+  // 4 nodes: ['10.5.0.11', '10.5.0.12', '10.5.0.13', '10.5.0.14'],
   // 8 nodes: ['10.5.0.11', '10.5.0.12', '10.5.0.13', '10.5.0.14', '10.5.0.15', '10.5.0.16', '10.5.0.17', '10.5.0.18'],
   // 16 nodes: ['10.5.0.11', '10.5.0.12', '10.5.0.13', '10.5.0.14', '10.5.0.15', '10.5.0.16', '10.5.0.17', '10.5.0.18', '10.5.0.19', '10.5.0.20', '10.5.0.21', '10.5.0.22', '10.5.0.23', '10.5.0.24', '10.5.0.25', '10.5.0.26'],
-  local cass_ips = ['10.5.0.11', '10.5.0.12', '10.5.0.13', '10.5.0.14', '10.5.0.15', '10.5.0.16', '10.5.0.17', '10.5.0.18'],
+  local cass_ips = ['10.5.0.11', '10.5.0.12', '10.5.0.13', '10.5.0.14'],
 
   // Cassandra-specific
 
   // Initial tokens to speedup bootstrapping
+  // 4 nodes: ['-9223372036854775808', '-4611686018427387904', '0', '4611686018427387904'],
   // 8 nodes: ['-9223372036854775808', '-6917529027641081856', '-4611686018427387904', '-2305843009213693952', '0', '2305843009213693952', '4611686018427387904', '6917529027641081856'],
   // 16 nodes: ['-9223372036854775808','-8070450532247928832','-6917529027641081856','-5764607523034234880','-4611686018427387904','-3458764513820540928','-2305843009213693952','-1152921504606846976','0','1152921504606846976','2305843009213693952','3458764513820540928','4611686018427387904','5764607523034234880','6917529027641081856','8070450532247928832'],
-  local cassandra_tokens = ['-9223372036854775808', '-6917529027641081856', '-4611686018427387904', '-2305843009213693952', '0', '2305843009213693952', '4611686018427387904', '6917529027641081856'],
+  local cassandra_tokens = ['-9223372036854775808', '-4611686018427387904', '0', '4611686018427387904'],
   local cassandra_seeds = std.format('%s,%s', [cass_ips[0], cass_ips[1]]),  // Used by cassandra nodes
   local cassandra_hosts = "'[\"" + std.join('","', cass_ips) + "\"]'",  // Used by daemons "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\"]'",
   // Instance details
@@ -47,10 +50,12 @@
   // Prometheus versions
   local prometheus_node_exporter_version = '1.6.0',
   local prometheus_server_version = '2.45.0',
+  local prometheus_cassandra_exporter_version = '0.9.12',
 
   // Used by Prometheus "\\'localhost:9100\\',\\'10.5.0.10:9100\\',\\'10.5.0.5:9100\\',\\'10.5.0.11:9100\\'...",
   local prometheus_targets = std.format("\\'localhost:9100\\',\\'%s:9100\\',\\'%s:9100\\',", [internal_bastion_ip, rabbitmq_ip]) +
                              "\\'" + std.join(":9100\\',\\'", cass_ips) + ":9100\\'," +
+                             "\\'" + std.join(":9500\\',\\'", cass_ips) + ":9500\\'," + // Cassandra exporter
                              "\\'" + std.join(":9100\\',\\'", daemon_ips) + ":9100\\'",
 
   // Full list of env variables expected by capideploy working with this project
@@ -234,6 +239,14 @@
           ethertype: 'IPv4',
           remote_ip: $.network.subnet.cidr,
           port: 9100,
+          direction: 'ingress',
+        },
+        {
+          desc: 'Cassandra Prometheus node exporter',
+          protocol: 'tcp',
+          ethertype: 'IPv4',
+          remote_ip: $.network.subnet.cidr,
+          port: 9500,
           direction: 'ingress',
         },
         {
@@ -706,6 +719,7 @@
           CASSANDRA_SEEDS: cassandra_seeds,
           INITIAL_TOKEN: e.token,
           PROMETHEUS_NODE_EXPORTER_VERSION: prometheus_node_exporter_version,
+          PROMETHEUS_CASSANDRA_EXPORTER_VERSION: prometheus_cassandra_exporter_version,
         },
         cmd: {
           install: [
