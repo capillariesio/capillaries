@@ -111,15 +111,6 @@
                     "direction": "ingress"
                 },
                 {
-                    "desc": "Cassandra Prometheus node exporter",
-                    "id": "",
-                    "protocol": "tcp",
-                    "ethertype": "IPv4",
-                    "remote_ip": "10.5.0.0/24",
-                    "port": 9500,
-                    "direction": "ingress"
-                },
-                {
                     "desc": "RabbitMQ UI reverse proxy",
                     "id": "",
                     "protocol": "tcp",
@@ -186,6 +177,15 @@
                     "ethertype": "IPv4",
                     "remote_ip": "10.5.0.0/24",
                     "port": 9100,
+                    "direction": "ingress"
+                },
+                {
+                    "desc": "Cassandra Prometheus node exporter",
+                    "id": "",
+                    "protocol": "tcp",
+                    "ethertype": "IPv4",
+                    "remote_ip": "10.5.0.0/24",
+                    "port": 9500,
                     "direction": "ingress"
                 },
                 {
