@@ -175,6 +175,7 @@ func main() {
 
 	cmdStartTs := time.Now()
 
+	throttle := time.Tick(time.Second) // One call per second, to avoid error 429 on openstack calls
 	const MaxWorkerThreads int = 10
 	var logChan = make(chan deploy.LogMsg, MaxWorkerThreads*5)
 	var sem = make(chan int, MaxWorkerThreads)
@@ -258,6 +259,7 @@ func main() {
 			}
 
 			for iNickname, _ := range instances {
+				<-throttle
 				sem <- 1
 				go func(prjPair *deploy.ProjectPair, logChan chan deploy.LogMsg, errChan chan error, iNickname string) {
 					logMsg, err := deploy.CreateInstanceAndWaitForCompletion(
@@ -274,6 +276,7 @@ func main() {
 			}
 		case CmdDeleteInstances:
 			for iNickname, _ := range instances {
+				<-throttle
 				sem <- 1
 				go func(prjPair *deploy.ProjectPair, logChan chan deploy.LogMsg, errChan chan error, iNickname string) {
 					logMsg, err := deploy.DeleteInstance(prjPair, iNickname, *argVerbosity)
@@ -310,6 +313,7 @@ func main() {
 		errorsExpected = len(instances)
 		errChan = make(chan error, len(instances))
 		for _, iDef := range instances {
+			<-throttle
 			sem <- 1
 			go func(prj *deploy.Project, logChan chan deploy.LogMsg, errChan chan error, iDef *deploy.InstanceDef) {
 				var logMsg deploy.LogMsg
@@ -382,6 +386,7 @@ func main() {
 		errChan = make(chan error, volCount)
 		for iNickname, iDef := range instances {
 			for volNickname := range iDef.Volumes {
+				<-throttle
 				sem <- 1
 				switch os.Args[1] {
 				case CmdCreateVolumes:
