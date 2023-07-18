@@ -40,6 +40,8 @@ Deployment project files contain description and status of each instance. When t
 4. Make sure all environment variables storing Capideploy and Openstack settings are set. For non-production environments, you may want to keep them in a separate private file and activate before deploying `source ~/sampledeployment002.rc`:
 
 ```
+# capideploy settings
+
 export CAPIDEPLOY_SSH_USER=ubuntu
 export CAPIDEPLOY_SSH_PRIVATE_KEY_PASS=""
 export CAPIDEPLOY_SFTP_USER=...
@@ -48,16 +50,32 @@ export CAPIDEPLOY_RABBITMQ_ADMIN_PASS=...
 export CAPIDEPLOY_RABBITMQ_USER_NAME=...
 export CAPIDEPLOY_RABBITMQ_USER_PASS=...
 
-export OS_AUTH_URL=...
-export OS_PROJECT_ID=...
-export OS_PROJECT_NAME="..."
-export OS_USER_DOMAIN_NAME="..."
-export OS_PROJECT_DOMAIN_ID=...
-export OS_USERNAME="..."
-export OS_PASSWORD="..."
+# OpenStack settings
+
+# Example 002
+export OS_AUTH_URL=https://us-central-1.genesishosting.com:5000/v3
+export OS_PROJECT_ID=7abdc4...
+export OS_PROJECT_NAME="myProject"
+export OS_USER_DOMAIN_NAME="myDomain"
+export OS_PROJECT_DOMAIN_ID=8b2a...
+export OS_USERNAME="myAdmin"
+export OS_PASSWORD="j7F04F..."
 export OS_REGION_NAME="us-central-1"
 export OS_INTERFACE=public
 export OS_IDENTITY_API_VERSION=3
+
+# Example 003
+export OS_AUTH_URL="https://auth.cloud.ovh.net/v3"
+export OS_IDENTITY_API_VERSION=3
+export OS_USER_DOMAIN_NAME="default"
+export OS_TENANT_ID="d6b34..."
+export OS_TENANT_NAME="743856365..."
+export OS_USERNAME="user-h7FGd43..."
+export OS_PASSWORD='hS56Shr...'
+export OS_REGION_NAME="BHS5"
+export OS_PROJECT_ID=d6b34...
+export OS_PROJECT_NAME="743856365..."
+export OS_INTERFACE="public"
 ```
 
 5. Optionally, build deploy tool so you do not have to run `go run ../../build/capideploy.exe` every time and use `$capideploy` shortcut instead (this is a WSL example):
@@ -92,9 +110,9 @@ $capideploy create_floating_ip -prj=sampledeployment002.json
 
 # Openstack networking and volumes
 
-$capideploy create_security_groups -prj=sampledeployment002.json
-$capideploy create_networking -prj=sampledeployment002.json
-$capideploy create_volumes '*' -prj=sampledeployment002.json
+$capideploy create_security_groups -prj=sampledeployment002.json;
+$capideploy create_networking -prj=sampledeployment002.json;
+$capideploy create_volumes '*' -prj=sampledeployment002.json;
 
 # Create all instances in one shot
 
@@ -293,7 +311,7 @@ $capideploy delete_instances '*' -prj=sampledeployment002.json
 $capideploy delete_volumes '*' -prj=sampledeployment002.json;
 $capideploy delete_networking -prj=sampledeployment002.json;
 $capideploy delete_security_groups -prj=sampledeployment002.json;
-$capideploy delete_floating_ip -prj=sampledeployment002.json
+$capideploy delete_floating_ip -prj=sampledeployment002.json;
 ```
 
 ## Q&A
