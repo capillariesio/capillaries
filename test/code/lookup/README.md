@@ -34,4 +34,4 @@ Play with number of total line items (see "-items=..." in [1_create_data.sh](qui
   
 ## References:
 
-Data model design: Brazilian E-Commerce public dataset (https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)
+Data model design: Brazilian E-Commerce public dataset `https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce`
