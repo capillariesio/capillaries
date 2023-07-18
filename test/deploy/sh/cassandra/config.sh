@@ -56,6 +56,9 @@ sudo rm -fR /var/lib/cassandra/commitlog/*
 # but ignore the dc - it's a testing env
 echo 'JVM_OPTS="$JVM_OPTS -Dcassandra.ignore_dc=true"' | sudo tee -a /etc/cassandra/cassandra-env.sh
 
+# Cassandra Prometheus exporter
+echo 'JVM_OPTS="$JVM_OPTS -javaagent:/usr/share/cassandra/lib/cassandra-exporter-agent-'${PROMETHEUS_CASSANDRA_EXPORTER_VERSION}'-SNAPSHOT.jar"' | sudo tee -a /etc/cassandra/cassandra-env.sh
+
 # We do not need this config file, delete it
 sudo rm -f rm /etc/cassandra/cassandra-topology.properties
 

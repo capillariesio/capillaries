@@ -1,17 +1,17 @@
 {
   // Variables to play with
-  local cassandra_node_flavor = "2x",
-  local cassandra_total_nodes = 16,
-  local daemon_total_instances = 8,
-  local DEFAULT_DAEMON_THREAD_POOL_SIZE = '10',
-  local DEFAULT_DAEMON_DB_WRITERS = '10',
+  local cassandra_node_flavor = "x",
+  local cassandra_total_nodes = 4,
+  local daemon_total_instances = 2,
+  local DEFAULT_DAEMON_THREAD_POOL_SIZE = '5',
+  local DEFAULT_DAEMON_DB_WRITERS = '5',
 
   // Basics
-  local deployment_name = 'sampledeployment002',  // Can be any combination of alphanumeric characters. Make it unique.
+  local deployment_name = 'sampledeployment003',  // Can be any combination of alphanumeric characters. Make it unique.
   local default_root_key_name = deployment_name + '-root-key',  // This should match the name of the keypair you already created in Openstack
 
   // Network
-  local external_gateway_network_name = 'ext-net',  // This is what external network is called for this cloud provider, yours may be different
+  local external_gateway_network_name = 'Ext-Net',  // This is what external network is called for this cloud provider, yours may be different
   local subnet_cidr = '10.5.0.0/24',  // Your choice
   local subnet_allocation_pool = 'start=10.5.0.240,end=10.5.0.254',  // We use fixed ip addresses in the .0.2-.0.239 range, the rest is potentially available
 
@@ -40,24 +40,24 @@
   local cassandra_hosts = "'[\"" + std.join('","', cassandra_ips) + "\"]'",  // Used by daemons "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\"]'",
   
   // Instance details
-  local default_availability_zone = 'us-central-1a',  // Specified when volume/instance is created
-  local instance_image_name = 'ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw',
-  local instance_flavor_rabbitmq = 't5sd.large',
-  local instance_flavor_prometheus = 't5sd.large',
+  local default_availability_zone = 'nova',  // Specified when volume/instance is created
+  local instance_image_name = 'Ubuntu 23.04',
+  local instance_flavor_rabbitmq = 'b2-7',
+  local instance_flavor_prometheus = 'b2-7',
   local instance_flavor_bastion =
-    if cassandra_node_flavor == "x" then 'c5sd.large'
-    else if cassandra_node_flavor == "2x" then 'c5sd.xlarge'
-    else if cassandra_node_flavor == "4x" then 'c5sd.2xlarge'
+    if cassandra_node_flavor == "x" then 'b2-7'
+    else if cassandra_node_flavor == "2x" then ''
+    else if cassandra_node_flavor == "4x" then ''
     else "unknown",
   local instance_flavor_cassandra =
-    if cassandra_node_flavor == "x" then 'c6asx.xlarge'
-    else if cassandra_node_flavor == "2x" then 'c6asx.2xlarge'
-    else if cassandra_node_flavor == "4x" then 'c6asx.4xlarge'
+    if cassandra_node_flavor == "x" then 'b2-7'
+    else if cassandra_node_flavor == "2x" then ''
+    else if cassandra_node_flavor == "4x" then ''
     else "unknown",
   local instance_flavor_daemon =
-    if cassandra_node_flavor == "x" then 'c5sd.large'
-    else if cassandra_node_flavor == "2x" then 'c5sd.xlarge'
-    else if cassandra_node_flavor == "4x" then 'c5sd.2xlarge'
+    if cassandra_node_flavor == "x" then 'b2-7'
+    else if cassandra_node_flavor == "2x" then ''
+    else if cassandra_node_flavor == "4x" then ''
     else "unknown",
   
   // Artifacts
@@ -65,9 +65,9 @@
   local pkgExeDir = '../../pkg/exe',
   
   // Keys
-  local sftp_config_public_key_path = '~/.ssh/sampledeployment002_sftp.pub',
-  local sftp_config_private_key_path = '~/.ssh/sampledeployment002_sftp',
-  local ssh_config_private_key_path = '~/.ssh/sampledeployment002_rsa',
+  local sftp_config_public_key_path = '~/.ssh/sampledeployment003_sftp.pub',
+  local sftp_config_private_key_path = '~/.ssh/sampledeployment003_sftp',
+  local ssh_config_private_key_path = '~/.ssh/sampledeployment003_rsa',
   
   // Prometheus versions
   local prometheus_node_exporter_version = '1.6.0',
@@ -548,7 +548,7 @@
           availability_zone: default_availability_zone,
           mount_point: '/mnt/capi_cfg',
           size: 1,
-          type: 'gp1',
+          type: 'classic',
           permissions: 777,
           owner: $.ssh_config.user, // If SFTP used: "{CAPIDEPLOY_SFTP_USER}"
         },
@@ -557,7 +557,7 @@
           availability_zone: default_availability_zone,
           mount_point: '/mnt/capi_in',
           size: 1,
-          type: 'gp1',
+          type: 'classic',
           permissions: 777,
           owner: $.ssh_config.user,
         },
@@ -566,7 +566,7 @@
           availability_zone: default_availability_zone,
           mount_point: '/mnt/capi_out',
           size: 1,
-          type: 'gp1',
+          type: 'classic',
           permissions: 777,
           owner: $.ssh_config.user,
         },

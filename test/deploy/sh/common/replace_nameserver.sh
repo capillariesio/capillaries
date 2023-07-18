@@ -1,3 +1,6 @@
+# Disable it before changing DNS server, otherwise it may start updating
+sudo systemctl stop unattended-upgrades
+
 # We are about to remove DNS server 127.0.0.53 that knows this host. Just save it in /etc/hosts
 echo 127.0.0.1 $(hostname) | sudo tee -a /etc/hosts
 

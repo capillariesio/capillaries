@@ -86,7 +86,7 @@ do
     else
       echo $nodetoolOutput
     fi
-    sleep 10
+    sleep 5
   done
 done
 ssh -o StrictHostKeyChecking=no -i $sshKeyFile -J $externalIpAddress $CAPIDEPLOY_SSH_USER@${cassIpArray[0]} 'nodetool status'
