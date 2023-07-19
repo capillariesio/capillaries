@@ -40,6 +40,8 @@ Deployment project files contain description and status of each instance. When t
 4. Make sure all environment variables storing Capideploy and Openstack settings are set. For non-production environments, you may want to keep them in a separate private file and activate before deploying `source ~/sampledeployment002.rc`:
 
 ```
+# capideploy settings
+
 export CAPIDEPLOY_SSH_USER=ubuntu
 export CAPIDEPLOY_SSH_PRIVATE_KEY_PASS=""
 export CAPIDEPLOY_SFTP_USER=...
@@ -48,16 +50,32 @@ export CAPIDEPLOY_RABBITMQ_ADMIN_PASS=...
 export CAPIDEPLOY_RABBITMQ_USER_NAME=...
 export CAPIDEPLOY_RABBITMQ_USER_PASS=...
 
+# OpenStack settings
+
+# Example 002
 export OS_AUTH_URL=https://us-central-1.genesishosting.com:5000/v3
-export OS_PROJECT_ID=...
-export OS_PROJECT_NAME="..."
-export OS_USER_DOMAIN_NAME="..."
-export OS_PROJECT_DOMAIN_ID=...
-export OS_USERNAME="..."
-export OS_PASSWORD="..."
+export OS_PROJECT_ID=7abdc4...
+export OS_PROJECT_NAME="myProject"
+export OS_USER_DOMAIN_NAME="myDomain"
+export OS_PROJECT_DOMAIN_ID=8b2a...
+export OS_USERNAME="myAdmin"
+export OS_PASSWORD="j7F04F..."
 export OS_REGION_NAME="us-central-1"
 export OS_INTERFACE=public
 export OS_IDENTITY_API_VERSION=3
+
+# Example 003
+export OS_AUTH_URL="https://auth.cloud.ovh.net/v3"
+export OS_IDENTITY_API_VERSION=3
+export OS_USER_DOMAIN_NAME="default"
+export OS_TENANT_ID="d6b34..."
+export OS_TENANT_NAME="743856365..."
+export OS_USERNAME="user-h7FGd43..."
+export OS_PASSWORD='hS56Shr...'
+export OS_REGION_NAME="BHS5"
+export OS_PROJECT_ID=d6b34...
+export OS_PROJECT_NAME="743856365..."
+export OS_INTERFACE="public"
 ```
 
 5. Optionally, build deploy tool so you do not have to run `go run ../../build/capideploy.exe` every time and use `$capideploy` shortcut instead (this is a WSL example):
@@ -92,9 +110,9 @@ $capideploy create_floating_ip -prj=sampledeployment002.json
 
 # Openstack networking and volumes
 
-$capideploy create_security_groups -prj=sampledeployment002.json
-$capideploy create_networking -prj=sampledeployment002.json
-$capideploy create_volumes '*' -prj=sampledeployment002.json
+$capideploy create_security_groups -prj=sampledeployment002.json;
+$capideploy create_networking -prj=sampledeployment002.json;
+$capideploy create_volumes '*' -prj=sampledeployment002.json;
 
 # Create all instances in one shot
 
@@ -156,6 +174,7 @@ Resource usage:
 | CPU usage % | `http://$BASTION_IP:9090/graph?g0.expr=(1%20-%20avg(irate(node_cpu_seconds_total%7Bmode%3D%22idle%22%7D%5B10m%5D))%20by%20(instance))%20*%20100&g0.tab=0&g0.stacked=0&g0.show_exemplars=0&g0.range_input=15m` |
 | RAM usage % | `http://$BASTION_IP:9090/graph?g0.expr=100%20*%20(1%20-%20((avg_over_time(node_memory_MemFree_bytes%5B10m%5D)%20%2B%20avg_over_time(node_memory_Cached_bytes%5B10m%5D)%20%2B%20avg_over_time(node_memory_Buffers_bytes%5B10m%5D))%20%2F%20avg_over_time(node_memory_MemTotal_bytes%5B10m%5D)))&g0.tab=0&g0.stacked=0&g0.show_exemplars=0&g0.range_input=15m` |
 | Disk usage % | `http://$BASTION_IP:9090/graph?g0.expr=100%20-%20((node_filesystem_avail_bytes%7Bmountpoint%3D%22%2F%22%2Cfstype!%3D%22rootfs%22%7D%20*%20100)%2Fnode_filesystem_size_bytes%7Bmountpoint%3D%22%2F%22%2Cfstype!%3D%22rootfs%22%7D)&g0.tab=0&g0.stacked=0&g0.show_exemplars=0&g0.range_input=15m` |
+| Cassandra writes: count/s and latency | `http://$BASTION_IP:9090/graph?g0.expr=sum(irate(cassandra_table_operation_latency_seconds_count%7Bkeyspace!%3D"system"%2Coperation%3D"write"%7D%5B1m%5D))&g0.tab=0&g0.stacked=0&g0.show_exemplars=1&g0.range_input=15m&g1.expr=avg(cassandra_table_operation_latency_seconds%7Bkeyspace!%3D"system"%2Coperation%3D"write"%7D)&g1.tab=0&g1.stacked=0&g1.show_exemplars=0&g1.range_input=15m` |
 
 Consolidated [Daemon](../../doc/glossary.md#daemon) log from all Daemon instances:
 
@@ -289,10 +308,10 @@ $capideploy delete_instances '*' -prj=sampledeployment002.json
 
 # Delete volumes, networking, security groups and floating ip
 
-$capideploy delete_volumes '*' -prj=sampledeployment002.json
-$capideploy delete_networking -prj=sampledeployment002.json
-$capideploy delete_security_groups -prj=sampledeployment002.json
-$capideploy delete_floating_ip -prj=sampledeployment002.json
+$capideploy delete_volumes '*' -prj=sampledeployment002.json;
+$capideploy delete_networking -prj=sampledeployment002.json;
+$capideploy delete_security_groups -prj=sampledeployment002.json;
+$capideploy delete_floating_ip -prj=sampledeployment002.json;
 ```
 
 ## Q&A

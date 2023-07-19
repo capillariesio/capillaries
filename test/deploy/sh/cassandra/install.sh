@@ -13,3 +13,10 @@ if [ "$?" -ne "0" ]; then
     exit $?
 fi
 
+curl -LO https://github.com/instaclustr/cassandra-exporter/releases/download/v${PROMETHEUS_CASSANDRA_EXPORTER_VERSION}/cassandra-exporter-agent-${PROMETHEUS_CASSANDRA_EXPORTER_VERSION}-SNAPSHOT.jar
+if [ "$?" -ne "0" ]; then
+    echo Cannot download Prometheus Cassandra exporter, exiting
+    exit $?
+fi
+
+sudo mv cassandra-exporter-agent-${PROMETHEUS_CASSANDRA_EXPORTER_VERSION}-SNAPSHOT.jar /usr/share/cassandra/lib/

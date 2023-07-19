@@ -39,4 +39,4 @@ There are two files in `test/data/cfg/py_calc_quicktest/py` directory: one conta
 
 ## References:
 
-Data model design: Brazilian E-Commerce public dataset (https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)
+Data model design: Brazilian E-Commerce public dataset `https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce`
