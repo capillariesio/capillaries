@@ -35,7 +35,7 @@ Deployment project files contain description and status of each instance. When t
 2. Make sure you have created the key pair for SSH access to the Openstack instances, key pair name stored in `root_key_name` in the project file. Through this document, we will be assuming the key pair is stored in `~/.ssh/` and the private key file this kind of name:  
 `sampledeployment002_rsa`.
 
-3. Make sure all SFTP key files used referenced in deployment project `sampledeployment002.json` are present.
+3. If you want to use SFTP (instead of or along with NFS) for file sharing make sure all SFTP key files used referenced in deployment project `sampledeployment002.json` are present.
 
 4. Make sure all environment variables storing Capideploy and Openstack settings are set. For non-production environments, you may want to keep them in a separate private file and activate before deploying `source ~/sampledeployment002.rc`:
 
@@ -76,6 +76,21 @@ export OS_REGION_NAME="BHS5"
 export OS_PROJECT_ID=d6b34...
 export OS_PROJECT_NAME="743856365..."
 export OS_INTERFACE="public"
+
+# Example 004
+unset OS_TENANT_ID
+unset OS_TENANT_NAME
+export OS_AUTH_URL=https://api.pub1.infomaniak.cloud/identity
+export OS_PROJECT_ID=67da20...
+export OS_PROJECT_NAME="PCP-..."
+export OS_USER_DOMAIN_NAME="Default"
+export OS_PROJECT_DOMAIN_ID="default"
+export OS_USERNAME="PCU-..."
+export OS_PASSWORD=s0me$ecurepass...
+export OS_REGION_NAME="dc3-a"
+export OS_INTERFACE=public
+export OS_IDENTITY_API_VERSION=3
+
 ```
 
 5. Optionally, build deploy tool so you do not have to run `go run ../../build/capideploy.exe` every time and use `$capideploy` shortcut instead (this is a WSL example):
