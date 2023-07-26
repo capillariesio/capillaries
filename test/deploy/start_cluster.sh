@@ -89,4 +89,14 @@ do
     sleep 5
   done
 done
-ssh -o StrictHostKeyChecking=no -i $sshKeyFile -J $externalIpAddress $CAPIDEPLOY_SSH_USER@${cassIpArray[0]} 'nodetool status'
+ssh -o StrictHostKeyChecking=no -i $sshKeyFile -J $externalIpAddress $CAPIDEPLOY_SSH_USER@${cassIpArray[0]} 'nodetool describecluster;nodetool status'
+echo 'Troubleshoot:'
+echo 'On the failing node:'
+echo sudo systemctl stop cassandra
+echo sudo rm -fR /var/lib/cassandra/data/*
+echo sudo rm -fR /var/lib/cassandra/commitlog/*
+echo 'On a working node:'
+echo 'nodetool removenode <failing node id taken from nodetool status>'
+echo 'On the failing node:'
+echo sudo systemctl start cassandra
+echo 'and wait!'

@@ -258,6 +258,11 @@ func main() {
 				log.Fatalf(err.Error())
 			}
 
+			fmt.Printf("Creating instances, consider clearing known_hosts:\n")
+			for _, i := range instances {
+				fmt.Printf("ssh-keygen -f ~/.ssh/known_hosts -R %s\n", i.BestIpAddress())
+			}
+
 			for iNickname, _ := range instances {
 				<-throttle
 				sem <- 1
