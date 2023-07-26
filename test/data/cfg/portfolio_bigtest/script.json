@@ -1,0 +1,669 @@
+{
+    "nodes": {
+        "1_read_accounts": {
+            "type": "file_table",
+            "desc": "Load accounts from parquet",
+            "explicit_run_only": true,
+            "r": {
+                "urls": [
+                    "{dir_in}/accounts.parquet"
+                ],
+                "columns": {
+                    "col_account_id": {
+                        "parquet": {
+                            "col_hdr": "account_id"
+                        },
+                        "col_type": "string"
+                    },
+                    "col_earliest_period_start": {
+                        "parquet": {
+                            "col_hdr": "earliest_period_start"
+                        },
+                        "col_type": "string"
+                    }
+                }
+            },
+            "w": {
+                "name": "accounts",
+                "having": "w.earliest_period_start <= \"{period_start_eod}\"",
+                "fields": {
+                    "account_id": {
+                        "expression": "r.col_account_id",
+                        "type": "string"
+                    },
+                    "earliest_period_start": {
+                        "expression": "r.col_earliest_period_start",
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "1_read_txns": {
+            "type": "file_table",
+            "desc": "Load txns from parquet",
+            "explicit_run_only": true,
+            "r": {
+                "urls": [
+                    "{dir_in}/txns_000.parquet",
+                    "{dir_in}/txns_001.parquet",
+                    "{dir_in}/txns_002.parquet",
+                    "{dir_in}/txns_003.parquet",
+                    "{dir_in}/txns_004.parquet",
+                    "{dir_in}/txns_005.parquet",
+                    "{dir_in}/txns_006.parquet",
+                    "{dir_in}/txns_007.parquet",
+                    "{dir_in}/txns_008.parquet",
+                    "{dir_in}/txns_009.parquet",
+                    "{dir_in}/txns_010.parquet",
+                    "{dir_in}/txns_011.parquet",
+                    "{dir_in}/txns_012.parquet",
+                    "{dir_in}/txns_013.parquet",
+                    "{dir_in}/txns_014.parquet",
+                    "{dir_in}/txns_015.parquet",
+                    "{dir_in}/txns_016.parquet",
+                    "{dir_in}/txns_017.parquet",
+                    "{dir_in}/txns_018.parquet",
+                    "{dir_in}/txns_019.parquet",
+                    "{dir_in}/txns_020.parquet",
+                    "{dir_in}/txns_021.parquet",
+                    "{dir_in}/txns_022.parquet",
+                    "{dir_in}/txns_023.parquet",
+                    "{dir_in}/txns_024.parquet",
+                    "{dir_in}/txns_025.parquet",
+                    "{dir_in}/txns_026.parquet",
+                    "{dir_in}/txns_027.parquet",
+                    "{dir_in}/txns_028.parquet",
+                    "{dir_in}/txns_029.parquet",
+                    "{dir_in}/txns_030.parquet",
+                    "{dir_in}/txns_031.parquet",
+                    "{dir_in}/txns_032.parquet",
+                    "{dir_in}/txns_033.parquet",
+                    "{dir_in}/txns_034.parquet",
+                    "{dir_in}/txns_035.parquet",
+                    "{dir_in}/txns_036.parquet",
+                    "{dir_in}/txns_037.parquet",
+                    "{dir_in}/txns_038.parquet",
+                    "{dir_in}/txns_039.parquet",
+                    "{dir_in}/txns_040.parquet",
+                    "{dir_in}/txns_041.parquet",
+                    "{dir_in}/txns_042.parquet",
+                    "{dir_in}/txns_043.parquet",
+                    "{dir_in}/txns_044.parquet",
+                    "{dir_in}/txns_045.parquet",
+                    "{dir_in}/txns_046.parquet",
+                    "{dir_in}/txns_047.parquet",
+                    "{dir_in}/txns_048.parquet",
+                    "{dir_in}/txns_049.parquet",
+                    "{dir_in}/txns_050.parquet",
+                    "{dir_in}/txns_051.parquet",
+                    "{dir_in}/txns_052.parquet",
+                    "{dir_in}/txns_053.parquet",
+                    "{dir_in}/txns_054.parquet",
+                    "{dir_in}/txns_055.parquet",
+                    "{dir_in}/txns_056.parquet",
+                    "{dir_in}/txns_057.parquet",
+                    "{dir_in}/txns_058.parquet",
+                    "{dir_in}/txns_059.parquet",
+                    "{dir_in}/txns_060.parquet",
+                    "{dir_in}/txns_061.parquet",
+                    "{dir_in}/txns_062.parquet",
+                    "{dir_in}/txns_063.parquet",
+                    "{dir_in}/txns_064.parquet",
+                    "{dir_in}/txns_065.parquet",
+                    "{dir_in}/txns_066.parquet",
+                    "{dir_in}/txns_067.parquet",
+                    "{dir_in}/txns_068.parquet",
+                    "{dir_in}/txns_069.parquet",
+                    "{dir_in}/txns_070.parquet",
+                    "{dir_in}/txns_071.parquet",
+                    "{dir_in}/txns_072.parquet",
+                    "{dir_in}/txns_073.parquet",
+                    "{dir_in}/txns_074.parquet",
+                    "{dir_in}/txns_075.parquet",
+                    "{dir_in}/txns_076.parquet",
+                    "{dir_in}/txns_077.parquet",
+                    "{dir_in}/txns_078.parquet",
+                    "{dir_in}/txns_079.parquet",
+                    "{dir_in}/txns_080.parquet",
+                    "{dir_in}/txns_081.parquet",
+                    "{dir_in}/txns_082.parquet",
+                    "{dir_in}/txns_083.parquet",
+                    "{dir_in}/txns_084.parquet",
+                    "{dir_in}/txns_085.parquet",
+                    "{dir_in}/txns_086.parquet",
+                    "{dir_in}/txns_087.parquet",
+                    "{dir_in}/txns_088.parquet",
+                    "{dir_in}/txns_089.parquet",
+                    "{dir_in}/txns_090.parquet",
+                    "{dir_in}/txns_091.parquet",
+                    "{dir_in}/txns_092.parquet",
+                    "{dir_in}/txns_093.parquet",
+                    "{dir_in}/txns_094.parquet",
+                    "{dir_in}/txns_095.parquet",
+                    "{dir_in}/txns_096.parquet",
+                    "{dir_in}/txns_097.parquet",
+                    "{dir_in}/txns_098.parquet",
+                    "{dir_in}/txns_099.parquet"
+                ],
+                "columns": {
+                    "col_ts": {
+                        "parquet": {
+                            "col_hdr": "ts"
+                        },
+                        "col_type": "string"
+                    },
+                    "col_account_id": {
+                        "parquet": {
+                            "col_hdr": "account_id"
+                        },
+                        "col_type": "string"
+                    },
+                    "col_ticker": {
+                        "parquet": {
+                            "col_hdr": "ticker"
+                        },
+                        "col_type": "string"
+                    },
+                    "col_qty": {
+                        "parquet": {
+                            "col_hdr": "qty",
+                            "col_format": "%d"
+                        },
+                        "col_type": "int"
+                    },
+                    "col_price": {
+                        "parquet": {
+                            "col_hdr": "price",
+                            "col_format": "%f"
+                        },
+                        "col_type": "float"
+                    }
+                }
+            },
+            "w": {
+                "name": "txns",
+                "having": "w.ts > \"{period_start_eod}\" && w.ts <= \"{period_end_eod}\"",
+                "fields": {
+                    "account_id": {
+                        "expression": "r.col_account_id",
+                        "type": "string"
+                    },
+                    "ts": {
+                        "expression": "r.col_ts",
+                        "type": "string"
+                    },
+                    "txn_json": {
+                        "expression": "strings.ReplaceAll(fmt.Sprintf(`{'ts':'%s','t':'%s','q':%d,'p':%s}`, r.col_ts, r.col_ticker, r.col_qty, decimal2(r.col_price)), `'`,`\"`)",
+                        "type": "string"
+                    }
+                },
+                "indexes": {
+                    "idx_txns_account_id": "non_unique(account_id)"
+                }
+            }
+        },
+        "2_account_txns_outer": {
+            "type": "table_lookup_table",
+            "desc": "For each account, merge all txns into single json string",
+            "r": {
+                "table": "accounts",
+                "expected_batches_total": 10
+            },
+            "l": {
+                "index_name": "idx_txns_account_id",
+                "join_on": "r.account_id",
+                "group": true,
+                "join_type": "left"
+            },
+            "w": {
+                "name": "account_txns",
+                "fields": {
+                    "account_id": {
+                        "expression": "r.account_id",
+                        "type": "string"
+                    },
+                    "txns_json": {
+                        "expression": "string_agg(l.txn_json,\",\")",
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "1_read_period_holdings": {
+            "type": "file_table",
+            "desc": "Load holdings from parquet",
+            "explicit_run_only": true,
+            "r": {
+                "urls": [
+                    "{dir_in}/holdings_000.parquet",
+                    "{dir_in}/holdings_001.parquet",
+                    "{dir_in}/holdings_002.parquet",
+                    "{dir_in}/holdings_003.parquet",
+                    "{dir_in}/holdings_004.parquet",
+                    "{dir_in}/holdings_005.parquet",
+                    "{dir_in}/holdings_006.parquet",
+                    "{dir_in}/holdings_007.parquet",
+                    "{dir_in}/holdings_008.parquet",
+                    "{dir_in}/holdings_009.parquet"
+                ],
+                "columns": {
+                    "col_eod": {
+                        "parquet": {
+                            "col_hdr": "d"
+                        },
+                        "col_type": "string"
+                    },
+                    "col_account_id": {
+                        "parquet": {
+                            "col_hdr": "account_id"
+                        },
+                        "col_type": "string"
+                    },
+                    "col_ticker": {
+                        "parquet": {
+                            "col_hdr": "ticker"
+                        },
+                        "col_type": "string"
+                    },
+                    "col_qty": {
+                        "parquet": {
+                            "col_hdr": "qty",
+                            "col_format": "%d"
+                        },
+                        "col_type": "int"
+                    }
+                }
+            },
+            "w": {
+                "name": "period_holdings",
+                "having": "\"{period_start_eod}\" <= w.eod && w.eod <= \"{period_end_eod}\"",
+                "fields": {
+                    "account_id": {
+                        "expression": "r.col_account_id",
+                        "type": "string"
+                    },
+                    "eod": {
+                        "expression": "r.col_eod",
+                        "type": "string"
+                    },
+                    "holding_json": {
+                        "expression": "fmt.Sprintf(`{\"d\":\"%s\",\"t\":\"%s\",\"q\":%d}`, r.col_eod, r.col_ticker, r.col_qty)",
+                        "type": "string"
+                    }
+                },
+                "indexes": {
+                    "idx_period_holdings_account_id": "non_unique(account_id)"
+                }
+            }
+        },
+        "2_account_period_holdings_outer": {
+            "type": "table_lookup_table",
+            "desc": "For each account, merge all holdings into single json string",
+            "r": {
+                "table": "accounts",
+                "expected_batches_total": 10
+            },
+            "l": {
+                "index_name": "idx_period_holdings_account_id",
+                "join_on": "r.account_id",
+                "group": true,
+                "join_type": "left"
+            },
+            "w": {
+                "name": "account_period_holdings",
+                "fields": {
+                    "account_id": {
+                        "expression": "r.account_id",
+                        "type": "string"
+                    },
+                    "holdings_json": {
+                        "expression": "string_agg(l.holding_json,\",\")",
+                        "type": "string"
+                    }
+                },
+                "indexes": {
+                    "idx_account_period_holdings_account_id": "unique(account_id)"
+                }
+            }
+        },
+        "3_build_account_period_activity": {
+            "type": "table_lookup_table",
+            "desc": "For each account, merge holdings and txns",
+            "r": {
+                "table": "account_txns",
+                "expected_batches_total": 10
+            },
+            "l": {
+                "index_name": "idx_account_period_holdings_account_id",
+                "join_on": "r.account_id",
+                "group": false,
+                "join_type": "left"
+            },
+            "w": {
+                "name": "account_period_activity",
+                "fields": {
+                    "account_id": {
+                        "expression": "r.account_id",
+                        "type": "string"
+                    },
+                    "txns_json": {
+                        "expression": " \"[\" + r.txns_json + \"]\" ",
+                        "type": "string"
+                    },
+                    "holdings_json": {
+                        "expression": " \"[\" + l.holdings_json + \"]\" ",
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "4_calc_account_period_perf": {
+            "type": "table_custom_tfm_table",
+            "custom_proc_type": "py_calc",
+            "desc": "Apply Python-based calculations to account holdings and txns",
+            "r": {
+                "table": "account_period_activity",
+                "expected_batches_total": 10
+            },
+            "p": {
+                "python_code_urls": [
+                    "{dir_py}/portfolio_test_company_info_provider.py",
+                    "{dir_py}/portfolio_test_eod_price_provider.py",
+                    "{dir_py}/portfolio_calc.py"
+                ],
+                "calculated_fields": {
+                    "perf_json": {
+                        "expression": "txns_and_holdings_to_twr_cagr_by_sector_year_quarter_json(\"{period_start_eod}\", \"{period_end_eod}\", r.holdings_json, r.txns_json, PortfolioTestEodPriceProvider, PortfolioTestCompanyInfoProvider)",
+                        "type": "string"
+                    }
+                }
+            },
+            "w": {
+                "name": "account_period_perf",
+                "fields": {
+                    "account_id": {
+                        "expression": "r.account_id",
+                        "type": "string"
+                    },
+                    "perf_json": {
+                        "expression": "p.perf_json",
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "5_tag_by_period": {
+            "type": "table_custom_tfm_table",
+            "custom_proc_type": "tag_and_denormalize",
+            "desc": "Tag accounts by period name",
+            "r": {
+                "table": "account_period_perf",
+                "expected_batches_total": 10
+            },
+            "p": {
+                "tag_field_name": "period",
+                "tag_criteria": {
+                    "2021": "re.MatchString(`\"2021\":`, r.perf_json)",
+                    "2021Q1": "re.MatchString(`\"2021Q1\":`, r.perf_json)",
+                    "2021Q2": "re.MatchString(`\"2021Q2\":`, r.perf_json)",
+                    "2021Q3": "re.MatchString(`\"2021Q3\":`, r.perf_json)",
+                    "2021Q4": "re.MatchString(`\"2021Q4\":`, r.perf_json)",
+                    "2022": "re.MatchString(`\"2022\":`, r.perf_json)",
+                    "2022Q1": "re.MatchString(`\"2022Q1\":`, r.perf_json)",
+                    "2022Q2": "re.MatchString(`\"2022Q2\":`, r.perf_json)",
+                    "2022Q3": "re.MatchString(`\"2022Q3\":`, r.perf_json)",
+                    "2022Q4": "re.MatchString(`\"2022Q4\":`, r.perf_json)"
+                }
+            },
+            "w": {
+                "name": "account_period_perf_by_period",
+                "fields": {
+                    "period": {
+                        "expression": "p.period",
+                        "type": "string"
+                    },
+                    "account_id": {
+                        "expression": "r.account_id",
+                        "type": "string"
+                    },
+                    "perf_json": {
+                        "expression": "r.perf_json",
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "5_tag_by_sector": {
+            "type": "table_custom_tfm_table",
+            "custom_proc_type": "tag_and_denormalize",
+            "desc": "Tag accounts by sector",
+            "r": {
+                "table": "account_period_perf_by_period",
+                "expected_batches_total": 10
+            },
+            "p": {
+                "tag_field_name": "sector",
+                "tag_criteria": {
+                    "All": "re.MatchString(`\"All\":`, r.perf_json)",
+                    "Communication Services": "re.MatchString(`\"Communication Services\":`, r.perf_json)",
+                    "Consumer Cyclical": "re.MatchString(`\"Consumer Cyclical\":`, r.perf_json)",
+                    "Consumer Defensive": "re.MatchString(`\"Consumer Defensive\":`, r.perf_json)",
+                    "Financial Services": "re.MatchString(`\"Financial Services\":`, r.perf_json)",
+                    "Healthcare": "re.MatchString(`\"Healthcare\":`, r.perf_json)",
+                    "Industrials": "re.MatchString(`\"Industrials\":`, r.perf_json)",
+                    "Real Estate": "re.MatchString(`\"Real Estate\":`, r.perf_json)",
+                    "Technology": "re.MatchString(`\"Technology\":`, r.perf_json)"
+                }
+            },
+            "w": {
+                "name": "account_period_perf_by_period_sector",
+                "fields": {
+                    "period": {
+                        "expression": "r.period",
+                        "type": "string"
+                    },
+                    "sector": {
+                        "expression": "p.sector",
+                        "type": "string"
+                    },
+                    "account_id": {
+                        "expression": "r.account_id",
+                        "type": "string"
+                    },
+                    "perf_json": {
+                        "expression": "r.perf_json",
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "6_perf_json_to_columns": {
+            "type": "table_custom_tfm_table",
+            "custom_proc_type": "py_calc",
+            "desc": "Use Python to read perf json and save stats as columns",
+            "r": {
+                "table": "account_period_perf_by_period_sector",
+                "expected_batches_total": 100
+            },
+            "p": {
+                "python_code_urls": [
+                    "{dir_py}/json_to_columns.py"
+                ],
+                "calculated_fields": {
+                    "twr": {
+                        "expression": "json_to_twr(r.perf_json, r.period, r.sector)",
+                        "type": "float"
+                    },
+                    "cagr": {
+                        "expression": "json_to_cagr(r.perf_json, r.period, r.sector)",
+                        "type": "float"
+                    }
+                }
+            },
+            "w": {
+                "name": "account_period_sector_twr_cagr",
+                "fields": {
+                    "account_id": {
+                        "expression": "r.account_id",
+                        "type": "string"
+                    },
+                    "period": {
+                        "expression": "r.period",
+                        "type": "string"
+                    },
+                    "sector": {
+                        "expression": "r.sector",
+                        "type": "string"
+                    },
+                    "twr": {
+                        "expression": "p.twr",
+                        "type": "float"
+                    },
+                    "cagr": {
+                        "expression": "p.cagr",
+                        "type": "float"
+                    }
+                }
+            }
+        },
+        "7_file_account_period_sector_perf": {
+            "type": "table_file",
+            "desc": "Write yearly/quarterly perf results by sector to parquet file",
+            "r": {
+                "table": "account_period_sector_twr_cagr"
+            },
+            "w": {
+                "top": {
+                    "order": "account_id,period,sector"
+                },
+                "url_template": "{dir_out}/account_period_sector_perf.parquet",
+                "columns": [
+                    {
+                        "csv": {
+                            "column_name": "ARK fund"
+                        },
+                        "name": "account_id",
+                        "expression": "r.account_id",
+                        "type": "string"
+                    },
+                    {
+                        "csv": {
+                            "column_name": "Period"
+                        },
+                        "name": "period",
+                        "expression": "r.period",
+                        "type": "string"
+                    },
+                    {
+                        "csv": {
+                            "column_name": "Sector"
+                        },
+                        "name": "sector",
+                        "expression": "r.sector",
+                        "type": "string"
+                    },
+                    {
+                        "csv": {
+                            "column_name": "Time-weighted annualized return %"
+                        },
+                        "name": "cagr",
+                        "expression": "r.cagr",
+                        "type": "float"
+                    }
+                ]
+            }
+        },
+        "7_file_account_year_perf": {
+            "type": "table_file",
+            "desc": "Write yearly perf results for all sectors to parquet file",
+            "r": {
+                "table": "account_period_sector_twr_cagr"
+            },
+            "w": {
+                "top": {
+                    "order": "account_id,period"
+                },
+                "having": "len(w.period) == 4 && w.sector == \"All\"",
+                "url_template": "{dir_out}/account_year_perf.parquet",
+                "columns": [
+                    {
+                        "parquet": {
+                            "column_name": "ARK fund"
+                        },
+                        "name": "account_id",
+                        "expression": "r.account_id",
+                        "type": "string"
+                    },
+                    {
+                        "parquet": {
+                            "column_name": "Period"
+                        },
+                        "name": "period",
+                        "expression": "r.period",
+                        "type": "string"
+                    },
+                    {
+                        "parquet": {
+                            "column_name": "Sector"
+                        },
+                        "name": "sector",
+                        "expression": "r.sector",
+                        "type": "string"
+                    },
+                    {
+                        "parquet": {
+                            "column_name": "Time-weighted annualized return %"
+                        },
+                        "name": "cagr",
+                        "expression": "r.cagr",
+                        "type": "float"
+                    }
+                ]
+            }
+        }
+    },
+    "dependency_policies": {
+        "current_active_first_stopped_nogo": {
+            "is_default": true,
+            "event_priority_order": "run_is_current(desc), node_start_ts(desc)",
+            "rules": [
+                {
+                    "cmd": "go",
+                    "expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchSuccess"
+                },
+                {
+                    "cmd": "wait",
+                    "expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchNone"
+                },
+                {
+                    "cmd": "wait",
+                    "expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchStart"
+                },
+                {
+                    "cmd": "nogo",
+                    "expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchFail"
+                },
+                {
+                    "cmd": "go",
+                    "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchSuccess"
+                },
+                {
+                    "cmd": "wait",
+                    "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchNone"
+                },
+                {
+                    "cmd": "wait",
+                    "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchStart"
+                },
+                {
+                    "cmd": "go",
+                    "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchSuccess"
+                },
+                {
+                    "cmd": "nogo",
+                    "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchFail"
+                }
+            ]
+        }
+    }
+}
