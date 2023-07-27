@@ -1,10 +1,10 @@
-FROM golang:1.19
+FROM golang:1.20
 
 # These image lacks pip and dateutil
 RUN apt update
-RUN apt install -y python3-venv python3-pip
-RUN pip install --upgrade pip
-RUN pip install python-dateutil --upgrade
+RUN apt install -y python3-full python3-dateutil
+#RUN pip install --upgrade pip
+#RUN pip install python-dateutil --upgrade
 
 WORKDIR /usr/src/capillaries
 

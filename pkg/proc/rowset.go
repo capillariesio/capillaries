@@ -238,3 +238,18 @@ func (rs *Rowset) ExportToVarsWithAlias(rowIdx int, vars *eval.VarValuesMap, use
 	}
 	return nil
 }
+
+// Force UTC TZ to each ts returned by gocql
+// func (rs *Rowset) SanitizeScannedDatetimesToUtc(rowIdx int) error {
+// 	for valIdx := 0; valIdx < len(rs.Fields); valIdx++ {
+// 		if rs.Fields[valIdx].FieldType == sc.FieldTypeDateTime {
+// 			origVolatile := (*rs.Rows[rowIdx])[valIdx]
+// 			origDt, ok := origVolatile.(time.Time)
+// 			if !ok {
+// 				return fmt.Errorf("invalid type %t(%v), expected datetime", origVolatile, origVolatile)
+// 			}
+// 			(*rs.Rows[rowIdx])[valIdx] = origDt.In(time.UTC)
+// 		}
+// 	}
+// 	return nil
+// }

@@ -448,6 +448,8 @@ func (eCtx *EvalCtx) EvalFunc(callExp *ast.CallExpr, funcName string, args []int
 	switch funcName {
 	case "math.Sqrt":
 		eCtx.Value, err = callMathSqrt(args)
+	case "math.Round":
+		eCtx.Value, err = callMathRound(args)
 	case "len":
 		eCtx.Value, err = callLen(args)
 	case "string":
@@ -472,6 +474,10 @@ func (eCtx *EvalCtx) EvalFunc(callExp *ast.CallExpr, funcName string, args []int
 		eCtx.Value, err = callTimeUnixMilli(args)
 	case "time.DiffMilli":
 		eCtx.Value, err = callTimeDiffMilli(args)
+	case "time.Before":
+		eCtx.Value, err = callTimeBefore(args)
+	case "time.After":
+		eCtx.Value, err = callTimeAfter(args)
 	case "time.FixedZone":
 		eCtx.Value, err = callTimeFixedZone(args)
 	case "re.MatchString":

@@ -208,17 +208,20 @@ func ParquetReadDateTime(val interface{}, se *gp_parquet.SchemaElement) (time.Ti
 	if !isParquetDateTime(se) && !isParquetInt96Date(se) && !isParquetInt32Date(se) {
 		return sc.DefaultDateTime(), fmt.Errorf("cannot read parquet datetime, schema %v", se)
 	}
+	// Important: all time constructor below createdatetime objects with Local TZ.
+	// This is not good because our time.Format("2006-01-02") will use this TZ and produce a datetime for a local TZ, causing confusion.
+	// Only UTC times should be used internally.
 	switch typedVal := val.(type) {
 	case int32:
 		if isParquetInt32Date(se) {
 			// It's a number of days from UNIX epoch
-			return time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC).AddDate(0, 0, int(typedVal)), nil
+			return time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC).AddDate(0, 0, int(typedVal)).In(time.UTC), nil
 		} else {
 			switch *se.ConvertedType {
 			case gp_parquet.ConvertedType_TIMESTAMP_MILLIS:
-				return time.UnixMilli(int64(typedVal)), nil
+				return time.UnixMilli(int64(typedVal)).In(time.UTC), nil
 			case gp_parquet.ConvertedType_TIMESTAMP_MICROS:
-				return time.UnixMicro(int64(typedVal)), nil
+				return time.UnixMicro(int64(typedVal)).In(time.UTC), nil
 			default:
 				return sc.DefaultDateTime(), fmt.Errorf("cannot read parquet datetime from int32, unsupported converted type, schema %v", se)
 			}
@@ -226,15 +229,15 @@ func ParquetReadDateTime(val interface{}, se *gp_parquet.SchemaElement) (time.Ti
 	case int64:
 		switch *se.ConvertedType {
 		case gp_parquet.ConvertedType_TIMESTAMP_MILLIS:
-			return time.UnixMilli(typedVal), nil
+			return time.UnixMilli(typedVal).In(time.UTC), nil
 		case gp_parquet.ConvertedType_TIMESTAMP_MICROS:
-			return time.UnixMicro(typedVal), nil
+			return time.UnixMicro(typedVal).In(time.UTC), nil
 		default:
 			return sc.DefaultDateTime(), fmt.Errorf("cannot read parquet datetime from int64, unsupported converted type, schema %v", se)
 		}
 	case [12]byte:
 		// Deprecated parquet int96 timestamp
-		return gp.Int96ToTime(typedVal), nil
+		return gp.Int96ToTime(typedVal).In(time.UTC), nil
 	default:
 		return sc.DefaultDateTime(), fmt.Errorf("cannot read parquet datetime from %T, schema %v", se, typedVal)
 	}

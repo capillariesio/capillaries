@@ -11,21 +11,21 @@
                 "columns": {
                     "col_account_id": {
                         "parquet": {
-                            "col_hdr": "account_id"
+                            "col_name": "account_id"
                         },
                         "col_type": "string"
                     },
                     "col_earliest_period_start": {
                         "parquet": {
-                            "col_hdr": "earliest_period_start"
+                            "col_name": "earliest_period_start"
                         },
-                        "col_type": "string"
+                        "col_type": "datetime"
                     }
                 }
             },
             "w": {
                 "name": "accounts",
-                "having": "w.earliest_period_start <= \"{period_start_eod}\"",
+                "having": "!time.After(w.earliest_period_start, time.Parse(`2006-01-02`,`{period_start_eod}`))",
                 "fields": {
                     "account_id": {
                         "expression": "r.col_account_id",
@@ -33,7 +33,7 @@
                     },
                     "earliest_period_start": {
                         "expression": "r.col_earliest_period_start",
-                        "type": "string"
+                        "type": "datetime"
                     }
                 }
             }
@@ -148,33 +148,31 @@
                 "columns": {
                     "col_ts": {
                         "parquet": {
-                            "col_hdr": "ts"
+                            "col_name": "ts"
                         },
-                        "col_type": "string"
+                        "col_type": "datetime"
                     },
                     "col_account_id": {
                         "parquet": {
-                            "col_hdr": "account_id"
+                            "col_name": "account_id"
                         },
                         "col_type": "string"
                     },
                     "col_ticker": {
                         "parquet": {
-                            "col_hdr": "ticker"
+                            "col_name": "ticker"
                         },
                         "col_type": "string"
                     },
                     "col_qty": {
                         "parquet": {
-                            "col_hdr": "qty",
-                            "col_format": "%d"
+                            "col_name": "qty"
                         },
                         "col_type": "int"
                     },
                     "col_price": {
                         "parquet": {
-                            "col_hdr": "price",
-                            "col_format": "%f"
+                            "col_name": "price"
                         },
                         "col_type": "float"
                     }
@@ -182,7 +180,7 @@
             },
             "w": {
                 "name": "txns",
-                "having": "w.ts > \"{period_start_eod}\" && w.ts <= \"{period_end_eod}\"",
+                "having": "time.After(w.ts,time.Parse(`2006-01-02`,`{period_start_eod}`)) && !time.After(w.ts,time.Parse(`2006-01-02`,`{period_end_eod}`))",
                 "fields": {
                     "account_id": {
                         "expression": "r.col_account_id",
@@ -190,10 +188,10 @@
                     },
                     "ts": {
                         "expression": "r.col_ts",
-                        "type": "string"
+                        "type": "datetime"
                     },
                     "txn_json": {
-                        "expression": "strings.ReplaceAll(fmt.Sprintf(`{'ts':'%s','t':'%s','q':%d,'p':%s}`, r.col_ts, r.col_ticker, r.col_qty, decimal2(r.col_price)), `'`,`\"`)",
+                        "expression": "strings.ReplaceAll(fmt.Sprintf(`{'ts':'%s','t':'%s','q':%d,'p':%s}`, time.Format(r.col_ts, `2006-01-02`), r.col_ticker, r.col_qty, decimal2(r.col_price)), `'`,`\"`)",
                         "type": "string"
                     }
                 },
@@ -249,26 +247,25 @@
                 "columns": {
                     "col_eod": {
                         "parquet": {
-                            "col_hdr": "d"
+                            "col_name": "d"
                         },
-                        "col_type": "string"
+                        "col_type": "datetime"
                     },
                     "col_account_id": {
                         "parquet": {
-                            "col_hdr": "account_id"
+                            "col_name": "account_id"
                         },
                         "col_type": "string"
                     },
                     "col_ticker": {
                         "parquet": {
-                            "col_hdr": "ticker"
+                            "col_name": "ticker"
                         },
                         "col_type": "string"
                     },
                     "col_qty": {
                         "parquet": {
-                            "col_hdr": "qty",
-                            "col_format": "%d"
+                            "col_name": "qty"
                         },
                         "col_type": "int"
                     }
@@ -276,7 +273,8 @@
             },
             "w": {
                 "name": "period_holdings",
-                "having": "\"{period_start_eod}\" <= w.eod && w.eod <= \"{period_end_eod}\"",
+                "having": "!time.After(time.Parse(`2006-01-02`,`{period_start_eod}`),w.eod) && !time.After(w.eod,time.Parse(`2006-01-02`,`{period_end_eod}`))",
+
                 "fields": {
                     "account_id": {
                         "expression": "r.col_account_id",
@@ -284,10 +282,10 @@
                     },
                     "eod": {
                         "expression": "r.col_eod",
-                        "type": "string"
+                        "type": "datetime"
                     },
                     "holding_json": {
-                        "expression": "fmt.Sprintf(`{\"d\":\"%s\",\"t\":\"%s\",\"q\":%d}`, r.col_eod, r.col_ticker, r.col_qty)",
+                        "expression": "fmt.Sprintf(`{\"d\":\"%s\",\"t\":\"%s\",\"q\":%d}`, time.Format(r.col_eod, `2006-01-02`), r.col_ticker, r.col_qty)",
                         "type": "string"
                     }
                 },
@@ -539,7 +537,7 @@
                 "url_template": "{dir_out}/account_period_sector_perf.parquet",
                 "columns": [
                     {
-                        "csv": {
+                        "parquet": {
                             "column_name": "ARK fund"
                         },
                         "name": "account_id",
@@ -547,7 +545,7 @@
                         "type": "string"
                     },
                     {
-                        "csv": {
+                        "parquet": {
                             "column_name": "Period"
                         },
                         "name": "period",
@@ -555,7 +553,7 @@
                         "type": "string"
                     },
                     {
-                        "csv": {
+                        "parquet": {
                             "column_name": "Sector"
                         },
                         "name": "sector",
@@ -563,11 +561,11 @@
                         "type": "string"
                     },
                     {
-                        "csv": {
+                        "parquet": {
                             "column_name": "Time-weighted annualized return %"
                         },
                         "name": "cagr",
-                        "expression": "r.cagr",
+                        "expression": "math.Round(r.cagr*100)/100",
                         "type": "float"
                     }
                 ]
@@ -615,7 +613,7 @@
                             "column_name": "Time-weighted annualized return %"
                         },
                         "name": "cagr",
-                        "expression": "r.cagr",
+                        "expression": "math.Round(r.cagr*100)/100",
                         "type": "float"
                     }
                 ]

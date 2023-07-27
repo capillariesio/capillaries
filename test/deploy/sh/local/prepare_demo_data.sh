@@ -23,5 +23,7 @@ cp -r ./test/data/out/* /tmp/capi_out
 cd ./test/code/lookup/bigtest
 ./1_create_data.sh
 
+cd ../../portfolio/bigtest
+./1_create_data.sh
 
 

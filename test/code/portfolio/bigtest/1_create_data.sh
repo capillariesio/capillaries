@@ -26,8 +26,11 @@ else
   rm -f $cfgDir/py/*
 fi
 
+echo "Copying config files to "$cfgDir
+cp ../../../data/cfg/portfolio_bigtest/* $cfgDir/
+
 echo "Copying Python files to "$cfgDir/py
 cp -r ../../../data/cfg/portfolio_quicktest/py/* $cfgDir/py/
 
 echo "Generating data.."
-go run ./generate_bigtest_data.go -accounts=100
+go run ./generate_bigtest_data.go -accounts=10
