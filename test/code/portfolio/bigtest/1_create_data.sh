@@ -32,5 +32,20 @@ cp ../../../data/cfg/portfolio_bigtest/* $cfgDir/
 echo "Copying Python files to "$cfgDir/py
 cp -r ../../../data/cfg/portfolio_quicktest/py/* $cfgDir/py/
 
-echo "Generating data.."
-go run ./generate_bigtest_data.go -accounts=10
+echo "Generating data..."
+go run ./generate_bigtest_data.go -accounts=100
+
+echo "Sorting out files..."
+go run ../../parquet/capiparquet.go sort $outDir/account_period_sector_perf_baseline.parquet 'ARK fund,Period,Sector'
+go run ../../parquet/capiparquet.go sort $outDir/account_year_perf_baseline.parquet 'ARK fund,Period'
+
+
+echo "Packing input and ouput files..."
+
+pushd $inDir
+tar -czf $inDir/all.tgz *.parquet
+popd
+
+pushd $outDir
+tar -czf $outDir/all.tgz *.parquet
+popd

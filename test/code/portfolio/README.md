@@ -2,6 +2,17 @@
 
 Created using Ubuntu WSL. Other Linux flavors and MacOS may require edits.
 
+## portfolio_quicktest vs portfolio_bigtest
+
+This test comes in two flavors. 
+
+portfolio_quicktest has all data ready, it just has to be copied to /tmp/capi_*, and you can run the test. Root-level [copy_demo_data.sh](../../../copy_demo_data.sh) script does that, among other things.
+
+portfolio_bigtest is a variation of this test that uses:
+- large number of accounts
+- parquet files for input and output 
+and requires test data to be generated - see [1_create_test.data.sh](./bigtest/1_create_data.sh).
+
 ## Workflow
 
 The [DOT diagram](../../../doc/glossary.md#dot-diagrams) generated with

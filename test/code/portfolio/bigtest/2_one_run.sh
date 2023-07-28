@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source ../common/util.sh
+source ../../common/util.sh
 
 keyspace="portfolio_bigtest"
 scriptFile=/tmp/capi_cfg/portfolio_bigtest/script.json

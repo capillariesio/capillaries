@@ -2,8 +2,16 @@
 
 Created using Ubuntu WSL. Other Linux flavors and MacOS may require edits.
 
-`quicktest` - small number of items, CSV input/output
-`bigtest` - large naumber of items. CSV and Parquet input/output
+## lookup_quicktest vs lookup_bigtest
+
+This test comes in two flavors. 
+
+portfolio_quicktest has all data ready, it just has to be copied to /tmp/capi_*, and you can run the test. Root-level [copy_demo_data.sh](../../../copy_demo_data.sh) script does that, among other things.
+
+lookup_bigtest is a variation of this test that uses:
+- large number of orders
+- parquet files for input and output 
+and requires test data to be generated - see [1_create_test.data.sh](./bigtest/1_create_data.sh).
 
 ## Workflow
 
@@ -30,7 +38,7 @@ See [integration tests](../../../doc/testing.md#integration-tests) section for g
 
 ## Possible edits
 
-Play with number of total line items (see "-items=..." in [1_create_data.sh](quicktest/1_create_data.sh)).
+Play with number of total line items (see "-items=..." in [1_create_data.sh](./quicktest/1_create_data.sh)).
   
 ## References:
 
