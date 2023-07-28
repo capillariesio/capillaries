@@ -20,10 +20,15 @@ cp -r ./test/data/cfg/* /tmp/capi_cfg
 cp -r ./test/data/in/* /tmp/capi_in
 cp -r ./test/data/out/* /tmp/capi_out
 
-cd ./test/code/lookup/bigtest
-./1_create_data.sh
+# Generate big data
 
-cd ../../portfolio/bigtest
+pushd ./test/code/lookup/bigtest
 ./1_create_data.sh
+popd
+
+pushd ./test/code/portfolio/bigtest
+./1_create_data.sh
+popd
+
 
 

@@ -358,6 +358,36 @@
             "owner": "{CAPIDEPLOY_SSH_USER}",
             "after": {}
         },
+        "up_portfolio_bigtest_in": {
+            "src": "/tmp/capi_in/portfolio_bigtest/all.tgz",
+            "dst": "/mnt/capi_in/portfolio_bigtest",
+            "dir_permissions": 777,
+            "file_permissions": 666,
+            "owner": "{CAPIDEPLOY_SSH_USER}",
+            "after": {
+                "env": {
+                    "OWNER_USER": "{CAPIDEPLOY_SSH_USER}"
+                },
+                "cmd": [
+                    "sh/capiscripts/unpack_portfolio_big_in.sh"
+                ]
+            }
+        },
+        "up_portfolio_bigtest_out": {
+            "src": "/tmp/capi_out/portfolio_bigtest/all.tgz",
+            "dst": "/mnt/capi_out/portfolio_bigtest",
+            "dir_permissions": 777,
+            "file_permissions": 666,
+            "owner": "{CAPIDEPLOY_SSH_USER}",
+            "after": {
+                "env": {
+                    "OWNER_USER": "{CAPIDEPLOY_SSH_USER}"
+                },
+                "cmd": [
+                    "sh/capiscripts/unpack_portfolio_big_out.sh"
+                ]
+            }
+        },
         "up_portfolio_quicktest_in": {
             "src": "/tmp/capi_in/portfolio_quicktest",
             "dst": "/mnt/capi_in/portfolio_quicktest",
@@ -584,6 +614,8 @@
                 "up_tag_and_denormalize_quicktest_out",
                 "up_py_calc_quicktest_in",
                 "up_py_calc_quicktest_out",
+                "up_portfolio_bigtest_in",
+                "up_portfolio_bigtest_out",
                 "up_portfolio_quicktest_in",
                 "up_portfolio_quicktest_out",
                 "up_webapi_binary",
@@ -602,7 +634,7 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment004-root-key",
             "ip_address": "10.5.0.11",
-            "flavor": "a8-ram16-disk20-perf2",
+            "flavor": "a4-ram8-disk20-perf2",
             "image": "Ubuntu 22.04 LTS Jammy Jellyfish",
             "availability_zone": "dc3-a-09",
             "id": "",
@@ -638,7 +670,7 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment004-root-key",
             "ip_address": "10.5.0.12",
-            "flavor": "a8-ram16-disk20-perf2",
+            "flavor": "a4-ram8-disk20-perf2",
             "image": "Ubuntu 22.04 LTS Jammy Jellyfish",
             "availability_zone": "dc3-a-09",
             "id": "",
@@ -674,7 +706,7 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment004-root-key",
             "ip_address": "10.5.0.13",
-            "flavor": "a8-ram16-disk20-perf2",
+            "flavor": "a4-ram8-disk20-perf2",
             "image": "Ubuntu 22.04 LTS Jammy Jellyfish",
             "availability_zone": "dc3-a-09",
             "id": "",
@@ -710,7 +742,7 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment004-root-key",
             "ip_address": "10.5.0.14",
-            "flavor": "a8-ram16-disk20-perf2",
+            "flavor": "a4-ram8-disk20-perf2",
             "image": "Ubuntu 22.04 LTS Jammy Jellyfish",
             "availability_zone": "dc3-a-09",
             "id": "",
@@ -760,8 +792,8 @@
                 "env": {
                     "AMQP_URL": "amqp://{CAPIDEPLOY_RABBITMQ_USER_NAME}:{CAPIDEPLOY_RABBITMQ_USER_PASS}@10.5.0.5/",
                     "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\"]'",
-                    "DAEMON_DB_WRITERS": "15",
-                    "DAEMON_THREAD_POOL_SIZE": "15",
+                    "DAEMON_DB_WRITERS": "10",
+                    "DAEMON_THREAD_POOL_SIZE": "10",
                     "INTERNAL_BASTION_IP": "10.5.0.10",
                     "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",
@@ -814,8 +846,8 @@
                 "env": {
                     "AMQP_URL": "amqp://{CAPIDEPLOY_RABBITMQ_USER_NAME}:{CAPIDEPLOY_RABBITMQ_USER_PASS}@10.5.0.5/",
                     "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\"]'",
-                    "DAEMON_DB_WRITERS": "15",
-                    "DAEMON_THREAD_POOL_SIZE": "15",
+                    "DAEMON_DB_WRITERS": "10",
+                    "DAEMON_THREAD_POOL_SIZE": "10",
                     "INTERNAL_BASTION_IP": "10.5.0.10",
                     "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",

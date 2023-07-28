@@ -1,6 +1,6 @@
 {
   // Variables to play with
-  local cassandra_node_flavor = "4x", // x, 2x,4x
+  local cassandra_node_flavor = "2x", // x, 2x,4x
   local cassandra_total_nodes = 4, // 4,8,16
   local daemon_total_instances = 2, // 2,4,8
   local DEFAULT_DAEMON_THREAD_POOL_SIZE = '10',
@@ -50,14 +50,14 @@
     else if cassandra_node_flavor == "4x" then 'a1-ram2-disk20-perf1'
     else "unknown",
   local instance_flavor_cassandra =
-    if cassandra_node_flavor == "x" then 'a2-ram4-disk20-perf1'
+    if cassandra_node_flavor == "x" then 'a2-ram4-disk20-perf1' // They don't have perf2 version
     else if cassandra_node_flavor == "2x" then 'a4-ram8-disk20-perf2'
     else if cassandra_node_flavor == "4x" then 'a8-ram16-disk20-perf2'
     else "unknown",
   local instance_flavor_daemon =
-    if cassandra_node_flavor == "x" then 'a1-ram2-disk20-perf1'
-    else if cassandra_node_flavor == "2x" then 'a2-ram4-disk20-perf1'
-    else if cassandra_node_flavor == "4x" then 'a4-ram8-disk20-perf1'
+    if cassandra_node_flavor == "x" then 'a2-ram4-disk20-perf1'
+    else if cassandra_node_flavor == "2x" then 'a4-ram8-disk20-perf1'
+    else if cassandra_node_flavor == "4x" then 'a8-ram16-disk20-perf1'
     else "unknown",
   
   // Artifacts
@@ -421,6 +421,36 @@
       owner: $.ssh_config.user,
       after: {},
     },
+    up_portfolio_bigtest_in: {
+      src: '/tmp/capi_in/portfolio_bigtest/all.tgz',
+      dst: '/mnt/capi_in/portfolio_bigtest',
+      dir_permissions: 777,
+      file_permissions: 666,
+      owner: $.ssh_config.user,
+      after: {
+        env: {
+          OWNER_USER: $.ssh_config.user,
+        },
+        cmd: [
+          'sh/capiscripts/unpack_portfolio_big_in.sh',
+        ],
+      },
+    },
+    up_portfolio_bigtest_out: {
+      src: '/tmp/capi_out/portfolio_bigtest/all.tgz',
+      dst: '/mnt/capi_out/portfolio_bigtest',
+      dir_permissions: 777,
+      file_permissions: 666,
+      owner: $.ssh_config.user,
+      after: {
+        env: {
+          OWNER_USER: $.ssh_config.user,
+        },
+        cmd: [
+          'sh/capiscripts/unpack_portfolio_big_out.sh',
+        ],
+      },
+    },
     up_portfolio_quicktest_in: {
       src: '/tmp/capi_in/portfolio_quicktest',
       dst: '/mnt/capi_in/portfolio_quicktest',
@@ -637,6 +667,8 @@
         'up_tag_and_denormalize_quicktest_out',
         'up_py_calc_quicktest_in',
         'up_py_calc_quicktest_out',
+        'up_portfolio_bigtest_in',
+        'up_portfolio_bigtest_out',
         'up_portfolio_quicktest_in',
         'up_portfolio_quicktest_out',
         'up_webapi_binary',

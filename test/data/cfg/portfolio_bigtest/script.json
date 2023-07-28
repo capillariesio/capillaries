@@ -205,7 +205,7 @@
             "desc": "For each account, merge all txns into single json string",
             "r": {
                 "table": "accounts",
-                "expected_batches_total": 10
+                "expected_batches_total": 100
             },
             "l": {
                 "index_name": "idx_txns_account_id",
@@ -361,7 +361,7 @@
             "desc": "Apply Python-based calculations to account holdings and txns",
             "r": {
                 "table": "account_period_activity",
-                "expected_batches_total": 10
+                "expected_batches_total": 100
             },
             "p": {
                 "python_code_urls": [

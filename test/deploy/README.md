@@ -166,7 +166,7 @@ $capideploy upload_files up_daemon_binary,up_daemon_env_config,up_webapi_env_con
 
 # Upload test files in one shot
 
-$capideploy upload_files up_all_cfg,up_lookup_bigtest_in,up_lookup_bigtest_out,up_lookup_quicktest_in,up_lookup_quicktest_out -prj=sampledeployment002.json
+$capideploy upload_files up_all_cfg,up_lookup_bigtest_in,up_lookup_bigtest_out,up_lookup_quicktest_in,up_lookup_quicktest_out,up_portfolio_bigtest_in,up_portfolio_bigtest_out -prj=sampledeployment002.json
 
 # If you want to run tag_and_denormalize_quicktest, py_calc_quicktest, and portfolio_quicktest upload corresponding data files
 
