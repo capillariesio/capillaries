@@ -299,7 +299,7 @@
             "desc": "For each account, merge all holdings into single json string",
             "r": {
                 "table": "accounts",
-                "expected_batches_total": 10
+                "expected_batches_total": 100
             },
             "l": {
                 "index_name": "idx_period_holdings_account_id",
@@ -329,7 +329,7 @@
             "desc": "For each account, merge holdings and txns",
             "r": {
                 "table": "account_txns",
-                "expected_batches_total": 10
+                "expected_batches_total": 100
             },
             "l": {
                 "index_name": "idx_account_period_holdings_account_id",
@@ -396,7 +396,7 @@
             "desc": "Tag accounts by period name",
             "r": {
                 "table": "account_period_perf",
-                "expected_batches_total": 10
+                "expected_batches_total": 100
             },
             "p": {
                 "tag_field_name": "period",
@@ -437,7 +437,7 @@
             "desc": "Tag accounts by sector",
             "r": {
                 "table": "account_period_perf_by_period",
-                "expected_batches_total": 10
+                "expected_batches_total": 100
             },
             "p": {
                 "tag_field_name": "sector",

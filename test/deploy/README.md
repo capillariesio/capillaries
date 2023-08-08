@@ -33,7 +33,7 @@ Deployment project files contain description and status of each instance. When t
 1. Install [jq](https://jqlang.github.io/jq/). Adding jq to the list of requirements was not an easy decision, but without it, [start_cluster.sh](./start_cluster.sh) script that has to read configuration from the deployment project file would be unnecessary error-prone.
 
 2. Make sure you have created the key pair for SSH access to the Openstack instances, key pair name stored in `root_key_name` in the project file. Through this document, we will be assuming the key pair is stored in `~/.ssh/` and the private key file this kind of name:  
-`sampledeployment004_rsa`.
+`sampledeployment002_rsa`.
 
 3. If you want to use SFTP (instead of or along with NFS) for file sharing make sure all SFTP key files used referenced in deployment project `sampledeployment.json` are present.
 
@@ -191,7 +191,7 @@ Resource usage:
 Consolidated [Daemon](../../doc/glossary.md#daemon) log from all Daemon instances:
 
 ```
-ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment004_rsa ubuntu@$BASTION_IP
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP
 less /var/log/capidaemon/capidaemon.log
 ```
 
@@ -211,7 +211,7 @@ Start runs either using [Webapi](../../doc/glossary.md#webapi) at `http://$BASTI
 or
 
 ```
-ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment004_rsa ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=/mnt/capi_cfg/lookup_quicktest/script.json -params_file=/mnt/capi_cfg/lookup_quicktest/script_params_one_run.json -keyspace=lookup_quicktest -start_nodes=read_orders,read_order_items'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=/mnt/capi_cfg/lookup_quicktest/script.json -params_file=/mnt/capi_cfg/lookup_quicktest/script_params_one_run.json -keyspace=lookup_quicktest -start_nodes=read_orders,read_order_items'
 ```
 
 ### lookup_bigtest
@@ -226,7 +226,7 @@ ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment004_rsa ubuntu@$BASTIO
 or
 
 ```
-ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment004_rsa ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=/mnt/capi_cfg/lookup_bigtest/script_parquet.json -params_file=/mnt/capi_cfg/lookup_bigtest/script_params_one_run.json -keyspace=lookup_bigtest -start_nodes=read_orders,read_order_items'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=/mnt/capi_cfg/lookup_bigtest/script_parquet.json -params_file=/mnt/capi_cfg/lookup_bigtest/script_params_one_run.json -keyspace=lookup_bigtest -start_nodes=read_orders,read_order_items'
 ```
 
 ### py_calc_quicktest
@@ -241,7 +241,7 @@ ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment004_rsa ubuntu@$BASTIO
 or
 
 ```
-ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment004_rsa ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=/mnt/capi_cfg/py_calc_quicktest/script.json -params_file=/mnt/capi_cfg/py_calc_quicktest/script_params.json -keyspace=py_calc_quicktest -start_nodes=read_order_items'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=/mnt/capi_cfg/py_calc_quicktest/script.json -params_file=/mnt/capi_cfg/py_calc_quicktest/script_params.json -keyspace=py_calc_quicktest -start_nodes=read_order_items'
 ```
 
 ### tag_and_denormalize_quicktest
@@ -256,7 +256,7 @@ ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment004_rsa ubuntu@$BASTIO
 or
 
 ```
-ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment004_rsa ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=/mnt/capi_cfg/tag_and_denormalize_quicktest/script.json -params_file=/mnt/capi_cfg/tag_and_denormalize_quicktest/script_params_one_run.json -keyspace=tag_and_denormalize_quicktest -start_nodes=read_tags,read_products'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=/mnt/capi_cfg/tag_and_denormalize_quicktest/script.json -params_file=/mnt/capi_cfg/tag_and_denormalize_quicktest/script_params_one_run.json -keyspace=tag_and_denormalize_quicktest -start_nodes=read_tags,read_products'
 ```
 
 
@@ -272,7 +272,7 @@ ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment004_rsa ubuntu@$BASTIO
 or
 
 ```
-ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment004_rsa ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=/mnt/capi_cfg/portfolio_quicktest/script.json -params_file=/mnt/capi_cfg/portfolio_quicktest/script_params.json -keyspace=portfolio_quicktest -start_nodes=1_read_accounts,1_read_txns,1_read_period_holdings'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=/mnt/capi_cfg/portfolio_quicktest/script.json -params_file=/mnt/capi_cfg/portfolio_quicktest/script_params.json -keyspace=portfolio_quicktest -start_nodes=1_read_accounts,1_read_txns,1_read_period_holdings'
 ```
 
 ### portfolio_bigtest
@@ -287,7 +287,7 @@ ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment004_rsa ubuntu@$BASTIO
 or
 
 ```
-ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment004_rsa ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=/mnt/capi_cfg/portfolio_bigtest/script.json -params_file=/mnt/capi_cfg/portfolio_bigtest/script_params.json -keyspace=portfolio_bigtest -start_nodes=1_read_accounts,1_read_txns,1_read_period_holdings'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/capitoolbelt start_run -script_file=/mnt/capi_cfg/portfolio_bigtest/script.json -params_file=/mnt/capi_cfg/portfolio_bigtest/script_params.json -keyspace=portfolio_bigtest -start_nodes=1_read_accounts,1_read_txns,1_read_period_holdings'
 ```
 
 ## Results
@@ -303,11 +303,12 @@ $capideploy download_files down_capi_out -prj=sampledeployment.json
 Alternatively, verify results against the baseline remotely:
 
 ```
-ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment004_rsa ubuntu@$BASTION_IP '~/bin/compare_results_lookup_bigtest_parquet.sh'
-ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment004_rsa ubuntu@$BASTION_IP '~/bin/compare_results_lookup_quicktest.sh'
-ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment004_rsa ubuntu@$BASTION_IP '~/bin/compare_results_portfolio.sh'
-ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment004_rsa ubuntu@$BASTION_IP '~/bin/compare_results_py_calc_quicktest.sh'
-ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment004_rsa ubuntu@$BASTION_IP '~/bin/compare_results_tag_and_denormalize.sh'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/compare_results_lookup_quicktest.sh'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/compare_results_lookup_bigtest_parquet.sh'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/compare_results_portfolio_quicktest.sh'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/compare_results_portfolio_bigtest_parquet.sh'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/compare_results_py_calc_quicktest.sh'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/sampledeployment002_rsa ubuntu@$BASTION_IP '~/bin/compare_results_tag_and_denormalize.sh'
 ```
 
 # Logs

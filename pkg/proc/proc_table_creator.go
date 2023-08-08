@@ -485,7 +485,9 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 	defer instr.waitForWorkersAndCloseErrorsOut(logger, pCtx)
 
 	curStartLeftToken := startLeftToken
+	leftPageIdx := 0
 	for {
+		selectLeftBatchByTokenStartTime := time.Now()
 		lastRetrievedLeftToken, err := selectBatchFromTableByToken(logger,
 			pCtx,
 			rsLeft,
@@ -497,6 +499,9 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 		if err != nil {
 			return bs, err
 		}
+
+		logger.DebugCtx(pCtx, "selectBatchFromTableByToken: leftPageIdx %d, queried tokens from %d to %d in %.3fs, retrieved %d rows", leftPageIdx, curStartLeftToken, endLeftToken, time.Since(selectLeftBatchByTokenStartTime).Seconds(), rsLeft.RowCount)
+
 		curStartLeftToken = lastRetrievedLeftToken + 1
 
 		if rsLeft.RowCount == 0 {
@@ -559,7 +564,9 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 			sc.FieldRefs{sc.IdxKeyFieldRef()})
 
 		var idxPageState []byte
+		rightIdxPageIdx := 0
 		for {
+			selectIdxBatchStartTime := time.Now()
 			idxPageState, err = selectBatchFromIdxTablePaged(logger,
 				pCtx,
 				rsIdx,
@@ -589,6 +596,8 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 				rowidsToFind[k] = struct{}{}
 			}
 
+			logger.DebugCtx(pCtx, "selectBatchFromIdxTablePaged: leftPageIdx %d, rightIdxPageIdx %d, queried %d keys in %.3fs, retrieved %d rowids", leftPageIdx, rightIdxPageIdx, len(keysToFind), time.Since(selectIdxBatchStartTime).Seconds(), len(rowidsToFind))
+
 			// Select from right table by rowid
 			rsRight := NewRowsetFromFieldRefs(
 				sc.FieldRefs{sc.RowidFieldRef(node.Lookup.TableCreator.Name)},
@@ -596,7 +605,9 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 				srcRightFieldRefs)
 
 			var rightPageState []byte
+			rightDataPageIdx := 0
 			for {
+				selectBatchStartTime := time.Now()
 				rightPageState, err = selectBatchFromDataTablePaged(logger,
 					pCtx,
 					rsRight,
@@ -608,6 +619,8 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 				if err != nil {
 					return bs, err
 				}
+
+				logger.DebugCtx(pCtx, "selectBatchFromDataTablePaged: leftPageIdx %d, rightIdxPageIdx %d, rightDataPageIdx %d, queried %d rowids in %.3fs, retrieved %d rowids", leftPageIdx, rightIdxPageIdx, rightDataPageIdx, len(rowidsToFind), time.Since(selectBatchStartTime).Seconds(), rsRight.RowCount)
 
 				if rsRight.RowCount == 0 {
 					break
@@ -711,12 +724,14 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 				if rsRight.RowCount < node.Lookup.RightLookupReadBatchSize || len(rightPageState) == 0 {
 					break
 				}
-			}
+				rightDataPageIdx++
+			} // for each data page
 
 			if rsIdx.RowCount < node.Lookup.IdxReadBatchSize || len(idxPageState) == 0 {
 				break
 			}
-		} // for each idx batch
+			rightIdxPageIdx++
+		} // for each idx page
 
 		if node.Lookup.IsGroup {
 			// Time to write the result of the grouped
@@ -860,6 +875,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 		if rsLeft.RowCount < leftBatchSize {
 			break
 		}
+		leftPageIdx++
 	} // for each source table batch
 
 	// Write leftovers regardless of tableRecordBatchCount == 0

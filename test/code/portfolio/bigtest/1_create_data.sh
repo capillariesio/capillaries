@@ -33,7 +33,7 @@ echo "Copying Python files to "$cfgDir/py
 cp -r ../../../data/cfg/portfolio_quicktest/py/* $cfgDir/py/
 
 echo "Generating data..."
-go run ./generate_bigtest_data.go -accounts=100
+go run ./generate_bigtest_data.go -accounts=1000
 
 echo "Sorting out files..."
 go run ../../parquet/capiparquet.go sort $outDir/account_period_sector_perf_baseline.parquet 'ARK fund,Period,Sector'

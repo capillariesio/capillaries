@@ -2,12 +2,12 @@
   // Variables to play with
 
   // Choose your Openstack provider here. This script supports 002,003,004.
-  local dep_name = 'sampledeployment004',  // Can be any combination of alphanumeric characters. Make it unique.
+  local dep_name = 'sampledeployment002',  // Can be any combination of alphanumeric characters. Make it unique.
 
   // x - test bare minimum, 2x - better, 4x - decent test
-  local cassandra_node_flavor = "2x",
+  local cassandra_node_flavor = "4x",
   // Cassandra cluster size - 4,8,16
-  local cassandra_total_nodes = 8, 
+  local cassandra_total_nodes = 4, 
   // If tasks are CPU-intensive (Python calc), make it equal to cassandra_total_nodes, otherwise cassandra_total_nodes/2
   local daemon_total_instances = cassandra_total_nodes, 
   local DEFAULT_DAEMON_THREAD_POOL_SIZE = '8', // Depends on instance/cassandra perf
@@ -34,6 +34,7 @@
     if daemon_total_instances == 2 then ['10.5.0.101', '10.5.0.102']
     else if daemon_total_instances == 4 then ['10.5.0.101', '10.5.0.102', '10.5.0.103', '10.5.0.104']
     else if daemon_total_instances == 8 then ['10.5.0.101', '10.5.0.102', '10.5.0.103', '10.5.0.104', '10.5.0.105', '10.5.0.106', '10.5.0.107', '10.5.0.108']
+    else if daemon_total_instances == 16 then ['10.5.0.101', '10.5.0.102', '10.5.0.103', '10.5.0.104', '10.5.0.105', '10.5.0.106', '10.5.0.107', '10.5.0.108', '10.5.0.109', '10.5.0.110', '10.5.0.111', '10.5.0.112', '10.5.0.113', '10.5.0.114', '10.5.0.115', '10.5.0.116']
     else [],
   local cassandra_ips = 
     if cassandra_total_nodes == 4 then ['10.5.0.11', '10.5.0.12', '10.5.0.13', '10.5.0.14']
@@ -79,7 +80,7 @@
     if dep_name == 'sampledeployment002' then
       if cassandra_node_flavor == "x" then 'c5sd.large'
       else if cassandra_node_flavor == "2x" then 'c5sd.large'
-      else if cassandra_node_flavor == "4x" then 'c5sd.large'
+      else if cassandra_node_flavor == "4x" then 'c5sd.xlarge'
       else "unknown"
     else if dep_name == 'sampledeployment003' then
       if cassandra_node_flavor == "x" then 'b2-7'
@@ -95,9 +96,9 @@
 
   local instance_flavor_cassandra = // Fast/big everything: CPU, network, disk, RAM. Preferably local disk, preferably bare metal 
     if dep_name == 'sampledeployment002' then
-      if cassandra_node_flavor == "x" then 'c6asx.xlarge'
-      else if cassandra_node_flavor == "2x" then 'c6asx.2xlarge'
-      else if cassandra_node_flavor == "4x" then 'c6asx.4xlarge'
+      if cassandra_node_flavor == "x" then 'c5d.xlarge' //'c6asx.xlarge'
+      else if cassandra_node_flavor == "2x" then 'c5d.2xlarge' //'c6asx.2xlarge'
+      else if cassandra_node_flavor == "4x" then 'c5d.4xlarge'//'c6asx.4xlarge'
       else "unknown"
     else if dep_name == 'sampledeployment003' then
       if cassandra_node_flavor == "x" then 'b2-7'
@@ -113,9 +114,9 @@
 
   local instance_flavor_daemon = // Fast/big CPU, network, RAM. Disk optional.
     if dep_name == 'sampledeployment002' then
-      if cassandra_node_flavor == "x" then 'c5sd.large'
-      else if cassandra_node_flavor == "2x" then 'c5sd.xlarge'
-      else if cassandra_node_flavor == "4x" then 'c5sd.2xlarge'
+      if cassandra_node_flavor == "x" then 'c6sd.large'
+      else if cassandra_node_flavor == "2x" then 'c6sd.xlarge'
+      else if cassandra_node_flavor == "4x" then 'c6sd.2xlarge'
       else "unknown"
     else if dep_name == 'sampledeployment003' then
       if cassandra_node_flavor == "x" then 'b2-7'
@@ -125,7 +126,7 @@
     else if dep_name == 'sampledeployment004' then
       if cassandra_node_flavor == "x" then 'a2-ram4-disk20-perf1'
       else if cassandra_node_flavor == "2x" then 'a4-ram8-disk20-perf1'
-      else if cassandra_node_flavor == "4x" then 'a8-ram16-disk20-perf1'
+      else if cassandra_node_flavor == "4x" then 'a8-ram16-disk20-perf1' // For cluster16, need to stay within 200 vCpu quota, so no a8-ram16 for daemons 
       else "unknown"
     else 'unknown',
 
