@@ -4,10 +4,10 @@
   // Choose your Openstack provider here. This script supports 002,003,004.
   local dep_name = 'sampledeployment002',  // Can be any combination of alphanumeric characters. Make it unique.
 
-  // x - test bare minimum, 2x - better, 4x - decent test
+  // x - test bare minimum, 2x - better, 4x - decent test, 16x - that's where it gets interesting
   local cassandra_node_flavor = "4x",
   // Cassandra cluster size - 4,8,16
-  local cassandra_total_nodes = 4, 
+  local cassandra_total_nodes = 8, 
   // If tasks are CPU-intensive (Python calc), make it equal to cassandra_total_nodes, otherwise cassandra_total_nodes/2
   local daemon_total_instances = cassandra_total_nodes, 
   local DEFAULT_DAEMON_THREAD_POOL_SIZE = '8', // Depends on instance/cassandra perf
@@ -91,6 +91,8 @@
       if cassandra_node_flavor == "x" then 'a1-ram2-disk20-perf1'
       else if cassandra_node_flavor == "2x" then 'a1-ram2-disk20-perf1'
       else if cassandra_node_flavor == "4x" then 'a1-ram2-disk20-perf1'
+      else if cassandra_node_flavor == "8x" then 'a1-ram2-disk20-perf1'
+      else if cassandra_node_flavor == "16x" then 'a1-ram2-disk20-perf1'
       else "unknown"
     else 'unknown',
 
@@ -98,7 +100,7 @@
     if dep_name == 'sampledeployment002' then
       if cassandra_node_flavor == "x" then 'c5d.xlarge' //'c6asx.xlarge'
       else if cassandra_node_flavor == "2x" then 'c5d.2xlarge' //'c6asx.2xlarge'
-      else if cassandra_node_flavor == "4x" then 'c5d.4xlarge'//'c6asx.4xlarge'
+      else if cassandra_node_flavor == "4x" then 'c5d.4xlarge' //'m5d.4xlarge'//'c6asx.4xlarge'
       else "unknown"
     else if dep_name == 'sampledeployment003' then
       if cassandra_node_flavor == "x" then 'b2-7'
@@ -109,6 +111,8 @@
       if cassandra_node_flavor == "x" then 'a2-ram4-disk20-perf1' // They don't have perf2 version
       else if cassandra_node_flavor == "2x" then 'a4-ram8-disk20-perf2'
       else if cassandra_node_flavor == "4x" then 'a8-ram16-disk20-perf2'
+      else if cassandra_node_flavor == "8x" then 'a16-ram32-disk20-perf1'
+      else if cassandra_node_flavor == "16x" then 'a32-ram64-disk20-perf2' // They don't have perf1
       else "unknown"
     else 'unknown',
 
@@ -127,6 +131,8 @@
       if cassandra_node_flavor == "x" then 'a2-ram4-disk20-perf1'
       else if cassandra_node_flavor == "2x" then 'a4-ram8-disk20-perf1'
       else if cassandra_node_flavor == "4x" then 'a8-ram16-disk20-perf1' // For cluster16, need to stay within 200 vCpu quota, so no a8-ram16 for daemons 
+      else if cassandra_node_flavor == "8x" then 'a8-ram16-disk20-perf1' // For cluster16, need to stay within 200 vCpu quota, so no a8-ram16 for daemons 
+      else if cassandra_node_flavor == "16x" then 'a16-ram32-disk20-perf1'
       else "unknown"
     else 'unknown',
 

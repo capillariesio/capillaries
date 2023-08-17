@@ -157,17 +157,24 @@ $capideploy attach_volumes '*' -prj=sampledeployment.json
 
 ./start_cluster.sh sampledeployment.json
 
-# Upload binaries and their configs in one shot. Make sure you have all binaries and test data built before uploading them (see above).
+# Upload binaries and their configs. Make sure you have all binaries and test data built before uploading them (see above).
 
-$capideploy upload_files up_daemon_binary,up_daemon_env_config,up_webapi_env_config,up_webapi_binary,up_ui,up_toolbelt_env_config,up_toolbelt_binary,up_capiparquet_binary,up_diff_scripts -prj=sampledeployment.json
+$capideploy upload_files up_daemon_binary,up_daemon_env_config -prj=sampledeployment.json;
+$capideploy upload_files up_webapi_binary,up_webapi_env_config -prj=sampledeployment.json;
+$capideploy upload_files up_ui -prj=sampledeployment.json;
+$capideploy upload_files up_toolbelt_binary,up_toolbelt_env_config -prj=sampledeployment.json;
+$capideploy upload_files up_capiparquet_binary -prj=sampledeployment.json;
+$capideploy upload_files up_diff_scripts -prj=sampledeployment.json;
 
-# Upload test files in one shot
+# Upload test files (pick those that you need)
 
-$capideploy upload_files up_all_cfg,up_lookup_bigtest_in,up_lookup_bigtest_out,up_lookup_quicktest_in,up_lookup_quicktest_out,up_portfolio_bigtest_in,up_portfolio_bigtest_out -prj=sampledeployment.json
-
-# If you want to run tag_and_denormalize_quicktest, py_calc_quicktest, and portfolio_quicktest upload corresponding data files
-
-$capideploy upload_files up_tag_and_denormalize_quicktest_in,up_tag_and_denormalize_quicktest_out,up_py_calc_quicktest_in,up_py_calc_quicktest_out,up_portfolio_quicktest_in,up_portfolio_quicktest_out -prj=sampledeployment.json
+$capideploy upload_files up_all_cfg -prj=sampledeployment.json;
+$capideploy upload_files up_portfolio_bigtest_in,up_portfolio_bigtest_out -prj=sampledeployment.json;
+$capideploy upload_files up_lookup_bigtest_in,up_lookup_bigtest_out -prj=sampledeployment.json;
+$capideploy upload_files up_lookup_quicktest_in,up_lookup_quicktest_out -prj=sampledeployment.json;
+$capideploy upload_files up_tag_and_denormalize_quicktest_in,up_tag_and_denormalize_quicktest_out -prj=sampledeployment.json;
+$capideploy upload_files up_py_calc_quicktest_in,up_py_calc_quicktest_out -prj=sampledeployment.json;
+$capideploy upload_files up_portfolio_quicktest_in,up_portfolio_quicktest_out -prj=sampledeployment.json;
 
 # Configure all services except Cassandra (which requires extra care), bastion first (it configs NFS)
 
