@@ -27,3 +27,15 @@ func callMathSqrt(args []interface{}) (interface{}, error) {
 
 	return math.Sqrt(argFloat), nil
 }
+
+func callMathRound(args []interface{}) (interface{}, error) {
+	if err := checkArgs("math.Round", 1, len(args)); err != nil {
+		return nil, err
+	}
+	argFloat, err := castToFloat64(args[0])
+	if err != nil {
+		return nil, fmt.Errorf("cannot evaluate math.Round(), invalid args %v: [%s]", args, err.Error())
+	}
+
+	return math.Round(argFloat), nil
+}

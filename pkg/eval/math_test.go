@@ -12,4 +12,8 @@ func TestMathFunctions(t *testing.T) {
 	assertEvalError(t, `math.Sqrt("aa")`, "cannot evaluate math.Sqrt(), invalid args [aa]: [cannot cast aa(string) to float64, unsuported type]", varValuesMap)
 	assertFloatNan(t, "math.Sqrt(-1)", varValuesMap)
 	assertEvalError(t, "math.Sqrt(123,567)", "cannot evaluate math.Sqrt(), requires 1 args, 2 supplied", varValuesMap)
+
+	assertEqual(t, "math.Round(5.1)", 5.0, varValuesMap)
+	assertEvalError(t, `math.Round("aa")`, "cannot evaluate math.Round(), invalid args [aa]: [cannot cast aa(string) to float64, unsuported type]", varValuesMap)
+	assertEvalError(t, "math.Round(5,1)", "cannot evaluate math.Round(), requires 1 args, 2 supplied", varValuesMap)
 }

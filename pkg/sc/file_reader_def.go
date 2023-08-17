@@ -137,7 +137,7 @@ func (frDef *FileReaderDef) Deserialize(rawReader json.RawMessage) error {
 	}
 
 	if frDef.ReaderFileType == ReaderFileTypeUnknown {
-		errors = append(errors, "cannot detect file reader type")
+		errors = append(errors, "cannot detect file reader type: parquet should have col_name, csv should have col_hdr or col_idx etc")
 	}
 
 	if len(errors) > 0 {

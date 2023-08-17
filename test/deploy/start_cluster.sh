@@ -3,6 +3,17 @@
 # This script configures and starts Cassandra cluster configured in $1.
 # It is not called by capideploy, it should be executed manually. See test/deploy/README.md for details.
 
+# Troubleshooting. Sometimes, a node cannot start because of schema version mismatch. Then:
+# on the failing node:
+# sudo systemctl stop cassandra
+# sudo rm -fR /var/lib/cassandra/data/*
+# sudo rm -fR /var/lib/cassandra/commitlog/*
+# on a working node - remove failing node from cluster:
+# nodetool removenode <failing host id taken from nodetool status>
+# on the failing node:
+# sudo systemctl start cassandra
+# and wait until the node actually starts (1-2 min)
+
 if ! command -v jq &> /dev/null
 then
     echo "jq command could not be found, please install it before running this script, e.g. 'apt-get install -y jq'"
@@ -90,13 +101,3 @@ do
   done
 done
 ssh -o StrictHostKeyChecking=no -i $sshKeyFile -J $externalIpAddress $CAPIDEPLOY_SSH_USER@${cassIpArray[0]} 'nodetool describecluster;nodetool status'
-echo 'Troubleshoot:'
-echo 'On the failing node:'
-echo sudo systemctl stop cassandra
-echo sudo rm -fR /var/lib/cassandra/data/*
-echo sudo rm -fR /var/lib/cassandra/commitlog/*
-echo 'On a working node:'
-echo 'nodetool removenode <failing node id taken from nodetool status>'
-echo 'On the failing node:'
-echo sudo systemctl start cassandra
-echo 'and wait!'

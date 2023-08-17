@@ -1,6 +1,6 @@
 if [ "$OWNER_USER" = "" ]; then
   echo Error, missing: OWNER_USER=sftpuser or OWNER_USER=ubuntu
- exit 1
+  exit 1
 fi
 
 rm -f /mnt/capi_in/lookup_bigtest/*.csv /mnt/capi_in/lookup_bigtest/*.parquet

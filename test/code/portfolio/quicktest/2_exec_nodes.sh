@@ -6,7 +6,7 @@ paramsFile=/tmp/capi_cfg/portfolio_quicktest/script_params.json
 
 SECONDS=0
 
-pushd ../../../pkg/exe/toolbelt
+pushd ../../../../pkg/exe/toolbelt
 set -x
 
 go run capitoolbelt.go drop_keyspace -keyspace=$keyspace

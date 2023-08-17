@@ -20,3 +20,16 @@ if [ "$?" -ne "0" ]; then
 fi
 
 sudo mv cassandra-exporter-agent-${PROMETHEUS_CASSANDRA_EXPORTER_VERSION}-SNAPSHOT.jar /usr/share/cassandra/lib/
+
+# RAM disk size in GB
+export RAM_DISK_SIZE=$(awk '/MemFree/ { printf "%.0f\n", $2/1024/2 }' /proc/meminfo)
+echo $RAM_DISK_SIZE
+sudo mkdir /mnt/ramdisk
+sudo chmod 777 /mnt/ramdisk
+sudo mount -t tmpfs -o size="$RAM_DISK_SIZE"m myramdisk /mnt/ramdisk
+if [ "$?" -ne "0" ]; then
+    echo Cannot mount ramdisk, exiting
+    exit $?
+fi
+
+
