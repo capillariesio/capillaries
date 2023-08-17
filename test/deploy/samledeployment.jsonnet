@@ -1,17 +1,28 @@
 {
   // Variables to play with
-  local cassandra_node_flavor = "4x", // x, 2x,4x
-  local cassandra_total_nodes = 4, // 4,8,16
-  local daemon_total_instances = 2, // 2,4,8
-  local DEFAULT_DAEMON_THREAD_POOL_SIZE = '10',
-  local DEFAULT_DAEMON_DB_WRITERS = '10',
+
+  // Choose your Openstack provider here. This script supports 002,003,004.
+  local dep_name = 'sampledeployment002',  // Can be any combination of alphanumeric characters. Make it unique.
+
+  // x - test bare minimum, 2x - better, 4x - decent test, 16x - that's where it gets interesting
+  local cassandra_node_flavor = "4x",
+  // Cassandra cluster size - 4,8,16
+  local cassandra_total_nodes = 8, 
+  // If tasks are CPU-intensive (Python calc), make it equal to cassandra_total_nodes, otherwise cassandra_total_nodes/2
+  local daemon_total_instances = cassandra_total_nodes, 
+  local DEFAULT_DAEMON_THREAD_POOL_SIZE = '8', // Depends on instance/cassandra perf
+  local DEFAULT_DAEMON_DB_WRITERS = '8', // Depends on instance/cassandra perf
 
   // Basics
-  local deployment_name = 'sampledeployment004',  // Can be any combination of alphanumeric characters. Make it unique.
-  local default_root_key_name = deployment_name + '-root-key',  // This should match the name of the keypair you already created in Openstack
+  local default_root_key_name = dep_name + '-root-key',  // This should match the name of the keypair you already created in Openstack
 
   // Network
-  local external_gateway_network_name = 'ext-floating1',  // This is what external network is called for this cloud provider, yours may be different
+  local external_gateway_network_name = // This is what external network is called for this cloud provider, yours may be different
+    if dep_name == 'sampledeployment002' then 'ext-net'
+    else if dep_name == 'sampledeployment003' then 'Ext-Net'
+    else if dep_name == 'sampledeployment004' then 'ext-floating1'
+    else 'unknown',
+
   local subnet_cidr = '10.5.0.0/24',  // Your choice
   local subnet_allocation_pool = 'start=10.5.0.240,end=10.5.0.254',  // We use fixed ip addresses in the .0.2-.0.239 range, the rest is potentially available
 
@@ -23,6 +34,7 @@
     if daemon_total_instances == 2 then ['10.5.0.101', '10.5.0.102']
     else if daemon_total_instances == 4 then ['10.5.0.101', '10.5.0.102', '10.5.0.103', '10.5.0.104']
     else if daemon_total_instances == 8 then ['10.5.0.101', '10.5.0.102', '10.5.0.103', '10.5.0.104', '10.5.0.105', '10.5.0.106', '10.5.0.107', '10.5.0.108']
+    else if daemon_total_instances == 16 then ['10.5.0.101', '10.5.0.102', '10.5.0.103', '10.5.0.104', '10.5.0.105', '10.5.0.106', '10.5.0.107', '10.5.0.108', '10.5.0.109', '10.5.0.110', '10.5.0.111', '10.5.0.112', '10.5.0.113', '10.5.0.114', '10.5.0.115', '10.5.0.116']
     else [],
   local cassandra_ips = 
     if cassandra_total_nodes == 4 then ['10.5.0.11', '10.5.0.12', '10.5.0.13', '10.5.0.14']
@@ -39,35 +51,112 @@
   local cassandra_seeds = std.format('%s,%s', [cassandra_ips[0], cassandra_ips[1]]),  // Used by cassandra nodes
   local cassandra_hosts = "'[\"" + std.join('","', cassandra_ips) + "\"]'",  // Used by daemons "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\"]'",
   
-  // Instance details
-  local default_availability_zone = 'dc3-a-09',  // Specified when volume/instance is created
-  local instance_image_name = 'Ubuntu 22.04 LTS Jammy Jellyfish',
-  local instance_flavor_rabbitmq = 'a1-ram2-disk20-perf1',
-  local instance_flavor_prometheus = 'a1-ram2-disk20-perf1',
-  local instance_flavor_bastion =
-    if cassandra_node_flavor == "x" then 'a1-ram2-disk20-perf1'
-    else if cassandra_node_flavor == "2x" then 'a1-ram2-disk20-perf1'
-    else if cassandra_node_flavor == "4x" then 'a1-ram2-disk20-perf1'
-    else "unknown",
-  local instance_flavor_cassandra =
-    if cassandra_node_flavor == "x" then 'a2-ram4-disk20-perf1'
-    else if cassandra_node_flavor == "2x" then 'a4-ram8-disk20-perf2'
-    else if cassandra_node_flavor == "4x" then 'a8-ram16-disk20-perf2'
-    else "unknown",
-  local instance_flavor_daemon =
-    if cassandra_node_flavor == "x" then 'a1-ram2-disk20-perf1'
-    else if cassandra_node_flavor == "2x" then 'a2-ram4-disk20-perf1'
-    else if cassandra_node_flavor == "4x" then 'a4-ram8-disk20-perf1'
-    else "unknown",
+  // Instances
+  local instance_availability_zone =
+    if dep_name == 'sampledeployment002' then 'us-central-1a'
+    else if dep_name == 'sampledeployment003' then 'nova'
+    else if dep_name == 'sampledeployment004' then 'dc3-a-09'
+    else 'unknown',
+
+  local instance_image_name = // You may want to revisit it once a year
+    if dep_name == 'sampledeployment002' then 'ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw'
+    else if dep_name == 'sampledeployment003' then 'Ubuntu 23.04'
+    else if dep_name == 'sampledeployment004' then 'Ubuntu 22.04 LTS Jammy Jellyfish'
+    else 'unknown',
+
+  local instance_flavor_rabbitmq = // Something modest
+    if dep_name == 'sampledeployment002' then 't5sd.large'
+    else if dep_name == 'sampledeployment003' then 'b2-7'
+    else if dep_name == 'sampledeployment004' then 'a1-ram2-disk20-perf1'
+    else 'unknown',
+
+  local instance_flavor_prometheus = // Something modest
+    if dep_name == 'sampledeployment002' then 't5sd.large'
+    else if dep_name == 'sampledeployment003' then 'b2-7'
+    else if dep_name == 'sampledeployment004' then 'a1-ram2-disk20-perf1'
+    else 'unknown',
+
+  local instance_flavor_bastion = // Something modest, but capable of serving as NFS server, Webapi, UI
+    if dep_name == 'sampledeployment002' then
+      if cassandra_node_flavor == "x" then 'c5sd.large'
+      else if cassandra_node_flavor == "2x" then 'c5sd.large'
+      else if cassandra_node_flavor == "4x" then 'c5sd.xlarge'
+      else "unknown"
+    else if dep_name == 'sampledeployment003' then
+      if cassandra_node_flavor == "x" then 'b2-7'
+      else if cassandra_node_flavor == "2x" then 'unknown'
+      else if cassandra_node_flavor == "4x" then 'unknown'
+      else "unknown"
+    else if dep_name == 'sampledeployment004' then
+      if cassandra_node_flavor == "x" then 'a1-ram2-disk20-perf1'
+      else if cassandra_node_flavor == "2x" then 'a1-ram2-disk20-perf1'
+      else if cassandra_node_flavor == "4x" then 'a1-ram2-disk20-perf1'
+      else if cassandra_node_flavor == "8x" then 'a1-ram2-disk20-perf1'
+      else if cassandra_node_flavor == "16x" then 'a1-ram2-disk20-perf1'
+      else "unknown"
+    else 'unknown',
+
+  local instance_flavor_cassandra = // Fast/big everything: CPU, network, disk, RAM. Preferably local disk, preferably bare metal 
+    if dep_name == 'sampledeployment002' then
+      if cassandra_node_flavor == "x" then 'c5d.xlarge' //'c6asx.xlarge'
+      else if cassandra_node_flavor == "2x" then 'c5d.2xlarge' //'c6asx.2xlarge'
+      else if cassandra_node_flavor == "4x" then 'c5d.4xlarge' //'m5d.4xlarge'//'c6asx.4xlarge'
+      else "unknown"
+    else if dep_name == 'sampledeployment003' then
+      if cassandra_node_flavor == "x" then 'b2-7'
+      else if cassandra_node_flavor == "2x" then 'unknown'
+      else if cassandra_node_flavor == "4x" then 'unknown'
+      else "unknown"
+    else if dep_name == 'sampledeployment004' then
+      if cassandra_node_flavor == "x" then 'a2-ram4-disk20-perf1' // They don't have perf2 version
+      else if cassandra_node_flavor == "2x" then 'a4-ram8-disk20-perf2'
+      else if cassandra_node_flavor == "4x" then 'a8-ram16-disk20-perf2'
+      else if cassandra_node_flavor == "8x" then 'a16-ram32-disk20-perf1'
+      else if cassandra_node_flavor == "16x" then 'a32-ram64-disk20-perf2' // They don't have perf1
+      else "unknown"
+    else 'unknown',
+
+  local instance_flavor_daemon = // Fast/big CPU, network, RAM. Disk optional.
+    if dep_name == 'sampledeployment002' then
+      if cassandra_node_flavor == "x" then 'c6sd.large'
+      else if cassandra_node_flavor == "2x" then 'c6sd.xlarge'
+      else if cassandra_node_flavor == "4x" then 'c6sd.2xlarge'
+      else "unknown"
+    else if dep_name == 'sampledeployment003' then
+      if cassandra_node_flavor == "x" then 'b2-7'
+      else if cassandra_node_flavor == "2x" then 'unknown'
+      else if cassandra_node_flavor == "4x" then 'unknown'
+      else "unknown"
+    else if dep_name == 'sampledeployment004' then
+      if cassandra_node_flavor == "x" then 'a2-ram4-disk20-perf1'
+      else if cassandra_node_flavor == "2x" then 'a4-ram8-disk20-perf1'
+      else if cassandra_node_flavor == "4x" then 'a8-ram16-disk20-perf1' // For cluster16, need to stay within 200 vCpu quota, so no a8-ram16 for daemons 
+      else if cassandra_node_flavor == "8x" then 'a8-ram16-disk20-perf1' // For cluster16, need to stay within 200 vCpu quota, so no a8-ram16 for daemons 
+      else if cassandra_node_flavor == "16x" then 'a16-ram32-disk20-perf1'
+      else "unknown"
+    else 'unknown',
+
+  // Volumes
+  local volume_availability_zone =
+    if dep_name == 'sampledeployment002' then 'us-central-1a'
+    else if dep_name == 'sampledeployment003' then 'nova'
+    else if dep_name == 'sampledeployment004' then 'nova'
+    else 'unknown',
+
+  local volume_type = // Something modest to store in/out data and cfg
+    if dep_name == 'sampledeployment002' then 'gp1'
+    else if dep_name == 'sampledeployment003' then 'classic'
+    else if dep_name == 'sampledeployment004' then 'CEPH_1_perf1'
+    else 'unknown',
   
   // Artifacts
   local buildLinuxAmd64Dir = '../../build/linux/amd64',
   local pkgExeDir = '../../pkg/exe',
   
   // Keys
-  local sftp_config_public_key_path = '~/.ssh/sampledeployment004_sftp.pub',
-  local sftp_config_private_key_path = '~/.ssh/sampledeployment004_sftp',
-  local ssh_config_private_key_path = '~/.ssh/sampledeployment004_rsa',
+  local sftp_config_public_key_path = '~/.ssh/' + dep_name + '_sftp.pub',
+  local sftp_config_private_key_path = '~/.ssh/' + dep_name + '_sftp',
+  local ssh_config_private_key_path = '~/.ssh/' + dep_name + '_rsa',
   
   // Prometheus versions
   local prometheus_node_exporter_version = '1.6.0',
@@ -131,20 +220,20 @@
   },
 
   network: {
-    name: deployment_name + '_network',
+    name: dep_name + '_network',
     subnet: {
-      name: deployment_name + '_subnet',
+      name: dep_name + '_subnet',
       cidr: subnet_cidr,
       allocation_pool: subnet_allocation_pool,
     },
     router: {
-      name: deployment_name + '_router',
+      name: dep_name + '_router',
       external_gateway_network_name: external_gateway_network_name,
     },
   },
   security_groups: {
     bastion: {
-      name: deployment_name + '_bastion_security_group',
+      name: dep_name + '_bastion_security_group',
       rules: [
         {
           desc: 'SSH',
@@ -237,7 +326,7 @@
       ],
     },
     internal: {
-      name: deployment_name + '_internal_security_group',
+      name: dep_name + '_internal_security_group',
       rules: [
         {
           desc: 'SSH',
@@ -421,6 +510,36 @@
       owner: $.ssh_config.user,
       after: {},
     },
+    up_portfolio_bigtest_in: {
+      src: '/tmp/capi_in/portfolio_bigtest/all.tgz',
+      dst: '/mnt/capi_in/portfolio_bigtest',
+      dir_permissions: 777,
+      file_permissions: 666,
+      owner: $.ssh_config.user,
+      after: {
+        env: {
+          OWNER_USER: $.ssh_config.user,
+        },
+        cmd: [
+          'sh/capiscripts/unpack_portfolio_big_in.sh',
+        ],
+      },
+    },
+    up_portfolio_bigtest_out: {
+      src: '/tmp/capi_out/portfolio_bigtest/all.tgz',
+      dst: '/mnt/capi_out/portfolio_bigtest',
+      dir_permissions: 777,
+      file_permissions: 666,
+      owner: $.ssh_config.user,
+      after: {
+        env: {
+          OWNER_USER: $.ssh_config.user,
+        },
+        cmd: [
+          'sh/capiscripts/unpack_portfolio_big_out.sh',
+        ],
+      },
+    },
     up_portfolio_quicktest_in: {
       src: '/tmp/capi_in/portfolio_quicktest',
       dst: '/mnt/capi_in/portfolio_quicktest',
@@ -534,39 +653,39 @@
 
   local bastion_instance = {
     bastion: {
-      host_name: deployment_name + '-bastion',
+      host_name: dep_name + '-bastion',
       security_group: 'bastion',
       root_key_name: default_root_key_name,
       ip_address: internal_bastion_ip,
       uses_ssh_config_external_ip_address: true,
       flavor: instance_flavor_bastion,
       image: instance_image_name,
-      availability_zone: default_availability_zone,
+      availability_zone: instance_availability_zone,
       volumes: {
         cfg: {
-          name: deployment_name + '_cfg',
-          availability_zone: 'nova',
+          name: dep_name + '_cfg',
+          availability_zone: volume_availability_zone,
           mount_point: '/mnt/capi_cfg',
           size: 1,
-          type: 'CEPH_1_perf1',
+          type: volume_type,
           permissions: 777,
           owner: $.ssh_config.user, // If SFTP used: "{CAPIDEPLOY_SFTP_USER}"
         },
         'in': {
-          name: deployment_name + '_in',
-          availability_zone: 'nova',
+          name: dep_name + '_in',
+          availability_zone: volume_availability_zone,
           mount_point: '/mnt/capi_in',
           size: 1,
-          type: 'CEPH_1_perf1',
+          type: volume_type,
           permissions: 777,
           owner: $.ssh_config.user,
         },
         out: {
-          name: deployment_name + '_out',
-          availability_zone: 'nova',
+          name: dep_name + '_out',
+          availability_zone: volume_availability_zone,
           mount_point: '/mnt/capi_out',
           size: 1,
-          type: 'CEPH_1_perf1',
+          type: volume_type,
           permissions: 777,
           owner: $.ssh_config.user,
         },
@@ -637,6 +756,8 @@
         'up_tag_and_denormalize_quicktest_out',
         'up_py_calc_quicktest_in',
         'up_py_calc_quicktest_out',
+        'up_portfolio_bigtest_in',
+        'up_portfolio_bigtest_out',
         'up_portfolio_quicktest_in',
         'up_portfolio_quicktest_out',
         'up_webapi_binary',
@@ -654,13 +775,13 @@
 
   local rabbitmq_instance = {
     rabbitmq: {
-      host_name: deployment_name + '-rabbitmq',
+      host_name: dep_name + '-rabbitmq',
       security_group: 'internal',
       root_key_name: default_root_key_name,
       ip_address: rabbitmq_ip,
       flavor: instance_flavor_rabbitmq,
       image: instance_image_name,
-      availability_zone: default_availability_zone,
+      availability_zone: instance_availability_zone,
       service: {
         env: {
           PROMETHEUS_NODE_EXPORTER_VERSION: prometheus_node_exporter_version,
@@ -692,13 +813,13 @@
 
   local prometheus_instance = {
     prometheus: {
-      host_name: deployment_name + '-prometheus',
+      host_name: dep_name + '-prometheus',
       security_group: 'internal',
       root_key_name: default_root_key_name,
       ip_address: prometheus_ip,
       flavor: instance_flavor_prometheus,
       image: instance_image_name,
-      availability_zone: default_availability_zone,
+      availability_zone: instance_availability_zone,
       service: {
         env: {
           PROMETHEUS_NODE_EXPORTER_VERSION: prometheus_node_exporter_version,
@@ -734,7 +855,7 @@
       ip_address: e.ip_address,
       flavor: instance_flavor_cassandra,
       image: instance_image_name,
-      availability_zone: default_availability_zone,
+      availability_zone: instance_availability_zone,
       service: {
         env: {
           CASSANDRA_IP: e.ip_address,
@@ -764,7 +885,7 @@
     }
     for e in std.mapWithIndex(function(i, v) {
       nickname: std.format('cass%03d', i + 1),
-      host_name: deployment_name + '-' + self.nickname,
+      host_name: dep_name + '-' + self.nickname,
       token: cassandra_tokens[i],
       ip_address: v,
     }, cassandra_ips)
@@ -778,7 +899,7 @@
       ip_address: e.ip_address,
       flavor: instance_flavor_daemon,
       image: instance_image_name,
-      availability_zone: default_availability_zone,
+      availability_zone: instance_availability_zone,
       private_keys: [
         {
           name: '{CAPIDEPLOY_SFTP_USER}',
@@ -826,7 +947,7 @@
     }
     for e in std.mapWithIndex(function(i, v) {
       nickname: std.format('daemon%03d', i + 1),
-      host_name: deployment_name + '-' + self.nickname,
+      host_name: dep_name + '-' + self.nickname,
       ip_address: v,
     }, daemon_ips)
   },

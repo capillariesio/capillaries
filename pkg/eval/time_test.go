@@ -11,6 +11,7 @@ import (
 
 func TestTimeFunctions(t *testing.T) {
 	testTime := time.Date(2001, 1, 1, 1, 1, 1, 100000000, time.FixedZone("", -7200))
+	testTimeUtc := time.Date(2001, 1, 1, 0, 0, 0, 0, time.UTC)
 	varValuesMap := VarValuesMap{
 		"t": map[string]interface{}{
 			"test_time": testTime}}
@@ -18,6 +19,7 @@ func TestTimeFunctions(t *testing.T) {
 	assertEvalError(t, `time.Parse("2006-01-02T15:04:05.000-0700","2001-01-01T01:01:01.100-0200","aaa")`, "cannot evaluate time.Parse(), requires 2 args, 3 supplied", varValuesMap)
 	assertEvalError(t, `time.Parse("2006-01-02T15:04:05.000-0700",123)`, "cannot evaluate time.Parse(), invalid args [2006-01-02T15:04:05.000-0700 123]", varValuesMap)
 	assertEvalError(t, `time.Parse("2006-01-02T15:04:05.000-0700","2001-01-01T01:01:01")`, `parsing time "2001-01-01T01:01:01" as "2006-01-02T15:04:05.000-0700": cannot parse "" as ".000"`, varValuesMap)
+	assertEqual(t, `time.Parse("2006-01-02","2001-01-01")`, testTimeUtc, varValuesMap)
 
 	assertEqual(t, `time.Format(time.Date(2001, time.January, 1, 1, 1, 1, 100000000, time.FixedZone("", -7200)), "2006-01-02T15:04:05.000-0700")`, testTime.Format("2006-01-02T15:04:05.000-0700"), varValuesMap)
 
@@ -28,6 +30,11 @@ func TestTimeFunctions(t *testing.T) {
 	assertEqual(t, `time.DiffMilli(time.Date(2001, time.January, 1, 1, 1, 1, 100000000, time.FixedZone("", -7200)), t.test_time)`, int64(0), varValuesMap)
 	assertEqual(t, `time.DiffMilli(time.Date(2002, time.January, 1, 1, 1, 1, 100000000, time.FixedZone("", -7200)), t.test_time)`, int64(31536000000), varValuesMap)
 	assertEqual(t, `time.DiffMilli(time.Date(2000, time.January, 1, 1, 1, 1, 100000000, time.FixedZone("", -7200)), t.test_time)`, int64(-31622400000), varValuesMap)
+
+	assertEqual(t, `time.Before(time.Date(2000, time.January, 1, 1, 1, 1, 100000000, time.FixedZone("", -7200)), t.test_time)`, true, varValuesMap)
+	assertEqual(t, `time.After(time.Date(2002, time.January, 1, 1, 1, 1, 100000000, time.FixedZone("", -7200)), t.test_time)`, true, varValuesMap)
+	assertEqual(t, `time.Before(time.Date(2002, time.January, 1, 1, 1, 1, 100000000, time.FixedZone("", -7200)), t.test_time)`, false, varValuesMap)
+	assertEqual(t, `time.After(time.Date(2000, time.January, 1, 1, 1, 1, 100000000, time.FixedZone("", -7200)), t.test_time)`, false, varValuesMap)
 
 	assertEqual(t, `time.Unix(t.test_time)`, testTime.Unix(), varValuesMap)
 

@@ -4,7 +4,7 @@
 
 cd into any directory under pkg/ and run 
 ```
-go test - v
+go test -v
 ```
 
 To see test code coverage:

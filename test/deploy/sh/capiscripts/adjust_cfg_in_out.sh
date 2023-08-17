@@ -29,6 +29,7 @@ if [ "$MOUNT_POINT_OUT" = "" ]; then
   exit 1
 fi
 
+# In all script params files, replace /tmp/... with /mnt/...
 for filepath in $(find $LOCAL_CFG_LOCATION -name 'script_params*.json' -type f -print); do
   sudo sed -i -e 's~/tmp/capi_cfg~'$MOUNT_POINT_CFG'~g' $filepath
   sudo sed -i -e 's~/tmp/capi_in~'$MOUNT_POINT_IN'~g' $filepath

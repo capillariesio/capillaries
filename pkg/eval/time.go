@@ -102,3 +102,29 @@ func callTimeUnixMilli(args []interface{}) (interface{}, error) {
 
 	return arg0.UnixMilli(), nil
 }
+
+func callTimeBefore(args []interface{}) (interface{}, error) {
+	if err := checkArgs("time.Before", 2, len(args)); err != nil {
+		return nil, err
+	}
+	arg0, ok0 := args[0].(time.Time)
+	arg1, ok1 := args[1].(time.Time)
+	if !ok0 || !ok1 {
+		return nil, fmt.Errorf("cannot evaluate time.Before(), invalid args %v", args)
+	}
+
+	return arg0.Before(arg1), nil
+}
+
+func callTimeAfter(args []interface{}) (interface{}, error) {
+	if err := checkArgs("time.After", 2, len(args)); err != nil {
+		return nil, err
+	}
+	arg0, ok0 := args[0].(time.Time)
+	arg1, ok1 := args[1].(time.Time)
+	if !ok0 || !ok1 {
+		return nil, fmt.Errorf("cannot evaluate time.After(), invalid args %v", args)
+	}
+
+	return arg0.After(arg1), nil
+}

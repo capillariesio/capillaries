@@ -5,6 +5,15 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Generate portfolio bigtest data",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/test/code/portfolio/bigtest",
+            "program": "${workspaceFolder}/test/code/portfolio/bigtest/generate_bigtest_data.go",
+            "args": [""]
+        },
+        {
             "name": "Deploy create security group",
             "type": "go",
             "request": "launch",

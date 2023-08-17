@@ -95,6 +95,11 @@ func selectBatchFromDataTablePaged(logger *l.Logger,
 			if err := scanner.Scan(*rs.Rows[rs.RowCount]...); err != nil {
 				return nil, cql.WrapDbErrorWithQuery("cannot scan paged data row", q, err)
 			}
+			// We assume gocql creates only UTC timestamps, so this is not needed.
+			// If we ever catch a ts stored in our tables with a non-UTC tz, or gocql returning a non-UTC tz - investigate it. Sanitizing is the last resort and should be avoided.
+			// if err := rs.SanitizeScannedDatetimesToUtc(rs.RowCount); err != nil {
+			// 	return nil, cql.WrapDbErrorWithQuery("cannot sanitize datetimes", q, err)
+			// }
 			rs.RowCount++
 		}
 
@@ -152,6 +157,11 @@ func selectBatchPagedAllRowids(logger *l.Logger,
 		if err := scanner.Scan(*rs.Rows[rs.RowCount]...); err != nil {
 			return nil, cql.WrapDbErrorWithQuery("cannot scan all rows data row", q, err)
 		}
+		// We assume gocql creates only UTC timestamps, so this is not needed
+		// If we ever catch a ts stored in our tables with a non-UTC tz, or gocql returning a non-UTC tz - investigate it. Sanitizing is the last resort and should be avoided.
+		// if err := rs.SanitizeScannedDatetimesToUtc(rs.RowCount); err != nil {
+		// 	return nil, cql.WrapDbErrorWithQuery("cannot sanitize datetimes", q, err)
+		// }
 		rs.RowCount++
 	}
 	if err := scanner.Err(); err != nil {
