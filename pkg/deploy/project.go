@@ -159,17 +159,21 @@ type BuildArtifactsDef struct {
 }
 
 type Project struct {
-	Artifacts        BuildArtifactsDef            `json:"artifacts"`
-	SshConfig        *SshConfigDef                `json:"ssh_config"`
-	Timeouts         ExecTimeouts                 `json:"timeouts"`
-	EnvVariablesUsed []string                     `json:"env_variables_used"`
-	SecurityGroups   map[string]*SecurityGroupDef `json:"security_groups"`
-	Network          NetworkDef                   `json:"network"`
-	FileGroupsUp     map[string]*FileGroupUpDef   `json:"file_groups_up"`
-	FileGroupsDown   map[string]*FileGroupDownDef `json:"file_groups_down"`
-	Instances        map[string]*InstanceDef      `json:"instances"`
-	OpenstackVars    map[string]string
+	Artifacts          BuildArtifactsDef            `json:"artifacts"`
+	SshConfig          *SshConfigDef                `json:"ssh_config"`
+	Timeouts           ExecTimeouts                 `json:"timeouts"`
+	EnvVariablesUsed   []string                     `json:"env_variables_used"`
+	SecurityGroups     map[string]*SecurityGroupDef `json:"security_groups"`
+	Network            NetworkDef                   `json:"network"`
+	FileGroupsUp       map[string]*FileGroupUpDef   `json:"file_groups_up"`
+	FileGroupsDown     map[string]*FileGroupDownDef `json:"file_groups_down"`
+	Instances          map[string]*InstanceDef      `json:"instances"`
+	DeployProviderName string                       `json:"deploy_provider_name"`
+	CliEnvVars         map[string]string
 }
+
+const DeployProviderOpenstack string = "openstack"
+const DeployProviderAws string = "aws"
 
 type ProjectPair struct {
 	Template           Project
@@ -351,9 +355,17 @@ func LoadProject(prjFile string) (*ProjectPair, string, error) {
 		return nil, "", fmt.Errorf("cannot parse project file %s: %s", prjFullPath, err.Error())
 	}
 
+	if prjPair.Template.DeployProviderName != DeployProviderOpenstack &&
+		prjPair.Template.DeployProviderName != DeployProviderAws {
+		return nil, "", fmt.Errorf("cannot parse deploy provider name %s, expected %s,%s",
+			prjPair.Template.DeployProviderName,
+			DeployProviderOpenstack,
+			DeployProviderAws)
+	}
+
 	prjString := string(prjBytes)
 
-	// Read params from env variables, save OS_* vars in prjPair.Live.OpenstackVars
+	// Read params from env variables, save OS_* vars in prjPair.Live.OpenstackVars, AWS_ in Aws vars
 
 	envVars := map[string]string{}
 	for _, envVar := range prjPair.Template.EnvVariablesUsed {
@@ -378,10 +390,10 @@ func LoadProject(prjFile string) (*ProjectPair, string, error) {
 	}
 
 	// Initialize OpenstackVars for calling openstack cmd locally
-	prjPair.Live.OpenstackVars = map[string]string{}
+	prjPair.Live.CliEnvVars = map[string]string{}
 	for k, v := range envVars {
-		if strings.HasPrefix(k, "OS_") {
-			prjPair.Live.OpenstackVars[k] = v
+		if strings.HasPrefix(k, "OS_") || strings.HasPrefix(k, "AWS_") {
+			prjPair.Live.CliEnvVars[k] = v
 		}
 	}
 

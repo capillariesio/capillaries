@@ -2,12 +2,12 @@
   // Variables to play with
 
   // Choose your Openstack provider here. This script supports 002,003,004.
-  local dep_name = 'sampledeployment002',  // Can be any combination of alphanumeric characters. Make it unique.
+  local dep_name = 'sampledeployment005',  // Can be any combination of alphanumeric characters. Make it unique.
 
   // x - test bare minimum, 2x - better, 4x - decent test, 16x - that's where it gets interesting
-  local cassandra_node_flavor = "4x",
+  local cassandra_node_flavor = "x",
   // Cassandra cluster size - 4,8,16
-  local cassandra_total_nodes = 8, 
+  local cassandra_total_nodes = 4, 
   // If tasks are CPU-intensive (Python calc), make it equal to cassandra_total_nodes, otherwise cassandra_total_nodes/2
   local daemon_total_instances = cassandra_total_nodes, 
   local DEFAULT_DAEMON_THREAD_POOL_SIZE = '8', // Depends on instance/cassandra perf
@@ -17,10 +17,11 @@
   local default_root_key_name = dep_name + '-root-key',  // This should match the name of the keypair you already created in Openstack
 
   // Network
-  local external_gateway_network_name = // This is what external network is called for this cloud provider, yours may be different
+  local external_gateway_network_name = // This is what external network is called for this cloud provider (used by Openstack)
     if dep_name == 'sampledeployment002' then 'ext-net'
     else if dep_name == 'sampledeployment003' then 'Ext-Net'
     else if dep_name == 'sampledeployment004' then 'ext-floating1'
+    else if dep_name == 'sampledeployment005' then 'ext-network-not-needed'
     else 'unknown',
 
   local subnet_cidr = '10.5.0.0/24',  // Your choice
@@ -56,24 +57,28 @@
     if dep_name == 'sampledeployment002' then 'us-central-1a'
     else if dep_name == 'sampledeployment003' then 'nova'
     else if dep_name == 'sampledeployment004' then 'dc3-a-09'
+    else if dep_name == 'sampledeployment005' then 'not-used'
     else 'unknown',
 
   local instance_image_name = // You may want to revisit it once a year
     if dep_name == 'sampledeployment002' then 'ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw'
     else if dep_name == 'sampledeployment003' then 'Ubuntu 23.04'
     else if dep_name == 'sampledeployment004' then 'Ubuntu 22.04 LTS Jammy Jellyfish'
+    else if dep_name == 'sampledeployment005' then 'ami-053b0d53c279acc90'
     else 'unknown',
 
   local instance_flavor_rabbitmq = // Something modest
     if dep_name == 'sampledeployment002' then 't5sd.large'
     else if dep_name == 'sampledeployment003' then 'b2-7'
     else if dep_name == 'sampledeployment004' then 'a1-ram2-disk20-perf1'
+    else if dep_name == 'sampledeployment005' then 't2.nano'
     else 'unknown',
 
   local instance_flavor_prometheus = // Something modest
     if dep_name == 'sampledeployment002' then 't5sd.large'
     else if dep_name == 'sampledeployment003' then 'b2-7'
     else if dep_name == 'sampledeployment004' then 'a1-ram2-disk20-perf1'
+    else if dep_name == 'sampledeployment005' then 't2.nano'
     else 'unknown',
 
   local instance_flavor_bastion = // Something modest, but capable of serving as NFS server, Webapi, UI
@@ -94,6 +99,7 @@
       else if cassandra_node_flavor == "8x" then 'a1-ram2-disk20-perf1'
       else if cassandra_node_flavor == "16x" then 'a1-ram2-disk20-perf1'
       else "unknown"
+    else if dep_name == 'sampledeployment005' then 't2.nano'
     else 'unknown',
 
   local instance_flavor_cassandra = // Fast/big everything: CPU, network, disk, RAM. Preferably local disk, preferably bare metal 
@@ -113,6 +119,13 @@
       else if cassandra_node_flavor == "4x" then 'a8-ram16-disk20-perf2'
       else if cassandra_node_flavor == "8x" then 'a16-ram32-disk20-perf1'
       else if cassandra_node_flavor == "16x" then 'a32-ram64-disk20-perf2' // They don't have perf1
+      else "unknown"
+    else if dep_name == 'sampledeployment005' then
+      if cassandra_node_flavor == "x" then 't2.nano'
+      else if cassandra_node_flavor == "2x" then 't2.nano'
+      else if cassandra_node_flavor == "4x" then 't2.nano'
+      else if cassandra_node_flavor == "8x" then 't2.nano'
+      else if cassandra_node_flavor == "16x" then 't2.nano'
       else "unknown"
     else 'unknown',
 
@@ -134,6 +147,13 @@
       else if cassandra_node_flavor == "8x" then 'a8-ram16-disk20-perf1' // For cluster16, need to stay within 200 vCpu quota, so no a8-ram16 for daemons 
       else if cassandra_node_flavor == "16x" then 'a16-ram32-disk20-perf1'
       else "unknown"
+    else if dep_name == 'sampledeployment005' then
+      if cassandra_node_flavor == "x" then 't2.nano'
+      else if cassandra_node_flavor == "2x" then 't2.nano'
+      else if cassandra_node_flavor == "4x" then 't2.nano'
+      else if cassandra_node_flavor == "8x" then 't2.nano'
+      else if cassandra_node_flavor == "16x" then 't2.nano'
+      else "unknown"
     else 'unknown',
 
   // Volumes
@@ -141,12 +161,15 @@
     if dep_name == 'sampledeployment002' then 'us-central-1a'
     else if dep_name == 'sampledeployment003' then 'nova'
     else if dep_name == 'sampledeployment004' then 'nova'
+    else if dep_name == 'sampledeployment004' then 'nova'
+    else if dep_name == 'sampledeployment005' then 'us-east-1a'
     else 'unknown',
 
   local volume_type = // Something modest to store in/out data and cfg
     if dep_name == 'sampledeployment002' then 'gp1'
     else if dep_name == 'sampledeployment003' then 'classic'
     else if dep_name == 'sampledeployment004' then 'CEPH_1_perf1'
+    else if dep_name == 'sampledeployment005' then 'gp2'
     else 'unknown',
   
   // Artifacts
@@ -169,6 +192,14 @@
                              "\\'" + std.join(":9500\\',\\'", cassandra_ips) + ":9500\\'," + // Cassandra exporter
                              "\\'" + std.join(":9100\\',\\'", daemon_ips) + ":9100\\'",
 
+  deploy_provider_name:
+    if dep_name == 'sampledeployment001' then 'openstack'
+    else if dep_name == 'sampledeployment002' then 'openstack'
+    else if dep_name == 'sampledeployment003' then 'openstack'
+    else if dep_name == 'sampledeployment004' then 'openstack'
+    else if dep_name == 'sampledeployment005' then 'aws'
+    else 'unknown',
+
   // Full list of env variables expected by capideploy working with this project
   env_variables_used: [
     // Used in this config
@@ -190,6 +221,10 @@
     'OS_PROJECT_NAME',
     'OS_USERNAME',
     'OS_USER_DOMAIN_NAME',
+    // Used by AWS CLI
+    'AWS_ACCESS_KEY_ID',
+    'AWS_SECRET_ACCESS_KEY',
+    'AWS_DEFAULT_REGION',
   ],
   ssh_config: {
     external_ip_address: '',

@@ -6,12 +6,12 @@ import (
 	"strings"
 )
 
-func CreateFloatingIp(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
-	lb := NewLogBuilder("CreateFloatingIp", isVerbose)
+func (*OpenstackDeployProvider) CreateFloatingIp(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
+	lb := NewLogBuilder("openstack.CreateFloatingIp", isVerbose)
 	if prjPair.Live.Network.Router.ExternalGatewayNetworkName == "" {
 		return lb.Complete(fmt.Errorf("router external_gateway_network_name cannot be empty, this is the name of the network to reserve floating IP at"))
 	}
-	rows, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"floating", "ip", "create", prjPair.Live.Network.Router.ExternalGatewayNetworkName})
+	rows, er := execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"floating", "ip", "create", prjPair.Live.Network.Router.ExternalGatewayNetworkName})
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)
@@ -19,41 +19,24 @@ func CreateFloatingIp(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 
 	// | Field               | Value                                |
 	// | floating_ip_address | 104.36.110.30
-	newFloatingIp := FindOpenstackFieldValue(rows, "floating_ip_address")
+	newFloatingIp := findOpenstackFieldValue(rows, "floating_ip_address")
 	if newFloatingIp == "" {
 		return lb.Complete(fmt.Errorf("cannot create a floating ip at %s", prjPair.Live.Network.Router.ExternalGatewayNetworkName))
 	}
 
 	prjPair.SetSshExternalIp(newFloatingIp)
 
-	fmt.Printf(`
-Floating IP reserved, now you can use it for SSH jumphost in your ~/.ssh/config:
-
-Host %s
-  User %s
-  StrictHostKeyChecking=no
-  UserKnownHostsFile=/dev/null
-  IdentityFile %s
-
-Also, you may find it convenient to use in your commands:
-
-export BASTION_IP=%s
-
-`,
-		newFloatingIp,
-		prjPair.Live.SshConfig.User,
-		prjPair.Live.SshConfig.PrivateKeyPath,
-		newFloatingIp)
+	reportPublicIp(&prjPair.Live)
 
 	return lb.Complete(nil)
 }
 
-func DeleteFloatingIp(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
-	lb := NewLogBuilder("DeleteFloatingIp", isVerbose)
+func (*OpenstackDeployProvider) DeleteFloatingIp(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
+	lb := NewLogBuilder("openstack.DeleteFloatingIp", isVerbose)
 	if prjPair.Live.SshConfig.ExternalIpAddress == "" {
 		return lb.Complete(fmt.Errorf("cannot delete floating ip, ssh_config external_ip_address is already empty"))
 	}
-	_, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"floating", "ip", "delete", prjPair.Live.SshConfig.ExternalIpAddress})
+	_, er := execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"floating", "ip", "delete", prjPair.Live.SshConfig.ExternalIpAddress})
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)
@@ -63,13 +46,13 @@ func DeleteFloatingIp(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	return lb.Complete(nil)
 }
 
-func CreateSubnet(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
-	lb := NewLogBuilder("CreateSubnet", isVerbose)
+func createOpenstackSubnet(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
+	lb := NewLogBuilder("createOpenstackSubnet", isVerbose)
 	if prjPair.Live.Network.Subnet.Name == "" || prjPair.Live.Network.Subnet.Cidr == "" {
 		return lb.Complete(fmt.Errorf("subnet name(%s) and cidr(%s) cannot be empty", prjPair.Live.Network.Subnet.Name, prjPair.Live.Network.Subnet.Cidr))
 	}
 
-	rows, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"subnet", "list"})
+	rows, er := execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"subnet", "list"})
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)
@@ -77,9 +60,9 @@ func CreateSubnet(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 
 	// | ID                                   | Name                          | Network                              | Subnet                |
 	// | 30a21631-d188-49f5-a7e5-faa3a5a5b50a | sample_deployment_name_subnet | fe181240-b89e-49c6-8b10-9fba7f4a2d6a | 10.5.0.0/16           |
-	foundSubnetIdByName := FindOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.Network.Subnet.Name)
-	foundNetworkIdByName := FindOpenstackColumnValue(rows, "Network", "Name", prjPair.Live.Network.Subnet.Name)
-	foundCidrByName := FindOpenstackColumnValue(rows, "Subnet", "Name", prjPair.Live.Network.Subnet.Name)
+	foundSubnetIdByName := findOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.Network.Subnet.Name)
+	foundNetworkIdByName := findOpenstackColumnValue(rows, "Network", "Name", prjPair.Live.Network.Subnet.Name)
+	foundCidrByName := findOpenstackColumnValue(rows, "Subnet", "Name", prjPair.Live.Network.Subnet.Name)
 	if foundNetworkIdByName != "" && prjPair.Live.Network.Id != foundNetworkIdByName {
 		return lb.Complete(fmt.Errorf("requested subnet network id %s not matching existing network id %s", prjPair.Live.Network.Id, foundNetworkIdByName))
 	}
@@ -120,7 +103,7 @@ func CreateSubnet(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 		subnetParams = append(subnetParams, prjPair.Live.Network.Subnet.AllocationPool)
 	}
 
-	rows, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", subnetParams)
+	rows, er = execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", subnetParams)
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)
@@ -132,7 +115,7 @@ func CreateSubnet(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	// | id                   | 30a21631-d188-49f5-a7e5-faa3a5a5b50a |
 	// | name                 | sample_deployment_name_subnet        |
 	// | network_id           | fe181240-b89e-49c6-8b10-9fba7f4a2d6a |
-	newId := FindOpenstackFieldValue(rows, "id")
+	newId := findOpenstackFieldValue(rows, "id")
 	if newId == "" {
 		return lb.Complete(fmt.Errorf("openstack returned empty subnet id"))
 	}
@@ -143,13 +126,13 @@ func CreateSubnet(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	return lb.Complete(nil)
 }
 
-func DeleteSubnet(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
-	lb := NewLogBuilder("DeleteSubnet", isVerbose)
+func deleteOpenstackSubnet(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
+	lb := NewLogBuilder("deleteOpenstackSubnet", isVerbose)
 	if prjPair.Live.Network.Subnet.Name == "" {
 		return lb.Complete(fmt.Errorf("subnet name cannot be empty"))
 	}
 
-	rows, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"subnet", "list"})
+	rows, er := execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"subnet", "list"})
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)
@@ -157,14 +140,14 @@ func DeleteSubnet(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 
 	// | ID                                   | Name                          | Network                              | Subnet                |
 	// | 30a21631-d188-49f5-a7e5-faa3a5a5b50a | sample_deployment_name_subnet | fe181240-b89e-49c6-8b10-9fba7f4a2d6a | 10.5.0.0/16           |
-	foundSubnetIdByName := FindOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.Network.Subnet.Name)
+	foundSubnetIdByName := findOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.Network.Subnet.Name)
 	if foundSubnetIdByName == "" {
 		lb.Add(fmt.Sprintf("subnet %s not found, nothing to delete", prjPair.Live.Network.Subnet.Name))
 		prjPair.SetSubnetId("")
 		return lb.Complete(nil)
 	}
 
-	_, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"subnet", "delete", prjPair.Live.Network.Subnet.Name})
+	_, er = execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"subnet", "delete", prjPair.Live.Network.Subnet.Name})
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)
@@ -176,13 +159,13 @@ func DeleteSubnet(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	return lb.Complete(nil)
 }
 
-func CreateNetwork(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
-	lb := NewLogBuilder("CreateNetwork", isVerbose)
+func createOpenstackNetwork(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
+	lb := NewLogBuilder("createOpenstackNetwork", isVerbose)
 	if prjPair.Live.Network.Name == "" {
 		return lb.Complete(fmt.Errorf("network name cannot be empty"))
 	}
 
-	rows, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"network", "list"})
+	rows, er := execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"network", "list"})
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)
@@ -191,7 +174,7 @@ func CreateNetwork(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	// | ID                                   | Name                           | Subnets                                   |
 	// | e098d02f-bb35-4085-ae12-664aad3d9c52 | public                         | 0be66687-9358-46cd-9093-9ce62cb4ece7, ... |
 	// | fe181240-b89e-49c6-8b10-9fba7f4a2d6a | sample_deployment_name_network | 30a21631-d188-49f5-a7e5-faa3a5a5b50a      |
-	foundNetworkIdByName := FindOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.Network.Name)
+	foundNetworkIdByName := findOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.Network.Name)
 	if prjPair.Live.Network.Id == "" {
 		// If it was already created, save it for future use, but do not create
 		if foundNetworkIdByName != "" {
@@ -213,7 +196,7 @@ func CreateNetwork(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 		return lb.Complete(nil)
 	}
 
-	rows, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"network", "create", prjPair.Live.Network.Name})
+	rows, er = execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"network", "create", prjPair.Live.Network.Name})
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)
@@ -222,7 +205,7 @@ func CreateNetwork(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	// | Field                     | Value                                |
 	// | id                        | fe181240-b89e-49c6-8b10-9fba7f4a2d6a |
 	// | name                      | sample_deployment_name_network       |
-	newId := FindOpenstackFieldValue(rows, "id")
+	newId := findOpenstackFieldValue(rows, "id")
 	if newId == "" {
 		return lb.Complete(fmt.Errorf("openstack returned empty network id"))
 	}
@@ -232,13 +215,13 @@ func CreateNetwork(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	return lb.Complete(nil)
 }
 
-func DeleteNetwork(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
-	lb := NewLogBuilder("DeleteNetwork", isVerbose)
+func deleteOpenstackNetwork(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
+	lb := NewLogBuilder("deleteOpenstackNetwork", isVerbose)
 	if prjPair.Live.Network.Name == "" {
 		return lb.Complete(fmt.Errorf("network name cannot be empty"))
 	}
 
-	rows, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"network", "list"})
+	rows, er := execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"network", "list"})
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)
@@ -247,14 +230,14 @@ func DeleteNetwork(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	// | ID                                   | Name                           | Subnets                                   |
 	// | e098d02f-bb35-4085-ae12-664aad3d9c52 | public                         | 0be66687-9358-46cd-9093-9ce62cb4ece7, ... |
 	// | fe181240-b89e-49c6-8b10-9fba7f4a2d6a | sample_deployment_name_network | 30a21631-d188-49f5-a7e5-faa3a5a5b50a      |
-	foundNetworkIdByName := FindOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.Network.Name)
+	foundNetworkIdByName := findOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.Network.Name)
 	if foundNetworkIdByName == "" {
 		lb.Add(fmt.Sprintf("network %s not found, nothing to delete", prjPair.Live.Network.Name))
 		prjPair.SetNetworkId("")
 		return lb.Complete(nil)
 	}
 
-	_, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"network", "delete", prjPair.Live.Network.Name})
+	_, er = execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"network", "delete", prjPair.Live.Network.Name})
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)
@@ -266,13 +249,13 @@ func DeleteNetwork(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	return lb.Complete(nil)
 }
 
-func CreateRouter(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
-	lb := NewLogBuilder("CreateRouter", isVerbose)
+func createOpenstackRouter(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
+	lb := NewLogBuilder("createOpenstackRouter", isVerbose)
 	if prjPair.Live.Network.Router.Name == "" || prjPair.Live.Network.Router.ExternalGatewayNetworkName == "" {
 		return lb.Complete(fmt.Errorf("router name and ExternalGatewayNetworkName cannot be empty"))
 	}
 
-	rows, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"router", "list"})
+	rows, er := execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"router", "list"})
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)
@@ -280,7 +263,7 @@ func CreateRouter(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 
 	// | ID                                   | Name                          | Status | State | Project	                      | Distributed | HA    |
 	// | 79aa5ec5-41c2-4f15-b341-1659a783ea53 | sample_deployment_name_router | ACTIVE | UP    | 56ac58a4903a458dbd4ea2241afc9566 | True        | False |
-	foundRouterIdByName := FindOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.Network.Router.Name)
+	foundRouterIdByName := findOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.Network.Router.Name)
 
 	if prjPair.Live.Network.Router.Id == "" {
 		// If it was already created, save it for future use, but do not create
@@ -299,7 +282,7 @@ func CreateRouter(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	}
 
 	if prjPair.Live.Network.Router.Id == "" {
-		rows, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"router", "create", prjPair.Live.Network.Router.Name})
+		rows, er = execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"router", "create", prjPair.Live.Network.Router.Name})
 		lb.Add(er.ToString())
 		if er.Error != nil {
 			return lb.Complete(er.Error)
@@ -308,7 +291,7 @@ func CreateRouter(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 		// | Field                   | Value                                |
 		// | id                      | 79aa5ec5-41c2-4f15-b341-1659a783ea53 |
 		// | name                    | sample_deployment_name_router        |
-		newId := FindOpenstackFieldValue(rows, "id")
+		newId := findOpenstackFieldValue(rows, "id")
 		if newId == "" {
 			return lb.Complete(fmt.Errorf("openstack returned empty router id"))
 		}
@@ -319,7 +302,7 @@ func CreateRouter(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 		lb.Add(fmt.Sprintf("router %s(%s) already there, no need to create", prjPair.Live.Network.Router.Name, foundRouterIdByName))
 	}
 
-	rows, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"router", "show", prjPair.Live.Network.Router.Name})
+	rows, er = execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"router", "show", prjPair.Live.Network.Router.Name})
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)
@@ -328,12 +311,12 @@ func CreateRouter(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	// Make sure router is associated with subnet
 
 	// | interfaces_info         | [{"port_id": "d4c714f3-8569-47e4-8b34-4addeba02b48", "ip_address": "10.5.0.1", "subnet_id": "30a21631-d188-49f5-a7e5-faa3a5a5b50a"}]
-	interfacesInfo := FindOpenstackFieldValue(rows, "interfaces_info")
+	interfacesInfo := findOpenstackFieldValue(rows, "interfaces_info")
 	if strings.Contains(interfacesInfo, prjPair.Live.Network.Subnet.Id) {
 		lb.Add(fmt.Sprintf("router %s seems to be associated with subnet\n", prjPair.Live.Network.Router.Name))
 	} else {
 		lb.Add(fmt.Sprintf("router %s needs to be associated with subnet\n", prjPair.Live.Network.Router.Name))
-		rows, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"router", "add", "subnet", prjPair.Live.Network.Router.Name, prjPair.Live.Network.Subnet.Name})
+		rows, er = execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"router", "add", "subnet", prjPair.Live.Network.Router.Name, prjPair.Live.Network.Subnet.Name})
 		lb.Add(er.ToString())
 		if er.Error != nil {
 			return lb.Complete(er.Error)
@@ -343,12 +326,12 @@ func CreateRouter(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	// Make sure router is connected to internet
 
 	// | external_gateway_info   | {"network_id": "e098d02f-bb35-4085-ae12-664aad3d9c52", "enable_snat": true, "external_fixed_ips": [{"subnet_id": "109e7c17-f963-4e1e-ba73-af363f59ae8f", "ip_address": "208.113.128.236"}, {"subnet_id": "5d1e9148-b023-4606-b959-2bff89412491", "ip_address": "2607:f298:5:101d:f816:3eff:fef6:f460"}]} |
-	externalGatewayInfo := FindOpenstackFieldValue(rows, "external_gateway_info")
+	externalGatewayInfo := findOpenstackFieldValue(rows, "external_gateway_info")
 	if strings.Contains(externalGatewayInfo, "ip_address") {
 		lb.Add(fmt.Sprintf("router %s seems to be connected to internet\n", prjPair.Live.Network.Router.Name))
 	} else {
 		lb.Add(fmt.Sprintf("router %s needs to be connected to internet\n", prjPair.Live.Network.Router.Name))
-		rows, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"router", "set", "--external-gateway", prjPair.Live.Network.Router.ExternalGatewayNetworkName, prjPair.Live.Network.Router.Name})
+		rows, er = execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"router", "set", "--external-gateway", prjPair.Live.Network.Router.ExternalGatewayNetworkName, prjPair.Live.Network.Router.Name})
 		lb.Add(er.ToString())
 		if er.Error != nil {
 			return lb.Complete(er.Error)
@@ -364,13 +347,13 @@ type RouterInterfaceInfo struct {
 	SubnetId  string `json:"subnet_id"`
 }
 
-func DeleteRouter(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
-	lb := NewLogBuilder("DeleteRouter", isVerbose)
+func deleteOpenstackRouter(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
+	lb := NewLogBuilder("deleteOpenstackRouter", isVerbose)
 	if prjPair.Live.Network.Router.Name == "" {
 		return lb.Complete(fmt.Errorf("router name and ExternalGatewayNetworkName cannot be empty"))
 	}
 
-	rows, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"router", "list"})
+	rows, er := execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"router", "list"})
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)
@@ -378,7 +361,7 @@ func DeleteRouter(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 
 	// | ID                                   | Name                          | Status | State | Project	                      | Distributed | HA    |
 	// | 79aa5ec5-41c2-4f15-b341-1659a783ea53 | sample_deployment_name_router | ACTIVE | UP    | 56ac58a4903a458dbd4ea2241afc9566 | True        | False |
-	foundRouterIdByName := FindOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.Network.Router.Name)
+	foundRouterIdByName := findOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.Network.Router.Name)
 	if foundRouterIdByName == "" {
 		lb.Add(fmt.Sprintf("router %s not found, nothing to delete", prjPair.Live.Network.Router.Name))
 		prjPair.SetRouterId("")
@@ -386,7 +369,7 @@ func DeleteRouter(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	}
 
 	// Release gateway. Some providers (genesis) will not remove port if gateway not released.
-	rows, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"router", "unset", "--external-gateway", prjPair.Live.Network.Router.Name})
+	rows, er = execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"router", "unset", "--external-gateway", prjPair.Live.Network.Router.Name})
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)
@@ -394,14 +377,14 @@ func DeleteRouter(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 
 	// Retrieve interface info
 
-	rows, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"router", "show", prjPair.Live.Network.Router.Name})
+	rows, er = execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"router", "show", prjPair.Live.Network.Router.Name})
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)
 	}
 
 	// | interfaces_info         | [{"port_id": "d4c714f3-8569-47e4-8b34-4addeba02b48", "ip_address": "10.5.0.1", "subnet_id": "30a21631-d188-49f5-a7e5-faa3a5a5b50a"}]
-	iterfacesJson := FindOpenstackFieldValue(rows, "interfaces_info")
+	iterfacesJson := findOpenstackFieldValue(rows, "interfaces_info")
 	if iterfacesJson != "" {
 		var interfaces []RouterInterfaceInfo
 		err := json.Unmarshal([]byte(iterfacesJson), &interfaces)
@@ -410,7 +393,7 @@ func DeleteRouter(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 		}
 
 		for _, iface := range interfaces {
-			_, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"router", "remove", "port", prjPair.Live.Network.Router.Name, iface.PortId})
+			_, er := execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"router", "remove", "port", prjPair.Live.Network.Router.Name, iface.PortId})
 			lb.Add(er.ToString())
 			if er.Error != nil {
 				return lb.Complete(fmt.Errorf("cannot remove router %s port %s: %s", prjPair.Live.Network.Router.Name, iface.PortId, er.Error))
@@ -419,7 +402,7 @@ func DeleteRouter(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 		}
 	}
 
-	_, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"router", "delete", prjPair.Live.Network.Router.Name})
+	_, er = execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"router", "delete", prjPair.Live.Network.Router.Name})
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)
@@ -431,34 +414,34 @@ func DeleteRouter(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	return lb.Complete(nil)
 }
 
-func CreateNetworking(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
+func (*OpenstackDeployProvider) CreateNetworking(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	sb := strings.Builder{}
 
-	logMsg, err := CreateNetwork(prjPair, isVerbose)
+	logMsg, err := createOpenstackNetwork(prjPair, isVerbose)
 	AddLogMsg(&sb, logMsg)
 	if err != nil {
 		return LogMsg(sb.String()), err
 	}
 
-	logMsg, err = WaitForEntityToBeCreated(&prjPair.Live, "network", prjPair.Live.Network.Name, prjPair.Live.Network.Id, prjPair.Live.Timeouts.OpenstackInstanceCreation, isVerbose)
+	logMsg, err = waitForOpenstackEntityToBeCreated(&prjPair.Live, "network", prjPair.Live.Network.Name, prjPair.Live.Network.Id, prjPair.Live.Timeouts.OpenstackInstanceCreation, isVerbose)
 	AddLogMsg(&sb, logMsg)
 	if err != nil {
 		return LogMsg(sb.String()), err
 	}
 
-	logMsg, err = CreateSubnet(prjPair, isVerbose)
+	logMsg, err = createOpenstackSubnet(prjPair, isVerbose)
 	AddLogMsg(&sb, logMsg)
 	if err != nil {
 		return LogMsg(sb.String()), err
 	}
 
-	logMsg, err = CreateRouter(prjPair, isVerbose)
+	logMsg, err = createOpenstackRouter(prjPair, isVerbose)
 	AddLogMsg(&sb, logMsg)
 	if err != nil {
 		return LogMsg(sb.String()), err
 	}
 
-	logMsg, err = WaitForEntityToBeCreated(&prjPair.Live, "router", prjPair.Live.Network.Router.Name, prjPair.Live.Network.Router.Id, prjPair.Live.Timeouts.OpenstackInstanceCreation, isVerbose)
+	logMsg, err = waitForOpenstackEntityToBeCreated(&prjPair.Live, "router", prjPair.Live.Network.Router.Name, prjPair.Live.Network.Router.Id, prjPair.Live.Timeouts.OpenstackInstanceCreation, isVerbose)
 	AddLogMsg(&sb, logMsg)
 	if err != nil {
 		return LogMsg(sb.String()), err
@@ -467,22 +450,22 @@ func CreateNetworking(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	return LogMsg(sb.String()), nil
 }
 
-func DeleteNetworking(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
+func (*OpenstackDeployProvider) DeleteNetworking(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	sb := strings.Builder{}
 
-	logMsg, err := DeleteRouter(prjPair, isVerbose)
+	logMsg, err := deleteOpenstackRouter(prjPair, isVerbose)
 	AddLogMsg(&sb, logMsg)
 	if err != nil {
 		return LogMsg(sb.String()), err
 	}
 
-	logMsg, err = DeleteSubnet(prjPair, isVerbose)
+	logMsg, err = deleteOpenstackSubnet(prjPair, isVerbose)
 	AddLogMsg(&sb, logMsg)
 	if err != nil {
 		return LogMsg(sb.String()), err
 	}
 
-	logMsg, err = DeleteNetwork(prjPair, isVerbose)
+	logMsg, err = deleteOpenstackNetwork(prjPair, isVerbose)
 	AddLogMsg(&sb, logMsg)
 	if err != nil {
 		return LogMsg(sb.String()), err
