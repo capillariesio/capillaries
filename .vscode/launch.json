@@ -97,9 +97,10 @@
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "cwd":"${workspaceFolder}/test/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
-            "args": ["create_instances", "bastion,daemon001", "-prj", "sampledeployment002.json", "-verbose"]
+            "envFile": "${env:HOME}/sampledeployment005.rc",
+            "args": ["create_instances", "bastion", "-prj=sampledeployment.json", "-verbose"]
         },
         {
             "name": "Deploy delete instances",

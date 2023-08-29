@@ -12,7 +12,7 @@
         ]
     },
     "ssh_config": {
-        "external_ip_address": "",
+        "external_ip_address": "50.16.110.120",
         "port": 22,
         "user": "{CAPIDEPLOY_SSH_USER}",
         "private_key_path": "~/.ssh/sampledeployment005_rsa",
@@ -48,11 +48,11 @@
     "security_groups": {
         "bastion": {
             "name": "sampledeployment005_bastion_security_group",
-            "id": "",
+            "id": "sg-070c59515cdca9c32",
             "rules": [
                 {
                     "desc": "SSH",
-                    "id": "",
+                    "id": "22",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "0.0.0.0/0",
@@ -61,7 +61,7 @@
                 },
                 {
                     "desc": "NFS PortMapper TCP",
-                    "id": "",
+                    "id": "111",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "10.5.0.0/24",
@@ -70,7 +70,7 @@
                 },
                 {
                     "desc": "NFS PortMapper UDP",
-                    "id": "",
+                    "id": "111",
                     "protocol": "udp",
                     "ethertype": "IPv4",
                     "remote_ip": "10.5.0.0/24",
@@ -79,7 +79,7 @@
                 },
                 {
                     "desc": "NFS Server TCP",
-                    "id": "",
+                    "id": "2049",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "10.5.0.0/24",
@@ -88,7 +88,7 @@
                 },
                 {
                     "desc": "NFS Server UDP",
-                    "id": "",
+                    "id": "2049",
                     "protocol": "udp",
                     "ethertype": "IPv4",
                     "remote_ip": "10.5.0.0/24",
@@ -97,7 +97,7 @@
                 },
                 {
                     "desc": "Prometheus UI reverse proxy",
-                    "id": "",
+                    "id": "9090",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "0.0.0.0/0",
@@ -106,7 +106,7 @@
                 },
                 {
                     "desc": "Prometheus node exporter",
-                    "id": "",
+                    "id": "9100",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "10.5.0.0/24",
@@ -115,7 +115,7 @@
                 },
                 {
                     "desc": "RabbitMQ UI reverse proxy",
-                    "id": "",
+                    "id": "15672",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "0.0.0.0/0",
@@ -124,7 +124,7 @@
                 },
                 {
                     "desc": "rsyslog receiver",
-                    "id": "",
+                    "id": "514",
                     "protocol": "udp",
                     "ethertype": "IPv4",
                     "remote_ip": "10.5.0.0/24",
@@ -133,7 +133,7 @@
                 },
                 {
                     "desc": "Capillaries webapi",
-                    "id": "",
+                    "id": "6543",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "0.0.0.0/0",
@@ -142,7 +142,7 @@
                 },
                 {
                     "desc": "Capillaries UI nginx",
-                    "id": "",
+                    "id": "80",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "0.0.0.0/0",
@@ -153,11 +153,11 @@
         },
         "internal": {
             "name": "sampledeployment005_internal_security_group",
-            "id": "",
+            "id": "sg-0f9e6387dd64a8d38",
             "rules": [
                 {
                     "desc": "SSH",
-                    "id": "",
+                    "id": "22",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "10.5.0.0/24",
@@ -166,7 +166,7 @@
                 },
                 {
                     "desc": "Prometheus UI internal",
-                    "id": "",
+                    "id": "9090",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "10.5.0.0/24",
@@ -175,7 +175,7 @@
                 },
                 {
                     "desc": "Prometheus node exporter",
-                    "id": "",
+                    "id": "9100",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "10.5.0.0/24",
@@ -184,7 +184,7 @@
                 },
                 {
                     "desc": "Cassandra Prometheus node exporter",
-                    "id": "",
+                    "id": "9500",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "10.5.0.0/24",
@@ -193,7 +193,7 @@
                 },
                 {
                     "desc": "Cassandra JMX",
-                    "id": "",
+                    "id": "7199",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "10.5.0.0/24",
@@ -202,7 +202,7 @@
                 },
                 {
                     "desc": "Cassandra cluster comm",
-                    "id": "",
+                    "id": "7000",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "10.5.0.0/24",
@@ -211,7 +211,7 @@
                 },
                 {
                     "desc": "Cassandra API",
-                    "id": "",
+                    "id": "9042",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "10.5.0.0/24",
@@ -220,7 +220,7 @@
                 },
                 {
                     "desc": "RabbitMQ API",
-                    "id": "",
+                    "id": "5672",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "10.5.0.0/24",
@@ -229,7 +229,7 @@
                 },
                 {
                     "desc": "RabbitMQ UI",
-                    "id": "",
+                    "id": "15672",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
                     "remote_ip": "10.5.0.0/24",
@@ -241,16 +241,17 @@
     },
     "network": {
         "name": "sampledeployment005_network",
-        "id": "vpc-03a7bf819a0749301",
+        "id": "vpc-0ff5e0a5d8a620abb",
         "subnet": {
             "name": "sampledeployment005_subnet",
-            "id": "subnet-0a12ed327d41bce6d",
+            "id": "subnet-0252ea45e2f1e5920",
             "cidr": "10.5.0.0/24",
+            "availability_zone": "us-east-1a",
             "allocation_pool": "start=10.5.0.240,end=10.5.0.254"
         },
         "router": {
             "name": "sampledeployment005_router",
-            "id": "igw-0b16758a67a716c21",
+            "id": "igw-021b22e4229954a2e",
             "external_gateway_network_name": "ext-network-not-needed"
         }
     },
@@ -506,9 +507,10 @@
             "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.10",
             "uses_ssh_config_external_ip_address": true,
-            "flavor": "t2.nano",
+            "external_ip_address": "50.16.110.120",
+            "flavor": "c6a.large",
             "image": "ami-053b0d53c279acc90",
-            "availability_zone": "not-used",
+            "availability_zone": "not-used-borrowed-from-subnet",
             "volumes": {
                 "cfg": {
                     "name": "sampledeployment005_cfg",
@@ -637,9 +639,9 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.11",
-            "flavor": "t2.nano",
+            "flavor": "c6a.2xlarge",
             "image": "ami-053b0d53c279acc90",
-            "availability_zone": "not-used",
+            "availability_zone": "not-used-borrowed-from-subnet",
             "id": "",
             "service": {
                 "env": {
@@ -673,9 +675,9 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.12",
-            "flavor": "t2.nano",
+            "flavor": "c6a.2xlarge",
             "image": "ami-053b0d53c279acc90",
-            "availability_zone": "not-used",
+            "availability_zone": "not-used-borrowed-from-subnet",
             "id": "",
             "service": {
                 "env": {
@@ -709,9 +711,9 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.13",
-            "flavor": "t2.nano",
+            "flavor": "c6a.2xlarge",
             "image": "ami-053b0d53c279acc90",
-            "availability_zone": "not-used",
+            "availability_zone": "not-used-borrowed-from-subnet",
             "id": "",
             "service": {
                 "env": {
@@ -745,9 +747,9 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.14",
-            "flavor": "t2.nano",
+            "flavor": "c6a.2xlarge",
             "image": "ami-053b0d53c279acc90",
-            "availability_zone": "not-used",
+            "availability_zone": "not-used-borrowed-from-subnet",
             "id": "",
             "service": {
                 "env": {
@@ -781,9 +783,9 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.101",
-            "flavor": "t2.nano",
+            "flavor": "c6a.large",
             "image": "ami-053b0d53c279acc90",
-            "availability_zone": "not-used",
+            "availability_zone": "not-used-borrowed-from-subnet",
             "id": "",
             "private_keys": [
                 {
@@ -835,9 +837,9 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.102",
-            "flavor": "t2.nano",
+            "flavor": "c6a.large",
             "image": "ami-053b0d53c279acc90",
-            "availability_zone": "not-used",
+            "availability_zone": "not-used-borrowed-from-subnet",
             "id": "",
             "private_keys": [
                 {
@@ -889,9 +891,9 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.103",
-            "flavor": "t2.nano",
+            "flavor": "c6a.large",
             "image": "ami-053b0d53c279acc90",
-            "availability_zone": "not-used",
+            "availability_zone": "not-used-borrowed-from-subnet",
             "id": "",
             "private_keys": [
                 {
@@ -943,9 +945,9 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.104",
-            "flavor": "t2.nano",
+            "flavor": "c6a.large",
             "image": "ami-053b0d53c279acc90",
-            "availability_zone": "not-used",
+            "availability_zone": "not-used-borrowed-from-subnet",
             "id": "",
             "private_keys": [
                 {
@@ -999,7 +1001,7 @@
             "ip_address": "10.5.0.4",
             "flavor": "t2.nano",
             "image": "ami-053b0d53c279acc90",
-            "availability_zone": "not-used",
+            "availability_zone": "not-used-borrowed-from-subnet",
             "id": "",
             "service": {
                 "env": {
@@ -1033,7 +1035,7 @@
             "ip_address": "10.5.0.5",
             "flavor": "t2.nano",
             "image": "ami-053b0d53c279acc90",
-            "availability_zone": "not-used",
+            "availability_zone": "not-used-borrowed-from-subnet",
             "id": "",
             "service": {
                 "env": {

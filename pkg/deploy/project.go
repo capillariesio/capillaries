@@ -39,10 +39,11 @@ func (sg *SecurityGroupDef) Clean() {
 }
 
 type SubnetDef struct {
-	Name           string `json:"name"`
-	Id             string `json:"id"`
-	Cidr           string `json:"cidr"`
-	AllocationPool string `json:"allocation_pool"` //start=192.168.199.2,end=192.168.199.254
+	Name             string `json:"name"`
+	Id               string `json:"id"`
+	Cidr             string `json:"cidr"`
+	AvailabilityZone string `json:"availability_zone"` // AWS only
+	AllocationPool   string `json:"allocation_pool"`   //start=192.168.199.2,end=192.168.199.254
 }
 
 type RouterDef struct {

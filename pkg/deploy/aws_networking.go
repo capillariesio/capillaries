@@ -107,41 +107,44 @@ func createAwsVpc(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 		return lb.Complete(er.Error)
 	}
 
-	// Wait until it's there
+	lb.Add(fmt.Sprintf("creating network %s(%s)...\n", prjPair.Live.Network.Name, newId))
+	prjPair.SetNetworkId(newId)
+
+	return lb.Complete(nil)
+}
+
+func waitForAwsVpcToBeCreated(prj *Project, vpcId string, timeoutSeconds int, isVerbose bool) (LogMsg, error) {
+	lb := NewLogBuilder("waitForAwsVpcToBeCreated:"+vpcId, isVerbose)
 	startWaitTs := time.Now()
 	for {
-		status, er := ExecLocalAndGetJsonString(&prjPair.Live, "aws", []string{"ec2", "describe-vpcs",
-			"--filter", "Name=vpc-id,Values=" + newId},
+		status, er := ExecLocalAndGetJsonString(prj, "aws", []string{"ec2", "describe-vpcs",
+			"--filter", "Name=vpc-id,Values=" + vpcId},
 			".Vpcs[0].State", false)
 		lb.Add(er.ToString())
 		if er.Error != nil {
 			return lb.Complete(er.Error)
 		}
 		if status == "" {
-			return lb.Complete(fmt.Errorf("aws returned empty vpc status for %s(%s)", prjPair.Live.Network.Name, newId))
+			return lb.Complete(fmt.Errorf("aws returned empty vpc status for %s", vpcId))
 		}
 		if status == "available" {
 			break
 		}
 		if status != "pending" {
-			return lb.Complete(fmt.Errorf("vpc %s(%s) was built, but the status is %s", prjPair.Live.Network.Name, newId, status))
+			return lb.Complete(fmt.Errorf("vpc %s was built, but the status is %s", vpcId, status))
 		}
-		if time.Since(startWaitTs).Seconds() > float64(prjPair.Live.Timeouts.OpenstackInstanceCreation) {
-			return lb.Complete(fmt.Errorf("giving up after waiting for vpc %s(%s) to be created", prjPair.Live.Network.Name, newId))
+		if time.Since(startWaitTs).Seconds() > float64(prj.Timeouts.OpenstackInstanceCreation) {
+			return lb.Complete(fmt.Errorf("giving up after waiting for vpc %s to be created", vpcId))
 		}
 		time.Sleep(10 * time.Second)
 	}
-
-	lb.Add(fmt.Sprintf("created network %s(%s)\n", prjPair.Live.Network.Name, newId))
-	prjPair.SetNetworkId(newId)
-
 	return lb.Complete(nil)
 }
 
 func createAwsSubnet(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	lb := NewLogBuilder("createAwsSubnet", isVerbose)
-	if prjPair.Live.Network.Subnet.Name == "" || prjPair.Live.Network.Subnet.Cidr == "" || prjPair.Live.Network.Id == "" {
-		return lb.Complete(fmt.Errorf("subnet name(%s) and cidr(%s) and vpc id(%s) cannot be empty", prjPair.Live.Network.Subnet.Name, prjPair.Live.Network.Subnet.Cidr, prjPair.Live.Network.Id))
+	if prjPair.Live.Network.Subnet.Name == "" || prjPair.Live.Network.Subnet.Cidr == "" || prjPair.Live.Network.Id == "" || prjPair.Live.Network.Subnet.AvailabilityZone == "" {
+		return lb.Complete(fmt.Errorf("subnet name(%s), cidr(%s), vpc id(%s), availability_zone(%s) cannot be empty", prjPair.Live.Network.Subnet.Name, prjPair.Live.Network.Subnet.Cidr, prjPair.Live.Network.Id, prjPair.Live.Network.Subnet.AvailabilityZone))
 	}
 
 	// Check if it's already there
@@ -179,6 +182,7 @@ func createAwsSubnet(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	newId, er := ExecLocalAndGetJsonString(&prjPair.Live, "aws", []string{"ec2", "create-subnet",
 		"--vpc-id", prjPair.Live.Network.Id,
 		"--cidr-block", prjPair.Live.Network.Subnet.Cidr,
+		"--availability-zone", prjPair.Live.Network.Subnet.AvailabilityZone,
 		"--tag-specification", fmt.Sprintf("ResourceType=subnet,Tags=[{Key=name,Value=%s}]", prjPair.Live.Network.Subnet.Name)},
 		".Subnet.SubnetId", false)
 	lb.Add(er.ToString())
@@ -297,6 +301,12 @@ func (*AwsDeployProvider) CreateNetworking(prjPair *ProjectPair, isVerbose bool)
 	sb := strings.Builder{}
 
 	logMsg, err := createAwsVpc(prjPair, isVerbose)
+	AddLogMsg(&sb, logMsg)
+	if err != nil {
+		return LogMsg(sb.String()), err
+	}
+
+	logMsg, err = waitForAwsVpcToBeCreated(&prjPair.Live, prjPair.Live.Network.Id, prjPair.Live.Timeouts.OpenstackInstanceCreation, isVerbose)
 	AddLogMsg(&sb, logMsg)
 	if err != nil {
 		return LogMsg(sb.String()), err

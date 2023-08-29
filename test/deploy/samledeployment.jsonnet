@@ -5,7 +5,7 @@
   local dep_name = 'sampledeployment005',  // Can be any combination of alphanumeric characters. Make it unique.
 
   // x - test bare minimum, 2x - better, 4x - decent test, 16x - that's where it gets interesting
-  local cassandra_node_flavor = "x",
+  local cassandra_node_flavor = "4x",
   // Cassandra cluster size - 4,8,16
   local cassandra_total_nodes = 4, 
   // If tasks are CPU-intensive (Python calc), make it equal to cassandra_total_nodes, otherwise cassandra_total_nodes/2
@@ -26,6 +26,13 @@
 
   local subnet_cidr = '10.5.0.0/24',  // Your choice
   local subnet_allocation_pool = 'start=10.5.0.240,end=10.5.0.254',  // We use fixed ip addresses in the .0.2-.0.239 range, the rest is potentially available
+
+  local subnet_availability_zone =
+    if dep_name == 'sampledeployment002' then 'not-used'
+    else if dep_name == 'sampledeployment003' then 'not-used'
+    else if dep_name == 'sampledeployment004' then 'not-used'
+    else if dep_name == 'sampledeployment005' then 'us-east-1a'
+    else 'unknown',
 
   // Internal IPs
   local internal_bastion_ip = '10.5.0.10',
@@ -57,14 +64,14 @@
     if dep_name == 'sampledeployment002' then 'us-central-1a'
     else if dep_name == 'sampledeployment003' then 'nova'
     else if dep_name == 'sampledeployment004' then 'dc3-a-09'
-    else if dep_name == 'sampledeployment005' then 'not-used'
+    else if dep_name == 'sampledeployment005' then 'not-used-borrowed-from-subnet' // AWS borrows availability zone from the subnet
     else 'unknown',
 
   local instance_image_name = // You may want to revisit it once a year
     if dep_name == 'sampledeployment002' then 'ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw'
     else if dep_name == 'sampledeployment003' then 'Ubuntu 23.04'
     else if dep_name == 'sampledeployment004' then 'Ubuntu 22.04 LTS Jammy Jellyfish'
-    else if dep_name == 'sampledeployment005' then 'ami-053b0d53c279acc90'
+    else if dep_name == 'sampledeployment005' then 'ami-053b0d53c279acc90' // Ubuntu 22.04.2 LTS (GNU/Linux 5.19.0-1025-aws x86_64)
     else 'unknown',
 
   local instance_flavor_rabbitmq = // Something modest
@@ -99,7 +106,13 @@
       else if cassandra_node_flavor == "8x" then 'a1-ram2-disk20-perf1'
       else if cassandra_node_flavor == "16x" then 'a1-ram2-disk20-perf1'
       else "unknown"
-    else if dep_name == 'sampledeployment005' then 't2.nano'
+    else if dep_name == 'sampledeployment005' then
+      if cassandra_node_flavor == "x" then 'no-x'
+      else if cassandra_node_flavor == "2x" then 'no-2x'
+      else if cassandra_node_flavor == "4x" then 'c6a.large'
+      else if cassandra_node_flavor == "8x" then 'no-8x'
+      else if cassandra_node_flavor == "16x" then 'no-16x'
+      else "unknown"
     else 'unknown',
 
   local instance_flavor_cassandra = // Fast/big everything: CPU, network, disk, RAM. Preferably local disk, preferably bare metal 
@@ -121,11 +134,11 @@
       else if cassandra_node_flavor == "16x" then 'a32-ram64-disk20-perf2' // They don't have perf1
       else "unknown"
     else if dep_name == 'sampledeployment005' then
-      if cassandra_node_flavor == "x" then 't2.nano'
-      else if cassandra_node_flavor == "2x" then 't2.nano'
-      else if cassandra_node_flavor == "4x" then 't2.nano'
-      else if cassandra_node_flavor == "8x" then 't2.nano'
-      else if cassandra_node_flavor == "16x" then 't2.nano'
+      if cassandra_node_flavor == "x" then 'no-x'
+      else if cassandra_node_flavor == "2x" then 'no-2x'
+      else if cassandra_node_flavor == "4x" then 'c6a.2xlarge'
+      else if cassandra_node_flavor == "8x" then 'no-8x'
+      else if cassandra_node_flavor == "16x" then 'no-16x'
       else "unknown"
     else 'unknown',
 
@@ -148,11 +161,11 @@
       else if cassandra_node_flavor == "16x" then 'a16-ram32-disk20-perf1'
       else "unknown"
     else if dep_name == 'sampledeployment005' then
-      if cassandra_node_flavor == "x" then 't2.nano'
-      else if cassandra_node_flavor == "2x" then 't2.nano'
-      else if cassandra_node_flavor == "4x" then 't2.nano'
-      else if cassandra_node_flavor == "8x" then 't2.nano'
-      else if cassandra_node_flavor == "16x" then 't2.nano'
+      if cassandra_node_flavor == "x" then 'no-x'
+      else if cassandra_node_flavor == "2x" then 'no-2x'
+      else if cassandra_node_flavor == "4x" then 'c6a.large'
+      else if cassandra_node_flavor == "8x" then 'no-8x'
+      else if cassandra_node_flavor == "16x" then 'no-16x'
       else "unknown"
     else 'unknown',
 
@@ -259,6 +272,7 @@
     subnet: {
       name: dep_name + '_subnet',
       cidr: subnet_cidr,
+      availability_zone: subnet_availability_zone,
       allocation_pool: subnet_allocation_pool,
     },
     router: {

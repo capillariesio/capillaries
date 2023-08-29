@@ -273,7 +273,7 @@ func main() {
 				fmt.Printf("ssh-keygen -f ~/.ssh/known_hosts -R %s;\n", i.BestIpAddress())
 			}
 
-			for iNickname, _ := range instances {
+			for iNickname := range instances {
 				<-throttle
 				sem <- 1
 				go func(prjPair *deploy.ProjectPair, logChan chan deploy.LogMsg, errChan chan error, iNickname string) {
@@ -282,7 +282,7 @@ func main() {
 						iNickname,
 						usedFlavors[prjPair.Live.Instances[iNickname].FlavorName],
 						usedImages[prjPair.Live.Instances[iNickname].ImageName],
-						usedImages[prjPair.Live.Instances[iNickname].AvailabilityZone],
+						prjPair.Live.Instances[iNickname].AvailabilityZone,
 						*argVerbosity)
 					logChan <- logMsg
 					errChan <- err
@@ -290,7 +290,7 @@ func main() {
 				}(prjPair, logChan, errChan, iNickname)
 			}
 		case CmdDeleteInstances:
-			for iNickname, _ := range instances {
+			for iNickname := range instances {
 				<-throttle
 				sem <- 1
 				go func(prjPair *deploy.ProjectPair, logChan chan deploy.LogMsg, errChan chan error, iNickname string) {

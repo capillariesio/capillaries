@@ -2,6 +2,7 @@ package deploy
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
@@ -70,6 +71,30 @@ func (*AwsDeployProvider) CreateVolume(prjPair *ProjectPair, iNickname string, v
 	return lb.Complete(nil)
 }
 
+// AWS hell https://stackoverflow.com/questions/70205661/correctly-specifying-device-name-for-ebs-volume-while-attaching-to-an-ec2-instan
+func volNicknameToAwsSuggestedDeviceName(volumes map[string]*VolumeDef, volNickname string) string {
+	// Sorted list of vol nicknames
+	volNicknames := make([]string, len(volumes))
+	volCount := 0
+	for volNickname := range volumes {
+		volNicknames[volCount] = volNickname
+		volCount++
+	}
+	sort.Slice(volNicknames, func(i, j int) bool { return volNicknames[i] > volNicknames[j] })
+	volDeviceSuffix := 'f'
+	for i := 0; i < len(volNicknames); i++ {
+		if volNicknames[i] == volNickname {
+			return "/dev/sd" + string(volDeviceSuffix)
+		}
+		volDeviceSuffix++
+	}
+	return "invalid-device-for-vol-" + volNickname
+}
+
+func awsFinalDeviceName(suggestedDeviceName string) string {
+	return strings.ReplaceAll(suggestedDeviceName, "/dev/sd", "/dev/xvd")
+}
+
 func (*AwsDeployProvider) AttachVolume(prjPair *ProjectPair, iNickname string, volNickname string, isVerbose bool) (LogMsg, error) {
 	lb := NewLogBuilder("aws.AttachVolume", isVerbose)
 	if prjPair.Live.Instances[iNickname].Volumes[volNickname].VolumeId == "" || prjPair.Live.Instances[iNickname].Id == "" {
@@ -99,10 +124,13 @@ func (*AwsDeployProvider) AttachVolume(prjPair *ProjectPair, iNickname string, v
 		}
 	}
 
+	suggestedDevice := volNicknameToAwsSuggestedDeviceName(prjPair.Live.Instances[iNickname].Volumes, volNickname)
+
 	if prjPair.Live.Instances[iNickname].Volumes[volNickname].Device == "" {
 		newDevice, er := ExecLocalAndGetJsonString(&prjPair.Live, "aws", []string{"ec2", "attach-volume",
 			"--volume-id", prjPair.Live.Instances[iNickname].Volumes[volNickname].VolumeId,
-			"--intance-id", prjPair.Live.Instances[iNickname].Id},
+			"--instance-id", prjPair.Live.Instances[iNickname].Id,
+			"--device", suggestedDevice}, // For AWS, suggested device id like /dev/sd[f-p] is assumed
 			".Device", false)
 		lb.Add(er.ToString())
 		if er.Error != nil {
@@ -110,6 +138,7 @@ func (*AwsDeployProvider) AttachVolume(prjPair *ProjectPair, iNickname string, v
 		}
 
 		lb.Add(fmt.Sprintf("attached volume %s to %s, device %s, updating project", volNickname, iNickname, newDevice))
+		// Use final device here
 		prjPair.SetAttachedVolumeDevice(iNickname, volNickname, newDevice)
 	}
 
@@ -138,7 +167,7 @@ func (*AwsDeployProvider) AttachVolume(prjPair *ProjectPair, iNickname string, v
 
 	deviceBlockId, er := ExecSshAndReturnLastLine(prjPair.Live.SshConfig, prjPair.Live.Instances[iNickname].BestIpAddress(), fmt.Sprintf("%s\ninit_volume_attachment %s %s %d '%s'",
 		InitVolumeAttachmentFunc,
-		prjPair.Live.Instances[iNickname].Volumes[volNickname].Device,
+		awsFinalDeviceName(suggestedDevice), // AWS final device here
 		prjPair.Live.Instances[iNickname].Volumes[volNickname].MountPoint,
 		prjPair.Live.Instances[iNickname].Volumes[volNickname].Permissions,
 		prjPair.Live.Instances[iNickname].Volumes[volNickname].Owner))
