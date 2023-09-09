@@ -25,7 +25,7 @@ func (*AwsDeployProvider) CreateVolume(prjPair *ProjectPair, iNickname string, v
 	}
 
 	foundVolIdByName, er := ExecLocalAndGetJsonString(&prjPair.Live, "aws", []string{"ec2", "describe-volumes",
-		"--filter", "Name=tag:name,Values=" + prjPair.Live.Instances[iNickname].Volumes[volNickname].Name},
+		"--filter", "Name=tag:Name,Values=" + prjPair.Live.Instances[iNickname].Volumes[volNickname].Name},
 		".Volumes[0].VolumeId", true)
 	lb.Add(er.ToString())
 	if er.Error != nil {
@@ -58,7 +58,7 @@ func (*AwsDeployProvider) CreateVolume(prjPair *ProjectPair, iNickname string, v
 		"--availability-zone", prjPair.Live.Instances[iNickname].Volumes[volNickname].AvailabilityZone,
 		"--size", fmt.Sprintf("%d", prjPair.Live.Instances[iNickname].Volumes[volNickname].Size),
 		"--volume-type", prjPair.Live.Instances[iNickname].Volumes[volNickname].Type,
-		"--tag-specification", fmt.Sprintf("ResourceType=volume,Tags=[{Key=name,Value=%s}]", prjPair.Live.Instances[iNickname].Volumes[volNickname].Name)},
+		"--tag-specification", fmt.Sprintf("ResourceType=volume,Tags=[{Key=Name,Value=%s}]", prjPair.Live.Instances[iNickname].Volumes[volNickname].Name)},
 		".VolumeId", false)
 	lb.Add(er.ToString())
 	if er.Error != nil {
@@ -193,7 +193,7 @@ func (*AwsDeployProvider) DeleteVolume(prjPair *ProjectPair, iNickname string, v
 	}
 
 	foundVolIdByName, er := ExecLocalAndGetJsonString(&prjPair.Live, "aws", []string{"ec2", "describe-volumes",
-		"--filter", "Name=tag:name,Values=" + prjPair.Live.Instances[iNickname].Volumes[volNickname].Name},
+		"--filter", "Name=tag:Name,Values=" + prjPair.Live.Instances[iNickname].Volumes[volNickname].Name},
 		".Volumes[0].VolumeId", true)
 	lb.Add(er.ToString())
 	if er.Error != nil {

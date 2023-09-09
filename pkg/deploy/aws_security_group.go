@@ -13,7 +13,7 @@ func createAwsSecurityGroup(prjPair *ProjectPair, sgNickname string, isVerbose b
 	}
 
 	foundGroupIdByName, er := ExecLocalAndGetJsonString(&prjPair.Live, "aws", []string{"ec2", "describe-security-groups",
-		"--filter", "Name=tag:name,Values=" + liveGroupDef.Name},
+		"--filter", "Name=tag:Name,Values=" + liveGroupDef.Name},
 		".SecurityGroups[0].GroupId", true)
 	lb.Add(er.ToString())
 	if er.Error != nil {
@@ -42,7 +42,7 @@ func createAwsSecurityGroup(prjPair *ProjectPair, sgNickname string, isVerbose b
 			"--vpc-id", prjPair.Live.Network.Id,
 			"--group-name", liveGroupDef.Name,
 			"--description", liveGroupDef.Name,
-			"--tag-specification", fmt.Sprintf("ResourceType=security-group,Tags=[{Key=name,Value=%s}]", liveGroupDef.Name)},
+			"--tag-specification", fmt.Sprintf("ResourceType=security-group,Tags=[{Key=Name,Value=%s}]", liveGroupDef.Name)},
 			".GroupId", false)
 		lb.Add(er.ToString())
 		if er.Error != nil {
@@ -99,7 +99,7 @@ func deleteAwsSecurityGroup(prjPair *ProjectPair, sgNickname string, isVerbose b
 	}
 
 	foundGroupIdByName, er := ExecLocalAndGetJsonString(&prjPair.Live, "aws", []string{"ec2", "describe-security-groups",
-		"--filter", "Name=tag:name,Values=" + liveGroupDef.Name},
+		"--filter", "Name=tag:Name,Values=" + liveGroupDef.Name},
 		".SecurityGroups[0].GroupId", true)
 	lb.Add(er.ToString())
 	if er.Error != nil {

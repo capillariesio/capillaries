@@ -21,11 +21,16 @@
     if dep_name == 'sampledeployment002' then 'ext-net'
     else if dep_name == 'sampledeployment003' then 'Ext-Net'
     else if dep_name == 'sampledeployment004' then 'ext-floating1'
-    else if dep_name == 'sampledeployment005' then 'ext-network-not-needed'
+    else if dep_name == 'sampledeployment005' then 'ext-network-not-needed-for-aws'
     else 'unknown',
 
-  local subnet_cidr = '10.5.0.0/24',  // Your choice
-  local subnet_allocation_pool = 'start=10.5.0.240,end=10.5.0.254',  // We use fixed ip addresses in the .0.2-.0.239 range, the rest is potentially available
+  local vpc_cidr = '10.5.0.0/16', // AWS only
+  local private_subnet_cidr = '10.5.0.0/24',
+  local public_subnet_cidr = '10.5.1.0/24', // AWS only
+  local private_subnet_allocation_pool = 'start=10.5.0.240,end=10.5.0.254',  // We use fixed ip addresses in the .0.2-.0.239 range, the rest is potentially available
+  local bastion_subnet_type = 
+    if dep_name == 'sampledeployment005' then 'public'
+    else 'private',
 
   local subnet_availability_zone =
     if dep_name == 'sampledeployment002' then 'not-used'
@@ -35,7 +40,9 @@
     else 'unknown',
 
   // Internal IPs
-  local internal_bastion_ip = '10.5.0.10',
+  local internal_bastion_ip =
+    if dep_name == 'sampledeployment005' then '10.5.1.10'
+    else '10.5.0.10',
   local prometheus_ip = '10.5.0.4',
   local rabbitmq_ip = '10.5.0.5',
   local daemon_ips = 
@@ -71,7 +78,7 @@
     if dep_name == 'sampledeployment002' then 'ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw'
     else if dep_name == 'sampledeployment003' then 'Ubuntu 23.04'
     else if dep_name == 'sampledeployment004' then 'Ubuntu 22.04 LTS Jammy Jellyfish'
-    else if dep_name == 'sampledeployment005' then 'ami-053b0d53c279acc90' // Ubuntu 22.04.2 LTS (GNU/Linux 5.19.0-1025-aws x86_64)
+    else if dep_name == 'sampledeployment005' then 'ami-0d8583a0d8d6dd14f' //ubuntu/images/hvm-ssd/ubuntu-lunar-23.04-amd64-server-20230714 //'ami-053b0d53c279acc90' // Ubuntu 22.04.2 LTS (GNU/Linux 5.19.0-1025-aws x86_64)
     else 'unknown',
 
   local instance_flavor_rabbitmq = // Something modest
@@ -109,7 +116,7 @@
     else if dep_name == 'sampledeployment005' then
       if cassandra_node_flavor == "x" then 'no-x'
       else if cassandra_node_flavor == "2x" then 'no-2x'
-      else if cassandra_node_flavor == "4x" then 'c6a.large'
+      else if cassandra_node_flavor == "4x" then 't2.nano' // 'c6a.large'
       else if cassandra_node_flavor == "8x" then 'no-8x'
       else if cassandra_node_flavor == "16x" then 'no-16x'
       else "unknown"
@@ -247,7 +254,7 @@
     private_key_password: '{CAPIDEPLOY_SSH_PRIVATE_KEY_PASS}',
   },
   timeouts: {
-    openstack_cmd: 60,
+    openstack_cmd: 120,
     openstack_instance_creation: 240,
     attach_volume: 60,
   },
@@ -269,13 +276,20 @@
 
   network: {
     name: dep_name + '_network',
-    subnet: {
-      name: dep_name + '_subnet',
-      cidr: subnet_cidr,
+    cidr: vpc_cidr,
+    private_subnet: {
+      name: dep_name + '_private_subnet',
+      cidr: private_subnet_cidr,
       availability_zone: subnet_availability_zone,
-      allocation_pool: subnet_allocation_pool,
+      allocation_pool: private_subnet_allocation_pool,
     },
-    router: {
+    public_subnet: {
+      name: dep_name + '_public_subnet',
+      cidr: public_subnet_cidr,
+      availability_zone: subnet_availability_zone,
+      nat_gateway_name: dep_name + '_natgw',
+    },
+    router: { // aka AWS internet gateway
       name: dep_name + '_router',
       external_gateway_network_name: external_gateway_network_name,
     },
@@ -296,7 +310,7 @@
           desc: 'NFS PortMapper TCP',
           protocol: 'tcp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 111,
           direction: 'ingress',
         },
@@ -304,7 +318,7 @@
           desc: 'NFS PortMapper UDP',
           protocol: 'udp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 111,
           direction: 'ingress',
         },
@@ -312,7 +326,7 @@
           desc: 'NFS Server TCP',
           protocol: 'tcp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 2049,
           direction: 'ingress',
         },
@@ -320,7 +334,7 @@
           desc: 'NFS Server UDP',
           protocol: 'udp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 2049,
           direction: 'ingress',
         },
@@ -336,7 +350,7 @@
           desc: 'Prometheus node exporter',
           protocol: 'tcp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 9100,
           direction: 'ingress',
         },
@@ -352,7 +366,7 @@
           desc: 'rsyslog receiver',
           protocol: 'udp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 514,
           direction: 'ingress',
         },
@@ -381,7 +395,7 @@
           desc: 'SSH',
           protocol: 'tcp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 22,
           direction: 'ingress',
         },
@@ -389,7 +403,7 @@
           desc: 'Prometheus UI internal',
           protocol: 'tcp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 9090,
           direction: 'ingress',
         },
@@ -397,7 +411,7 @@
           desc: 'Prometheus node exporter',
           protocol: 'tcp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 9100,
           direction: 'ingress',
         },
@@ -405,7 +419,7 @@
           desc: 'Cassandra Prometheus node exporter',
           protocol: 'tcp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 9500,
           direction: 'ingress',
         },
@@ -413,7 +427,7 @@
           desc: 'Cassandra JMX',
           protocol: 'tcp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 7199,
           direction: 'ingress',
         },
@@ -421,7 +435,7 @@
           desc: 'Cassandra cluster comm',
           protocol: 'tcp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 7000,
           direction: 'ingress',
         },
@@ -429,7 +443,7 @@
           desc: 'Cassandra API',
           protocol: 'tcp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 9042,
           direction: 'ingress',
         },
@@ -437,7 +451,7 @@
           desc: 'RabbitMQ API',
           protocol: 'tcp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 5672,
           direction: 'ingress',
         },
@@ -445,7 +459,7 @@
           desc: 'RabbitMQ UI',
           protocol: 'tcp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 15672,
           direction: 'ingress',
         },
@@ -710,6 +724,7 @@
       flavor: instance_flavor_bastion,
       image: instance_image_name,
       availability_zone: instance_availability_zone,
+      subnet_type: bastion_subnet_type,
       volumes: {
         cfg: {
           name: dep_name + '_cfg',
@@ -761,7 +776,7 @@
           RABBITMQ_IP: rabbitmq_ip,
           SFTP_USER: '{CAPIDEPLOY_SFTP_USER}',
           SSH_USER: $.ssh_config.user,
-          SUBNET_CIDR: $.network.subnet.cidr,
+          NETWORK_CIDR: $.network.cidr,
           EXTERNAL_IP_ADDRESS: '{EXTERNAL_IP_ADDRESS}',  // internal: capideploy populates it from ssh_config.external_ip_address after loading project file; used by webui and webapi config.sh
           WEBAPI_PORT: '6543',
         },
@@ -831,6 +846,7 @@
       flavor: instance_flavor_rabbitmq,
       image: instance_image_name,
       availability_zone: instance_availability_zone,
+      subnet_type: 'private',
       service: {
         env: {
           PROMETHEUS_NODE_EXPORTER_VERSION: prometheus_node_exporter_version,
@@ -869,6 +885,7 @@
       flavor: instance_flavor_prometheus,
       image: instance_image_name,
       availability_zone: instance_availability_zone,
+      subnet_type: 'private',
       service: {
         env: {
           PROMETHEUS_NODE_EXPORTER_VERSION: prometheus_node_exporter_version,
@@ -905,6 +922,7 @@
       flavor: instance_flavor_cassandra,
       image: instance_image_name,
       availability_zone: instance_availability_zone,
+      subnet_type: 'private',
       service: {
         env: {
           CASSANDRA_IP: e.ip_address,
@@ -949,6 +967,7 @@
       flavor: instance_flavor_daemon,
       image: instance_image_name,
       availability_zone: instance_availability_zone,
+      subnet_type: 'private',
       private_keys: [
         {
           name: '{CAPIDEPLOY_SFTP_USER}',

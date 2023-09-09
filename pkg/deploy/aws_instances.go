@@ -58,8 +58,10 @@ func (*AwsDeployProvider) GetKeypairs(prjPair *ProjectPair, keypairMap map[strin
 func createAwsInstance(prjPair *ProjectPair, iNickname string, flavorId string, imageId string, isVerbose bool) (LogMsg, error) {
 	lb := NewLogBuilder("createAwsInstance:"+prjPair.Live.Instances[iNickname].HostName, isVerbose)
 	if prjPair.Live.Instances[iNickname].HostName == "" ||
-		prjPair.Live.Instances[iNickname].IpAddress == "" {
-		return lb.Complete(fmt.Errorf("instance hostname(%s), ip address(%s) cannot be empty", prjPair.Live.Instances[iNickname].HostName, prjPair.Live.Instances[iNickname].IpAddress))
+		prjPair.Live.Instances[iNickname].IpAddress == "" ||
+		prjPair.Live.Instances[iNickname].SecurityGroupNickname == "" ||
+		prjPair.Live.SecurityGroups[prjPair.Live.Instances[iNickname].SecurityGroupNickname].Id == "" {
+		return lb.Complete(fmt.Errorf("instance hostname(%s), ip address(%s), security group nickname(%s), security group id(%s) cannot be empty", prjPair.Live.Instances[iNickname].HostName, prjPair.Live.Instances[iNickname].IpAddress, prjPair.Live.Instances[iNickname].SecurityGroupNickname, prjPair.Live.SecurityGroups[prjPair.Live.Instances[iNickname].SecurityGroupNickname].Id))
 	}
 
 	// If floating ip is requested and it's already assigned, fail
@@ -79,7 +81,7 @@ func createAwsInstance(prjPair *ProjectPair, iNickname string, flavorId string, 
 	}
 
 	foundInstanceIdByName, er := ExecLocalAndGetJsonString(&prjPair.Live, "aws", []string{"ec2", "describe-instances",
-		"--filter", "Name=tag:name,Values=" + prjPair.Live.Instances[iNickname].HostName},
+		"--filter", "Name=tag:Name,Values=" + prjPair.Live.Instances[iNickname].HostName},
 		".Instances[0].InstanceId", true)
 	lb.Add(er.ToString())
 	if er.Error != nil {
@@ -107,6 +109,11 @@ func createAwsInstance(prjPair *ProjectPair, iNickname string, flavorId string, 
 		return lb.Complete(nil)
 	}
 
+	subnetId := prjPair.Live.Network.PrivateSubnet.Id
+	if prjPair.Live.Instances[iNickname].SubnetType == "public" {
+		subnetId = prjPair.Live.Network.PublicSubnet.Id
+	}
+
 	// NOTE: AWS doesn't allow to specify hostname on creation
 	newId, er := ExecLocalAndGetJsonString(&prjPair.Live, "aws", []string{"ec2", "run-instances",
 		"--image-id", imageId,
@@ -114,9 +121,9 @@ func createAwsInstance(prjPair *ProjectPair, iNickname string, flavorId string, 
 		"--instance-type", flavorId,
 		"--key-name", prjPair.Live.Instances[iNickname].RootKeyName,
 		"--security-group-ids", prjPair.Live.SecurityGroups[prjPair.Live.Instances[iNickname].SecurityGroupNickname].Id,
-		"--subnet-id", prjPair.Live.Network.Subnet.Id,
+		"--subnet-id", subnetId,
 		"--private-ip-address", prjPair.Live.Instances[iNickname].IpAddress,
-		"--tag-specification", fmt.Sprintf("ResourceType=instance,Tags=[{Key=name,Value=%s}]", prjPair.Live.Instances[iNickname].HostName)},
+		"--tag-specification", fmt.Sprintf("ResourceType=instance,Tags=[{Key=Name,Value=%s}]", prjPair.Live.Instances[iNickname].HostName)},
 		".Instances[0].InstanceId", false)
 	lb.Add(er.ToString())
 	if er.Error != nil {

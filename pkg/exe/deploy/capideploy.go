@@ -502,13 +502,14 @@ func main() {
 	}
 
 	finalCmdErr := waitForWorkers(errorsExpected, errChan, logChan)
-	if finalCmdErr > 0 {
-		os.Exit(finalCmdErr)
-	}
 
 	// Save updated project template, it may have some new ids and timestamps
 	if prjErr = prjPair.Template.SaveProject(fullPrjPath); prjErr != nil {
 		log.Fatalf(prjErr.Error())
+	}
+
+	if finalCmdErr > 0 {
+		os.Exit(finalCmdErr)
 	}
 
 	fmt.Printf("%s %sOK%s, elapsed %.3fs\n", os.Args[1], deploy.LogColorGreen, deploy.LogColorReset, time.Since(cmdStartTs).Seconds())

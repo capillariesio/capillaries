@@ -48,8 +48,8 @@ func (*OpenstackDeployProvider) DeleteFloatingIp(prjPair *ProjectPair, isVerbose
 
 func createOpenstackSubnet(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	lb := NewLogBuilder("createOpenstackSubnet", isVerbose)
-	if prjPair.Live.Network.Subnet.Name == "" || prjPair.Live.Network.Subnet.Cidr == "" {
-		return lb.Complete(fmt.Errorf("subnet name(%s) and cidr(%s) cannot be empty", prjPair.Live.Network.Subnet.Name, prjPair.Live.Network.Subnet.Cidr))
+	if prjPair.Live.Network.PrivateSubnet.Name == "" || prjPair.Live.Network.PrivateSubnet.Cidr == "" {
+		return lb.Complete(fmt.Errorf("subnet name(%s) and cidr(%s) cannot be empty", prjPair.Live.Network.PrivateSubnet.Name, prjPair.Live.Network.PrivateSubnet.Cidr))
 	}
 
 	rows, er := execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"subnet", "list"})
@@ -60,47 +60,47 @@ func createOpenstackSubnet(prjPair *ProjectPair, isVerbose bool) (LogMsg, error)
 
 	// | ID                                   | Name                          | Network                              | Subnet                |
 	// | 30a21631-d188-49f5-a7e5-faa3a5a5b50a | sample_deployment_name_subnet | fe181240-b89e-49c6-8b10-9fba7f4a2d6a | 10.5.0.0/16           |
-	foundSubnetIdByName := findOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.Network.Subnet.Name)
-	foundNetworkIdByName := findOpenstackColumnValue(rows, "Network", "Name", prjPair.Live.Network.Subnet.Name)
-	foundCidrByName := findOpenstackColumnValue(rows, "Subnet", "Name", prjPair.Live.Network.Subnet.Name)
+	foundSubnetIdByName := findOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.Network.PrivateSubnet.Name)
+	foundNetworkIdByName := findOpenstackColumnValue(rows, "Network", "Name", prjPair.Live.Network.PrivateSubnet.Name)
+	foundCidrByName := findOpenstackColumnValue(rows, "Subnet", "Name", prjPair.Live.Network.PrivateSubnet.Name)
 	if foundNetworkIdByName != "" && prjPair.Live.Network.Id != foundNetworkIdByName {
 		return lb.Complete(fmt.Errorf("requested subnet network id %s not matching existing network id %s", prjPair.Live.Network.Id, foundNetworkIdByName))
 	}
-	if foundCidrByName != "" && prjPair.Live.Network.Subnet.Cidr != foundCidrByName {
-		return lb.Complete(fmt.Errorf("requested subnet cidr %s not matching existing cidr %s", prjPair.Live.Network.Subnet.Cidr, foundCidrByName))
+	if foundCidrByName != "" && prjPair.Live.Network.PrivateSubnet.Cidr != foundCidrByName {
+		return lb.Complete(fmt.Errorf("requested subnet cidr %s not matching existing cidr %s", prjPair.Live.Network.PrivateSubnet.Cidr, foundCidrByName))
 	}
-	if prjPair.Live.Network.Subnet.Id == "" {
+	if prjPair.Live.Network.PrivateSubnet.Id == "" {
 		// If it was already created, save it for future use, but do not create
 		if foundSubnetIdByName != "" {
-			lb.Add(fmt.Sprintf("subnet %s(%s) already there, updating project", prjPair.Live.Network.Subnet.Name, foundSubnetIdByName))
-			prjPair.SetSubnetId(foundSubnetIdByName)
+			lb.Add(fmt.Sprintf("subnet %s(%s) already there, updating project", prjPair.Live.Network.PrivateSubnet.Name, foundSubnetIdByName))
+			prjPair.SetPrivateSubnetId(foundSubnetIdByName)
 
 		}
 	} else {
 		if foundSubnetIdByName == "" {
 			// It was supposed to be there, but it's not present, complain
-			return lb.Complete(fmt.Errorf("requested subnet id %s not present, consider removing this id from the project file", prjPair.Live.Network.Subnet.Id))
-		} else if foundSubnetIdByName != prjPair.Live.Network.Subnet.Id {
+			return lb.Complete(fmt.Errorf("requested subnet id %s not present, consider removing this id from the project file", prjPair.Live.Network.PrivateSubnet.Id))
+		} else if foundSubnetIdByName != prjPair.Live.Network.PrivateSubnet.Id {
 			// It is already there, but has different id, complain
-			return lb.Complete(fmt.Errorf("requested subnet id %s not matching existing id %s", prjPair.Live.Network.Subnet.Id, foundSubnetIdByName))
+			return lb.Complete(fmt.Errorf("requested subnet id %s not matching existing id %s", prjPair.Live.Network.PrivateSubnet.Id, foundSubnetIdByName))
 		}
 	}
 
-	if prjPair.Live.Network.Subnet.Id != "" {
-		lb.Add(fmt.Sprintf("subnet %s(%s) already there, no need to create", prjPair.Live.Network.Subnet.Name, foundSubnetIdByName))
+	if prjPair.Live.Network.PrivateSubnet.Id != "" {
+		lb.Add(fmt.Sprintf("subnet %s(%s) already there, no need to create", prjPair.Live.Network.PrivateSubnet.Name, foundSubnetIdByName))
 		return lb.Complete(nil)
 	}
 
 	subnetParams := []string{
-		"subnet", "create", prjPair.Live.Network.Subnet.Name,
-		"--subnet-range", prjPair.Live.Network.Subnet.Cidr,
+		"subnet", "create", prjPair.Live.Network.PrivateSubnet.Name,
+		"--subnet-range", prjPair.Live.Network.PrivateSubnet.Cidr,
 		"--network", prjPair.Live.Network.Name}
-	if prjPair.Live.Network.Subnet.AllocationPool == "" {
+	if prjPair.Live.Network.PrivateSubnet.AllocationPool == "" {
 		subnetParams = append(subnetParams, "--no-dhcp")
 	} else {
 		subnetParams = append(subnetParams, "--dhcp")
 		subnetParams = append(subnetParams, "--allocation-pool")
-		subnetParams = append(subnetParams, prjPair.Live.Network.Subnet.AllocationPool)
+		subnetParams = append(subnetParams, prjPair.Live.Network.PrivateSubnet.AllocationPool)
 	}
 
 	rows, er = execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", subnetParams)
@@ -120,15 +120,15 @@ func createOpenstackSubnet(prjPair *ProjectPair, isVerbose bool) (LogMsg, error)
 		return lb.Complete(fmt.Errorf("openstack returned empty subnet id"))
 	}
 
-	lb.Add(fmt.Sprintf("created subnet %s(%s)", prjPair.Live.Network.Subnet.Name, newId))
-	prjPair.SetSubnetId(newId)
+	lb.Add(fmt.Sprintf("created subnet %s(%s)", prjPair.Live.Network.PrivateSubnet.Name, newId))
+	prjPair.SetPrivateSubnetId(newId)
 
 	return lb.Complete(nil)
 }
 
 func deleteOpenstackSubnet(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	lb := NewLogBuilder("deleteOpenstackSubnet", isVerbose)
-	if prjPair.Live.Network.Subnet.Name == "" {
+	if prjPair.Live.Network.PrivateSubnet.Name == "" {
 		return lb.Complete(fmt.Errorf("subnet name cannot be empty"))
 	}
 
@@ -140,21 +140,21 @@ func deleteOpenstackSubnet(prjPair *ProjectPair, isVerbose bool) (LogMsg, error)
 
 	// | ID                                   | Name                          | Network                              | Subnet                |
 	// | 30a21631-d188-49f5-a7e5-faa3a5a5b50a | sample_deployment_name_subnet | fe181240-b89e-49c6-8b10-9fba7f4a2d6a | 10.5.0.0/16           |
-	foundSubnetIdByName := findOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.Network.Subnet.Name)
+	foundSubnetIdByName := findOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.Network.PrivateSubnet.Name)
 	if foundSubnetIdByName == "" {
-		lb.Add(fmt.Sprintf("subnet %s not found, nothing to delete", prjPair.Live.Network.Subnet.Name))
-		prjPair.SetSubnetId("")
+		lb.Add(fmt.Sprintf("subnet %s not found, nothing to delete", prjPair.Live.Network.PrivateSubnet.Name))
+		prjPair.SetPrivateSubnetId("")
 		return lb.Complete(nil)
 	}
 
-	_, er = execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"subnet", "delete", prjPair.Live.Network.Subnet.Name})
+	_, er = execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"subnet", "delete", prjPair.Live.Network.PrivateSubnet.Name})
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)
 	}
 
-	lb.Add(fmt.Sprintf("deleted subnet %s", prjPair.Live.Network.Subnet.Name))
-	prjPair.SetSubnetId("")
+	lb.Add(fmt.Sprintf("deleted subnet %s", prjPair.Live.Network.PrivateSubnet.Name))
+	prjPair.SetPrivateSubnetId("")
 
 	return lb.Complete(nil)
 }
@@ -312,11 +312,11 @@ func createOpenstackRouter(prjPair *ProjectPair, isVerbose bool) (LogMsg, error)
 
 	// | interfaces_info         | [{"port_id": "d4c714f3-8569-47e4-8b34-4addeba02b48", "ip_address": "10.5.0.1", "subnet_id": "30a21631-d188-49f5-a7e5-faa3a5a5b50a"}]
 	interfacesInfo := findOpenstackFieldValue(rows, "interfaces_info")
-	if strings.Contains(interfacesInfo, prjPair.Live.Network.Subnet.Id) {
+	if strings.Contains(interfacesInfo, prjPair.Live.Network.PrivateSubnet.Id) {
 		lb.Add(fmt.Sprintf("router %s seems to be associated with subnet\n", prjPair.Live.Network.Router.Name))
 	} else {
 		lb.Add(fmt.Sprintf("router %s needs to be associated with subnet\n", prjPair.Live.Network.Router.Name))
-		rows, er = execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"router", "add", "subnet", prjPair.Live.Network.Router.Name, prjPair.Live.Network.Subnet.Name})
+		rows, er = execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"router", "add", "subnet", prjPair.Live.Network.Router.Name, prjPair.Live.Network.PrivateSubnet.Name})
 		lb.Add(er.ToString())
 		if er.Error != nil {
 			return lb.Complete(er.Error)
