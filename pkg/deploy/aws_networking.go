@@ -24,13 +24,14 @@ func (*AwsDeployProvider) CreateFloatingIp(prjPair *ProjectPair, isVerbose bool)
 
 	reportPublicIp(&prjPair.Live)
 
-	// newNatGatewayIp, er := ExecLocalAndGetJsonString(&prjPair.Live, "aws", []string{"ec2", "allocate-address"}, ".PublicIp", false)
-	// lb.Add(er.ToString())
-	// if er.Error != nil {
-	// 	return lb.Complete(er.Error)
-	// }
+	newNatGatewayIp, er := ExecLocalAndGetJsonString(&prjPair.Live, "aws", []string{"ec2", "allocate-address"}, ".PublicIp", false)
+	lb.Add(er.ToString())
+	if er.Error != nil {
+		return lb.Complete(er.Error)
+	}
 
-	// prjPair.SetNatGatewayExternalIp(newNatGatewayIp)
+	prjPair.SetNatGatewayExternalIp(newNatGatewayIp)
+
 	return lb.Complete(nil)
 }
 
@@ -463,9 +464,9 @@ func createInternetGatewayAndRoutePublicSubnet(prjPair *ProjectPair, isVerbose b
 		lb.Add(fmt.Sprintf("network gateway %s seems to be attached to vpc already\n", prjPair.Live.Network.Router.Name))
 	}
 
-	// Obtain route table id for this vpc (it was automatically created for us)
+	// Obtain route table id for this vpc (it was automatically created for us and marked as 'main')
 	routeTableId, er := ExecLocalAndGetJsonString(&prjPair.Live, "aws", []string{"ec2", "describe-route-tables",
-		"--filter", "Name=association.main,Values=true Name=vpc-id,Values=" + prjPair.Live.Network.Id},
+		"--filter", "Name=association.main,Values=true", fmt.Sprintf("Name=vpc-id,Values=%s", prjPair.Live.Network.Id)},
 		".RouteTables[0].RouteTableId", false)
 	lb.Add(er.ToString())
 	if er.Error != nil {
@@ -584,6 +585,8 @@ func deleteInternetGateway(prjPair *ProjectPair, isVerbose bool) (LogMsg, error)
 	}
 
 	if state == "available" {
+		// This may fail with: Network vpc-... has some mapped public address(es). Please unmap those public address(es) before detaching the gateway.
+		// This is probably because the delition of the natgw is still in progress. Call again after a while.
 		er = ExecLocal(&prjPair.Live, "aws", []string{"ec2", "detach-internet-gateway",
 			"--internet-gateway-id", prjPair.Live.Network.Router.Id,
 			"--vpc-id", prjPair.Live.Network.Id},
@@ -643,6 +646,31 @@ func deleteNatGateway(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)
+	}
+
+	// Wait until natgw is trully gone, otherwise vpc deletion will choke
+	startWaitTs := time.Now()
+	for {
+		status, er := ExecLocalAndGetJsonString(&prjPair.Live, "aws", []string{"ec2", "describe-nat-gateways",
+			"--nat-gateway-ids", foundNatGatewayIdByName},
+			".NatGateways[0].State", true)
+		lb.Add(er.ToString())
+		if er.Error != nil {
+			return lb.Complete(er.Error)
+		}
+		if status == "" {
+			return lb.Complete(fmt.Errorf("aws returned empty natgw status for %s", foundNatGatewayIdByName))
+		}
+		if status == "deleted" {
+			break
+		}
+		if status != "deleting" {
+			return lb.Complete(fmt.Errorf("natgw %s was being deleted, but the status is %s", foundNatGatewayIdByName, status))
+		}
+		if time.Since(startWaitTs).Seconds() > float64(prjPair.Live.Timeouts.OpenstackInstanceCreation) {
+			return lb.Complete(fmt.Errorf("giving up after waiting for natgw %s to be deleted", foundNatGatewayIdByName))
+		}
+		time.Sleep(10 * time.Second)
 	}
 
 	lb.Add(fmt.Sprintf("deleted nat gateway %s", prjPair.Live.Network.Router.Name))

@@ -91,8 +91,18 @@ func volNicknameToAwsSuggestedDeviceName(volumes map[string]*VolumeDef, volNickn
 	return "invalid-device-for-vol-" + volNickname
 }
 
-func awsFinalDeviceName(suggestedDeviceName string) string {
+func awsFinalDeviceNameOld(suggestedDeviceName string) string {
 	return strings.ReplaceAll(suggestedDeviceName, "/dev/sd", "/dev/xvd")
+}
+
+func awsFinalDeviceNameNitro(suggestedDeviceName string) string {
+	// See what lsblk shows for your case.
+	// This is very hacky, but I didn't spend time to do it the right way
+	deviceNameReplacer := strings.NewReplacer(
+		"/dev/sdf", "/dev/nvme1n1",
+		"/dev/sdg", "/dev/nvme2n1",
+		"/dev/sdh", "/dev/nvme3n1")
+	return deviceNameReplacer.Replace(suggestedDeviceName)
 }
 
 func (*AwsDeployProvider) AttachVolume(prjPair *ProjectPair, iNickname string, volNickname string, isVerbose bool) (LogMsg, error) {
@@ -167,7 +177,7 @@ func (*AwsDeployProvider) AttachVolume(prjPair *ProjectPair, iNickname string, v
 
 	deviceBlockId, er := ExecSshAndReturnLastLine(prjPair.Live.SshConfig, prjPair.Live.Instances[iNickname].BestIpAddress(), fmt.Sprintf("%s\ninit_volume_attachment %s %s %d '%s'",
 		InitVolumeAttachmentFunc,
-		awsFinalDeviceName(suggestedDevice), // AWS final device here
+		awsFinalDeviceNameNitro(suggestedDevice), // AWS final device here
 		prjPair.Live.Instances[iNickname].Volumes[volNickname].MountPoint,
 		prjPair.Live.Instances[iNickname].Volumes[volNickname].Permissions,
 		prjPair.Live.Instances[iNickname].Volumes[volNickname].Owner))

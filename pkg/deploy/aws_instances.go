@@ -209,6 +209,7 @@ func (*AwsDeployProvider) CreateInstanceAndWaitForCompletion(prjPair *ProjectPai
 
 	return LogMsg(sb.String()), nil
 }
+
 func (*AwsDeployProvider) DeleteInstance(prjPair *ProjectPair, iNickname string, isVerbose bool) (LogMsg, error) {
 	lb := NewLogBuilder("aws.DeleteInstance", isVerbose)
 	if prjPair.Live.Instances[iNickname].Id == "" {
@@ -222,6 +223,32 @@ func (*AwsDeployProvider) DeleteInstance(prjPair *ProjectPair, iNickname string,
 	if er.Error != nil {
 		return lb.Complete(er.Error)
 	}
+
+	startWaitTs := time.Now()
+
+	for {
+		status, er := ExecLocalAndGetJsonString(&prjPair.Live, "aws", []string{"ec2", "describe-instances",
+			"--instance-ids", prjPair.Live.Instances[iNickname].Id},
+			".Reservations[0].Instances[0].State.Name", false)
+		lb.Add(er.ToString())
+		if er.Error != nil {
+			return lb.Complete(er.Error)
+		}
+		if status == "" {
+			return lb.Complete(fmt.Errorf("aws returned empty status for %s", prjPair.Live.Instances[iNickname].Id))
+		}
+		if status == "terminated" {
+			break
+		}
+		if status != "shutting-down" {
+			return lb.Complete(fmt.Errorf("%s was built, but the status is unknown: %s", prjPair.Live.Instances[iNickname].Id, status))
+		}
+		if time.Since(startWaitTs).Seconds() > float64(prjPair.Live.Timeouts.OpenstackInstanceCreation) {
+			return lb.Complete(fmt.Errorf("giving up after waiting for %s to be terminated", prjPair.Live.Instances[iNickname].Id))
+		}
+		time.Sleep(10 * time.Second)
+	}
+
 	prjPair.CleanInstance(iNickname)
 
 	return lb.Complete(nil)

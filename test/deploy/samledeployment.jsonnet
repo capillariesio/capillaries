@@ -1,13 +1,13 @@
 {
   // Variables to play with
 
-  // Choose your Openstack provider here. This script supports 002,003,004.
+  // Choose your provider here. Openstack 002,003,004, AWS 005
   local dep_name = 'sampledeployment005',  // Can be any combination of alphanumeric characters. Make it unique.
 
   // x - test bare minimum, 2x - better, 4x - decent test, 16x - that's where it gets interesting
   local cassandra_node_flavor = "4x",
   // Cassandra cluster size - 4,8,16
-  local cassandra_total_nodes = 4, 
+  local cassandra_total_nodes = 8, 
   // If tasks are CPU-intensive (Python calc), make it equal to cassandra_total_nodes, otherwise cassandra_total_nodes/2
   local daemon_total_instances = cassandra_total_nodes, 
   local DEFAULT_DAEMON_THREAD_POOL_SIZE = '8', // Depends on instance/cassandra perf
@@ -85,14 +85,14 @@
     if dep_name == 'sampledeployment002' then 't5sd.large'
     else if dep_name == 'sampledeployment003' then 'b2-7'
     else if dep_name == 'sampledeployment004' then 'a1-ram2-disk20-perf1'
-    else if dep_name == 'sampledeployment005' then 't2.nano'
+    else if dep_name == 'sampledeployment005' then 't2.micro'
     else 'unknown',
 
   local instance_flavor_prometheus = // Something modest
     if dep_name == 'sampledeployment002' then 't5sd.large'
     else if dep_name == 'sampledeployment003' then 'b2-7'
     else if dep_name == 'sampledeployment004' then 'a1-ram2-disk20-perf1'
-    else if dep_name == 'sampledeployment005' then 't2.nano'
+    else if dep_name == 'sampledeployment005' then 't2.micro'
     else 'unknown',
 
   local instance_flavor_bastion = // Something modest, but capable of serving as NFS server, Webapi, UI
@@ -116,7 +116,7 @@
     else if dep_name == 'sampledeployment005' then
       if cassandra_node_flavor == "x" then 'no-x'
       else if cassandra_node_flavor == "2x" then 'no-2x'
-      else if cassandra_node_flavor == "4x" then 't2.nano' // 'c6a.large'
+      else if cassandra_node_flavor == "4x" then 'c6a.large'
       else if cassandra_node_flavor == "8x" then 'no-8x'
       else if cassandra_node_flavor == "16x" then 'no-16x'
       else "unknown"
@@ -170,7 +170,7 @@
     else if dep_name == 'sampledeployment005' then
       if cassandra_node_flavor == "x" then 'no-x'
       else if cassandra_node_flavor == "2x" then 'no-2x'
-      else if cassandra_node_flavor == "4x" then 'c6a.large'
+      else if cassandra_node_flavor == "4x" then 'c6a.xlarge'
       else if cassandra_node_flavor == "8x" then 'no-8x'
       else if cassandra_node_flavor == "16x" then 'no-16x'
       else "unknown"
