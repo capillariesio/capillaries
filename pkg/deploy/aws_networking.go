@@ -14,7 +14,9 @@ func (*AwsDeployProvider) CreateFloatingIp(prjPair *ProjectPair, isVerbose bool)
 	// 	"AllocationId": "eipalloc-0e4b1b8ec4eb983d4",
 	// }
 
-	newFloatingIp, er := ExecLocalAndGetJsonString(&prjPair.Live, "aws", []string{"ec2", "allocate-address"}, ".PublicIp", false)
+	newFloatingIp, er := ExecLocalAndGetJsonString(&prjPair.Live, "aws", []string{"ec2", "allocate-address",
+		"--tag-specification", "ResourceType=elastic-ip,Tags=[{Key=Name,Value=bastion_ip_address}]"},
+		".PublicIp", false)
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)
@@ -24,7 +26,9 @@ func (*AwsDeployProvider) CreateFloatingIp(prjPair *ProjectPair, isVerbose bool)
 
 	reportPublicIp(&prjPair.Live)
 
-	newNatGatewayIp, er := ExecLocalAndGetJsonString(&prjPair.Live, "aws", []string{"ec2", "allocate-address"}, ".PublicIp", false)
+	newNatGatewayIp, er := ExecLocalAndGetJsonString(&prjPair.Live, "aws", []string{"ec2", "allocate-address",
+		"--tag-specification", "ResourceType=elastic-ip,Tags=[{Key=Name,Value=natgw_ip_address}]"},
+		".PublicIp", false)
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)
@@ -468,6 +472,16 @@ func createInternetGatewayAndRoutePublicSubnet(prjPair *ProjectPair, isVerbose b
 	routeTableId, er := ExecLocalAndGetJsonString(&prjPair.Live, "aws", []string{"ec2", "describe-route-tables",
 		"--filter", "Name=association.main,Values=true", fmt.Sprintf("Name=vpc-id,Values=%s", prjPair.Live.Network.Id)},
 		".RouteTables[0].RouteTableId", false)
+	lb.Add(er.ToString())
+	if er.Error != nil {
+		return lb.Complete(er.Error)
+	}
+
+	// (optional) tag this route table for operator's convenience
+	er = ExecLocal(&prjPair.Live, "aws", []string{"ec2", "create-tags",
+		"--resources", routeTableId,
+		"--tags", fmt.Sprintf("Key=Name,Value=%s_rt_to_igw", prjPair.Live.Network.PublicSubnet.Name)},
+		prjPair.Live.CliEnvVars, "")
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)

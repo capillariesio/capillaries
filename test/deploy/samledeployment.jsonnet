@@ -5,44 +5,51 @@
   local dep_name = 'sampledeployment005',  // Can be any combination of alphanumeric characters. Make it unique.
 
   // x - test bare minimum, 2x - better, 4x - decent test, 16x - that's where it gets interesting
-  local cassandra_node_flavor = "4x",
+  local cassandra_node_flavor = '16x',
   // Cassandra cluster size - 4,8,16
-  local cassandra_total_nodes = 8, 
+  local cassandra_total_nodes = 4, 
   // If tasks are CPU-intensive (Python calc), make it equal to cassandra_total_nodes, otherwise cassandra_total_nodes/2
   local daemon_total_instances = cassandra_total_nodes, 
-  local DEFAULT_DAEMON_THREAD_POOL_SIZE = '8', // Depends on instance/cassandra perf
-  local DEFAULT_DAEMON_DB_WRITERS = '8', // Depends on instance/cassandra perf
+  local DEFAULT_DAEMON_THREAD_POOL_SIZE = '24', // daemon_cores*1.5
+  local DEFAULT_DAEMON_DB_WRITERS = '16', // Depends on cassandra perf, reasonable values are 5-20
 
   // Basics
-  local default_root_key_name = dep_name + '-root-key',  // This should match the name of the keypair you already created in Openstack
+  local default_root_key_name = dep_name + '-root-key',  // This should match the name of the keypair you already created in Openstack/AWS
+
+// Helper
+  local provider_name = getFromMap({
+    'sampledeployment002': 'openstack',
+    'sampledeployment003': 'openstack',
+    'sampledeployment004': 'openstack',
+    'sampledeployment005': 'aws'
+  }, dep_name),
+
 
   // Network
-  local external_gateway_network_name = // This is what external network is called for this cloud provider (used by Openstack)
-    if dep_name == 'sampledeployment002' then 'ext-net'
-    else if dep_name == 'sampledeployment003' then 'Ext-Net'
-    else if dep_name == 'sampledeployment004' then 'ext-floating1'
-    else if dep_name == 'sampledeployment005' then 'ext-network-not-needed-for-aws'
-    else 'unknown',
+  // This is what external network is called for this cloud provider (used by Openstack)
+  local external_gateway_network_name = getFromMap({
+    'sampledeployment002': 'ext-net',
+    'sampledeployment003': 'Ext-Net',
+    'sampledeployment004': 'ext-floating1',
+    'sampledeployment005': 'ext-network-not-needed-for-aws'
+  }, dep_name),
 
   local vpc_cidr = '10.5.0.0/16', // AWS only
   local private_subnet_cidr = '10.5.0.0/24',
   local public_subnet_cidr = '10.5.1.0/24', // AWS only
   local private_subnet_allocation_pool = 'start=10.5.0.240,end=10.5.0.254',  // We use fixed ip addresses in the .0.2-.0.239 range, the rest is potentially available
-  local bastion_subnet_type = 
-    if dep_name == 'sampledeployment005' then 'public'
-    else 'private',
+  local bastion_subnet_type = if provider_name == 'aws' then 'public' else 'private',
 
-  local subnet_availability_zone =
-    if dep_name == 'sampledeployment002' then 'not-used'
-    else if dep_name == 'sampledeployment003' then 'not-used'
-    else if dep_name == 'sampledeployment004' then 'not-used'
-    else if dep_name == 'sampledeployment005' then 'us-east-1a'
-    else 'unknown',
+  // Used by AWS only
+  local subnet_availability_zone = getFromMap({
+    'sampledeployment002': 'not-used-by-openstack',
+    'sampledeployment003': 'not-used-by-openstack',
+    'sampledeployment004': 'not-used-by-openstack',
+    'sampledeployment005': 'us-east-1a'
+  }, dep_name),
 
   // Internal IPs
-  local internal_bastion_ip =
-    if dep_name == 'sampledeployment005' then '10.5.1.10'
-    else '10.5.0.10',
+  local internal_bastion_ip = if provider_name == 'aws' then '10.5.1.10' else '10.5.0.10', // In AWS, bastion is in the public subnet 10.5.1.0/24
   local prometheus_ip = '10.5.0.4',
   local rabbitmq_ip = '10.5.0.5',
   local daemon_ips = 
@@ -67,130 +74,118 @@
   local cassandra_hosts = "'[\"" + std.join('","', cassandra_ips) + "\"]'",  // Used by daemons "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\"]'",
   
   // Instances
-  local instance_availability_zone =
-    if dep_name == 'sampledeployment002' then 'us-central-1a'
-    else if dep_name == 'sampledeployment003' then 'nova'
-    else if dep_name == 'sampledeployment004' then 'dc3-a-09'
-    else if dep_name == 'sampledeployment005' then 'not-used-borrowed-from-subnet' // AWS borrows availability zone from the subnet
-    else 'unknown',
+  local instance_availability_zone = getFromMap({
+    'sampledeployment002': 'us-central-1a',
+    'sampledeployment003': 'nova',
+    'sampledeployment004': 'dc3-a-09',
+    'sampledeployment005': 'not-used-borrowed-from-subnet' // AWS borrows availability zone from the subnet
+  }, dep_name),
 
-  local instance_image_name = // You may want to revisit it once a year
-    if dep_name == 'sampledeployment002' then 'ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw'
-    else if dep_name == 'sampledeployment003' then 'Ubuntu 23.04'
-    else if dep_name == 'sampledeployment004' then 'Ubuntu 22.04 LTS Jammy Jellyfish'
-    else if dep_name == 'sampledeployment005' then 'ami-0d8583a0d8d6dd14f' //ubuntu/images/hvm-ssd/ubuntu-lunar-23.04-amd64-server-20230714 //'ami-053b0d53c279acc90' // Ubuntu 22.04.2 LTS (GNU/Linux 5.19.0-1025-aws x86_64)
-    else 'unknown',
+  local instance_image_name = getFromMap({
+    'sampledeployment002': 'ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw',
+    'sampledeployment003': 'Ubuntu 23.04',
+    'sampledeployment004': 'Ubuntu 22.04 LTS Jammy Jellyfish',
+    'sampledeployment005': 'ami-0d8583a0d8d6dd14f' //ubuntu/images/hvm-ssd/ubuntu-lunar-23.04-amd64-server-20230714
+  }, dep_name),
 
-  local instance_flavor_rabbitmq = // Something modest
-    if dep_name == 'sampledeployment002' then 't5sd.large'
-    else if dep_name == 'sampledeployment003' then 'b2-7'
-    else if dep_name == 'sampledeployment004' then 'a1-ram2-disk20-perf1'
-    else if dep_name == 'sampledeployment005' then 't2.micro'
-    else 'unknown',
+  local instance_flavor_rabbitmq = getFromMap({
+    'sampledeployment002': 't5sd.large',
+    'sampledeployment003': 'b2-7',
+    'sampledeployment004': 'a1-ram2-disk20-perf1',
+    'sampledeployment005': 't2.micro'
+  }, dep_name),
 
-  local instance_flavor_prometheus = // Something modest
-    if dep_name == 'sampledeployment002' then 't5sd.large'
-    else if dep_name == 'sampledeployment003' then 'b2-7'
-    else if dep_name == 'sampledeployment004' then 'a1-ram2-disk20-perf1'
-    else if dep_name == 'sampledeployment005' then 't2.micro'
-    else 'unknown',
+  local instance_flavor_prometheus = getFromMap({
+    'sampledeployment002': 't5sd.large',
+    'sampledeployment003': 'b2-7',
+    'sampledeployment004': 'a1-ram2-disk20-perf1',
+    'sampledeployment005': 't2.micro'
+  }, dep_name),
 
-  local instance_flavor_bastion = // Something modest, but capable of serving as NFS server, Webapi, UI
-    if dep_name == 'sampledeployment002' then
-      if cassandra_node_flavor == "x" then 'c5sd.large'
-      else if cassandra_node_flavor == "2x" then 'c5sd.large'
-      else if cassandra_node_flavor == "4x" then 'c5sd.xlarge'
-      else "unknown"
-    else if dep_name == 'sampledeployment003' then
-      if cassandra_node_flavor == "x" then 'b2-7'
-      else if cassandra_node_flavor == "2x" then 'unknown'
-      else if cassandra_node_flavor == "4x" then 'unknown'
-      else "unknown"
-    else if dep_name == 'sampledeployment004' then
-      if cassandra_node_flavor == "x" then 'a1-ram2-disk20-perf1'
-      else if cassandra_node_flavor == "2x" then 'a1-ram2-disk20-perf1'
-      else if cassandra_node_flavor == "4x" then 'a1-ram2-disk20-perf1'
-      else if cassandra_node_flavor == "8x" then 'a1-ram2-disk20-perf1'
-      else if cassandra_node_flavor == "16x" then 'a1-ram2-disk20-perf1'
-      else "unknown"
-    else if dep_name == 'sampledeployment005' then
-      if cassandra_node_flavor == "x" then 'no-x'
-      else if cassandra_node_flavor == "2x" then 'no-2x'
-      else if cassandra_node_flavor == "4x" then 'c6a.large'
-      else if cassandra_node_flavor == "8x" then 'no-8x'
-      else if cassandra_node_flavor == "16x" then 'no-16x'
-      else "unknown"
-    else 'unknown',
+  // Something modest, but capable of serving as NFS server, Webapi, UI
+  local instance_flavor_bastion = getFromDoubleMap({
+    'sampledeployment002': {
+      'x': 'c5sd.large',
+      '2x': 'c5sd.large',
+      '4x': 'c5sd.xlarge',
+    },
+    'sampledeployment003': {
+      'x': 'b2-7'
+    },
+    'sampledeployment004': {
+      'x': 'a1-ram2-disk20-perf1',
+      '2x': 'a1-ram2-disk20-perf1',
+      '4x': 'a1-ram2-disk20-perf1',
+      '8x': 'a1-ram2-disk20-perf1',
+      '16x': 'a1-ram2-disk20-perf1'
+    },
+    'sampledeployment005': {
+      '4x': 'c6a.large',
+      '16x': 'c6a.large'
+    }
+  }, dep_name, cassandra_node_flavor),
 
-  local instance_flavor_cassandra = // Fast/big everything: CPU, network, disk, RAM. Preferably local disk, preferably bare metal 
-    if dep_name == 'sampledeployment002' then
-      if cassandra_node_flavor == "x" then 'c5d.xlarge' //'c6asx.xlarge'
-      else if cassandra_node_flavor == "2x" then 'c5d.2xlarge' //'c6asx.2xlarge'
-      else if cassandra_node_flavor == "4x" then 'c5d.4xlarge' //'m5d.4xlarge'//'c6asx.4xlarge'
-      else "unknown"
-    else if dep_name == 'sampledeployment003' then
-      if cassandra_node_flavor == "x" then 'b2-7'
-      else if cassandra_node_flavor == "2x" then 'unknown'
-      else if cassandra_node_flavor == "4x" then 'unknown'
-      else "unknown"
-    else if dep_name == 'sampledeployment004' then
-      if cassandra_node_flavor == "x" then 'a2-ram4-disk20-perf1' // They don't have perf2 version
-      else if cassandra_node_flavor == "2x" then 'a4-ram8-disk20-perf2'
-      else if cassandra_node_flavor == "4x" then 'a8-ram16-disk20-perf2'
-      else if cassandra_node_flavor == "8x" then 'a16-ram32-disk20-perf1'
-      else if cassandra_node_flavor == "16x" then 'a32-ram64-disk20-perf2' // They don't have perf1
-      else "unknown"
-    else if dep_name == 'sampledeployment005' then
-      if cassandra_node_flavor == "x" then 'no-x'
-      else if cassandra_node_flavor == "2x" then 'no-2x'
-      else if cassandra_node_flavor == "4x" then 'c6a.2xlarge'
-      else if cassandra_node_flavor == "8x" then 'no-8x'
-      else if cassandra_node_flavor == "16x" then 'no-16x'
-      else "unknown"
-    else 'unknown',
+  // Fast/big everything: CPU, network, disk, RAM. Preferably local disk, preferably bare metal 
+  local instance_flavor_cassandra = getFromDoubleMap({
+    'sampledeployment002': {
+      'x': 'c5d.xlarge', //'c6asx.xlarge'
+      '2x': 'c5d.2xlarge', //'c6asx.2xlarge'
+      '4x': 'c5d.4xlarge' //'m5d.4xlarge'//'c6asx.4xlarge'
+    },
+    'sampledeployment003': {
+      'x': 'b2-7'
+    },
+    'sampledeployment004': {
+      'x': 'a2-ram4-disk20-perf1', // They don't have perf2 version
+      '2x': 'a4-ram8-disk20-perf2',
+      '4x': 'a8-ram16-disk20-perf2',
+      '8x': 'a16-ram32-disk20-perf1',
+      '16x': 'a32-ram64-disk20-perf2' // They don't have perf1
+    },
+    'sampledeployment005': {
+      '4x': 'c6a.2xlarge',
+      '16x': 'c6a.8xlarge',
+    },
+  }, dep_name, cassandra_node_flavor),
 
-  local instance_flavor_daemon = // Fast/big CPU, network, RAM. Disk optional.
-    if dep_name == 'sampledeployment002' then
-      if cassandra_node_flavor == "x" then 'c6sd.large'
-      else if cassandra_node_flavor == "2x" then 'c6sd.xlarge'
-      else if cassandra_node_flavor == "4x" then 'c6sd.2xlarge'
-      else "unknown"
-    else if dep_name == 'sampledeployment003' then
-      if cassandra_node_flavor == "x" then 'b2-7'
-      else if cassandra_node_flavor == "2x" then 'unknown'
-      else if cassandra_node_flavor == "4x" then 'unknown'
-      else "unknown"
-    else if dep_name == 'sampledeployment004' then
-      if cassandra_node_flavor == "x" then 'a2-ram4-disk20-perf1'
-      else if cassandra_node_flavor == "2x" then 'a4-ram8-disk20-perf1'
-      else if cassandra_node_flavor == "4x" then 'a8-ram16-disk20-perf1' // For cluster16, need to stay within 200 vCpu quota, so no a8-ram16 for daemons 
-      else if cassandra_node_flavor == "8x" then 'a8-ram16-disk20-perf1' // For cluster16, need to stay within 200 vCpu quota, so no a8-ram16 for daemons 
-      else if cassandra_node_flavor == "16x" then 'a16-ram32-disk20-perf1'
-      else "unknown"
-    else if dep_name == 'sampledeployment005' then
-      if cassandra_node_flavor == "x" then 'no-x'
-      else if cassandra_node_flavor == "2x" then 'no-2x'
-      else if cassandra_node_flavor == "4x" then 'c6a.xlarge'
-      else if cassandra_node_flavor == "8x" then 'no-8x'
-      else if cassandra_node_flavor == "16x" then 'no-16x'
-      else "unknown"
-    else 'unknown',
+  // Fast/big CPU, network, RAM. Disk optional.
+  local instance_flavor_daemon = getFromDoubleMap({
+    'sampledeployment002': {
+      'x': 'c6sd.large',
+      '2x': 'c6sd.xlarge',
+      '4x': 'c6sd.2xlarge'
+    },
+    'sampledeployment003': {
+      'x': 'b2-7'
+    },
+    'sampledeployment004': {
+      'x' : 'a2-ram4-disk20-perf1',
+      '2x': 'a4-ram8-disk20-perf1',
+      '4x': 'a8-ram16-disk20-perf1', // For cluster16, need to stay within 200 vCpu quota, so no a8-ram16 for daemons 
+      '8x': 'a8-ram16-disk20-perf1', // For cluster16, need to stay within 200 vCpu quota, so no a8-ram16 for daemons 
+      '16x': 'a16-ram32-disk20-perf1'
+    },
+    'sampledeployment005': {
+      '4x': 'c6a.xlarge',
+      '16x': 'c6a.4xlarge'
+    }
+  }, dep_name, cassandra_node_flavor),
 
   // Volumes
-  local volume_availability_zone =
-    if dep_name == 'sampledeployment002' then 'us-central-1a'
-    else if dep_name == 'sampledeployment003' then 'nova'
-    else if dep_name == 'sampledeployment004' then 'nova'
-    else if dep_name == 'sampledeployment004' then 'nova'
-    else if dep_name == 'sampledeployment005' then 'us-east-1a'
-    else 'unknown',
+  local volume_availability_zone = getFromMap({
+    'sampledeployment002': instance_availability_zone,
+    'sampledeployment003': 'nova',
+    'sampledeployment004': 'nova',
+    'sampledeployment005': subnet_availability_zone
+  }, dep_name),
 
-  local volume_type = // Something modest to store in/out data and cfg
-    if dep_name == 'sampledeployment002' then 'gp1'
-    else if dep_name == 'sampledeployment003' then 'classic'
-    else if dep_name == 'sampledeployment004' then 'CEPH_1_perf1'
-    else if dep_name == 'sampledeployment005' then 'gp2'
-    else 'unknown',
+  // Something modest to store in/out data and cfg
+  local volume_type = getFromMap({
+    'sampledeployment002': 'gp1',
+    'sampledeployment003': 'classic',
+    'sampledeployment004': 'CEPH_1_perf1',
+    'sampledeployment005': 'gp2'
+  }, dep_name),
   
   // Artifacts
   local buildLinuxAmd64Dir = '../../build/linux/amd64',
@@ -212,13 +207,7 @@
                              "\\'" + std.join(":9500\\',\\'", cassandra_ips) + ":9500\\'," + // Cassandra exporter
                              "\\'" + std.join(":9100\\',\\'", daemon_ips) + ":9100\\'",
 
-  deploy_provider_name:
-    if dep_name == 'sampledeployment001' then 'openstack'
-    else if dep_name == 'sampledeployment002' then 'openstack'
-    else if dep_name == 'sampledeployment003' then 'openstack'
-    else if dep_name == 'sampledeployment004' then 'openstack'
-    else if dep_name == 'sampledeployment005' then 'aws'
-    else 'unknown',
+  deploy_provider_name: provider_name,
 
   // Full list of env variables expected by capideploy working with this project
   env_variables_used: [
@@ -230,7 +219,7 @@
     'CAPIDEPLOY_RABBITMQ_ADMIN_PASS',
     'CAPIDEPLOY_RABBITMQ_USER_NAME',
     'CAPIDEPLOY_RABBITMQ_USER_PASS',
-    // Used in by Capideploy Openstack calls
+    // Used by Capideploy Openstack calls
     'OS_AUTH_URL',
     'OS_IDENTITY_API_VERSION',
     'OS_INTERFACE',
@@ -1021,4 +1010,13 @@
   },
 
   instances: bastion_instance + rabbitmq_instance + prometheus_instance + cass_instances + daemon_instances,
+
+  local getFromMap = function(m, k)
+    if std.length(m[k]) > 0 then m[k] else "no-key-" + k,
+
+  local getFromDoubleMap = function(m, k1, k2)
+    if std.length(m[k1]) > 0 then 
+      if std.length(m[k1][k2]) > 0 then m[k1][k2] else "no-key-" + k2
+    else  "no-key-" + k1,
 }
+
