@@ -5,8 +5,14 @@ fi
 
 sudo useradd --no-create-home --shell /bin/false node_exporter
 
+if [ "$(uname -p)" == "x86_64" ]; then
+ARCH=amd64
+else
+ARCH=arm64
+fi
+
 # Download node exporter
-EXPORTER_DL_FILE=node_exporter-$PROMETHEUS_NODE_EXPORTER_VERSION.linux-amd64
+EXPORTER_DL_FILE=node_exporter-$PROMETHEUS_NODE_EXPORTER_VERSION.linux-$ARCH
 cd ~
 sudo rm -f $EXPORTER_DL_FILE.tar.gz
 echo Downloading https://github.com/prometheus/node_exporter/releases/download/v$PROMETHEUS_NODE_EXPORTER_VERSION/$EXPORTER_DL_FILE.tar.gz ...

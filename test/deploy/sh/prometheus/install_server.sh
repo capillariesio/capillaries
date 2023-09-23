@@ -14,8 +14,14 @@ sudo mkdir /var/lib/prometheus
 sudo chown prometheus:prometheus /etc/prometheus
 sudo chown prometheus:prometheus /var/lib/prometheus
 
+if [ "$(uname -p)" == "x86_64" ]; then
+ARCH=amd64
+else
+ARCH=arm64
+fi
+
 # Downloading Prometheus
-PROMETHEUS_DL_FILE=prometheus-$PROMETHEUS_VERSION.linux-amd64
+PROMETHEUS_DL_FILE=prometheus-$PROMETHEUS_VERSION.linux-$ARCH
 cd ~
 sudo rm -f $PROMETHEUS_DL_FILE.gz
 echo Downloading https://github.com/prometheus/prometheus/releases/download/v$PROMETHEUS_VERSION/$PROMETHEUS_DL_FILE.tar.gz

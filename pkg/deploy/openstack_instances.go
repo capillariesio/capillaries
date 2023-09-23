@@ -5,17 +5,17 @@ import (
 	"strings"
 )
 
-func GetFlavorIds(prjPair *ProjectPair, flavorMap map[string]string, isVerbose bool) (LogMsg, error) {
-	lb := NewLogBuilder("GetFlavors", isVerbose)
+func (*OpenstackDeployProvider) GetFlavorIds(prjPair *ProjectPair, flavorMap map[string]string, isVerbose bool) (LogMsg, error) {
+	lb := NewLogBuilder("openstack.GetFlavors", isVerbose)
 
-	rows, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"flavor", "list"})
+	rows, er := execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"flavor", "list"})
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)
 	}
 
 	for flavorName, _ := range flavorMap {
-		foundFlavorIdByName := FindOpenstackColumnValue(rows, "ID", "Name", flavorName)
+		foundFlavorIdByName := findOpenstackColumnValue(rows, "ID", "Name", flavorName)
 		if foundFlavorIdByName == "" {
 			return lb.Complete(fmt.Errorf("cannot find flavor %s", flavorName))
 		}
@@ -25,17 +25,17 @@ func GetFlavorIds(prjPair *ProjectPair, flavorMap map[string]string, isVerbose b
 	return lb.Complete(nil)
 }
 
-func GetImageIds(prjPair *ProjectPair, imageMap map[string]string, isVerbose bool) (LogMsg, error) {
-	lb := NewLogBuilder("GetImages", isVerbose)
+func (*OpenstackDeployProvider) GetImageIds(prjPair *ProjectPair, imageMap map[string]string, isVerbose bool) (LogMsg, error) {
+	lb := NewLogBuilder("openstack.GetImages", isVerbose)
 
-	rows, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"image", "list"})
+	rows, er := execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"image", "list"})
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)
 	}
 
 	for name, _ := range imageMap {
-		foundIdByName := FindOpenstackColumnValue(rows, "ID", "Name", name)
+		foundIdByName := findOpenstackColumnValue(rows, "ID", "Name", name)
 		if foundIdByName == "" {
 			return lb.Complete(fmt.Errorf("cannot find image %s", name))
 		}
@@ -45,17 +45,17 @@ func GetImageIds(prjPair *ProjectPair, imageMap map[string]string, isVerbose boo
 	return lb.Complete(nil)
 }
 
-func GetKeypairs(prjPair *ProjectPair, keypairMap map[string]struct{}, isVerbose bool) (LogMsg, error) {
-	lb := NewLogBuilder("GetKeypairs", isVerbose)
+func (*OpenstackDeployProvider) GetKeypairs(prjPair *ProjectPair, keypairMap map[string]struct{}, isVerbose bool) (LogMsg, error) {
+	lb := NewLogBuilder("openstack.GetKeypairs", isVerbose)
 
-	rows, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"keypair", "list"})
+	rows, er := execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"keypair", "list"})
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)
 	}
 
 	for keypairName, _ := range keypairMap {
-		foundName := FindOpenstackColumnValue(rows, "Fingerprint", "Name", keypairName)
+		foundName := findOpenstackColumnValue(rows, "Fingerprint", "Name", keypairName)
 		if foundName == "" {
 			return lb.Complete(fmt.Errorf("cannot find keypair %s, you have to create it before running this command", keypairName))
 		}
@@ -64,23 +64,23 @@ func GetKeypairs(prjPair *ProjectPair, keypairMap map[string]struct{}, isVerbose
 	return lb.Complete(nil)
 }
 
-func CreateInstanceAndWaitForCompletion(prjPair *ProjectPair, iNickname string, flavorId string, imageId string, availabilityZone string, isVerbose bool) (LogMsg, error) {
+func (*OpenstackDeployProvider) CreateInstanceAndWaitForCompletion(prjPair *ProjectPair, iNickname string, flavorId string, imageId string, availabilityZone string, isVerbose bool) (LogMsg, error) {
 	sb := strings.Builder{}
 
-	logMsg, err := CreateInstance(prjPair, iNickname, flavorId, imageId, availabilityZone, isVerbose)
+	logMsg, err := createOpenstackInstance(prjPair, iNickname, flavorId, imageId, availabilityZone, isVerbose)
 	AddLogMsg(&sb, logMsg)
 	if err != nil {
 		return LogMsg(sb.String()), err
 	}
 
-	logMsg, err = WaitForEntityToBeCreated(&prjPair.Live, "server", prjPair.Live.Instances[iNickname].HostName, prjPair.Live.Instances[iNickname].Id, prjPair.Live.Timeouts.OpenstackInstanceCreation, isVerbose)
+	logMsg, err = waitForOpenstackEntityToBeCreated(&prjPair.Live, "server", prjPair.Live.Instances[iNickname].HostName, prjPair.Live.Instances[iNickname].Id, prjPair.Live.Timeouts.OpenstackInstanceCreation, isVerbose)
 	AddLogMsg(&sb, logMsg)
 	if err != nil {
 		return LogMsg(sb.String()), err
 	}
 
 	if prjPair.Live.Instances[iNickname].ExternalIpAddress != "" {
-		logMsg, err = AssignFloatingIp(&prjPair.Live, prjPair.Live.Instances[iNickname].Id, prjPair.Live.Instances[iNickname].ExternalIpAddress, isVerbose)
+		logMsg, err = assignOpenstackFloatingIp(&prjPair.Live, prjPair.Live.Instances[iNickname].Id, prjPair.Live.Instances[iNickname].ExternalIpAddress, isVerbose)
 		AddLogMsg(&sb, logMsg)
 		if err != nil {
 			return LogMsg(sb.String()), err
@@ -90,9 +90,9 @@ func CreateInstanceAndWaitForCompletion(prjPair *ProjectPair, iNickname string, 
 	return LogMsg(sb.String()), nil
 }
 
-func AssignFloatingIp(prj *Project, instanceId string, floatingIp string, isVerbose bool) (LogMsg, error) {
-	lb := NewLogBuilder("AssignFloatingIp:"+floatingIp, isVerbose)
-	_, er := ExecLocalAndParseOpenstackOutput(prj, "openstack", []string{"server", "add", "floating", "ip", instanceId, floatingIp})
+func assignOpenstackFloatingIp(prj *Project, instanceId string, floatingIp string, isVerbose bool) (LogMsg, error) {
+	lb := NewLogBuilder("assignOpenstackFloatingIp:"+floatingIp, isVerbose)
+	_, er := execLocalAndParseOpenstackOutput(prj, "openstack", []string{"server", "add", "floating", "ip", instanceId, floatingIp})
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)
@@ -101,8 +101,8 @@ func AssignFloatingIp(prj *Project, instanceId string, floatingIp string, isVerb
 	return lb.Complete(nil)
 }
 
-func CreateInstance(prjPair *ProjectPair, iNickname string, flavorId string, imageId string, availabilityZone string, isVerbose bool) (LogMsg, error) {
-	lb := NewLogBuilder("CreateInstance:"+prjPair.Live.Instances[iNickname].HostName, isVerbose)
+func createOpenstackInstance(prjPair *ProjectPair, iNickname string, flavorId string, imageId string, availabilityZone string, isVerbose bool) (LogMsg, error) {
+	lb := NewLogBuilder("createOpenstackInstance:"+prjPair.Live.Instances[iNickname].HostName, isVerbose)
 	if prjPair.Live.Instances[iNickname].HostName == "" ||
 		prjPair.Live.Instances[iNickname].IpAddress == "" {
 		return lb.Complete(fmt.Errorf("instance hostname(%s), ip address(%s) cannot be empty", prjPair.Live.Instances[iNickname].HostName, prjPair.Live.Instances[iNickname].IpAddress))
@@ -110,7 +110,7 @@ func CreateInstance(prjPair *ProjectPair, iNickname string, flavorId string, ima
 
 	// If floating ip is requested and it's already assigned, fail
 	if prjPair.Live.Instances[iNickname].ExternalIpAddress != "" {
-		rows, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"floating", "ip", "list"})
+		rows, er := execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"floating", "ip", "list"})
 		lb.Add(er.ToString())
 		if er.Error != nil {
 			return lb.Complete(er.Error)
@@ -118,7 +118,7 @@ func CreateInstance(prjPair *ProjectPair, iNickname string, flavorId string, ima
 
 		// | ID         | Floating IP Address | Fixed IP Address | Port | Floating Network | Project                          |
 		// | 8e6b5d7... | 205.234.86.102      | None             | None | e098d02f-... | 56ac58a4... |
-		foundFoatingIpPort := FindOpenstackColumnValue(rows, "Port", "Floating IP Address", prjPair.Live.Instances[iNickname].ExternalIpAddress)
+		foundFoatingIpPort := findOpenstackColumnValue(rows, "Port", "Floating IP Address", prjPair.Live.Instances[iNickname].ExternalIpAddress)
 		if foundFoatingIpPort == "" {
 			return lb.Complete(fmt.Errorf("cannot create instance %s, floating ip %s is not available, make sure it was reserved", prjPair.Live.Instances[iNickname].HostName, prjPair.Live.Instances[iNickname].ExternalIpAddress))
 		}
@@ -127,14 +127,14 @@ func CreateInstance(prjPair *ProjectPair, iNickname string, flavorId string, ima
 		}
 	}
 
-	rows, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"server", "list"})
+	rows, er := execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"server", "list"})
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)
 	}
 	// | ID                                   | Name                       |
 	// | 8aa8a5e8-2aad-4006-8911-af7de31b08fb | sample_deployment_name_bastion |
-	foundInstanceIdByName := FindOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.Instances[iNickname].HostName)
+	foundInstanceIdByName := findOpenstackColumnValue(rows, "ID", "Name", prjPair.Live.Instances[iNickname].HostName)
 	if prjPair.Live.Instances[iNickname].Id == "" {
 		// If it was already created, save it for future use, but do not create
 		if foundInstanceIdByName != "" {
@@ -156,7 +156,7 @@ func CreateInstance(prjPair *ProjectPair, iNickname string, flavorId string, ima
 		return lb.Complete(nil)
 	}
 
-	rows, er = ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{
+	rows, er = execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{
 		"server", "create", "--flavor", flavorId, "--image", imageId,
 		"--key-name", prjPair.Live.Instances[iNickname].RootKeyName,
 		"--availability-zone", availabilityZone,
@@ -171,7 +171,7 @@ func CreateInstance(prjPair *ProjectPair, iNickname string, flavorId string, ima
 	// | Field                       | Value                                               |
 	// | id                          | 4203f08f-089d-4e8e-ab41-cd3ce227d9d2                |
 	// | status                      | BUILD                                               |
-	newId := FindOpenstackFieldValue(rows, "id")
+	newId := findOpenstackFieldValue(rows, "id")
 	if newId == "" {
 		return lb.Complete(fmt.Errorf("openstack returned empty instance id"))
 	}
@@ -182,13 +182,13 @@ func CreateInstance(prjPair *ProjectPair, iNickname string, flavorId string, ima
 	return lb.Complete(nil)
 }
 
-func DeleteInstance(prjPair *ProjectPair, iNickname string, isVerbose bool) (LogMsg, error) {
-	lb := NewLogBuilder("DeleteInstance:"+prjPair.Live.Instances[iNickname].HostName, isVerbose)
+func (*OpenstackDeployProvider) DeleteInstance(prjPair *ProjectPair, iNickname string, isVerbose bool) (LogMsg, error) {
+	lb := NewLogBuilder("openstack.DeleteInstance:"+prjPair.Live.Instances[iNickname].HostName, isVerbose)
 	if prjPair.Live.Instances[iNickname].HostName == "" {
 		return lb.Complete(fmt.Errorf("instance %s hostname cannot be empty", iNickname))
 	}
 
-	_, er := ExecLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"server", "delete", prjPair.Live.Instances[iNickname].HostName})
+	_, er := execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"server", "delete", prjPair.Live.Instances[iNickname].HostName})
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)

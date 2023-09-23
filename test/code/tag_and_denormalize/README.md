@@ -28,4 +28,4 @@ See [integration tests](../../../doc/testing.md#integration-tests) section for g
 
 ## References:
 
-Data model design: Flipkart products public dataset (https://www.kaggle.com/datasets/atharvjairath/flipkart-ecommerce-dataset)
+Data model design: Flipkart E-commerce Dataset at https://www.kaggle.com

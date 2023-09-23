@@ -40,7 +40,7 @@ type WriteChannelItem struct {
 var seedCounter = int64(0)
 
 func newSeed() int64 {
-	seedCounter++
+	seedCounter += 3333
 	return (time.Now().Unix() << 32) + time.Now().UnixMilli() + seedCounter
 }
 

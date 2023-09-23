@@ -1,33 +1,56 @@
 {
   // Variables to play with
 
-  // Choose your Openstack provider here. This script supports 002,003,004.
-  local dep_name = 'sampledeployment002',  // Can be any combination of alphanumeric characters. Make it unique.
+  // Choose your provider here. Openstack 002,003,004, AWS 005
+  local dep_name = 'sampledeployment005',  // Can be any combination of alphanumeric characters. Make it unique.
 
   // x - test bare minimum, 2x - better, 4x - decent test, 16x - that's where it gets interesting
-  local cassandra_node_flavor = "4x",
+  local cassandra_node_flavor = 'aws.c7gn.32',
+  local architecture = 'arm64', // amd64 or arm64 
   // Cassandra cluster size - 4,8,16
   local cassandra_total_nodes = 8, 
   // If tasks are CPU-intensive (Python calc), make it equal to cassandra_total_nodes, otherwise cassandra_total_nodes/2
   local daemon_total_instances = cassandra_total_nodes, 
-  local DEFAULT_DAEMON_THREAD_POOL_SIZE = '8', // Depends on instance/cassandra perf
-  local DEFAULT_DAEMON_DB_WRITERS = '8', // Depends on instance/cassandra perf
+  local DEFAULT_DAEMON_THREAD_POOL_SIZE = '24', // daemon_cores*1.5
+  local DEFAULT_DAEMON_DB_WRITERS = '24', // Depends on cassandra perf, reasonable values are 5-20
 
   // Basics
-  local default_root_key_name = dep_name + '-root-key',  // This should match the name of the keypair you already created in Openstack
+  local default_root_key_name = dep_name + '-root-key',  // This should match the name of the keypair you already created in Openstack/AWS
+
+// Helper
+  local provider_name = getFromMap({
+    'sampledeployment002': 'openstack',
+    'sampledeployment003': 'openstack',
+    'sampledeployment004': 'openstack',
+    'sampledeployment005': 'aws'
+  }, dep_name),
+
 
   // Network
-  local external_gateway_network_name = // This is what external network is called for this cloud provider, yours may be different
-    if dep_name == 'sampledeployment002' then 'ext-net'
-    else if dep_name == 'sampledeployment003' then 'Ext-Net'
-    else if dep_name == 'sampledeployment004' then 'ext-floating1'
-    else 'unknown',
+  // This is what external network is called for this cloud provider (used by Openstack)
+  local external_gateway_network_name = getFromMap({
+    'sampledeployment002': 'ext-net',
+    'sampledeployment003': 'Ext-Net',
+    'sampledeployment004': 'ext-floating1',
+    'sampledeployment005': 'ext-network-not-needed-for-aws'
+  }, dep_name),
 
-  local subnet_cidr = '10.5.0.0/24',  // Your choice
-  local subnet_allocation_pool = 'start=10.5.0.240,end=10.5.0.254',  // We use fixed ip addresses in the .0.2-.0.239 range, the rest is potentially available
+  local vpc_cidr = '10.5.0.0/16', // AWS only
+  local private_subnet_cidr = '10.5.0.0/24',
+  local public_subnet_cidr = '10.5.1.0/24', // AWS only
+  local private_subnet_allocation_pool = 'start=10.5.0.240,end=10.5.0.254',  // We use fixed ip addresses in the .0.2-.0.239 range, the rest is potentially available
+  local bastion_subnet_type = if provider_name == 'aws' then 'public' else 'private',
+
+  // Used by AWS only
+  local subnet_availability_zone = getFromMap({
+    'sampledeployment002': 'not-used-by-openstack',
+    'sampledeployment003': 'not-used-by-openstack',
+    'sampledeployment004': 'not-used-by-openstack',
+    'sampledeployment005': 'us-east-1a'
+  }, dep_name),
 
   // Internal IPs
-  local internal_bastion_ip = '10.5.0.10',
+  local internal_bastion_ip = if provider_name == 'aws' then '10.5.1.10' else '10.5.0.10', // In AWS, bastion is in the public subnet 10.5.1.0/24
   local prometheus_ip = '10.5.0.4',
   local rabbitmq_ip = '10.5.0.5',
   local daemon_ips = 
@@ -52,105 +75,162 @@
   local cassandra_hosts = "'[\"" + std.join('","', cassandra_ips) + "\"]'",  // Used by daemons "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\"]'",
   
   // Instances
-  local instance_availability_zone =
-    if dep_name == 'sampledeployment002' then 'us-central-1a'
-    else if dep_name == 'sampledeployment003' then 'nova'
-    else if dep_name == 'sampledeployment004' then 'dc3-a-09'
-    else 'unknown',
+  local instance_availability_zone = getFromMap({
+    'sampledeployment002': 'us-central-1a',
+    'sampledeployment003': 'nova',
+    'sampledeployment004': 'dc3-a-09',
+    'sampledeployment005': 'not-used-borrowed-from-subnet' // AWS borrows availability zone from the subnet
+  }, dep_name),
 
-  local instance_image_name = // You may want to revisit it once a year
-    if dep_name == 'sampledeployment002' then 'ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw'
-    else if dep_name == 'sampledeployment003' then 'Ubuntu 23.04'
-    else if dep_name == 'sampledeployment004' then 'Ubuntu 22.04 LTS Jammy Jellyfish'
-    else 'unknown',
+  local instance_image_name = getFromMap({
+    'sampledeployment002': 'ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw',
+    'sampledeployment003': 'Ubuntu 23.04',
+    'sampledeployment004': 'Ubuntu 22.04 LTS Jammy Jellyfish',
+    'sampledeployment005':
+      if architecture == 'arm64' then 'ami-064b469793e32e5d2' // ubuntu/images/hvm-ssd/ubuntu-lunar-23.04-arm64-server-20230904
+      else if architecture == 'amd4' then 'ami-0d8583a0d8d6dd14f' //ubuntu/images/hvm-ssd/ubuntu-lunar-23.04-amd64-server-20230714
+      else 'unknown-architecture-unknown-image'
+  }, dep_name),
 
-  local instance_flavor_rabbitmq = // Something modest
-    if dep_name == 'sampledeployment002' then 't5sd.large'
-    else if dep_name == 'sampledeployment003' then 'b2-7'
-    else if dep_name == 'sampledeployment004' then 'a1-ram2-disk20-perf1'
-    else 'unknown',
+  local instance_flavor_rabbitmq = getFromMap({
+    'sampledeployment002': 't5sd.large',
+    'sampledeployment003': 'b2-7',
+    'sampledeployment004': 'a1-ram2-disk20-perf1',
+    'sampledeployment005':
+      if architecture == 'arm64' then 'c7g.medium'
+      else if architecture == 'amd64' then 't2.micro'
+      else 'unknown-architecture-unknown-rabbitmq-flavor'
+  }, dep_name),
 
-  local instance_flavor_prometheus = // Something modest
-    if dep_name == 'sampledeployment002' then 't5sd.large'
-    else if dep_name == 'sampledeployment003' then 'b2-7'
-    else if dep_name == 'sampledeployment004' then 'a1-ram2-disk20-perf1'
-    else 'unknown',
+  local instance_flavor_prometheus = getFromMap({
+    'sampledeployment002': 't5sd.large',
+    'sampledeployment003': 'b2-7',
+    'sampledeployment004': 'a1-ram2-disk20-perf1',
+    'sampledeployment005':
+      if architecture == 'arm64' then 'c7g.medium'
+      else if architecture == 'amd64' then 't2.micro'
+      else 'unknown-architecture-unknown-prometheus-flavor'
+  }, dep_name),
 
-  local instance_flavor_bastion = // Something modest, but capable of serving as NFS server, Webapi, UI
-    if dep_name == 'sampledeployment002' then
-      if cassandra_node_flavor == "x" then 'c5sd.large'
-      else if cassandra_node_flavor == "2x" then 'c5sd.large'
-      else if cassandra_node_flavor == "4x" then 'c5sd.xlarge'
-      else "unknown"
-    else if dep_name == 'sampledeployment003' then
-      if cassandra_node_flavor == "x" then 'b2-7'
-      else if cassandra_node_flavor == "2x" then 'unknown'
-      else if cassandra_node_flavor == "4x" then 'unknown'
-      else "unknown"
-    else if dep_name == 'sampledeployment004' then
-      if cassandra_node_flavor == "x" then 'a1-ram2-disk20-perf1'
-      else if cassandra_node_flavor == "2x" then 'a1-ram2-disk20-perf1'
-      else if cassandra_node_flavor == "4x" then 'a1-ram2-disk20-perf1'
-      else if cassandra_node_flavor == "8x" then 'a1-ram2-disk20-perf1'
-      else if cassandra_node_flavor == "16x" then 'a1-ram2-disk20-perf1'
-      else "unknown"
-    else 'unknown',
+  // Something modest, but capable of serving as NFS server, Webapi, UI
+  local instance_flavor_bastion = getFromDoubleMap({
+    'sampledeployment002': {
+      'x': 'c5sd.large',
+      '2x': 'c5sd.large',
+      '4x': 'c5sd.xlarge',
+    },
+    'sampledeployment003': {
+      'x': 'b2-7'
+    },
+    'sampledeployment004': {
+      'x': 'a1-ram2-disk20-perf1',
+      '2x': 'a1-ram2-disk20-perf1',
+      '4x': 'a1-ram2-disk20-perf1',
+      '8x': 'a1-ram2-disk20-perf1',
+      '16x': 'a1-ram2-disk20-perf1'
+    },
+    'sampledeployment005': {
+      '4x': 'c6a.large',
+      '16x': 'c6a.large',
+      'aws.c6a.32': 'c6a.large',
+      'aws.c7g.32': 'c7g.large',
+      'aws.c7gn.32': 'c7g.large',
+      'aws.c7g.64': 'c7g.large',
+      'aws.hpc7g.64': 'c7g.large',
+      '18x': 'c6a.large',
+      '36x': 'c6a.large',
+      '64x': 'c6a.large',
+      '96x': 'c6a.large'
+    }
+  }, dep_name, cassandra_node_flavor),
 
-  local instance_flavor_cassandra = // Fast/big everything: CPU, network, disk, RAM. Preferably local disk, preferably bare metal 
-    if dep_name == 'sampledeployment002' then
-      if cassandra_node_flavor == "x" then 'c5d.xlarge' //'c6asx.xlarge'
-      else if cassandra_node_flavor == "2x" then 'c5d.2xlarge' //'c6asx.2xlarge'
-      else if cassandra_node_flavor == "4x" then 'c5d.4xlarge' //'m5d.4xlarge'//'c6asx.4xlarge'
-      else "unknown"
-    else if dep_name == 'sampledeployment003' then
-      if cassandra_node_flavor == "x" then 'b2-7'
-      else if cassandra_node_flavor == "2x" then 'unknown'
-      else if cassandra_node_flavor == "4x" then 'unknown'
-      else "unknown"
-    else if dep_name == 'sampledeployment004' then
-      if cassandra_node_flavor == "x" then 'a2-ram4-disk20-perf1' // They don't have perf2 version
-      else if cassandra_node_flavor == "2x" then 'a4-ram8-disk20-perf2'
-      else if cassandra_node_flavor == "4x" then 'a8-ram16-disk20-perf2'
-      else if cassandra_node_flavor == "8x" then 'a16-ram32-disk20-perf1'
-      else if cassandra_node_flavor == "16x" then 'a32-ram64-disk20-perf2' // They don't have perf1
-      else "unknown"
-    else 'unknown',
+  // Fast/big everything: CPU, network, disk, RAM. Preferably local disk, preferably bare metal 
+  local instance_flavor_cassandra = getFromDoubleMap({
+    'sampledeployment002': {
+      'x': 'c5d.xlarge', //'c6asx.xlarge'
+      '2x': 'c5d.2xlarge', //'c6asx.2xlarge'
+      '4x': 'c5d.4xlarge' //'m5d.4xlarge'//'c6asx.4xlarge'
+    },
+    'sampledeployment003': {
+      'x': 'b2-7'
+    },
+    'sampledeployment004': {
+      'x': 'a2-ram4-disk20-perf1', // They don't have perf2 version
+      '2x': 'a4-ram8-disk20-perf2',
+      '4x': 'a8-ram16-disk20-perf2',
+      '8x': 'a16-ram32-disk20-perf1',
+      '16x': 'a32-ram64-disk20-perf2' // They don't have perf1
+    },
+    'sampledeployment005': {
+      '4x': 'c6a.2xlarge',
+      '16x': 'c6a.8xlarge',
+      'aws.c6a.32': 'c6a.8xlarge',
+      'aws.c7g.32': 'c7g.8xlarge',
+      'aws.c7gn.32': 'c7gn.8xlarge',
+      'aws.c7g.64': 'c7g.metal',
+      'aws.hpc7g.64': 'hpc7g.16xlarge',      
+      '18x': 'c5n.9xlarge',
+      '36x': 'c5n.metal',
+      '64x': 'c6a.32xlarge',
+      '96x': 'c6a.metal',
+    },
+  }, dep_name, cassandra_node_flavor),
 
-  local instance_flavor_daemon = // Fast/big CPU, network, RAM. Disk optional.
-    if dep_name == 'sampledeployment002' then
-      if cassandra_node_flavor == "x" then 'c6sd.large'
-      else if cassandra_node_flavor == "2x" then 'c6sd.xlarge'
-      else if cassandra_node_flavor == "4x" then 'c6sd.2xlarge'
-      else "unknown"
-    else if dep_name == 'sampledeployment003' then
-      if cassandra_node_flavor == "x" then 'b2-7'
-      else if cassandra_node_flavor == "2x" then 'unknown'
-      else if cassandra_node_flavor == "4x" then 'unknown'
-      else "unknown"
-    else if dep_name == 'sampledeployment004' then
-      if cassandra_node_flavor == "x" then 'a2-ram4-disk20-perf1'
-      else if cassandra_node_flavor == "2x" then 'a4-ram8-disk20-perf1'
-      else if cassandra_node_flavor == "4x" then 'a8-ram16-disk20-perf1' // For cluster16, need to stay within 200 vCpu quota, so no a8-ram16 for daemons 
-      else if cassandra_node_flavor == "8x" then 'a8-ram16-disk20-perf1' // For cluster16, need to stay within 200 vCpu quota, so no a8-ram16 for daemons 
-      else if cassandra_node_flavor == "16x" then 'a16-ram32-disk20-perf1'
-      else "unknown"
-    else 'unknown',
+  // Fast/big CPU, network, RAM. Disk optional.
+  local instance_flavor_daemon = getFromDoubleMap({
+    'sampledeployment002': {
+      'x': 'c6sd.large',
+      '2x': 'c6sd.xlarge',
+      '4x': 'c6sd.2xlarge'
+    },
+    'sampledeployment003': {
+      'x': 'b2-7'
+    },
+    'sampledeployment004': {
+      'x' : 'a2-ram4-disk20-perf1',
+      '2x': 'a4-ram8-disk20-perf1',
+      '4x': 'a8-ram16-disk20-perf1', // For cluster16, need to stay within 200 vCpu quota, so no a8-ram16 for daemons 
+      '8x': 'a8-ram16-disk20-perf1', // For cluster16, need to stay within 200 vCpu quota, so no a8-ram16 for daemons 
+      '16x': 'a16-ram32-disk20-perf1'
+    },
+    'sampledeployment005': {
+      '4x': 'c6a.xlarge',
+      '16x': 'c6a.4xlarge',
+      'aws.c6a.32': 'c6a.4xlarge',
+      'aws.c7g.32': 'c7g.4xlarge',
+      'aws.c7gn.32': 'c7gn.4xlarge',
+      'aws.c7g.64': 'c7g.8xlarge',
+      'aws.hpc7g.64': 'hpc7g.8xlarge',
+      '18x': 'c5n.4xlarge',
+      '36x': 'c5n.9xlarge',
+      '64x': 'c6a.16xlarge',
+      '96x': 'c6a.24xlarge'
+    }
+  }, dep_name, cassandra_node_flavor),
 
   // Volumes
-  local volume_availability_zone =
-    if dep_name == 'sampledeployment002' then 'us-central-1a'
-    else if dep_name == 'sampledeployment003' then 'nova'
-    else if dep_name == 'sampledeployment004' then 'nova'
-    else 'unknown',
+  local volume_availability_zone = getFromMap({
+    'sampledeployment002': instance_availability_zone,
+    'sampledeployment003': 'nova',
+    'sampledeployment004': 'nova',
+    'sampledeployment005': subnet_availability_zone
+  }, dep_name),
 
-  local volume_type = // Something modest to store in/out data and cfg
-    if dep_name == 'sampledeployment002' then 'gp1'
-    else if dep_name == 'sampledeployment003' then 'classic'
-    else if dep_name == 'sampledeployment004' then 'CEPH_1_perf1'
-    else 'unknown',
+  // Something modest to store in/out data and cfg
+  local volume_type = getFromMap({
+    'sampledeployment002': 'gp1',
+    'sampledeployment003': 'classic',
+    'sampledeployment004': 'CEPH_1_perf1',
+    'sampledeployment005': 'gp2'
+  }, dep_name),
   
   // Artifacts
   local buildLinuxAmd64Dir = '../../build/linux/amd64',
+  local buildLinuxArm64Dir = '../../build/linux/arm64',
+  local buildLinuxDir =
+    if architecture == 'amd64' then buildLinuxAmd64Dir
+    else if architecture == 'arm64' then buildLinuxArm64Dir
+    else 'unknown-architecture-unknown-build-dir',
   local pkgExeDir = '../../pkg/exe',
   
   // Keys
@@ -169,6 +249,8 @@
                              "\\'" + std.join(":9500\\',\\'", cassandra_ips) + ":9500\\'," + // Cassandra exporter
                              "\\'" + std.join(":9100\\',\\'", daemon_ips) + ":9100\\'",
 
+  deploy_provider_name: provider_name,
+
   // Full list of env variables expected by capideploy working with this project
   env_variables_used: [
     // Used in this config
@@ -179,7 +261,7 @@
     'CAPIDEPLOY_RABBITMQ_ADMIN_PASS',
     'CAPIDEPLOY_RABBITMQ_USER_NAME',
     'CAPIDEPLOY_RABBITMQ_USER_PASS',
-    // Used in by Capideploy Openstack calls
+    // Used by Capideploy Openstack calls
     'OS_AUTH_URL',
     'OS_IDENTITY_API_VERSION',
     'OS_INTERFACE',
@@ -190,6 +272,10 @@
     'OS_PROJECT_NAME',
     'OS_USERNAME',
     'OS_USER_DOMAIN_NAME',
+    // Used by AWS CLI
+    'AWS_ACCESS_KEY_ID',
+    'AWS_SECRET_ACCESS_KEY',
+    'AWS_DEFAULT_REGION',
   ],
   ssh_config: {
     external_ip_address: '',
@@ -199,7 +285,7 @@
     private_key_password: '{CAPIDEPLOY_SSH_PRIVATE_KEY_PASS}',
   },
   timeouts: {
-    openstack_cmd: 60,
+    openstack_cmd: 120,
     openstack_instance_creation: 240,
     attach_volume: 60,
   },
@@ -209,6 +295,7 @@
   artifacts: {
     env: {
       DIR_BUILD_LINUX_AMD64: '../../' + buildLinuxAmd64Dir,
+      DIR_BUILD_LINUX_ARM64: '../../' + buildLinuxArm64Dir,
       DIR_PKG_EXE: '../../' + pkgExeDir,
       DIR_CODE_PARQUET: '../../../code/parquet',
     },
@@ -221,12 +308,20 @@
 
   network: {
     name: dep_name + '_network',
-    subnet: {
-      name: dep_name + '_subnet',
-      cidr: subnet_cidr,
-      allocation_pool: subnet_allocation_pool,
+    cidr: vpc_cidr,
+    private_subnet: {
+      name: dep_name + '_private_subnet',
+      cidr: private_subnet_cidr,
+      availability_zone: subnet_availability_zone,
+      allocation_pool: private_subnet_allocation_pool,
     },
-    router: {
+    public_subnet: {
+      name: dep_name + '_public_subnet',
+      cidr: public_subnet_cidr,
+      availability_zone: subnet_availability_zone,
+      nat_gateway_name: dep_name + '_natgw',
+    },
+    router: { // aka AWS internet gateway
       name: dep_name + '_router',
       external_gateway_network_name: external_gateway_network_name,
     },
@@ -247,7 +342,7 @@
           desc: 'NFS PortMapper TCP',
           protocol: 'tcp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 111,
           direction: 'ingress',
         },
@@ -255,7 +350,7 @@
           desc: 'NFS PortMapper UDP',
           protocol: 'udp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 111,
           direction: 'ingress',
         },
@@ -263,7 +358,7 @@
           desc: 'NFS Server TCP',
           protocol: 'tcp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 2049,
           direction: 'ingress',
         },
@@ -271,7 +366,7 @@
           desc: 'NFS Server UDP',
           protocol: 'udp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 2049,
           direction: 'ingress',
         },
@@ -287,7 +382,7 @@
           desc: 'Prometheus node exporter',
           protocol: 'tcp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 9100,
           direction: 'ingress',
         },
@@ -303,7 +398,7 @@
           desc: 'rsyslog receiver',
           protocol: 'udp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 514,
           direction: 'ingress',
         },
@@ -332,7 +427,7 @@
           desc: 'SSH',
           protocol: 'tcp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 22,
           direction: 'ingress',
         },
@@ -340,7 +435,7 @@
           desc: 'Prometheus UI internal',
           protocol: 'tcp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 9090,
           direction: 'ingress',
         },
@@ -348,7 +443,7 @@
           desc: 'Prometheus node exporter',
           protocol: 'tcp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 9100,
           direction: 'ingress',
         },
@@ -356,7 +451,7 @@
           desc: 'Cassandra Prometheus node exporter',
           protocol: 'tcp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 9500,
           direction: 'ingress',
         },
@@ -364,7 +459,7 @@
           desc: 'Cassandra JMX',
           protocol: 'tcp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 7199,
           direction: 'ingress',
         },
@@ -372,7 +467,7 @@
           desc: 'Cassandra cluster comm',
           protocol: 'tcp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 7000,
           direction: 'ingress',
         },
@@ -380,7 +475,7 @@
           desc: 'Cassandra API',
           protocol: 'tcp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 9042,
           direction: 'ingress',
         },
@@ -388,7 +483,7 @@
           desc: 'RabbitMQ API',
           protocol: 'tcp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 5672,
           direction: 'ingress',
         },
@@ -396,7 +491,7 @@
           desc: 'RabbitMQ UI',
           protocol: 'tcp',
           ethertype: 'IPv4',
-          remote_ip: $.network.subnet.cidr,
+          remote_ip: $.network.cidr,
           port: 15672,
           direction: 'ingress',
         },
@@ -423,7 +518,7 @@
       },
     },
     up_capiparquet_binary: {
-      src: buildLinuxAmd64Dir + '/capiparquet.gz',
+      src: buildLinuxDir + '/capiparquet.gz',
       dst: '/home/' + $.ssh_config.user + '/bin',
       dir_permissions: 744,
       file_permissions: 644,
@@ -437,7 +532,7 @@
       },
     },
     up_daemon_binary: {
-      src: buildLinuxAmd64Dir + '/capidaemon.gz',
+      src: buildLinuxDir + '/capidaemon.gz',
       dst: '/home/' + $.ssh_config.user + '/bin',
       dir_permissions: 744,
       file_permissions: 644,
@@ -589,7 +684,7 @@
       after: {},
     },
     up_toolbelt_binary: {
-      src: buildLinuxAmd64Dir + '/capitoolbelt.gz',
+      src: buildLinuxDir + '/capitoolbelt.gz',
       dst: '/home/' + $.ssh_config.user + '/bin',
       dir_permissions: 744,
       file_permissions: 644,
@@ -617,7 +712,7 @@
       after: {},
     },
     up_webapi_binary: {
-      src: buildLinuxAmd64Dir + '/capiwebapi.gz',
+      src: buildLinuxDir + '/capiwebapi.gz',
       dst: '/home/' + $.ssh_config.user + '/bin',
       dir_permissions: 744,
       file_permissions: 644,
@@ -661,6 +756,7 @@
       flavor: instance_flavor_bastion,
       image: instance_image_name,
       availability_zone: instance_availability_zone,
+      subnet_type: bastion_subnet_type,
       volumes: {
         cfg: {
           name: dep_name + '_cfg',
@@ -712,7 +808,7 @@
           RABBITMQ_IP: rabbitmq_ip,
           SFTP_USER: '{CAPIDEPLOY_SFTP_USER}',
           SSH_USER: $.ssh_config.user,
-          SUBNET_CIDR: $.network.subnet.cidr,
+          NETWORK_CIDR: $.network.cidr,
           EXTERNAL_IP_ADDRESS: '{EXTERNAL_IP_ADDRESS}',  // internal: capideploy populates it from ssh_config.external_ip_address after loading project file; used by webui and webapi config.sh
           WEBAPI_PORT: '6543',
         },
@@ -782,6 +878,7 @@
       flavor: instance_flavor_rabbitmq,
       image: instance_image_name,
       availability_zone: instance_availability_zone,
+      subnet_type: 'private',
       service: {
         env: {
           PROMETHEUS_NODE_EXPORTER_VERSION: prometheus_node_exporter_version,
@@ -820,6 +917,7 @@
       flavor: instance_flavor_prometheus,
       image: instance_image_name,
       availability_zone: instance_availability_zone,
+      subnet_type: 'private',
       service: {
         env: {
           PROMETHEUS_NODE_EXPORTER_VERSION: prometheus_node_exporter_version,
@@ -856,6 +954,7 @@
       flavor: instance_flavor_cassandra,
       image: instance_image_name,
       availability_zone: instance_availability_zone,
+      subnet_type: 'private',
       service: {
         env: {
           CASSANDRA_IP: e.ip_address,
@@ -900,6 +999,7 @@
       flavor: instance_flavor_daemon,
       image: instance_image_name,
       availability_zone: instance_availability_zone,
+      subnet_type: 'private',
       private_keys: [
         {
           name: '{CAPIDEPLOY_SFTP_USER}',
@@ -953,4 +1053,13 @@
   },
 
   instances: bastion_instance + rabbitmq_instance + prometheus_instance + cass_instances + daemon_instances,
+
+  local getFromMap = function(m, k)
+    if std.length(m[k]) > 0 then m[k] else "no-key-" + k,
+
+  local getFromDoubleMap = function(m, k1, k2)
+    if std.length(m[k1]) > 0 then 
+      if std.length(m[k1][k2]) > 0 then m[k1][k2] else "no-key-" + k2
+    else  "no-key-" + k1,
 }
+

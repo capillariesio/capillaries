@@ -38,11 +38,23 @@ func (sg *SecurityGroupDef) Clean() {
 	}
 }
 
-type SubnetDef struct {
-	Name           string `json:"name"`
-	Id             string `json:"id"`
-	Cidr           string `json:"cidr"`
-	AllocationPool string `json:"allocation_pool"` //start=192.168.199.2,end=192.168.199.254
+type PrivateSubnetDef struct {
+	Name             string `json:"name"`
+	Id               string `json:"id"`
+	Cidr             string `json:"cidr"`
+	AllocationPool   string `json:"allocation_pool"`    //start=192.168.199.2,end=192.168.199.254
+	AvailabilityZone string `json:"availability_zone"`  // AWS only
+	RouteTableToNat  string `json:"route_table_to_nat"` // AWS only
+}
+
+type PublicSubnetDef struct {
+	Name               string `json:"name"`
+	Id                 string `json:"id"`
+	Cidr               string `json:"cidr"`
+	AvailabilityZone   string `json:"availability_zone"`
+	NatGatewayName     string `json:"nat_gateway_name"`
+	NatGatewayId       string `json:"nat_gateway_id"`
+	NatGatewayPublicIp string `json:"nat_gateway_public_ip"`
 }
 
 type RouterDef struct {
@@ -52,10 +64,12 @@ type RouterDef struct {
 }
 
 type NetworkDef struct {
-	Name   string    `json:"name"`
-	Id     string    `json:"id"`
-	Subnet SubnetDef `json:"subnet"`
-	Router RouterDef `json:"router"`
+	Name          string           `json:"name"`
+	Id            string           `json:"id"`
+	Cidr          string           `json:"cidr"`
+	PrivateSubnet PrivateSubnetDef `json:"private_subnet"`
+	PublicSubnet  PublicSubnetDef  `json:"public_subnet"`
+	Router        RouterDef        `json:"router"`
 }
 
 type VolumeDef struct {
@@ -101,6 +115,7 @@ type InstanceDef struct {
 	FlavorName                     string                `json:"flavor"`
 	ImageName                      string                `json:"image"`
 	AvailabilityZone               string                `json:"availability_zone"`
+	SubnetType                     string                `json:"subnet_type"`
 	Volumes                        map[string]*VolumeDef `json:"volumes,omitempty"`
 	Id                             string                `json:"id"`
 	Users                          []UserDef             `json:"users,omitempty"`
@@ -159,17 +174,21 @@ type BuildArtifactsDef struct {
 }
 
 type Project struct {
-	Artifacts        BuildArtifactsDef            `json:"artifacts"`
-	SshConfig        *SshConfigDef                `json:"ssh_config"`
-	Timeouts         ExecTimeouts                 `json:"timeouts"`
-	EnvVariablesUsed []string                     `json:"env_variables_used"`
-	SecurityGroups   map[string]*SecurityGroupDef `json:"security_groups"`
-	Network          NetworkDef                   `json:"network"`
-	FileGroupsUp     map[string]*FileGroupUpDef   `json:"file_groups_up"`
-	FileGroupsDown   map[string]*FileGroupDownDef `json:"file_groups_down"`
-	Instances        map[string]*InstanceDef      `json:"instances"`
-	OpenstackVars    map[string]string
+	Artifacts          BuildArtifactsDef            `json:"artifacts"`
+	SshConfig          *SshConfigDef                `json:"ssh_config"`
+	Timeouts           ExecTimeouts                 `json:"timeouts"`
+	EnvVariablesUsed   []string                     `json:"env_variables_used"`
+	SecurityGroups     map[string]*SecurityGroupDef `json:"security_groups"`
+	Network            NetworkDef                   `json:"network"`
+	FileGroupsUp       map[string]*FileGroupUpDef   `json:"file_groups_up"`
+	FileGroupsDown     map[string]*FileGroupDownDef `json:"file_groups_down"`
+	Instances          map[string]*InstanceDef      `json:"instances"`
+	DeployProviderName string                       `json:"deploy_provider_name"`
+	CliEnvVars         map[string]string
 }
+
+const DeployProviderOpenstack string = "openstack"
+const DeployProviderAws string = "aws"
 
 type ProjectPair struct {
 	Template           Project
@@ -202,6 +221,16 @@ func (prjPair *ProjectPair) SetRouterId(newId string) {
 	prjPair.Live.Network.Router.Id = newId
 }
 
+func (prjPair *ProjectPair) SetNatGatewayId(newId string) {
+	prjPair.Template.Network.PublicSubnet.NatGatewayId = newId
+	prjPair.Live.Network.PublicSubnet.NatGatewayId = newId
+}
+
+func (prjPair *ProjectPair) SetRouteTableToNat(newId string) {
+	prjPair.Template.Network.PrivateSubnet.RouteTableToNat = newId
+	prjPair.Live.Network.PrivateSubnet.RouteTableToNat = newId
+}
+
 func (prjPair *ProjectPair) SetSshExternalIp(newIp string) {
 	prjPair.Template.SshConfig.ExternalIpAddress = newIp
 	prjPair.Live.SshConfig.ExternalIpAddress = newIp
@@ -217,9 +246,19 @@ func (prjPair *ProjectPair) SetSshExternalIp(newIp string) {
 	}
 }
 
-func (prjPair *ProjectPair) SetSubnetId(newId string) {
-	prjPair.Template.Network.Subnet.Id = newId
-	prjPair.Live.Network.Subnet.Id = newId
+func (prjPair *ProjectPair) SetNatGatewayExternalIp(newIp string) {
+	prjPair.Template.Network.PublicSubnet.NatGatewayPublicIp = newIp
+	prjPair.Live.Network.PublicSubnet.NatGatewayPublicIp = newIp
+}
+
+func (prjPair *ProjectPair) SetPrivateSubnetId(newId string) {
+	prjPair.Template.Network.PrivateSubnet.Id = newId
+	prjPair.Live.Network.PrivateSubnet.Id = newId
+}
+
+func (prjPair *ProjectPair) SetPublicSubnetId(newId string) {
+	prjPair.Template.Network.PublicSubnet.Id = newId
+	prjPair.Live.Network.PublicSubnet.Id = newId
 }
 
 func (prjPair *ProjectPair) SetVolumeId(iNickname string, volNickname string, newId string) {
@@ -351,9 +390,17 @@ func LoadProject(prjFile string) (*ProjectPair, string, error) {
 		return nil, "", fmt.Errorf("cannot parse project file %s: %s", prjFullPath, err.Error())
 	}
 
+	if prjPair.Template.DeployProviderName != DeployProviderOpenstack &&
+		prjPair.Template.DeployProviderName != DeployProviderAws {
+		return nil, "", fmt.Errorf("cannot parse deploy provider name %s, expected %s,%s",
+			prjPair.Template.DeployProviderName,
+			DeployProviderOpenstack,
+			DeployProviderAws)
+	}
+
 	prjString := string(prjBytes)
 
-	// Read params from env variables, save OS_* vars in prjPair.Live.OpenstackVars
+	// Read params from env variables, save OS_* vars in prjPair.Live.OpenstackVars, AWS_ in Aws vars
 
 	envVars := map[string]string{}
 	for _, envVar := range prjPair.Template.EnvVariablesUsed {
@@ -378,10 +425,10 @@ func LoadProject(prjFile string) (*ProjectPair, string, error) {
 	}
 
 	// Initialize OpenstackVars for calling openstack cmd locally
-	prjPair.Live.OpenstackVars = map[string]string{}
+	prjPair.Live.CliEnvVars = map[string]string{}
 	for k, v := range envVars {
-		if strings.HasPrefix(k, "OS_") {
-			prjPair.Live.OpenstackVars[k] = v
+		if strings.HasPrefix(k, "OS_") || strings.HasPrefix(k, "AWS_") {
+			prjPair.Live.CliEnvVars[k] = v
 		}
 	}
 
