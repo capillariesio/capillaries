@@ -1,8 +1,8 @@
 # Working with Capillaries deploy tool
 
-Capillaries [Deploy tool](../../doc/glossary.md#deploy-tool) can provision complete Capillaries cloud environment in public/private clouds that support [Openstack API](https://www.openstack.org).
+Capillaries [Deploy tool](../../doc/glossary.md#deploy-tool) can provision complete Capillaries cloud environment in public/private clouds that support [Openstack API](https://www.openstack.org) or in AWS.
 
-`test/deploy` directory contains two sample projects (capideploy_project_dreamhost.json and capideploy_project_genesis.json) used by [Deploy tool](../../doc/glossary.md#deploy-tool). Sensitive and repetitive configuration can be stored in project parameter files (capideploy_project_params_dreamhost.json and capideploy_project_params_genesis.json), and it's a good idea to store parameter files at somewhat secure location (like user home dir).
+`test/deploy` directory contains sample project template (sampledeployment.jsonnet) and sample project (sampledeployment.json) used by [Deploy tool](../../doc/glossary.md#deploy-tool).
 
 For troubleshooting, add `-verbose` argument to your deploy tool command line.
 
@@ -22,9 +22,9 @@ Capillaries configuration scripts and in/out data are stored on separate volumes
 ## Deployment project template (`*.jsonnet`) and deployment project (`*.json`) files
 
 Capideploy tool uses deployment project file (see sample `sampledeployment.json`) to:
-- configure creation of Openstack objects like instances and volumes and track status of those objects locally
-- push Capillaries data and binaries to created Openstack deployment
-- clean Openstack deployment
+- configure creation of Openstack/AWS objects like instances and volumes and track status of those objects locally
+- push Capillaries data and binaries to created Openstack/AWS deployment
+- clean Openstack/AWS deployment
 
 Deployment project files contain description and status of each instance. When there are a lot of instances that perform the same tesk (like Cassandra nodes or instances running Capillaries [Daemon](../../doc/glossary.md#daemon)) which makes them pretty redundant. To avoid creating repetitive configurations manually, use [jsonnet](https://jsonnet.org) templates like `sampledeployment.jsonnet`. Before deploying, make sure that you have generated a deployment project `*.json` file from the `*.jsonnet` template, and, under normal circumstances, avoid manual changes in your `*.json` file. Tweak `*.jsonnet` file and regenerate `*.json` instead, using jsonnet interpreter of your choice. Feel free to manually tweak `*.json` file if you really think you know what you are doing.
 
@@ -32,12 +32,12 @@ Deployment project files contain description and status of each instance. When t
 
 1. Install [jq](https://jqlang.github.io/jq/). Adding jq to the list of requirements was not an easy decision, but without it, [start_cluster.sh](./start_cluster.sh) script that has to read configuration from the deployment project file would be unnecessary error-prone.
 
-2. Make sure you have created the key pair for SSH access to the Openstack instances, key pair name stored in `root_key_name` in the project file. Through this document, we will be assuming the key pair is stored in `~/.ssh/` and the private key file this kind of name:  
+2. Make sure you have created the key pair for SSH access to the Openstack/AWS instances, key pair name stored in `root_key_name` in the project file. Through this document, we will be assuming the key pair is stored in `~/.ssh/` and the private key file this kind of name:  
 `sampledeployment002_rsa`.
 
 3. If you want to use SFTP (instead of or along with NFS) for file sharing make sure all SFTP key files used referenced in deployment project `sampledeployment.json` are present.
 
-4. Make sure all environment variables storing Capideploy and Openstack settings are set. For non-production environments, you may want to keep them in a separate private file and activate before deploying `source ~/sampledeployment.rc`:
+4. Make sure all environment variables storing Capideploy and Openstack/AWS settings are set. For non-production environments, you may want to keep them in a separate private file and activate before deploying `source ~/sampledeployment.rc`:
 
 ```
 # capideploy settings
@@ -358,7 +358,7 @@ $capideploy delete_floating_ip -prj=sampledeployment.json;
 
 ## Q&A
 
-### Openstack environment variables
+### Openstack/AWS environment variables
 
 Q. The list of `OS_*` variables changes from one Openstack provider to another. Why?
 
@@ -396,9 +396,9 @@ A. This example works well when you need to quickly provision an environment wit
 
 ### Non-Openstack clouds
 
-Q. Does Deploy tool work with clouds that do not support Openstack? AWS,Azure,GCP?
+Q. Does Deploy tool work with clouds that do not support Openstack/AWS? Azure, GCP?
 
-A. At the moment, no.
+A. Starting Sep 2023, deploy tool supportd seployment to AWS. No support for Azure or GCP.
 
 ### Why should I use another custom deploy tool?
 
