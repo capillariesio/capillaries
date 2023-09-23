@@ -5,13 +5,14 @@
   local dep_name = 'sampledeployment005',  // Can be any combination of alphanumeric characters. Make it unique.
 
   // x - test bare minimum, 2x - better, 4x - decent test, 16x - that's where it gets interesting
-  local cassandra_node_flavor = '16x',
+  local cassandra_node_flavor = 'aws.c7gn.32',
+  local architecture = 'arm64', // amd64 or arm64 
   // Cassandra cluster size - 4,8,16
-  local cassandra_total_nodes = 4, 
+  local cassandra_total_nodes = 8, 
   // If tasks are CPU-intensive (Python calc), make it equal to cassandra_total_nodes, otherwise cassandra_total_nodes/2
   local daemon_total_instances = cassandra_total_nodes, 
   local DEFAULT_DAEMON_THREAD_POOL_SIZE = '24', // daemon_cores*1.5
-  local DEFAULT_DAEMON_DB_WRITERS = '16', // Depends on cassandra perf, reasonable values are 5-20
+  local DEFAULT_DAEMON_DB_WRITERS = '24', // Depends on cassandra perf, reasonable values are 5-20
 
   // Basics
   local default_root_key_name = dep_name + '-root-key',  // This should match the name of the keypair you already created in Openstack/AWS
@@ -85,21 +86,30 @@
     'sampledeployment002': 'ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw',
     'sampledeployment003': 'Ubuntu 23.04',
     'sampledeployment004': 'Ubuntu 22.04 LTS Jammy Jellyfish',
-    'sampledeployment005': 'ami-0d8583a0d8d6dd14f' //ubuntu/images/hvm-ssd/ubuntu-lunar-23.04-amd64-server-20230714
+    'sampledeployment005':
+      if architecture == 'arm64' then 'ami-064b469793e32e5d2' // ubuntu/images/hvm-ssd/ubuntu-lunar-23.04-arm64-server-20230904
+      else if architecture == 'amd4' then 'ami-0d8583a0d8d6dd14f' //ubuntu/images/hvm-ssd/ubuntu-lunar-23.04-amd64-server-20230714
+      else 'unknown-architecture-unknown-image'
   }, dep_name),
 
   local instance_flavor_rabbitmq = getFromMap({
     'sampledeployment002': 't5sd.large',
     'sampledeployment003': 'b2-7',
     'sampledeployment004': 'a1-ram2-disk20-perf1',
-    'sampledeployment005': 't2.micro'
+    'sampledeployment005':
+      if architecture == 'arm64' then 'c7g.medium'
+      else if architecture == 'amd64' then 't2.micro'
+      else 'unknown-architecture-unknown-rabbitmq-flavor'
   }, dep_name),
 
   local instance_flavor_prometheus = getFromMap({
     'sampledeployment002': 't5sd.large',
     'sampledeployment003': 'b2-7',
     'sampledeployment004': 'a1-ram2-disk20-perf1',
-    'sampledeployment005': 't2.micro'
+    'sampledeployment005':
+      if architecture == 'arm64' then 'c7g.medium'
+      else if architecture == 'amd64' then 't2.micro'
+      else 'unknown-architecture-unknown-prometheus-flavor'
   }, dep_name),
 
   // Something modest, but capable of serving as NFS server, Webapi, UI
@@ -121,7 +131,16 @@
     },
     'sampledeployment005': {
       '4x': 'c6a.large',
-      '16x': 'c6a.large'
+      '16x': 'c6a.large',
+      'aws.c6a.32': 'c6a.large',
+      'aws.c7g.32': 'c7g.large',
+      'aws.c7gn.32': 'c7g.large',
+      'aws.c7g.64': 'c7g.large',
+      'aws.hpc7g.64': 'c7g.large',
+      '18x': 'c6a.large',
+      '36x': 'c6a.large',
+      '64x': 'c6a.large',
+      '96x': 'c6a.large'
     }
   }, dep_name, cassandra_node_flavor),
 
@@ -145,6 +164,15 @@
     'sampledeployment005': {
       '4x': 'c6a.2xlarge',
       '16x': 'c6a.8xlarge',
+      'aws.c6a.32': 'c6a.8xlarge',
+      'aws.c7g.32': 'c7g.8xlarge',
+      'aws.c7gn.32': 'c7gn.8xlarge',
+      'aws.c7g.64': 'c7g.metal',
+      'aws.hpc7g.64': 'hpc7g.16xlarge',      
+      '18x': 'c5n.9xlarge',
+      '36x': 'c5n.metal',
+      '64x': 'c6a.32xlarge',
+      '96x': 'c6a.metal',
     },
   }, dep_name, cassandra_node_flavor),
 
@@ -167,7 +195,16 @@
     },
     'sampledeployment005': {
       '4x': 'c6a.xlarge',
-      '16x': 'c6a.4xlarge'
+      '16x': 'c6a.4xlarge',
+      'aws.c6a.32': 'c6a.4xlarge',
+      'aws.c7g.32': 'c7g.4xlarge',
+      'aws.c7gn.32': 'c7gn.4xlarge',
+      'aws.c7g.64': 'c7g.8xlarge',
+      'aws.hpc7g.64': 'hpc7g.8xlarge',
+      '18x': 'c5n.4xlarge',
+      '36x': 'c5n.9xlarge',
+      '64x': 'c6a.16xlarge',
+      '96x': 'c6a.24xlarge'
     }
   }, dep_name, cassandra_node_flavor),
 
@@ -189,6 +226,11 @@
   
   // Artifacts
   local buildLinuxAmd64Dir = '../../build/linux/amd64',
+  local buildLinuxArm64Dir = '../../build/linux/arm64',
+  local buildLinuxDir =
+    if architecture == 'amd64' then buildLinuxAmd64Dir
+    else if architecture == 'arm64' then buildLinuxArm64Dir
+    else 'unknown-architecture-unknown-build-dir',
   local pkgExeDir = '../../pkg/exe',
   
   // Keys
@@ -253,6 +295,7 @@
   artifacts: {
     env: {
       DIR_BUILD_LINUX_AMD64: '../../' + buildLinuxAmd64Dir,
+      DIR_BUILD_LINUX_ARM64: '../../' + buildLinuxArm64Dir,
       DIR_PKG_EXE: '../../' + pkgExeDir,
       DIR_CODE_PARQUET: '../../../code/parquet',
     },
@@ -475,7 +518,7 @@
       },
     },
     up_capiparquet_binary: {
-      src: buildLinuxAmd64Dir + '/capiparquet.gz',
+      src: buildLinuxDir + '/capiparquet.gz',
       dst: '/home/' + $.ssh_config.user + '/bin',
       dir_permissions: 744,
       file_permissions: 644,
@@ -489,7 +532,7 @@
       },
     },
     up_daemon_binary: {
-      src: buildLinuxAmd64Dir + '/capidaemon.gz',
+      src: buildLinuxDir + '/capidaemon.gz',
       dst: '/home/' + $.ssh_config.user + '/bin',
       dir_permissions: 744,
       file_permissions: 644,
@@ -641,7 +684,7 @@
       after: {},
     },
     up_toolbelt_binary: {
-      src: buildLinuxAmd64Dir + '/capitoolbelt.gz',
+      src: buildLinuxDir + '/capitoolbelt.gz',
       dst: '/home/' + $.ssh_config.user + '/bin',
       dir_permissions: 744,
       file_permissions: 644,
@@ -669,7 +712,7 @@
       after: {},
     },
     up_webapi_binary: {
-      src: buildLinuxAmd64Dir + '/capiwebapi.gz',
+      src: buildLinuxDir + '/capiwebapi.gz',
       dst: '/home/' + $.ssh_config.user + '/bin',
       dir_permissions: 744,
       file_permissions: 644,
