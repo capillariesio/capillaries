@@ -160,7 +160,7 @@ go run capitoolbelt.go get_run_status_diagram -script_file=../../../test/data/cf
 ```
 
 ## Deploy tool
-This is not part of Capillaries framework. It's a command line tool that can be used to deploy a complete Capillaries-based solution in the public or private cloud that implements Openstack API. See full documentation [here](../test/deploy/README.md).
+This is not part of Capillaries framework. It's a command line tool that can be used to deploy a complete Capillaries-based solution in the public or private cloud that implements Openstack API or in the AWS cloud. See full documentation [here](../test/deploy/README.md).
 
 ## Daemon
 An executable that implements one or more [processors](#processor). Capillaries source code comes with a stock daemon that implements all supported [processor types](#processor-types), including [py_calc processor](#py_calc-processor) implemented as a [custom processor](#table_custom_tfm_table).

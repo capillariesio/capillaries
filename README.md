@@ -60,7 +60,7 @@ For more details about getting started, see [Getting started](doc/started.md). F
 ### [Script configuration](doc/scriptconfig.md)
 ### [Capillaries UI](ui/README.md)
 ### [Capillaries API](doc/api.md)
-### [Capillaries deploy tool: Openstack cloud deployment](test/deploy/README.md)
+### [Capillaries deploy tool: Openstack/AWS cloud deployment](test/deploy/README.md)
 ### [Glossary](doc/glossary.md)
 ### [Q & A](doc/qna.md)
 ### [Capillaries blog](https://capillaries.io/blog/index.html)
