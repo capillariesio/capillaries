@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func ParseOpenstackOutput(input string) ([]map[string]string, error) {
+func parseOpenstackOutput(input string) ([]map[string]string, error) {
 	var columnHeaders []string
 	lines := strings.Split(input, "\n")
 	expectedDataRows := len(lines) - 4
@@ -43,7 +43,7 @@ func ParseOpenstackOutput(input string) ([]map[string]string, error) {
 	return result[:dataRowIdx], nil
 }
 
-func FindOpenstackColumnValue(rows []map[string]string, fieldNameToReturn string, fieldNameToSearch string, fieldValueToSearch string) string {
+func findOpenstackColumnValue(rows []map[string]string, fieldNameToReturn string, fieldNameToSearch string, fieldValueToSearch string) string {
 	for _, fields := range rows {
 		if fields[fieldNameToSearch] == fieldValueToSearch {
 			return fields[fieldNameToReturn]
@@ -52,7 +52,7 @@ func FindOpenstackColumnValue(rows []map[string]string, fieldNameToReturn string
 	return ""
 }
 
-func FindOpenstackFieldValue(rows []map[string]string, fieldName string) string {
+func findOpenstackFieldValue(rows []map[string]string, fieldName string) string {
 	// Handle value list, like security group show:
 	// | rules | rule1 |
 	// |       | rule2 |
@@ -69,28 +69,28 @@ func FindOpenstackFieldValue(rows []map[string]string, fieldName string) string 
 	return strings.Join(resultArray, "\n")
 }
 
-func ExecLocalAndParseOpenstackOutput(prj *Project, cmdPath string, params []string) ([]map[string]string, ExecResult) {
-	er := ExecLocal(prj, cmdPath, params, prj.OpenstackVars, "")
+func execLocalAndParseOpenstackOutput(prj *Project, cmdPath string, params []string) ([]map[string]string, ExecResult) {
+	er := ExecLocal(prj, cmdPath, params, prj.CliEnvVars, "")
 	if er.Error != nil {
 		return nil, er
 	}
-	rows, err := ParseOpenstackOutput(er.Stdout)
+	rows, err := parseOpenstackOutput(er.Stdout)
 	if err != nil {
 		return nil, er
 	}
 	return rows, er
 }
 
-func WaitForEntityToBeCreated(prj *Project, entityType string, entityName string, entityId string, timeoutSeconds int, isVerbose bool) (LogMsg, error) {
-	lb := NewLogBuilder("WaitForEntityToBeCreated: "+entityName, isVerbose)
+func waitForOpenstackEntityToBeCreated(prj *Project, entityType string, entityName string, entityId string, timeoutSeconds int, isVerbose bool) (LogMsg, error) {
+	lb := NewLogBuilder("waitForOpenstackEntityToBeCreated: "+entityName, isVerbose)
 	startWaitTs := time.Now()
 	for {
-		rows, er := ExecLocalAndParseOpenstackOutput(prj, "openstack", []string{entityType, "show", entityId})
+		rows, er := execLocalAndParseOpenstackOutput(prj, "openstack", []string{entityType, "show", entityId})
 		lb.Add(er.ToString())
 		if er.Error != nil {
 			return lb.Complete(er.Error)
 		}
-		status := FindOpenstackFieldValue(rows, "status")
+		status := findOpenstackFieldValue(rows, "status")
 		if status == "" {
 			return lb.Complete(fmt.Errorf("openstack returned empty %s status for %s(%s)", entityType, entityName, entityId))
 		}

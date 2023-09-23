@@ -2,6 +2,7 @@
     "artifacts": {
         "env": {
             "DIR_BUILD_LINUX_AMD64": "../../../../build/linux/amd64",
+            "DIR_BUILD_LINUX_ARM64": "../../../../build/linux/arm64",
             "DIR_CODE_PARQUET": "../../../code/parquet",
             "DIR_PKG_EXE": "../../../../pkg/exe"
         },
@@ -15,11 +16,11 @@
         "external_ip_address": "",
         "port": 22,
         "user": "{CAPIDEPLOY_SSH_USER}",
-        "private_key_path": "~/.ssh/sampledeployment002_rsa",
+        "private_key_path": "~/.ssh/sampledeployment005_rsa",
         "private_key_password": "{CAPIDEPLOY_SSH_PRIVATE_KEY_PASS}"
     },
     "timeouts": {
-        "openstack_cmd": 60,
+        "openstack_cmd": 120,
         "openstack_instance_creation": 240,
         "attach_volume": 60
     },
@@ -40,11 +41,14 @@
         "OS_PROJECT_ID",
         "OS_PROJECT_NAME",
         "OS_USERNAME",
-        "OS_USER_DOMAIN_NAME"
+        "OS_USER_DOMAIN_NAME",
+        "AWS_ACCESS_KEY_ID",
+        "AWS_SECRET_ACCESS_KEY",
+        "AWS_DEFAULT_REGION"
     ],
     "security_groups": {
         "bastion": {
-            "name": "sampledeployment002_bastion_security_group",
+            "name": "sampledeployment005_bastion_security_group",
             "id": "",
             "rules": [
                 {
@@ -61,7 +65,7 @@
                     "id": "",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
-                    "remote_ip": "10.5.0.0/24",
+                    "remote_ip": "10.5.0.0/16",
                     "port": 111,
                     "direction": "ingress"
                 },
@@ -70,7 +74,7 @@
                     "id": "",
                     "protocol": "udp",
                     "ethertype": "IPv4",
-                    "remote_ip": "10.5.0.0/24",
+                    "remote_ip": "10.5.0.0/16",
                     "port": 111,
                     "direction": "ingress"
                 },
@@ -79,7 +83,7 @@
                     "id": "",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
-                    "remote_ip": "10.5.0.0/24",
+                    "remote_ip": "10.5.0.0/16",
                     "port": 2049,
                     "direction": "ingress"
                 },
@@ -88,7 +92,7 @@
                     "id": "",
                     "protocol": "udp",
                     "ethertype": "IPv4",
-                    "remote_ip": "10.5.0.0/24",
+                    "remote_ip": "10.5.0.0/16",
                     "port": 2049,
                     "direction": "ingress"
                 },
@@ -106,7 +110,7 @@
                     "id": "",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
-                    "remote_ip": "10.5.0.0/24",
+                    "remote_ip": "10.5.0.0/16",
                     "port": 9100,
                     "direction": "ingress"
                 },
@@ -124,7 +128,7 @@
                     "id": "",
                     "protocol": "udp",
                     "ethertype": "IPv4",
-                    "remote_ip": "10.5.0.0/24",
+                    "remote_ip": "10.5.0.0/16",
                     "port": 514,
                     "direction": "ingress"
                 },
@@ -149,7 +153,7 @@
             ]
         },
         "internal": {
-            "name": "sampledeployment002_internal_security_group",
+            "name": "sampledeployment005_internal_security_group",
             "id": "",
             "rules": [
                 {
@@ -157,7 +161,7 @@
                     "id": "",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
-                    "remote_ip": "10.5.0.0/24",
+                    "remote_ip": "10.5.0.0/16",
                     "port": 22,
                     "direction": "ingress"
                 },
@@ -166,7 +170,7 @@
                     "id": "",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
-                    "remote_ip": "10.5.0.0/24",
+                    "remote_ip": "10.5.0.0/16",
                     "port": 9090,
                     "direction": "ingress"
                 },
@@ -175,7 +179,7 @@
                     "id": "",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
-                    "remote_ip": "10.5.0.0/24",
+                    "remote_ip": "10.5.0.0/16",
                     "port": 9100,
                     "direction": "ingress"
                 },
@@ -184,7 +188,7 @@
                     "id": "",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
-                    "remote_ip": "10.5.0.0/24",
+                    "remote_ip": "10.5.0.0/16",
                     "port": 9500,
                     "direction": "ingress"
                 },
@@ -193,7 +197,7 @@
                     "id": "",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
-                    "remote_ip": "10.5.0.0/24",
+                    "remote_ip": "10.5.0.0/16",
                     "port": 7199,
                     "direction": "ingress"
                 },
@@ -202,7 +206,7 @@
                     "id": "",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
-                    "remote_ip": "10.5.0.0/24",
+                    "remote_ip": "10.5.0.0/16",
                     "port": 7000,
                     "direction": "ingress"
                 },
@@ -211,7 +215,7 @@
                     "id": "",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
-                    "remote_ip": "10.5.0.0/24",
+                    "remote_ip": "10.5.0.0/16",
                     "port": 9042,
                     "direction": "ingress"
                 },
@@ -220,7 +224,7 @@
                     "id": "",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
-                    "remote_ip": "10.5.0.0/24",
+                    "remote_ip": "10.5.0.0/16",
                     "port": 5672,
                     "direction": "ingress"
                 },
@@ -229,7 +233,7 @@
                     "id": "",
                     "protocol": "tcp",
                     "ethertype": "IPv4",
-                    "remote_ip": "10.5.0.0/24",
+                    "remote_ip": "10.5.0.0/16",
                     "port": 15672,
                     "direction": "ingress"
                 }
@@ -237,18 +241,30 @@
         }
     },
     "network": {
-        "name": "sampledeployment002_network",
+        "name": "sampledeployment005_network",
         "id": "",
-        "subnet": {
-            "name": "sampledeployment002_subnet",
+        "cidr": "10.5.0.0/16",
+        "private_subnet": {
+            "name": "sampledeployment005_private_subnet",
             "id": "",
             "cidr": "10.5.0.0/24",
-            "allocation_pool": "start=10.5.0.240,end=10.5.0.254"
+            "allocation_pool": "start=10.5.0.240,end=10.5.0.254",
+            "availability_zone": "us-east-1a",
+            "route_table_to_nat": "rtb-0c63250d7092a858d"
+        },
+        "public_subnet": {
+            "name": "sampledeployment005_public_subnet",
+            "id": "",
+            "cidr": "10.5.1.0/24",
+            "availability_zone": "us-east-1a",
+            "nat_gateway_name": "sampledeployment005_natgw",
+            "nat_gateway_id": "",
+            "nat_gateway_public_ip": ""
         },
         "router": {
-            "name": "sampledeployment002_router",
+            "name": "sampledeployment005_router",
             "id": "",
-            "external_gateway_network_name": "ext-net"
+            "external_gateway_network_name": "ext-network-not-needed-for-aws"
         }
     },
     "file_groups_up": {
@@ -271,7 +287,7 @@
             }
         },
         "up_capiparquet_binary": {
-            "src": "../../build/linux/amd64/capiparquet.gz",
+            "src": "../../build/linux/arm64/capiparquet.gz",
             "dst": "/home/{CAPIDEPLOY_SSH_USER}/bin",
             "dir_permissions": 744,
             "file_permissions": 644,
@@ -285,7 +301,7 @@
             }
         },
         "up_daemon_binary": {
-            "src": "../../build/linux/amd64/capidaemon.gz",
+            "src": "../../build/linux/arm64/capidaemon.gz",
             "dst": "/home/{CAPIDEPLOY_SSH_USER}/bin",
             "dir_permissions": 744,
             "file_permissions": 644,
@@ -437,7 +453,7 @@
             "after": {}
         },
         "up_toolbelt_binary": {
-            "src": "../../build/linux/amd64/capitoolbelt.gz",
+            "src": "../../build/linux/arm64/capitoolbelt.gz",
             "dst": "/home/{CAPIDEPLOY_SSH_USER}/bin",
             "dir_permissions": 744,
             "file_permissions": 644,
@@ -465,7 +481,7 @@
             "after": {}
         },
         "up_webapi_binary": {
-            "src": "../../build/linux/amd64/capiwebapi.gz",
+            "src": "../../build/linux/arm64/capiwebapi.gz",
             "dst": "/home/{CAPIDEPLOY_SSH_USER}/bin",
             "dir_permissions": 744,
             "file_permissions": 644,
@@ -498,49 +514,50 @@
     },
     "instances": {
         "bastion": {
-            "host_name": "sampledeployment002-bastion",
+            "host_name": "sampledeployment005-bastion",
             "security_group": "bastion",
-            "root_key_name": "sampledeployment002-root-key",
-            "ip_address": "10.5.0.10",
+            "root_key_name": "sampledeployment005-root-key",
+            "ip_address": "10.5.1.10",
             "uses_ssh_config_external_ip_address": true,
-            "flavor": "c5sd.xlarge",
-            "image": "ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw",
-            "availability_zone": "us-central-1a",
+            "flavor": "c7g.large",
+            "image": "ami-064b469793e32e5d2",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "public",
             "volumes": {
                 "cfg": {
-                    "name": "sampledeployment002_cfg",
+                    "name": "sampledeployment005_cfg",
                     "mount_point": "/mnt/capi_cfg",
                     "size": 1,
-                    "type": "gp1",
+                    "type": "gp2",
                     "permissions": 777,
                     "owner": "{CAPIDEPLOY_SSH_USER}",
-                    "availability_zone": "us-central-1a",
+                    "availability_zone": "us-east-1a",
                     "id": "",
                     "attachment_id": "",
                     "device": "",
                     "block_device_id": ""
                 },
                 "in": {
-                    "name": "sampledeployment002_in",
+                    "name": "sampledeployment005_in",
                     "mount_point": "/mnt/capi_in",
                     "size": 1,
-                    "type": "gp1",
+                    "type": "gp2",
                     "permissions": 777,
                     "owner": "{CAPIDEPLOY_SSH_USER}",
-                    "availability_zone": "us-central-1a",
+                    "availability_zone": "us-east-1a",
                     "id": "",
                     "attachment_id": "",
                     "device": "",
                     "block_device_id": ""
                 },
                 "out": {
-                    "name": "sampledeployment002_out",
+                    "name": "sampledeployment005_out",
                     "mount_point": "/mnt/capi_out",
                     "size": 1,
-                    "type": "gp1",
+                    "type": "gp2",
                     "permissions": 777,
                     "owner": "{CAPIDEPLOY_SSH_USER}",
-                    "availability_zone": "us-central-1a",
+                    "availability_zone": "us-east-1a",
                     "id": "",
                     "attachment_id": "",
                     "device": "",
@@ -551,13 +568,13 @@
             "users": [
                 {
                     "name": "{CAPIDEPLOY_SFTP_USER}",
-                    "public_key_path": "~/.ssh/sampledeployment002_sftp.pub"
+                    "public_key_path": "~/.ssh/sampledeployment005_sftp.pub"
                 }
             ],
             "private_keys": [
                 {
                     "name": "{CAPIDEPLOY_SFTP_USER}",
-                    "private_key_path": "~/.ssh/sampledeployment002_sftp"
+                    "private_key_path": "~/.ssh/sampledeployment005_sftp"
                 }
             ],
             "service": {
@@ -565,13 +582,13 @@
                     "AMQP_URL": "amqp://{CAPIDEPLOY_RABBITMQ_USER_NAME}:{CAPIDEPLOY_RABBITMQ_USER_PASS}@10.5.0.5/",
                     "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\"]'",
                     "EXTERNAL_IP_ADDRESS": "{EXTERNAL_IP_ADDRESS}",
+                    "NETWORK_CIDR": "10.5.0.0/16",
                     "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
                     "PROMETHEUS_IP": "10.5.0.4",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",
                     "RABBITMQ_IP": "10.5.0.5",
                     "SFTP_USER": "{CAPIDEPLOY_SFTP_USER}",
                     "SSH_USER": "{CAPIDEPLOY_SSH_USER}",
-                    "SUBNET_CIDR": "10.5.0.0/24",
                     "WEBAPI_PORT": "6543"
                 },
                 "cmd": {
@@ -630,13 +647,14 @@
             ]
         },
         "cass001": {
-            "host_name": "sampledeployment002-cass001",
+            "host_name": "sampledeployment005-cass001",
             "security_group": "internal",
-            "root_key_name": "sampledeployment002-root-key",
+            "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.11",
-            "flavor": "c5d.4xlarge",
-            "image": "ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw",
-            "availability_zone": "us-central-1a",
+            "flavor": "c7gn.8xlarge",
+            "image": "ami-064b469793e32e5d2",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
             "id": "",
             "service": {
                 "env": {
@@ -666,13 +684,14 @@
             }
         },
         "cass002": {
-            "host_name": "sampledeployment002-cass002",
+            "host_name": "sampledeployment005-cass002",
             "security_group": "internal",
-            "root_key_name": "sampledeployment002-root-key",
+            "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.12",
-            "flavor": "c5d.4xlarge",
-            "image": "ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw",
-            "availability_zone": "us-central-1a",
+            "flavor": "c7gn.8xlarge",
+            "image": "ami-064b469793e32e5d2",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
             "id": "",
             "service": {
                 "env": {
@@ -702,13 +721,14 @@
             }
         },
         "cass003": {
-            "host_name": "sampledeployment002-cass003",
+            "host_name": "sampledeployment005-cass003",
             "security_group": "internal",
-            "root_key_name": "sampledeployment002-root-key",
+            "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.13",
-            "flavor": "c5d.4xlarge",
-            "image": "ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw",
-            "availability_zone": "us-central-1a",
+            "flavor": "c7gn.8xlarge",
+            "image": "ami-064b469793e32e5d2",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
             "id": "",
             "service": {
                 "env": {
@@ -738,13 +758,14 @@
             }
         },
         "cass004": {
-            "host_name": "sampledeployment002-cass004",
+            "host_name": "sampledeployment005-cass004",
             "security_group": "internal",
-            "root_key_name": "sampledeployment002-root-key",
+            "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.14",
-            "flavor": "c5d.4xlarge",
-            "image": "ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw",
-            "availability_zone": "us-central-1a",
+            "flavor": "c7gn.8xlarge",
+            "image": "ami-064b469793e32e5d2",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
             "id": "",
             "service": {
                 "env": {
@@ -774,13 +795,14 @@
             }
         },
         "cass005": {
-            "host_name": "sampledeployment002-cass005",
+            "host_name": "sampledeployment005-cass005",
             "security_group": "internal",
-            "root_key_name": "sampledeployment002-root-key",
+            "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.15",
-            "flavor": "c5d.4xlarge",
-            "image": "ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw",
-            "availability_zone": "us-central-1a",
+            "flavor": "c7gn.8xlarge",
+            "image": "ami-064b469793e32e5d2",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
             "id": "",
             "service": {
                 "env": {
@@ -810,13 +832,14 @@
             }
         },
         "cass006": {
-            "host_name": "sampledeployment002-cass006",
+            "host_name": "sampledeployment005-cass006",
             "security_group": "internal",
-            "root_key_name": "sampledeployment002-root-key",
+            "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.16",
-            "flavor": "c5d.4xlarge",
-            "image": "ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw",
-            "availability_zone": "us-central-1a",
+            "flavor": "c7gn.8xlarge",
+            "image": "ami-064b469793e32e5d2",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
             "id": "",
             "service": {
                 "env": {
@@ -846,13 +869,14 @@
             }
         },
         "cass007": {
-            "host_name": "sampledeployment002-cass007",
+            "host_name": "sampledeployment005-cass007",
             "security_group": "internal",
-            "root_key_name": "sampledeployment002-root-key",
+            "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.17",
-            "flavor": "c5d.4xlarge",
-            "image": "ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw",
-            "availability_zone": "us-central-1a",
+            "flavor": "c7gn.8xlarge",
+            "image": "ami-064b469793e32e5d2",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
             "id": "",
             "service": {
                 "env": {
@@ -882,13 +906,14 @@
             }
         },
         "cass008": {
-            "host_name": "sampledeployment002-cass008",
+            "host_name": "sampledeployment005-cass008",
             "security_group": "internal",
-            "root_key_name": "sampledeployment002-root-key",
+            "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.18",
-            "flavor": "c5d.4xlarge",
-            "image": "ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw",
-            "availability_zone": "us-central-1a",
+            "flavor": "c7gn.8xlarge",
+            "image": "ami-064b469793e32e5d2",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
             "id": "",
             "service": {
                 "env": {
@@ -918,27 +943,28 @@
             }
         },
         "daemon001": {
-            "host_name": "sampledeployment002-daemon001",
+            "host_name": "sampledeployment005-daemon001",
             "security_group": "internal",
-            "root_key_name": "sampledeployment002-root-key",
+            "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.101",
-            "flavor": "c6sd.2xlarge",
-            "image": "ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw",
-            "availability_zone": "us-central-1a",
+            "flavor": "c7gn.4xlarge",
+            "image": "ami-064b469793e32e5d2",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
             "id": "",
             "private_keys": [
                 {
                     "name": "{CAPIDEPLOY_SFTP_USER}",
-                    "private_key_path": "~/.ssh/sampledeployment002_sftp"
+                    "private_key_path": "~/.ssh/sampledeployment005_sftp"
                 }
             ],
             "service": {
                 "env": {
                     "AMQP_URL": "amqp://{CAPIDEPLOY_RABBITMQ_USER_NAME}:{CAPIDEPLOY_RABBITMQ_USER_PASS}@10.5.0.5/",
                     "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\"]'",
-                    "DAEMON_DB_WRITERS": "8",
-                    "DAEMON_THREAD_POOL_SIZE": "8",
-                    "INTERNAL_BASTION_IP": "10.5.0.10",
+                    "DAEMON_DB_WRITERS": "32",
+                    "DAEMON_THREAD_POOL_SIZE": "32",
+                    "INTERNAL_BASTION_IP": "10.5.1.10",
                     "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",
                     "SFTP_USER": "{CAPIDEPLOY_SFTP_USER}",
@@ -972,27 +998,28 @@
             ]
         },
         "daemon002": {
-            "host_name": "sampledeployment002-daemon002",
+            "host_name": "sampledeployment005-daemon002",
             "security_group": "internal",
-            "root_key_name": "sampledeployment002-root-key",
+            "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.102",
-            "flavor": "c6sd.2xlarge",
-            "image": "ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw",
-            "availability_zone": "us-central-1a",
+            "flavor": "c7gn.4xlarge",
+            "image": "ami-064b469793e32e5d2",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
             "id": "",
             "private_keys": [
                 {
                     "name": "{CAPIDEPLOY_SFTP_USER}",
-                    "private_key_path": "~/.ssh/sampledeployment002_sftp"
+                    "private_key_path": "~/.ssh/sampledeployment005_sftp"
                 }
             ],
             "service": {
                 "env": {
                     "AMQP_URL": "amqp://{CAPIDEPLOY_RABBITMQ_USER_NAME}:{CAPIDEPLOY_RABBITMQ_USER_PASS}@10.5.0.5/",
                     "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\"]'",
-                    "DAEMON_DB_WRITERS": "8",
-                    "DAEMON_THREAD_POOL_SIZE": "8",
-                    "INTERNAL_BASTION_IP": "10.5.0.10",
+                    "DAEMON_DB_WRITERS": "32",
+                    "DAEMON_THREAD_POOL_SIZE": "32",
+                    "INTERNAL_BASTION_IP": "10.5.1.10",
                     "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",
                     "SFTP_USER": "{CAPIDEPLOY_SFTP_USER}",
@@ -1026,27 +1053,28 @@
             ]
         },
         "daemon003": {
-            "host_name": "sampledeployment002-daemon003",
+            "host_name": "sampledeployment005-daemon003",
             "security_group": "internal",
-            "root_key_name": "sampledeployment002-root-key",
+            "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.103",
-            "flavor": "c6sd.2xlarge",
-            "image": "ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw",
-            "availability_zone": "us-central-1a",
+            "flavor": "c7gn.4xlarge",
+            "image": "ami-064b469793e32e5d2",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
             "id": "",
             "private_keys": [
                 {
                     "name": "{CAPIDEPLOY_SFTP_USER}",
-                    "private_key_path": "~/.ssh/sampledeployment002_sftp"
+                    "private_key_path": "~/.ssh/sampledeployment005_sftp"
                 }
             ],
             "service": {
                 "env": {
                     "AMQP_URL": "amqp://{CAPIDEPLOY_RABBITMQ_USER_NAME}:{CAPIDEPLOY_RABBITMQ_USER_PASS}@10.5.0.5/",
                     "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\"]'",
-                    "DAEMON_DB_WRITERS": "8",
-                    "DAEMON_THREAD_POOL_SIZE": "8",
-                    "INTERNAL_BASTION_IP": "10.5.0.10",
+                    "DAEMON_DB_WRITERS": "32",
+                    "DAEMON_THREAD_POOL_SIZE": "32",
+                    "INTERNAL_BASTION_IP": "10.5.1.10",
                     "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",
                     "SFTP_USER": "{CAPIDEPLOY_SFTP_USER}",
@@ -1080,27 +1108,28 @@
             ]
         },
         "daemon004": {
-            "host_name": "sampledeployment002-daemon004",
+            "host_name": "sampledeployment005-daemon004",
             "security_group": "internal",
-            "root_key_name": "sampledeployment002-root-key",
+            "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.104",
-            "flavor": "c6sd.2xlarge",
-            "image": "ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw",
-            "availability_zone": "us-central-1a",
+            "flavor": "c7gn.4xlarge",
+            "image": "ami-064b469793e32e5d2",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
             "id": "",
             "private_keys": [
                 {
                     "name": "{CAPIDEPLOY_SFTP_USER}",
-                    "private_key_path": "~/.ssh/sampledeployment002_sftp"
+                    "private_key_path": "~/.ssh/sampledeployment005_sftp"
                 }
             ],
             "service": {
                 "env": {
                     "AMQP_URL": "amqp://{CAPIDEPLOY_RABBITMQ_USER_NAME}:{CAPIDEPLOY_RABBITMQ_USER_PASS}@10.5.0.5/",
                     "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\"]'",
-                    "DAEMON_DB_WRITERS": "8",
-                    "DAEMON_THREAD_POOL_SIZE": "8",
-                    "INTERNAL_BASTION_IP": "10.5.0.10",
+                    "DAEMON_DB_WRITERS": "32",
+                    "DAEMON_THREAD_POOL_SIZE": "32",
+                    "INTERNAL_BASTION_IP": "10.5.1.10",
                     "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",
                     "SFTP_USER": "{CAPIDEPLOY_SFTP_USER}",
@@ -1134,27 +1163,28 @@
             ]
         },
         "daemon005": {
-            "host_name": "sampledeployment002-daemon005",
+            "host_name": "sampledeployment005-daemon005",
             "security_group": "internal",
-            "root_key_name": "sampledeployment002-root-key",
+            "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.105",
-            "flavor": "c6sd.2xlarge",
-            "image": "ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw",
-            "availability_zone": "us-central-1a",
+            "flavor": "c7gn.4xlarge",
+            "image": "ami-064b469793e32e5d2",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
             "id": "",
             "private_keys": [
                 {
                     "name": "{CAPIDEPLOY_SFTP_USER}",
-                    "private_key_path": "~/.ssh/sampledeployment002_sftp"
+                    "private_key_path": "~/.ssh/sampledeployment005_sftp"
                 }
             ],
             "service": {
                 "env": {
                     "AMQP_URL": "amqp://{CAPIDEPLOY_RABBITMQ_USER_NAME}:{CAPIDEPLOY_RABBITMQ_USER_PASS}@10.5.0.5/",
                     "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\"]'",
-                    "DAEMON_DB_WRITERS": "8",
-                    "DAEMON_THREAD_POOL_SIZE": "8",
-                    "INTERNAL_BASTION_IP": "10.5.0.10",
+                    "DAEMON_DB_WRITERS": "32",
+                    "DAEMON_THREAD_POOL_SIZE": "32",
+                    "INTERNAL_BASTION_IP": "10.5.1.10",
                     "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",
                     "SFTP_USER": "{CAPIDEPLOY_SFTP_USER}",
@@ -1188,27 +1218,28 @@
             ]
         },
         "daemon006": {
-            "host_name": "sampledeployment002-daemon006",
+            "host_name": "sampledeployment005-daemon006",
             "security_group": "internal",
-            "root_key_name": "sampledeployment002-root-key",
+            "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.106",
-            "flavor": "c6sd.2xlarge",
-            "image": "ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw",
-            "availability_zone": "us-central-1a",
+            "flavor": "c7gn.4xlarge",
+            "image": "ami-064b469793e32e5d2",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
             "id": "",
             "private_keys": [
                 {
                     "name": "{CAPIDEPLOY_SFTP_USER}",
-                    "private_key_path": "~/.ssh/sampledeployment002_sftp"
+                    "private_key_path": "~/.ssh/sampledeployment005_sftp"
                 }
             ],
             "service": {
                 "env": {
                     "AMQP_URL": "amqp://{CAPIDEPLOY_RABBITMQ_USER_NAME}:{CAPIDEPLOY_RABBITMQ_USER_PASS}@10.5.0.5/",
                     "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\"]'",
-                    "DAEMON_DB_WRITERS": "8",
-                    "DAEMON_THREAD_POOL_SIZE": "8",
-                    "INTERNAL_BASTION_IP": "10.5.0.10",
+                    "DAEMON_DB_WRITERS": "32",
+                    "DAEMON_THREAD_POOL_SIZE": "32",
+                    "INTERNAL_BASTION_IP": "10.5.1.10",
                     "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",
                     "SFTP_USER": "{CAPIDEPLOY_SFTP_USER}",
@@ -1242,27 +1273,28 @@
             ]
         },
         "daemon007": {
-            "host_name": "sampledeployment002-daemon007",
+            "host_name": "sampledeployment005-daemon007",
             "security_group": "internal",
-            "root_key_name": "sampledeployment002-root-key",
+            "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.107",
-            "flavor": "c6sd.2xlarge",
-            "image": "ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw",
-            "availability_zone": "us-central-1a",
+            "flavor": "c7gn.4xlarge",
+            "image": "ami-064b469793e32e5d2",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
             "id": "",
             "private_keys": [
                 {
                     "name": "{CAPIDEPLOY_SFTP_USER}",
-                    "private_key_path": "~/.ssh/sampledeployment002_sftp"
+                    "private_key_path": "~/.ssh/sampledeployment005_sftp"
                 }
             ],
             "service": {
                 "env": {
                     "AMQP_URL": "amqp://{CAPIDEPLOY_RABBITMQ_USER_NAME}:{CAPIDEPLOY_RABBITMQ_USER_PASS}@10.5.0.5/",
                     "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\"]'",
-                    "DAEMON_DB_WRITERS": "8",
-                    "DAEMON_THREAD_POOL_SIZE": "8",
-                    "INTERNAL_BASTION_IP": "10.5.0.10",
+                    "DAEMON_DB_WRITERS": "32",
+                    "DAEMON_THREAD_POOL_SIZE": "32",
+                    "INTERNAL_BASTION_IP": "10.5.1.10",
                     "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",
                     "SFTP_USER": "{CAPIDEPLOY_SFTP_USER}",
@@ -1296,27 +1328,28 @@
             ]
         },
         "daemon008": {
-            "host_name": "sampledeployment002-daemon008",
+            "host_name": "sampledeployment005-daemon008",
             "security_group": "internal",
-            "root_key_name": "sampledeployment002-root-key",
+            "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.108",
-            "flavor": "c6sd.2xlarge",
-            "image": "ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw",
-            "availability_zone": "us-central-1a",
+            "flavor": "c7gn.4xlarge",
+            "image": "ami-064b469793e32e5d2",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
             "id": "",
             "private_keys": [
                 {
                     "name": "{CAPIDEPLOY_SFTP_USER}",
-                    "private_key_path": "~/.ssh/sampledeployment002_sftp"
+                    "private_key_path": "~/.ssh/sampledeployment005_sftp"
                 }
             ],
             "service": {
                 "env": {
                     "AMQP_URL": "amqp://{CAPIDEPLOY_RABBITMQ_USER_NAME}:{CAPIDEPLOY_RABBITMQ_USER_PASS}@10.5.0.5/",
                     "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\"]'",
-                    "DAEMON_DB_WRITERS": "8",
-                    "DAEMON_THREAD_POOL_SIZE": "8",
-                    "INTERNAL_BASTION_IP": "10.5.0.10",
+                    "DAEMON_DB_WRITERS": "32",
+                    "DAEMON_THREAD_POOL_SIZE": "32",
+                    "INTERNAL_BASTION_IP": "10.5.1.10",
                     "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",
                     "SFTP_USER": "{CAPIDEPLOY_SFTP_USER}",
@@ -1350,18 +1383,19 @@
             ]
         },
         "prometheus": {
-            "host_name": "sampledeployment002-prometheus",
+            "host_name": "sampledeployment005-prometheus",
             "security_group": "internal",
-            "root_key_name": "sampledeployment002-root-key",
+            "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.4",
-            "flavor": "t5sd.large",
-            "image": "ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw",
-            "availability_zone": "us-central-1a",
+            "flavor": "c7g.medium",
+            "image": "ami-064b469793e32e5d2",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
             "id": "",
             "service": {
                 "env": {
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",
-                    "PROMETHEUS_TARGETS": "\\'localhost:9100\\',\\'10.5.0.10:9100\\',\\'10.5.0.5:9100\\',\\'10.5.0.11:9100\\',\\'10.5.0.12:9100\\',\\'10.5.0.13:9100\\',\\'10.5.0.14:9100\\',\\'10.5.0.15:9100\\',\\'10.5.0.16:9100\\',\\'10.5.0.17:9100\\',\\'10.5.0.18:9100\\',\\'10.5.0.11:9500\\',\\'10.5.0.12:9500\\',\\'10.5.0.13:9500\\',\\'10.5.0.14:9500\\',\\'10.5.0.15:9500\\',\\'10.5.0.16:9500\\',\\'10.5.0.17:9500\\',\\'10.5.0.18:9500\\',\\'10.5.0.101:9100\\',\\'10.5.0.102:9100\\',\\'10.5.0.103:9100\\',\\'10.5.0.104:9100\\',\\'10.5.0.105:9100\\',\\'10.5.0.106:9100\\',\\'10.5.0.107:9100\\',\\'10.5.0.108:9100\\'",
+                    "PROMETHEUS_TARGETS": "\\'localhost:9100\\',\\'10.5.1.10:9100\\',\\'10.5.0.5:9100\\',\\'10.5.0.11:9100\\',\\'10.5.0.12:9100\\',\\'10.5.0.13:9100\\',\\'10.5.0.14:9100\\',\\'10.5.0.15:9100\\',\\'10.5.0.16:9100\\',\\'10.5.0.17:9100\\',\\'10.5.0.18:9100\\',\\'10.5.0.11:9500\\',\\'10.5.0.12:9500\\',\\'10.5.0.13:9500\\',\\'10.5.0.14:9500\\',\\'10.5.0.15:9500\\',\\'10.5.0.16:9500\\',\\'10.5.0.17:9500\\',\\'10.5.0.18:9500\\',\\'10.5.0.101:9100\\',\\'10.5.0.102:9100\\',\\'10.5.0.103:9100\\',\\'10.5.0.104:9100\\',\\'10.5.0.105:9100\\',\\'10.5.0.106:9100\\',\\'10.5.0.107:9100\\',\\'10.5.0.108:9100\\'",
                     "PROMETHEUS_VERSION": "2.45.0"
                 },
                 "cmd": {
@@ -1384,13 +1418,14 @@
             }
         },
         "rabbitmq": {
-            "host_name": "sampledeployment002-rabbitmq",
+            "host_name": "sampledeployment005-rabbitmq",
             "security_group": "internal",
-            "root_key_name": "sampledeployment002-root-key",
+            "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.5",
-            "flavor": "t5sd.large",
-            "image": "ubuntu-23.04_LTS-lunar-server-cloudimg-amd64-20221217_raw",
-            "availability_zone": "us-central-1a",
+            "flavor": "c7g.medium",
+            "image": "ami-064b469793e32e5d2",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
             "id": "",
             "service": {
                 "env": {
@@ -1420,5 +1455,6 @@
             }
         }
     },
-    "OpenstackVars": null
+    "deploy_provider_name": "aws",
+    "CliEnvVars": null
 }

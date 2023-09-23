@@ -50,7 +50,6 @@ func getNicknamesArg(commonArgs *flag.FlagSet, entityName string) (string, error
 	if len(os.Args) < 3 {
 		return "", fmt.Errorf("not enough args, expected comma-separated list of %s or '*'", entityName)
 	}
-	commonArgs.Parse(os.Args[3:])
 	if len(os.Args[2]) == 0 {
 		return "", fmt.Errorf("bad arg, expected comma-separated list of %s or '*'", entityName)
 	}
@@ -186,22 +185,38 @@ func main() {
 	var prjErr error
 
 	singleThreadCommands := map[string]SingleThreadCmdHandler{
-		CmdCreateFloatingIp:     deploy.CreateFloatingIp,
-		CmdDeleteFloatingIp:     deploy.DeleteFloatingIp,
-		CmdCreateSecurityGroups: deploy.CreateSecurityGroups,
-		CmdDeleteSecurityGroups: deploy.DeleteSecurityGroups,
-		CmdCreateNetworking:     deploy.CreateNetworking,
-		CmdDeleteNetworking:     deploy.DeleteNetworking,
+		CmdCreateFloatingIp:     nil,
+		CmdDeleteFloatingIp:     nil,
+		CmdCreateSecurityGroups: nil,
+		CmdDeleteSecurityGroups: nil,
+		CmdCreateNetworking:     nil,
+		CmdDeleteNetworking:     nil,
 		CmdBuildArtifacts:       deploy.BuildArtifacts,
 	}
 
-	if cmdHandler, ok := singleThreadCommands[os.Args[1]]; ok {
+	if _, ok := singleThreadCommands[os.Args[1]]; ok {
 		commonArgs.Parse(os.Args[2:])
-		prjPair, fullPrjPath, prjErr = deploy.LoadProject(*argPrjFile)
-		if prjErr != nil {
-			log.Fatalf(prjErr.Error())
-		}
+	} else {
+		commonArgs.Parse(os.Args[3:])
+	}
 
+	prjPair, fullPrjPath, prjErr = deploy.LoadProject(*argPrjFile)
+	if prjErr != nil {
+		log.Fatalf(prjErr.Error())
+	}
+
+	deployProvider, deployProviderErr := deploy.DeployProviderFactory(prjPair.Template.DeployProviderName)
+	if deployProviderErr != nil {
+		log.Fatalf(deployProviderErr.Error())
+	}
+	singleThreadCommands[CmdCreateFloatingIp] = deployProvider.CreateFloatingIp
+	singleThreadCommands[CmdDeleteFloatingIp] = deployProvider.DeleteFloatingIp
+	singleThreadCommands[CmdCreateSecurityGroups] = deployProvider.CreateSecurityGroups
+	singleThreadCommands[CmdDeleteSecurityGroups] = deployProvider.DeleteSecurityGroups
+	singleThreadCommands[CmdCreateNetworking] = deployProvider.CreateNetworking
+	singleThreadCommands[CmdDeleteNetworking] = deployProvider.DeleteNetworking
+
+	if cmdHandler, ok := singleThreadCommands[os.Args[1]]; ok {
 		errChan = make(chan error, errorsExpected)
 		sem <- 1
 		go func() {
@@ -211,11 +226,6 @@ func main() {
 			<-sem
 		}()
 	} else if os.Args[1] == CmdCreateInstances || os.Args[1] == CmdDeleteInstances {
-		commonArgs.Parse(os.Args[3:])
-		prjPair, fullPrjPath, prjErr = deploy.LoadProject(*argPrjFile)
-		if prjErr != nil {
-			log.Fatalf(prjErr.Error())
-		}
 		nicknames, err := getNicknamesArg(commonArgs, "instances")
 		if err != nil {
 			log.Fatalf(err.Error())
@@ -237,21 +247,21 @@ func main() {
 				usedImages[instDef.ImageName] = ""
 				usedKeypairs[instDef.RootKeyName] = struct{}{}
 			}
-			logMsg, err := deploy.GetFlavorIds(prjPair, usedFlavors, *argVerbosity)
+			logMsg, err := deployProvider.GetFlavorIds(prjPair, usedFlavors, *argVerbosity)
 			logChan <- logMsg
 			DumpLogChan(logChan)
 			if err != nil {
 				log.Fatalf(err.Error())
 			}
 
-			logMsg, err = deploy.GetImageIds(prjPair, usedImages, *argVerbosity)
+			logMsg, err = deployProvider.GetImageIds(prjPair, usedImages, *argVerbosity)
 			logChan <- logMsg
 			DumpLogChan(logChan)
 			if err != nil {
 				log.Fatalf(err.Error())
 			}
 
-			logMsg, err = deploy.GetKeypairs(prjPair, usedKeypairs, *argVerbosity)
+			logMsg, err = deployProvider.GetKeypairs(prjPair, usedKeypairs, *argVerbosity)
 			logChan <- logMsg
 			DumpLogChan(logChan)
 			if err != nil {
@@ -263,16 +273,16 @@ func main() {
 				fmt.Printf("ssh-keygen -f ~/.ssh/known_hosts -R %s;\n", i.BestIpAddress())
 			}
 
-			for iNickname, _ := range instances {
+			for iNickname := range instances {
 				<-throttle
 				sem <- 1
 				go func(prjPair *deploy.ProjectPair, logChan chan deploy.LogMsg, errChan chan error, iNickname string) {
-					logMsg, err := deploy.CreateInstanceAndWaitForCompletion(
+					logMsg, err := deployProvider.CreateInstanceAndWaitForCompletion(
 						prjPair,
 						iNickname,
 						usedFlavors[prjPair.Live.Instances[iNickname].FlavorName],
 						usedImages[prjPair.Live.Instances[iNickname].ImageName],
-						usedImages[prjPair.Live.Instances[iNickname].AvailabilityZone],
+						prjPair.Live.Instances[iNickname].AvailabilityZone,
 						*argVerbosity)
 					logChan <- logMsg
 					errChan <- err
@@ -280,11 +290,11 @@ func main() {
 				}(prjPair, logChan, errChan, iNickname)
 			}
 		case CmdDeleteInstances:
-			for iNickname, _ := range instances {
+			for iNickname := range instances {
 				<-throttle
 				sem <- 1
 				go func(prjPair *deploy.ProjectPair, logChan chan deploy.LogMsg, errChan chan error, iNickname string) {
-					logMsg, err := deploy.DeleteInstance(prjPair, iNickname, *argVerbosity)
+					logMsg, err := deployProvider.DeleteInstance(prjPair, iNickname, *argVerbosity)
 					logChan <- logMsg
 					errChan <- err
 					<-sem
@@ -300,11 +310,6 @@ func main() {
 		os.Args[1] == CmdConfigServices ||
 		os.Args[1] == CmdStartServices ||
 		os.Args[1] == CmdStopServices {
-		commonArgs.Parse(os.Args[3:])
-		prjPair, fullPrjPath, prjErr = deploy.LoadProject(*argPrjFile)
-		if prjErr != nil {
-			log.Fatalf(prjErr.Error())
-		}
 		nicknames, err := getNicknamesArg(commonArgs, "instances")
 		if err != nil {
 			log.Fatalf(err.Error())
@@ -364,11 +369,6 @@ func main() {
 		}
 
 	} else if os.Args[1] == CmdCreateVolumes || os.Args[1] == CmdAttachVolumes || os.Args[1] == CmdDeleteVolumes {
-		commonArgs.Parse(os.Args[3:])
-		prjPair, fullPrjPath, prjErr = deploy.LoadProject(*argPrjFile)
-		if prjErr != nil {
-			log.Fatalf(prjErr.Error())
-		}
 		nicknames, err := getNicknamesArg(commonArgs, "instances")
 		if err != nil {
 			log.Fatalf(err.Error())
@@ -396,21 +396,21 @@ func main() {
 				switch os.Args[1] {
 				case CmdCreateVolumes:
 					go func(prjPair *deploy.ProjectPair, logChan chan deploy.LogMsg, errChan chan error, iNickname string, volNickname string) {
-						logMsg, err := deploy.CreateVolume(prjPair, iNickname, volNickname, *argVerbosity)
+						logMsg, err := deployProvider.CreateVolume(prjPair, iNickname, volNickname, *argVerbosity)
 						logChan <- logMsg
 						errChan <- err
 						<-sem
 					}(prjPair, logChan, errChan, iNickname, volNickname)
 				case CmdAttachVolumes:
 					go func(prjPair *deploy.ProjectPair, logChan chan deploy.LogMsg, errChan chan error, iNickname string, volNickname string) {
-						logMsg, err := deploy.AttachVolume(prjPair, iNickname, volNickname, *argVerbosity)
+						logMsg, err := deployProvider.AttachVolume(prjPair, iNickname, volNickname, *argVerbosity)
 						logChan <- logMsg
 						errChan <- err
 						<-sem
 					}(prjPair, logChan, errChan, iNickname, volNickname)
 				case CmdDeleteVolumes:
 					go func(prjPair *deploy.ProjectPair, logChan chan deploy.LogMsg, errChan chan error, iNickname string, volNickname string) {
-						logMsg, err := deploy.DeleteVolume(prjPair, iNickname, volNickname, *argVerbosity)
+						logMsg, err := deployProvider.DeleteVolume(prjPair, iNickname, volNickname, *argVerbosity)
 						logChan <- logMsg
 						errChan <- err
 						<-sem
@@ -421,11 +421,6 @@ func main() {
 			}
 		}
 	} else {
-		commonArgs.Parse(os.Args[3:])
-		prjPair, fullPrjPath, prjErr = deploy.LoadProject(*argPrjFile)
-		if prjErr != nil {
-			log.Fatalf(prjErr.Error())
-		}
 		switch os.Args[1] {
 		case CmdUploadFiles:
 			nicknames, err := getNicknamesArg(commonArgs, "file groups to upload")
@@ -507,13 +502,14 @@ func main() {
 	}
 
 	finalCmdErr := waitForWorkers(errorsExpected, errChan, logChan)
-	if finalCmdErr > 0 {
-		os.Exit(finalCmdErr)
-	}
 
 	// Save updated project template, it may have some new ids and timestamps
 	if prjErr = prjPair.Template.SaveProject(fullPrjPath); prjErr != nil {
 		log.Fatalf(prjErr.Error())
+	}
+
+	if finalCmdErr > 0 {
+		os.Exit(finalCmdErr)
 	}
 
 	fmt.Printf("%s %sOK%s, elapsed %.3fs\n", os.Args[1], deploy.LogColorGreen, deploy.LogColorReset, time.Since(cmdStartTs).Seconds())

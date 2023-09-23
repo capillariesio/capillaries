@@ -91,6 +91,13 @@ export OS_REGION_NAME="dc3-a"
 export OS_INTERFACE=public
 export OS_IDENTITY_API_VERSION=3
 
+# AWS settings
+
+export AWS_ACCESS_KEY_ID=A...
+export AWS_SECRET_ACCESS_KEY=...
+export AWS_DEFAULT_REGION=us-east-1
+
+
 ```
 
 5. Optionally, build deploy tool so you do not have to run `go run ../../build/capideploy.exe` every time and use `$capideploy` shortcut instead (this is a WSL example):
@@ -125,8 +132,8 @@ $capideploy create_floating_ip -prj=sampledeployment.json
 
 # Openstack networking and volumes
 
-$capideploy create_security_groups -prj=sampledeployment.json;
 $capideploy create_networking -prj=sampledeployment.json;
+$capideploy create_security_groups -prj=sampledeployment.json;
 $capideploy create_volumes '*' -prj=sampledeployment.json;
 
 # Create all instances in one shot
@@ -344,8 +351,8 @@ $capideploy delete_instances '*' -prj=sampledeployment.json
 # Delete volumes, networking, security groups and floating ip
 
 $capideploy delete_volumes '*' -prj=sampledeployment.json;
-$capideploy delete_networking -prj=sampledeployment.json;
 $capideploy delete_security_groups -prj=sampledeployment.json;
+$capideploy delete_networking -prj=sampledeployment.json;
 $capideploy delete_floating_ip -prj=sampledeployment.json;
 ```
 

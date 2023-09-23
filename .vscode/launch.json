@@ -4,6 +4,27 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+
+        {
+            "name": "Create floating IP",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
+            "envFile": "${env:HOME}/sampledeployment005.rc",
+            "args": ["create_floating_ip", "-prj", "../../../test/deploy/sampledeployment.json", "-verbose"]
+        },
+        {
+            "name": "Delete floating IP",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
+            "envFile": "${env:HOME}/sampledeployment005.rc",
+            "args": ["delete_floating_ip", "-prj", "../../../test/deploy/sampledeployment.json", "-verbose"]
+        },
         {
             "name": "Generate portfolio bigtest data",
             "type": "go",
@@ -20,7 +41,8 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
-            "args": ["create_security_groups", "-prj", "sampledeployment002.json", "-verbose"]
+            "envFile": "${env:HOME}/sampledeployment005.rc",
+            "args": ["create_security_groups", "-prj=../../../test/deploy/sampledeployment.json", "--verbose"]
         },
         {
             "name": "Deploy delete security group",
@@ -29,25 +51,28 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
-            "args": ["delete_security_group", "-prj", "sampledeployment002.json", "-verbose"]
+            "envFile": "${env:HOME}/sampledeployment005.rc",
+            "args": ["delete_security_groups", "-prj=../../../test/deploy/sampledeployment.json", "--verbose"]
         },
         {
             "name": "Deploy create networking",
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "cwd":"${workspaceFolder}/test/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
-            "args": ["create_networking", "-prj", "sampledeployment002.json", "-verbose"]
+            "envFile": "${env:HOME}/sampledeployment005.rc",
+            "args": ["create_networking", "-prj=sampledeployment.json", "-verbose"]
         },
         {
             "name": "Deploy delete networking",
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "cwd":"${workspaceFolder}/test/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
-            "args": ["delete_networking", "-prj", "sampledeployment002.json", "-verbose"]
+            "envFile": "${env:HOME}/sampledeployment005.rc",
+            "args": ["delete_networking", "-prj=sampledeployment.json", "-verbose"]
         },
         {
             "name": "Deploy create volumes",
@@ -72,9 +97,10 @@
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "cwd":"${workspaceFolder}/pkg/exe/deploy",
+            "cwd":"${workspaceFolder}/test/deploy",
             "program": "${workspaceFolder}/pkg/exe/deploy/capideploy.go",
-            "args": ["create_instances", "bastion,daemon001", "-prj", "sampledeployment002.json", "-verbose"]
+            "envFile": "${env:HOME}/sampledeployment005.rc",
+            "args": ["create_instances", "bastion", "-prj=sampledeployment.json", "-verbose"]
         },
         {
             "name": "Deploy delete instances",
