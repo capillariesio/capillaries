@@ -5,14 +5,14 @@
   local dep_name = 'sampledeployment005',  // Can be any combination of alphanumeric characters. Make it unique.
 
   // x - test bare minimum, 2x - better, 4x - decent test, 16x - that's where it gets interesting
-  local cassandra_node_flavor = 'aws.c7gn.32',
-  local architecture = 'arm64', // amd64 or arm64 
+  local cassandra_node_flavor = 'aws.c6a.32',
+  local architecture = 'amd64', // amd64 or arm64 
   // Cassandra cluster size - 4,8,16
-  local cassandra_total_nodes = 8, 
+  local cassandra_total_nodes = 16, 
   // If tasks are CPU-intensive (Python calc), make it equal to cassandra_total_nodes, otherwise cassandra_total_nodes/2
   local daemon_total_instances = cassandra_total_nodes, 
   local DEFAULT_DAEMON_THREAD_POOL_SIZE = '24', // daemon_cores*1.5
-  local DEFAULT_DAEMON_DB_WRITERS = '24', // Depends on cassandra perf, reasonable values are 5-20
+  local DEFAULT_DAEMON_DB_WRITERS = '16', // Depends on cassandra latency, reasonable values are 5-20
 
   // Basics
   local default_root_key_name = dep_name + '-root-key',  // This should match the name of the keypair you already created in Openstack/AWS
@@ -71,7 +71,7 @@
     else if cassandra_total_nodes == 8 then ['-9223372036854775808', '-6917529027641081856', '-4611686018427387904', '-2305843009213693952', '0', '2305843009213693952', '4611686018427387904', '6917529027641081856']
     else if cassandra_total_nodes == 16 then ['-9223372036854775808','-8070450532247928832','-6917529027641081856','-5764607523034234880','-4611686018427387904','-3458764513820540928','-2305843009213693952','-1152921504606846976','0','1152921504606846976','2305843009213693952','3458764513820540928','4611686018427387904','5764607523034234880','6917529027641081856','8070450532247928832']
     else [],
-  local cassandra_seeds = std.format('%s,%s', [cassandra_ips[0], cassandra_ips[1]]),  // Used by cassandra nodes
+  local cassandra_seeds = std.join(',', cassandra_ips),  // Used by cassandra nodes, all are seeds to avoid bootstrapping
   local cassandra_hosts = "'[\"" + std.join('","', cassandra_ips) + "\"]'",  // Used by daemons "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\"]'",
   
   // Instances
@@ -88,7 +88,7 @@
     'sampledeployment004': 'Ubuntu 22.04 LTS Jammy Jellyfish',
     'sampledeployment005':
       if architecture == 'arm64' then 'ami-064b469793e32e5d2' // ubuntu/images/hvm-ssd/ubuntu-lunar-23.04-arm64-server-20230904
-      else if architecture == 'amd4' then 'ami-0d8583a0d8d6dd14f' //ubuntu/images/hvm-ssd/ubuntu-lunar-23.04-amd64-server-20230714
+      else if architecture == 'amd64' then 'ami-0d8583a0d8d6dd14f' //ubuntu/images/hvm-ssd/ubuntu-lunar-23.04-amd64-server-20230714
       else 'unknown-architecture-unknown-image'
   }, dep_name),
 
@@ -133,9 +133,13 @@
       '4x': 'c6a.large',
       '16x': 'c6a.large',
       'aws.c6a.32': 'c6a.large',
+      'aws.c6a.64': 'c6a.large',
+      'aws.c7g.16': 'c7g.large',
       'aws.c7g.32': 'c7g.large',
       'aws.c7gn.32': 'c7g.large',
+      'aws.c7gn.64': 'c7g.large',
       'aws.c7g.64': 'c7g.large',
+      'aws.c7g.64.all.metal': 'c7g.large',
       'aws.hpc7g.64': 'c7g.large',
       '18x': 'c6a.large',
       '36x': 'c6a.large',
@@ -165,9 +169,13 @@
       '4x': 'c6a.2xlarge',
       '16x': 'c6a.8xlarge',
       'aws.c6a.32': 'c6a.8xlarge',
+      'aws.c6a.64': 'c6a.16xlarge',
+      'aws.c7g.16': 'c7g.4xlarge',
       'aws.c7g.32': 'c7g.8xlarge',
       'aws.c7gn.32': 'c7gn.8xlarge',
+      'aws.c7gn.64': 'c7gn.16xlarge',
       'aws.c7g.64': 'c7g.metal',
+      'aws.c7g.64.all.metal': 'c7g.metal',
       'aws.hpc7g.64': 'hpc7g.16xlarge',      
       '18x': 'c5n.9xlarge',
       '36x': 'c5n.metal',
@@ -197,9 +205,13 @@
       '4x': 'c6a.xlarge',
       '16x': 'c6a.4xlarge',
       'aws.c6a.32': 'c6a.4xlarge',
+      'aws.c6a.64': 'c6a.8xlarge',
+      'aws.c7g.16': 'c7g.2xlarge',
       'aws.c7g.32': 'c7g.4xlarge',
       'aws.c7gn.32': 'c7gn.4xlarge',
+      'aws.c7gn.64': 'c7gn.8xlarge',
       'aws.c7g.64': 'c7g.8xlarge',
+      'aws.c7g.64.all.metal': 'c7g.metal',
       'aws.hpc7g.64': 'hpc7g.8xlarge',
       '18x': 'c5n.4xlarge',
       '36x': 'c5n.9xlarge',

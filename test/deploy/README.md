@@ -160,9 +160,9 @@ $capideploy copy_private_keys 'bastion,daemon*' -prj=sampledeployment.json
 
 $capideploy attach_volumes '*' -prj=sampledeployment.json
 
-# Now it's a good time to start Cassandra cluster in a SEPARATE shell session (that has `CAPIDEPLOY_*` environment variables set, see above). After strating it, and letting it run in parallel, you continue running command in the original shell session.
+# Now it's a good time to start Cassandra cluster in a SEPARATE shell session (that has `CAPIDEPLOY_*` environment variables set, see above). After strating it, and letting it run in parallel, you continue running command in the original shell session. If you run it with `parallel` parameter, make sure all Cassandra nodes are declared as seed in CASSANDRA_SEEDS, this will help avoid slow bootstrapping process. If, for some reason, this approach does not work for your Cassandra setup, use `sequential` parameter.
 
-./start_cluster.sh sampledeployment.json
+./start_cluster.sh parallel sampledeployment.json
 
 # Upload binaries and their configs. Make sure you have all binaries and test data built before uploading them (see above).
 

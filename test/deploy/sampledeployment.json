@@ -250,7 +250,7 @@
             "cidr": "10.5.0.0/24",
             "allocation_pool": "start=10.5.0.240,end=10.5.0.254",
             "availability_zone": "us-east-1a",
-            "route_table_to_nat": "rtb-0c63250d7092a858d"
+            "route_table_to_nat": "rtb-0c314015054dd879b"
         },
         "public_subnet": {
             "name": "sampledeployment005_public_subnet",
@@ -287,7 +287,7 @@
             }
         },
         "up_capiparquet_binary": {
-            "src": "../../build/linux/arm64/capiparquet.gz",
+            "src": "../../build/linux/amd64/capiparquet.gz",
             "dst": "/home/{CAPIDEPLOY_SSH_USER}/bin",
             "dir_permissions": 744,
             "file_permissions": 644,
@@ -301,7 +301,7 @@
             }
         },
         "up_daemon_binary": {
-            "src": "../../build/linux/arm64/capidaemon.gz",
+            "src": "../../build/linux/amd64/capidaemon.gz",
             "dst": "/home/{CAPIDEPLOY_SSH_USER}/bin",
             "dir_permissions": 744,
             "file_permissions": 644,
@@ -453,7 +453,7 @@
             "after": {}
         },
         "up_toolbelt_binary": {
-            "src": "../../build/linux/arm64/capitoolbelt.gz",
+            "src": "../../build/linux/amd64/capitoolbelt.gz",
             "dst": "/home/{CAPIDEPLOY_SSH_USER}/bin",
             "dir_permissions": 744,
             "file_permissions": 644,
@@ -481,7 +481,7 @@
             "after": {}
         },
         "up_webapi_binary": {
-            "src": "../../build/linux/arm64/capiwebapi.gz",
+            "src": "../../build/linux/amd64/capiwebapi.gz",
             "dst": "/home/{CAPIDEPLOY_SSH_USER}/bin",
             "dir_permissions": 744,
             "file_permissions": 644,
@@ -519,8 +519,8 @@
             "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.1.10",
             "uses_ssh_config_external_ip_address": true,
-            "flavor": "c7g.large",
-            "image": "ami-064b469793e32e5d2",
+            "flavor": "c6a.large",
+            "image": "ami-0d8583a0d8d6dd14f",
             "availability_zone": "not-used-borrowed-from-subnet",
             "subnet_type": "public",
             "volumes": {
@@ -580,7 +580,7 @@
             "service": {
                 "env": {
                     "AMQP_URL": "amqp://{CAPIDEPLOY_RABBITMQ_USER_NAME}:{CAPIDEPLOY_RABBITMQ_USER_PASS}@10.5.0.5/",
-                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\"]'",
+                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\",\"10.5.0.19\",\"10.5.0.20\",\"10.5.0.21\",\"10.5.0.22\",\"10.5.0.23\",\"10.5.0.24\",\"10.5.0.25\",\"10.5.0.26\"]'",
                     "EXTERNAL_IP_ADDRESS": "{EXTERNAL_IP_ADDRESS}",
                     "NETWORK_CIDR": "10.5.0.0/16",
                     "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
@@ -651,15 +651,15 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.11",
-            "flavor": "c7gn.8xlarge",
-            "image": "ami-064b469793e32e5d2",
+            "flavor": "c6a.8xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
             "availability_zone": "not-used-borrowed-from-subnet",
             "subnet_type": "private",
             "id": "",
             "service": {
                 "env": {
                     "CASSANDRA_IP": "10.5.0.11",
-                    "CASSANDRA_SEEDS": "10.5.0.11,10.5.0.12",
+                    "CASSANDRA_SEEDS": "10.5.0.11,10.5.0.12,10.5.0.13,10.5.0.14,10.5.0.15,10.5.0.16,10.5.0.17,10.5.0.18,10.5.0.19,10.5.0.20,10.5.0.21,10.5.0.22,10.5.0.23,10.5.0.24,10.5.0.25,10.5.0.26",
                     "INITIAL_TOKEN": "-9223372036854775808",
                     "PROMETHEUS_CASSANDRA_EXPORTER_VERSION": "0.9.12",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0"
@@ -688,16 +688,16 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.12",
-            "flavor": "c7gn.8xlarge",
-            "image": "ami-064b469793e32e5d2",
+            "flavor": "c6a.8xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
             "availability_zone": "not-used-borrowed-from-subnet",
             "subnet_type": "private",
             "id": "",
             "service": {
                 "env": {
                     "CASSANDRA_IP": "10.5.0.12",
-                    "CASSANDRA_SEEDS": "10.5.0.11,10.5.0.12",
-                    "INITIAL_TOKEN": "-6917529027641081856",
+                    "CASSANDRA_SEEDS": "10.5.0.11,10.5.0.12,10.5.0.13,10.5.0.14,10.5.0.15,10.5.0.16,10.5.0.17,10.5.0.18,10.5.0.19,10.5.0.20,10.5.0.21,10.5.0.22,10.5.0.23,10.5.0.24,10.5.0.25,10.5.0.26",
+                    "INITIAL_TOKEN": "-8070450532247928832",
                     "PROMETHEUS_CASSANDRA_EXPORTER_VERSION": "0.9.12",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0"
                 },
@@ -725,16 +725,16 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.13",
-            "flavor": "c7gn.8xlarge",
-            "image": "ami-064b469793e32e5d2",
+            "flavor": "c6a.8xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
             "availability_zone": "not-used-borrowed-from-subnet",
             "subnet_type": "private",
             "id": "",
             "service": {
                 "env": {
                     "CASSANDRA_IP": "10.5.0.13",
-                    "CASSANDRA_SEEDS": "10.5.0.11,10.5.0.12",
-                    "INITIAL_TOKEN": "-4611686018427387904",
+                    "CASSANDRA_SEEDS": "10.5.0.11,10.5.0.12,10.5.0.13,10.5.0.14,10.5.0.15,10.5.0.16,10.5.0.17,10.5.0.18,10.5.0.19,10.5.0.20,10.5.0.21,10.5.0.22,10.5.0.23,10.5.0.24,10.5.0.25,10.5.0.26",
+                    "INITIAL_TOKEN": "-6917529027641081856",
                     "PROMETHEUS_CASSANDRA_EXPORTER_VERSION": "0.9.12",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0"
                 },
@@ -762,16 +762,16 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.14",
-            "flavor": "c7gn.8xlarge",
-            "image": "ami-064b469793e32e5d2",
+            "flavor": "c6a.8xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
             "availability_zone": "not-used-borrowed-from-subnet",
             "subnet_type": "private",
             "id": "",
             "service": {
                 "env": {
                     "CASSANDRA_IP": "10.5.0.14",
-                    "CASSANDRA_SEEDS": "10.5.0.11,10.5.0.12",
-                    "INITIAL_TOKEN": "-2305843009213693952",
+                    "CASSANDRA_SEEDS": "10.5.0.11,10.5.0.12,10.5.0.13,10.5.0.14,10.5.0.15,10.5.0.16,10.5.0.17,10.5.0.18,10.5.0.19,10.5.0.20,10.5.0.21,10.5.0.22,10.5.0.23,10.5.0.24,10.5.0.25,10.5.0.26",
+                    "INITIAL_TOKEN": "-5764607523034234880",
                     "PROMETHEUS_CASSANDRA_EXPORTER_VERSION": "0.9.12",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0"
                 },
@@ -799,16 +799,16 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.15",
-            "flavor": "c7gn.8xlarge",
-            "image": "ami-064b469793e32e5d2",
+            "flavor": "c6a.8xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
             "availability_zone": "not-used-borrowed-from-subnet",
             "subnet_type": "private",
             "id": "",
             "service": {
                 "env": {
                     "CASSANDRA_IP": "10.5.0.15",
-                    "CASSANDRA_SEEDS": "10.5.0.11,10.5.0.12",
-                    "INITIAL_TOKEN": "0",
+                    "CASSANDRA_SEEDS": "10.5.0.11,10.5.0.12,10.5.0.13,10.5.0.14,10.5.0.15,10.5.0.16,10.5.0.17,10.5.0.18,10.5.0.19,10.5.0.20,10.5.0.21,10.5.0.22,10.5.0.23,10.5.0.24,10.5.0.25,10.5.0.26",
+                    "INITIAL_TOKEN": "-4611686018427387904",
                     "PROMETHEUS_CASSANDRA_EXPORTER_VERSION": "0.9.12",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0"
                 },
@@ -836,16 +836,16 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.16",
-            "flavor": "c7gn.8xlarge",
-            "image": "ami-064b469793e32e5d2",
+            "flavor": "c6a.8xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
             "availability_zone": "not-used-borrowed-from-subnet",
             "subnet_type": "private",
             "id": "",
             "service": {
                 "env": {
                     "CASSANDRA_IP": "10.5.0.16",
-                    "CASSANDRA_SEEDS": "10.5.0.11,10.5.0.12",
-                    "INITIAL_TOKEN": "2305843009213693952",
+                    "CASSANDRA_SEEDS": "10.5.0.11,10.5.0.12,10.5.0.13,10.5.0.14,10.5.0.15,10.5.0.16,10.5.0.17,10.5.0.18,10.5.0.19,10.5.0.20,10.5.0.21,10.5.0.22,10.5.0.23,10.5.0.24,10.5.0.25,10.5.0.26",
+                    "INITIAL_TOKEN": "-3458764513820540928",
                     "PROMETHEUS_CASSANDRA_EXPORTER_VERSION": "0.9.12",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0"
                 },
@@ -873,16 +873,16 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.17",
-            "flavor": "c7gn.8xlarge",
-            "image": "ami-064b469793e32e5d2",
+            "flavor": "c6a.8xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
             "availability_zone": "not-used-borrowed-from-subnet",
             "subnet_type": "private",
             "id": "",
             "service": {
                 "env": {
                     "CASSANDRA_IP": "10.5.0.17",
-                    "CASSANDRA_SEEDS": "10.5.0.11,10.5.0.12",
-                    "INITIAL_TOKEN": "4611686018427387904",
+                    "CASSANDRA_SEEDS": "10.5.0.11,10.5.0.12,10.5.0.13,10.5.0.14,10.5.0.15,10.5.0.16,10.5.0.17,10.5.0.18,10.5.0.19,10.5.0.20,10.5.0.21,10.5.0.22,10.5.0.23,10.5.0.24,10.5.0.25,10.5.0.26",
+                    "INITIAL_TOKEN": "-2305843009213693952",
                     "PROMETHEUS_CASSANDRA_EXPORTER_VERSION": "0.9.12",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0"
                 },
@@ -910,16 +910,312 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.18",
-            "flavor": "c7gn.8xlarge",
-            "image": "ami-064b469793e32e5d2",
+            "flavor": "c6a.8xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
             "availability_zone": "not-used-borrowed-from-subnet",
             "subnet_type": "private",
             "id": "",
             "service": {
                 "env": {
                     "CASSANDRA_IP": "10.5.0.18",
-                    "CASSANDRA_SEEDS": "10.5.0.11,10.5.0.12",
+                    "CASSANDRA_SEEDS": "10.5.0.11,10.5.0.12,10.5.0.13,10.5.0.14,10.5.0.15,10.5.0.16,10.5.0.17,10.5.0.18,10.5.0.19,10.5.0.20,10.5.0.21,10.5.0.22,10.5.0.23,10.5.0.24,10.5.0.25,10.5.0.26",
+                    "INITIAL_TOKEN": "-1152921504606846976",
+                    "PROMETHEUS_CASSANDRA_EXPORTER_VERSION": "0.9.12",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0"
+                },
+                "cmd": {
+                    "install": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/install_node_exporter.sh",
+                        "sh/cassandra/install.sh"
+                    ],
+                    "config": [
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/cassandra/config.sh"
+                    ],
+                    "start": [
+                        "sh/cassandra/start.sh"
+                    ],
+                    "stop": [
+                        "sh/cassandra/stop.sh"
+                    ]
+                }
+            }
+        },
+        "cass009": {
+            "host_name": "sampledeployment005-cass009",
+            "security_group": "internal",
+            "root_key_name": "sampledeployment005-root-key",
+            "ip_address": "10.5.0.19",
+            "flavor": "c6a.8xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
+            "id": "",
+            "service": {
+                "env": {
+                    "CASSANDRA_IP": "10.5.0.19",
+                    "CASSANDRA_SEEDS": "10.5.0.11,10.5.0.12,10.5.0.13,10.5.0.14,10.5.0.15,10.5.0.16,10.5.0.17,10.5.0.18,10.5.0.19,10.5.0.20,10.5.0.21,10.5.0.22,10.5.0.23,10.5.0.24,10.5.0.25,10.5.0.26",
+                    "INITIAL_TOKEN": "0",
+                    "PROMETHEUS_CASSANDRA_EXPORTER_VERSION": "0.9.12",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0"
+                },
+                "cmd": {
+                    "install": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/install_node_exporter.sh",
+                        "sh/cassandra/install.sh"
+                    ],
+                    "config": [
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/cassandra/config.sh"
+                    ],
+                    "start": [
+                        "sh/cassandra/start.sh"
+                    ],
+                    "stop": [
+                        "sh/cassandra/stop.sh"
+                    ]
+                }
+            }
+        },
+        "cass010": {
+            "host_name": "sampledeployment005-cass010",
+            "security_group": "internal",
+            "root_key_name": "sampledeployment005-root-key",
+            "ip_address": "10.5.0.20",
+            "flavor": "c6a.8xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
+            "id": "",
+            "service": {
+                "env": {
+                    "CASSANDRA_IP": "10.5.0.20",
+                    "CASSANDRA_SEEDS": "10.5.0.11,10.5.0.12,10.5.0.13,10.5.0.14,10.5.0.15,10.5.0.16,10.5.0.17,10.5.0.18,10.5.0.19,10.5.0.20,10.5.0.21,10.5.0.22,10.5.0.23,10.5.0.24,10.5.0.25,10.5.0.26",
+                    "INITIAL_TOKEN": "1152921504606846976",
+                    "PROMETHEUS_CASSANDRA_EXPORTER_VERSION": "0.9.12",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0"
+                },
+                "cmd": {
+                    "install": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/install_node_exporter.sh",
+                        "sh/cassandra/install.sh"
+                    ],
+                    "config": [
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/cassandra/config.sh"
+                    ],
+                    "start": [
+                        "sh/cassandra/start.sh"
+                    ],
+                    "stop": [
+                        "sh/cassandra/stop.sh"
+                    ]
+                }
+            }
+        },
+        "cass011": {
+            "host_name": "sampledeployment005-cass011",
+            "security_group": "internal",
+            "root_key_name": "sampledeployment005-root-key",
+            "ip_address": "10.5.0.21",
+            "flavor": "c6a.8xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
+            "id": "",
+            "service": {
+                "env": {
+                    "CASSANDRA_IP": "10.5.0.21",
+                    "CASSANDRA_SEEDS": "10.5.0.11,10.5.0.12,10.5.0.13,10.5.0.14,10.5.0.15,10.5.0.16,10.5.0.17,10.5.0.18,10.5.0.19,10.5.0.20,10.5.0.21,10.5.0.22,10.5.0.23,10.5.0.24,10.5.0.25,10.5.0.26",
+                    "INITIAL_TOKEN": "2305843009213693952",
+                    "PROMETHEUS_CASSANDRA_EXPORTER_VERSION": "0.9.12",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0"
+                },
+                "cmd": {
+                    "install": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/install_node_exporter.sh",
+                        "sh/cassandra/install.sh"
+                    ],
+                    "config": [
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/cassandra/config.sh"
+                    ],
+                    "start": [
+                        "sh/cassandra/start.sh"
+                    ],
+                    "stop": [
+                        "sh/cassandra/stop.sh"
+                    ]
+                }
+            }
+        },
+        "cass012": {
+            "host_name": "sampledeployment005-cass012",
+            "security_group": "internal",
+            "root_key_name": "sampledeployment005-root-key",
+            "ip_address": "10.5.0.22",
+            "flavor": "c6a.8xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
+            "id": "",
+            "service": {
+                "env": {
+                    "CASSANDRA_IP": "10.5.0.22",
+                    "CASSANDRA_SEEDS": "10.5.0.11,10.5.0.12,10.5.0.13,10.5.0.14,10.5.0.15,10.5.0.16,10.5.0.17,10.5.0.18,10.5.0.19,10.5.0.20,10.5.0.21,10.5.0.22,10.5.0.23,10.5.0.24,10.5.0.25,10.5.0.26",
+                    "INITIAL_TOKEN": "3458764513820540928",
+                    "PROMETHEUS_CASSANDRA_EXPORTER_VERSION": "0.9.12",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0"
+                },
+                "cmd": {
+                    "install": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/install_node_exporter.sh",
+                        "sh/cassandra/install.sh"
+                    ],
+                    "config": [
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/cassandra/config.sh"
+                    ],
+                    "start": [
+                        "sh/cassandra/start.sh"
+                    ],
+                    "stop": [
+                        "sh/cassandra/stop.sh"
+                    ]
+                }
+            }
+        },
+        "cass013": {
+            "host_name": "sampledeployment005-cass013",
+            "security_group": "internal",
+            "root_key_name": "sampledeployment005-root-key",
+            "ip_address": "10.5.0.23",
+            "flavor": "c6a.8xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
+            "id": "",
+            "service": {
+                "env": {
+                    "CASSANDRA_IP": "10.5.0.23",
+                    "CASSANDRA_SEEDS": "10.5.0.11,10.5.0.12,10.5.0.13,10.5.0.14,10.5.0.15,10.5.0.16,10.5.0.17,10.5.0.18,10.5.0.19,10.5.0.20,10.5.0.21,10.5.0.22,10.5.0.23,10.5.0.24,10.5.0.25,10.5.0.26",
+                    "INITIAL_TOKEN": "4611686018427387904",
+                    "PROMETHEUS_CASSANDRA_EXPORTER_VERSION": "0.9.12",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0"
+                },
+                "cmd": {
+                    "install": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/install_node_exporter.sh",
+                        "sh/cassandra/install.sh"
+                    ],
+                    "config": [
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/cassandra/config.sh"
+                    ],
+                    "start": [
+                        "sh/cassandra/start.sh"
+                    ],
+                    "stop": [
+                        "sh/cassandra/stop.sh"
+                    ]
+                }
+            }
+        },
+        "cass014": {
+            "host_name": "sampledeployment005-cass014",
+            "security_group": "internal",
+            "root_key_name": "sampledeployment005-root-key",
+            "ip_address": "10.5.0.24",
+            "flavor": "c6a.8xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
+            "id": "",
+            "service": {
+                "env": {
+                    "CASSANDRA_IP": "10.5.0.24",
+                    "CASSANDRA_SEEDS": "10.5.0.11,10.5.0.12,10.5.0.13,10.5.0.14,10.5.0.15,10.5.0.16,10.5.0.17,10.5.0.18,10.5.0.19,10.5.0.20,10.5.0.21,10.5.0.22,10.5.0.23,10.5.0.24,10.5.0.25,10.5.0.26",
+                    "INITIAL_TOKEN": "5764607523034234880",
+                    "PROMETHEUS_CASSANDRA_EXPORTER_VERSION": "0.9.12",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0"
+                },
+                "cmd": {
+                    "install": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/install_node_exporter.sh",
+                        "sh/cassandra/install.sh"
+                    ],
+                    "config": [
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/cassandra/config.sh"
+                    ],
+                    "start": [
+                        "sh/cassandra/start.sh"
+                    ],
+                    "stop": [
+                        "sh/cassandra/stop.sh"
+                    ]
+                }
+            }
+        },
+        "cass015": {
+            "host_name": "sampledeployment005-cass015",
+            "security_group": "internal",
+            "root_key_name": "sampledeployment005-root-key",
+            "ip_address": "10.5.0.25",
+            "flavor": "c6a.8xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
+            "id": "",
+            "service": {
+                "env": {
+                    "CASSANDRA_IP": "10.5.0.25",
+                    "CASSANDRA_SEEDS": "10.5.0.11,10.5.0.12,10.5.0.13,10.5.0.14,10.5.0.15,10.5.0.16,10.5.0.17,10.5.0.18,10.5.0.19,10.5.0.20,10.5.0.21,10.5.0.22,10.5.0.23,10.5.0.24,10.5.0.25,10.5.0.26",
                     "INITIAL_TOKEN": "6917529027641081856",
+                    "PROMETHEUS_CASSANDRA_EXPORTER_VERSION": "0.9.12",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0"
+                },
+                "cmd": {
+                    "install": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/prometheus/install_node_exporter.sh",
+                        "sh/cassandra/install.sh"
+                    ],
+                    "config": [
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/cassandra/config.sh"
+                    ],
+                    "start": [
+                        "sh/cassandra/start.sh"
+                    ],
+                    "stop": [
+                        "sh/cassandra/stop.sh"
+                    ]
+                }
+            }
+        },
+        "cass016": {
+            "host_name": "sampledeployment005-cass016",
+            "security_group": "internal",
+            "root_key_name": "sampledeployment005-root-key",
+            "ip_address": "10.5.0.26",
+            "flavor": "c6a.8xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
+            "id": "",
+            "service": {
+                "env": {
+                    "CASSANDRA_IP": "10.5.0.26",
+                    "CASSANDRA_SEEDS": "10.5.0.11,10.5.0.12,10.5.0.13,10.5.0.14,10.5.0.15,10.5.0.16,10.5.0.17,10.5.0.18,10.5.0.19,10.5.0.20,10.5.0.21,10.5.0.22,10.5.0.23,10.5.0.24,10.5.0.25,10.5.0.26",
+                    "INITIAL_TOKEN": "8070450532247928832",
                     "PROMETHEUS_CASSANDRA_EXPORTER_VERSION": "0.9.12",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0"
                 },
@@ -947,8 +1243,8 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.101",
-            "flavor": "c7gn.4xlarge",
-            "image": "ami-064b469793e32e5d2",
+            "flavor": "c6a.4xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
             "availability_zone": "not-used-borrowed-from-subnet",
             "subnet_type": "private",
             "id": "",
@@ -961,9 +1257,9 @@
             "service": {
                 "env": {
                     "AMQP_URL": "amqp://{CAPIDEPLOY_RABBITMQ_USER_NAME}:{CAPIDEPLOY_RABBITMQ_USER_PASS}@10.5.0.5/",
-                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\"]'",
-                    "DAEMON_DB_WRITERS": "32",
-                    "DAEMON_THREAD_POOL_SIZE": "32",
+                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\",\"10.5.0.19\",\"10.5.0.20\",\"10.5.0.21\",\"10.5.0.22\",\"10.5.0.23\",\"10.5.0.24\",\"10.5.0.25\",\"10.5.0.26\"]'",
+                    "DAEMON_DB_WRITERS": "16",
+                    "DAEMON_THREAD_POOL_SIZE": "24",
                     "INTERNAL_BASTION_IP": "10.5.1.10",
                     "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",
@@ -1002,8 +1298,8 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.102",
-            "flavor": "c7gn.4xlarge",
-            "image": "ami-064b469793e32e5d2",
+            "flavor": "c6a.4xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
             "availability_zone": "not-used-borrowed-from-subnet",
             "subnet_type": "private",
             "id": "",
@@ -1016,9 +1312,9 @@
             "service": {
                 "env": {
                     "AMQP_URL": "amqp://{CAPIDEPLOY_RABBITMQ_USER_NAME}:{CAPIDEPLOY_RABBITMQ_USER_PASS}@10.5.0.5/",
-                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\"]'",
-                    "DAEMON_DB_WRITERS": "32",
-                    "DAEMON_THREAD_POOL_SIZE": "32",
+                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\",\"10.5.0.19\",\"10.5.0.20\",\"10.5.0.21\",\"10.5.0.22\",\"10.5.0.23\",\"10.5.0.24\",\"10.5.0.25\",\"10.5.0.26\"]'",
+                    "DAEMON_DB_WRITERS": "16",
+                    "DAEMON_THREAD_POOL_SIZE": "24",
                     "INTERNAL_BASTION_IP": "10.5.1.10",
                     "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",
@@ -1057,8 +1353,8 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.103",
-            "flavor": "c7gn.4xlarge",
-            "image": "ami-064b469793e32e5d2",
+            "flavor": "c6a.4xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
             "availability_zone": "not-used-borrowed-from-subnet",
             "subnet_type": "private",
             "id": "",
@@ -1071,9 +1367,9 @@
             "service": {
                 "env": {
                     "AMQP_URL": "amqp://{CAPIDEPLOY_RABBITMQ_USER_NAME}:{CAPIDEPLOY_RABBITMQ_USER_PASS}@10.5.0.5/",
-                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\"]'",
-                    "DAEMON_DB_WRITERS": "32",
-                    "DAEMON_THREAD_POOL_SIZE": "32",
+                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\",\"10.5.0.19\",\"10.5.0.20\",\"10.5.0.21\",\"10.5.0.22\",\"10.5.0.23\",\"10.5.0.24\",\"10.5.0.25\",\"10.5.0.26\"]'",
+                    "DAEMON_DB_WRITERS": "16",
+                    "DAEMON_THREAD_POOL_SIZE": "24",
                     "INTERNAL_BASTION_IP": "10.5.1.10",
                     "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",
@@ -1112,8 +1408,8 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.104",
-            "flavor": "c7gn.4xlarge",
-            "image": "ami-064b469793e32e5d2",
+            "flavor": "c6a.4xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
             "availability_zone": "not-used-borrowed-from-subnet",
             "subnet_type": "private",
             "id": "",
@@ -1126,9 +1422,9 @@
             "service": {
                 "env": {
                     "AMQP_URL": "amqp://{CAPIDEPLOY_RABBITMQ_USER_NAME}:{CAPIDEPLOY_RABBITMQ_USER_PASS}@10.5.0.5/",
-                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\"]'",
-                    "DAEMON_DB_WRITERS": "32",
-                    "DAEMON_THREAD_POOL_SIZE": "32",
+                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\",\"10.5.0.19\",\"10.5.0.20\",\"10.5.0.21\",\"10.5.0.22\",\"10.5.0.23\",\"10.5.0.24\",\"10.5.0.25\",\"10.5.0.26\"]'",
+                    "DAEMON_DB_WRITERS": "16",
+                    "DAEMON_THREAD_POOL_SIZE": "24",
                     "INTERNAL_BASTION_IP": "10.5.1.10",
                     "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",
@@ -1167,8 +1463,8 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.105",
-            "flavor": "c7gn.4xlarge",
-            "image": "ami-064b469793e32e5d2",
+            "flavor": "c6a.4xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
             "availability_zone": "not-used-borrowed-from-subnet",
             "subnet_type": "private",
             "id": "",
@@ -1181,9 +1477,9 @@
             "service": {
                 "env": {
                     "AMQP_URL": "amqp://{CAPIDEPLOY_RABBITMQ_USER_NAME}:{CAPIDEPLOY_RABBITMQ_USER_PASS}@10.5.0.5/",
-                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\"]'",
-                    "DAEMON_DB_WRITERS": "32",
-                    "DAEMON_THREAD_POOL_SIZE": "32",
+                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\",\"10.5.0.19\",\"10.5.0.20\",\"10.5.0.21\",\"10.5.0.22\",\"10.5.0.23\",\"10.5.0.24\",\"10.5.0.25\",\"10.5.0.26\"]'",
+                    "DAEMON_DB_WRITERS": "16",
+                    "DAEMON_THREAD_POOL_SIZE": "24",
                     "INTERNAL_BASTION_IP": "10.5.1.10",
                     "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",
@@ -1222,8 +1518,8 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.106",
-            "flavor": "c7gn.4xlarge",
-            "image": "ami-064b469793e32e5d2",
+            "flavor": "c6a.4xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
             "availability_zone": "not-used-borrowed-from-subnet",
             "subnet_type": "private",
             "id": "",
@@ -1236,9 +1532,9 @@
             "service": {
                 "env": {
                     "AMQP_URL": "amqp://{CAPIDEPLOY_RABBITMQ_USER_NAME}:{CAPIDEPLOY_RABBITMQ_USER_PASS}@10.5.0.5/",
-                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\"]'",
-                    "DAEMON_DB_WRITERS": "32",
-                    "DAEMON_THREAD_POOL_SIZE": "32",
+                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\",\"10.5.0.19\",\"10.5.0.20\",\"10.5.0.21\",\"10.5.0.22\",\"10.5.0.23\",\"10.5.0.24\",\"10.5.0.25\",\"10.5.0.26\"]'",
+                    "DAEMON_DB_WRITERS": "16",
+                    "DAEMON_THREAD_POOL_SIZE": "24",
                     "INTERNAL_BASTION_IP": "10.5.1.10",
                     "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",
@@ -1277,8 +1573,8 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.107",
-            "flavor": "c7gn.4xlarge",
-            "image": "ami-064b469793e32e5d2",
+            "flavor": "c6a.4xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
             "availability_zone": "not-used-borrowed-from-subnet",
             "subnet_type": "private",
             "id": "",
@@ -1291,9 +1587,9 @@
             "service": {
                 "env": {
                     "AMQP_URL": "amqp://{CAPIDEPLOY_RABBITMQ_USER_NAME}:{CAPIDEPLOY_RABBITMQ_USER_PASS}@10.5.0.5/",
-                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\"]'",
-                    "DAEMON_DB_WRITERS": "32",
-                    "DAEMON_THREAD_POOL_SIZE": "32",
+                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\",\"10.5.0.19\",\"10.5.0.20\",\"10.5.0.21\",\"10.5.0.22\",\"10.5.0.23\",\"10.5.0.24\",\"10.5.0.25\",\"10.5.0.26\"]'",
+                    "DAEMON_DB_WRITERS": "16",
+                    "DAEMON_THREAD_POOL_SIZE": "24",
                     "INTERNAL_BASTION_IP": "10.5.1.10",
                     "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",
@@ -1332,8 +1628,8 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.108",
-            "flavor": "c7gn.4xlarge",
-            "image": "ami-064b469793e32e5d2",
+            "flavor": "c6a.4xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
             "availability_zone": "not-used-borrowed-from-subnet",
             "subnet_type": "private",
             "id": "",
@@ -1346,9 +1642,449 @@
             "service": {
                 "env": {
                     "AMQP_URL": "amqp://{CAPIDEPLOY_RABBITMQ_USER_NAME}:{CAPIDEPLOY_RABBITMQ_USER_PASS}@10.5.0.5/",
-                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\"]'",
-                    "DAEMON_DB_WRITERS": "32",
-                    "DAEMON_THREAD_POOL_SIZE": "32",
+                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\",\"10.5.0.19\",\"10.5.0.20\",\"10.5.0.21\",\"10.5.0.22\",\"10.5.0.23\",\"10.5.0.24\",\"10.5.0.25\",\"10.5.0.26\"]'",
+                    "DAEMON_DB_WRITERS": "16",
+                    "DAEMON_THREAD_POOL_SIZE": "24",
+                    "INTERNAL_BASTION_IP": "10.5.1.10",
+                    "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",
+                    "SFTP_USER": "{CAPIDEPLOY_SFTP_USER}",
+                    "SSH_USER": "{CAPIDEPLOY_SSH_USER}"
+                },
+                "cmd": {
+                    "install": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/nfs/install_client.sh",
+                        "sh/daemon/install.sh",
+                        "sh/prometheus/install_node_exporter.sh"
+                    ],
+                    "config": [
+                        "sh/nfs/config_client.sh",
+                        "sh/logrotate/config_capidaemon_logrotate.sh",
+                        "sh/rsyslog/config_capidaemon_log_sender.sh",
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/daemon/config.sh"
+                    ],
+                    "start": [
+                        "sh/daemon/start.sh"
+                    ],
+                    "stop": [
+                        "sh/daemon/stop.sh"
+                    ]
+                }
+            },
+            "applicable_file_groups": [
+                "up_daemon_binary",
+                "up_daemon_env_config"
+            ]
+        },
+        "daemon009": {
+            "host_name": "sampledeployment005-daemon009",
+            "security_group": "internal",
+            "root_key_name": "sampledeployment005-root-key",
+            "ip_address": "10.5.0.109",
+            "flavor": "c6a.4xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
+            "id": "",
+            "private_keys": [
+                {
+                    "name": "{CAPIDEPLOY_SFTP_USER}",
+                    "private_key_path": "~/.ssh/sampledeployment005_sftp"
+                }
+            ],
+            "service": {
+                "env": {
+                    "AMQP_URL": "amqp://{CAPIDEPLOY_RABBITMQ_USER_NAME}:{CAPIDEPLOY_RABBITMQ_USER_PASS}@10.5.0.5/",
+                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\",\"10.5.0.19\",\"10.5.0.20\",\"10.5.0.21\",\"10.5.0.22\",\"10.5.0.23\",\"10.5.0.24\",\"10.5.0.25\",\"10.5.0.26\"]'",
+                    "DAEMON_DB_WRITERS": "16",
+                    "DAEMON_THREAD_POOL_SIZE": "24",
+                    "INTERNAL_BASTION_IP": "10.5.1.10",
+                    "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",
+                    "SFTP_USER": "{CAPIDEPLOY_SFTP_USER}",
+                    "SSH_USER": "{CAPIDEPLOY_SSH_USER}"
+                },
+                "cmd": {
+                    "install": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/nfs/install_client.sh",
+                        "sh/daemon/install.sh",
+                        "sh/prometheus/install_node_exporter.sh"
+                    ],
+                    "config": [
+                        "sh/nfs/config_client.sh",
+                        "sh/logrotate/config_capidaemon_logrotate.sh",
+                        "sh/rsyslog/config_capidaemon_log_sender.sh",
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/daemon/config.sh"
+                    ],
+                    "start": [
+                        "sh/daemon/start.sh"
+                    ],
+                    "stop": [
+                        "sh/daemon/stop.sh"
+                    ]
+                }
+            },
+            "applicable_file_groups": [
+                "up_daemon_binary",
+                "up_daemon_env_config"
+            ]
+        },
+        "daemon010": {
+            "host_name": "sampledeployment005-daemon010",
+            "security_group": "internal",
+            "root_key_name": "sampledeployment005-root-key",
+            "ip_address": "10.5.0.110",
+            "flavor": "c6a.4xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
+            "id": "",
+            "private_keys": [
+                {
+                    "name": "{CAPIDEPLOY_SFTP_USER}",
+                    "private_key_path": "~/.ssh/sampledeployment005_sftp"
+                }
+            ],
+            "service": {
+                "env": {
+                    "AMQP_URL": "amqp://{CAPIDEPLOY_RABBITMQ_USER_NAME}:{CAPIDEPLOY_RABBITMQ_USER_PASS}@10.5.0.5/",
+                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\",\"10.5.0.19\",\"10.5.0.20\",\"10.5.0.21\",\"10.5.0.22\",\"10.5.0.23\",\"10.5.0.24\",\"10.5.0.25\",\"10.5.0.26\"]'",
+                    "DAEMON_DB_WRITERS": "16",
+                    "DAEMON_THREAD_POOL_SIZE": "24",
+                    "INTERNAL_BASTION_IP": "10.5.1.10",
+                    "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",
+                    "SFTP_USER": "{CAPIDEPLOY_SFTP_USER}",
+                    "SSH_USER": "{CAPIDEPLOY_SSH_USER}"
+                },
+                "cmd": {
+                    "install": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/nfs/install_client.sh",
+                        "sh/daemon/install.sh",
+                        "sh/prometheus/install_node_exporter.sh"
+                    ],
+                    "config": [
+                        "sh/nfs/config_client.sh",
+                        "sh/logrotate/config_capidaemon_logrotate.sh",
+                        "sh/rsyslog/config_capidaemon_log_sender.sh",
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/daemon/config.sh"
+                    ],
+                    "start": [
+                        "sh/daemon/start.sh"
+                    ],
+                    "stop": [
+                        "sh/daemon/stop.sh"
+                    ]
+                }
+            },
+            "applicable_file_groups": [
+                "up_daemon_binary",
+                "up_daemon_env_config"
+            ]
+        },
+        "daemon011": {
+            "host_name": "sampledeployment005-daemon011",
+            "security_group": "internal",
+            "root_key_name": "sampledeployment005-root-key",
+            "ip_address": "10.5.0.111",
+            "flavor": "c6a.4xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
+            "id": "",
+            "private_keys": [
+                {
+                    "name": "{CAPIDEPLOY_SFTP_USER}",
+                    "private_key_path": "~/.ssh/sampledeployment005_sftp"
+                }
+            ],
+            "service": {
+                "env": {
+                    "AMQP_URL": "amqp://{CAPIDEPLOY_RABBITMQ_USER_NAME}:{CAPIDEPLOY_RABBITMQ_USER_PASS}@10.5.0.5/",
+                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\",\"10.5.0.19\",\"10.5.0.20\",\"10.5.0.21\",\"10.5.0.22\",\"10.5.0.23\",\"10.5.0.24\",\"10.5.0.25\",\"10.5.0.26\"]'",
+                    "DAEMON_DB_WRITERS": "16",
+                    "DAEMON_THREAD_POOL_SIZE": "24",
+                    "INTERNAL_BASTION_IP": "10.5.1.10",
+                    "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",
+                    "SFTP_USER": "{CAPIDEPLOY_SFTP_USER}",
+                    "SSH_USER": "{CAPIDEPLOY_SSH_USER}"
+                },
+                "cmd": {
+                    "install": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/nfs/install_client.sh",
+                        "sh/daemon/install.sh",
+                        "sh/prometheus/install_node_exporter.sh"
+                    ],
+                    "config": [
+                        "sh/nfs/config_client.sh",
+                        "sh/logrotate/config_capidaemon_logrotate.sh",
+                        "sh/rsyslog/config_capidaemon_log_sender.sh",
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/daemon/config.sh"
+                    ],
+                    "start": [
+                        "sh/daemon/start.sh"
+                    ],
+                    "stop": [
+                        "sh/daemon/stop.sh"
+                    ]
+                }
+            },
+            "applicable_file_groups": [
+                "up_daemon_binary",
+                "up_daemon_env_config"
+            ]
+        },
+        "daemon012": {
+            "host_name": "sampledeployment005-daemon012",
+            "security_group": "internal",
+            "root_key_name": "sampledeployment005-root-key",
+            "ip_address": "10.5.0.112",
+            "flavor": "c6a.4xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
+            "id": "",
+            "private_keys": [
+                {
+                    "name": "{CAPIDEPLOY_SFTP_USER}",
+                    "private_key_path": "~/.ssh/sampledeployment005_sftp"
+                }
+            ],
+            "service": {
+                "env": {
+                    "AMQP_URL": "amqp://{CAPIDEPLOY_RABBITMQ_USER_NAME}:{CAPIDEPLOY_RABBITMQ_USER_PASS}@10.5.0.5/",
+                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\",\"10.5.0.19\",\"10.5.0.20\",\"10.5.0.21\",\"10.5.0.22\",\"10.5.0.23\",\"10.5.0.24\",\"10.5.0.25\",\"10.5.0.26\"]'",
+                    "DAEMON_DB_WRITERS": "16",
+                    "DAEMON_THREAD_POOL_SIZE": "24",
+                    "INTERNAL_BASTION_IP": "10.5.1.10",
+                    "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",
+                    "SFTP_USER": "{CAPIDEPLOY_SFTP_USER}",
+                    "SSH_USER": "{CAPIDEPLOY_SSH_USER}"
+                },
+                "cmd": {
+                    "install": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/nfs/install_client.sh",
+                        "sh/daemon/install.sh",
+                        "sh/prometheus/install_node_exporter.sh"
+                    ],
+                    "config": [
+                        "sh/nfs/config_client.sh",
+                        "sh/logrotate/config_capidaemon_logrotate.sh",
+                        "sh/rsyslog/config_capidaemon_log_sender.sh",
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/daemon/config.sh"
+                    ],
+                    "start": [
+                        "sh/daemon/start.sh"
+                    ],
+                    "stop": [
+                        "sh/daemon/stop.sh"
+                    ]
+                }
+            },
+            "applicable_file_groups": [
+                "up_daemon_binary",
+                "up_daemon_env_config"
+            ]
+        },
+        "daemon013": {
+            "host_name": "sampledeployment005-daemon013",
+            "security_group": "internal",
+            "root_key_name": "sampledeployment005-root-key",
+            "ip_address": "10.5.0.113",
+            "flavor": "c6a.4xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
+            "id": "",
+            "private_keys": [
+                {
+                    "name": "{CAPIDEPLOY_SFTP_USER}",
+                    "private_key_path": "~/.ssh/sampledeployment005_sftp"
+                }
+            ],
+            "service": {
+                "env": {
+                    "AMQP_URL": "amqp://{CAPIDEPLOY_RABBITMQ_USER_NAME}:{CAPIDEPLOY_RABBITMQ_USER_PASS}@10.5.0.5/",
+                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\",\"10.5.0.19\",\"10.5.0.20\",\"10.5.0.21\",\"10.5.0.22\",\"10.5.0.23\",\"10.5.0.24\",\"10.5.0.25\",\"10.5.0.26\"]'",
+                    "DAEMON_DB_WRITERS": "16",
+                    "DAEMON_THREAD_POOL_SIZE": "24",
+                    "INTERNAL_BASTION_IP": "10.5.1.10",
+                    "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",
+                    "SFTP_USER": "{CAPIDEPLOY_SFTP_USER}",
+                    "SSH_USER": "{CAPIDEPLOY_SSH_USER}"
+                },
+                "cmd": {
+                    "install": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/nfs/install_client.sh",
+                        "sh/daemon/install.sh",
+                        "sh/prometheus/install_node_exporter.sh"
+                    ],
+                    "config": [
+                        "sh/nfs/config_client.sh",
+                        "sh/logrotate/config_capidaemon_logrotate.sh",
+                        "sh/rsyslog/config_capidaemon_log_sender.sh",
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/daemon/config.sh"
+                    ],
+                    "start": [
+                        "sh/daemon/start.sh"
+                    ],
+                    "stop": [
+                        "sh/daemon/stop.sh"
+                    ]
+                }
+            },
+            "applicable_file_groups": [
+                "up_daemon_binary",
+                "up_daemon_env_config"
+            ]
+        },
+        "daemon014": {
+            "host_name": "sampledeployment005-daemon014",
+            "security_group": "internal",
+            "root_key_name": "sampledeployment005-root-key",
+            "ip_address": "10.5.0.114",
+            "flavor": "c6a.4xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
+            "id": "",
+            "private_keys": [
+                {
+                    "name": "{CAPIDEPLOY_SFTP_USER}",
+                    "private_key_path": "~/.ssh/sampledeployment005_sftp"
+                }
+            ],
+            "service": {
+                "env": {
+                    "AMQP_URL": "amqp://{CAPIDEPLOY_RABBITMQ_USER_NAME}:{CAPIDEPLOY_RABBITMQ_USER_PASS}@10.5.0.5/",
+                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\",\"10.5.0.19\",\"10.5.0.20\",\"10.5.0.21\",\"10.5.0.22\",\"10.5.0.23\",\"10.5.0.24\",\"10.5.0.25\",\"10.5.0.26\"]'",
+                    "DAEMON_DB_WRITERS": "16",
+                    "DAEMON_THREAD_POOL_SIZE": "24",
+                    "INTERNAL_BASTION_IP": "10.5.1.10",
+                    "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",
+                    "SFTP_USER": "{CAPIDEPLOY_SFTP_USER}",
+                    "SSH_USER": "{CAPIDEPLOY_SSH_USER}"
+                },
+                "cmd": {
+                    "install": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/nfs/install_client.sh",
+                        "sh/daemon/install.sh",
+                        "sh/prometheus/install_node_exporter.sh"
+                    ],
+                    "config": [
+                        "sh/nfs/config_client.sh",
+                        "sh/logrotate/config_capidaemon_logrotate.sh",
+                        "sh/rsyslog/config_capidaemon_log_sender.sh",
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/daemon/config.sh"
+                    ],
+                    "start": [
+                        "sh/daemon/start.sh"
+                    ],
+                    "stop": [
+                        "sh/daemon/stop.sh"
+                    ]
+                }
+            },
+            "applicable_file_groups": [
+                "up_daemon_binary",
+                "up_daemon_env_config"
+            ]
+        },
+        "daemon015": {
+            "host_name": "sampledeployment005-daemon015",
+            "security_group": "internal",
+            "root_key_name": "sampledeployment005-root-key",
+            "ip_address": "10.5.0.115",
+            "flavor": "c6a.4xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
+            "id": "",
+            "private_keys": [
+                {
+                    "name": "{CAPIDEPLOY_SFTP_USER}",
+                    "private_key_path": "~/.ssh/sampledeployment005_sftp"
+                }
+            ],
+            "service": {
+                "env": {
+                    "AMQP_URL": "amqp://{CAPIDEPLOY_RABBITMQ_USER_NAME}:{CAPIDEPLOY_RABBITMQ_USER_PASS}@10.5.0.5/",
+                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\",\"10.5.0.19\",\"10.5.0.20\",\"10.5.0.21\",\"10.5.0.22\",\"10.5.0.23\",\"10.5.0.24\",\"10.5.0.25\",\"10.5.0.26\"]'",
+                    "DAEMON_DB_WRITERS": "16",
+                    "DAEMON_THREAD_POOL_SIZE": "24",
+                    "INTERNAL_BASTION_IP": "10.5.1.10",
+                    "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
+                    "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",
+                    "SFTP_USER": "{CAPIDEPLOY_SFTP_USER}",
+                    "SSH_USER": "{CAPIDEPLOY_SSH_USER}"
+                },
+                "cmd": {
+                    "install": [
+                        "sh/common/replace_nameserver.sh",
+                        "sh/nfs/install_client.sh",
+                        "sh/daemon/install.sh",
+                        "sh/prometheus/install_node_exporter.sh"
+                    ],
+                    "config": [
+                        "sh/nfs/config_client.sh",
+                        "sh/logrotate/config_capidaemon_logrotate.sh",
+                        "sh/rsyslog/config_capidaemon_log_sender.sh",
+                        "sh/prometheus/config_node_exporter.sh",
+                        "sh/daemon/config.sh"
+                    ],
+                    "start": [
+                        "sh/daemon/start.sh"
+                    ],
+                    "stop": [
+                        "sh/daemon/stop.sh"
+                    ]
+                }
+            },
+            "applicable_file_groups": [
+                "up_daemon_binary",
+                "up_daemon_env_config"
+            ]
+        },
+        "daemon016": {
+            "host_name": "sampledeployment005-daemon016",
+            "security_group": "internal",
+            "root_key_name": "sampledeployment005-root-key",
+            "ip_address": "10.5.0.116",
+            "flavor": "c6a.4xlarge",
+            "image": "ami-0d8583a0d8d6dd14f",
+            "availability_zone": "not-used-borrowed-from-subnet",
+            "subnet_type": "private",
+            "id": "",
+            "private_keys": [
+                {
+                    "name": "{CAPIDEPLOY_SFTP_USER}",
+                    "private_key_path": "~/.ssh/sampledeployment005_sftp"
+                }
+            ],
+            "service": {
+                "env": {
+                    "AMQP_URL": "amqp://{CAPIDEPLOY_RABBITMQ_USER_NAME}:{CAPIDEPLOY_RABBITMQ_USER_PASS}@10.5.0.5/",
+                    "CASSANDRA_HOSTS": "'[\"10.5.0.11\",\"10.5.0.12\",\"10.5.0.13\",\"10.5.0.14\",\"10.5.0.15\",\"10.5.0.16\",\"10.5.0.17\",\"10.5.0.18\",\"10.5.0.19\",\"10.5.0.20\",\"10.5.0.21\",\"10.5.0.22\",\"10.5.0.23\",\"10.5.0.24\",\"10.5.0.25\",\"10.5.0.26\"]'",
+                    "DAEMON_DB_WRITERS": "16",
+                    "DAEMON_THREAD_POOL_SIZE": "24",
                     "INTERNAL_BASTION_IP": "10.5.1.10",
                     "NFS_DIRS": "/mnt/capi_cfg,/mnt/capi_in,/mnt/capi_out",
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",
@@ -1387,15 +2123,15 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.4",
-            "flavor": "c7g.medium",
-            "image": "ami-064b469793e32e5d2",
+            "flavor": "t2.micro",
+            "image": "ami-0d8583a0d8d6dd14f",
             "availability_zone": "not-used-borrowed-from-subnet",
             "subnet_type": "private",
             "id": "",
             "service": {
                 "env": {
                     "PROMETHEUS_NODE_EXPORTER_VERSION": "1.6.0",
-                    "PROMETHEUS_TARGETS": "\\'localhost:9100\\',\\'10.5.1.10:9100\\',\\'10.5.0.5:9100\\',\\'10.5.0.11:9100\\',\\'10.5.0.12:9100\\',\\'10.5.0.13:9100\\',\\'10.5.0.14:9100\\',\\'10.5.0.15:9100\\',\\'10.5.0.16:9100\\',\\'10.5.0.17:9100\\',\\'10.5.0.18:9100\\',\\'10.5.0.11:9500\\',\\'10.5.0.12:9500\\',\\'10.5.0.13:9500\\',\\'10.5.0.14:9500\\',\\'10.5.0.15:9500\\',\\'10.5.0.16:9500\\',\\'10.5.0.17:9500\\',\\'10.5.0.18:9500\\',\\'10.5.0.101:9100\\',\\'10.5.0.102:9100\\',\\'10.5.0.103:9100\\',\\'10.5.0.104:9100\\',\\'10.5.0.105:9100\\',\\'10.5.0.106:9100\\',\\'10.5.0.107:9100\\',\\'10.5.0.108:9100\\'",
+                    "PROMETHEUS_TARGETS": "\\'localhost:9100\\',\\'10.5.1.10:9100\\',\\'10.5.0.5:9100\\',\\'10.5.0.11:9100\\',\\'10.5.0.12:9100\\',\\'10.5.0.13:9100\\',\\'10.5.0.14:9100\\',\\'10.5.0.15:9100\\',\\'10.5.0.16:9100\\',\\'10.5.0.17:9100\\',\\'10.5.0.18:9100\\',\\'10.5.0.19:9100\\',\\'10.5.0.20:9100\\',\\'10.5.0.21:9100\\',\\'10.5.0.22:9100\\',\\'10.5.0.23:9100\\',\\'10.5.0.24:9100\\',\\'10.5.0.25:9100\\',\\'10.5.0.26:9100\\',\\'10.5.0.11:9500\\',\\'10.5.0.12:9500\\',\\'10.5.0.13:9500\\',\\'10.5.0.14:9500\\',\\'10.5.0.15:9500\\',\\'10.5.0.16:9500\\',\\'10.5.0.17:9500\\',\\'10.5.0.18:9500\\',\\'10.5.0.19:9500\\',\\'10.5.0.20:9500\\',\\'10.5.0.21:9500\\',\\'10.5.0.22:9500\\',\\'10.5.0.23:9500\\',\\'10.5.0.24:9500\\',\\'10.5.0.25:9500\\',\\'10.5.0.26:9500\\',\\'10.5.0.101:9100\\',\\'10.5.0.102:9100\\',\\'10.5.0.103:9100\\',\\'10.5.0.104:9100\\',\\'10.5.0.105:9100\\',\\'10.5.0.106:9100\\',\\'10.5.0.107:9100\\',\\'10.5.0.108:9100\\',\\'10.5.0.109:9100\\',\\'10.5.0.110:9100\\',\\'10.5.0.111:9100\\',\\'10.5.0.112:9100\\',\\'10.5.0.113:9100\\',\\'10.5.0.114:9100\\',\\'10.5.0.115:9100\\',\\'10.5.0.116:9100\\'",
                     "PROMETHEUS_VERSION": "2.45.0"
                 },
                 "cmd": {
@@ -1422,8 +2158,8 @@
             "security_group": "internal",
             "root_key_name": "sampledeployment005-root-key",
             "ip_address": "10.5.0.5",
-            "flavor": "c7g.medium",
-            "image": "ami-064b469793e32e5d2",
+            "flavor": "t2.micro",
+            "image": "ami-0d8583a0d8d6dd14f",
             "availability_zone": "not-used-borrowed-from-subnet",
             "subnet_type": "private",
             "id": "",
