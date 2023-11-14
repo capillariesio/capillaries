@@ -8,7 +8,7 @@
   local cassandra_node_flavor = 'aws.c6a.32',
   local architecture = 'amd64', // amd64 or arm64 
   // Cassandra cluster size - 4,8,16
-  local cassandra_total_nodes = 16, 
+  local cassandra_total_nodes = 4, 
   // If tasks are CPU-intensive (Python calc), make it equal to cassandra_total_nodes, otherwise cassandra_total_nodes/2
   local daemon_total_instances = cassandra_total_nodes, 
   local DEFAULT_DAEMON_THREAD_POOL_SIZE = '24', // daemon_cores*1.5

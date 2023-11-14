@@ -88,6 +88,7 @@ if [ "$1" = "sequential" ]; then
       nodetoolOutput=$(ssh -o StrictHostKeyChecking=no -i $sshKeyFile -J $externalIpAddress $CAPIDEPLOY_SSH_USER@$cassNodeIp 'nodetool status' 2>&1)
       if [[ "$nodetoolOutput" == *"UJ  $cassNodeIp"* ]]; then
         echo $cassNodeNickname is joining UJ the cluster, almost there, starting next node...
+        # Should be ok to consider this node completed, comment this out if we really need to wait for UN
         break
       elif [[ "$nodetoolOutput" == *"InstanceNotFoundException"* ]]; then
         echo $cassNodeNickname is not started yet, getting instance not found exception
