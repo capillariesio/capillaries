@@ -463,6 +463,8 @@ func generateAccounts(fileInAccountsPath string, quickAccountsMap map[string]str
 
 const SOURCE_TXNS int = 88459
 const SOURCE_HOLDINGS int = 4300
+const HOLDING_FILES_TOTAL int = 10
+const TXN_FILES_TOTAL int = 500 // For perf testing purposes, this better be > total_number_of_daemon_cores
 
 func main() {
 	quicktestIn := flag.String("quicktest_in", "../../../data/in/portfolio_quicktest", "Root dir for in quicktest files to be used as a template")
@@ -496,6 +498,9 @@ func main() {
 	accountsPerOriginalQuick := *totalAccountsSuggested / len(quickAccounts)
 	totalAccounts := accountsPerOriginalQuick * len(quickAccounts)
 
+	fmt.Printf("Generating %d accounts, %d txn files, total %d txns to %s and %s...\n",
+		totalAccounts, TXN_FILES_TOTAL, accountsPerOriginalQuick*SOURCE_TXNS, *inRoot, *outRoot)
+
 	bigAccountsMap := map[string][]string{} // ARKK-> [ARKK-000000,ARKK-000001]
 	for i := 0; i < totalAccounts; i++ {
 		accLocalIdx := i / len(quickAccounts) //0,0,0,0,0,0,1,1,1,1,1,1,2,2,2,2,2,2,
@@ -514,13 +519,13 @@ func main() {
 
 	// Holdings
 
-	if err := generateHoldings(fileQuickHoldingsPath, fileInHoldingsPath, bigAccountsMap, SOURCE_HOLDINGS*accountsPerOriginalQuick/10+1); err != nil {
+	if err := generateHoldings(fileQuickHoldingsPath, fileInHoldingsPath, bigAccountsMap, SOURCE_HOLDINGS*accountsPerOriginalQuick/HOLDING_FILES_TOTAL+1); err != nil {
 		log.Fatal(err)
 	}
 
 	// Txns
 
-	if err := generateTxns(fileQuickTxnsPath, fileInTxnsPath, bigAccountsMap, SOURCE_TXNS*accountsPerOriginalQuick/100+1); err != nil {
+	if err := generateTxns(fileQuickTxnsPath, fileInTxnsPath, bigAccountsMap, SOURCE_TXNS*accountsPerOriginalQuick/TXN_FILES_TOTAL+1); err != nil {
 		log.Fatal(err)
 	}
 
