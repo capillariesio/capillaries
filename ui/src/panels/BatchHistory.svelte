@@ -96,7 +96,7 @@
 
         if (earliestTs != null && latestTs != null && batch_history[0].batches_total > 1) {
             let svgWidth = 800;
-            let svgHeight = 600; // Max height
+            let svgHeight = 1200; // Max height
             let lineWidth = 10;
             if (lineWidth * batch_history[0].batches_total < svgHeight) {
                 svgHeight = lineWidth * batch_history[0].batches_total;

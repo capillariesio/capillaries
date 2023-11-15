@@ -5,13 +5,13 @@
   local dep_name = 'sampledeployment005',  // Can be any combination of alphanumeric characters. Make it unique.
 
   // x - test bare minimum, 2x - better, 4x - decent test, 16x - that's where it gets interesting
-  local cassandra_node_flavor = 'aws.c6a.32',
+  local cassandra_node_flavor = 'aws.c6a.8',
   local architecture = 'amd64', // amd64 or arm64 
   // Cassandra cluster size - 4,8,16
   local cassandra_total_nodes = 4, 
   // If tasks are CPU-intensive (Python calc), make it equal to cassandra_total_nodes, otherwise cassandra_total_nodes/2
   local daemon_total_instances = cassandra_total_nodes, 
-  local DEFAULT_DAEMON_THREAD_POOL_SIZE = '24', // daemon_cores*1.5
+  local DEFAULT_DAEMON_THREAD_POOL_SIZE = '6', // daemon_cores*1.5
   local DEFAULT_DAEMON_DB_WRITERS = '16', // Depends on cassandra latency, reasonable values are 5-20
 
   // Basics
@@ -132,6 +132,7 @@
     'sampledeployment005': {
       '4x': 'c6a.large',
       '16x': 'c6a.large',
+      'aws.c6a.8': 'c6a.large',
       'aws.c6a.32': 'c6a.large',
       'aws.c6a.64': 'c6a.large',
       'aws.c7g.16': 'c7g.large',
@@ -168,6 +169,7 @@
     'sampledeployment005': {
       '4x': 'c6a.2xlarge',
       '16x': 'c6a.8xlarge',
+      'aws.c6a.8': 'c6a.2xlarge',
       'aws.c6a.32': 'c6a.8xlarge',
       'aws.c6a.64': 'c6a.16xlarge',
       'aws.c7g.16': 'c7g.4xlarge',
@@ -204,6 +206,7 @@
     'sampledeployment005': {
       '4x': 'c6a.xlarge',
       '16x': 'c6a.4xlarge',
+      'aws.c6a.8': 'c6a.xlarge',
       'aws.c6a.32': 'c6a.4xlarge',
       'aws.c6a.64': 'c6a.8xlarge',
       'aws.c7g.16': 'c7g.2xlarge',
@@ -1046,6 +1049,7 @@
           ],
           start: [
             'sh/daemon/start.sh',
+            'sh/rsyslog/restart.sh', // It's stupid, but on AWS machines it's required, otherwise capidaemon.log is notpicked up whenit appears.
           ],
           stop: [
             'sh/daemon/stop.sh',
