@@ -95,7 +95,10 @@ Table reader only. Name of the [data table](glossary.md#table) to read from.
 Table reader only. Number of data batches to supply to the node in parallel. Choose these settings according to your hardware environment specifics. Things to keep in mind:
 - each batch will be triggered by a separate RabbitMQ message
 - data for each batch will be read in a single worker thread and, if result written to a table (not file), written multiple writer threads
-What is a good size of a batch? Really depends on your specific case: anything between 100 and 100000 records.
+What is a good size of a batch? Really depends on your specific case, but:
+- it doesn't make sense making it smaller than total amount of CPU cores on your daemon instances (otherwise, some daemon worker threads may end up without work while other threads are overloaded)
+- it doesn't make sense making it many times bigger that the expected number of data items to be read (otherwise, you will end up with a lot of batches that does not contain items, anddaemon worker threads will have to handle those empty batches without producing useful results)
+If it helps, there is an analogy: hash table load factor, which ideally is supposed to be between 0.6 and 0.75. In our case, the load factor is calculated as total_number_of_items_to_be_read/expected_batches_total.
 
 Default: 1 (no [parallelism](glossary.md#parallellism)).
 
