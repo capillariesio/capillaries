@@ -49,6 +49,8 @@ cat /tmp/capi_out/portfolio_quicktest/account_period_sector_perf.csv
 cat /tmp/capi_out/portfolio_quicktest/account_year_perf.csv
 ```
 
+Log files created by Capillaries [Daemon](./doc/glossary.md#daemon), [WebAPI](./doc/glossary.md#webapi) and [UI](./doc/glossary.md#capillaries-ui) are in /tmp/capi_out.
+
 For more details about getting started, see [Getting started](doc/started.md). For more details about this particular demo, see Capillaries blog: [Use Capillaries to calculate ARK portfolio performance](https://capillaries.io/blog/2023-04-08-portfolio/index.html)
 
 ## Capillaries in depth
