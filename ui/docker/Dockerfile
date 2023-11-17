@@ -12,6 +12,8 @@ COPY ./ui/*.js ./
 RUN npm install
 RUN npm run build
 
-# This will run "npm run start"
-ENTRYPOINT ["npm", "run", "start", "--host"]
+COPY ./ui/docker/docker-startup.sh /usr/src/capillaries/
+RUN chmod +x /usr/src/capillaries/docker-startup.sh
 
+# This will run "npm run start"
+ENTRYPOINT ["/usr/src/capillaries/docker-startup.sh"]
