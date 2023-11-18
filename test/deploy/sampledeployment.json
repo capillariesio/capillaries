@@ -250,7 +250,7 @@
             "cidr": "10.5.0.0/24",
             "allocation_pool": "start=10.5.0.240,end=10.5.0.254",
             "availability_zone": "us-east-1a",
-            "route_table_to_nat": "rtb-014e2139295f32b3b"
+            "route_table_to_nat": "rtb-0ed14008fac933310"
         },
         "public_subnet": {
             "name": "sampledeployment005_public_subnet",
@@ -474,11 +474,18 @@
             "after": {}
         },
         "up_ui": {
-            "src": "../../ui/public",
+            "src": "../../ui/build/all.tgz",
             "dst": "/home/{CAPIDEPLOY_SSH_USER}/ui",
             "dir_permissions": 755,
             "file_permissions": 644,
-            "after": {}
+            "after": {
+                "env": {
+                    "UI_ROOT": "/home/{CAPIDEPLOY_SSH_USER}/ui"
+                },
+                "cmd": [
+                    "sh/capiscripts/unpack_ui.sh"
+                ]
+            }
         },
         "up_webapi_binary": {
             "src": "../../build/linux/amd64/capiwebapi.gz",
@@ -837,7 +844,8 @@
                         "sh/daemon/config.sh"
                     ],
                     "start": [
-                        "sh/daemon/start.sh"
+                        "sh/daemon/start.sh",
+                        "sh/rsyslog/restart.sh"
                     ],
                     "stop": [
                         "sh/daemon/stop.sh"
@@ -892,7 +900,8 @@
                         "sh/daemon/config.sh"
                     ],
                     "start": [
-                        "sh/daemon/start.sh"
+                        "sh/daemon/start.sh",
+                        "sh/rsyslog/restart.sh"
                     ],
                     "stop": [
                         "sh/daemon/stop.sh"
@@ -947,7 +956,8 @@
                         "sh/daemon/config.sh"
                     ],
                     "start": [
-                        "sh/daemon/start.sh"
+                        "sh/daemon/start.sh",
+                        "sh/rsyslog/restart.sh"
                     ],
                     "stop": [
                         "sh/daemon/stop.sh"
@@ -1002,7 +1012,8 @@
                         "sh/daemon/config.sh"
                     ],
                     "start": [
-                        "sh/daemon/start.sh"
+                        "sh/daemon/start.sh",
+                        "sh/rsyslog/restart.sh"
                     ],
                     "stop": [
                         "sh/daemon/stop.sh"

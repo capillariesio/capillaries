@@ -1,5 +1,5 @@
 <script context="module">
-	export function webapiUrl() {return webApiUrlFromConfig;};
+	export function webapiUrl() {return 'http://localhost:6543';};
 	export function handleResponse(responseJson, setWebapiDataFunc) {
 		if (!!responseJson.error.msg) {
 			console.log (responseJson.error.msg);

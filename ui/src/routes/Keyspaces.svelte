@@ -6,6 +6,9 @@
 	import Util, { webapiUrl, handleResponse } from '../Util.svelte';
 	let util;
 
+    // Route params (not used here, but for compatibility)
+	export let params; 
+
 	// Breadcrumbs
 	let breadcrumbsPathElements = [];
     
