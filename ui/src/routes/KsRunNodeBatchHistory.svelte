@@ -1,38 +1,48 @@
 <script>
-    import { onDestroy, onMount } from "svelte";
-    import RunInfo from "../panels/RunInfo.svelte";
-    import BatchHistory from "../panels/BatchHistory.svelte";
-    import Breadcrumbs from "../panels/Breadcrumbs.svelte";
+	import { onDestroy, onMount } from 'svelte';
+	import RunInfo from '../panels/RunInfo.svelte';
+	import BatchHistory from '../panels/BatchHistory.svelte';
+	import Breadcrumbs from '../panels/Breadcrumbs.svelte';
 	import Util, { webapiUrl, handleResponse } from '../Util.svelte';
 	let util;
 
-    // Route params
-    export let params; 
+	// Route params
+	export let params;
 
 	// Breadcrumbs
 	let breadcrumbsPathElements = [];
 
-    // Webapi data
-    let webapiData = {run_props:{}, run_lifespan:{}, batch_history: []};
-	let responseError = "";
+	// Webapi data
+	let webapiData = { run_props: {}, run_lifespan: {}, batch_history: [] };
+	let responseError = '';
 
-    function setWebapiData(dataFromJson, errorFromJson) {
-		webapiData = ( !!dataFromJson ? dataFromJson : {run_props:{}, run_lifespan:{}, batch_history: []});
+	function setWebapiData(dataFromJson, errorFromJson) {
+		webapiData = !!dataFromJson
+			? dataFromJson
+			: { run_props: {}, run_lifespan: {}, batch_history: [] };
 		if (!!errorFromJson) {
-			responseError = errorFromJson.msg
+			responseError = errorFromJson.msg;
 		} else {
-			responseError = "";
+			responseError = '';
 		}
 	}
 
 	var timer;
 	let isDestroyed = false;
 	function fetchData() {
-		let url = webapiUrl() + "/ks/" + params.ks_name + "/run/" + params.run_id + "/node/" + params.node_name + "/batch_history";
-		let method = "GET";
-		fetch(new Request(url, {method: method}))
-      		.then(response => response.json())
-      		.then(responseJson => {
+		let url =
+			webapiUrl() +
+			'/ks/' +
+			params.ks_name +
+			'/run/' +
+			params.run_id +
+			'/node/' +
+			params.node_name +
+			'/batch_history';
+		let method = 'GET';
+		fetch(new Request(url, { method: method }))
+			.then((response) => response.json())
+			.then((responseJson) => {
 				handleResponse(responseJson, setWebapiData);
 				if (!isDestroyed) {
 					if (webapiData.run_lifespan.final_status > 1) {
@@ -43,29 +53,33 @@
 					}
 				}
 			})
-      		.catch(error => {
-				responseError = method + " " + url + ":" + error;
+			.catch((error) => {
+				responseError = method + ' ' + url + ':' + error;
 				console.log(error);
-				if (!isDestroyed)
-					timer = setTimeout(fetchData, 3000);
+				if (!isDestroyed) timer = setTimeout(fetchData, 3000);
 			});
 	}
 
 	onMount(async () => {
-        breadcrumbsPathElements = [
-            { title: "Keyspaces", link:util.rootLink() },
-            { title: params.ks_name, link:util.ksMatrixLink(params.ks_name) },
-            { title: "Batch history: run " + params.run_id + ", node " + params.node_name }  ];
-    	fetchData();
-    });
+		breadcrumbsPathElements = [
+			{ title: 'Keyspaces', link: util.rootLink() },
+			{ title: params.ks_name, link: util.ksMatrixLink(params.ks_name) },
+			{ title: 'Batch history: run ' + params.run_id + ', node ' + params.node_name }
+		];
+		fetchData();
+	});
 	onDestroy(async () => {
 		isDestroyed = true;
-    	if (timer) clearTimeout(timer);
-    });
+		if (timer) clearTimeout(timer);
+	});
 </script>
 
 <Util bind:this={util} />
-<Breadcrumbs bind:pathElements={breadcrumbsPathElements}/>
+<Breadcrumbs bind:pathElements={breadcrumbsPathElements} />
 <p style="color:red;">{responseError}</p>
-<RunInfo bind:run_lifespan={webapiData.run_lifespan} bind:run_props={webapiData.run_props} bind:ks_name={params.ks_name}/>
-<BatchHistory bind:batch_history={webapiData.batch_history}/>
+<RunInfo
+	bind:run_lifespan={webapiData.run_lifespan}
+	bind:run_props={webapiData.run_props}
+	bind:ks_name={params.ks_name}
+/>
+<BatchHistory bind:batch_history={webapiData.batch_history} />

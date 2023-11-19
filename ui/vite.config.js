@@ -2,7 +2,9 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import replace from 'vite-plugin-filter-replace';
 
-const suggestedWebapiUrl = (!!process.env.CAPILLARIES_WEBAPI_URL ? process.env.CAPILLARIES_WEBAPI_URL : "http://localhost:6543");
+const suggestedWebapiUrl = !!process.env.CAPILLARIES_WEBAPI_URL
+	? process.env.CAPILLARIES_WEBAPI_URL
+	: 'http://localhost:6543';
 
 export default defineConfig({
 	server: {
@@ -12,14 +14,13 @@ export default defineConfig({
 		sveltekit(),
 		replace.default([
 			{
-			  filter: /\.js$/,
-			  replace: {
-				from: 'http://localhost:6543',
-				to: suggestedWebapiUrl,
-			  },
+				filter: /\.js$/,
+				replace: {
+					from: 'http://localhost:6543',
+					to: suggestedWebapiUrl
+				}
 			}
-		  ]),
+		])
 	],
-	build: {
-    },
+	build: {}
 });

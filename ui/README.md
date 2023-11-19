@@ -4,7 +4,7 @@ Capillaries-UI is a simple [SPA](https://en.wikipedia.org/wiki/Single-page_appli
 
 It uses [Svelte](https://svelte.dev/) for building UI components, [rollup.js](https://rollupjs.org/) for bundling, [sirv](https://www.npmjs.com/package/sirv) for serving static content.
 
-Serves at 8080. In production environment, consider  using some production-grade web server instead of sirv.
+Serves at 8080. In production environment, consider using some production-grade web server instead of sirv.
 
 ## Requirements
 
@@ -13,26 +13,25 @@ Serves at 8080. In production environment, consider  using some production-grade
 ## Building
 
 Get all dependencies (used in Capillaries UI [container](docker/Dockerfile)):
+
 ```
 npm install
 ```
 
 Build static bundle:
+
 ```
 npm run build (used in Capillaries UI [container](docker/Dockerfile)):
 ```
 
 Build and serve in dev mode:
+
 ```
 npm run dev
-```
-
-Serve bundle (used in Capillaries UI [container](docker/Dockerfile)):
-```
-npm run start --host
 ```
 
 ## Settings
 
 ### CAPILLARIES_WEBAPI_URL
-Environment variable, specifies URL of [Webapi](../doc/glossary.md#webapi) to use.
+
+Environment variable, specifies URL of [Webapi](../doc/glossary.md#webapi) to use. Default: `http:\\localhost:6543`.

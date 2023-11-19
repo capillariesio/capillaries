@@ -2,9 +2,10 @@
 	import { page } from '$app/stores';
 	import KsMatrix from './KsMatrix.svelte';
 	import Keyspaces from './Keyspaces.svelte';
-  import KsRunNodeHistory from './KsRunNodeHistory.svelte';
-  import KsRunNodeBatchHistory from './KsRunNodeBatchHistory.svelte';
+	import KsRunNodeHistory from './KsRunNodeHistory.svelte';
+	import KsRunNodeBatchHistory from './KsRunNodeBatchHistory.svelte';
 	import { Modals, closeModal } from 'svelte-modals';
+	import { URLPattern } from 'urlpattern-polyfill';
 
 	let params;
 	let routed_page;
@@ -18,26 +19,29 @@
 	});
 
 	window.addEventListener('hashchange', function () {
-		// console.log('hash changed!' + $page.url);
 		reload();
 	});
 
 	function reload() {
 		if (patternKsMatrix.test($page.url)) {
-      var hg = patternKsMatrix.exec($page.url).hash.groups;
+			let hg = patternKsMatrix.exec($page.url).hash.groups;
 			params = { ks_name: hg.ks_name };
 			routed_page = KsMatrix;
 		} else if (patternKsRunNodeHistory.test($page.url)) {
-      var hg = patternKsRunNodeHistory.exec($page.url).hash.groups;
+			let hg = patternKsRunNodeHistory.exec($page.url).hash.groups;
 			params = { ks_name: hg.ks_name, run_id: hg.run_id };
 			routed_page = KsRunNodeHistory;
 		} else if (patternKsRunNodeBatchHistory.test($page.url)) {
-      var hg = patternKsRunNodeBatchHistory.exec($page.url).hash.groups;
+			let hg = patternKsRunNodeBatchHistory.exec($page.url).hash.groups;
 			params = { ks_name: hg.ks_name, run_id: hg.run_id, node_name: hg.node_name };
 			routed_page = KsRunNodeBatchHistory;
-		} else {
+		} else if (patternKeyspaces.test($page.url)) {
 			routed_page = Keyspaces;
-      params = {}
+			params = {};
+		} else {
+			let url = new URL($page.url);
+			// Navigate to Keyspaces
+			location.href = url.protocol + '//' + url.host + '#/';
 		}
 	}
 
@@ -47,7 +51,13 @@
 <svelte:component this={routed_page} {params} />
 
 <Modals>
-	<div slot="backdrop" class="backdrop" on:click={closeModal} on:keypress={() => false} />
+	<div
+		slot="backdrop"
+		class="backdrop"
+		on:click={closeModal}
+		on:keypress={() => false}
+		aria-hidden="true"
+	/>
 </Modals>
 
 <style>

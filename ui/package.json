@@ -1,6 +1,6 @@
 {
-	"name": "capiui",
-	"version": "0.0.1",
+	"name": "capillaries-ui",
+	"version": "1.0.0",
 	"private": true,
 	"scripts": {
 		"dev": "vite dev",
@@ -21,10 +21,9 @@
 		"prettier-plugin-svelte": "^3.0.0",
 		"svelte": "^4.0.5",
 		"svelte-modals": "^1.3.0",
-		"vite-plugin-singlefile": "^0.13.5",
-		"vite-plugin-filter-replace": "^0.1.12"
+		"urlpattern-polyfill": "^9.0.0",
+		"vite-plugin-filter-replace": "^0.1.12",
+		"vite-plugin-singlefile": "^0.13.5"
 	},
-	"type": "module",
-	"dependencies": {
-	}
+	"type": "module"
 }
