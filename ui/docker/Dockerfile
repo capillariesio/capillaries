@@ -1,9 +1,9 @@
-FROM node:18.12.1-alpine
+FROM node:20.9.0-alpine
 
 WORKDIR /usr/src/capillaries
 
-# Capillaries daemon sources
-COPY ./ui/public ./public
+# Capillaries UI sources
+COPY ./ui/static ./static
 COPY ./ui/src ./src
 COPY ./ui/*.json ./
 COPY ./ui/*.js ./
@@ -12,8 +12,8 @@ COPY ./ui/*.js ./
 RUN npm install
 RUN npm run build
 
-COPY ./ui/docker/docker-startup.sh /usr/src/capillaries/
-RUN chmod +x /usr/src/capillaries/docker-startup.sh
+RUN apk update
+RUN apk add nginx
 
-# This will run "npm run start"
-ENTRYPOINT ["/usr/src/capillaries/docker-startup.sh"]
+COPY ./ui/docker/nginx.conf /etc/nginx
+CMD ["nginx", "-g", "daemon off;"]

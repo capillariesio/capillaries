@@ -76,20 +76,10 @@ services:
     environment:
       CAPILLARIES_WEBAPI_URL: 'http://10.5.0.20:6543'
     ports:
-      - 8080:8080      
+      - 8080:8080    
     networks:
       capinet:
         ipv4_address: 10.5.0.30
-
-# docker network create --driver=bridge --subnet=10.5.0.0/16 --ip-range=10.5.0.0/24 --gateway=10.5.0.1 capinet
-# docker run -d --hostname my-rabbit -p 15672:15672 -p 5672:5672 --network=capinet --ip 10.5.0.5 rabbitmq:3-management
-# docker run -d --hostname my-cassandra -p 9042:9042 --network=capinet --ip 10.5.0.11 cassandra
-# docker compose -p "test_capillaries_containers" create  --force-recreate daemon
-# docker compose -p "test_capillaries_containers" start daemon
-# docker compose -p "test_capillaries_containers" create webapi
-# docker compose -p "test_capillaries_containers" start webapi
-# docker compose -p "test_capillaries_containers" create ui
-# docker compose -p "test_capillaries_containers" start ui
 
 # mkdir /tmp/capi_cfg
 # mkdir /tmp/capi_in

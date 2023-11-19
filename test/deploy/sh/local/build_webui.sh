@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export PATH=$PATH:$HOME/.nvm/versions/node/v18.12.1/bin
+export PATH=$PATH:$HOME/.nvm/versions/node/v20.9.0/bin
 
 # Just build for http://localhost:6543, sh/webapi/config.sh will patch bundle.js on deployment
 # If, for some reason, patching is not an option, build UI with this env variable set:
@@ -8,3 +8,7 @@ export PATH=$PATH:$HOME/.nvm/versions/node/v18.12.1/bin
 
 cd ../../../../ui
 npm run build
+
+pushd build
+tar -czvf all.tgz *
+popd

@@ -720,11 +720,19 @@
       after: {},
     },
     up_ui: {
-      src: '../../ui/public',
+      src: '../../ui/build/all.tgz',
       dst: '/home/' + $.ssh_config.user + '/ui',
       dir_permissions: 755,
       file_permissions: 644,
-      after: {},
+      after: {
+        env: {
+          UI_ROOT: '/home/' + $.ssh_config.user + '/ui',
+        },
+        cmd: [
+          'sh/capiscripts/unpack_ui.sh',
+        ],
+      },
+
     },
     up_webapi_binary: {
       src: buildLinuxDir + '/capiwebapi.gz',

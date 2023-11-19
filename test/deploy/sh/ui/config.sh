@@ -16,4 +16,4 @@ fi
 
 echo Patching WebUI to use Webapi ip:port $EXTERNAL_IP_ADDRESS:$WEBAPI_PORT
 
-sed -i -e 's~localhost:6543~'$EXTERNAL_IP_ADDRESS':'$WEBAPI_PORT'~g' /home/$SSH_USER/ui/build/bundle.js
+sed -i -e 's~localhost:6543~'$EXTERNAL_IP_ADDRESS':'$WEBAPI_PORT'~g' /home/$SSH_USER/ui/_app/immutable/nodes/*.js
