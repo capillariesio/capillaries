@@ -5,7 +5,7 @@ Q&A
 
 Q. What kind of data providers can I use as data source? What media the results can be written to?
 
-A. At the moment, Capillaries can only read and write CSV files. It can read from:
+A. At the moment, Capillaries can only read and write CSV and Parquet files. It can read from:
 - local file system
 - http/https
 - [sftp](./glossary.md#sftp-uris) URIs
