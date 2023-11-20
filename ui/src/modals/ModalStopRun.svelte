@@ -15,7 +15,7 @@
 	function setWebapiData(dataFromJson, errorFromJson) {
 		webapiWaiting = false;
 		if (!!errorFromJson) {
-			responseError = errorFromJson.error.msg;
+			responseError = "cannot stop this run, Capillaries webapi returned an error: " + errorFromJson;
 		} else {
 			responseError = '';
 			closeModal();

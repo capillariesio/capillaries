@@ -31,9 +31,11 @@ cd capillaries
 docker-compose -p "test_capillaries_containers" up
 ```
 
-Wait until all containers are started and Cassandra is fully initialized (it will log something like `Created default superuser role 'cassandra'`). Now Capillaries is ready to process data.
+Wait until all containers are started and Cassandra is fully initialized (it will log something like `Created default superuser role 'cassandra'`). Now Capillaries is ready to process sample demo input data according to the sample demo scripts (all copied by copy_demo_data.sh above).
 
-Navigate to `http://localhost:8080`, click "New run" and start a new data processing run with the following parameters (no tabs or spaces allowed):
+Navigate to `http://localhost:8080` to see [Capillaries UI](./doc/glossary.md#capillaries-ui).
+
+Start a new Capillaries [data processing run](./doc/glossary.md#run) by clicking "New run" and providing the following parameters (no tabs or spaces allowed):
 
 | Field | Value |
 |- | - |
@@ -42,7 +44,13 @@ Navigate to `http://localhost:8080`, click "New run" and start a new data proces
 | Script parameters URI | /tmp/capi_cfg/portfolio_quicktest/script_params.json |
 | Start nodes |	1_read_accounts,1_read_txns,1_read_period_holdings |
 
-A new keyspace `portfolio_quicktest` will appear in the keyspace list. Click on it and watch the run complete - nodes `7_file_account_period_sector_perf` and `7_file_account_year_perf` should produce result files:
+Alternatively, you can start a new [run](./doc/glossary.md#run) using Capillaries [toolbelt](./doc/glossary.md#toolbelt) by executing the following command from the Docker host machine, it should have the same effect as starting a run from the UI:
+
+```
+docker exec -it capillaries_webapi /usr/local/bin/capitoolbelt start_run -script_file=/tmp/capi_cfg/portfolio_quicktest/script.json -params_file=/tmp/capi_cfg/portfolio_quicktest/script_params.json -keyspace=portfolio_quicktest -start_nodes=1_read_accounts,1_read_txns,1_read_period_holdings
+```
+
+Watch the progress in Capillaries UI. A new keyspace `portfolio_quicktest` will appear in the keyspace list. Click on it and watch the run complete - nodes `7_file_account_period_sector_perf` and `7_file_account_year_perf` should produce result files:
 
 ```
 cat /tmp/capi_out/portfolio_quicktest/account_period_sector_perf.csv
@@ -51,7 +59,7 @@ cat /tmp/capi_out/portfolio_quicktest/account_year_perf.csv
 
 Log files created by Capillaries [Daemon](./doc/glossary.md#daemon), [WebAPI](./doc/glossary.md#webapi) and [UI](./doc/glossary.md#capillaries-ui) are in /tmp/capi_out.
 
-For more details about getting started, see [Getting started](doc/started.md). For more details about this particular demo, see Capillaries blog: [Use Capillaries to calculate ARK portfolio performance](https://capillaries.io/blog/2023-04-08-portfolio/index.html)
+For more details about getting started, see [Getting started](doc/started.md). For more details about this particular demo, see Capillaries blog: [Use Capillaries to calculate ARK portfolio performance](https://capillaries.io/blog/2023-04-08-portfolio/index.html). To learn how this demo runs on a bigger dataset with 14 million transactions, see [Capillaries: ARK portfolio performance calculation at scale](https://capillaries.io/blog/2023-11-15-portfolio-scale/index.html).
 
 ## Capillaries in depth
 

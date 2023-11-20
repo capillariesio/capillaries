@@ -21,7 +21,7 @@
 			? dataFromJson
 			: { run_props: {}, run_lifespan: {}, batch_history: [] };
 		if (!!errorFromJson) {
-			responseError = errorFromJson.msg;
+			responseError = "cannot retrieve batch history, Capillaries webapi returned an error: " + errorFromJson;
 		} else {
 			responseError = '';
 		}
@@ -54,7 +54,7 @@
 				}
 			})
 			.catch((error) => {
-				responseError = method + ' ' + url + ':' + error;
+				responseError = "cannot fetch batch history data from Capillaries webapi at " + method + ' ' + url + ', error:' + error;
 				console.log(error);
 				if (!isDestroyed) timer = setTimeout(fetchData, 3000);
 			});
