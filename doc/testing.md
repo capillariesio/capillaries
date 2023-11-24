@@ -14,6 +14,13 @@ go tool cover -html=/var/tmp/capillaries.p -o=/var/tmp/capillaries.html
 ```
 and open /var/tmp/capillaries.html in a web browser.
 
+Or, from the root directory:
+
+```
+go test -coverprofile=/var/tmp/capillaries.p -cover $(go list ./pkg/... | grep -e .*\.\/cql$ -e .*\.\/custom$ -e .*\.\/eval$ -e .*\.\/sc$ -e .*\.\/wf$)
+go tool cover -html=/var/tmp/capillaries.p -o=/var/tmp/capillaries.html
+```
+
 ## Integration tests
 
 There is a number of extensive integration tests that cover a big part of Capillaries script, database, and workflow functionality:
