@@ -17,7 +17,7 @@ jobs:
           fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
           ref: ${{github.event.pull_request.head.ref}}
           repository: ${{github.event.pull_request.head.repo.full_name}}
-          ssh-key: ${{ secrets.KLEINESHERTZ_CAPILLARIES_ACTION_KEY }}
+          token: ${{ secrets.KLEINESHERTZ_CAPILLARIES_ACTION_KEY }}
           persist-credentials: true          
       
       - name: Setup go
@@ -53,9 +53,9 @@ jobs:
         if: steps.verify-changed-files.outputs.files_changed == 'true'
         uses: ad-m/github-push-action@master
         with:
+          github_token: ${{ secrets.KLEINESHERTZ_CAPILLARIES_ACTION_KEY }}
           #github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ github.head_ref }}
           repository: ${{github.event.pull_request.head.repo.full_name}}
-          github_token: ${{ secrets.KLEINESHERTZ_CAPILLARIES_ACTION_KEY }}
           force_with_lease: true
           
