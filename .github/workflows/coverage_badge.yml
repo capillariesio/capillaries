@@ -1,5 +1,10 @@
 name: Go coverage badge  # The name of the workflow that will appear on Github
 
+permissions:
+  contents: write # We need write access to the repo
+  # pages: write
+  # id-token: write
+
 on:
   pull_request:
     branches:
