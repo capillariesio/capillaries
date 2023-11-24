@@ -1,10 +1,5 @@
 name: Go coverage badge  # The name of the workflow that will appear on Github
 
-permissions:
-  contents: write # We need write access to the repo
-  # pages: write
-  # id-token: write
-
 on:
   pull_request:
     branches:
@@ -14,6 +9,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     name: Update coverage badge
+    permissions:
+      contents: write # We need write access to the repo
     steps:
       - name: Checkout
         uses: actions/checkout@v4
