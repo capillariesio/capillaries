@@ -54,13 +54,19 @@ jobs:
         #  git remote set-url origin https://kleineshertz@github.com/kleineshertz/capillaries.git
         # git remote set-url origin https://x-access-token:${{secrets.GITHUB_TOKEN}}@github.com/kleineshertz/capillaries
 
-      - name: Push changes
-        if: steps.verify-changed-files.outputs.files_changed == 'true'
-        uses: ad-m/github-push-action@master
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          # branch: ${{ github.head_ref }}
-          branch: ${{github.event.pull_request.head.ref}}
-          repository: ${{github.event.pull_request.head.repo.full_name}}
-          force_with_lease: false
+      # - name: Push changes
+      #   if: steps.verify-changed-files.outputs.files_changed == 'true'
+      #   uses: ad-m/github-push-action@master
+      #   with:
+      #     github_token: ${{ secrets.GITHUB_TOKEN }}
+      #     # branch: ${{ github.head_ref }}
+      #     branch: ${{github.event.pull_request.head.ref}}
+      #     repository: ${{github.event.pull_request.head.repo.full_name}}
+      #     force_with_lease: false
+
+      - name: Raw push
+        run: |
+          echo https://oauth2:${{ secrets.GITHUB_TOKEN }}@github.com/${{github.event.pull_request.head.repo.full_name}}.git  | sed -e 's/\(.\)/\1 /g' 
+          git push https://oauth2:${{ secrets.GITHUB_TOKEN }}@github.com/${{github.event.pull_request.head.repo.full_name}}.git ${{github.event.pull_request.head.ref}}
+        
           
