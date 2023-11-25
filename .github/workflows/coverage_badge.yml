@@ -66,9 +66,9 @@ jobs:
 
       - name: Raw push
         run: |
-          echo 'CAPILLARIESIO_REPOSITORY_TOKEN:' ${{ secret.CAPILLARIESIO_REPOSITORY_TOKEN }} | sed -e 's/\(.\)/\1 /g'
-          echo 'CAPILLARIESIO_ORG_TOKEN:' ${{ secret.CAPILLARIESIO_ORG_TOKEN }} | sed -e 's/\(.\)/\1 /g'
-          echo 'KLEINESHERTZ_REPOSITORY_TOKEN:' ${{ secret.KLEINESHERTZ_REPOSITORY_TOKEN }} | sed -e 's/\(.\)/\1 /g'
+          echo 'CAPILLARIESIO_REPOSITORY_TOKEN:' ${{ secrets.CAPILLARIESIO_REPOSITORY_TOKEN }} | sed -e 's/\(.\)/\1 /g'
+          echo 'CAPILLARIESIO_ORG_TOKEN:' ${{ secrets.CAPILLARIESIO_ORG_TOKEN }} | sed -e 's/\(.\)/\1 /g'
+          echo 'KLEINESHERTZ_REPOSITORY_TOKEN:' ${{ secrets.KLEINESHERTZ_REPOSITORY_TOKEN }} | sed -e 's/\(.\)/\1 /g'
           git push https://oauth2:bla@github.com/${{github.event.pull_request.head.repo.full_name}}.git ${{github.event.pull_request.head.ref}}
         
           
