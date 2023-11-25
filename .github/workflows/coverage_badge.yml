@@ -48,9 +48,9 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
+          git config --local --unset-all "http.https://github.com/.extraheader"
           git add README.md
           git commit -m "chore: Updated coverage badge."
-          git config --local --unset-all "http.https://github.com/.extraheader"
         #  git remote set-url origin https://kleineshertz@github.com/kleineshertz/capillaries.git
         # git remote set-url origin https://x-access-token:${{secrets.GITHUB_TOKEN}}@github.com/kleineshertz/capillaries
 
