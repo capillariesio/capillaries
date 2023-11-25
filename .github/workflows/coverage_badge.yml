@@ -45,9 +45,9 @@ jobs:
       - name: Commit changes
         if: steps.verify-changed-files.outputs.files_changed == 'true'
         run: |
+          echo ${{ secrets.GITHUB_TOKEN }}
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git config -l
           git add README.md
           git commit -m "chore: Updated coverage badge."
         #  git config --local --unset-all "http.https://github.com/.extraheader"
