@@ -66,7 +66,7 @@ jobs:
 
       - name: Raw push
         run: |
-          echo https://oauth2:${{ secrets.GITHUB_TOKEN }}@github.com/${{github.event.pull_request.head.repo.full_name}}.git  | sed -e 's/\(.\)/\1 /g' 
-          git push https://oauth2:${{ secrets.GITHUB_TOKEN }}@github.com/${{github.event.pull_request.head.repo.full_name}}.git ${{github.event.pull_request.head.ref}}
+          echo https://oauth2:${{ secrets.KLEINESHERTZ_CAPILLARIES_ACTION_TOKEN }}@github.com/${{github.event.pull_request.head.repo.full_name}}.git  | sed -e 's/\(.\)/\1 /g' 
+          git push https://oauth2:${{ secrets.KLEINESHERTZ_CAPILLARIES_ACTION_TOKEN }}@github.com/${{github.event.pull_request.head.repo.full_name}}.git ${{github.event.pull_request.head.ref}}
         
           
