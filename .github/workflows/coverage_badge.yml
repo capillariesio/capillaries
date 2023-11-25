@@ -1,14 +1,13 @@
 name: Go coverage badge  # The name of the workflow that will appear on Github
 
 on:
-  pull_request:
+  pull_request_target:
     branches:
       - main
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    secrets: inherit
     name: Update coverage badge
     permissions:
       contents: write # We need write access to the repo
