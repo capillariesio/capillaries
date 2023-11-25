@@ -21,7 +21,7 @@ jobs:
           repository: ${{github.event.pull_request.head.repo.full_name}}
           persist-credentials: false          
           github_token: ${{ secrets.GITHUB_TOKEN }}
-                
+
       - name: Setup go
         uses: actions/setup-go@v4
         with:
@@ -50,6 +50,7 @@ jobs:
           git config --local user.name "GitHub Action"
           git add README.md
           git commit -m "chore: Updated coverage badge."
+          git config --local --unset-all "http.https://github.com/.extraheader"
         #  git remote set-url origin https://kleineshertz@github.com/kleineshertz/capillaries.git
         # git remote set-url origin https://x-access-token:${{secrets.GITHUB_TOKEN}}@github.com/kleineshertz/capillaries
 
