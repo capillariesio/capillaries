@@ -19,7 +19,6 @@ jobs:
           fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
           ref: ${{github.event.pull_request.head.ref}}
           repository: ${{github.event.pull_request.head.repo.full_name}}
-          token: ${{ github.token }}
           persist-credentials: false          
       
       - name: Setup go
@@ -55,7 +54,7 @@ jobs:
         if: steps.verify-changed-files.outputs.files_changed == 'true'
         uses: ad-m/github-push-action@master
         with:
-          github_token: ${{ github.token }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ github.head_ref }}
           repository: ${{github.event.pull_request.head.repo.full_name}}
           force_with_lease: true
