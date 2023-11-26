@@ -17,15 +17,10 @@ jobs:
         go mod download
     - name: Run Unit tests
       run: |
-        go test -coverprofile=/var/tmp/capillaries.p -cover $(go list ./pkg/... | grep -e .*\.\/cql$ -e .*\.\/custom$ -e .*\.\/eval$ -e .*\.\/sc$ -e .*\.\/wf$)
+        go test -coverprofile=/var/tmp/capillaries.p -cover $(go list ./pkg/... | grep -e .*\.\/eval$$)
     - name: Install goveralls
       run: go install github.com/mattn/goveralls@latest
     - name: Send coverage
       env:
         COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: goveralls -coverprofile=/var/tmp/capillaries.p -service=github
-    # or use shogo82148/actions-goveralls
-    # - name: Send coverage
-    #   uses: shogo82148/actions-goveralls@v1
-    #   with:
-    #     path-to-profile: /var/tmp/capillaries.p
