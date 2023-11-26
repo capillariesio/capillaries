@@ -1,6 +1,6 @@
 <img src="doc/logo.svg" alt="logo" width="100"/>
 
-# Capillaries
+# Capillaries [![Coverage Status](https://coveralls.io/repos/github/capillariesio/capillaries/badge.svg?branch=main)](https://coveralls.io/github/capillariesio/capillaries?branch=main)
 
 Capillaries is a data processing framework that:
 - takes care of the scalability issues and intermediate data store, allowing users to focus on data transforms and data quality control;

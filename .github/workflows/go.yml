@@ -11,7 +11,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
+
+    - name: Install goveralls
+      run: go install github.com/mattn/goveralls@latest
 
     - name: Set up Go
       uses: actions/setup-go@v3
@@ -21,11 +24,15 @@ jobs:
     - name: Build
       run: go build -v ./...
 
-    - name: Test
+    - name: Generate coverage report for Coveralls.io
       run: |
-            go test -v ./... -coverprofile coverage.out -covermode count
-            go tool cover -func coverage.out
+        go test -coverprofile=/var/tmp/capillaries.p -cover $(go list ./pkg/... | grep -e .*\.\/eval$)
 
+    - name: Send coverage
+      env:
+        COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: goveralls -coverprofile=/var/tmp/capillaries.p -service=github
+  
     - name: pkg/cql test coverage threshold
       env:
           TESTCOVERAGE_THRESHOLD: 61.59
