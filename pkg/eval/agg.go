@@ -95,7 +95,7 @@ func (eCtx *EvalCtx) checkAgg(funcName string, callExp *ast.CallExpr, aggFunc Ag
 }
 
 func (eCtx *EvalCtx) CallAggStringAgg(callExp *ast.CallExpr, args []interface{}) (interface{}, error) {
-	if err := eCtx.checkAgg("string_agg", callExp, AggSum); err != nil {
+	if err := eCtx.checkAgg("string_agg", callExp, AggStringAgg); err != nil {
 		return nil, err
 	}
 	if err := checkArgs("string_agg", 2, len(args)); err != nil {

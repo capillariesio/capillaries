@@ -98,49 +98,6 @@ func (polDef *DependencyPolicyDef) parseEventPriorityOrderString() error {
 	}
 	polDef.OrderIdxDef = *idxDefMap["order_by"]
 
-	// vars := NewVarsFromDepCtx(0, wfmodel.DependencyNodeEvent{})
-	// fieldStrings := strings.Split(polDef.EventPriorityOrderString, ",")
-	// polDef.EventPriorityOrder = make([]EventPriorityOrderField, len(fieldStrings))
-	// for fieldIdx, fieldString := range fieldStrings {
-	// 	fieldExp, err := parser.ParseExpr(fieldString)
-	// 	if err != nil {
-	// 		return fmt.Errorf("cannot parse event field descriptor '%s': %s", fieldString, err.Error())
-	// 	}
-	// 	switch typedExp := fieldExp.(type) {
-	// 	case *ast.CallExpr:
-	// 		identExp, _ := typedExp.Fun.(*ast.Ident)
-	// 		polDef.EventPriorityOrder[fieldIdx] = EventPriorityOrderField{FieldName: identExp.Name, Direction: EventSortUnknown}
-	// 		for _, modifierExp := range typedExp.Args {
-	// 			switch modifierExpType := modifierExp.(type) {
-	// 			case *ast.Ident:
-	// 				switch modifierExpType.Name {
-	// 				case string(EventSortAsc):
-	// 					polDef.EventPriorityOrder[fieldIdx].Direction = EventSortAsc
-	// 				case string(EventSortDesc):
-	// 					polDef.EventPriorityOrder[fieldIdx].Direction = EventSortDesc
-	// 				default:
-	// 					return fmt.Errorf("invalid direction modifier '%s'", modifierExpType.Name)
-	// 				}
-	// 			default:
-	// 				return fmt.Errorf("cannot parse direction modifier in event field descriptor '%s', expected asc or desc", fieldString)
-	// 			}
-	// 		}
-	// 		if polDef.EventPriorityOrder[fieldIdx].Direction == EventSortUnknown {
-	// 			return fmt.Errorf("missing direction modifier in '%s', required %s or %s", fieldString, EventSortAsc, EventSortDesc)
-	// 		}
-	// 	default:
-	// 		return fmt.Errorf("cannot parse event field descriptor '%s', it must be event_field_name(asc|desc) where event_field_name is one of these: %s", fieldString, vars.NamesByTable(wfmodel.DependencyNodeEventTableName))
-	// 	}
-	// }
-
-	// // Verify that order expression contains only event fields
-	// eventFieldMap := vars[wfmodel.DependencyNodeEventTableName]
-	// for _, fld := range polDef.EventPriorityOrder {
-	// 	if _, ok := eventFieldMap[fld.FieldName]; !ok {
-	// 		return fmt.Errorf("cannot parse event field descriptor '%s', available fields are %s", fld.FieldName, vars.NamesByTable(wfmodel.DependencyNodeEventTableName))
-	// 	}
-	// }
-
 	return nil
 }
 

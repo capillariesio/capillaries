@@ -246,3 +246,15 @@ func TestTime(t *testing.T) {
 	assertEqual(t, `t1.fTime == t2.fTime`, false, varValuesMap)
 	assertEqual(t, `t1.fTime != t2.fTime`, true, varValuesMap)
 }
+
+func TestNewPlainEvalCtxAndInitializedAgg(t *testing.T) {
+	varValuesMap := getTestValuesMap()
+	varValuesMap["t1"]["fieldStr"] = "a"
+
+	exp, _ := parser.ParseExpr(`string_agg(t1.fieldStr,",")`)
+	aggEnabledType, aggFuncType, aggFuncArgs := DetectRootAggFunc(exp)
+
+	eCtx, err := NewPlainEvalCtxAndInitializedAgg(aggEnabledType, aggFuncType, aggFuncArgs)
+	assert.Equal(t, AggTypeString, eCtx.AggType)
+	assert.Equal(t, nil, err)
+}

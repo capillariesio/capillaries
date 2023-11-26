@@ -1,6 +1,7 @@
 package eval
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"testing"
@@ -77,30 +78,24 @@ func TestExtraAgg(t *testing.T) {
 	assert.Equal(t, err.Error(), "cannot evaluate more than one aggregate functions in the expression, extra count() found besides min()")
 }
 
-func TestDetectRootArgFunc(t *testing.T) {
-	varValuesMap := getTestValuesMap()
-
-	var exp ast.Expr
-	varValuesMap["t1"]["fieldStr"] = "a"
-
-	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr,",")`)
+func assertFuncTypeAndArgs(t *testing.T, expression string, aggFuncEnabled AggEnabledType, expectedAggFuncType AggFuncType, expectedNumberOfArgs int) {
+	exp, _ := parser.ParseExpr(expression)
 	aggEnabledType, aggFuncType, aggFuncArgs := DetectRootAggFunc(exp)
-	assert.Equal(t, AggFuncEnabled, aggEnabledType)
-	assert.Equal(t, AggStringAgg, aggFuncType)
-	assert.Equal(t, 2, len(aggFuncArgs))
-
-	exp, _ = parser.ParseExpr(`sum(t1.fieldFloat)`)
-	aggEnabledType, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
-	assert.Equal(t, AggFuncEnabled, aggEnabledType)
-	assert.Equal(t, AggSum, aggFuncType)
-	assert.Equal(t, 1, len(aggFuncArgs))
-
-	exp, _ = parser.ParseExpr(`some_func(t1.fieldFloat)`)
-	aggEnabledType, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
-	assert.Equal(t, AggFuncDisabled, aggEnabledType)
-	assert.Equal(t, AggUnknown, aggFuncType)
-	assert.Equal(t, 0, len(aggFuncArgs))
+	assert.Equal(t, aggFuncEnabled, aggEnabledType, "expected AggFuncEnabled for "+expression)
+	assert.Equal(t, expectedAggFuncType, aggFuncType, fmt.Sprintf("expected %s for %s", expectedAggFuncType, expression))
+	assert.Equal(t, expectedNumberOfArgs, len(aggFuncArgs), fmt.Sprintf("expected %d args for %s", expectedNumberOfArgs, expression))
 }
+
+func TestDetectRootArgFunc(t *testing.T) {
+	assertFuncTypeAndArgs(t, `string_agg(t1.fieldStr,",")`, AggFuncEnabled, AggStringAgg, 2)
+	assertFuncTypeAndArgs(t, `sum(t1.fieldFloat)`, AggFuncEnabled, AggSum, 1)
+	assertFuncTypeAndArgs(t, `avg(t1.fieldFloat)`, AggFuncEnabled, AggAvg, 1)
+	assertFuncTypeAndArgs(t, `min(t1.fieldFloat)`, AggFuncEnabled, AggMin, 1)
+	assertFuncTypeAndArgs(t, `max(t1.fieldFloat)`, AggFuncEnabled, AggMax, 1)
+	assertFuncTypeAndArgs(t, `count()`, AggFuncEnabled, AggCount, 0)
+	assertFuncTypeAndArgs(t, `some_func(t1.fieldFloat)`, AggFuncDisabled, AggUnknown, 0)
+}
+
 func TestStringAgg(t *testing.T) {
 	varValuesMap := getTestValuesMap()
 
