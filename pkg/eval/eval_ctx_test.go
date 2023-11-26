@@ -143,6 +143,10 @@ func TestArithmetic(t *testing.T) {
 	assertEqual(t, "t1.fieldFloat32 / 0", math.Inf(1), varValuesMap)
 	assertEvalError(t, "t1.fieldDecimal2 / 0", "decimal division by 0", varValuesMap)
 
+	// Bad types
+	assertEvalError(t, "t1.fieldDecimal2 / `a`", "cannot perform binary arithmetic op, incompatible arg types '1(decimal.Decimal)' / 'a(string)' ", varValuesMap)
+	assertEvalError(t, "-`a`", "cannot evaluate unary minus expression '-a(string)', unsupported type", varValuesMap)
+
 	// String
 	varValuesMap = VarValuesMap{
 		"t1": {
@@ -200,6 +204,8 @@ func TestCompare(t *testing.T) {
 	assertEqual(t, `"aaa" >= "b"`, false, varValuesMap)
 	assertEqual(t, `"aaa" == "aaa"`, true, varValuesMap)
 	assertEqual(t, `"aaa" != "aaa"`, false, varValuesMap)
+
+	assertEvalError(t, "1 > true", "cannot perform binary comp op, incompatible arg types '1(int64)' > 'true(bool)' ", varValuesMap)
 }
 
 func TestBool(t *testing.T) {
@@ -210,7 +216,10 @@ func TestBool(t *testing.T) {
 	assertEqual(t, `true || false`, true, varValuesMap)
 	assertEqual(t, `!false`, true, varValuesMap)
 	assertEqual(t, `!true`, false, varValuesMap)
+
 	assertEvalError(t, `!123`, "cannot evaluate unary bool not expression with int64 on the right", varValuesMap)
+	assertEvalError(t, "true || 1", "cannot evaluate binary bool expression 'true(bool) || 1(int64)', invalid right arg", varValuesMap)
+	assertEvalError(t, "1 || true", "cannot perform binary op || against int64 left", varValuesMap)
 }
 
 func TestUnaryMinus(t *testing.T) {
@@ -253,8 +262,17 @@ func TestNewPlainEvalCtxAndInitializedAgg(t *testing.T) {
 
 	exp, _ := parser.ParseExpr(`string_agg(t1.fieldStr,",")`)
 	aggEnabledType, aggFuncType, aggFuncArgs := DetectRootAggFunc(exp)
-
 	eCtx, err := NewPlainEvalCtxAndInitializedAgg(aggEnabledType, aggFuncType, aggFuncArgs)
 	assert.Equal(t, AggTypeString, eCtx.AggType)
 	assert.Equal(t, nil, err)
+
+	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr,1)`)
+	aggEnabledType, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
+	eCtx, err = NewPlainEvalCtxAndInitializedAgg(aggEnabledType, aggFuncType, aggFuncArgs)
+	assert.Equal(t, "agg_string second parameter must be a constant string", err.Error())
+
+	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr, a)`)
+	aggEnabledType, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
+	eCtx, err = NewPlainEvalCtxAndInitializedAgg(aggEnabledType, aggFuncType, aggFuncArgs)
+	assert.Equal(t, "agg_string second parameter must be a basic literal", err.Error())
 }
