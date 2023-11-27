@@ -2,8 +2,6 @@ package wfmodel
 
 import (
 	"fmt"
-	"reflect"
-	"strings"
 	"time"
 )
 
@@ -76,15 +74,15 @@ func NewBatchHistoryEventFromMap(r map[string]interface{}, fields []string) (*Ba
 }
 
 // ToSpacedString - prints formatted field values, uses reflection, shoud not be used in prod
-func (n BatchHistoryEvent) ToSpacedString() string {
-	t := reflect.TypeOf(n)
-	formats := GetObjectModelFieldFormats(t)
-	values := make([]string, t.NumField())
+// func (n BatchHistoryEvent) ToSpacedString() string {
+// 	t := reflect.TypeOf(n)
+// 	formats := GetObjectModelFieldFormats(t)
+// 	values := make([]string, t.NumField())
 
-	v := reflect.ValueOf(&n).Elem()
-	for i := 0; i < v.NumField(); i++ {
-		fv := v.Field(i)
-		values[i] = fmt.Sprintf(formats[i], fv)
-	}
-	return strings.Join(values, PrintTableDelimiter)
-}
+// 	v := reflect.ValueOf(&n).Elem()
+// 	for i := 0; i < v.NumField(); i++ {
+// 		fv := v.Field(i)
+// 		values[i] = fmt.Sprintf(formats[i], fv)
+// 	}
+// 	return strings.Join(values, PrintTableDelimiter)
+// }
