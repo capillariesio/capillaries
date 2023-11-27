@@ -83,6 +83,9 @@ const (
 )
 
 func (eCtx *EvalCtx) checkAgg(funcName string, callExp *ast.CallExpr, aggFunc AggFuncType) error {
+	if eCtx.AggEnabled != AggFuncEnabled {
+		return fmt.Errorf("cannot evaluate %s(), context aggregate not enabled", funcName)
+	}
 	if eCtx.AggCallExp != nil {
 		if eCtx.AggCallExp != callExp {
 			return fmt.Errorf("cannot evaluate more than one aggregate functions in the expression, extra %s() found besides %s()", funcName, eCtx.AggFunc)
@@ -104,9 +107,6 @@ func (eCtx *EvalCtx) CallAggStringAgg(callExp *ast.CallExpr, args []interface{})
 
 	switch typedArg0 := args[0].(type) {
 	case string:
-		if eCtx.AggEnabled != AggFuncEnabled {
-			return nil, fmt.Errorf("cannot evaluate string_agg(string,separator), context aggregate not enabled")
-		}
 		if eCtx.StringAgg.Sb.Len() > 0 {
 			eCtx.StringAgg.Sb.WriteString(eCtx.StringAgg.Separator)
 		}
@@ -114,7 +114,7 @@ func (eCtx *EvalCtx) CallAggStringAgg(callExp *ast.CallExpr, args []interface{})
 		return eCtx.StringAgg.Sb.String(), nil
 
 	default:
-		return nil, fmt.Errorf("cannot evaluate string_agg(), argument %v of unsupported type %T", args[0], args[0])
+		return nil, fmt.Errorf("cannot evaluate string_agg(), unexpected argument %v of unsupported type %T", args[0], args[0])
 	}
 }
 
@@ -136,9 +136,6 @@ func (eCtx *EvalCtx) CallAggSum(callExp *ast.CallExpr, args []interface{}) (inte
 		} else if eCtx.AggType != AggTypeInt {
 			return nil, fmt.Errorf("cannot evaluate sum(), it started with type %s, now got int value %d", eCtx.AggType, typedArg0)
 		}
-		if eCtx.AggEnabled != AggFuncEnabled {
-			return nil, fmt.Errorf("cannot evaluate sum(int64), context aggregate not enabled")
-		}
 		eCtx.Sum.Int += typedArg0
 		return eCtx.Sum.Int, nil
 
@@ -147,9 +144,6 @@ func (eCtx *EvalCtx) CallAggSum(callExp *ast.CallExpr, args []interface{}) (inte
 			eCtx.AggType = AggTypeFloat
 		} else if eCtx.AggType != AggTypeFloat {
 			return nil, fmt.Errorf("cannot evaluate sum(), it started with type %s, now got float value %f", eCtx.AggType, typedArg0)
-		}
-		if eCtx.AggEnabled != AggFuncEnabled {
-			return nil, fmt.Errorf("cannot evaluate sum(float64), context aggregate not enabled")
 		}
 		eCtx.Sum.Float += typedArg0
 		return eCtx.Sum.Float, nil
@@ -160,14 +154,11 @@ func (eCtx *EvalCtx) CallAggSum(callExp *ast.CallExpr, args []interface{}) (inte
 		} else if eCtx.AggType != AggTypeDec {
 			return nil, fmt.Errorf("cannot evaluate sum(), it started with type %s, now got decimal value %s", eCtx.AggType, typedArg0.String())
 		}
-		if eCtx.AggEnabled != AggFuncEnabled {
-			return nil, fmt.Errorf("cannot evaluate sum(decimal2), context aggregate not enabled")
-		}
 		eCtx.Sum.Dec = eCtx.Sum.Dec.Add(typedArg0)
 		return eCtx.Sum.Dec, nil
 
 	default:
-		return nil, fmt.Errorf("cannot evaluate sum(), argument %v of unsupported type %T", args[0], args[0])
+		return nil, fmt.Errorf("cannot evaluate sum(), unexpected argument %v of unsupported type %T", args[0], args[0])
 	}
 }
 
@@ -189,9 +180,6 @@ func (eCtx *EvalCtx) CallAggAvg(callExp *ast.CallExpr, args []interface{}) (inte
 		} else if eCtx.AggType != AggTypeInt {
 			return nil, fmt.Errorf("cannot evaluate avg(), it started with type %s, now got int value %d", eCtx.AggType, typedArg0)
 		}
-		if eCtx.AggEnabled != AggFuncEnabled {
-			return nil, fmt.Errorf("cannot evaluate avg(int64), context aggregate not enabled")
-		}
 		eCtx.Avg.Int += typedArg0
 		eCtx.Avg.Count++
 		return eCtx.Avg.Int / eCtx.Avg.Count, nil
@@ -201,9 +189,6 @@ func (eCtx *EvalCtx) CallAggAvg(callExp *ast.CallExpr, args []interface{}) (inte
 			eCtx.AggType = AggTypeFloat
 		} else if eCtx.AggType != AggTypeFloat {
 			return nil, fmt.Errorf("cannot evaluate avg(), it started with type %s, now got float value %f", eCtx.AggType, typedArg0)
-		}
-		if eCtx.AggEnabled != AggFuncEnabled {
-			return nil, fmt.Errorf("cannot evaluate avg(float64), context aggregate not enabled")
 		}
 		eCtx.Avg.Float += typedArg0
 		eCtx.Avg.Count++
@@ -215,15 +200,12 @@ func (eCtx *EvalCtx) CallAggAvg(callExp *ast.CallExpr, args []interface{}) (inte
 		} else if eCtx.AggType != AggTypeDec {
 			return nil, fmt.Errorf("cannot evaluate avg(), it started with type %s, now got decimal value %s", eCtx.AggType, typedArg0.String())
 		}
-		if eCtx.AggEnabled != AggFuncEnabled {
-			return nil, fmt.Errorf("cannot evaluate avg(decimal2), context aggregate not enabled")
-		}
 		eCtx.Avg.Dec = eCtx.Avg.Dec.Add(typedArg0)
 		eCtx.Avg.Count++
 		return eCtx.Avg.Dec.Div(decimal.NewFromInt(eCtx.Avg.Count)).Round(2), nil
 
 	default:
-		return nil, fmt.Errorf("cannot evaluate avg(), argument %v of unsupported type %T", args[0], args[0])
+		return nil, fmt.Errorf("cannot evaluate avg(), unexpected argument %v of unsupported type %T", args[0], args[0])
 	}
 }
 
@@ -233,9 +215,6 @@ func (eCtx *EvalCtx) CallAggCount(callExp *ast.CallExpr, args []interface{}) (in
 	}
 	if err := checkArgs("count", 0, len(args)); err != nil {
 		return nil, err
-	}
-	if eCtx.AggEnabled != AggFuncEnabled {
-		return nil, fmt.Errorf("cannot evaluate count(), context aggregate not enabled")
 	}
 	eCtx.Count++
 	return eCtx.Count, nil
@@ -256,9 +235,6 @@ func (eCtx *EvalCtx) CallAggMin(callExp *ast.CallExpr, args []interface{}) (inte
 		} else if eCtx.AggType != AggTypeString {
 			return nil, fmt.Errorf("cannot evaluate min(), it started with type %s, now got string value %s", eCtx.AggType, typedArg0)
 		}
-		if eCtx.AggEnabled != AggFuncEnabled {
-			return nil, fmt.Errorf("cannot evaluate min(string), context aggregate not enabled")
-		}
 		eCtx.Min.Count++
 		if len(eCtx.Min.Str) == 0 || typedArg0 < eCtx.Min.Str {
 			eCtx.Min.Str = typedArg0
@@ -277,9 +253,6 @@ func (eCtx *EvalCtx) CallAggMin(callExp *ast.CallExpr, args []interface{}) (inte
 			} else if eCtx.AggType != AggTypeInt {
 				return nil, fmt.Errorf("cannot evaluate min(), it started with type %s, now got int value %d", eCtx.AggType, typedNumberArg0)
 			}
-			if eCtx.AggEnabled != AggFuncEnabled {
-				return nil, fmt.Errorf("cannot evaluate min(int64), context aggregate not enabled")
-			}
 			eCtx.Min.Count++
 			if typedNumberArg0 < eCtx.Min.Int {
 				eCtx.Min.Int = typedNumberArg0
@@ -291,9 +264,6 @@ func (eCtx *EvalCtx) CallAggMin(callExp *ast.CallExpr, args []interface{}) (inte
 				eCtx.AggType = AggTypeFloat
 			} else if eCtx.AggType != AggTypeFloat {
 				return nil, fmt.Errorf("cannot evaluate min(), it started with type %s, now got float value %f", eCtx.AggType, typedNumberArg0)
-			}
-			if eCtx.AggEnabled != AggFuncEnabled {
-				return nil, fmt.Errorf("cannot evaluate min(float64), context aggregate not enabled")
 			}
 			eCtx.Min.Count++
 			if typedNumberArg0 < eCtx.Min.Float {
@@ -307,9 +277,6 @@ func (eCtx *EvalCtx) CallAggMin(callExp *ast.CallExpr, args []interface{}) (inte
 			} else if eCtx.AggType != AggTypeDec {
 				return nil, fmt.Errorf("cannot evaluate min(), it started with type %s, now got decimal value %s", eCtx.AggType, typedNumberArg0.String())
 			}
-			if eCtx.AggEnabled != AggFuncEnabled {
-				return nil, fmt.Errorf("cannot evaluate min(decimal2), context aggregate not enabled")
-			}
 			eCtx.Min.Count++
 			if typedNumberArg0.LessThan(eCtx.Min.Dec) {
 				eCtx.Min.Dec = typedNumberArg0
@@ -317,7 +284,7 @@ func (eCtx *EvalCtx) CallAggMin(callExp *ast.CallExpr, args []interface{}) (inte
 			return eCtx.Min.Dec, nil
 
 		default:
-			return nil, fmt.Errorf("cannot evaluate max(), argument %v of unsupported type %T", args[0], args[0])
+			return nil, fmt.Errorf("cannot evaluate min(), unexpected argument %v of unsupported type %T", args[0], args[0])
 		}
 	}
 }
@@ -337,9 +304,6 @@ func (eCtx *EvalCtx) CallAggMax(callExp *ast.CallExpr, args []interface{}) (inte
 		} else if eCtx.AggType != AggTypeString {
 			return nil, fmt.Errorf("cannot evaluate max(), it started with type %s, now got string value %s", eCtx.AggType, typedArg0)
 		}
-		if eCtx.AggEnabled != AggFuncEnabled {
-			return nil, fmt.Errorf("cannot evaluate max(string), context aggregate not enabled")
-		}
 		eCtx.Max.Count++
 		if len(eCtx.Max.Str) == 0 || typedArg0 > eCtx.Max.Str {
 			eCtx.Max.Str = typedArg0
@@ -357,9 +321,6 @@ func (eCtx *EvalCtx) CallAggMax(callExp *ast.CallExpr, args []interface{}) (inte
 			} else if eCtx.AggType != AggTypeInt {
 				return nil, fmt.Errorf("cannot evaluate max(), it started with type %s, now got int value %d", eCtx.AggType, typedNumberArg0)
 			}
-			if eCtx.AggEnabled != AggFuncEnabled {
-				return nil, fmt.Errorf("cannot evaluate max(int64), context aggregate not enabled")
-			}
 			eCtx.Max.Count++
 			if typedNumberArg0 > eCtx.Max.Int {
 				eCtx.Max.Int = typedNumberArg0
@@ -371,9 +332,6 @@ func (eCtx *EvalCtx) CallAggMax(callExp *ast.CallExpr, args []interface{}) (inte
 				eCtx.AggType = AggTypeFloat
 			} else if eCtx.AggType != AggTypeFloat {
 				return nil, fmt.Errorf("cannot evaluate max(), it started with type %s, now got float value %f", eCtx.AggType, typedNumberArg0)
-			}
-			if eCtx.AggEnabled != AggFuncEnabled {
-				return nil, fmt.Errorf("cannot evaluate max(float64), context aggregate not enabled")
 			}
 			eCtx.Max.Count++
 			if typedNumberArg0 > eCtx.Max.Float {
@@ -387,9 +345,6 @@ func (eCtx *EvalCtx) CallAggMax(callExp *ast.CallExpr, args []interface{}) (inte
 			} else if eCtx.AggType != AggTypeDec {
 				return nil, fmt.Errorf("cannot evaluate max(), it started with type %s, now got decimal value %s", eCtx.AggType, typedNumberArg0.String())
 			}
-			if eCtx.AggEnabled != AggFuncEnabled {
-				return nil, fmt.Errorf("cannot evaluate max(decimal2), context aggregate not enabled")
-			}
 			eCtx.Max.Count++
 			if typedNumberArg0.GreaterThan(eCtx.Max.Dec) {
 				eCtx.Max.Dec = typedNumberArg0
@@ -397,7 +352,7 @@ func (eCtx *EvalCtx) CallAggMax(callExp *ast.CallExpr, args []interface{}) (inte
 			return eCtx.Max.Dec, nil
 
 		default:
-			return nil, fmt.Errorf("cannot evaluate max(), argument %v of unsupported type %T", args[0], args[0])
+			return nil, fmt.Errorf("cannot evaluate max(), unexpected argument %v of unsupported type %T", args[0], args[0])
 		}
 	}
 }

@@ -155,6 +155,10 @@ func (eCtx *EvalCtx) EvalBinaryInt(valLeftVolatile interface{}, op token.Token, 
 	}
 }
 
+func isCompareOp(op token.Token) bool {
+	return op == token.GTR || op == token.LSS || op == token.GEQ || op == token.LEQ || op == token.EQL || op == token.NEQ
+}
+
 func (eCtx *EvalCtx) EvalBinaryIntToBool(valLeftVolatile interface{}, op token.Token, valRightVolatile interface{}) (bool, error) {
 
 	valLeft, ok := valLeftVolatile.(int64)
@@ -167,15 +171,19 @@ func (eCtx *EvalCtx) EvalBinaryIntToBool(valLeftVolatile interface{}, op token.T
 		return false, fmt.Errorf("cannot evaluate binary int64 expression '%v(%T) %v %v(%T)', invalid right arg", valLeft, valLeft, op, valRightVolatile, valRightVolatile)
 	}
 
-	if op == token.GTR && valLeft > valRight ||
-		op == token.LSS && valLeft < valRight ||
-		op == token.GEQ && valLeft >= valRight ||
-		op == token.LEQ && valLeft <= valRight ||
-		op == token.EQL && valLeft == valRight ||
-		op == token.NEQ && valLeft != valRight {
-		return true, nil
+	if isCompareOp(op) {
+		if op == token.GTR && valLeft > valRight ||
+			op == token.LSS && valLeft < valRight ||
+			op == token.GEQ && valLeft >= valRight ||
+			op == token.LEQ && valLeft <= valRight ||
+			op == token.EQL && valLeft == valRight ||
+			op == token.NEQ && valLeft != valRight {
+			return true, nil
+		} else {
+			return false, nil
+		}
 	} else {
-		return false, nil
+		return false, fmt.Errorf("cannot perform bool op %v against int %d and int %d", op, valLeft, valRight)
 	}
 }
 
@@ -191,15 +199,19 @@ func (eCtx *EvalCtx) EvalBinaryFloat64ToBool(valLeftVolatile interface{}, op tok
 		return false, fmt.Errorf("cannot evaluate binary float64 expression '%v(%T) %v %v(%T)', invalid right arg", valLeft, valLeft, op, valRightVolatile, valRightVolatile)
 	}
 
-	if op == token.GTR && valLeft > valRight ||
-		op == token.LSS && valLeft < valRight ||
-		op == token.GEQ && valLeft >= valRight ||
-		op == token.LEQ && valLeft <= valRight ||
-		op == token.EQL && valLeft == valRight ||
-		op == token.NEQ && valLeft != valRight {
-		return true, nil
+	if isCompareOp(op) {
+		if op == token.GTR && valLeft > valRight ||
+			op == token.LSS && valLeft < valRight ||
+			op == token.GEQ && valLeft >= valRight ||
+			op == token.LEQ && valLeft <= valRight ||
+			op == token.EQL && valLeft == valRight ||
+			op == token.NEQ && valLeft != valRight {
+			return true, nil
+		} else {
+			return false, nil
+		}
 	} else {
-		return false, nil
+		return false, fmt.Errorf("cannot perform bool op %v against float %f and float %f", op, valLeft, valRight)
 	}
 }
 
@@ -215,15 +227,19 @@ func (eCtx *EvalCtx) EvalBinaryDecimal2ToBool(valLeftVolatile interface{}, op to
 		return false, fmt.Errorf("cannot evaluate binary decimal2 expression '%v(%T) %v %v(%T)', invalid right arg", valLeft, valLeft, op, valRightVolatile, valRightVolatile)
 	}
 
-	if op == token.GTR && valLeft.Cmp(valRight) > 0 ||
-		op == token.LSS && valLeft.Cmp(valRight) < 0 ||
-		op == token.GEQ && valLeft.Cmp(valRight) >= 0 ||
-		op == token.LEQ && valLeft.Cmp(valRight) <= 0 ||
-		op == token.EQL && valLeft.Cmp(valRight) == 0 ||
-		op == token.NEQ && valLeft.Cmp(valRight) != 0 {
-		return true, nil
+	if isCompareOp(op) {
+		if op == token.GTR && valLeft.Cmp(valRight) > 0 ||
+			op == token.LSS && valLeft.Cmp(valRight) < 0 ||
+			op == token.GEQ && valLeft.Cmp(valRight) >= 0 ||
+			op == token.LEQ && valLeft.Cmp(valRight) <= 0 ||
+			op == token.EQL && valLeft.Cmp(valRight) == 0 ||
+			op == token.NEQ && valLeft.Cmp(valRight) != 0 {
+			return true, nil
+		} else {
+			return false, nil
+		}
 	} else {
-		return false, nil
+		return false, fmt.Errorf("cannot perform bool op %v against decimal2 %v and decimal2 %v", op, valLeft, valRight)
 	}
 }
 
@@ -239,15 +255,19 @@ func (eCtx *EvalCtx) EvalBinaryTimeToBool(valLeftVolatile interface{}, op token.
 		return false, fmt.Errorf("cannot evaluate binary time expression '%v(%T) %v %v(%T)', invalid right arg", valLeft, valLeft, op, valRightVolatile, valRightVolatile)
 	}
 
-	if op == token.GTR && valLeft.After(valRight) ||
-		op == token.LSS && valLeft.Before(valRight) ||
-		op == token.GEQ && (valLeft.After(valRight) || valLeft == valRight) ||
-		op == token.LEQ && (valLeft.Before(valRight) || valLeft == valRight) ||
-		op == token.EQL && valLeft == valRight ||
-		op == token.NEQ && valLeft != valRight {
-		return true, nil
+	if isCompareOp(op) {
+		if op == token.GTR && valLeft.After(valRight) ||
+			op == token.LSS && valLeft.Before(valRight) ||
+			op == token.GEQ && (valLeft.After(valRight) || valLeft == valRight) ||
+			op == token.LEQ && (valLeft.Before(valRight) || valLeft == valRight) ||
+			op == token.EQL && valLeft == valRight ||
+			op == token.NEQ && valLeft != valRight {
+			return true, nil
+		} else {
+			return false, nil
+		}
 	} else {
-		return false, nil
+		return false, fmt.Errorf("cannot perform bool op %v against time %v and time %v", op, valLeft, valRight)
 	}
 }
 
@@ -431,15 +451,19 @@ func (eCtx *EvalCtx) EvalBinaryStringToBool(valLeftVolatile interface{}, op toke
 	}
 	valRight = strings.Replace(strings.Trim(valRight, "\""), `\"`, `"`, -1)
 
-	if op == token.GTR && valLeft > valRight ||
-		op == token.LSS && valLeft < valRight ||
-		op == token.GEQ && valLeft >= valRight ||
-		op == token.LEQ && valLeft <= valRight ||
-		op == token.EQL && valLeft == valRight ||
-		op == token.NEQ && valLeft != valRight {
-		return true, nil
+	if isCompareOp(op) {
+		if op == token.GTR && valLeft > valRight ||
+			op == token.LSS && valLeft < valRight ||
+			op == token.GEQ && valLeft >= valRight ||
+			op == token.LEQ && valLeft <= valRight ||
+			op == token.EQL && valLeft == valRight ||
+			op == token.NEQ && valLeft != valRight {
+			return true, nil
+		} else {
+			return false, nil
+		}
 	} else {
-		return false, nil
+		return false, fmt.Errorf("cannot perform bool op %v against string %v and string %v", op, valLeft, valRight)
 	}
 }
 

@@ -122,16 +122,16 @@ func TestStringAgg(t *testing.T) {
 	// Bad number of args
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr)`)
 	eCtx, err = NewPlainEvalCtxWithVarsAndInitializedAgg(AggFuncEnabled, &varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
-	assert.Contains(t, err.Error(), "agg_string must have two parameters")
+	assert.Contains(t, err.Error(), "string_agg must have two parameters")
 
 	// Bad separators
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr, t2.someBadField)`)
 	eCtx, err = NewPlainEvalCtxWithVarsAndInitializedAgg(AggFuncEnabled, &varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
-	assert.Contains(t, err.Error(), "agg_string second parameter must be a basic literal")
+	assert.Contains(t, err.Error(), "string_agg second parameter must be a basic literal")
 
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr, 123)`)
 	eCtx, err = NewPlainEvalCtxWithVarsAndInitializedAgg(AggFuncEnabled, &varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
-	assert.Contains(t, err.Error(), "agg_string second parameter must be a constant string")
+	assert.Contains(t, err.Error(), "string_agg second parameter must be a constant string")
 
 	// Bad data type
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldFloat, ",")`)
@@ -139,6 +139,12 @@ func TestStringAgg(t *testing.T) {
 	// TODO: can we check expression type before Eval?
 	_, err = eCtx.Eval(exp)
 	assert.Contains(t, err.Error(), "unsupported type float64")
+
+	// Bad ctx with disabled agg func calling string_agg()
+	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr,"-")`)
+	badCtx := NewPlainEvalCtxWithVars(AggFuncDisabled, &varValuesMap)
+	_, err = badCtx.Eval(exp)
+	assert.Contains(t, err.Error(), "context aggregate not enabled")
 }
 
 func TestSum(t *testing.T) {
@@ -147,6 +153,7 @@ func TestSum(t *testing.T) {
 	var exp ast.Expr
 	var eCtx EvalCtx
 	var result interface{}
+	var err error
 
 	// Sum float
 	exp, _ = parser.ParseExpr("5 + sum(t1.fieldFloat)")
@@ -157,6 +164,11 @@ func TestSum(t *testing.T) {
 	result, _ = eCtx.Eval(exp)
 	assert.Equal(t, 5+4.2, result)
 
+	// float -> dec
+	varValuesMap["t1"]["fieldFloat"] = decimal.NewFromInt(1)
+	_, err = eCtx.Eval(exp)
+	assert.Equal(t, "cannot evaluate sum(), it started with type float, now got decimal value 1", err.Error())
+
 	// Sum int
 	exp, _ = parser.ParseExpr("5 + sum(t1.fieldInt)")
 	eCtx = NewPlainEvalCtxWithVars(AggFuncEnabled, &varValuesMap)
@@ -166,6 +178,11 @@ func TestSum(t *testing.T) {
 	result, _ = eCtx.Eval(exp)
 	assert.Equal(t, int64(7), result)
 
+	// int -> float
+	varValuesMap["t1"]["fieldInt"] = float64(1)
+	_, err = eCtx.Eval(exp)
+	assert.Equal(t, "cannot evaluate sum(), it started with type int, now got float value 1.000000", err.Error())
+
 	// Sum dec
 	exp, _ = parser.ParseExpr("5 + sum(t1.fieldDec)")
 	eCtx = NewPlainEvalCtxWithVars(AggFuncEnabled, &varValuesMap)
@@ -174,6 +191,11 @@ func TestSum(t *testing.T) {
 	assert.Equal(t, decimal.New(600, -2), result)
 	result, _ = eCtx.Eval(exp)
 	assert.Equal(t, decimal.New(700, -2), result)
+
+	// dec -> int
+	varValuesMap["t1"]["fieldDec"] = int64(1)
+	_, err = eCtx.Eval(exp)
+	assert.Equal(t, "cannot evaluate sum(), it started with type decimal, now got int value 1", err.Error())
 
 	// Sum int empty
 	exp, _ = parser.ParseExpr("sum(t1.fieldInt)")
@@ -197,6 +219,7 @@ func TestAvg(t *testing.T) {
 	var exp ast.Expr
 	var eCtx EvalCtx
 	var result interface{}
+	var err error
 
 	// Avg int
 	exp, _ = parser.ParseExpr("avg(t1.fieldInt)")
@@ -209,6 +232,11 @@ func TestAvg(t *testing.T) {
 	result, _ = eCtx.Eval(exp)
 	assert.Equal(t, int64(1), result)
 
+	// int -> float
+	varValuesMap["t1"]["fieldInt"] = float64(1)
+	_, err = eCtx.Eval(exp)
+	assert.Equal(t, "cannot evaluate avg(), it started with type int, now got float value 1.000000", err.Error())
+
 	// Avg float
 	exp, _ = parser.ParseExpr("avg(t1.fieldFloat)")
 	eCtx = NewPlainEvalCtxWithVars(AggFuncEnabled, &varValuesMap)
@@ -219,6 +247,11 @@ func TestAvg(t *testing.T) {
 	result, _ = eCtx.Eval(exp)
 	assert.Equal(t, float64(1.3333333333333333), result)
 
+	// float -> dec
+	varValuesMap["t1"]["fieldFloat"] = decimal.NewFromInt(1)
+	_, err = eCtx.Eval(exp)
+	assert.Equal(t, "cannot evaluate avg(), it started with type float, now got decimal value 1", err.Error())
+
 	// Avg dec
 	exp, _ = parser.ParseExpr("avg(t1.fieldDec)")
 	eCtx = NewPlainEvalCtxWithVars(AggFuncEnabled, &varValuesMap)
@@ -228,6 +261,11 @@ func TestAvg(t *testing.T) {
 	varValuesMap["t1"]["fieldDec"] = decimal.NewFromInt(2)
 	result, _ = eCtx.Eval(exp)
 	assert.Equal(t, decimal.NewFromFloat32(1.33), result)
+
+	// dec -> int
+	varValuesMap["t1"]["fieldDec"] = int64(1)
+	_, err = eCtx.Eval(exp)
+	assert.Equal(t, "cannot evaluate avg(), it started with type decimal, now got int value 1", err.Error())
 
 	// Avg int empty
 	exp, _ = parser.ParseExpr("avg(t1.fieldInt)")
@@ -251,6 +289,7 @@ func TestMin(t *testing.T) {
 	var exp ast.Expr
 	var eCtx EvalCtx
 	var result interface{}
+	var err error
 
 	// Min float
 	eCtx = NewPlainEvalCtxWithVars(AggFuncEnabled, &varValuesMap)
@@ -262,6 +301,16 @@ func TestMin(t *testing.T) {
 	result, _ = eCtx.Eval(exp)
 	assert.Equal(t, 1.0, result)
 
+	// float -> dec
+	varValuesMap["t1"]["fieldFloat"] = decimal.NewFromInt(1)
+	_, err = eCtx.Eval(exp)
+	assert.Equal(t, "cannot evaluate min(), it started with type float, now got decimal value 1", err.Error())
+
+	// float -> string
+	varValuesMap["t1"]["fieldFloat"] = "a"
+	_, err = eCtx.Eval(exp)
+	assert.Equal(t, "cannot evaluate min(), it started with type float, now got string value a", err.Error())
+
 	// Min int
 	eCtx = NewPlainEvalCtxWithVars(AggFuncEnabled, &varValuesMap)
 	varValuesMap["t1"]["fieldInt"] = 1
@@ -272,6 +321,11 @@ func TestMin(t *testing.T) {
 	result, _ = eCtx.Eval(exp)
 	assert.Equal(t, int64(1), result)
 
+	// int -> float
+	varValuesMap["t1"]["fieldInt"] = float64(1)
+	_, err = eCtx.Eval(exp)
+	assert.Equal(t, "cannot evaluate min(), it started with type int, now got float value 1.000000", err.Error())
+
 	// Min dec
 	eCtx = NewPlainEvalCtxWithVars(AggFuncEnabled, &varValuesMap)
 	varValuesMap["t1"]["fieldDec"] = decimal.NewFromInt(1)
@@ -281,6 +335,11 @@ func TestMin(t *testing.T) {
 	varValuesMap["t1"]["fieldDec"] = decimal.NewFromInt(2)
 	result, _ = eCtx.Eval(exp)
 	assert.Equal(t, decimal.NewFromInt(1), result)
+
+	// dec -> int
+	varValuesMap["t1"]["fieldDec"] = int64(1)
+	_, err = eCtx.Eval(exp)
+	assert.Equal(t, "cannot evaluate min(), it started with type decimal, now got int value 1", err.Error())
 
 	// Min str
 	eCtx = NewPlainEvalCtxWithVars(AggFuncEnabled, &varValuesMap)
@@ -319,6 +378,7 @@ func TestMax(t *testing.T) {
 	var exp ast.Expr
 	var eCtx EvalCtx
 	var result interface{}
+	var err error
 
 	// Max float
 	eCtx = NewPlainEvalCtxWithVars(AggFuncEnabled, &varValuesMap)
@@ -330,6 +390,16 @@ func TestMax(t *testing.T) {
 	result, _ = eCtx.Eval(exp)
 	assert.Equal(t, 10.0, result)
 
+	// float -> dec
+	varValuesMap["t1"]["fieldFloat"] = decimal.NewFromInt(1)
+	_, err = eCtx.Eval(exp)
+	assert.Equal(t, "cannot evaluate max(), it started with type float, now got decimal value 1", err.Error())
+
+	// float -> string
+	varValuesMap["t1"]["fieldFloat"] = "a"
+	_, err = eCtx.Eval(exp)
+	assert.Equal(t, "cannot evaluate max(), it started with type float, now got string value a", err.Error())
+
 	// Max int
 	eCtx = NewPlainEvalCtxWithVars(AggFuncEnabled, &varValuesMap)
 	varValuesMap["t1"]["fieldInt"] = 1
@@ -340,6 +410,11 @@ func TestMax(t *testing.T) {
 	result, _ = eCtx.Eval(exp)
 	assert.Equal(t, int64(2), result)
 
+	// int -> float
+	varValuesMap["t1"]["fieldInt"] = float64(1)
+	_, err = eCtx.Eval(exp)
+	assert.Equal(t, "cannot evaluate max(), it started with type int, now got float value 1.000000", err.Error())
+
 	// Max dec
 	eCtx = NewPlainEvalCtxWithVars(AggFuncEnabled, &varValuesMap)
 	varValuesMap["t1"]["fieldDec"] = decimal.NewFromInt(1)
@@ -349,6 +424,11 @@ func TestMax(t *testing.T) {
 	varValuesMap["t1"]["fieldDec"] = decimal.NewFromInt(2)
 	result, _ = eCtx.Eval(exp)
 	assert.Equal(t, decimal.NewFromInt(2), result)
+
+	// dec -> int
+	varValuesMap["t1"]["fieldDec"] = int64(1)
+	_, err = eCtx.Eval(exp)
+	assert.Equal(t, "cannot evaluate max(), it started with type decimal, now got int value 1", err.Error())
 
 	// Max str
 	eCtx = NewPlainEvalCtxWithVars(AggFuncEnabled, &varValuesMap)
