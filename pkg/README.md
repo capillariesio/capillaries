@@ -20,6 +20,9 @@ Cassandra-specific
 ## deploy
 Utility functions used by [Deploy tool](../doc/glossary.md#deploy-tool)
 
+## dpc
+[Dependency policy checker](../doc/scriptconfig.md#dependency_policies)
+
 ## env
 Environment configuration for Capillaries [binaries](../doc/binconfig.md)
 

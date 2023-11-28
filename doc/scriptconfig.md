@@ -181,9 +181,9 @@ What is this?
 
 Every time Capillaries receives a queue message that tells it to handle a [script](glossary.md#script) [node](glossary.md#script-node), it checks if all dependency nodes are successfully completed. Since multiple [runs](glossary.md#run) can be involved, the decision-making process may be not trivial. This is how it works.
 
-[DependencyPolicyChecker](../pkg/wf/dependency_policy_checker.go) looks into run history and node status history [tables](glossary.md#table) and comes up with a list of [DependencyNodeEvent](../pkg/wfdb/dependency_node_event.go) objects that gives the full history of all dependency nodes across all runs. 
+[DependencyPolicyChecker](../pkg/dpc/dependency_policy_checker.go) looks into run history and node status history [tables](glossary.md#table) and comes up with a list of [DependencyNodeEvent](../pkg/wfdb/dependency_node_event.go) objects that gives the full history of all dependency nodes across all runs. 
 
-[DependencyPolicyChecker](../pkg/wf/dependency_policy_checker.go) walks through the list of [DependencyNodeEvent](../pkg/wfdb/dependency_node_event.go) and applies [rules](#rules) to each event. When a [rule](#rules) is satisfied, [DependencyPolicyChecker](../pkg/wf/dependency_policy_checker.go) finishes its work and produces a command that tells Capillaries either to wait for dependencies a bit more, or to proceed with handling the node, or give up handling this node as some dependencies have failed.
+[DependencyPolicyChecker](../pkg/dpc/dependency_policy_checker.go) walks through the list of [DependencyNodeEvent](../pkg/wfdb/dependency_node_event.go) and applies [rules](#rules) to each event. When a [rule](#rules) is satisfied, [DependencyPolicyChecker](../pkg/dpc/dependency_policy_checker.go) finishes its work and produces a command that tells Capillaries either to wait for dependencies a bit more, or to proceed with handling the node, or give up handling this node as some dependencies have failed.
 
 ### event_priority_order
 
@@ -193,7 +193,7 @@ Every time Capillaries receives a queue message that tells it to handle a [scrip
 
 List of dependency rules. Each rule is a tuple of `cmd` and `expression`
 
-`cmd`: the command produced by [DependencyPolicyChecker](../pkg/wf/dependency_policy_checker.go) when this rule is satisfied; allowed values are
+`cmd`: the command produced by [DependencyPolicyChecker](../pkg/dpc/dependency_policy_checker.go) when this rule is satisfied; allowed values are
 
 - `go` - "all dependencies are ready, we can run this node"
 
