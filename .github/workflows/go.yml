@@ -26,7 +26,7 @@ jobs:
 
     - name: Generate coverage report for Coveralls.io
       run: |
-        go test -coverprofile=/var/tmp/capillaries.p -cover $(go list ./pkg/... | grep -e .*\.\/eval$)
+        go test -coverprofile=/var/tmp/capillaries.p -cover $(go list ./pkg/... | grep -e .*\.\/eval$ -e .*\.\/sc$)
 
     - name: Send coverage
       env:
