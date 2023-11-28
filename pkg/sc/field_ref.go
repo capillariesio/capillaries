@@ -246,9 +246,11 @@ func checkAllowed(fieldRefsToCheck *FieldRefs, prohibitedFieldRefs *FieldRefs, a
 type FieldRefParserFlag uint32
 
 func (f FieldRefParserFlag) HasFlag(flag FieldRefParserFlag) bool { return f&flag != 0 }
-func (f *FieldRefParserFlag) AddFlag(flag FieldRefParserFlag)     { *f |= flag }
-func (f *FieldRefParserFlag) ClearFlag(flag FieldRefParserFlag)   { *f &= ^flag }
-func (f *FieldRefParserFlag) ToggleFlag(flag FieldRefParserFlag)  { *f ^= flag }
+
+// Not used for now, maybe later
+// func (f *FieldRefParserFlag) AddFlag(flag FieldRefParserFlag)     { *f |= flag }
+// func (f *FieldRefParserFlag) ClearFlag(flag FieldRefParserFlag)   { *f &= ^flag }
+// func (f *FieldRefParserFlag) ToggleFlag(flag FieldRefParserFlag)  { *f ^= flag }
 
 const (
 	FieldRefStrict             FieldRefParserFlag = 0
@@ -325,7 +327,7 @@ func ParseRawRelaxedGolangExpressionStringAndHarvestFieldRefs(strExp string, use
 
 	expCondition, err := parser.ParseExpr(strExp)
 	if err != nil {
-		return nil, fmt.Errorf("relaxed parsing error: [%s]", err.Error())
+		return nil, fmt.Errorf("relaxed parsing error (not simple to come up with!): [%s]", err.Error())
 	}
 
 	if usedFields != nil {

@@ -1,4 +1,4 @@
-name: Unit tests
+name: Build/Unit tests/Coverage
 
 on:
   push:
@@ -24,91 +24,76 @@ jobs:
     - name: Build
       run: go build -v ./...
 
-    - name: Generate coverage report for Coveralls.io
+    - name: Generate coverage report for coveralls.io
       run: |
-        go test -coverprofile=/var/tmp/capillaries.p -cover $(go list ./pkg/... | grep -e .*\.\/eval$)
+        go test -coverprofile=/var/tmp/capillaries.p -cover $(go list ./pkg/... | grep -e .*\.\/eval$ -e .*\.\/sc$ -e .*\.\/cql$ -e .*\.\/dpc$)
 
-    - name: Send coverage
+    - name: Send coverage to coveralls.io
       env:
         COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: goveralls -coverprofile=/var/tmp/capillaries.p -service=github
   
-    - name: pkg/cql test coverage threshold
+    - name: pkg/cql test coverage threshold check
       env:
-          TESTCOVERAGE_THRESHOLD: 61.59
+          TESTCOVERAGE_THRESHOLD: 81.2
       run: |
-            echo "Quality Gate: checking test coverage is above threshold $TESTCOVERAGE_THRESHOLD %..."
             go test -v ./pkg/cql/... -coverprofile coverage.out -covermode count
             totalCoverage=`go tool cover -func=coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`
-            echo "Current test coverage : $totalCoverage %"
-            if (( $(echo "$totalCoverage $TESTCOVERAGE_THRESHOLD" | awk '{print ($1 > $2)}') )); then
-                echo "OK"
+            if (( $(echo "$totalCoverage $TESTCOVERAGE_THRESHOLD" | awk '{print ($1 >= $2)}') )); then
+                echo -e "\033[32mOK: $totalCoverage >= $TESTCOVERAGE_THRESHOLD\033[0m"
             else
-                echo "Current test coverage is below threshold. Please add more unit tests or adjust threshold to a lower value."
-                echo "Failed"
+                echo -e "\033[31mFAILED: $totalCoverage < $TESTCOVERAGE_THRESHOLD. Cover more with unit tests or adjust threshold to a lower value.\033[0m"
                 exit 1
             fi
 
-    - name: pkg/wf/dependency_policy_checker test coverage threshold
+    - name: pkg/dpc test coverage threshold check
       env:
-          TESTCOVERAGE_THRESHOLD: 75.9
+          TESTCOVERAGE_THRESHOLD: 81.0
       run: |
-            echo "Quality Gate: checking test coverage is above threshold $TESTCOVERAGE_THRESHOLD %..."
-            go test -v ./pkg/wf/dependency_policy_checker* -coverprofile coverage.out -covermode count
+            go test -v ./pkg/dpc/... -coverprofile coverage.out -covermode count
             totalCoverage=`go tool cover -func=coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`
-            echo "Current test coverage : $totalCoverage %"
-            if (( $(echo "$totalCoverage $TESTCOVERAGE_THRESHOLD" | awk '{print ($1 > $2)}') )); then
-                echo "OK"
+            if (( $(echo "$totalCoverage $TESTCOVERAGE_THRESHOLD" | awk '{print ($1 >= $2)}') )); then
+                echo -e "\033[32mOK: $totalCoverage >= $TESTCOVERAGE_THRESHOLD\033[0m"
             else
-                echo "Current test coverage is below threshold. Please add more unit tests or adjust threshold to a lower value."
-                echo "Failed"
+                echo -e "\033[31mFAILED: $totalCoverage < $TESTCOVERAGE_THRESHOLD. Cover more with unit tests or adjust threshold to a lower value.\033[0m"
                 exit 1
             fi
 
-    - name: pkg/eval test coverage threshold
+    - name: pkg/eval test coverage threshold check
       env:
-          TESTCOVERAGE_THRESHOLD: 80.99
+          TESTCOVERAGE_THRESHOLD: 96.2
       run: |
-            echo "Quality Gate: checking test coverage is above threshold $TESTCOVERAGE_THRESHOLD %..."
             go test -v ./pkg/eval/... -coverprofile coverage.out -covermode count
             totalCoverage=`go tool cover -func=coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`
-            echo "Current test coverage : $totalCoverage %"
-            if (( $(echo "$totalCoverage $TESTCOVERAGE_THRESHOLD" | awk '{print ($1 > $2)}') )); then
-                echo "OK"
+            if (( $(echo "$totalCoverage $TESTCOVERAGE_THRESHOLD" | awk '{print ($1 >= $2)}') )); then
+                echo -e "\033[32mOK: $totalCoverage >= $TESTCOVERAGE_THRESHOLD\033[0m"
             else
-                echo "Current test coverage is below threshold. Please add more unit tests or adjust threshold to a lower value."
-                echo "Failed"
+                echo -e "\033[31mFAILED: $totalCoverage < $TESTCOVERAGE_THRESHOLD. Cover more with unit tests or adjust threshold to a lower value.\033[0m"
                 exit 1
             fi
 
-    - name: pkg/sc test coverage threshold
+    - name: pkg/sc test coverage threshold check
       env:
-          TESTCOVERAGE_THRESHOLD: 76.79
+          TESTCOVERAGE_THRESHOLD: 87.2
       run: |
-            echo "Quality Gate: checking test coverage is above threshold $TESTCOVERAGE_THRESHOLD %..."
             go test -v ./pkg/sc/... -coverprofile coverage.out -covermode count
             totalCoverage=`go tool cover -func=coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`
-            echo "Current test coverage : $totalCoverage %"
-            if (( $(echo "$totalCoverage $TESTCOVERAGE_THRESHOLD" | awk '{print ($1 > $2)}') )); then
-                echo "OK"
+            if (( $(echo "$totalCoverage $TESTCOVERAGE_THRESHOLD" | awk '{print ($1 >= $2)}') )); then
+                echo -e "\033[32mOK: $totalCoverage >= $TESTCOVERAGE_THRESHOLD\033[0m"
             else
-                echo "Current test coverage is below threshold. Please add more unit tests or adjust threshold to a lower value."
-                echo "Failed"
+                echo -e "\033[31mFAILED: $totalCoverage < $TESTCOVERAGE_THRESHOLD. Cover more with unit tests or adjust threshold to a lower value.\033[0m"
                 exit 1
             fi
 
-    - name: pkg/custom test coverage threshold
+    - name: pkg/custom test coverage threshold check
       env:
-          TESTCOVERAGE_THRESHOLD: 33.1
+          TESTCOVERAGE_THRESHOLD: 33.5
       run: |
-            echo "Quality Gate: checking test coverage is above threshold $TESTCOVERAGE_THRESHOLD %..."
             go test -v ./pkg/custom/... -coverprofile coverage.out -covermode count
             totalCoverage=`go tool cover -func=coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`
-            echo "Current test coverage : $totalCoverage %"
-            if (( $(echo "$totalCoverage $TESTCOVERAGE_THRESHOLD" | awk '{print ($1 > $2)}') )); then
-                echo "OK"
+            if (( $(echo "$totalCoverage $TESTCOVERAGE_THRESHOLD" | awk '{print ($1 >= $2)}') )); then
+                echo -e "\033[32mOK: $totalCoverage >= $TESTCOVERAGE_THRESHOLD\033[0m"
             else
-                echo "Current test coverage is below threshold. Please add more unit tests or adjust threshold to a lower value."
-                echo "Failed"
+                echo -e "\033[31mFAILED: $totalCoverage < $TESTCOVERAGE_THRESHOLD. Cover more with unit tests or adjust threshold to a lower value.\033[0m"
                 exit 1
             fi

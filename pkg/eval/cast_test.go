@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCast(t *testing.T) {
-	var val, vLeft, vRight interface{}
+func TestCastSingle(t *testing.T) {
+	var val interface{}
 	var err error
 
 	val, _ = castNumberToStandardType(int(12))
@@ -82,18 +82,27 @@ func TestCast(t *testing.T) {
 	assert.Equal(t, decimal.NewFromFloat(12.1), val)
 	_, err = castToDecimal2("12")
 	assert.Equal(t, "cannot cast 12(string) to decimal2, unsuported type", err.Error())
+}
+
+func TestCastPair(t *testing.T) {
+	var vLeft, vRight interface{}
+	var err error
 
 	vLeft, vRight, _ = castNumberPairToCommonType(float32(12), int(13))
 	assert.Equal(t, float64(12), vLeft)
 	assert.Equal(t, float64(13), vRight)
+
 	vLeft, vRight, _ = castNumberPairToCommonType(decimal.NewFromInt(12), int16(13))
 	assert.Equal(t, decimal.NewFromInt(12), vLeft)
 	assert.Equal(t, decimal.NewFromInt(13), vRight)
+
 	vLeft, vRight, _ = castNumberPairToCommonType(int32(12), int(13))
 	assert.Equal(t, int64(12), vLeft)
 	assert.Equal(t, int64(13), vRight)
+
 	_, _, err = castNumberPairToCommonType("12", int(13))
 	assert.Equal(t, "invalid left arg: cannot cast 12(string) to standard number type, unsuported type", err.Error())
+
 	_, _, err = castNumberPairToCommonType(int(132), "13")
 	assert.Equal(t, "invalid right arg: cannot cast 13(string) to standard number type, unsuported type", err.Error())
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
+	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/gocql/gocql"
@@ -24,7 +25,7 @@ func GetCurrentRunStatus(logger *l.Logger, pCtx *ctx.MessageProcessingContext) (
 		Select(wfmodel.TableNameRunHistory, fields)
 	rows, err := pCtx.CqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		return wfmodel.RunNone, cql.WrapDbErrorWithQuery(fmt.Sprintf("cannot query run status for %s", pCtx.BatchInfo.FullBatchId()), q, err)
+		return wfmodel.RunNone, db.WrapDbErrorWithQuery(fmt.Sprintf("cannot query run status for %s", pCtx.BatchInfo.FullBatchId()), q, err)
 	}
 
 	lastStatus := wfmodel.RunNone
@@ -56,7 +57,7 @@ func HarvestRunLifespans(logger *l.Logger, cqlSession *gocql.Session, keyspace s
 	q := qb.Select(wfmodel.TableNameRunHistory, wfmodel.RunHistoryEventAllFields())
 	rows, err := cqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		return nil, cql.WrapDbErrorWithQuery("cannot get run statuses for a list of run ids", q, err)
+		return nil, db.WrapDbErrorWithQuery("cannot get run statuses for a list of run ids", q, err)
 	}
 
 	events := make([]*wfmodel.RunHistoryEvent, len(rows))
@@ -111,7 +112,7 @@ func SetRunStatus(logger *l.Logger, cqlSession *gocql.Session, keyspace string, 
 		InsertUnpreparedQuery(wfmodel.TableNameRunHistory, ifNotExistsFlag)
 	err := cqlSession.Query(q).Exec()
 	if err != nil {
-		return cql.WrapDbErrorWithQuery("cannot write run status", q, err)
+		return db.WrapDbErrorWithQuery("cannot write run status", q, err)
 	}
 
 	logger.Debug("run %d, status %s", runId, status.ToString())

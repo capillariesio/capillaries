@@ -4,7 +4,7 @@
 High-level calls used by [Toolbelt](../doc/glossary.md#toolbelt) and [Webapi](../doc/glossary.md#webapi)
 
 ## cql
-CQL query builder
+CQL query builder. Focused purely on the language side, all connectivity functionality in pkg/db.
 
 ## ctx
 Processing context used across all levels of RabbitMQ message processing
@@ -14,8 +14,14 @@ Custom [processors](../doc/glossary.md#processor):
 - [py_calc](../doc/glossary.md#py_calc-processor)
 - [tag_and_denormalize](../doc/glossary.md#tag_and_denormalize-processor)
 
+## db
+Cassandra-specific
+
 ## deploy
 Utility functions used by [Deploy tool](../doc/glossary.md#deploy-tool)
+
+## dpc
+[Dependency policy checker](../doc/scriptconfig.md#dependency_policies)
 
 ## env
 Environment configuration for Capillaries [binaries](../doc/binconfig.md)
@@ -34,6 +40,9 @@ Core [script node](../doc/glossary.md#script-node) [processor](../doc/glossary.m
 
 ## sc
 Capillaries [Script configuration](../doc/scriptconfig.md) objects
+
+## storage
+Working with external media (files, maybe databases in the future)
 
 ## wf
 RabbitMQ messages handled here

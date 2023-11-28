@@ -7,6 +7,7 @@ import (
 
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
+	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/gocql/gocql"
@@ -42,7 +43,7 @@ func GetRunProperties(logger *l.Logger, cqlSession *gocql.Session, keyspace stri
 	q := qb.Select(wfmodel.TableNameRunAffectedNodes, wfmodel.RunPropertiesAllFields())
 	rows, err := cqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		return []*wfmodel.RunProperties{}, cql.WrapDbErrorWithQuery("cannot get all runs properties", q, err)
+		return []*wfmodel.RunProperties{}, db.WrapDbErrorWithQuery("cannot get all runs properties", q, err)
 	}
 
 	runs := make([]*wfmodel.RunProperties, len(rows))
@@ -69,7 +70,7 @@ func HarvestRunIdsByAffectedNodes(logger *l.Logger, pCtx *ctx.MessageProcessingC
 		Select(wfmodel.TableNameRunAffectedNodes, fields)
 	rows, err := pCtx.CqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		return nil, nil, cql.WrapDbErrorWithQuery("cannot get runs for affected nodes", q, err)
+		return nil, nil, db.WrapDbErrorWithQuery("cannot get runs for affected nodes", q, err)
 	}
 
 	runIds := make([]int16, len(rows))
@@ -111,7 +112,7 @@ func WriteRunProperties(logger *l.Logger, cqlSession *gocql.Session, keyspace st
 		InsertUnpreparedQuery(wfmodel.TableNameRunAffectedNodes, cql.IgnoreIfExists) // If not exists. First one wins.
 	err := cqlSession.Query(q).Exec()
 	if err != nil {
-		return cql.WrapDbErrorWithQuery("cannot write affected nodes", q, err)
+		return db.WrapDbErrorWithQuery("cannot write affected nodes", q, err)
 	}
 
 	return nil

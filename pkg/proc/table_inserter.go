@@ -9,6 +9,7 @@ import (
 
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
+	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
@@ -91,13 +92,13 @@ func CreateIdxTableCql(keyspace string, runId int16, idxName string, idxDef *sc.
 // func (instr *TableInserter) verifyTablesExist() error {
 // 	q := CreateDataTableCql(instr.PCtx.BatchInfo.DataKeyspace, instr.PCtx.BatchInfo.RunId, instr.TableCreator)
 // 	if err := instr.PCtx.CqlSession.Query(q).Exec(); err != nil {
-// 		return cql.WrapDbErrorWithQuery("cannot create data table", q, err)
+// 		return db.WrapDbErrorWithQuery("cannot create data table", q, err)
 // 	}
 
 // 	for idxName, idxDef := range instr.TableCreator.Indexes {
 // 		q := CreateIdxTableCql(instr.PCtx.BatchInfo.DataKeyspace, instr.PCtx.BatchInfo.RunId, idxName, idxDef)
 // 		if err := instr.PCtx.CqlSession.Query(q).Exec(); err != nil {
-// 			return cql.WrapDbErrorWithQuery("cannot create idx table", q, err)
+// 			return db.WrapDbErrorWithQuery("cannot create idx table", q, err)
 // 		}
 // 	}
 // 	return nil
@@ -319,7 +320,7 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 					}
 				} else {
 					// Some serious error happened, stop trying this rowid
-					errorToReport = cql.WrapDbErrorWithQuery("cannot write to data table", preparedDataQuery, err)
+					errorToReport = db.WrapDbErrorWithQuery("cannot write to data table", preparedDataQuery, err)
 					break
 				}
 			}
@@ -403,7 +404,7 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 							}
 						} else {
 							// Some serious error happened, stop trying this idx record
-							errorToReport = cql.WrapDbErrorWithQuery("cannot write to idx table", preparedDataQuery, err)
+							errorToReport = db.WrapDbErrorWithQuery("cannot write to idx table", preparedDataQuery, err)
 							break
 						}
 					}

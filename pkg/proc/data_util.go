@@ -7,6 +7,7 @@ import (
 
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
+	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/gocql/gocql"
@@ -93,12 +94,12 @@ func selectBatchFromDataTablePaged(logger *l.Logger,
 				return nil, fmt.Errorf("unexpected data row retrieved, exceeding rowset size %d", len(rs.Rows))
 			}
 			if err := scanner.Scan(*rs.Rows[rs.RowCount]...); err != nil {
-				return nil, cql.WrapDbErrorWithQuery("cannot scan paged data row", q, err)
+				return nil, db.WrapDbErrorWithQuery("cannot scan paged data row", q, err)
 			}
 			// We assume gocql creates only UTC timestamps, so this is not needed.
 			// If we ever catch a ts stored in our tables with a non-UTC tz, or gocql returning a non-UTC tz - investigate it. Sanitizing is the last resort and should be avoided.
 			// if err := rs.SanitizeScannedDatetimesToUtc(rs.RowCount); err != nil {
-			// 	return nil, cql.WrapDbErrorWithQuery("cannot sanitize datetimes", q, err)
+			// 	return nil, db.WrapDbErrorWithQuery("cannot sanitize datetimes", q, err)
 			// }
 			rs.RowCount++
 		}
@@ -109,7 +110,7 @@ func selectBatchFromDataTablePaged(logger *l.Logger,
 				time.Sleep(time.Duration(10*curSelectExpBackoffFactor) * time.Millisecond)
 				curSelectExpBackoffFactor *= 2
 			} else {
-				return nil, cql.WrapDbErrorWithQuery(fmt.Sprintf("paged data scanner cannot select %d rows from %s%s after %d attempts; another worker may retry this batch later, but, if some unique idx records has been written already by current worker, the next worker handling this batch will throw an error on them and there is nothing we can do about it;", batchSize, tableName, cql.RunIdSuffix(lookupNodeRunId), selectRetryIdx+1), q, err)
+				return nil, db.WrapDbErrorWithQuery(fmt.Sprintf("paged data scanner cannot select %d rows from %s%s after %d attempts; another worker may retry this batch later, but, if some unique idx records has been written already by current worker, the next worker handling this batch will throw an error on them and there is nothing we can do about it;", batchSize, tableName, cql.RunIdSuffix(lookupNodeRunId), selectRetryIdx+1), q, err)
 			}
 		} else {
 			break
@@ -155,17 +156,17 @@ func selectBatchPagedAllRowids(logger *l.Logger,
 			return nil, fmt.Errorf("unexpected data row retrieved, exceeding rowset size %d", len(rs.Rows))
 		}
 		if err := scanner.Scan(*rs.Rows[rs.RowCount]...); err != nil {
-			return nil, cql.WrapDbErrorWithQuery("cannot scan all rows data row", q, err)
+			return nil, db.WrapDbErrorWithQuery("cannot scan all rows data row", q, err)
 		}
 		// We assume gocql creates only UTC timestamps, so this is not needed
 		// If we ever catch a ts stored in our tables with a non-UTC tz, or gocql returning a non-UTC tz - investigate it. Sanitizing is the last resort and should be avoided.
 		// if err := rs.SanitizeScannedDatetimesToUtc(rs.RowCount); err != nil {
-		// 	return nil, cql.WrapDbErrorWithQuery("cannot sanitize datetimes", q, err)
+		// 	return nil, db.WrapDbErrorWithQuery("cannot sanitize datetimes", q, err)
 		// }
 		rs.RowCount++
 	}
 	if err := scanner.Err(); err != nil {
-		return nil, cql.WrapDbErrorWithQuery("data all rows scanner error", q, err)
+		return nil, db.WrapDbErrorWithQuery("data all rows scanner error", q, err)
 	}
 
 	return iter.PageState(), nil
@@ -207,12 +208,12 @@ func selectBatchFromIdxTablePaged(logger *l.Logger,
 			return nil, fmt.Errorf("unexpected idx row retrieved, exceeding rowset size %d", len(rs.Rows))
 		}
 		if err := scanner.Scan(*rs.Rows[rs.RowCount]...); err != nil {
-			return nil, cql.WrapDbErrorWithQuery("cannot scan idx row", q, err)
+			return nil, db.WrapDbErrorWithQuery("cannot scan idx row", q, err)
 		}
 		rs.RowCount++
 	}
 	if err := scanner.Err(); err != nil {
-		return nil, cql.WrapDbErrorWithQuery("idx scanner error", q, err)
+		return nil, db.WrapDbErrorWithQuery("idx scanner error", q, err)
 	}
 
 	return iter.PageState(), nil
@@ -256,7 +257,7 @@ func selectBatchFromTableByToken(logger *l.Logger,
 		rs.RowCount++
 	}
 	if err := iter.Close(); err != nil {
-		return 0, cql.WrapDbErrorWithQuery("cannot close iterator", q, err)
+		return 0, db.WrapDbErrorWithQuery("cannot close iterator", q, err)
 	}
 
 	return lastRetrievedToken, nil
@@ -349,7 +350,7 @@ func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.Logger, pCtx *ctx.MessagePro
 				CondInInt("rowid", rowIdsToDelete[:rowIdsToDeleteCount]).
 				DeleteRun(pCtx.CurrentScriptNode.TableCreator.Name, pCtx.BatchInfo.RunId)
 			if err := pCtx.CqlSession.Query(qDel).Exec(); err != nil {
-				return cql.WrapDbErrorWithQuery("cannot delete from data table", qDel, err)
+				return db.WrapDbErrorWithQuery("cannot delete from data table", qDel, err)
 			}
 			logger.InfoCtx(pCtx, "deleted %d records from data table for %s, now will delete from %d indexes", len(rowIdsToDelete), pCtx.BatchInfo.FullBatchId(), len(uniqueKeysToDeleteMap))
 
@@ -361,7 +362,7 @@ func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.Logger, pCtx *ctx.MessagePro
 					CondInString("key", idxKeysToDelete[:rowIdsToDeleteCount]).
 					DeleteRun(idxName, pCtx.BatchInfo.RunId)
 				if err := pCtx.CqlSession.Query(qDel).Exec(); err != nil {
-					return cql.WrapDbErrorWithQuery("cannot delete from idx table", qDel, err)
+					return db.WrapDbErrorWithQuery("cannot delete from idx table", qDel, err)
 				}
 				logger.InfoCtx(pCtx, "deleted %d records from idx table %s for batch %d/%s/%d", len(rowIdsToDelete), idxName, pCtx.BatchInfo.RunId, pCtx.BatchInfo.TargetNodeName, pCtx.BatchInfo.BatchIdx)
 			}

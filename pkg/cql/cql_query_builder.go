@@ -464,16 +464,18 @@ func (qb *QueryBuilder) CreateRun(tableName string, runId int16, ifNotExists IfN
 	return b.String()
 }
 
-func (qb *QueryBuilder) Drop(tableName string) string {
-	return qb.DropRun(tableName, RunIdForEmptyRun)
-}
-func (qb *QueryBuilder) DropRun(tableName string, runId int16) string {
-	q := fmt.Sprintf("DROP TABLE IF EXISTS %s%s%s", qb.FormattedKeyspace, tableName, RunIdSuffix(runId))
-	if runId == 0 {
-		q = "INVALID runId: " + q
-	}
-	return q
-}
+// Currently not used, leave it commented out just in case
+// func (qb *QueryBuilder) Drop(tableName string) string {
+// 	return qb.DropRun(tableName, RunIdForEmptyRun)
+// }
+// func (qb *QueryBuilder) DropRun(tableName string, runId int16) string {
+// 	q := fmt.Sprintf("DROP TABLE IF EXISTS %s%s%s", qb.FormattedKeyspace, tableName, RunIdSuffix(runId))
+// 	if runId == 0 {
+// 		q = "INVALID runId: " + q
+// 	}
+// 	return q
+// }
+
 func (qb *QueryBuilder) DropKeyspace() string {
 	return fmt.Sprintf("DROP KEYSPACE IF EXISTS %s", strings.ReplaceAll(qb.FormattedKeyspace, ".", ""))
 }

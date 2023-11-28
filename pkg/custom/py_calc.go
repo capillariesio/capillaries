@@ -173,7 +173,7 @@ func (procDef *PyCalcProcessorDef) GetUsedInTargetExpressionsFields() *sc.FieldR
 	return &procDef.UsedInTargetExpressionsFields
 }
 
-// Python supports microseconds in datetime. Unfortunately, Cassandra does not.
+// Python supports microseconds in datetime. Unfortunately, Cassandra supports only milliseconds. Millis are our lingua franca.
 // So, use only three digits after decimal point
 // Python 8601 requires ":" in the timezone
 const PythonDatetimeFormat string = "2006-01-02T15:04:05.000-07:00"
@@ -416,7 +416,7 @@ print("\n%s") # Provide function defs
 	if err != nil {
 		// Linux: err.Error():'exec: "python333": executable file not found in $PATH'
 		// Windows: err.Error():'exec: "C:\\Program Files\\Python3badpath\\python.exe": file does not exist'
-		// WSL:  err.Error():'fork/exec /mnt/c/Users/myusername/AppData/Local/Programs/Python/Python310/python.exe: no such file or directory'
+		// MacOS/WSL:  err.Error():'fork/exec /mnt/c/Users/myusername/AppData/Local/Programs/Python/Python310/python.exe: no such file or directory'
 		if strings.Contains(err.Error(), "file not found") ||
 			strings.Contains(err.Error(), "file does not exist") ||
 			strings.Contains(err.Error(), "no such file or directory") {

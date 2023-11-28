@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
+	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/gocql/gocql"
@@ -20,7 +21,7 @@ func GetRunHistory(logger *l.Logger, cqlSession *gocql.Session, keyspace string)
 		Select(wfmodel.TableNameRunHistory, wfmodel.RunHistoryEventAllFields())
 	rows, err := cqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		return nil, cql.WrapDbErrorWithQuery("cannot get run history", q, err)
+		return nil, db.WrapDbErrorWithQuery("cannot get run history", q, err)
 	}
 
 	result := make([]*wfmodel.RunHistoryEvent, len(rows))
@@ -47,7 +48,7 @@ func GetRunsNodeHistory(logger *l.Logger, cqlSession *gocql.Session, keyspace st
 	q := qb.Select(wfmodel.TableNameNodeHistory, wfmodel.NodeHistoryEventAllFields())
 	rows, err := cqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		return nil, cql.WrapDbErrorWithQuery("cannot get node history", q, err)
+		return nil, db.WrapDbErrorWithQuery("cannot get node history", q, err)
 	}
 
 	result := make([]*wfmodel.NodeHistoryEvent, len(rows))
@@ -76,7 +77,7 @@ func GetBatchHistory(logger *l.Logger, cqlSession *gocql.Session, keyspace strin
 	q := qb.Select(wfmodel.TableNameBatchHistory, wfmodel.BatchHistoryEventAllFields())
 	rows, err := cqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		return nil, cql.WrapDbErrorWithQuery("cannot get batch history", q, err)
+		return nil, db.WrapDbErrorWithQuery("cannot get batch history", q, err)
 	}
 
 	result := make([]*wfmodel.BatchHistoryEvent, len(rows))

@@ -2,8 +2,6 @@ package wfmodel
 
 import (
 	"fmt"
-	"reflect"
-	"strings"
 )
 
 const TableNameRunAffectedNodes = "wf_run_affected_nodes"
@@ -50,15 +48,15 @@ func NewRunPropertiesFromMap(r map[string]interface{}, fields []string) (*RunPro
 }
 
 // ToSpacedString - prints formatted field values, uses reflection, shoud not be used in prod
-func (n RunProperties) ToSpacedString() string {
-	t := reflect.TypeOf(n)
-	formats := GetObjectModelFieldFormats(t)
-	values := make([]string, t.NumField())
+// func (n RunProperties) ToSpacedString() string {
+// 	t := reflect.TypeOf(n)
+// 	formats := GetObjectModelFieldFormats(t)
+// 	values := make([]string, t.NumField())
 
-	v := reflect.ValueOf(&n).Elem()
-	for i := 0; i < v.NumField(); i++ {
-		fv := v.Field(i)
-		values[i] = fmt.Sprintf(formats[i], fv)
-	}
-	return strings.Join(values, PrintTableDelimiter)
-}
+// 	v := reflect.ValueOf(&n).Elem()
+// 	for i := 0; i < v.NumField(); i++ {
+// 		fv := v.Field(i)
+// 		values[i] = fmt.Sprintf(formats[i], fv)
+// 	}
+// 	return strings.Join(values, PrintTableDelimiter)
+// }

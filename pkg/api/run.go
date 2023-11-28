@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
+	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/proc"
@@ -80,13 +81,13 @@ func StartRun(envConfig *env.EnvConfig, logger *l.Logger, amqpChannel *amqp.Chan
 		}
 		q := proc.CreateDataTableCql(keyspace, runId, &node.TableCreator)
 		if err := cqlSession.Query(q).Exec(); err != nil {
-			return 0, cql.WrapDbErrorWithQuery("cannot create data table", q, err)
+			return 0, db.WrapDbErrorWithQuery("cannot create data table", q, err)
 		}
 		tablesCreated++
 		for idxName, idxDef := range node.TableCreator.Indexes {
 			q = proc.CreateIdxTableCql(keyspace, runId, idxName, idxDef)
 			if err := cqlSession.Query(q).Exec(); err != nil {
-				return 0, cql.WrapDbErrorWithQuery("cannot create idx table", q, err)
+				return 0, db.WrapDbErrorWithQuery("cannot create idx table", q, err)
 			}
 			tablesCreated++
 		}
@@ -207,13 +208,13 @@ func RunNode(envConfig *env.EnvConfig, logger *l.Logger, nodeName string, runId 
 		}
 		q := proc.CreateDataTableCql(keyspace, runId, &node.TableCreator)
 		if err := cqlSession.Query(q).Exec(); err != nil {
-			return 0, cql.WrapDbErrorWithQuery("cannot create data table", q, err)
+			return 0, db.WrapDbErrorWithQuery("cannot create data table", q, err)
 		}
 		tablesCreated++
 		for idxName, idxDef := range node.TableCreator.Indexes {
 			q = proc.CreateIdxTableCql(keyspace, runId, idxName, idxDef)
 			if err := cqlSession.Query(q).Exec(); err != nil {
-				return 0, cql.WrapDbErrorWithQuery("cannot create idx table", q, err)
+				return 0, db.WrapDbErrorWithQuery("cannot create idx table", q, err)
 			}
 			tablesCreated++
 		}

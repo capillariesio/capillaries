@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
+	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/gocql/gocql"
@@ -22,7 +23,7 @@ func GetNextRunCounter(logger *l.Logger, cqlSession *gocql.Session, keyspace str
 			Select(wfmodel.TableNameRunCounter, []string{"last_run"})
 		rows, err := cqlSession.Query(q).Iter().SliceMap()
 		if err != nil {
-			return 0, cql.WrapDbErrorWithQuery("cannot get run counter", q, err)
+			return 0, db.WrapDbErrorWithQuery("cannot get run counter", q, err)
 		}
 
 		if len(rows) != 1 {
@@ -46,7 +47,7 @@ func GetNextRunCounter(logger *l.Logger, cqlSession *gocql.Session, keyspace str
 		isApplied, err := cqlSession.Query(q).MapScanCAS(existingDataRow)
 
 		if err != nil {
-			return 0, cql.WrapDbErrorWithQuery("cannot increment run counter", q, err)
+			return 0, db.WrapDbErrorWithQuery("cannot increment run counter", q, err)
 		} else if isApplied {
 			return int16(newRunId), nil
 		}

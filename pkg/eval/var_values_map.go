@@ -28,15 +28,3 @@ func (vars *VarValuesMap) Names() string {
 	sb.WriteString("]")
 	return sb.String()
 }
-
-// func (vars *VarValuesMap) NamesByTable(tableName string) string {
-// 	sb := strings.Builder{}
-// 	sb.WriteString("[")
-// 	if fldMap, ok := (*vars)[tableName]; ok {
-// 		for fld, _ := range fldMap {
-// 			sb.WriteString(fmt.Sprintf("%s ", fld))
-// 		}
-// 	}
-// 	sb.WriteString("]")
-// 	return sb.String()
-// }

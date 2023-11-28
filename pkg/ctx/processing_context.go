@@ -1,7 +1,7 @@
 package ctx
 
 import (
-	"github.com/capillariesio/capillaries/pkg/cql"
+	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
@@ -24,7 +24,7 @@ type MessageProcessingContext struct {
 
 func (pCtx *MessageProcessingContext) DbConnect(envConfig *env.EnvConfig) error {
 	var err error
-	if pCtx.CqlSession, err = cql.NewSession(envConfig, pCtx.BatchInfo.DataKeyspace, cql.CreateKeyspaceOnConnect); err != nil {
+	if pCtx.CqlSession, err = db.NewSession(envConfig, pCtx.BatchInfo.DataKeyspace, db.CreateKeyspaceOnConnect); err != nil {
 		return err
 	}
 	return nil

@@ -18,6 +18,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/api"
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/custom"
+	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
@@ -105,7 +106,7 @@ func WriteApiSuccess(l *l.Logger, wc *env.WebapiConfig, r *http.Request, w http.
 }
 
 func (h *UrlHandler) ks(w http.ResponseWriter, r *http.Request) {
-	cqlSession, err := cql.NewSession(h.Env, "", cql.DoNotCreateKeyspaceOnConnect)
+	cqlSession, err := db.NewSession(h.Env, "", db.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -198,7 +199,7 @@ func (h *UrlHandler) getNodeDesc(cqlSession *gocql.Session, keyspace string, run
 
 func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 	keyspace := getField(r, 0)
-	cqlSession, err := cql.NewSession(h.Env, keyspace, cql.DoNotCreateKeyspaceOnConnect)
+	cqlSession, err := db.NewSession(h.Env, keyspace, db.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -318,7 +319,7 @@ type RunNodeBatchesInfo struct {
 
 func (h *UrlHandler) ksRunNodeBatchHistory(w http.ResponseWriter, r *http.Request) {
 	keyspace := getField(r, 0)
-	cqlSession, err := cql.NewSession(h.Env, keyspace, cql.DoNotCreateKeyspaceOnConnect)
+	cqlSession, err := db.NewSession(h.Env, keyspace, db.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -357,7 +358,7 @@ type RunNodesInfo struct {
 
 func (h *UrlHandler) ksRunNodeHistory(w http.ResponseWriter, r *http.Request) {
 	keyspace := getField(r, 0)
-	cqlSession, err := cql.NewSession(h.Env, keyspace, cql.DoNotCreateKeyspaceOnConnect)
+	cqlSession, err := db.NewSession(h.Env, keyspace, db.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -400,7 +401,7 @@ func (h *UrlHandler) ksStartRunOptions(w http.ResponseWriter, r *http.Request) {
 
 func (h *UrlHandler) ksStartRun(w http.ResponseWriter, r *http.Request) {
 	keyspace := getField(r, 0)
-	cqlSession, err := cql.NewSession(h.Env, keyspace, cql.CreateKeyspaceOnConnect)
+	cqlSession, err := db.NewSession(h.Env, keyspace, db.CreateKeyspaceOnConnect)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -452,7 +453,7 @@ func (h *UrlHandler) ksStopRunOptions(w http.ResponseWriter, r *http.Request) {
 
 func (h *UrlHandler) ksStopRun(w http.ResponseWriter, r *http.Request) {
 	keyspace := getField(r, 0)
-	cqlSession, err := cql.NewSession(h.Env, keyspace, cql.DoNotCreateKeyspaceOnConnect)
+	cqlSession, err := db.NewSession(h.Env, keyspace, db.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -490,7 +491,7 @@ func (h *UrlHandler) ksDropOptions(w http.ResponseWriter, r *http.Request) {
 
 func (h *UrlHandler) ksDrop(w http.ResponseWriter, r *http.Request) {
 	keyspace := getField(r, 0)
-	cqlSession, err := cql.NewSession(h.Env, keyspace, cql.DoNotCreateKeyspaceOnConnect)
+	cqlSession, err := db.NewSession(h.Env, keyspace, db.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return

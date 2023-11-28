@@ -7,6 +7,7 @@ import (
 
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
+	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/gocql/gocql"
@@ -25,7 +26,7 @@ func HarvestLastStatusForBatch(logger *l.Logger, pCtx *ctx.MessageProcessingCont
 		Select(wfmodel.TableNameBatchHistory, fields)
 	rows, err := pCtx.CqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		return wfmodel.NodeBatchNone, cql.WrapDbErrorWithQuery(fmt.Sprintf("HarvestLastStatusForBatch: cannot get batch history for batch %s", pCtx.BatchInfo.FullBatchId()), q, err)
+		return wfmodel.NodeBatchNone, db.WrapDbErrorWithQuery(fmt.Sprintf("HarvestLastStatusForBatch: cannot get batch history for batch %s", pCtx.BatchInfo.FullBatchId()), q, err)
 	}
 
 	lastStatus := wfmodel.NodeBatchNone
@@ -57,7 +58,7 @@ func GetRunNodeBatchHistory(logger *l.Logger, cqlSession *gocql.Session, keyspac
 		Select(wfmodel.TableNameBatchHistory, wfmodel.BatchHistoryEventAllFields())
 	rows, err := cqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		return []*wfmodel.BatchHistoryEvent{}, cql.WrapDbErrorWithQuery("GetRunNodeBatchHistory: cannot get node batch history", q, err)
+		return []*wfmodel.BatchHistoryEvent{}, db.WrapDbErrorWithQuery("GetRunNodeBatchHistory: cannot get node batch history", q, err)
 	}
 
 	result := make([]*wfmodel.BatchHistoryEvent, len(rows))
@@ -86,7 +87,7 @@ func HarvestBatchStatusesForNode(logger *l.Logger, pCtx *ctx.MessageProcessingCo
 		Select(wfmodel.TableNameBatchHistory, fields)
 	rows, err := pCtx.CqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		return wfmodel.NodeBatchNone, cql.WrapDbErrorWithQuery(fmt.Sprintf("harvestBatchStatusesForNode: cannot get node batch history for node %s", pCtx.BatchInfo.FullBatchId()), q, err)
+		return wfmodel.NodeBatchNone, db.WrapDbErrorWithQuery(fmt.Sprintf("harvestBatchStatusesForNode: cannot get node batch history for node %s", pCtx.BatchInfo.FullBatchId()), q, err)
 	}
 
 	foundBatchesTotal := int16(-1)
@@ -166,7 +167,7 @@ func SetBatchStatus(logger *l.Logger, pCtx *ctx.MessageProcessingContext, status
 	q := qb.InsertUnpreparedQuery(wfmodel.TableNameBatchHistory, cql.IgnoreIfExists) // If not exists. First one wins.
 	err := pCtx.CqlSession.Query(q).Exec()
 	if err != nil {
-		err := cql.WrapDbErrorWithQuery(fmt.Sprintf("cannot write batch %s status %d", pCtx.BatchInfo.FullBatchId(), status), q, err)
+		err := db.WrapDbErrorWithQuery(fmt.Sprintf("cannot write batch %s status %d", pCtx.BatchInfo.FullBatchId(), status), q, err)
 		logger.ErrorCtx(pCtx, err.Error())
 		return err
 	}

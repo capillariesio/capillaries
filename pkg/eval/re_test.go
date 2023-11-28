@@ -27,4 +27,8 @@ func TestReFunctions(t *testing.T) {
 	vars = VarValuesMap{"r": map[string]interface{}{"product_spec": `{"k":"Base Material","v":"Gold"},{"k":"Gemstone","v":"Diamond"}`, "retail_price": 100}}
 	re = "re.MatchString(`\"k\":\"Base Material\",\"v\":\"Gold\"`, r.product_spec) && re.MatchString(`\"k\":\"Gemstone\",\"v\":\"Diamond\"`, r.product_spec) && r.retail_price > 100"
 	assertEqual(t, re, false, vars)
+
+	assertEvalError(t, `re.MatchString("a")`, "cannot evaluate re.MatchString(), requires 2 args, 1 supplied", vars)
+	assertEvalError(t, `re.MatchString("a",1)`, "cannot convert re.MatchString() args a and 1 to string", vars)
+
 }

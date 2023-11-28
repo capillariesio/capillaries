@@ -5,6 +5,7 @@ import (
 
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 	"gopkg.in/inf.v0"
 )
 
@@ -32,6 +33,18 @@ func TestValueToCqlParam(t *testing.T) {
 
 }
 
+func TestInsertRunParams(t *testing.T) {
+	qb := NewQB()
+	qb.WritePreparedColumn("param_name")
+	qb.WritePreparedValue("param_name", "param_value")
+	q, err := qb.Keyspace("ks1").InsertRunPreparedQuery("table1", 1, IgnoreIfExists)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, "INSERT INTO ks1.table1_00001 ( param_name ) VALUES ( ? ) IF NOT EXISTS;", q)
+
+	params, err := qb.InsertRunParams()
+	assert.Equal(t, []interface{}([]interface{}{"param_value"}), params)
+}
+
 func TestInsert(t *testing.T) {
 	const q = "INSERT INTO table1_00123 ( col1, col2, col3 ) VALUES ( 'val1', 2, now() ) IF NOT EXISTS;"
 	qb := QueryBuilder{}
@@ -43,6 +56,10 @@ func TestInsert(t *testing.T) {
 	if s != q {
 		t.Errorf("Unmatch:\n%v\n%v\n", q, s)
 	}
+}
+
+func TestDropKeyspace(t *testing.T) {
+	assert.Equal(t, "DROP KEYSPACE IF EXISTS aaa", (&QueryBuilder{}).Keyspace("aaa").DropKeyspace())
 }
 
 func TestSelect(t *testing.T) {
