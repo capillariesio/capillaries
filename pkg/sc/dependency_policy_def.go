@@ -9,6 +9,26 @@ import (
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
+// This conf should be never referenced in prod code. It's always in the the config.json. Or in the unit tests.
+const DefaultPolicyCheckerConf string = `
+{
+	"is_default": true,
+	"event_priority_order": "run_is_current(desc),node_start_ts(desc)",
+	"rules": [
+		{"cmd": "go",   "expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchSuccess"	},
+		{"cmd": "wait", "expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchNone"	    },
+		{"cmd": "wait", "expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchStart"	    },
+		{"cmd": "nogo", "expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchFail"	    },
+
+		{"cmd": "go",   "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchSuccess"	},
+		{"cmd": "wait",   "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchNone"	},
+		{"cmd": "wait",   "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchStart"	},
+
+		{"cmd": "go",   "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchSuccess"	},
+		{"cmd": "nogo",   "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchFail"	}
+	]
+}`
+
 type ReadyToRunNodeCmdType string
 
 const (

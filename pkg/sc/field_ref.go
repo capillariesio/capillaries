@@ -246,9 +246,11 @@ func checkAllowed(fieldRefsToCheck *FieldRefs, prohibitedFieldRefs *FieldRefs, a
 type FieldRefParserFlag uint32
 
 func (f FieldRefParserFlag) HasFlag(flag FieldRefParserFlag) bool { return f&flag != 0 }
-func (f *FieldRefParserFlag) AddFlag(flag FieldRefParserFlag)     { *f |= flag }
-func (f *FieldRefParserFlag) ClearFlag(flag FieldRefParserFlag)   { *f &= ^flag }
-func (f *FieldRefParserFlag) ToggleFlag(flag FieldRefParserFlag)  { *f ^= flag }
+
+// Not used for now, maybe later
+// func (f *FieldRefParserFlag) AddFlag(flag FieldRefParserFlag)     { *f |= flag }
+// func (f *FieldRefParserFlag) ClearFlag(flag FieldRefParserFlag)   { *f &= ^flag }
+// func (f *FieldRefParserFlag) ToggleFlag(flag FieldRefParserFlag)  { *f ^= flag }
 
 const (
 	FieldRefStrict             FieldRefParserFlag = 0

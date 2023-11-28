@@ -1,8 +1,6 @@
 package sc
 
 import (
-	"encoding/json"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -11,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const script1 string = `
+const plainScriptJson string = `
 {
 	"nodes": {
 		"read_table1": {
@@ -185,229 +183,18 @@ const script1 string = `
 		}
 	},
 	"dependency_policies": {
-		"current_active_first_stopped_nogo": {
-			"is_default": true,
-			"event_priority_order": "run_is_current(desc), node_start_ts(desc)",
-			"rules": [
-				{
-					"cmd": "go",
-					"expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchSuccess"
-				},
-				{
-					"cmd": "wait",
-					"expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchNone"
-				},
-				{
-					"cmd": "wait",
-					"expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchStart"
-				},
-				{
-					"cmd": "nogo",
-					"expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchFail"
-				},
-				{
-					"cmd": "go",
-					"expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchSuccess"
-				},
-				{
-					"cmd": "wait",
-					"expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchNone"
-				},
-				{
-					"cmd": "wait",
-					"expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchStart"
-				},
-				{
-					"cmd": "go",
-					"expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchSuccess"
-				},
-				{
-					"cmd": "nogo",
-					"expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchFail"
-				}
-			]
-		}
+		"current_active_first_stopped_nogo":` + DefaultPolicyCheckerConf +
+	`		
 	}
 }`
-
-const script2 string = `
-{
-	"nodes": {
-		"read_table1": {
-			"type": "file_table",
-			"r": {
-				"urls": [
-					"file1.csv"
-				],
-				"csv":{
-					"first_data_line_idx": 0
-				},
-				"columns": {
-					"col_field_int": {
-						"csv":{
-							"col_idx": 0
-						},
-						"col_type": "int"
-					},
-					"col_field_string": {
-						"csv":{
-							"col_idx": 1
-						},
-						"col_type": "string"
-					}
-				}
-			},
-			"w": {
-				"name": "table1",
-				"having": "w.field_int1 > 1",
-				"fields": {
-					"field_int1": {
-						"expression": "r.col_field_int",
-						"type": "int"
-					},
-					"field_string1": {
-						"expression": "r.col_field_string",
-						"type": "string"
-					}
-				}
-			}
-		},
-        "custom_processor_node": {
-            "type": "table_custom_tfm_table",
-            "custom_proc_type": "some_test_custom_proc",
-            "desc": "",
-            "r": {
-                "table": "table1"
-            },
-			"p": {
-				"produced_fields": {
-					"produced_field_int1": {
-						"expression": "r.field_int1*2",
-						"type": "int"
-					}
-				}
-			},
-			"w": {
-                "name": "processed_table1",
-                "fields": {
-                    "field_int1": {
-                        "expression": "p.produced_field_int1",
-                        "type": "int"
-                    }
-                }
-            }
-        }
-	},
-	"dependency_policies": {
-		"current_active_first_stopped_nogo": {
-			"is_default": true,
-			"event_priority_order": "run_is_current(desc), node_start_ts(desc)",
-			"rules": [
-				{
-					"cmd": "go",
-					"expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchSuccess"
-				},
-				{
-					"cmd": "wait",
-					"expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchNone"
-				},
-				{
-					"cmd": "wait",
-					"expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchStart"
-				},
-				{
-					"cmd": "nogo",
-					"expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchFail"
-				},
-				{
-					"cmd": "go",
-					"expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchSuccess"
-				},
-				{
-					"cmd": "wait",
-					"expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchNone"
-				},
-				{
-					"cmd": "wait",
-					"expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchStart"
-				},
-				{
-					"cmd": "go",
-					"expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchSuccess"
-				},
-				{
-					"cmd": "nogo",
-					"expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchFail"
-				}
-			]
-		}
-	}
-}`
-
-const params2 string = `
-{
-    "string_param": "aaa\n",
-    "number_int_param": 10,
-	"number_float_param": 10.1,
-    "boolParam": false
-}
-`
-
-type SomeTestCustomProcessorDef struct {
-	ProducedFields                map[string]*WriteTableFieldDef `json:"produced_fields"`
-	UsedInTargetExpressionsFields FieldRefs
-}
-
-func (procDef *SomeTestCustomProcessorDef) GetFieldRefs() *FieldRefs {
-	fieldRefs := make(FieldRefs, len(procDef.ProducedFields))
-	i := 0
-	for fieldName, fieldDef := range procDef.ProducedFields {
-		fieldRefs[i] = FieldRef{
-			TableName: CustomProcessorAlias,
-			FieldName: fieldName,
-			FieldType: fieldDef.Type}
-		i += 1
-	}
-	return &fieldRefs
-}
-
-func (procDef *SomeTestCustomProcessorDef) Deserialize(raw json.RawMessage, customProcSettings json.RawMessage, caPath string, privateKeys map[string]string) error {
-	var err error
-	if err = json.Unmarshal(raw, procDef); err != nil {
-		return fmt.Errorf("cannot unmarshal some_test_custom_processor def: %s", err.Error())
-	}
-	procDef.UsedInTargetExpressionsFields = GetFieldRefsUsedInAllTargetExpressions(procDef.ProducedFields)
-	return nil
-}
-
-func (procDef *SomeTestCustomProcessorDef) GetUsedInTargetExpressionsFields() *FieldRefs {
-	return &procDef.UsedInTargetExpressionsFields
-}
-
-type SomeTestCustomProcessorDefFactory struct {
-}
-
-func (f *SomeTestCustomProcessorDefFactory) Create(processorType string) (CustomProcessorDef, bool) {
-	switch processorType {
-	case "some_test_custom_proc":
-		return &SomeTestCustomProcessorDef{}, true
-	default:
-		return nil, false
-	}
-}
-
-func TestNewScriptFromFileBytes(t *testing.T) {
-	scriptDef, err, initProblem := NewScriptFromFileBytes("", nil, "someScriptUri", []byte(script2), "someScriptParamsUrl", []byte(params2), &SomeTestCustomProcessorDefFactory{}, map[string]json.RawMessage{"some_test_custom_proc": []byte("{}")})
-	assert.Equal(t, nil, err)
-	assert.Equal(t, 2, len(scriptDef.ScriptNodes))
-	assert.Equal(t, ScriptInitNoProblem, initProblem)
-}
 
 func TestCreatorFieldRefs(t *testing.T) {
 	var err error
 
 	newScript := &ScriptDef{}
-	if err = newScript.Deserialize([]byte(script1), nil, nil, "", nil); err != nil {
+	if err = newScript.Deserialize(
+		[]byte(plainScriptJson),
+		nil, nil, "", nil); err != nil {
 		t.Error(err)
 	}
 
@@ -422,6 +209,20 @@ func TestCreatorFieldRefs(t *testing.T) {
 	fileFieldRef, _ = fileFieldRefs.FindByFieldName("total_value")
 	assert.Equal(t, CreatorAlias, fileFieldRef.TableName)
 	assert.Equal(t, FieldTypeDecimal2, fileFieldRef.FieldType)
+
+	// Duplicate creator
+
+	err = newScript.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"name": "table2"`, `"name": "table1"`, 1)),
+		nil, nil, "", nil)
+	assert.Contains(t, err.Error(), "duplicate table name: table1")
+
+	// Bad readertable name
+
+	err = newScript.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"table": "table1"`, `"table": "bad_table_name"`, 1)),
+		nil, nil, "", nil)
+	assert.Contains(t, err.Error(), "cannot find the node that creates table [bad_table_name]")
 }
 
 func TestCreatorCalculateHaving(t *testing.T) {
@@ -429,7 +230,9 @@ func TestCreatorCalculateHaving(t *testing.T) {
 	var isHaving bool
 
 	newScript := &ScriptDef{}
-	if err = newScript.Deserialize([]byte(script1), nil, nil, "", nil); err != nil {
+	if err = newScript.Deserialize(
+		[]byte(plainScriptJson),
+		nil, nil, "", nil); err != nil {
 		t.Error(err)
 	}
 
@@ -465,7 +268,9 @@ func TestCreatorCalculateOutput(t *testing.T) {
 	var vars eval.VarValuesMap
 
 	newScript := &ScriptDef{}
-	if err = newScript.Deserialize([]byte(script1), nil, nil, "", nil); err != nil {
+	if err = newScript.Deserialize(
+		[]byte(plainScriptJson),
+		nil, nil, "", nil); err != nil {
 		t.Error(err)
 	}
 
@@ -481,10 +286,10 @@ func TestCreatorCalculateOutput(t *testing.T) {
 		assert.Equal(t, int64(1), fields["item_count"])
 	}
 
-	// Table creator: bad field expression
+	// Table creator: bad field expression, tweak sum
 
 	err = newScript.Deserialize(
-		[]byte(strings.Replace(script1, `sum(l.field_int2)`, `sum(l.field_int2`, 1)),
+		[]byte(strings.Replace(plainScriptJson, `sum(l.field_int2)`, `sum(l.field_int2`, 1)),
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "cannot parse field expression [sum(l.field_int2]")
 
@@ -501,10 +306,10 @@ func TestCreatorCalculateOutput(t *testing.T) {
 		assert.Equal(t, int64(1), cols[3])
 	}
 
-	// File creator: bad column expression
+	// File creator: bad column expression, tweak decimal2()
 
 	err = newScript.Deserialize(
-		[]byte(strings.Replace(script1, `decimal2(r.total_value)`, `decimal2(r.total_value`, 1)),
+		[]byte(strings.Replace(plainScriptJson, `decimal2(r.total_value)`, `decimal2(r.total_value`, 1)),
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "[cannot parse column expression [decimal2(r.total_value]")
 
@@ -516,14 +321,16 @@ func TestLookup(t *testing.T) {
 	var isMatch bool
 
 	newScript := &ScriptDef{}
-	if err = newScript.Deserialize([]byte(script1), nil, nil, "", nil); err != nil {
+	if err = newScript.Deserialize(
+		[]byte(plainScriptJson),
+		nil, nil, "", nil); err != nil {
 		t.Error(err)
 	}
 
-	// Invalid (writer) field in aggregate
+	// Invalid (writer) field in aggregate, tweak sum() arg
 
 	err = newScript.Deserialize(
-		[]byte(strings.Replace(script1, `"expression": "sum(l.field_int2)"`, `"expression": "sum(w.field_int1)"`, 1)),
+		[]byte(strings.Replace(plainScriptJson, `"expression": "sum(l.field_int2)"`, `"expression": "sum(w.field_int1)"`, 1)),
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "invalid field(s) in target table field expression: [prohibited field w.field_int1]")
 
@@ -537,51 +344,51 @@ func TestLookup(t *testing.T) {
 	isMatch, _ = newScript.ScriptNodes["join_table1_table2"].Lookup.CheckFilterCondition(vars)
 	assert.False(t, isMatch)
 
-	// bad index_name
+	// bad index_name, tweak it
 
 	err = newScript.Deserialize(
-		[]byte(strings.Replace(script1, `"index_name": "idx_table2_string2"`, `"index_name": "idx_table2_string2_bad"`, 1)),
+		[]byte(strings.Replace(plainScriptJson, `"index_name": "idx_table2_string2"`, `"index_name": "idx_table2_string2_bad"`, 1)),
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "cannot find the node that creates index [idx_table2_string2_bad]")
 
-	// bad join_on
+	// bad join_on, tweak it
 
 	err = newScript.Deserialize(
-		[]byte(strings.Replace(script1, `"join_on": "r.field_string1"`, `"join_on": ""`, 1)),
+		[]byte(strings.Replace(plainScriptJson, `"join_on": "r.field_string1"`, `"join_on": ""`, 1)),
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "expected a comma-separated list of <table_name>.<field_name>, got []")
 
 	err = newScript.Deserialize(
-		[]byte(strings.Replace(script1, `"join_on": "r.field_string1"`, `"join_on": "bla"`, 1)),
+		[]byte(strings.Replace(plainScriptJson, `"join_on": "r.field_string1"`, `"join_on": "bla"`, 1)),
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "expected a comma-separated list of <table_name>.<field_name>, got [bla]")
 
 	err = newScript.Deserialize(
-		[]byte(strings.Replace(script1, `"join_on": "r.field_string1"`, `"join_on": "bla.bla"`, 1)),
+		[]byte(strings.Replace(plainScriptJson, `"join_on": "r.field_string1"`, `"join_on": "bla.bla"`, 1)),
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "source table name [bla] unknown, expected [r]")
 
 	err = newScript.Deserialize(
-		[]byte(strings.Replace(script1, `"join_on": "r.field_string1"`, `"join_on": "r.field_string1_bad"`, 1)),
+		[]byte(strings.Replace(plainScriptJson, `"join_on": "r.field_string1"`, `"join_on": "r.field_string1_bad"`, 1)),
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "source [r] does not produce field [field_string1_bad]")
 
 	err = newScript.Deserialize(
-		[]byte(strings.Replace(script1, `"join_on": "r.field_string1"`, `"join_on": "r.field_int1"`, 1)),
+		[]byte(strings.Replace(plainScriptJson, `"join_on": "r.field_string1"`, `"join_on": "r.field_int1"`, 1)),
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "left-side field field_int1 has type int, while index field field_string2 has type string")
 
-	// bad filter
+	// bad filter, tweak it
 
 	err = newScript.Deserialize(
-		[]byte(strings.Replace(script1, `"filter": "l.field_int2 > 100"`, `"filter": "r.field_int2 > 100"`, 1)),
+		[]byte(strings.Replace(plainScriptJson, `"filter": "l.field_int2 > 100"`, `"filter": "r.field_int2 > 100"`, 1)),
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "invalid field in lookup filter [r.field_int2 > 100], only fields from the lookup table [table2](alias l) are allowed: [unknown field r.field_int2]")
 
-	// bad join_type
+	// bad join_type, tweak it
 
 	err = newScript.Deserialize(
-		[]byte(strings.Replace(script1, `"join_type": "left"`, `"join_type": "left_bad"`, 1)),
+		[]byte(strings.Replace(plainScriptJson, `"join_type": "left"`, `"join_type": "left_bad"`, 1)),
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "invalid join type, expected inner or left, left_bad is not supported")
 }
@@ -590,62 +397,64 @@ func TestBadCreatorHaving(t *testing.T) {
 	var err error
 
 	newScript := &ScriptDef{}
-	if err = newScript.Deserialize([]byte(script1), nil, nil, "", nil); err != nil {
+	if err = newScript.Deserialize(
+		[]byte(plainScriptJson),
+		nil, nil, "", nil); err != nil {
 		t.Error(err)
 	}
 
-	// Bad expression
+	// Bad expression, tweak having expression
 
 	err = newScript.Deserialize(
-		[]byte(strings.Replace(script1, `"having": "w.total_value > 2"`, `"having": "w.total_value &> 2"`, 1)),
+		[]byte(strings.Replace(plainScriptJson, `"having": "w.total_value > 2"`, `"having": "w.total_value &> 2"`, 1)),
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "cannot parse table creator 'having' condition [w.total_value &> 2]")
 
 	err = newScript.Deserialize(
-		[]byte(strings.Replace(script1, `"having": "w.total_value > 3"`, `"having": "w.bad_field &> 3"`, 1)),
+		[]byte(strings.Replace(plainScriptJson, `"having": "w.total_value > 3"`, `"having": "w.bad_field &> 3"`, 1)),
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "cannot parse file creator 'having' condition [w.bad_field &> 3]")
 
-	// Unknown field
+	// Unknown field in having
 
 	err = newScript.Deserialize(
-		[]byte(strings.Replace(script1, `"having": "w.total_value > 2"`, `"having": "w.bad_field > 2"`, 1)),
+		[]byte(strings.Replace(plainScriptJson, `"having": "w.total_value > 2"`, `"having": "w.bad_field > 2"`, 1)),
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "invalid field in table creator 'having' condition: [unknown field w.bad_field]")
 
 	err = newScript.Deserialize(
-		[]byte(strings.Replace(script1, `"having": "w.total_value > 3"`, `"having": "w.bad_field > 3"`, 1)),
+		[]byte(strings.Replace(plainScriptJson, `"having": "w.total_value > 3"`, `"having": "w.bad_field > 3"`, 1)),
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "invalid field in file creator 'having' condition: [unknown field w.bad_field]]")
 
-	// Prohibited reader field
+	// Prohibited reader field in having
 
 	err = newScript.Deserialize(
-		[]byte(strings.Replace(script1, `"having": "w.total_value > 2"`, `"having": "r.field_int1 > 2"`, 1)),
+		[]byte(strings.Replace(plainScriptJson, `"having": "w.total_value > 2"`, `"having": "r.field_int1 > 2"`, 1)),
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "invalid field in table creator 'having' condition: [prohibited field r.field_int1]")
 
 	err = newScript.Deserialize(
-		[]byte(strings.Replace(script1, `"having": "w.total_value > 3"`, `"having": "r.field_int1 > 3"`, 1)),
+		[]byte(strings.Replace(plainScriptJson, `"having": "w.total_value > 3"`, `"having": "r.field_int1 > 3"`, 1)),
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "invalid field in file creator 'having' condition: [prohibited field r.field_int1]")
 
 	// Prohibited lookup field in table creator having
 
 	err = newScript.Deserialize(
-		[]byte(strings.Replace(script1, `"having": "w.total_value > 2"`, `"having": "l.field_int2 > 2"`, 1)),
+		[]byte(strings.Replace(plainScriptJson, `"having": "w.total_value > 2"`, `"having": "l.field_int2 > 2"`, 1)),
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "invalid field in table creator 'having' condition: [prohibited field l.field_int2]")
 
-	// Type mismatch
+	// Type mismatch in having
 
 	err = newScript.Deserialize(
-		[]byte(strings.Replace(script1, `"having": "w.total_value > 2"`, `"having": "w.total_value == true"`, 1)),
+		[]byte(strings.Replace(plainScriptJson, `"having": "w.total_value > 2"`, `"having": "w.total_value == true"`, 1)),
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "cannot evaluate table creator 'having' expression [w.total_value == true]: [cannot perform binary comp op, incompatible arg types '0(int64)' == 'true(bool)' ]")
 
 	err = newScript.Deserialize(
-		[]byte(strings.Replace(script1, `"having": "w.total_value > 3"`, `"having": "w.total_value == true"`, 1)),
+		[]byte(strings.Replace(plainScriptJson, `"having": "w.total_value > 3"`, `"having": "w.total_value == true"`, 1)),
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "cannot evaluate file creator 'having' expression [w.total_value == true]: [cannot perform binary comp op, incompatible arg types '2.34(decimal.Decimal)' == 'true(bool)' ]")
 }
@@ -654,17 +463,23 @@ func TestTopLimit(t *testing.T) {
 	var err error
 
 	newScript := &ScriptDef{}
-	if err = newScript.Deserialize([]byte(script1), nil, nil, "", nil); err != nil {
+	if err = newScript.Deserialize(
+		[]byte(plainScriptJson),
+		nil, nil, "", nil); err != nil {
 		t.Error(err)
 	}
 
+	// Tweak limit beyond allowed maximum
+
 	err = newScript.Deserialize(
-		[]byte(strings.Replace(script1, `"limit": 500000`, `"limit": 500001`, 1)),
+		[]byte(strings.Replace(plainScriptJson, `"limit": 500000`, `"limit": 500001`, 1)),
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "top.limit cannot exceed 500000")
 
+	// Remove limit altogether
+
 	err = newScript.Deserialize(
-		[]byte(strings.Replace(script1, `"limit": 500000`, `"some_bogus_setting": 500000`, 1)),
+		[]byte(strings.Replace(plainScriptJson, `"limit": 500000`, `"some_bogus_setting": 500000`, 1)),
 		nil, nil, "", nil)
 	assert.Equal(t, 500000, newScript.ScriptNodes["file_totals"].FileCreator.Top.Limit)
 }
@@ -673,7 +488,9 @@ func TestBatchIntervalsCalculation(t *testing.T) {
 	var err error
 
 	newScript := &ScriptDef{}
-	if err = newScript.Deserialize([]byte(script1), nil, nil, "", nil); err != nil {
+	if err = newScript.Deserialize(
+		[]byte(plainScriptJson),
+		nil, nil, "", nil); err != nil {
 		t.Error(err)
 	}
 
@@ -713,7 +530,9 @@ func TestUniqueIndexesFieldRefs(t *testing.T) {
 	var err error
 
 	newScript := &ScriptDef{}
-	if err = newScript.Deserialize([]byte(script1), nil, nil, "", nil); err != nil {
+	if err = newScript.Deserialize(
+		[]byte(plainScriptJson),
+		nil, nil, "", nil); err != nil {
 		t.Error(err)
 	}
 
@@ -732,7 +551,9 @@ func TestAffectedNodes(t *testing.T) {
 	var affectedNodes []string
 
 	newScript := &ScriptDef{}
-	if err = newScript.Deserialize([]byte(script1), nil, nil, "", nil); err != nil {
+	if err = newScript.Deserialize(
+		[]byte(plainScriptJson),
+		nil, nil, "", nil); err != nil {
 		t.Error(err)
 	}
 
@@ -752,7 +573,7 @@ func TestAffectedNodes(t *testing.T) {
 	// Make join manual and see the list of affected nodes shrinking
 
 	if err = newScript.Deserialize(
-		[]byte(strings.Replace(script1, `"start_policy": "auto"`, `"start_policy": "manual"`, 1)),
+		[]byte(strings.Replace(plainScriptJson, `"start_policy": "auto"`, `"start_policy": "manual"`, 1)),
 		nil, nil, "", nil); err != nil {
 		t.Error(err)
 	}
@@ -765,5 +586,4 @@ func TestAffectedNodes(t *testing.T) {
 	assert.Equal(t, 2, len(affectedNodes))
 	assert.Contains(t, affectedNodes, "read_table1")
 	assert.Contains(t, affectedNodes, "read_table2")
-
 }
