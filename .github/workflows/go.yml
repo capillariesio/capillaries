@@ -26,7 +26,7 @@ jobs:
 
     - name: Generate coverage report for Coveralls.io
       run: |
-        go test -coverprofile=/var/tmp/capillaries.p -cover $(go list ./pkg/... | grep -e .*\.\/eval$ -e .*\.\/sc$)
+        go test -coverprofile=/var/tmp/capillaries.p -cover $(go list ./pkg/... | grep -e .*\.\/eval$ -e .*\.\/sc$ -e .*\.\/cql$)
 
     - name: Send coverage
       env:
@@ -35,7 +35,7 @@ jobs:
   
     - name: pkg/cql test coverage threshold
       env:
-          TESTCOVERAGE_THRESHOLD: 61.59
+          TESTCOVERAGE_THRESHOLD: 81.19
       run: |
             echo "Quality Gate: checking test coverage is above threshold $TESTCOVERAGE_THRESHOLD %..."
             go test -v ./pkg/cql/... -coverprofile coverage.out -covermode count
@@ -83,7 +83,7 @@ jobs:
 
     - name: pkg/sc test coverage threshold
       env:
-          TESTCOVERAGE_THRESHOLD: 76.79
+          TESTCOVERAGE_THRESHOLD: 87.19
       run: |
             echo "Quality Gate: checking test coverage is above threshold $TESTCOVERAGE_THRESHOLD %..."
             go test -v ./pkg/sc/... -coverprofile coverage.out -covermode count

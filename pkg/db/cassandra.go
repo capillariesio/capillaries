@@ -1,4 +1,4 @@
-package cql
+package db
 
 import (
 	"fmt"
@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/gocql/gocql"
@@ -90,12 +91,12 @@ func NewSession(envConfig *env.EnvConfig, keyspace string, createKeyspace Create
 				return nil, err
 			}
 
-			qb := QueryBuilder{}
+			qb := cql.QueryBuilder{}
 			qb.
 				Keyspace(keyspace).
 				Write("ks", keyspace).
 				Write("last_run", 0)
-			q := qb.InsertUnpreparedQuery(wfmodel.TableNameRunCounter, IgnoreIfExists) // If not exists. Insert only once.
+			q := qb.InsertUnpreparedQuery(wfmodel.TableNameRunCounter, cql.IgnoreIfExists) // If not exists. Insert only once.
 			err = cqlSession.Query(q).Exec()
 			if err != nil {
 				return nil, WrapDbErrorWithQuery("cannot initialize run counter", q, err)

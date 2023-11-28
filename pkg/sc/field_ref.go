@@ -327,7 +327,7 @@ func ParseRawRelaxedGolangExpressionStringAndHarvestFieldRefs(strExp string, use
 
 	expCondition, err := parser.ParseExpr(strExp)
 	if err != nil {
-		return nil, fmt.Errorf("relaxed parsing error: [%s]", err.Error())
+		return nil, fmt.Errorf("relaxed parsing error (not simple to come up with!): [%s]", err.Error())
 	}
 
 	if usedFields != nil {

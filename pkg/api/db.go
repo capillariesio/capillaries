@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
+	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/proc"
 	"github.com/capillariesio/capillaries/pkg/sc"
@@ -80,7 +81,7 @@ func DropKeyspace(logger *l.Logger, cqlSession *gocql.Session, keyspace string) 
 		Keyspace(keyspace).
 		DropKeyspace()
 	if err := cqlSession.Query(q).Exec(); err != nil {
-		return cql.WrapDbErrorWithQuery("cannot drop keyspace", q, err)
+		return db.WrapDbErrorWithQuery("cannot drop keyspace", q, err)
 	}
 	return nil
 }

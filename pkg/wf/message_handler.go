@@ -6,6 +6,7 @@ import (
 
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
+	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/proc"
@@ -263,7 +264,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.Logger, msgTs int64
 	runStatus, err := wfdb.GetCurrentRunStatus(logger, pCtx)
 	if err != nil {
 		logger.ErrorCtx(pCtx, "cannot get current run status for batch %s: %s", dataBatchInfo.FullBatchId(), err.Error())
-		if cql.IsDbConnError(err) {
+		if db.IsDbConnError(err) {
 			return DaemonCmdReconnectDb
 		}
 		return DaemonCmdAckWithError
@@ -273,13 +274,13 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.Logger, msgTs int64
 		comment := fmt.Sprintf("run history status for batch %s is empty, looks like this run %d was never started", dataBatchInfo.FullBatchId(), pCtx.BatchInfo.RunId)
 		logger.ErrorCtx(pCtx, comment)
 		if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeBatchRunStopReceived, comment); err != nil {
-			if cql.IsDbConnError(err) {
+			if db.IsDbConnError(err) {
 				return DaemonCmdReconnectDb
 			}
 			return DaemonCmdAckWithError
 		}
 		if err := refreshNodeAndRunStatus(logger, pCtx); err != nil {
-			if cql.IsDbConnError(err) {
+			if db.IsDbConnError(err) {
 				return DaemonCmdReconnectDb
 			}
 			return DaemonCmdAckWithError
@@ -292,7 +293,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.Logger, msgTs int64
 		comment := fmt.Sprintf("run stopped, batch %s marked %s", dataBatchInfo.FullBatchId(), wfmodel.NodeBatchRunStopReceived.ToString())
 		if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeBatchRunStopReceived, comment); err != nil {
 			logger.ErrorCtx(pCtx, fmt.Sprintf("%s, cannot set batch status: %s", comment, err.Error()))
-			if cql.IsDbConnError(err) {
+			if db.IsDbConnError(err) {
 				return DaemonCmdReconnectDb
 			}
 			return DaemonCmdAckWithError
@@ -300,7 +301,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.Logger, msgTs int64
 
 		if err := refreshNodeAndRunStatus(logger, pCtx); err != nil {
 			logger.ErrorCtx(pCtx, fmt.Sprintf("%s, cannot refresh status: %s", comment, err.Error()))
-			if cql.IsDbConnError(err) {
+			if db.IsDbConnError(err) {
 				return DaemonCmdReconnectDb
 			}
 			return DaemonCmdAckWithError
@@ -316,7 +317,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.Logger, msgTs int64
 	// Check if this run/node/batch has been handled already
 	lastBatchStatus, err := wfdb.HarvestLastStatusForBatch(logger, pCtx)
 	if err != nil {
-		if cql.IsDbConnError(err) {
+		if db.IsDbConnError(err) {
 			return DaemonCmdReconnectDb
 		}
 		return DaemonCmdAckWithError
@@ -325,7 +326,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.Logger, msgTs int64
 	if lastBatchStatus == wfmodel.NodeBatchFail || lastBatchStatus == wfmodel.NodeBatchSuccess {
 		logger.InfoCtx(pCtx, "will not process batch %s, it has been already processed (processor crashed after processing it and before marking as success/fail?) with status %d", dataBatchInfo.FullBatchId(), lastBatchStatus)
 		if err := refreshNodeAndRunStatus(logger, pCtx); err != nil {
-			if cql.IsDbConnError(err) {
+			if db.IsDbConnError(err) {
 				return DaemonCmdReconnectDb
 			}
 			return DaemonCmdAckWithError
@@ -338,7 +339,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.Logger, msgTs int64
 				comment := fmt.Sprintf("cannot clean up leftovers of the previous processing of batch %s: %s", pCtx.BatchInfo.FullBatchId(), err.Error())
 				logger.ErrorCtx(pCtx, comment)
 				wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeFail, comment)
-				if cql.IsDbConnError(err) {
+				if db.IsDbConnError(err) {
 					return DaemonCmdReconnectDb
 				}
 				return DaemonCmdAckWithError
@@ -362,7 +363,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.Logger, msgTs int64
 	nodeReady, readerNodeRunId, lookupNodeRunId, err := checkDependencyNodesReady(logger, pCtx)
 	if err != nil {
 		logger.ErrorCtx(pCtx, "cannot verify dependency nodes status for %s: %s", pCtx.BatchInfo.FullBatchId(), err.Error())
-		if cql.IsDbConnError(err) {
+		if db.IsDbConnError(err) {
 			return DaemonCmdReconnectDb
 		}
 		return DaemonCmdAckWithError
@@ -372,14 +373,14 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.Logger, msgTs int64
 		comment := fmt.Sprintf("some dependency nodes for %s are in bad state, or runs executing dependency nodes were stopped/invalidated, will not run this node; for details, check rules in dependency_policies and previous runs history", pCtx.BatchInfo.FullBatchId())
 		logger.InfoCtx(pCtx, comment)
 		if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeFail, comment); err != nil {
-			if cql.IsDbConnError(err) {
+			if db.IsDbConnError(err) {
 				return DaemonCmdReconnectDb
 			}
 			return DaemonCmdAckWithError
 		}
 
 		if err := refreshNodeAndRunStatus(logger, pCtx); err != nil {
-			if cql.IsDbConnError(err) {
+			if db.IsDbConnError(err) {
 				return DaemonCmdReconnectDb
 			}
 		}
@@ -393,14 +394,14 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.Logger, msgTs int64
 	// Here, we are ready to actually process the node
 
 	if _, err := wfdb.SetNodeStatus(logger, pCtx, wfmodel.NodeStart, "started"); err != nil {
-		if cql.IsDbConnError(err) {
+		if db.IsDbConnError(err) {
 			return DaemonCmdReconnectDb
 		}
 		return DaemonCmdAckWithError
 	}
 
 	if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeStart, ""); err != nil {
-		if cql.IsDbConnError(err) {
+		if db.IsDbConnError(err) {
 			return DaemonCmdReconnectDb
 		}
 		return DaemonCmdAckWithError
@@ -419,11 +420,11 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.Logger, msgTs int64
 
 	if batchErr != nil {
 		logger.ErrorCtx(pCtx, "ProcessBatchWithStatus: %s", batchErr.Error())
-		if cql.IsDbConnError(batchErr) {
+		if db.IsDbConnError(batchErr) {
 			return DaemonCmdReconnectDb
 		}
 		if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeBatchFail, batchErr.Error()); err != nil {
-			if cql.IsDbConnError(err) {
+			if db.IsDbConnError(err) {
 				return DaemonCmdReconnectDb
 			}
 			return DaemonCmdAckWithError
@@ -431,7 +432,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.Logger, msgTs int64
 	} else {
 		logger.InfoCtx(pCtx, "ProcessBatchWithStatus: success")
 		if err := wfdb.SetBatchStatus(logger, pCtx, batchStatus, batchStats.ToString()); err != nil {
-			if cql.IsDbConnError(err) {
+			if db.IsDbConnError(err) {
 				return DaemonCmdReconnectDb
 			}
 			return DaemonCmdAckWithError
@@ -439,7 +440,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.Logger, msgTs int64
 	}
 
 	if err := refreshNodeAndRunStatus(logger, pCtx); err != nil {
-		if cql.IsDbConnError(err) {
+		if db.IsDbConnError(err) {
 			return DaemonCmdReconnectDb
 		}
 		return DaemonCmdAckWithError

@@ -7,6 +7,7 @@ import (
 
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
+	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/gocql/gocql"
@@ -24,7 +25,7 @@ func HarvestNodeStatusesForRun(logger *l.Logger, pCtx *ctx.MessageProcessingCont
 		Select(wfmodel.TableNameNodeHistory, fields)
 	rows, err := pCtx.CqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		return wfmodel.NodeBatchNone, "", cql.WrapDbErrorWithQuery(fmt.Sprintf("cannot get node history for %s", pCtx.BatchInfo.FullBatchId()), q, err)
+		return wfmodel.NodeBatchNone, "", db.WrapDbErrorWithQuery(fmt.Sprintf("cannot get node history for %s", pCtx.BatchInfo.FullBatchId()), q, err)
 	}
 
 	nodeStatusMap := wfmodel.NodeStatusMap{}
@@ -88,7 +89,7 @@ func HarvestNodeLifespans(logger *l.Logger, pCtx *ctx.MessageProcessingContext, 
 		Select(wfmodel.TableNameNodeHistory, fields)
 	rows, err := pCtx.CqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		return nil, cql.WrapDbErrorWithQuery("cannot get node history", q, err)
+		return nil, db.WrapDbErrorWithQuery("cannot get node history", q, err)
 	}
 
 	runNodeLifespanMap := wfmodel.RunNodeLifespanMap{}
@@ -143,7 +144,7 @@ func SetNodeStatus(logger *l.Logger, pCtx *ctx.MessageProcessingContext, status 
 	isApplied, err := pCtx.CqlSession.Query(q).MapScanCAS(existingDataRow)
 
 	if err != nil {
-		err = cql.WrapDbErrorWithQuery(fmt.Sprintf("cannot update node %d/%s status to %d", pCtx.BatchInfo.RunId, pCtx.BatchInfo.TargetNodeName, status), q, err)
+		err = db.WrapDbErrorWithQuery(fmt.Sprintf("cannot update node %d/%s status to %d", pCtx.BatchInfo.RunId, pCtx.BatchInfo.TargetNodeName, status), q, err)
 		logger.ErrorCtx(pCtx, err.Error())
 		return false, err
 	}
@@ -161,7 +162,7 @@ func GetNodeHistoryForRun(logger *l.Logger, cqlSession *gocql.Session, keyspace 
 		Select(wfmodel.TableNameNodeHistory, wfmodel.NodeHistoryEventAllFields())
 	rows, err := cqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		return []*wfmodel.NodeHistoryEvent{}, cql.WrapDbErrorWithQuery(fmt.Sprintf("cannot get node history for run %d", runId), q, err)
+		return []*wfmodel.NodeHistoryEvent{}, db.WrapDbErrorWithQuery(fmt.Sprintf("cannot get node history for run %d", runId), q, err)
 	}
 
 	result := make([]*wfmodel.NodeHistoryEvent, len(rows))

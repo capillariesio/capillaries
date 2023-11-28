@@ -62,7 +62,7 @@ const parameterizedScriptJson string = `
 			"p": {
 				"produced_fields": {
 					"produced_field_int1": {
-						"expression": "r.field_int1*2",
+						"expression": "-r.field_int1*2",
 						"type": "int"
 					}
 				}
@@ -125,6 +125,7 @@ const parameterizedScriptJson string = `
 		"join_table1_table2": {
 			"type": "table_lookup_table",
 			"start_policy": "auto",
+			"rerun_policy": "fail",
 			"r": {
 				"table": "table1",
 				"expected_batches_total": 2
@@ -240,6 +241,8 @@ func TestNewScriptFromFileBytes(t *testing.T) {
 	assert.Equal(t, 4, len(scriptDef.ScriptNodes))
 	assert.Equal(t, ScriptInitNoProblem, initProblem)
 
+	assert.Equal(t, "processed_table1", scriptDef.ScriptNodes["custom_processor_node"].GetTargetName())
+
 	// Verify template parameters were applied
 	assert.Equal(t, "table1", scriptDef.ScriptNodes["custom_processor_node"].TableReader.TableName)
 	assert.Equal(t, 10, scriptDef.ScriptNodes["custom_processor_node"].TableReader.ExpectedBatchesTotal)
@@ -262,7 +265,7 @@ func TestNewScriptFromFileBytes(t *testing.T) {
 
 	// Invalid field in custom processor (Python) formula
 	scriptDef, err, initProblem = NewScriptFromFileBytes("", nil,
-		"someScriptUri", []byte(strings.ReplaceAll(parameterizedScriptJson, "r.field_int1*2", "r.bad_field")),
+		"someScriptUri", []byte(strings.ReplaceAll(parameterizedScriptJson, "-r.field_int1*2", "r.bad_field")),
 		"someScriptParamsUrl", []byte(paramsJson),
 		&SomeTestCustomProcessorDefFactory{}, map[string]json.RawMessage{"some_test_custom_proc": []byte("{}")})
 	assert.Contains(t, err.Error(), "field usage error in custom processor creator")
@@ -280,4 +283,18 @@ func TestNewScriptFromFileBytes(t *testing.T) {
 		"someScriptParamsUrl", []byte(paramsJson),
 		&SomeTestCustomProcessorDefFactory{}, map[string]json.RawMessage{"some_test_custom_proc": []byte("{}")})
 	assert.Contains(t, err.Error(), "failed to test dependency policy")
+
+	// Tweak lookup isGroup = false and get error
+	scriptDef, err, initProblem = NewScriptFromFileBytes("", nil,
+		"someScriptUri", []byte(parameterizedScriptJson),
+		"someScriptParamsUrl", []byte(strings.ReplaceAll(paramsJson, "true", "false")),
+		&SomeTestCustomProcessorDefFactory{}, map[string]json.RawMessage{"some_test_custom_proc": []byte("{}")})
+	assert.Contains(t, err.Error(), "cannot use agg functions")
+
+	// Invalid rerun_policy
+	scriptDef, err, initProblem = NewScriptFromFileBytes("", nil,
+		"someScriptUri", []byte(strings.ReplaceAll(parameterizedScriptJson, "\"rerun_policy\": \"fail\"", "\"rerun_policy\": \"bad_rerun_policy\"")),
+		"someScriptParamsUrl", []byte(paramsJson),
+		&SomeTestCustomProcessorDefFactory{}, map[string]json.RawMessage{"some_test_custom_proc": []byte("{}")})
+	assert.Contains(t, err.Error(), "invalid node rerun policy bad_rerun_policy")
 }

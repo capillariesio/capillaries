@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/api"
-	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/custom"
+	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
@@ -309,7 +309,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		cqlSession, err := cql.NewSession(envConfig, *keyspace, cql.DoNotCreateKeyspaceOnConnect)
+		cqlSession, err := db.NewSession(envConfig, *keyspace, db.DoNotCreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
@@ -328,7 +328,7 @@ func main() {
 			usage(getRunsCmd)
 		}
 
-		cqlSession, err := cql.NewSession(envConfig, *keyspace, cql.DoNotCreateKeyspaceOnConnect)
+		cqlSession, err := db.NewSession(envConfig, *keyspace, db.DoNotCreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
@@ -352,7 +352,7 @@ func main() {
 			usage(getNodeHistoryCmd)
 		}
 
-		cqlSession, err := cql.NewSession(envConfig, *keyspace, cql.DoNotCreateKeyspaceOnConnect)
+		cqlSession, err := db.NewSession(envConfig, *keyspace, db.DoNotCreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
@@ -383,7 +383,7 @@ func main() {
 			usage(getBatchHistoryCmd)
 		}
 
-		cqlSession, err := cql.NewSession(envConfig, *keyspace, cql.DoNotCreateKeyspaceOnConnect)
+		cqlSession, err := db.NewSession(envConfig, *keyspace, db.DoNotCreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
@@ -455,7 +455,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		cqlSession, err := cql.NewSession(envConfig, *keyspace, cql.DoNotCreateKeyspaceOnConnect)
+		cqlSession, err := db.NewSession(envConfig, *keyspace, db.DoNotCreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
@@ -481,7 +481,7 @@ func main() {
 			usage(dropKsCmd)
 		}
 
-		cqlSession, err := cql.NewSession(envConfig, *keyspace, cql.DoNotCreateKeyspaceOnConnect)
+		cqlSession, err := db.NewSession(envConfig, *keyspace, db.DoNotCreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
@@ -505,7 +505,7 @@ func main() {
 
 		startNodes := strings.Split(*startNodesString, ",")
 
-		cqlSession, err := cql.NewSession(envConfig, *keyspace, cql.CreateKeyspaceOnConnect)
+		cqlSession, err := db.NewSession(envConfig, *keyspace, db.CreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
@@ -549,7 +549,7 @@ func main() {
 
 		startTime := time.Now()
 
-		cqlSession, err := cql.NewSession(envConfig, *keyspace, cql.CreateKeyspaceOnConnect)
+		cqlSession, err := db.NewSession(envConfig, *keyspace, db.CreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
 			os.Exit(1)
