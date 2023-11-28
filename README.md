@@ -1,6 +1,7 @@
 <img src="doc/logo.svg" alt="logo" width="100"/>
 
-# Capillaries [![Coverage Status](https://coveralls.io/repos/github/capillariesio/capillaries/badge.svg?branch=main)](https://coveralls.io/github/capillariesio/capillaries?branch=main)
+# Capillaries <a href='https://coveralls.io/github/capillariesio/capillaries?branch=main' style="float:right;"><img src='https://coveralls.io/repos/github/capillariesio/capillaries/badge.svg?branch=main' alt='Coverage Status' /></a>
+
 
 Capillaries is a data processing framework that:
 - takes care of the scalability issues and intermediate data store, allowing users to focus on data transforms and data quality control;
@@ -63,8 +64,8 @@ For more details about getting started, see [Getting started](doc/started.md). F
 
 ## Capillaries in depth
 
-### [What it is and what it is not](doc/what.md) (with a use case discussion and diagrams)
-### [Getting started](doc/started.md) (how to run a quick Docker-based demo without compiling a single line of code)
+### [What it is and what it is not](doc/what.md) (use case discussion and diagrams)
+### [Getting started](doc/started.md) (run a quick Docker-based demo without compiling a single line of code)
 ### [Testing](doc/testing.md)
 ### [Toolbelt, Daemon, and Webapi configuration](doc/binconfig.md)
 ### [Script configuration](doc/scriptconfig.md)

@@ -118,7 +118,7 @@ func BuildKey(fieldMap map[string]interface{}, idxDef *IdxDef) (string, error) {
 			}
 
 		case FieldTypeDateTime:
-			// We support time differences up to microsecond. Not nanosecond!
+			// We support time differences up to microsecond. Not nanosecond! Cassandra supports only milliseconds. Millis are our lingua franca.
 			if t, ok := fieldMap[comp.FieldName].(time.Time); ok {
 				stringValue = fmt.Sprintf("%020d", t.UnixMicro()-BeginningOfTimeMicro)
 			} else {

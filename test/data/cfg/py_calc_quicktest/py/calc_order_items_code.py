@@ -12,7 +12,7 @@ def divide_by_three(numeric_val):
     return float(numeric_val) / 3
 
 # Expects and returns ISO 8601 "2007-03-05T21:08:12.123+02:00"
-# Python supports upt to microseseconds, but Cassandra does not, so settle at microseconds, see PythonDatetimeFormat constant.
+# Python supports upt to microseseconds, but Cassandra supports only milliseconds. Millis are our lingua franca. See PythonDatetimeFormat constant.
 # Z zone not supported on the golang side, always return +00:00 instead
 # Force .000 milliseconds in the result, golang really needs those
 def next_local_monday(ts_string):

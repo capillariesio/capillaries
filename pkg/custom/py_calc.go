@@ -173,7 +173,7 @@ func (procDef *PyCalcProcessorDef) GetUsedInTargetExpressionsFields() *sc.FieldR
 	return &procDef.UsedInTargetExpressionsFields
 }
 
-// Python supports microseconds in datetime. Unfortunately, Cassandra does not.
+// Python supports microseconds in datetime. Unfortunately, Cassandra supports only milliseconds. Millis are our lingua franca.
 // So, use only three digits after decimal point
 // Python 8601 requires ":" in the timezone
 const PythonDatetimeFormat string = "2006-01-02T15:04:05.000-07:00"
