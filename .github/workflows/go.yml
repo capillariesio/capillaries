@@ -26,7 +26,7 @@ jobs:
 
     - name: Generate coverage report for Coveralls.io
       run: |
-        go test -coverprofile=/var/tmp/capillaries.p -cover $(go list ./pkg/... | grep -e .*\.\/eval$ -e .*\.\/sc$ -e .*\.\/cql$)
+        go test -coverprofile=/var/tmp/capillaries.p -cover $(go list ./pkg/... | grep -e .*\.\/eval$ -e .*\.\/sc$ -e .*\.\/cql$ -e .*\.\/dpc$)
 
     - name: Send coverage
       env:
@@ -49,12 +49,12 @@ jobs:
                 exit 1
             fi
 
-    - name: pkg/wf/dependency_policy_checker test coverage threshold
+    - name: pkg/dpc test coverage threshold
       env:
-          TESTCOVERAGE_THRESHOLD: 75.9
+          TESTCOVERAGE_THRESHOLD: 80.99
       run: |
             echo "Quality Gate: checking test coverage is above threshold $TESTCOVERAGE_THRESHOLD %..."
-            go test -v ./pkg/wf/dependency_policy_checker* -coverprofile coverage.out -covermode count
+            go test -v ./pkg/dpc/... -coverprofile coverage.out -covermode count
             totalCoverage=`go tool cover -func=coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`
             echo "Current test coverage : $totalCoverage %"
             if (( $(echo "$totalCoverage $TESTCOVERAGE_THRESHOLD" | awk '{print ($1 > $2)}') )); then

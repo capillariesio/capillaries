@@ -12,7 +12,7 @@ const (
 	NodeBatchNone            NodeBatchStatusType = 0
 	NodeBatchStart           NodeBatchStatusType = 1
 	NodeBatchSuccess         NodeBatchStatusType = 2
-	NodeBatchFail            NodeBatchStatusType = 3 // Biz logicerror or data tble (not WF) error
+	NodeBatchFail            NodeBatchStatusType = 3 // Biz logicerror or data table (not WF) error
 	NodeBatchRunStopReceived NodeBatchStatusType = 104
 )
 

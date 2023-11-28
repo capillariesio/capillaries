@@ -7,6 +7,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/db"
+	"github.com/capillariesio/capillaries/pkg/dpc"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/proc"
@@ -60,7 +61,11 @@ func checkDependencyNodesReady(logger *l.Logger, pCtx *ctx.MessageProcessingCont
 		if len(nodeEventListMap[depNodeName]) == 0 {
 			return sc.NodeNogo, 0, 0, fmt.Errorf("target node %s, dep node %s not started yet, whoever started this run, failed to specify %s (or at least one of its dependencies) as start node", pCtx.CurrentScriptNode.Name, depNodeName, depNodeName)
 		}
-		dependencyNodeCmds[nodeIdx], dependencyRunIds[nodeIdx], err = CheckDependencyPolicyAgainstNodeEventList(logger, pCtx.CurrentScriptNode.DepPolDef, nodeEventListMap[depNodeName])
+		var checkerLogMsg string
+		dependencyNodeCmds[nodeIdx], dependencyRunIds[nodeIdx], checkerLogMsg, err = dpc.CheckDependencyPolicyAgainstNodeEventList(pCtx.CurrentScriptNode.DepPolDef, nodeEventListMap[depNodeName])
+		if len(checkerLogMsg) > 0 {
+			logger.Debug(checkerLogMsg)
+		}
 		if err != nil {
 			return sc.NodeNone, 0, 0, err
 		}
