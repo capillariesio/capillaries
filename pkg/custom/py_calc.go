@@ -414,12 +414,14 @@ func (procDef *PyCalcProcessorDef) analyseExecError(codeBase string, rawOutput s
 	}
 }
 
+const pyCalcFlushBufferSize int = 1000
+
 func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput string, rawErrors string, outFieldRefs *sc.FieldRefs, rsIn *proc.Rowset, flushVarsArray func(varsArray []*eval.VarValuesMap, varsArrayCount int) error) error {
 	// No Python interpreter errors, but there may be runtime errors and good results.
 	// Timeout error may be there too.
 
 	var errors strings.Builder
-	varsArray := make([]*eval.VarValuesMap, 1000)
+	varsArray := make([]*eval.VarValuesMap, pyCalcFlushBufferSize)
 	varsArrayCount := 0
 
 	sectionEndPos := 0
@@ -499,7 +501,7 @@ func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput
 						if err = flushVarsArray(varsArray, varsArrayCount); err != nil {
 							return fmt.Errorf("error flushing vars array of size %d: %s", varsArrayCount, err.Error())
 						}
-						varsArray = make([]*eval.VarValuesMap, 1000)
+						varsArray = make([]*eval.VarValuesMap, pyCalcFlushBufferSize)
 						varsArrayCount = 0
 					}
 				}
@@ -671,49 +673,3 @@ print('%s:%d')
 		bRes.String(),
 		FORMULA_MARKER_END, rowIdx), nil
 }
-
-// func (procDef *PyCalcProcessorDef) executeCalculations(logger *l.Logger, pCtx *ctx.MessageProcessingContext, rsIn *proc.Rowset, rsOut *proc.Rowset, timeout time.Duration) error {
-// 	custom.executeCalculations")
-// 	defer logger.PopF()
-
-// }
-
-// func (procDef *PyCalcProcessorDef) RunOld(rsIn *proc.Rowset) (*proc.Rowset, error) {
-// 	// Sample implementation - python-style eval simulated in go
-// 	outFieldRefs := procDef.GetFieldRefs()
-// 	rsOut := sc.NewRowsetFromFieldRefs(*outFieldRefs)
-// 	rsOut.InitRows(rsIn.RowCount)
-// 	for rowIdx := 0; rowIdx < rsIn.RowCount; rowIdx++ {
-// 		vars := eval.VarValuesMap{}
-// 		if err := rsIn.ExportToVars(rowIdx, &vars); err != nil {
-// 			return nil, err
-// 		}
-
-// 		for calcFieldName, calcFieldDef := range procDef.CalculatedFields {
-// 			calcFieldExpressionWithResolvedInput := calcFieldDef.RawExpression
-// 			for _, inField := range calcFieldDef.UsedFields {
-// 				inFieldFullAlias := fmt.Sprintf("%s.%s", inField.TableName, inField.FieldName)
-// 				// TODO: make it safe!!!
-// 				inFieldValue := vars[inField.TableName][inField.FieldName]
-// 				calcFieldExpressionWithResolvedInput = strings.Replace(calcFieldExpressionWithResolvedInput,
-// 					inFieldFullAlias,
-// 					valueToPythonExpr(inFieldValue), -1)
-// 			}
-
-// 			// Assume calcFieldExpressionWithResolvedInput is evaluated by Python here...
-
-// 			switch calcFieldDef.Type {
-// 			case sc.FieldTypeInt:
-// 				result, _ := strconv.ParseInt(calcFieldExpressionWithResolvedInput, 10, 64)
-// 				(*rsOut.Rows[rowIdx])[rsOut.FieldsByFieldName[calcFieldName]] = &result
-// 			case sc.FieldTypeDecimal2:
-// 				result := decimal.NewFromInt32(11)
-// 				(*rsOut.Rows[rowIdx])[rsOut.FieldsByFieldName[calcFieldName]] = &result
-// 			case sc.FieldTypeString:
-// 				result := strings.Trim(calcFieldExpressionWithResolvedInput, "\"")
-// 				(*rsOut.Rows[rowIdx])[rsOut.FieldsByFieldName[calcFieldName]] = &result
-// 			}
-// 		}
-// 	}
-// 	return rsOut, nil
-// }

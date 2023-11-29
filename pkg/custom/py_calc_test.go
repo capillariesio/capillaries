@@ -26,7 +26,7 @@ func (f *PyCalcTestTestProcessorDefFactory) Create(processorType string) (sc.Cus
 	}
 }
 
-const script string = `
+const scriptJson string = `
 {
 	"nodes": {
 		"read_table1": {
@@ -194,16 +194,13 @@ const envSettings string = `
 	"python_interpreter_params":["-u", "-"]
 }`
 
-func TestPyCalcDef(t *testing.T) {
-	var err error
-	var codeBase string
-
-	newScript := &sc.ScriptDef{}
-	if err = newScript.Deserialize([]byte(script), &PyCalcTestTestProcessorDefFactory{}, map[string]json.RawMessage{"py_calc": []byte(envSettings)}, "", nil); err != nil {
+func TestPyCalcDefCalculator(t *testing.T) {
+	scriptDef := &sc.ScriptDef{}
+	if err := scriptDef.Deserialize([]byte(scriptJson), &PyCalcTestTestProcessorDefFactory{}, map[string]json.RawMessage{"py_calc": []byte(envSettings)}, "", nil); err != nil {
 		t.Error(err)
 	}
 
-	// Initializing rowset is tedious and error-prone
+	// Initializing rowset is tedious and error-prone. Add schema first.
 	rs := proc.NewRowsetFromFieldRefs(sc.FieldRefs{
 		{TableName: "r", FieldName: "field_int1", FieldType: sc.FieldTypeInt},
 		{TableName: "r", FieldName: "field_float1", FieldType: sc.FieldTypeFloat},
@@ -212,8 +209,11 @@ func TestPyCalcDef(t *testing.T) {
 		{TableName: "r", FieldName: "field_bool1", FieldType: sc.FieldTypeBool},
 		{TableName: "r", FieldName: "field_dt1", FieldType: sc.FieldTypeDateTime},
 	})
+
+	// Allocate rows
 	rs.InitRows(1)
 
+	// Initialize with pointers
 	i := int64(235)
 	(*rs.Rows[0])[0] = &i
 	f := float64(236)
@@ -224,19 +224,24 @@ func TestPyCalcDef(t *testing.T) {
 	(*rs.Rows[0])[3] = &s
 	b := true
 	(*rs.Rows[0])[4] = &b
-	dt := time.Date(2001, 2, 2, 0, 0, 0, 0, time.FixedZone("", -7200))
+	dt := time.Date(2002, 2, 2, 2, 2, 2, 0, time.FixedZone("", -7200))
 	(*rs.Rows[0])[5] = &dt
+
+	// Tell it we wrote something to [0]
 	rs.RowCount++
 
-	pyCalcProcDef := newScript.ScriptNodes["tax_table1"].CustomProcessor.(sc.CustomProcessorDef).(*PyCalcProcessorDef)
-	codeBase, err = pyCalcProcDef.buildPythonCodebaseFromRowset(rs)
+	// PyCalcProcessorDef implements both sc.CustomProcessorDef and proc.CustomProcessorRunner.
+	// We only need the sc.CustomProcessorDef part here, no plans to run Python as part of the unit testing process.
+	pyCalcProcDef := scriptDef.ScriptNodes["tax_table1"].CustomProcessor.(sc.CustomProcessorDef).(*PyCalcProcessorDef)
+
+	codeBase, err := pyCalcProcDef.buildPythonCodebaseFromRowset(rs)
 	assert.Equal(t, nil, err)
 	assert.Contains(t, codeBase, "r_field_int1 = 235")
 	assert.Contains(t, codeBase, "r_field_float1 = 236.000000")
 	assert.Contains(t, codeBase, "r_field_decimal1 = 237")
 	assert.Contains(t, codeBase, "r_field_string1 = '238'")
 	assert.Contains(t, codeBase, "r_field_bool1 = TRUE")
-	assert.Contains(t, codeBase, "r_field_dt1 = \"2001-02-02T00:00:00.000-02:00\"") // Capillaries official PythonDatetimeFormat
+	assert.Contains(t, codeBase, "r_field_dt1 = \"2002-02-02T02:02:02.000-02:00\"") // Capillaries official PythonDatetimeFormat
 	assert.Contains(t, codeBase, "p_taxed_field_int1 = increase_by_ten_percent(increase_by_ten_percent(r_field_int1))")
 	assert.Contains(t, codeBase, "p_taxed_field_float1 = increase_by_ten_percent(r_field_float1)")
 	assert.Contains(t, codeBase, "p_taxed_field_decimal1 = increase_by_ten_percent(r_field_decimal1)")
@@ -244,7 +249,7 @@ func TestPyCalcDef(t *testing.T) {
 	assert.Contains(t, codeBase, "p_taxed_field_bool1 = bool(r_field_int1)")
 	assert.Contains(t, codeBase, "p_taxed_field_dt1 = r_field_dt1")
 
-	// Interpreter errors
+	// Interpreter executable returns an error
 
 	_, err = pyCalcProcDef.analyseExecError(codeBase, "", "", fmt.Errorf("file not found"))
 	assert.Equal(t, "interpreter binary not found: /some/bad/python/path", err.Error())
@@ -255,15 +260,16 @@ func TestPyCalcDef(t *testing.T) {
 	_, err = pyCalcProcDef.analyseExecError(codeBase, "", "unknown raw errors", fmt.Errorf("unexpected error"))
 	assert.Equal(t, "unexpected calculation errors: unknown raw errors", err.Error())
 
-	// Interpreter ok, see results
+	// Interpreter ok, analyse output
 
+	// Test flusher, doesn't write anywhere, just saves data in the local variable
 	var results []*eval.VarValuesMap
 	flushVarsArray := func(varsArray []*eval.VarValuesMap, varsArrayCount int) error {
 		results = varsArray
 		return nil
 	}
 
-	// Some error was caught by Python try/catch, report it
+	// Some error was caught by Python try/catch, it's in the raw output, analyse it
 
 	err = pyCalcProcDef.analyseExecSuccess(codeBase, "", "", pyCalcProcDef.GetFieldRefs(), rs, flushVarsArray)
 	assert.Equal(t, "0: unexpected, cannot find calculation start marker --FMINIT:0;", err.Error())
@@ -301,7 +307,7 @@ NameError: name 'Something' is not defined
 	err = pyCalcProcDef.analyseExecSuccess(codeBase, rawOutput, "", pyCalcProcDef.GetFieldRefs(), rs, flushVarsArray)
 	assert.Contains(t, err.Error(), "0:cannot calculate data points;NameError: name 'Something' is not defined; \nUnexpected error, cannot find error line number in raw error output")
 
-	// No error from Python try/catch, get the results
+	// No error from Python try/catch, get the results from raw output
 
 	rawOutput =
 		`
@@ -320,8 +326,6 @@ bla
 {"taxed_field_float1":2.2,"taxed_field_string1":"aaa","taxed_field_decimal1":3.3,"taxed_field_bool1":true,"taxed_field_int1":1}
 --FMEND:0
 `
-	// {"taxed_field_int1":1,"taxed_field_float1":2.2,"taxed_field_decimal1": 3.3,"taxed_field_string1":"aaa","taxed_field_bool1:true,"taxed_field_dt1":\"2001-02-02T00:00:00.000-02:00\"}
-
 	err = pyCalcProcDef.analyseExecSuccess(codeBase, rawOutput, "", pyCalcProcDef.GetFieldRefs(), rs, flushVarsArray)
 	assert.Contains(t, err.Error(), "cannot find result for row 0, field taxed_field_dt1;")
 
@@ -329,36 +333,38 @@ bla
 		`
 --FMINIT:0
 --FMOK:0
-{"taxed_field_float1":2.2,"taxed_field_string1":"aaa","taxed_field_decimal1":3.3,"taxed_field_bool1":true,"taxed_field_int1":1,"taxed_field_dt1":"2003-02-02T00:00:00.000-02:00"}
+{"taxed_field_float1":2.2,"taxed_field_string1":"aaa","taxed_field_decimal1":3.3,"taxed_field_bool1":true,"taxed_field_int1":1,"taxed_field_dt1":"2003-03-03T03:03:03.000-02:00"}
 --FMEND:0
 `
 	err = pyCalcProcDef.analyseExecSuccess(codeBase, rawOutput, "", pyCalcProcDef.GetFieldRefs(), rs, flushVarsArray)
 	assert.Equal(t, nil, err)
 	flushedRow := *results[0]
-	// Reader fields must be present in the result
+	// r fields must be present in the result, they can be used by the writer
 	assert.Equal(t, int64(235), flushedRow["r"]["field_int1"])
 	assert.Equal(t, float64(236.0), flushedRow["r"]["field_float1"])
 	assert.Equal(t, decimal.NewFromFloat(237), flushedRow["r"]["field_decimal1"])
 	assert.Equal(t, "238", flushedRow["r"]["field_string1"])
 	assert.Equal(t, true, flushedRow["r"]["field_bool1"])
-	assert.Equal(t, time.Date(2001, 2, 2, 0, 0, 0, 0, time.FixedZone("", -7200)), flushedRow["r"]["field_dt1"])
-	// p field must be there too
+	assert.Equal(t, time.Date(2002, 2, 2, 2, 2, 2, 0, time.FixedZone("", -7200)), flushedRow["r"]["field_dt1"])
+	// p field must be in the result
 	assert.Equal(t, int64(1), flushedRow["p"]["taxed_field_int1"])
 	assert.Equal(t, 2.2, flushedRow["p"]["taxed_field_float1"])
 	assert.True(t, decimal.NewFromFloat(3.3).Equal(flushedRow["p"]["taxed_field_decimal1"].(decimal.Decimal)))
 	assert.Equal(t, "aaa", flushedRow["p"]["taxed_field_string1"])
 	assert.Equal(t, true, flushedRow["p"]["taxed_field_bool1"])
-	assert.Equal(t, time.Date(2003, 2, 2, 0, 0, 0, 0, time.FixedZone("", -7200)), flushedRow["p"]["taxed_field_dt1"])
+	assert.Equal(t, time.Date(2003, 3, 3, 3, 3, 3, 0, time.FixedZone("", -7200)), flushedRow["p"]["taxed_field_dt1"])
+}
 
-	// Bad script
+func TestPyCalcDefBadScript(t *testing.T) {
 
-	err = newScript.Deserialize(
-		[]byte(strings.Replace(script, `"having": "w.taxed_field_decimal > 10"`, `"having": "p.taxed_field_int1 > 10"`, 1)),
+	scriptDef := &sc.ScriptDef{}
+	err := scriptDef.Deserialize(
+		[]byte(strings.Replace(scriptJson, `"having": "w.taxed_field_decimal > 10"`, `"having": "p.taxed_field_int1 > 10"`, 1)),
 		&PyCalcTestTestProcessorDefFactory{}, map[string]json.RawMessage{"py_calc": []byte(envSettings)}, "", nil)
 	assert.Contains(t, err.Error(), "prohibited field p.taxed_field_int1")
 
-	err = newScript.Deserialize(
-		[]byte(strings.Replace(script, `increase_by_ten_percent(r.field_int1)`, `bad_func(r.field_int1)`, 1)),
+	err = scriptDef.Deserialize(
+		[]byte(strings.Replace(scriptJson, `increase_by_ten_percent(r.field_int1)`, `bad_func(r.field_int1)`, 1)),
 		&PyCalcTestTestProcessorDefFactory{}, map[string]json.RawMessage{"py_calc": []byte(envSettings)}, "", nil)
 	assert.Contains(t, err.Error(), "function def 'bad_func(arg)' not found in Python file")
 }
