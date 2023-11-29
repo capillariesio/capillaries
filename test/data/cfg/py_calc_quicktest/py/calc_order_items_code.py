@@ -1,11 +1,14 @@
 from datetime import datetime, timedelta
 from math import floor
 
+def vanilla_function_with_no_params_for_testing_only():
+    return 0
+
 def increase_by_ten_percent(numeric_val):
     # We explicitly round the answer here as we assume this is the biz logic.
     # If we do not round it here, p.taxed_value will be written to the table as decimal2 (so, it will be rounded),
     # but in further python calculations (divide_by_three etc) it will keep un-rounded, causing discrepancies
-    return floor(float(numeric_val) * 1.10 * 100)/100
+    return floor(float(numeric_val) * 1.10 * 100)/100 + vanilla_function_with_no_params_for_testing_only()
 
 def divide_by_three(numeric_val):
     # We deliberately do not round this result as we want to see the difference between decimal and float for this example
@@ -30,4 +33,3 @@ def is_weekend(ts_string):
     dt = datetime.fromisoformat(ts_string)
     weekday = dt.weekday() # Mon 0, Sun 6 
     return weekday == 5 or weekday == 6
-

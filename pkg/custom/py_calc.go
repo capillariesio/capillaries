@@ -276,7 +276,7 @@ func checkPythonFuncDefAvailability(usedPythonFunctionSignatures map[string]stru
 	// Find "def someFunc123(someParam, 'some literal'):"
 	defSigMatches := reDefSig.FindAllStringSubmatch(codeFormulaDefs, -1)
 	for _, sigMatch := range defSigMatches {
-		if len(strings.TrimSpace(sigMatch[2])) == 0 {
+		if strings.ReplaceAll(sigMatch[2], " ", "") == "()" {
 			// This Python function definition does not accept arguments
 			availableDefSigs[fmt.Sprintf("%s()", sigMatch[1])] = struct{}{}
 		} else {
@@ -287,11 +287,24 @@ func checkPythonFuncDefAvailability(usedPythonFunctionSignatures map[string]stru
 		}
 	}
 
+	// A curated list of Python functions allowed in script expressions. No exec() please.
+	pythoBuiltinFunctions := map[string]struct{}{
+		"str(arg)":   {},
+		"int(arg)":   {},
+		"float(arg)": {},
+		"round(arg)": {},
+		"len(arg)":   {},
+		"bool(arg)":  {},
+		"abs(arg)":   {},
+	}
+
 	// Walk through all Python signatures in calc expressions (we harvested them in Deserialize)
 	// and make sure correspondent python function defs are available
 	for usedSig, _ := range usedPythonFunctionSignatures {
 		if _, ok := availableDefSigs[usedSig]; !ok {
-			errors.WriteString(fmt.Sprintf("function def '%s' not found in Python file; ", usedSig))
+			if _, ok := pythoBuiltinFunctions[usedSig]; !ok {
+				errors.WriteString(fmt.Sprintf("function def '%s' not found in Python file, and it's not in the list of allowed Python built-in functions; ", usedSig))
+			}
 		}
 	}
 
@@ -352,19 +365,7 @@ func kahn(depMap map[string][]string) ([]string, error) {
 	return execOrder, nil
 }
 
-func (procDef *PyCalcProcessorDef) Run(logger *l.Logger, pCtx *ctx.MessageProcessingContext, rsIn *proc.Rowset, flushVarsArray func(varsArray []*eval.VarValuesMap, varsArrayCount int) error) error {
-	logger.PushF("custom.PyCalcProcessorDef.Run")
-	defer logger.PopF()
-
-	outFieldRefs := procDef.GetFieldRefs()
-
-	varsArray := make([]*eval.VarValuesMap, 1000)
-	varsArrayCount := 0
-
-	//err := procDef.executeCalculations(logger, pCtx, rsIn, rsOut, time.Duration(procDef.EnvSettings.ExecutionTimeout*int(time.Millisecond)))
-
-	timeout := time.Duration(procDef.EnvSettings.ExecutionTimeout * int(time.Millisecond))
-
+func (procDef *PyCalcProcessorDef) buildPythonCodebaseFromRowset(rsIn *proc.Rowset) (string, error) {
 	// Build a massive Python source: function defs, dp init, calculation, result json
 	// This is the hardcoded Python code structure we rely on. Do not change it.
 	var codeBase strings.Builder
@@ -379,7 +380,32 @@ print("\n%s") # Provide function defs
 		procDef.PythonCode))
 
 	for rowIdx := 0; rowIdx < rsIn.RowCount; rowIdx++ {
-		codeBase.WriteString(fmt.Sprintf("%s\n", procDef.printItemCalculationCode(rowIdx, rsIn)))
+		itemCalculationCodebase, err := procDef.printItemCalculationCode(rowIdx, rsIn)
+		if err != nil {
+			return "", err
+		}
+		codeBase.WriteString(fmt.Sprintf("%s\n", itemCalculationCodebase))
+	}
+
+	return codeBase.String(), nil
+}
+
+func (procDef *PyCalcProcessorDef) Run(logger *l.Logger, pCtx *ctx.MessageProcessingContext, rsIn *proc.Rowset, flushVarsArray func(varsArray []*eval.VarValuesMap, varsArrayCount int) error) error {
+	logger.PushF("custom.PyCalcProcessorDef.Run")
+	defer logger.PopF()
+
+	outFieldRefs := procDef.GetFieldRefs()
+
+	varsArray := make([]*eval.VarValuesMap, 1000)
+	varsArrayCount := 0
+
+	//err := procDef.executeCalculations(logger, pCtx, rsIn, rsOut, time.Duration(procDef.EnvSettings.ExecutionTimeout*int(time.Millisecond)))
+
+	timeout := time.Duration(procDef.EnvSettings.ExecutionTimeout * int(time.Millisecond))
+
+	codeBase, err := procDef.buildPythonCodebaseFromRowset(rsIn)
+	if err != nil {
+		return fmt.Errorf("cannot build Python codebase from rowset: %s", err)
 	}
 
 	// Protect it with a timeout
@@ -389,7 +415,7 @@ print("\n%s") # Provide function defs
 	p := exec.CommandContext(cmdCtx, procDef.EnvSettings.InterpreterPath, procDef.EnvSettings.InterpreterParams...)
 
 	// Supply our calculation code to Python as stdin
-	p.Stdin = strings.NewReader(codeBase.String())
+	p.Stdin = strings.NewReader(codeBase)
 
 	// Do not use pipes, work with raw data, otherwise stdout/stderr
 	// will not be easily available in the timeout scenario
@@ -401,7 +427,7 @@ print("\n%s") # Provide function defs
 
 	// Run
 	pythonStartTime := time.Now()
-	err := p.Run()
+	err = p.Run()
 	pythonDur := time.Since(pythonStartTime)
 	logger.InfoCtx(pCtx, "PythonInterpreter: %d items in %v (%.0f items/s)", rsIn.RowCount, pythonDur, float64(rsIn.RowCount)/pythonDur.Seconds())
 
@@ -409,7 +435,7 @@ print("\n%s") # Provide function defs
 	rawErrors := string(stderr.Bytes())
 
 	// Really verbose, use for troubleshooting only
-	// fmt.Println(codeBase.String(), rawOutput)
+	// fmt.Println(codeBase, rawOutput)
 
 	//fmt.Println(fmt.Sprintf("err.Error():'%s', cmdCtx.Err():'%v'", err.Error(), cmdCtx.Err()))
 
@@ -428,7 +454,7 @@ print("\n%s") # Provide function defs
 				procDef.EnvSettings.InterpreterPath, procDef.EnvSettings.InterpreterParams,
 				rawOutput,
 				rawErrors,
-				getErrorLineNumberInfo(codeBase.String(), rawErrors))
+				getErrorLineNumberInfo(codeBase, rawErrors))
 
 			//fmt.Println(fullErrorInfo)
 			logger.ErrorCtx(pCtx, fullErrorInfo)
@@ -476,7 +502,7 @@ print("\n%s") # Provide function defs
 				}
 				errorText = fmt.Sprintf("%d:Cannot calculate data points;%s; ", rowIdx, errorText)
 				// errors.WriteString(errorText)
-				errors.WriteString(fmt.Sprintf("%s\n%s", errorText, getErrorLineNumberInfo(codeBase.String(), rawSectionOutput)))
+				errors.WriteString(fmt.Sprintf("%s\n%s", errorText, getErrorLineNumberInfo(codeBase, rawSectionOutput)))
 			} else {
 				// SUCESS code snippet is there, try to get the result JSON
 				var itemResults map[string]interface{}
@@ -581,10 +607,13 @@ const FORMULA_MARKER_END = "--FMEND"
 const ReaderPrefix string = "r_"
 const ProcPrefix string = "p_"
 
-func (procDef *PyCalcProcessorDef) printItemCalculationCode(rowIdx int, rsIn *proc.Rowset) string {
+func (procDef *PyCalcProcessorDef) printItemCalculationCode(rowIdx int, rsIn *proc.Rowset) (string, error) {
 	// Initialize input variables in no particular order
 	vars := eval.VarValuesMap{}
-	rsIn.ExportToVars(rowIdx, &vars)
+	err := rsIn.ExportToVars(rowIdx, &vars)
+	if err != nil {
+		return "", err
+	}
 	var bIn strings.Builder
 	for fieldName, fieldVal := range vars[sc.ReaderAlias] {
 		bIn.WriteString(fmt.Sprintf("  %s%s = %s\n", ReaderPrefix, fieldName, valueToPythonExpr(fieldVal)))
@@ -625,7 +654,7 @@ print('%s:%d')
 		bCalc.String(),
 		FORMULA_MARKER_SUCCESS, rowIdx,
 		bRes.String(),
-		FORMULA_MARKER_END, rowIdx)
+		FORMULA_MARKER_END, rowIdx), nil
 }
 
 // func (procDef *PyCalcProcessorDef) executeCalculations(logger *l.Logger, pCtx *ctx.MessageProcessingContext, rsIn *proc.Rowset, rsOut *proc.Rowset, timeout time.Duration) error {
