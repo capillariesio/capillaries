@@ -1,4 +1,4 @@
-# <img src="doc/logo.svg" alt="logo" width="40"/> Capillaries <div style="float:right;"><a href='https://coveralls.io/github/capillariesio/capillaries?branch=main'><img src='https://coveralls.io/repos/github/capillariesio/capillaries/badge.svg?branch=main' alt='Coverage Status' /></a></div>
+# <img src="doc/logo.svg" alt="logo" width="60"/> Capillaries <div style="float:right;"><a href='https://coveralls.io/github/capillariesio/capillaries?branch=main'><img src='https://coveralls.io/repos/github/capillariesio/capillaries/badge.svg?branch=main' alt='Coverage Status' /></a></div>
 
 
 Capillaries is a data processing framework that:
