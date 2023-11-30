@@ -1,4 +1,4 @@
-package custom
+package tag_and_denormalize
 
 import (
 	"encoding/json"
