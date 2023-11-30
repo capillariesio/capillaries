@@ -146,7 +146,7 @@ const scriptJson string = `
 	}
 }`
 
-func TestTagAndDenormalizeWithFileCriteria(t *testing.T) {
+func TestTagAndDenormalizeDeserializeFileCriteria(t *testing.T) {
 	scriptDef := &sc.ScriptDef{}
 
 	re := regexp.MustCompile(`"tag_criteria": \{[^\}]+\}`)
@@ -159,7 +159,7 @@ func TestTagAndDenormalizeWithFileCriteria(t *testing.T) {
 	assert.Equal(t, 4, len(tndProcessor.ParsedTagCriteria))
 }
 
-func TestTagAndDenormalizeWithEmbeddedCriteria(t *testing.T) {
+func TestTagAndDenormalizeRunEmbeddedCriteria(t *testing.T) {
 	scriptDef := &sc.ScriptDef{}
 
 	err := scriptDef.Deserialize([]byte(scriptJson), &TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil)
@@ -202,6 +202,8 @@ func TestTagAndDenormalizeWithEmbeddedCriteria(t *testing.T) {
 	err = tndProcessor.tagAndDenormalize(rs, flushVarsArray)
 	assert.Equal(t, nil, err)
 
+	// Check that 2 rows were produced: thiswatch is good for boys and for diving
+
 	flushedRow := *results[0]
 	// r fields must be present in the result, they can be used by the writer
 	assert.Equal(t, product_id, flushedRow["r"]["product_id"])
@@ -226,9 +228,34 @@ func TestTagAndDenormalizeWithEmbeddedCriteria(t *testing.T) {
 	assert.Equal(t, product_spec, flushedRow["r"]["product_spec"])
 	// p field must be in the result
 	assert.Equal(t, nextExpectedTag, flushedRow["p"]["tag"])
+
+	// Bad criteria
+	re := regexp.MustCompile(`"tag_criteria": \{[^\}]+\}`)
+
+	// Bad function used
+	err = scriptDef.Deserialize(
+		[]byte(re.ReplaceAllString(scriptJson, `"tag_criteria": {"boys":"re.BadGoMethod(\"aaa\")"}`)),
+		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil)
+
+	tndProcessor, _ = scriptDef.ScriptNodes["tag_products"].CustomProcessor.(*TagAndDenormalizeProcessorDef)
+	assert.Equal(t, 1, len(tndProcessor.ParsedTagCriteria))
+
+	err = tndProcessor.tagAndDenormalize(rs, flushVarsArray)
+	assert.Contains(t, err.Error(), "cannot evaluate expression for tag boys criteria")
+
+	// Bad type
+	err = scriptDef.Deserialize(
+		[]byte(re.ReplaceAllString(scriptJson, `"tag_criteria": {"boys":"math.Round(1.1)"}`)),
+		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil)
+
+	tndProcessor, _ = scriptDef.ScriptNodes["tag_products"].CustomProcessor.(*TagAndDenormalizeProcessorDef)
+	assert.Equal(t, 1, len(tndProcessor.ParsedTagCriteria))
+
+	err = tndProcessor.tagAndDenormalize(rs, flushVarsArray)
+	assert.Contains(t, err.Error(), "tag boys criteria returned type float64, expected bool")
 }
 
-func TestTagAndDenormalizeDefBadScript(t *testing.T) {
+func TestTagAndDenormalizeDeserializeFailures(t *testing.T) {
 	scriptDef := &sc.ScriptDef{}
 
 	// Exercise checkFieldUsageInCustomProcessor() error code path

@@ -3,6 +3,7 @@ package py_calc
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -190,8 +191,8 @@ const scriptJson string = `
 
 const envSettings string = `
 {
-	"python_interpreter_path":"/some/bad/python/path",
-	"python_interpreter_params":["-u", "-"]
+	"python_interpreter_path": "/some/bad/python/path",
+	"python_interpreter_params": ["-u", "-"]
 }`
 
 func TestPyCalcDefCalculator(t *testing.T) {
@@ -340,12 +341,12 @@ bla
 	assert.Equal(t, nil, err)
 	flushedRow := *results[0]
 	// r fields must be present in the result, they can be used by the writer
-	assert.Equal(t, int64(235), flushedRow["r"]["field_int1"])
-	assert.Equal(t, float64(236.0), flushedRow["r"]["field_float1"])
-	assert.Equal(t, decimal.NewFromFloat(237), flushedRow["r"]["field_decimal1"])
-	assert.Equal(t, "238", flushedRow["r"]["field_string1"])
-	assert.Equal(t, true, flushedRow["r"]["field_bool1"])
-	assert.Equal(t, time.Date(2002, 2, 2, 2, 2, 2, 0, time.FixedZone("", -7200)), flushedRow["r"]["field_dt1"])
+	assert.Equal(t, i, flushedRow["r"]["field_int1"])
+	assert.Equal(t, f, flushedRow["r"]["field_float1"])
+	assert.Equal(t, d, flushedRow["r"]["field_decimal1"])
+	assert.Equal(t, s, flushedRow["r"]["field_string1"])
+	assert.Equal(t, b, flushedRow["r"]["field_bool1"])
+	assert.Equal(t, dt, flushedRow["r"]["field_dt1"])
 	// p field must be in the result
 	assert.Equal(t, int64(1), flushedRow["p"]["taxed_field_int1"])
 	assert.Equal(t, 2.2, flushedRow["p"]["taxed_field_float1"])
@@ -367,4 +368,22 @@ func TestPyCalcDefBadScript(t *testing.T) {
 		[]byte(strings.Replace(scriptJson, `increase_by_ten_percent(r.field_int1)`, `bad_func(r.field_int1)`, 1)),
 		&PyCalcTestTestProcessorDefFactory{}, map[string]json.RawMessage{"py_calc": []byte(envSettings)}, "", nil)
 	assert.Contains(t, err.Error(), "function def 'bad_func(arg)' not found in Python file")
+
+	re := regexp.MustCompile(`"python_code_urls": \[[^\]]+\]`)
+	err = scriptDef.Deserialize(
+		[]byte(re.ReplaceAllString(scriptJson, `"python_code_urls":[123]`)),
+		&PyCalcTestTestProcessorDefFactory{}, map[string]json.RawMessage{"py_calc": []byte(envSettings)}, "", nil)
+	assert.Contains(t, err.Error(), "cannot unmarshal py_calc processor def")
+
+	re = regexp.MustCompile(`"python_interpreter_path": "[^"]+"`)
+	err = scriptDef.Deserialize(
+		[]byte(scriptJson),
+		&PyCalcTestTestProcessorDefFactory{}, map[string]json.RawMessage{"py_calc": []byte(re.ReplaceAllString(envSettings, `"python_interpreter_path": 123`))}, "", nil)
+	assert.Contains(t, err.Error(), "cannot unmarshal py_calc processor env settings")
+
+	err = scriptDef.Deserialize(
+		[]byte(scriptJson),
+		&PyCalcTestTestProcessorDefFactory{}, map[string]json.RawMessage{"py_calc": []byte(re.ReplaceAllString(envSettings, `"python_interpreter_path": ""`))}, "", nil)
+	assert.Contains(t, err.Error(), "py_calc interpreter path canot be empty")
+
 }
