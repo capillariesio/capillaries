@@ -6,9 +6,7 @@ import (
 	"go/ast"
 	"strings"
 
-	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/eval"
-	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/proc"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/xfer"
@@ -64,6 +62,8 @@ func (procDef *TagAndDenormalizeProcessorDef) Deserialize(raw json.RawMessage, c
 				return fmt.Errorf("cannot unmarshal tag criteria file [%s]: [%s]", procDef.RawTagCriteriaUri, err.Error())
 			}
 		}
+	} else if len(procDef.RawTagCriteria) == 0 {
+		return fmt.Errorf("cannot unmarshal with tag_criteria and tag_criteria_url missing")
 	}
 
 	for tag, rawExp := range procDef.RawTagCriteria {
@@ -81,11 +81,10 @@ func (procDef *TagAndDenormalizeProcessorDef) Deserialize(raw json.RawMessage, c
 	}
 }
 
-func (procDef *TagAndDenormalizeProcessorDef) Run(logger *l.Logger, pCtx *ctx.MessageProcessingContext, rsIn *proc.Rowset, flushVarsArray func(varsArray []*eval.VarValuesMap, varsArrayCount int) error) error {
-	logger.PushF("custom.TagAndDenormalizeProcessorDef.Run")
-	defer logger.PopF()
+const tagAndDenormalizeFlushBufferSize int = 1000
 
-	varsArray := make([]*eval.VarValuesMap, 1000)
+func (procDef *TagAndDenormalizeProcessorDef) tagAndDenormalize(rsIn *proc.Rowset, flushVarsArray func(varsArray []*eval.VarValuesMap, varsArrayCount int) error) error {
+	varsArray := make([]*eval.VarValuesMap, tagAndDenormalizeFlushBufferSize)
 	varsArrayCount := 0
 
 	for rowIdx := 0; rowIdx < rsIn.RowCount; rowIdx++ {
@@ -126,7 +125,7 @@ func (procDef *TagAndDenormalizeProcessorDef) Run(logger *l.Logger, pCtx *ctx.Me
 				if err = flushVarsArray(varsArray, varsArrayCount); err != nil {
 					return fmt.Errorf("error flushing vars array of size %d: %s", varsArrayCount, err.Error())
 				}
-				varsArray = make([]*eval.VarValuesMap, 1000)
+				varsArray = make([]*eval.VarValuesMap, tagAndDenormalizeFlushBufferSize)
 				varsArrayCount = 0
 			}
 		}

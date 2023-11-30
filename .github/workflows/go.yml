@@ -26,7 +26,8 @@ jobs:
 
     - name: Generate coverage report for coveralls.io
       run: |
-        go test -coverprofile=/var/tmp/capillaries.p -cover $(go list ./pkg/... | grep -e .*\.\/eval$ -e .*\.\/sc$ -e .*\.\/cql$ -e .*\.\/dpc$)
+        go test -coverprofile=/var/tmp/capillaries.p.tmp -cover $(find ./ -name '*_test.go' -printf "%h\n" | sort -u)
+        cat /var/tmp/capillaries.p.tmp | grep -v "donotcover" > /var/tmp/capillaries.p
 
     - name: Send coverage to coveralls.io
       env:
@@ -85,11 +86,11 @@ jobs:
                 exit 1
             fi
 
-    - name: pkg/custom test coverage threshold check
+    - name: pkg/custom/py_calc test coverage threshold check
       env:
-          TESTCOVERAGE_THRESHOLD: 33.5
+          TESTCOVERAGE_THRESHOLD: 80.2
       run: |
-            go test -v ./pkg/custom/... -coverprofile coverage.out -covermode count
+            go test -v ./pkg/custom/py_calc/... -coverprofile coverage.out -covermode count
             totalCoverage=`go tool cover -func=coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`
             if (( $(echo "$totalCoverage $TESTCOVERAGE_THRESHOLD" | awk '{print ($1 >= $2)}') )); then
                 echo -e "\033[32mOK: $totalCoverage >= $TESTCOVERAGE_THRESHOLD\033[0m"
@@ -97,3 +98,17 @@ jobs:
                 echo -e "\033[31mFAILED: $totalCoverage < $TESTCOVERAGE_THRESHOLD. Cover more with unit tests or adjust threshold to a lower value.\033[0m"
                 exit 1
             fi
+
+    - name: pkg/custom/tag_and_denormalize test coverage threshold check
+      env:
+          TESTCOVERAGE_THRESHOLD: 78.3
+      run: |
+            go test -v ./pkg/custom/tag_and_denormalize/... -coverprofile coverage.out -covermode count
+            totalCoverage=`go tool cover -func=coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`
+            if (( $(echo "$totalCoverage $TESTCOVERAGE_THRESHOLD" | awk '{print ($1 >= $2)}') )); then
+                echo -e "\033[32mOK: $totalCoverage >= $TESTCOVERAGE_THRESHOLD\033[0m"
+            else
+                echo -e "\033[31mFAILED: $totalCoverage < $TESTCOVERAGE_THRESHOLD. Cover more with unit tests or adjust threshold to a lower value.\033[0m"
+                exit 1
+            fi
+      

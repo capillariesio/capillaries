@@ -80,7 +80,7 @@ const scriptJson string = `
 			},
 			"p": {
 				"python_code_urls": [
-					"../../test/data/cfg/py_calc_quicktest/py/calc_order_items_code.py"
+					"../../../test/data/cfg/py_calc_quicktest/py/calc_order_items_code.py"
 				],
 				"calculated_fields": {
 					"taxed_field_int1": {
