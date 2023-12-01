@@ -125,7 +125,7 @@ func (creatorDef *FileCreatorDef) Deserialize(rawWriter json.RawMessage) error {
 			creatorDef.Csv.Separator = ","
 		}
 	} else {
-		return fmt.Errorf("cannot cannot detect file creator type: parquet dhould have column_name, csv should have header etc")
+		return fmt.Errorf("cannot cannot detect file creator type: parquet should have column_name, csv should have header etc")
 	}
 
 	// Having

@@ -1,6 +1,7 @@
 package cql
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/capillariesio/capillaries/pkg/sc"
@@ -11,26 +12,13 @@ import (
 
 func TestValueToCqlParam(t *testing.T) {
 	// Simple
-	expected := "1.23"
-	actual := valueToCqlParam(decimal.NewFromFloat(1.23)).(*inf.Dec).String()
-	if actual != expected {
-		t.Errorf("Unmatch:\n%v\n%v\n", expected, actual)
-	}
+	assert.Equal(t, "1.23", valueToCqlParam(decimal.NewFromFloat(1.23)).(*inf.Dec).String())
 
 	// big round up
-	expected = "1.24"
-	actual = valueToCqlParam(decimal.NewFromFloat(1.235)).(*inf.Dec).String()
-	if actual != expected {
-		t.Errorf("Unmatch:\n%v\n%v\n", expected, actual)
-	}
+	assert.Equal(t, "1.24", valueToCqlParam(decimal.NewFromFloat(1.235)).(*inf.Dec).String())
 
 	// small round down
-	expected = "0.03"
-	actual = valueToCqlParam(decimal.NewFromFloat(0.0345)).(*inf.Dec).String()
-	if actual != expected {
-		t.Errorf("Unmatch:\n%v\n%v\n", expected, actual)
-	}
-
+	assert.Equal(t, "0.03", valueToCqlParam(decimal.NewFromFloat(0.0345)).(*inf.Dec).String())
 }
 
 func TestInsertRunParams(t *testing.T) {
@@ -38,7 +26,7 @@ func TestInsertRunParams(t *testing.T) {
 	qb.WritePreparedColumn("param_name")
 	qb.WritePreparedValue("param_name", "param_value")
 	q, err := qb.Keyspace("ks1").InsertRunPreparedQuery("table1", 1, IgnoreIfExists)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, "INSERT INTO ks1.table1_00001 ( param_name ) VALUES ( ? ) IF NOT EXISTS;", q)
 
 	params, err := qb.InsertRunParams()
@@ -46,16 +34,12 @@ func TestInsertRunParams(t *testing.T) {
 }
 
 func TestInsert(t *testing.T) {
-	const q = "INSERT INTO table1_00123 ( col1, col2, col3 ) VALUES ( 'val1', 2, now() ) IF NOT EXISTS;"
-	qb := QueryBuilder{}
-	s := qb.
+	const qTemplate string = "INSERT INTO table1%s ( col1, col2, col3 ) VALUES ( 'val1', 2, now() ) IF NOT EXISTS;"
+	qb := (&QueryBuilder{}).
 		Write("col1", "val1").
 		Write("col2", 2).
-		WriteForceUnquote("col3", "now()").
-		insertRunUnpreparedQuery("table1", 123, IgnoreIfExists)
-	if s != q {
-		t.Errorf("Unmatch:\n%v\n%v\n", q, s)
-	}
+		WriteForceUnquote("col3", "now()")
+	assert.Equal(t, fmt.Sprintf(qTemplate, "_00123"), qb.insertRunUnpreparedQuery("table1", 123, IgnoreIfExists))
 }
 
 func TestDropKeyspace(t *testing.T) {
@@ -63,53 +47,46 @@ func TestDropKeyspace(t *testing.T) {
 }
 
 func TestSelect(t *testing.T) {
-	const q = "SELECT col3, col4 FROM somekeyspace.table1_00123 WHERE col1 > 1 AND col2 = 2 AND col3 IN ( 'val31', 'val32' ) AND col7 IN ( 1, 2 );"
-	qb := QueryBuilder{}
-	s := qb.
+	const qTemplate string = "SELECT col3, col4 FROM somekeyspace.table1%s WHERE col1 > 1 AND col2 = 2 AND col3 IN ( 'val31', 'val32' ) AND col7 IN ( 1, 2 ) ORDER BY col3  LIMIT 10;"
+	qb := (&QueryBuilder{}).
 		Keyspace("somekeyspace").
 		Cond("col1", ">", 1).
 		Cond("col2", "=", 2).
 		CondInString("col3", []string{"val31", "val32"}).
 		CondInInt16("col7", []int16{1, 2}).
-		SelectRun("table1", 123, []string{"col3", "col4"})
-	if s != q {
-		t.Errorf("Unmatch:\n%v\n%v\n", q, s)
-	}
+		OrderBy("col3").
+		Limit(10)
+
+	assert.Equal(t, fmt.Sprintf(qTemplate, "_00123"), qb.SelectRun("table1", 123, []string{"col3", "col4"}))
+	assert.Equal(t, fmt.Sprintf(qTemplate, ""), qb.Select("table1", []string{"col3", "col4"}))
 }
 
 func TestDelete(t *testing.T) {
-	const q = "DELETE FROM table1_00123 WHERE col1 > 1 AND col2 = 2 AND col3 IN ( 'val31', 'val32' ) AND col7 IN ( 1, 2 )"
-	qb := QueryBuilder{}
-	s := qb.
+	const qTemplate string = "DELETE FROM table1%s WHERE col1 > 1 AND col2 = 2 AND col3 IN ( 'val31', 'val32' ) AND col7 IN ( 1, 2 )"
+	qb := (&QueryBuilder{}).
 		Cond("col1", ">", 1).
 		Cond("col2", "=", 2).
 		CondInString("col3", []string{"val31", "val32"}).
-		CondInInt("col7", []int64{1, 2}).
-		DeleteRun("table1", 123)
-	if s != q {
-		t.Errorf("Unmatch:\n%v\n%v\n", q, s)
-	}
+		CondInInt("col7", []int64{1, 2})
+	assert.Equal(t, fmt.Sprintf(qTemplate, "_00123"), qb.DeleteRun("table1", 123))
+	assert.Equal(t, fmt.Sprintf(qTemplate, ""), qb.Delete("table1"))
 }
 
 func TestUpdate(t *testing.T) {
-	const q = "UPDATE table1_00123 SET col1 = 'val1', col2 = 2 WHERE col1 > 1 AND col2 = '2' IF col1 = 2"
-	qb := QueryBuilder{}
-	s := qb.
+	const qTemplate string = "UPDATE table1%s SET col1 = 'val1', col2 = 2 WHERE col1 > 1 AND col2 = '2' IF col1 = 2"
+	qb := (&QueryBuilder{}).
 		Write("col1", "val1").
 		Write("col2", 2).
 		Cond("col1", ">", 1).
 		Cond("col2", "=", "2").
-		If("col1", "=", 2).
-		UpdateRun("table1", 123)
-	if s != q {
-		t.Errorf("Unmatch:\n%v\n%v\n", q, s)
-	}
+		If("col1", "=", 2)
+	assert.Equal(t, fmt.Sprintf(qTemplate, "_00123"), qb.UpdateRun("table1", 123))
+	assert.Equal(t, fmt.Sprintf(qTemplate, ""), qb.Update("table1"))
 }
 
 func TestCreate(t *testing.T) {
-	const q = "CREATE TABLE IF NOT EXISTS table1_00123 ( col_int BIGINT, col_bool BOOLEAN, col_string TEXT, col_datetime TIMESTAMP, col_decimal2 DECIMAL, col_float DOUBLE, PRIMARY KEY((col_int, col_decimal2), col_bool, col_float));"
-	qb := QueryBuilder{}
-	s := qb.
+	const qTemplate string = "CREATE TABLE IF NOT EXISTS table1%s ( col_int BIGINT, col_bool BOOLEAN, col_string TEXT, col_datetime TIMESTAMP, col_decimal2 DECIMAL, col_float DOUBLE, PRIMARY KEY((col_int, col_decimal2), col_bool, col_float));"
+	qb := (&QueryBuilder{}).
 		ColumnDef("col_int", sc.FieldTypeInt).
 		ColumnDef("col_bool", sc.FieldTypeBool).
 		ColumnDef("col_string", sc.FieldTypeString).
@@ -117,20 +94,17 @@ func TestCreate(t *testing.T) {
 		ColumnDef("col_decimal2", sc.FieldTypeDecimal2).
 		ColumnDef("col_float", sc.FieldTypeFloat).
 		PartitionKey("col_int", "col_decimal2").
-		ClusteringKey("col_bool", "col_float").
-		CreateRun("table1", 123, IgnoreIfExists)
-	if s != q {
-		t.Errorf("Unmatch:\n%v\n%v\n", q, s)
-	}
+		ClusteringKey("col_bool", "col_float")
+	assert.Equal(t, fmt.Sprintf(qTemplate, "_00123"), qb.CreateRun("table1", 123, IgnoreIfExists))
+	assert.Equal(t, fmt.Sprintf(qTemplate, ""), qb.Create("table1", IgnoreIfExists))
 }
 
 func TestInsertPrepared(t *testing.T) {
-	const q = "INSERT INTO table1_00123 ( col_int ) VALUES ( ? ) IF NOT EXISTS;"
 	dataQb := NewQB()
-	dataQb.WritePreparedColumn("col_int")
-	dataQb.WritePreparedValue("col_int", 2)
+	err := dataQb.WritePreparedColumn("col_int")
+	assert.Nil(t, err)
+	err = dataQb.WritePreparedValue("col_int", 2)
+	assert.Nil(t, err)
 	s, _ := dataQb.InsertRunPreparedQuery("table1", 123, IgnoreIfExists)
-	if s != q {
-		t.Errorf("Unmatch:\n%v\n%v\n", q, s)
-	}
+	assert.Equal(t, "INSERT INTO table1_00123 ( col_int ) VALUES ( ? ) IF NOT EXISTS;", s)
 }

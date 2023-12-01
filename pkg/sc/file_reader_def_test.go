@@ -72,9 +72,7 @@ func TestFieldRefs(t *testing.T) {
 		}
 	}`
 	reader := FileReaderDef{}
-	if err := reader.Deserialize([]byte(conf)); err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, reader.Deserialize([]byte(conf)))
 
 	fieldRefs := reader.getFieldRefs()
 	var fr *FieldRef
@@ -125,9 +123,7 @@ func TestColumnIndexing(t *testing.T) {
 				}
 			}
 		}`, srcLine)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, err)
 
 	assert.Equal(t, srcLine[0], colRecord[ReaderAlias]["col_order_id"])
 	assert.Equal(t, srcLine[2], colRecord[ReaderAlias]["col_order_status"])
@@ -163,9 +159,7 @@ func TestColumnIndexing(t *testing.T) {
 				}
 			}
 		}`, srcLine)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, err)
 
 	// Bad col idx
 	_, err = testReader(`
@@ -323,9 +317,7 @@ func TestReadString(t *testing.T) {
 	for i := 0; i < len(goodTestScenarios); i++ {
 		scenario := goodTestScenarios[i]
 		colRecord, err := testReader(scenario[0].(string), scenario[1].([]string))
-		if err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, err)
 		assert.Equal(t, scenario[2], colRecord[ReaderAlias]["col_1"], fmt.Sprintf("Test %d", i))
 	}
 
@@ -379,9 +371,7 @@ func TestReadDatetime(t *testing.T) {
 	for i := 0; i < len(goodTestScenarios); i++ {
 		scenario := goodTestScenarios[i]
 		colRecord, err := testReader(scenario[0].(string), scenario[1].([]string))
-		if err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, err)
 		assert.Equal(t, scenario[2], colRecord[ReaderAlias]["col_1"], fmt.Sprintf("Test %d", i))
 	}
 
@@ -440,9 +430,7 @@ func TestReadInt(t *testing.T) {
 	for i := 0; i < len(goodTestScenarios); i++ {
 		scenario := goodTestScenarios[i]
 		colRecord, err := testReader(scenario[0].(string), scenario[1].([]string))
-		if err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, err)
 		assert.Equal(t, scenario[2], colRecord[ReaderAlias]["col_1"], fmt.Sprintf("Test %d", i))
 	}
 
@@ -497,9 +485,7 @@ func TestReadFloat(t *testing.T) {
 	for i := 0; i < len(goodTestScenarios); i++ {
 		scenario := goodTestScenarios[i]
 		colRecord, err := testReader(scenario[0].(string), scenario[1].([]string))
-		if err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, err)
 		assert.Equal(t, scenario[2], colRecord[ReaderAlias]["col_1"], fmt.Sprintf("Test %d", i))
 	}
 
@@ -554,9 +540,7 @@ func TestReadDecimal(t *testing.T) {
 	for i := 0; i < len(goodTestScenarios); i++ {
 		scenario := goodTestScenarios[i]
 		colRecord, err := testReader(scenario[0].(string), scenario[1].([]string))
-		if err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, err)
 		assert.Equal(t, scenario[2], colRecord[ReaderAlias]["col_1"], fmt.Sprintf("Test %d", i))
 	}
 
@@ -631,9 +615,7 @@ func TestReadBool(t *testing.T) {
 	for i := 0; i < len(goodTestScenarios); i++ {
 		scenario := goodTestScenarios[i]
 		colRecord, err := testReader(scenario[0].(string), scenario[1].([]string))
-		if err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, err)
 		assert.Equal(t, scenario[2], colRecord[ReaderAlias]["col_1"], fmt.Sprintf("Test %d", i))
 	}
 

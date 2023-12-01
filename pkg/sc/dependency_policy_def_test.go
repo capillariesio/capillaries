@@ -35,9 +35,7 @@ func TestDependencyPolicyGood(t *testing.T) {
 		{"cmd": "go", "expression": "e.run_is_current && time.DiffMilli(e.run_start_ts, e.node_status_ts) > 0 && e.run_final_status == wfmodel.RunStart"	},
 		{"cmd": "go", "expression": "time.DiffMilli(e.run_start_ts, time.Parse(\"2006-01-02 15:04:05\",\"2000-01-01 00:00:00.000\")) > 0 && e.run_is_current == true"	}
 	]}`
-	if err := polDef.Deserialize([]byte(conf)); err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, polDef.Deserialize([]byte(conf)))
 
 	assert.Equal(t, "run_id", polDef.OrderIdxDef.Components[0].FieldName)
 	assert.Equal(t, IdxSortAsc, polDef.OrderIdxDef.Components[0].SortOrder)
@@ -45,7 +43,5 @@ func TestDependencyPolicyGood(t *testing.T) {
 	assert.Equal(t, IdxSortDesc, polDef.OrderIdxDef.Components[1].SortOrder)
 	assert.Equal(t, NodeGo, polDef.Rules[0].Cmd)
 
-	if err := polDef.evalRuleExpressionsAndCheckType(); err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, polDef.evalRuleExpressionsAndCheckType())
 }

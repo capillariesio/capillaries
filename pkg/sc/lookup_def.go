@@ -129,7 +129,7 @@ func (lkpDef *LookupDef) CheckFilterCondition(varsFromLookup eval.VarValuesMap) 
 	}
 	valBool, ok := valVolatile.(bool)
 	if !ok {
-		return false, fmt.Errorf("cannot get bool when evaluating expression, got %v(%T) instead", valVolatile, valVolatile)
+		return false, fmt.Errorf("cannot evaluate lookup filter condition expression, expected bool, got %v(%T) instead", valVolatile, valVolatile)
 	}
 
 	return valBool, nil

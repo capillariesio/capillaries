@@ -10,7 +10,8 @@ import (
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/api"
-	"github.com/capillariesio/capillaries/pkg/custom"
+	"github.com/capillariesio/capillaries/pkg/custom/py_calc"
+	"github.com/capillariesio/capillaries/pkg/custom/tag_and_denormalize"
 	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/l"
@@ -181,10 +182,10 @@ func (f *StandardToolbeltProcessorDefFactory) Create(processorType string) (sc.C
 	// If you develop your own processor(s), use your own ProcessorDefFactory that lists all processors,
 	// they all must implement CustomProcessorRunner interface
 	switch processorType {
-	case custom.ProcessorPyCalcName:
-		return &custom.PyCalcProcessorDef{}, true
-	case custom.ProcessorTagAndDenormalizeName:
-		return &custom.TagAndDenormalizeProcessorDef{}, true
+	case py_calc.ProcessorPyCalcName:
+		return &py_calc.PyCalcProcessorDef{}, true
+	case tag_and_denormalize.ProcessorTagAndDenormalizeName:
+		return &tag_and_denormalize.TagAndDenormalizeProcessorDef{}, true
 	default:
 		return nil, false
 	}

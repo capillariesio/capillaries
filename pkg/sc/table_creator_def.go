@@ -143,7 +143,7 @@ func (tcDef *TableCreatorDef) Deserialize(rawWriter json.RawMessage) error {
 func (creatorDef *TableCreatorDef) GetFieldDefaultReadyForDb(fieldName string) (interface{}, error) {
 	writerFieldDef, ok := creatorDef.Fields[fieldName]
 	if !ok {
-		return nil, fmt.Errorf("unknown field %s", fieldName)
+		return nil, fmt.Errorf("default for unknown field %s", fieldName)
 	}
 	defaultValueString := strings.TrimSpace(writerFieldDef.DefaultValue)
 

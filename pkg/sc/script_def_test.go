@@ -192,11 +192,7 @@ func TestCreatorFieldRefs(t *testing.T) {
 	var err error
 
 	newScript := &ScriptDef{}
-	if err = newScript.Deserialize(
-		[]byte(plainScriptJson),
-		nil, nil, "", nil); err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, newScript.Deserialize([]byte(plainScriptJson), nil, nil, "", nil))
 
 	tableFieldRefs := newScript.ScriptNodes["read_table2"].TableCreator.GetFieldRefsWithAlias(CreatorAlias)
 	var tableFieldRef *FieldRef
@@ -226,15 +222,10 @@ func TestCreatorFieldRefs(t *testing.T) {
 }
 
 func TestCreatorCalculateHaving(t *testing.T) {
-	var err error
 	var isHaving bool
 
 	newScript := &ScriptDef{}
-	if err = newScript.Deserialize(
-		[]byte(plainScriptJson),
-		nil, nil, "", nil); err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, newScript.Deserialize([]byte(plainScriptJson), nil, nil, "", nil))
 
 	// Table writer: calculate having
 	var tableRecord map[string]interface{}
@@ -268,11 +259,7 @@ func TestCreatorCalculateOutput(t *testing.T) {
 	var vars eval.VarValuesMap
 
 	newScript := &ScriptDef{}
-	if err = newScript.Deserialize(
-		[]byte(plainScriptJson),
-		nil, nil, "", nil); err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, newScript.Deserialize([]byte(plainScriptJson), nil, nil, "", nil))
 
 	// Table creator: calculate fields
 
@@ -321,11 +308,7 @@ func TestLookup(t *testing.T) {
 	var isMatch bool
 
 	newScript := &ScriptDef{}
-	if err = newScript.Deserialize(
-		[]byte(plainScriptJson),
-		nil, nil, "", nil); err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, newScript.Deserialize([]byte(plainScriptJson), nil, nil, "", nil))
 
 	// Invalid (writer) field in aggregate, tweak sum() arg
 
@@ -397,11 +380,7 @@ func TestBadCreatorHaving(t *testing.T) {
 	var err error
 
 	newScript := &ScriptDef{}
-	if err = newScript.Deserialize(
-		[]byte(plainScriptJson),
-		nil, nil, "", nil); err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, newScript.Deserialize([]byte(plainScriptJson), nil, nil, "", nil))
 
 	// Bad expression, tweak having expression
 
@@ -463,11 +442,7 @@ func TestTopLimit(t *testing.T) {
 	var err error
 
 	newScript := &ScriptDef{}
-	if err = newScript.Deserialize(
-		[]byte(plainScriptJson),
-		nil, nil, "", nil); err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, newScript.Deserialize([]byte(plainScriptJson), nil, nil, "", nil))
 
 	// Tweak limit beyond allowed maximum
 
@@ -485,14 +460,8 @@ func TestTopLimit(t *testing.T) {
 }
 
 func TestBatchIntervalsCalculation(t *testing.T) {
-	var err error
-
 	newScript := &ScriptDef{}
-	if err = newScript.Deserialize(
-		[]byte(plainScriptJson),
-		nil, nil, "", nil); err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, newScript.Deserialize([]byte(plainScriptJson), nil, nil, "", nil))
 
 	var intervals [][]int64
 
@@ -527,14 +496,8 @@ func TestBatchIntervalsCalculation(t *testing.T) {
 }
 
 func TestUniqueIndexesFieldRefs(t *testing.T) {
-	var err error
-
 	newScript := &ScriptDef{}
-	if err = newScript.Deserialize(
-		[]byte(plainScriptJson),
-		nil, nil, "", nil); err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, newScript.Deserialize([]byte(plainScriptJson), nil, nil, "", nil))
 
 	fileReaderNodeDef := newScript.ScriptNodes["read_table2"]
 	fieldRefs := fileReaderNodeDef.GetUniqueIndexesFieldRefs()
@@ -547,15 +510,10 @@ func TestUniqueIndexesFieldRefs(t *testing.T) {
 }
 
 func TestAffectedNodes(t *testing.T) {
-	var err error
 	var affectedNodes []string
 
 	newScript := &ScriptDef{}
-	if err = newScript.Deserialize(
-		[]byte(plainScriptJson),
-		nil, nil, "", nil); err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, newScript.Deserialize([]byte(plainScriptJson), nil, nil, "", nil))
 
 	affectedNodes = newScript.GetAffectedNodes([]string{"read_table1"})
 	assert.Equal(t, 3, len(affectedNodes))
@@ -572,11 +530,7 @@ func TestAffectedNodes(t *testing.T) {
 
 	// Make join manual and see the list of affected nodes shrinking
 
-	if err = newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"start_policy": "auto"`, `"start_policy": "manual"`, 1)),
-		nil, nil, "", nil); err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, newScript.Deserialize([]byte(strings.Replace(plainScriptJson, `"start_policy": "auto"`, `"start_policy": "manual"`, 1)), nil, nil, "", nil))
 
 	affectedNodes = newScript.GetAffectedNodes([]string{"read_table1"})
 	assert.Equal(t, 1, len(affectedNodes))

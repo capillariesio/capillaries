@@ -1,21 +1,16 @@
-package custom
+package py_calc
 
 import (
 	"bufio"
-	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"go/ast"
-	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/eval"
-	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/proc"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/xfer"
@@ -276,7 +271,7 @@ func checkPythonFuncDefAvailability(usedPythonFunctionSignatures map[string]stru
 	// Find "def someFunc123(someParam, 'some literal'):"
 	defSigMatches := reDefSig.FindAllStringSubmatch(codeFormulaDefs, -1)
 	for _, sigMatch := range defSigMatches {
-		if len(strings.TrimSpace(sigMatch[2])) == 0 {
+		if strings.ReplaceAll(sigMatch[2], " ", "") == "()" {
 			// This Python function definition does not accept arguments
 			availableDefSigs[fmt.Sprintf("%s()", sigMatch[1])] = struct{}{}
 		} else {
@@ -287,11 +282,24 @@ func checkPythonFuncDefAvailability(usedPythonFunctionSignatures map[string]stru
 		}
 	}
 
+	// A curated list of Python functions allowed in script expressions. No exec() please.
+	pythoBuiltinFunctions := map[string]struct{}{
+		"str(arg)":   {},
+		"int(arg)":   {},
+		"float(arg)": {},
+		"round(arg)": {},
+		"len(arg)":   {},
+		"bool(arg)":  {},
+		"abs(arg)":   {},
+	}
+
 	// Walk through all Python signatures in calc expressions (we harvested them in Deserialize)
 	// and make sure correspondent python function defs are available
 	for usedSig, _ := range usedPythonFunctionSignatures {
 		if _, ok := availableDefSigs[usedSig]; !ok {
-			errors.WriteString(fmt.Sprintf("function def '%s' not found in Python file; ", usedSig))
+			if _, ok := pythoBuiltinFunctions[usedSig]; !ok {
+				errors.WriteString(fmt.Sprintf("function def '%s' not found in Python file, and it's not in the list of allowed Python built-in functions; ", usedSig))
+			}
 		}
 	}
 
@@ -352,19 +360,7 @@ func kahn(depMap map[string][]string) ([]string, error) {
 	return execOrder, nil
 }
 
-func (procDef *PyCalcProcessorDef) Run(logger *l.Logger, pCtx *ctx.MessageProcessingContext, rsIn *proc.Rowset, flushVarsArray func(varsArray []*eval.VarValuesMap, varsArrayCount int) error) error {
-	logger.PushF("custom.PyCalcProcessorDef.Run")
-	defer logger.PopF()
-
-	outFieldRefs := procDef.GetFieldRefs()
-
-	varsArray := make([]*eval.VarValuesMap, 1000)
-	varsArrayCount := 0
-
-	//err := procDef.executeCalculations(logger, pCtx, rsIn, rsOut, time.Duration(procDef.EnvSettings.ExecutionTimeout*int(time.Millisecond)))
-
-	timeout := time.Duration(procDef.EnvSettings.ExecutionTimeout * int(time.Millisecond))
-
+func (procDef *PyCalcProcessorDef) buildPythonCodebaseFromRowset(rsIn *proc.Rowset) (string, error) {
 	// Build a massive Python source: function defs, dp init, calculation, result json
 	// This is the hardcoded Python code structure we rely on. Do not change it.
 	var codeBase strings.Builder
@@ -379,164 +375,146 @@ print("\n%s") # Provide function defs
 		procDef.PythonCode))
 
 	for rowIdx := 0; rowIdx < rsIn.RowCount; rowIdx++ {
-		codeBase.WriteString(fmt.Sprintf("%s\n", procDef.printItemCalculationCode(rowIdx, rsIn)))
+		itemCalculationCodebase, err := procDef.printItemCalculationCode(rowIdx, rsIn)
+		if err != nil {
+			return "", err
+		}
+		codeBase.WriteString(fmt.Sprintf("%s\n", itemCalculationCodebase))
 	}
 
-	// Protect it with a timeout
-	cmdCtx, cancel := context.WithTimeout(context.Background(), timeout*time.Second)
-	defer cancel()
+	return codeBase.String(), nil
+}
 
-	p := exec.CommandContext(cmdCtx, procDef.EnvSettings.InterpreterPath, procDef.EnvSettings.InterpreterParams...)
+func (procDef *PyCalcProcessorDef) analyseExecError(codeBase string, rawOutput string, rawErrors string, err error) (string, error) {
+	// Linux: err.Error():'exec: "python333": executable file not found in $PATH'
+	// Windows: err.Error():'exec: "C:\\Program Files\\Python3badpath\\python.exe": file does not exist'
+	// MacOS/WSL:  err.Error():'fork/exec /mnt/c/Users/myusername/AppData/Local/Programs/Python/Python310/python.exe: no such file or directory'
+	if strings.Contains(err.Error(), "file not found") ||
+		strings.Contains(err.Error(), "file does not exist") ||
+		strings.Contains(err.Error(), "no such file or directory") {
+		return "", fmt.Errorf("interpreter binary not found: %s", procDef.EnvSettings.InterpreterPath)
+	} else if strings.Contains(err.Error(), "exit status") {
+		//err.Error():'exit status 1', cmdCtx.Err():'%!s(<nil>)'
+		// Python interpreter reported an error: there was a syntax error in the codebase and no results were returned
+		fullErrorInfo := fmt.Sprintf("interpreter returned an error (probably syntax):\n%s %v\n%s\n%s\n%s",
+			procDef.EnvSettings.InterpreterPath, procDef.EnvSettings.InterpreterParams,
+			rawOutput,
+			rawErrors,
+			getErrorLineNumberInfo(codeBase, rawErrors))
 
-	// Supply our calculation code to Python as stdin
-	p.Stdin = strings.NewReader(codeBase.String())
-
-	// Do not use pipes, work with raw data, otherwise stdout/stderr
-	// will not be easily available in the timeout scenario
-	var stdout, stderr bytes.Buffer
-	p.Stdout = &stdout
-	p.Stderr = &stderr
-
-	//return fmt.Errorf(codeBase.String())
-
-	// Run
-	pythonStartTime := time.Now()
-	err := p.Run()
-	pythonDur := time.Since(pythonStartTime)
-	logger.InfoCtx(pCtx, "PythonInterpreter: %d items in %v (%.0f items/s)", rsIn.RowCount, pythonDur, float64(rsIn.RowCount)/pythonDur.Seconds())
-
-	rawOutput := string(stdout.Bytes())
-	rawErrors := string(stderr.Bytes())
-
-	// Really verbose, use for troubleshooting only
-	// fmt.Println(codeBase.String(), rawOutput)
-
-	//fmt.Println(fmt.Sprintf("err.Error():'%s', cmdCtx.Err():'%v'", err.Error(), cmdCtx.Err()))
-
-	if err != nil {
-		// Linux: err.Error():'exec: "python333": executable file not found in $PATH'
-		// Windows: err.Error():'exec: "C:\\Program Files\\Python3badpath\\python.exe": file does not exist'
-		// MacOS/WSL:  err.Error():'fork/exec /mnt/c/Users/myusername/AppData/Local/Programs/Python/Python310/python.exe: no such file or directory'
-		if strings.Contains(err.Error(), "file not found") ||
-			strings.Contains(err.Error(), "file does not exist") ||
-			strings.Contains(err.Error(), "no such file or directory") {
-			return fmt.Errorf("interpreter binary not found: %s", procDef.EnvSettings.InterpreterPath)
-		} else if strings.Contains(err.Error(), "exit status") {
-			//err.Error():'exit status 1', cmdCtx.Err():'%!s(<nil>)'
-			// Python interpreter reported an error: there was a syntax error in the codebase and no results were returned
-			fullErrorInfo := fmt.Sprintf("Interpreter returned an error (probably syntax):\n%s %v\n%s\n%s\n%s",
-				procDef.EnvSettings.InterpreterPath, procDef.EnvSettings.InterpreterParams,
-				rawOutput,
-				rawErrors,
-				getErrorLineNumberInfo(codeBase.String(), rawErrors))
-
-			//fmt.Println(fullErrorInfo)
-			logger.ErrorCtx(pCtx, fullErrorInfo)
-			return fmt.Errorf("Calculation errors, see logs for details: %s", rawErrors)
-		} else {
-			return fmt.Errorf("Unexpected calculation errors, see logs for details: %s", rawErrors)
-		}
+		//fmt.Println(fullErrorInfo)
+		return fullErrorInfo, fmt.Errorf("interpreter returned an error (probably syntax), see log for details: %s", rawErrors)
 	} else {
-		// No Python interpreter errors, but there may be runtime errors and good results.
-		// Timeout error may be there too.
+		return "", fmt.Errorf("unexpected calculation errors: %s", rawErrors)
+	}
+}
 
-		var errors strings.Builder
+const pyCalcFlushBufferSize int = 1000
 
-		if cmdCtx.Err() == context.DeadlineExceeded {
-			// Timeout occurred, err.Error() is probably: 'signal: killed'
-			errorText := fmt.Sprintf("Calculation timeout %d s expired;", timeout)
-			errors.WriteString(errorText)
-			//logText.WriteString(errorText)
+func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput string, rawErrors string, outFieldRefs *sc.FieldRefs, rsIn *proc.Rowset, flushVarsArray func(varsArray []*eval.VarValuesMap, varsArrayCount int) error) error {
+	// No Python interpreter errors, but there may be runtime errors and good results.
+	// Timeout error may be there too.
+
+	var errors strings.Builder
+	varsArray := make([]*eval.VarValuesMap, pyCalcFlushBufferSize)
+	varsArrayCount := 0
+
+	sectionEndPos := 0
+	for rowIdx := 0; rowIdx < rsIn.RowCount; rowIdx++ {
+		startMarker := fmt.Sprintf("%s:%d", FORMULA_MARKER_DATA_POINTS_INITIALIZATION, rowIdx)
+		endMarker := fmt.Sprintf("%s:%d", FORMULA_MARKER_END, rowIdx)
+		relSectionStartPos := strings.Index(rawOutput[sectionEndPos:], startMarker)
+		relSectionEndPos := strings.Index(rawOutput[sectionEndPos:], endMarker)
+		sectionStartPos := sectionEndPos + relSectionStartPos
+		if sectionStartPos == -1 {
+			return fmt.Errorf("%d: unexpected, cannot find calculation start marker %s;", rowIdx, startMarker)
+		}
+		sectionEndPos = sectionEndPos + relSectionEndPos
+		if sectionEndPos == -1 {
+			return fmt.Errorf("%d: unexpected, cannot find calculation end marker %s;", rowIdx, endMarker)
+		}
+		if sectionStartPos > sectionEndPos {
+			return fmt.Errorf("%d: unexpected, end marker %s(%d) is earlier than start marker %s(%d);", rowIdx, endMarker, sectionStartPos, endMarker, sectionEndPos)
 		}
 
-		sectionEndPos := 0
-		for rowIdx := 0; rowIdx < rsIn.RowCount; rowIdx++ {
-			relSectionStartPos := strings.Index(rawOutput[sectionEndPos:], fmt.Sprintf("%s:%d", FORMULA_MARKER_DATA_POINTS_INITIALIZATION, rowIdx))
-			relSectionEndPos := strings.Index(rawOutput[sectionEndPos:], fmt.Sprintf("%s:%d", FORMULA_MARKER_END, rowIdx))
-			sectionStartPos := sectionEndPos + relSectionStartPos
-			sectionEndPos = sectionEndPos + relSectionEndPos
-			if sectionStartPos == -1 || sectionEndPos == -1 || sectionStartPos > sectionEndPos {
-				errorText := fmt.Sprintf("%d:Unexpected, cannot find calculation end marker;", rowIdx)
-				//logText.WriteString(errorText)
-				return fmt.Errorf(errorText)
-			}
-			rawSectionOutput := rawOutput[sectionStartPos:sectionEndPos]
-			successMarker := fmt.Sprintf("%s:%d", FORMULA_MARKER_SUCCESS, rowIdx)
-			sectionSuccessPos := strings.Index(rawSectionOutput, successMarker)
-			if sectionSuccessPos == -1 {
-				// There was an error calculating fields for this item
-				// Assume the last line of the out is the error
-				errorLines := strings.Split(rawSectionOutput, "\n")
-				errorText := ""
-				for i := len(errorLines) - 1; i >= 0; i-- {
-					errorText = strings.Trim(errorLines[i], "\r \t")
-					if len(errorText) > 0 {
-						break
-					}
-				}
-				errorText = fmt.Sprintf("%d:Cannot calculate data points;%s; ", rowIdx, errorText)
-				// errors.WriteString(errorText)
-				errors.WriteString(fmt.Sprintf("%s\n%s", errorText, getErrorLineNumberInfo(codeBase.String(), rawSectionOutput)))
-			} else {
-				// SUCESS code snippet is there, try to get the result JSON
-				var itemResults map[string]interface{}
-				jsonString := rawSectionOutput[sectionSuccessPos+len(successMarker):]
-				err := json.Unmarshal([]byte(jsonString), &itemResults)
-				if err != nil {
-					// Bad JSON
-					errorText := fmt.Sprintf("%d:Unexpected error, cannot deserialize results, %s, '%s'", rowIdx, err, jsonString)
-					errors.WriteString(errorText)
-					//logText.WriteString(errorText)
-				} else {
-					// Success
-					vars := eval.VarValuesMap{}
-					if err := rsIn.ExportToVars(rowIdx, &vars); err != nil {
-						return err
-					}
-
-					vars[sc.CustomProcessorAlias] = map[string]interface{}{}
-
-					for _, outFieldRef := range *outFieldRefs {
-						pythonFieldValue, ok := itemResults[outFieldRef.FieldName]
-						if !ok {
-							errors.WriteString(fmt.Sprintf("cannot find result for row %d, field %s;", rowIdx, outFieldRef.FieldName))
-						} else {
-							valVolatile, err := pythonResultToRowsetValue(&outFieldRef, pythonFieldValue)
-							if err != nil {
-								errors.WriteString(fmt.Sprintf("cannot deserialize result for row %d: %s;", rowIdx, err.Error()))
-							} else {
-								vars[sc.CustomProcessorAlias][outFieldRef.FieldName] = valVolatile
-							}
-						}
-					}
-
-					if errors.Len() == 0 {
-						varsArray[varsArrayCount] = &vars
-						varsArrayCount++
-						if varsArrayCount == len(varsArray) {
-							if err = flushVarsArray(varsArray, varsArrayCount); err != nil {
-								return fmt.Errorf("error flushing vars array of size %d: %s", varsArrayCount, err.Error())
-							}
-							varsArray = make([]*eval.VarValuesMap, 1000)
-							varsArrayCount = 0
-						}
-					}
+		rawSectionOutput := rawOutput[sectionStartPos:sectionEndPos]
+		successMarker := fmt.Sprintf("%s:%d", FORMULA_MARKER_SUCCESS, rowIdx)
+		sectionSuccessPos := strings.Index(rawSectionOutput, successMarker)
+		if sectionSuccessPos == -1 {
+			// There was an error calculating fields for this item
+			// Assume the last line of the out is the error
+			errorLines := strings.Split(rawSectionOutput, "\n")
+			errorText := ""
+			for i := len(errorLines) - 1; i >= 0; i-- {
+				errorText = strings.Trim(errorLines[i], "\r \t")
+				if len(errorText) > 0 {
+					break
 				}
 			}
-		}
-
-		if errors.Len() > 0 {
-			//fmt.Println(fmt.Sprintf("%s\nRaw output below:\n%s\nFull codebase below (may be big):\n%s", logText.String(), rawOutput, codeBase.String()))
-			return fmt.Errorf(errors.String())
+			errorText = fmt.Sprintf("%d:cannot calculate data points;%s; ", rowIdx, errorText)
+			// errors.WriteString(errorText)
+			errors.WriteString(fmt.Sprintf("%s\n%s", errorText, getErrorLineNumberInfo(codeBase, rawSectionOutput)))
 		} else {
-			//fmt.Println(fmt.Sprintf("%s\nRaw output below:\n%s", logText.String(), rawOutput))
-			if varsArrayCount > 0 {
-				if err = flushVarsArray(varsArray, varsArrayCount); err != nil {
-					return fmt.Errorf("error flushing leftovers vars array of size %d: %s", varsArrayCount, err.Error())
+			// SUCESS code snippet is there, try to get the result JSON
+			var itemResults map[string]interface{}
+			jsonString := rawSectionOutput[sectionSuccessPos+len(successMarker):]
+			err := json.Unmarshal([]byte(jsonString), &itemResults)
+			if err != nil {
+				// Bad JSON
+				errorText := fmt.Sprintf("%d:unexpected error, cannot deserialize results, %s, '%s'", rowIdx, err, jsonString)
+				errors.WriteString(errorText)
+				//logText.WriteString(errorText)
+			} else {
+				// Success
+
+				// We need to include reader fieldsin the result, writermay use any of them
+				vars := eval.VarValuesMap{}
+				if err := rsIn.ExportToVars(rowIdx, &vars); err != nil {
+					return err
+				}
+
+				vars[sc.CustomProcessorAlias] = map[string]interface{}{}
+
+				for _, outFieldRef := range *outFieldRefs {
+					pythonFieldValue, ok := itemResults[outFieldRef.FieldName]
+					if !ok {
+						errors.WriteString(fmt.Sprintf("cannot find result for row %d, field %s;", rowIdx, outFieldRef.FieldName))
+					} else {
+						valVolatile, err := pythonResultToRowsetValue(&outFieldRef, pythonFieldValue)
+						if err != nil {
+							errors.WriteString(fmt.Sprintf("cannot deserialize result for row %d: %s;", rowIdx, err.Error()))
+						} else {
+							vars[sc.CustomProcessorAlias][outFieldRef.FieldName] = valVolatile
+						}
+					}
+				}
+
+				if errors.Len() == 0 {
+					varsArray[varsArrayCount] = &vars
+					varsArrayCount++
+					if varsArrayCount == len(varsArray) {
+						if err = flushVarsArray(varsArray, varsArrayCount); err != nil {
+							return fmt.Errorf("error flushing vars array of size %d: %s", varsArrayCount, err.Error())
+						}
+						varsArray = make([]*eval.VarValuesMap, pyCalcFlushBufferSize)
+						varsArrayCount = 0
+					}
 				}
 			}
-			return nil
 		}
+	}
+
+	if errors.Len() > 0 {
+		//fmt.Println(fmt.Sprintf("%s\nRaw output below:\n%s\nFull codebase below (may be big):\n%s", logText.String(), rawOutput, codeBase.String()))
+		return fmt.Errorf(errors.String())
+	} else {
+		//fmt.Println(fmt.Sprintf("%s\nRaw output below:\n%s", logText.String(), rawOutput))
+		if varsArrayCount > 0 {
+			if err := flushVarsArray(varsArray, varsArrayCount); err != nil {
+				return fmt.Errorf("error flushing leftovers vars array of size %d: %s", varsArrayCount, err.Error())
+			}
+		}
+		return nil
 	}
 }
 
@@ -581,10 +559,13 @@ const FORMULA_MARKER_END = "--FMEND"
 const ReaderPrefix string = "r_"
 const ProcPrefix string = "p_"
 
-func (procDef *PyCalcProcessorDef) printItemCalculationCode(rowIdx int, rsIn *proc.Rowset) string {
+func (procDef *PyCalcProcessorDef) printItemCalculationCode(rowIdx int, rsIn *proc.Rowset) (string, error) {
 	// Initialize input variables in no particular order
 	vars := eval.VarValuesMap{}
-	rsIn.ExportToVars(rowIdx, &vars)
+	err := rsIn.ExportToVars(rowIdx, &vars)
+	if err != nil {
+		return "", err
+	}
 	var bIn strings.Builder
 	for fieldName, fieldVal := range vars[sc.ReaderAlias] {
 		bIn.WriteString(fmt.Sprintf("  %s%s = %s\n", ReaderPrefix, fieldName, valueToPythonExpr(fieldVal)))
@@ -625,51 +606,5 @@ print('%s:%d')
 		bCalc.String(),
 		FORMULA_MARKER_SUCCESS, rowIdx,
 		bRes.String(),
-		FORMULA_MARKER_END, rowIdx)
+		FORMULA_MARKER_END, rowIdx), nil
 }
-
-// func (procDef *PyCalcProcessorDef) executeCalculations(logger *l.Logger, pCtx *ctx.MessageProcessingContext, rsIn *proc.Rowset, rsOut *proc.Rowset, timeout time.Duration) error {
-// 	custom.executeCalculations")
-// 	defer logger.PopF()
-
-// }
-
-// func (procDef *PyCalcProcessorDef) RunOld(rsIn *proc.Rowset) (*proc.Rowset, error) {
-// 	// Sample implementation - python-style eval simulated in go
-// 	outFieldRefs := procDef.GetFieldRefs()
-// 	rsOut := sc.NewRowsetFromFieldRefs(*outFieldRefs)
-// 	rsOut.InitRows(rsIn.RowCount)
-// 	for rowIdx := 0; rowIdx < rsIn.RowCount; rowIdx++ {
-// 		vars := eval.VarValuesMap{}
-// 		if err := rsIn.ExportToVars(rowIdx, &vars); err != nil {
-// 			return nil, err
-// 		}
-
-// 		for calcFieldName, calcFieldDef := range procDef.CalculatedFields {
-// 			calcFieldExpressionWithResolvedInput := calcFieldDef.RawExpression
-// 			for _, inField := range calcFieldDef.UsedFields {
-// 				inFieldFullAlias := fmt.Sprintf("%s.%s", inField.TableName, inField.FieldName)
-// 				// TODO: make it safe!!!
-// 				inFieldValue := vars[inField.TableName][inField.FieldName]
-// 				calcFieldExpressionWithResolvedInput = strings.Replace(calcFieldExpressionWithResolvedInput,
-// 					inFieldFullAlias,
-// 					valueToPythonExpr(inFieldValue), -1)
-// 			}
-
-// 			// Assume calcFieldExpressionWithResolvedInput is evaluated by Python here...
-
-// 			switch calcFieldDef.Type {
-// 			case sc.FieldTypeInt:
-// 				result, _ := strconv.ParseInt(calcFieldExpressionWithResolvedInput, 10, 64)
-// 				(*rsOut.Rows[rowIdx])[rsOut.FieldsByFieldName[calcFieldName]] = &result
-// 			case sc.FieldTypeDecimal2:
-// 				result := decimal.NewFromInt32(11)
-// 				(*rsOut.Rows[rowIdx])[rsOut.FieldsByFieldName[calcFieldName]] = &result
-// 			case sc.FieldTypeString:
-// 				result := strings.Trim(calcFieldExpressionWithResolvedInput, "\"")
-// 				(*rsOut.Rows[rowIdx])[rsOut.FieldsByFieldName[calcFieldName]] = &result
-// 			}
-// 		}
-// 	}
-// 	return rsOut, nil
-// }
