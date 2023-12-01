@@ -197,9 +197,8 @@ const envSettings string = `
 
 func TestPyCalcDefCalculator(t *testing.T) {
 	scriptDef := &sc.ScriptDef{}
-	if err := scriptDef.Deserialize([]byte(scriptJson), &PyCalcTestTestProcessorDefFactory{}, map[string]json.RawMessage{"py_calc": []byte(envSettings)}, "", nil); err != nil {
-		t.Error(err)
-	}
+	err := scriptDef.Deserialize([]byte(scriptJson), &PyCalcTestTestProcessorDefFactory{}, map[string]json.RawMessage{"py_calc": []byte(envSettings)}, "", nil)
+	assert.Nil(t, err)
 
 	// Initializing rowset is tedious and error-prone. Add schema first.
 	rs := proc.NewRowsetFromFieldRefs(sc.FieldRefs{
@@ -236,7 +235,7 @@ func TestPyCalcDefCalculator(t *testing.T) {
 	pyCalcProcDef := scriptDef.ScriptNodes["tax_table1"].CustomProcessor.(sc.CustomProcessorDef).(*PyCalcProcessorDef)
 
 	codeBase, err := pyCalcProcDef.buildPythonCodebaseFromRowset(rs)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Contains(t, codeBase, "r_field_int1 = 235")
 	assert.Contains(t, codeBase, "r_field_float1 = 236.000000")
 	assert.Contains(t, codeBase, "r_field_decimal1 = 237")
@@ -338,7 +337,7 @@ bla
 --FMEND:0
 `
 	err = pyCalcProcDef.analyseExecSuccess(codeBase, rawOutput, "", pyCalcProcDef.GetFieldRefs(), rs, flushVarsArray)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	flushedRow := *results[0]
 	// r fields must be present in the result, they can be used by the writer
 	assert.Equal(t, i, flushedRow["r"]["field_int1"])

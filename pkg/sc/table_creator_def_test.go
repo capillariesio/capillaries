@@ -47,9 +47,7 @@ func TestCreatorDefaultFieldValues(t *testing.T) {
 		}
 	}`
 	c := TableCreatorDef{}
-	if err := c.Deserialize([]byte(conf)); err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, c.Deserialize([]byte(conf)))
 
 	var err error
 	var val interface{}
@@ -87,9 +85,7 @@ func TestCreatorDefaultFieldValues(t *testing.T) {
 		`"default_value": "true",`, ``,
 		`"default_value": "some_string",`, ``)
 
-	if err := c.Deserialize([]byte(confReplacer.Replace(conf))); err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, c.Deserialize([]byte(confReplacer.Replace(conf))))
 
 	val, err = c.GetFieldDefaultReadyForDb("field_int")
 	assert.Nil(t, err)

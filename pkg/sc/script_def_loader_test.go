@@ -238,7 +238,7 @@ func TestNewScriptFromFileBytes(t *testing.T) {
 		"someScriptUri", []byte(parameterizedScriptJson),
 		"someScriptParamsUrl", []byte(paramsJson),
 		&SomeTestCustomProcessorDefFactory{}, map[string]json.RawMessage{"some_test_custom_proc": []byte("{}")})
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, 4, len(scriptDef.ScriptNodes))
 	assert.Equal(t, ScriptInitNoProblem, initProblem)
 

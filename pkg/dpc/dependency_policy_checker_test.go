@@ -39,32 +39,32 @@ func TestDefaultDependencyPolicyChecker(t *testing.T) {
 
 	events[0].NodeStatus = wfmodel.NodeBatchRunStopReceived
 	cmd, runId, checkerLogMsg, err = CheckDependencyPolicyAgainstNodeEventList(&polDef, events)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, sc.NodeNogo, cmd)
 	assert.Contains(t, checkerLogMsg, "no rules matched against events")
 
 	events[0].NodeStatus = wfmodel.NodeBatchSuccess
 	cmd, runId, checkerLogMsg, err = CheckDependencyPolicyAgainstNodeEventList(&polDef, events)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, sc.NodeGo, cmd)
 	assert.Equal(t, int16(10), runId)
 	assert.Contains(t, checkerLogMsg, "matched rule 0(go)")
 
 	events[0].NodeStatus = wfmodel.NodeBatchNone
 	cmd, _, checkerLogMsg, err = CheckDependencyPolicyAgainstNodeEventList(&polDef, events)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, sc.NodeWait, cmd)
 	assert.Contains(t, checkerLogMsg, "matched rule 1(wait)")
 
 	events[0].NodeStatus = wfmodel.NodeBatchStart
 	cmd, _, checkerLogMsg, err = CheckDependencyPolicyAgainstNodeEventList(&polDef, events)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, sc.NodeWait, cmd)
 	assert.Contains(t, checkerLogMsg, "matched rule 2(wait)")
 
 	events[0].NodeStatus = wfmodel.NodeBatchFail
 	cmd, _, checkerLogMsg, err = CheckDependencyPolicyAgainstNodeEventList(&polDef, events)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, sc.NodeNogo, cmd)
 	assert.Contains(t, checkerLogMsg, "matched rule 3(nogo)")
 
@@ -72,26 +72,26 @@ func TestDefaultDependencyPolicyChecker(t *testing.T) {
 
 	events[0].NodeStatus = wfmodel.NodeBatchRunStopReceived
 	cmd, runId, checkerLogMsg, err = CheckDependencyPolicyAgainstNodeEventList(&polDef, events)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, sc.NodeNogo, cmd)
 	assert.Contains(t, checkerLogMsg, "no rules matched against events")
 
 	events[0].NodeStatus = wfmodel.NodeBatchSuccess
 	cmd, runId, checkerLogMsg, err = CheckDependencyPolicyAgainstNodeEventList(&polDef, events)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, sc.NodeGo, cmd)
 	assert.Equal(t, int16(10), runId)
 	assert.Contains(t, checkerLogMsg, "matched rule 4(go)")
 
 	events[0].NodeStatus = wfmodel.NodeBatchNone
 	cmd, _, checkerLogMsg, err = CheckDependencyPolicyAgainstNodeEventList(&polDef, events)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, sc.NodeWait, cmd)
 	assert.Contains(t, checkerLogMsg, "matched rule 5(wait)")
 
 	events[0].NodeStatus = wfmodel.NodeBatchStart
 	cmd, _, checkerLogMsg, err = CheckDependencyPolicyAgainstNodeEventList(&polDef, events)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, sc.NodeWait, cmd)
 	assert.Contains(t, checkerLogMsg, "matched rule 6(wait)")
 
@@ -99,14 +99,14 @@ func TestDefaultDependencyPolicyChecker(t *testing.T) {
 
 	events[0].NodeStatus = wfmodel.NodeBatchSuccess
 	cmd, runId, checkerLogMsg, err = CheckDependencyPolicyAgainstNodeEventList(&polDef, events)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, sc.NodeGo, cmd)
 	assert.Equal(t, int16(10), runId)
 	assert.Contains(t, checkerLogMsg, "matched rule 7(go)")
 
 	events[0].NodeStatus = wfmodel.NodeBatchFail
 	cmd, _, checkerLogMsg, err = CheckDependencyPolicyAgainstNodeEventList(&polDef, events)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, sc.NodeNogo, cmd)
 	assert.Contains(t, checkerLogMsg, "matched rule 8(nogo)")
 
@@ -114,7 +114,7 @@ func TestDefaultDependencyPolicyChecker(t *testing.T) {
 
 	re := regexp.MustCompile(`"expression": "e\.run[^"]+"`)
 	err = polDef.Deserialize([]byte(re.ReplaceAllString(sc.DefaultPolicyCheckerConf, `"expression": "1"`)))
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	_, _, _, err = CheckDependencyPolicyAgainstNodeEventList(&polDef, events)
 	assert.Contains(t, err.Error(), "expected result type was bool, got int64")
 }

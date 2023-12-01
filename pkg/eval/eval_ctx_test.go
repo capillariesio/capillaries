@@ -276,7 +276,7 @@ func TestNewPlainEvalCtxAndInitializedAgg(t *testing.T) {
 	aggEnabledType, aggFuncType, aggFuncArgs := DetectRootAggFunc(exp)
 	eCtx, err := NewPlainEvalCtxAndInitializedAgg(aggEnabledType, aggFuncType, aggFuncArgs)
 	assert.Equal(t, AggTypeString, eCtx.AggType)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr,1)`)
 	aggEnabledType, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)

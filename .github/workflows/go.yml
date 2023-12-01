@@ -36,7 +36,7 @@ jobs:
   
     - name: pkg/cql test coverage threshold check
       env:
-          TESTCOVERAGE_THRESHOLD: 81.2
+          TESTCOVERAGE_THRESHOLD: 87.6
       run: |
             go test -v ./pkg/cql/... -coverprofile coverage.out -covermode count
             totalCoverage=`go tool cover -func=coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`
@@ -49,7 +49,7 @@ jobs:
 
     - name: pkg/dpc test coverage threshold check
       env:
-          TESTCOVERAGE_THRESHOLD: 81.0
+          TESTCOVERAGE_THRESHOLD: 85.7
       run: |
             go test -v ./pkg/dpc/... -coverprofile coverage.out -covermode count
             totalCoverage=`go tool cover -func=coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`
@@ -75,7 +75,7 @@ jobs:
 
     - name: pkg/sc test coverage threshold check
       env:
-          TESTCOVERAGE_THRESHOLD: 87.2
+          TESTCOVERAGE_THRESHOLD: 88.3
       run: |
             go test -v ./pkg/sc/... -coverprofile coverage.out -covermode count
             totalCoverage=`go tool cover -func=coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`
@@ -88,7 +88,7 @@ jobs:
 
     - name: pkg/custom/py_calc test coverage threshold check
       env:
-          TESTCOVERAGE_THRESHOLD: 80.2
+          TESTCOVERAGE_THRESHOLD: 81.3
       run: |
             go test -v ./pkg/custom/py_calc/... -coverprofile coverage.out -covermode count
             totalCoverage=`go tool cover -func=coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`
@@ -101,7 +101,7 @@ jobs:
 
     - name: pkg/custom/tag_and_denormalize test coverage threshold check
       env:
-          TESTCOVERAGE_THRESHOLD: 78.3
+          TESTCOVERAGE_THRESHOLD: 81.7
       run: |
             go test -v ./pkg/custom/tag_and_denormalize/... -coverprofile coverage.out -covermode count
             totalCoverage=`go tool cover -func=coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`

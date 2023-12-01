@@ -153,7 +153,7 @@ func TestTagAndDenormalizeDeserializeFileCriteria(t *testing.T) {
 	err := scriptDef.Deserialize(
 		[]byte(re.ReplaceAllString(scriptJson, `"tag_criteria_uri": "../../../test/data/cfg/tag_and_denormalize_quicktest/tag_criteria.json"`)),
 		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 
 	tndProcessor, _ := scriptDef.ScriptNodes["tag_products"].CustomProcessor.(*TagAndDenormalizeProcessorDef)
 	assert.Equal(t, 4, len(tndProcessor.ParsedTagCriteria))
@@ -163,7 +163,7 @@ func TestTagAndDenormalizeRunEmbeddedCriteria(t *testing.T) {
 	scriptDef := &sc.ScriptDef{}
 
 	err := scriptDef.Deserialize([]byte(scriptJson), &TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 
 	tndProcessor, _ := scriptDef.ScriptNodes["tag_products"].CustomProcessor.(*TagAndDenormalizeProcessorDef)
 	assert.Equal(t, 3, len(tndProcessor.ParsedTagCriteria))
@@ -200,7 +200,7 @@ func TestTagAndDenormalizeRunEmbeddedCriteria(t *testing.T) {
 	}
 
 	err = tndProcessor.tagAndDenormalize(rs, flushVarsArray)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 
 	// Check that 2 rows were produced: thiswatch is good for boys and for diving
 
