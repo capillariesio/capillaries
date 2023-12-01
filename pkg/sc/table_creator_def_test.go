@@ -9,45 +9,49 @@ import (
 	"gopkg.in/inf.v0"
 )
 
-func TestCreatorDefaultFieldValues(t *testing.T) {
-	conf := `
-	{
-		"name": "test_table_creator",
-		"fields": {
-			"field_int": {
-				"expression": "r.field_int",
-				"default_value": "99",
-				"type": "int"
-			},
-			"field_float": {
-				"expression": "r.field_float",
-				"default_value": "99.0",
-				"type": "float"
-			},
-			"field_decimal2": {
-				"expression": "r.field_decimal2",
-				"default_value": "123.00",
-				"type": "decimal2"
-			},
-			"field_datetime": {
-				"expression": "r.field_datetime",
-				"default_value": "1980-02-03T04:05:06.777+00:00",
-				"type": "datetime"
-			},
-			"field_bool": {
-				"expression": "r.field_bool",
-				"default_value": "true",
-				"type": "bool"
-			},
-			"field_string": {
-				"expression": "r.field_string",
-				"default_value": "some_string",
-				"type": "string"
-			}
+const tableCreatorNodeJson string = `
+{
+	"name": "test_table_creator",
+	"fields": {
+		"field_int": {
+			"expression": "r.field_int",
+			"default_value": "99",
+			"type": "int"
+		},
+		"field_float": {
+			"expression": "r.field_float",
+			"default_value": "99.0",
+			"type": "float"
+		},
+		"field_decimal2": {
+			"expression": "r.field_decimal2",
+			"default_value": "123.00",
+			"type": "decimal2"
+		},
+		"field_datetime": {
+			"expression": "r.field_datetime",
+			"default_value": "1980-02-03T04:05:06.777+00:00",
+			"type": "datetime"
+		},
+		"field_bool": {
+			"expression": "r.field_bool",
+			"default_value": "true",
+			"type": "bool"
+		},
+		"field_string": {
+			"expression": "r.field_string",
+			"default_value": "some_string",
+			"type": "string"
 		}
-	}`
+	},
+	"indexes": {
+		"idx_1": "unique(field_string(case_sensitive))"
+	}
+}`
+
+func TestCreatorDefaultFieldValues(t *testing.T) {
 	c := TableCreatorDef{}
-	assert.Nil(t, c.Deserialize([]byte(conf)))
+	assert.Nil(t, c.Deserialize([]byte(tableCreatorNodeJson)))
 
 	var err error
 	var val interface{}
@@ -85,7 +89,7 @@ func TestCreatorDefaultFieldValues(t *testing.T) {
 		`"default_value": "true",`, ``,
 		`"default_value": "some_string",`, ``)
 
-	assert.Nil(t, c.Deserialize([]byte(confReplacer.Replace(conf))))
+	assert.Nil(t, c.Deserialize([]byte(confReplacer.Replace(tableCreatorNodeJson))))
 
 	val, err = c.GetFieldDefaultReadyForDb("field_int")
 	assert.Nil(t, err)
@@ -111,4 +115,17 @@ func TestCreatorDefaultFieldValues(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "", val.(string))
 
+	// Failures
+	err = c.Deserialize([]byte(strings.ReplaceAll(tableCreatorNodeJson, "test_table_creator", "&")))
+	assert.Contains(t, err.Error(), "invalid table name [&]: allowed regex is")
+
+	err = c.Deserialize([]byte(strings.ReplaceAll(tableCreatorNodeJson, "test_table_creator", "idx_a")))
+	assert.Contains(t, err.Error(), "invalid table name [idx_a]: prohibited regex is")
+
+	err = c.Deserialize([]byte(strings.ReplaceAll(tableCreatorNodeJson, "string", "bad_type")))
+	assert.Contains(t, err.Error(), "invalid field type [bad_type]")
+
+	c = TableCreatorDef{}
+	err = c.Deserialize([]byte(strings.ReplaceAll(tableCreatorNodeJson, "idx_1", "bad_idx_name")))
+	assert.Contains(t, err.Error(), "invalid index name [bad_idx_name]: allowed regex is")
 }
