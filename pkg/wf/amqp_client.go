@@ -302,7 +302,7 @@ func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.Logger, osSignalCh
 			// Lock one slot in the semaphore
 			sem <- 1
 
-			go func(threadLogger *l.Logger, delivery amqp.Delivery, _channel amqp.Channel) {
+			go func(threadLogger *l.Logger, delivery amqp.Delivery, _channel *amqp.Channel) {
 				var err error
 
 				// I have spotted cases when m.Body is empty and Aknowledger is nil. Handle them.
@@ -348,7 +348,7 @@ func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.Logger, osSignalCh
 				// Unlock semaphore slot
 				<-sem
 
-			}(threadLogger, amqpDelivery, *amqpChannel)
+			}(threadLogger, amqpDelivery, amqpChannel)
 		}
 	}
 }
