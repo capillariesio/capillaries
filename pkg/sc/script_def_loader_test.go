@@ -3,6 +3,7 @@ package sc
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -283,6 +284,25 @@ func TestNewScriptFromFileBytes(t *testing.T) {
 		"someScriptParamsUrl", []byte(paramsJson),
 		&SomeTestCustomProcessorDefFactory{}, map[string]json.RawMessage{"some_test_custom_proc": []byte("{}")})
 	assert.Contains(t, err.Error(), "failed to test dependency policy")
+
+	re := regexp.MustCompile(`"expression": "e\.run[^"]+"`)
+	scriptDef, err, initProblem = NewScriptFromFileBytes("", nil,
+		"someScriptUri", []byte(re.ReplaceAllString(parameterizedScriptJson, `"expression": 1`)),
+		"someScriptParamsUrl", []byte(paramsJson),
+		&SomeTestCustomProcessorDefFactory{}, map[string]json.RawMessage{"some_test_custom_proc": []byte("{}")})
+	assert.Contains(t, err.Error(), "cannot unmarshal dependency policy")
+
+	scriptDef, err, initProblem = NewScriptFromFileBytes("", nil,
+		"someScriptUri", []byte(re.ReplaceAllString(parameterizedScriptJson, `"expression": "a.aaa"`)),
+		"someScriptParamsUrl", []byte(paramsJson),
+		&SomeTestCustomProcessorDefFactory{}, map[string]json.RawMessage{"some_test_custom_proc": []byte("{}")})
+	assert.Contains(t, err.Error(), "cannot parse rule expression 'a.aaa': all fields must be prefixed")
+
+	scriptDef, err, initProblem = NewScriptFromFileBytes("", nil,
+		"someScriptUri", []byte(re.ReplaceAllString(parameterizedScriptJson, `"expression": "e.aaa"`)),
+		"someScriptParamsUrl", []byte(paramsJson),
+		&SomeTestCustomProcessorDefFactory{}, map[string]json.RawMessage{"some_test_custom_proc": []byte("{}")})
+	assert.Contains(t, err.Error(), "cannot parse rule expression 'e.aaa': field e.aaa not found")
 
 	// Tweak lookup isGroup = false and get error
 	scriptDef, err, initProblem = NewScriptFromFileBytes("", nil,

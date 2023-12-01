@@ -16,7 +16,7 @@ func CheckDependencyPolicyAgainstNodeEventList(targetNodeDepPol *sc.DependencyPo
 		vars := wfmodel.NewVarsFromDepCtx(0, events[eventIdx])
 		events[eventIdx].SortKey, err = sc.BuildKey(vars[wfmodel.DependencyNodeEventTableName], &targetNodeDepPol.OrderIdxDef)
 		if err != nil {
-			return sc.NodeNogo, 0, "", fmt.Errorf("cannot sort events: %s", err.Error())
+			return sc.NodeNogo, 0, "", fmt.Errorf("cannot build key to sort events: %s", err.Error())
 		}
 	}
 	sort.Slice(events, func(i, j int) bool { return events[i].SortKey < events[j].SortKey })
