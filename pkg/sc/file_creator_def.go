@@ -189,14 +189,14 @@ func (creatorDef *FileCreatorDef) CalculateFileRecordFromSrcVars(srcVars eval.Va
 }
 
 func (creatorDef *FileCreatorDef) CheckFileRecordHavingCondition(fileRecord []any) (bool, error) {
+	if len(fileRecord) != len(creatorDef.Columns) {
+		return false, fmt.Errorf("file record length %d does not match file creator column list length %d", len(fileRecord), len(creatorDef.Columns))
+	}
 	if creatorDef.Having == nil {
 		return true, nil
 	}
 	vars := eval.VarValuesMap{}
 	vars[CreatorAlias] = map[string]any{}
-	if len(fileRecord) != len(creatorDef.Columns) {
-		return false, fmt.Errorf("file record length %d does not match file creator column list length %d", len(fileRecord), len(creatorDef.Columns))
-	}
 	for colIdx := 0; colIdx < len(creatorDef.Columns); colIdx++ {
 		fieldName := creatorDef.Columns[colIdx].Name
 		fieldValue := fileRecord[colIdx]

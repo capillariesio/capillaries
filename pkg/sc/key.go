@@ -62,7 +62,7 @@ func getNumericValueSign(v any, expectedType TableFieldType) (string, any, error
 		}
 
 	default:
-		return "", nil, fmt.Errorf("unexpectedly, cannot convert value %v to type %v, type not supported", v, expectedType)
+		return "", nil, fmt.Errorf("cannot convert value %v to type %v, type not supported", v, expectedType)
 	}
 	return sign, newVal, nil
 }

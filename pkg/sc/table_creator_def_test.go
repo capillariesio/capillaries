@@ -1,6 +1,7 @@
 package sc
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -12,6 +13,7 @@ import (
 const tableCreatorNodeJson string = `
 {
 	"name": "test_table_creator",
+	"having": "len(w.field_string) > 0",
 	"fields": {
 		"field_int": {
 			"expression": "r.field_int",
@@ -159,5 +161,38 @@ func TestCreatorDefaultFieldValues(t *testing.T) {
 	assert.Nil(t, err)
 	_, err = c.GetFieldDefaultReadyForDb("field_bool")
 	assert.Contains(t, err.Error(), "cannot read bool field field_bool, from default value string 'aaa'")
+}
 
+func TestCheckTableRecordHavingCondition(t *testing.T) {
+	c := TableCreatorDef{}
+	assert.Nil(t, c.Deserialize([]byte(tableCreatorNodeJson)))
+
+	isPass, err := c.CheckTableRecordHavingCondition(map[string]any{"field_string": "aaa"})
+	assert.Nil(t, err)
+	assert.True(t, isPass)
+
+	isPass, err = c.CheckTableRecordHavingCondition(map[string]any{"field_string": ""})
+	assert.Nil(t, err)
+	assert.False(t, isPass)
+
+	re := regexp.MustCompile(`"having": "[^"]+",`)
+	assert.Nil(t, c.Deserialize([]byte(re.ReplaceAllString(tableCreatorNodeJson, `"having": "w.bad_field",`))))
+	_, err = c.CheckTableRecordHavingCondition(map[string]any{"field_string": "aaa"})
+	assert.Contains(t, err.Error(), "cannot evaluate 'having' expression")
+
+	re = regexp.MustCompile(`"having": "[^"]+",`)
+	assert.Nil(t, c.Deserialize([]byte(re.ReplaceAllString(tableCreatorNodeJson, `"having": "w.field_string",`))))
+	_, err = c.CheckTableRecordHavingCondition(map[string]any{"field_string": "aaa"})
+	assert.Contains(t, err.Error(), "cannot get bool when evaluating having expression, got aaa(string) instead")
+
+	assert.Nil(t, c.Deserialize([]byte(re.ReplaceAllString(tableCreatorNodeJson, `"having": "w.field_string",`))))
+	_, err = c.CheckTableRecordHavingCondition(map[string]any{"field_string": "aaa"})
+	assert.Contains(t, err.Error(), "cannot get bool when evaluating having expression, got aaa(string) instead")
+
+	// Remove having
+	c = TableCreatorDef{}
+	re = regexp.MustCompile(`"having": "[^"]+",`)
+	assert.Nil(t, c.Deserialize([]byte(re.ReplaceAllString(tableCreatorNodeJson, ``))))
+	_, err = c.CheckTableRecordHavingCondition(map[string]any{"field_string": "aaa"})
+	assert.Nil(t, err)
 }

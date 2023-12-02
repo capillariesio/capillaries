@@ -16,4 +16,7 @@ func TestAppendWithFilter(t *testing.T) {
 	assert.True(t, targetRefs.HasFieldsWithTableAlias("t0"))
 	assert.False(t, targetRefs.HasFieldsWithTableAlias("t1"))
 	assert.True(t, targetRefs.HasFieldsWithTableAlias("t2"))
+
+	targetRefs.Append(sourceRefs)
+	assert.Equal(t, 3, len(targetRefs))
 }

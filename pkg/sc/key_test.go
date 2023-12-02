@@ -333,3 +333,8 @@ func TestDecimal(t *testing.T) {
 	row2 = map[string]any{"fld": decimal.NewFromFloat32(-1000)}
 	assertKeyCompare(t, row1, ">", row2, idxDef)
 }
+
+func TestGetNUmericValueSign(t *testing.T) {
+	_, _, err := getNumericValueSign(nil, FieldTypeUnknown)
+	assert.Contains(t, err.Error(), "cannot convert value <nil> to type unknown")
+}
