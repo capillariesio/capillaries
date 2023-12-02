@@ -54,7 +54,7 @@ func TestCreatorDefaultFieldValues(t *testing.T) {
 	assert.Nil(t, c.Deserialize([]byte(tableCreatorNodeJson)))
 
 	var err error
-	var val interface{}
+	var val any
 
 	val, err = c.GetFieldDefaultReadyForDb("field_int")
 	assert.Nil(t, err)

@@ -56,9 +56,9 @@ func CmdChainExecToString(title string, logContent string, err error, isVerbose 
 %s
 =========================================
 `, title, logContent)
-	} else {
-		return title
 	}
+
+	return title
 }
 
 func ExecLocal(prj *Project, cmdPath string, params []string, envVars map[string]string, dir string) ExecResult {

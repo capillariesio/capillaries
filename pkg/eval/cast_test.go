@@ -8,7 +8,7 @@ import (
 )
 
 func TestCastSingle(t *testing.T) {
-	var val interface{}
+	var val any
 	var err error
 
 	val, _ = castNumberToStandardType(int(12))
@@ -85,7 +85,7 @@ func TestCastSingle(t *testing.T) {
 }
 
 func TestCastPair(t *testing.T) {
-	var vLeft, vRight interface{}
+	var vLeft, vRight any
 	var err error
 
 	vLeft, vRight, _ = castNumberPairToCommonType(float32(12), int(13))

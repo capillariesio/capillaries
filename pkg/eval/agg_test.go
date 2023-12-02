@@ -100,7 +100,7 @@ func TestStringAgg(t *testing.T) {
 	varValuesMap := getTestValuesMap()
 
 	var exp ast.Expr
-	var result interface{}
+	var result any
 
 	varValuesMap["t1"]["fieldStr"] = "a"
 
@@ -153,7 +153,7 @@ func TestSum(t *testing.T) {
 
 	var exp ast.Expr
 	var eCtx EvalCtx
-	var result interface{}
+	var result any
 	var err error
 
 	// Sum float
@@ -212,7 +212,7 @@ func TestAvg(t *testing.T) {
 
 	var exp ast.Expr
 	var eCtx EvalCtx
-	var result interface{}
+	var result any
 	var err error
 
 	// Avg int
@@ -282,7 +282,7 @@ func TestMin(t *testing.T) {
 
 	var exp ast.Expr
 	var eCtx EvalCtx
-	var result interface{}
+	var result any
 	var err error
 
 	// Min float
@@ -361,7 +361,7 @@ func TestMax(t *testing.T) {
 
 	var exp ast.Expr
 	var eCtx EvalCtx
-	var result interface{}
+	var result any
 	var err error
 
 	// Max float
@@ -441,7 +441,7 @@ func TestCount(t *testing.T) {
 
 	var exp ast.Expr
 	var eCtx EvalCtx
-	var result interface{}
+	var result any
 
 	eCtx = NewPlainEvalCtxWithVars(AggFuncEnabled, &varValuesMap)
 	exp, _ = parser.ParseExpr("count()")
@@ -459,7 +459,7 @@ func TestNoVars(t *testing.T) {
 
 	var exp ast.Expr
 	var eCtx EvalCtx
-	var result interface{}
+	var result any
 
 	eCtx = NewPlainEvalCtx(AggFuncEnabled)
 	exp, _ = parser.ParseExpr("sum(5)")

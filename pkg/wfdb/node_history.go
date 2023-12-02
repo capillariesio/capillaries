@@ -13,7 +13,7 @@ import (
 	"github.com/gocql/gocql"
 )
 
-func HarvestNodeStatusesForRun(logger *l.Logger, pCtx *ctx.MessageProcessingContext, affectedNodes []string) (wfmodel.NodeBatchStatusType, string, error) {
+func HarvestNodeStatusesForRun(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, affectedNodes []string) (wfmodel.NodeBatchStatusType, string, error) {
 	logger.PushF("wfdb.HarvestNodeStatusesForRun")
 	defer logger.PopF()
 
@@ -71,13 +71,13 @@ func HarvestNodeStatusesForRun(logger *l.Logger, pCtx *ctx.MessageProcessingCont
 	if lowestStatus > wfmodel.NodeBatchStart {
 		logger.InfoCtx(pCtx, "run %d complete, status map %s", pCtx.BatchInfo.RunId, nodeStatusMap.ToString())
 		return highestStatus, nodeStatusMap.ToString(), nil
-	} else {
-		logger.DebugCtx(pCtx, "run %d incomplete, lowest status %s, status map %s", pCtx.BatchInfo.RunId, lowestStatus.ToString(), nodeStatusMap.ToString())
-		return lowestStatus, nodeStatusMap.ToString(), nil
 	}
+
+	logger.DebugCtx(pCtx, "run %d incomplete, lowest status %s, status map %s", pCtx.BatchInfo.RunId, lowestStatus.ToString(), nodeStatusMap.ToString())
+	return lowestStatus, nodeStatusMap.ToString(), nil
 }
 
-func HarvestNodeLifespans(logger *l.Logger, pCtx *ctx.MessageProcessingContext, affectingRuns []int16, affectedNodes []string) (wfmodel.RunNodeLifespanMap, error) {
+func HarvestNodeLifespans(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, affectingRuns []int16, affectedNodes []string) (wfmodel.RunNodeLifespanMap, error) {
 	logger.PushF("wfdb.HarvestLastNodeStatuses")
 	defer logger.PopF()
 
@@ -127,7 +127,7 @@ func HarvestNodeLifespans(logger *l.Logger, pCtx *ctx.MessageProcessingContext, 
 	return runNodeLifespanMap, nil
 }
 
-func SetNodeStatus(logger *l.Logger, pCtx *ctx.MessageProcessingContext, status wfmodel.NodeBatchStatusType, comment string) (bool, error) {
+func SetNodeStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, status wfmodel.NodeBatchStatusType, comment string) (bool, error) {
 	logger.PushF("wfdb.SetNodeStatus")
 	defer logger.PopF()
 
@@ -140,7 +140,7 @@ func SetNodeStatus(logger *l.Logger, pCtx *ctx.MessageProcessingContext, status 
 		Write("comment", comment).
 		InsertUnpreparedQuery(wfmodel.TableNameNodeHistory, cql.IgnoreIfExists) // If not exists. First one wins.
 
-	existingDataRow := map[string]interface{}{}
+	existingDataRow := map[string]any{}
 	isApplied, err := pCtx.CqlSession.Query(q).MapScanCAS(existingDataRow)
 
 	if err != nil {
@@ -152,7 +152,7 @@ func SetNodeStatus(logger *l.Logger, pCtx *ctx.MessageProcessingContext, status 
 	return isApplied, nil
 }
 
-func GetNodeHistoryForRun(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId int16) ([]*wfmodel.NodeHistoryEvent, error) {
+func GetNodeHistoryForRun(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16) ([]*wfmodel.NodeHistoryEvent, error) {
 	logger.PushF("wfdb.GetNodeHistoryForRun")
 	defer logger.PopF()
 

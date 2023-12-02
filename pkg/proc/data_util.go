@@ -45,7 +45,7 @@ import (
 // 	return nil
 // }
 
-func selectBatchFromDataTablePaged(logger *l.Logger,
+func selectBatchFromDataTablePaged(logger *l.CapiLogger,
 	pCtx *ctx.MessageProcessingContext,
 	rs *Rowset,
 	tableName string,
@@ -104,16 +104,16 @@ func selectBatchFromDataTablePaged(logger *l.Logger,
 			rs.RowCount++
 		}
 
-		if err := scanner.Err(); err != nil {
-			if strings.Contains(err.Error(), "Operation timed out") || strings.Contains(err.Error(), "Cannot achieve consistency level") && selectRetryIdx < 3 {
-				logger.WarnCtx(pCtx, "cannot select %d rows from %s%s on retry %d, getting timeout/consistency error (%s), will wait for %dms and retry", batchSize, tableName, cql.RunIdSuffix(lookupNodeRunId), selectRetryIdx, err.Error(), 10*curSelectExpBackoffFactor)
-				time.Sleep(time.Duration(10*curSelectExpBackoffFactor) * time.Millisecond)
-				curSelectExpBackoffFactor *= 2
-			} else {
-				return nil, db.WrapDbErrorWithQuery(fmt.Sprintf("paged data scanner cannot select %d rows from %s%s after %d attempts; another worker may retry this batch later, but, if some unique idx records has been written already by current worker, the next worker handling this batch will throw an error on them and there is nothing we can do about it;", batchSize, tableName, cql.RunIdSuffix(lookupNodeRunId), selectRetryIdx+1), q, err)
-			}
-		} else {
+		err := scanner.Err()
+		if err == nil {
 			break
+		}
+		if strings.Contains(err.Error(), "Operation timed out") || strings.Contains(err.Error(), "Cannot achieve consistency level") && selectRetryIdx < 3 {
+			logger.WarnCtx(pCtx, "cannot select %d rows from %s%s on retry %d, getting timeout/consistency error (%s), will wait for %dms and retry", batchSize, tableName, cql.RunIdSuffix(lookupNodeRunId), selectRetryIdx, err.Error(), 10*curSelectExpBackoffFactor)
+			time.Sleep(time.Duration(10*curSelectExpBackoffFactor) * time.Millisecond)
+			curSelectExpBackoffFactor *= 2
+		} else {
+			return nil, db.WrapDbErrorWithQuery(fmt.Sprintf("paged data scanner cannot select %d rows from %s%s after %d attempts; another worker may retry this batch later, but, if some unique idx records has been written already by current worker, the next worker handling this batch will throw an error on them and there is nothing we can do about it;", batchSize, tableName, cql.RunIdSuffix(lookupNodeRunId), selectRetryIdx+1), q, err)
 		}
 		selectRetryIdx++
 	}
@@ -121,7 +121,7 @@ func selectBatchFromDataTablePaged(logger *l.Logger,
 	return iter.PageState(), nil
 }
 
-func selectBatchPagedAllRowids(logger *l.Logger,
+func selectBatchPagedAllRowids(logger *l.CapiLogger,
 	pCtx *ctx.MessageProcessingContext,
 	rs *Rowset,
 	tableName string,
@@ -172,7 +172,7 @@ func selectBatchPagedAllRowids(logger *l.Logger,
 	return iter.PageState(), nil
 }
 
-func selectBatchFromIdxTablePaged(logger *l.Logger,
+func selectBatchFromIdxTablePaged(logger *l.CapiLogger,
 	pCtx *ctx.MessageProcessingContext,
 	rs *Rowset,
 	tableName string,
@@ -219,7 +219,7 @@ func selectBatchFromIdxTablePaged(logger *l.Logger,
 	return iter.PageState(), nil
 }
 
-func selectBatchFromTableByToken(logger *l.Logger,
+func selectBatchFromTableByToken(logger *l.CapiLogger,
 	pCtx *ctx.MessageProcessingContext,
 	rs *Rowset,
 	tableName string,
@@ -265,7 +265,7 @@ func selectBatchFromTableByToken(logger *l.Logger,
 
 const HarvestForDeleteRowsetSize = 1000 // Do not let users tweak it, maybe too sensitive
 
-func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.Logger, pCtx *ctx.MessageProcessingContext) error {
+func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) error {
 	logger.PushF("proc.DeleteDataAndUniqueIndexesByBatchIdx")
 	defer logger.PopF()
 

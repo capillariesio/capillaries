@@ -89,7 +89,7 @@ func (polDef *DependencyPolicyDef) Deserialize(rawPol json.RawMessage) error {
 		return err
 	}
 
-	vars := wfmodel.NewVarsFromDepCtx(0, wfmodel.DependencyNodeEvent{})
+	vars := wfmodel.NewVarsFromDepCtx(wfmodel.DependencyNodeEvent{})
 	for ruleIdx := 0; ruleIdx < len(polDef.Rules); ruleIdx++ {
 		usedFieldRefs := FieldRefs{}
 		polDef.Rules[ruleIdx].ParsedExpression, err = ParseRawGolangExpressionStringAndHarvestFieldRefs(polDef.Rules[ruleIdx].RawExpression, &usedFieldRefs)
@@ -122,7 +122,7 @@ func (polDef *DependencyPolicyDef) parseEventPriorityOrderString() error {
 }
 
 func (polDef *DependencyPolicyDef) evalRuleExpressionsAndCheckType() error {
-	vars := wfmodel.NewVarsFromDepCtx(0, wfmodel.DependencyNodeEvent{})
+	vars := wfmodel.NewVarsFromDepCtx(wfmodel.DependencyNodeEvent{})
 	eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, &vars)
 	for ruleIdx, rule := range polDef.Rules {
 		result, err := eCtx.Eval(rule.ParsedExpression)

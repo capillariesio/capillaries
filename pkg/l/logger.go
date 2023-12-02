@@ -12,8 +12,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-type Logger struct {
-	Logger              *zap.Logger
+type CapiLogger struct {
+	ZapLogger           *zap.Logger
 	ZapMachine          zapcore.Field
 	ZapThread           zapcore.Field
 	SavedZapConfig      zap.Config
@@ -22,24 +22,24 @@ type Logger struct {
 	FunctionStack       []string
 }
 
-func (logger *Logger) PushF(functionName string) {
-	logger.ZapFunction = zap.String("f", functionName)
-	logger.FunctionStack = append(logger.FunctionStack, functionName)
+func (l *CapiLogger) PushF(functionName string) {
+	l.ZapFunction = zap.String("f", functionName)
+	l.FunctionStack = append(l.FunctionStack, functionName)
 }
-func (logger *Logger) PopF() {
-	if len(logger.FunctionStack) > 0 {
-		logger.FunctionStack = logger.FunctionStack[:len(logger.FunctionStack)-1]
-		if len(logger.FunctionStack) > 0 {
-			logger.ZapFunction = zap.String("f", logger.FunctionStack[len(logger.FunctionStack)-1])
+func (l *CapiLogger) PopF() {
+	if len(l.FunctionStack) > 0 {
+		l.FunctionStack = l.FunctionStack[:len(l.FunctionStack)-1]
+		if len(l.FunctionStack) > 0 {
+			l.ZapFunction = zap.String("f", l.FunctionStack[len(l.FunctionStack)-1])
 		} else {
-			logger.ZapFunction = zap.String("f", "stack_underflow")
+			l.ZapFunction = zap.String("f", "stack_underflow")
 		}
 	}
 }
 
-func NewLoggerFromEnvConfig(envConfig *env.EnvConfig) (*Logger, error) {
+func NewLoggerFromEnvConfig(envConfig *env.EnvConfig) (*CapiLogger, error) {
 	atomicTreadCounter := int64(0)
-	l := Logger{AtomicThreadCounter: &atomicTreadCounter}
+	l := CapiLogger{AtomicThreadCounter: &atomicTreadCounter}
 	hostName, err := os.Hostname()
 	if err != nil {
 		return nil, fmt.Errorf("cannot get hostname: %s", err.Error())
@@ -52,15 +52,15 @@ func NewLoggerFromEnvConfig(envConfig *env.EnvConfig) (*Logger, error) {
 	// errors to std err: https://stackoverflow.com/questions/68472667/how-to-log-to-stdout-or-stderr-based-on-log-level-using-uber-go-zap
 	// Do some research to see if this can be added to our ZapConfig.Build() scenario.
 	l.SavedZapConfig = envConfig.ZapConfig
-	l.Logger, err = envConfig.ZapConfig.Build()
+	l.ZapLogger, err = envConfig.ZapConfig.Build()
 	if err != nil {
-		return nil, fmt.Errorf("cannot build logger from config: %s", err.Error())
+		return nil, fmt.Errorf("cannot build l from config: %s", err.Error())
 	}
 	return &l, nil
 }
 
-func NewLoggerFromLogger(srcLogger *Logger) (*Logger, error) {
-	l := Logger{
+func NewLoggerFromLogger(srcLogger *CapiLogger) (*CapiLogger, error) {
+	l := CapiLogger{
 		SavedZapConfig:      srcLogger.SavedZapConfig,
 		AtomicThreadCounter: srcLogger.AtomicThreadCounter,
 		ZapMachine:          srcLogger.ZapMachine,
@@ -68,61 +68,61 @@ func NewLoggerFromLogger(srcLogger *Logger) (*Logger, error) {
 		ZapThread:           zap.Int64("t", atomic.AddInt64(srcLogger.AtomicThreadCounter, 1))}
 
 	var err error
-	l.Logger, err = srcLogger.SavedZapConfig.Build()
+	l.ZapLogger, err = srcLogger.SavedZapConfig.Build()
 	if err != nil {
-		return nil, fmt.Errorf("cannot build logger from logger: %s", err.Error())
+		return nil, fmt.Errorf("cannot build l from l: %s", err.Error())
 	}
 	return &l, nil
 }
 
-func (l *Logger) Close() {
-	l.Logger.Sync() //nolint:all
+func (l *CapiLogger) Close() {
+	l.ZapLogger.Sync() //nolint:all
 }
 
-func (l *Logger) Debug(format string, a ...interface{}) {
-	l.Logger.Debug(fmt.Sprintf(format, a...), l.ZapMachine, l.ZapThread, l.ZapFunction)
+func (l *CapiLogger) Debug(format string, a ...any) {
+	l.ZapLogger.Debug(fmt.Sprintf(format, a...), l.ZapMachine, l.ZapThread, l.ZapFunction)
 }
 
-func (l *Logger) DebugCtx(pCtx *ctx.MessageProcessingContext, format string, a ...interface{}) {
+func (l *CapiLogger) DebugCtx(pCtx *ctx.MessageProcessingContext, format string, a ...any) {
 	if pCtx == nil {
-		l.Logger.Debug(fmt.Sprintf(format, a...), l.ZapMachine, l.ZapThread, l.ZapFunction)
+		l.ZapLogger.Debug(fmt.Sprintf(format, a...), l.ZapMachine, l.ZapThread, l.ZapFunction)
 	} else {
-		l.Logger.Debug(fmt.Sprintf(format, a...), l.ZapMachine, l.ZapThread, l.ZapFunction, pCtx.ZapDataKeyspace, pCtx.ZapRun, pCtx.ZapNode, pCtx.ZapBatchIdx, pCtx.ZapMsgAgeMillis)
+		l.ZapLogger.Debug(fmt.Sprintf(format, a...), l.ZapMachine, l.ZapThread, l.ZapFunction, pCtx.ZapDataKeyspace, pCtx.ZapRun, pCtx.ZapNode, pCtx.ZapBatchIdx, pCtx.ZapMsgAgeMillis)
 	}
 }
 
-func (l *Logger) Info(format string, a ...interface{}) {
-	l.Logger.Info(fmt.Sprintf(format, a...), l.ZapMachine, l.ZapThread, l.ZapFunction)
+func (l *CapiLogger) Info(format string, a ...any) {
+	l.ZapLogger.Info(fmt.Sprintf(format, a...), l.ZapMachine, l.ZapThread, l.ZapFunction)
 }
 
-func (l *Logger) InfoCtx(pCtx *ctx.MessageProcessingContext, format string, a ...interface{}) {
+func (l *CapiLogger) InfoCtx(pCtx *ctx.MessageProcessingContext, format string, a ...any) {
 	if pCtx == nil {
-		l.Logger.Info(fmt.Sprintf(format, a...), l.ZapMachine, l.ZapThread, l.ZapFunction)
+		l.ZapLogger.Info(fmt.Sprintf(format, a...), l.ZapMachine, l.ZapThread, l.ZapFunction)
 	} else {
-		l.Logger.Info(fmt.Sprintf(format, a...), l.ZapMachine, l.ZapThread, l.ZapFunction, pCtx.ZapDataKeyspace, pCtx.ZapRun, pCtx.ZapNode, pCtx.ZapBatchIdx, pCtx.ZapMsgAgeMillis)
+		l.ZapLogger.Info(fmt.Sprintf(format, a...), l.ZapMachine, l.ZapThread, l.ZapFunction, pCtx.ZapDataKeyspace, pCtx.ZapRun, pCtx.ZapNode, pCtx.ZapBatchIdx, pCtx.ZapMsgAgeMillis)
 	}
 }
 
-func (l *Logger) Warn(format string, a ...interface{}) {
-	l.Logger.Warn(fmt.Sprintf(format, a...), l.ZapMachine, l.ZapThread, l.ZapFunction)
+func (l *CapiLogger) Warn(format string, a ...any) {
+	l.ZapLogger.Warn(fmt.Sprintf(format, a...), l.ZapMachine, l.ZapThread, l.ZapFunction)
 }
 
-func (l *Logger) WarnCtx(pCtx *ctx.MessageProcessingContext, format string, a ...interface{}) {
+func (l *CapiLogger) WarnCtx(pCtx *ctx.MessageProcessingContext, format string, a ...any) {
 	if pCtx == nil {
-		l.Logger.Warn(fmt.Sprintf(format, a...), l.ZapMachine, l.ZapThread, l.ZapFunction)
+		l.ZapLogger.Warn(fmt.Sprintf(format, a...), l.ZapMachine, l.ZapThread, l.ZapFunction)
 	} else {
-		l.Logger.Warn(fmt.Sprintf(format, a...), l.ZapMachine, l.ZapThread, l.ZapFunction, pCtx.ZapDataKeyspace, pCtx.ZapRun, pCtx.ZapNode, pCtx.ZapBatchIdx, pCtx.ZapMsgAgeMillis)
+		l.ZapLogger.Warn(fmt.Sprintf(format, a...), l.ZapMachine, l.ZapThread, l.ZapFunction, pCtx.ZapDataKeyspace, pCtx.ZapRun, pCtx.ZapNode, pCtx.ZapBatchIdx, pCtx.ZapMsgAgeMillis)
 	}
 }
 
-func (l *Logger) Error(format string, a ...interface{}) {
-	l.Logger.Error(fmt.Sprintf(format, a...), l.ZapMachine, l.ZapThread, l.ZapFunction)
+func (l *CapiLogger) Error(format string, a ...any) {
+	l.ZapLogger.Error(fmt.Sprintf(format, a...), l.ZapMachine, l.ZapThread, l.ZapFunction)
 }
 
-func (l *Logger) ErrorCtx(pCtx *ctx.MessageProcessingContext, format string, a ...interface{}) {
+func (l *CapiLogger) ErrorCtx(pCtx *ctx.MessageProcessingContext, format string, a ...any) {
 	if pCtx == nil {
-		l.Logger.Error(fmt.Sprintf(format, a...), l.ZapMachine, l.ZapThread, l.ZapFunction)
+		l.ZapLogger.Error(fmt.Sprintf(format, a...), l.ZapMachine, l.ZapThread, l.ZapFunction)
 	} else {
-		l.Logger.Error(fmt.Sprintf(format, a...), l.ZapMachine, l.ZapThread, l.ZapFunction, pCtx.ZapDataKeyspace, pCtx.ZapRun, pCtx.ZapNode, pCtx.ZapBatchIdx, pCtx.ZapMsgAgeMillis)
+		l.ZapLogger.Error(fmt.Sprintf(format, a...), l.ZapMachine, l.ZapThread, l.ZapFunction, pCtx.ZapDataKeyspace, pCtx.ZapRun, pCtx.ZapNode, pCtx.ZapBatchIdx, pCtx.ZapMsgAgeMillis)
 	}
 }

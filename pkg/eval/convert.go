@@ -7,14 +7,14 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-func callString(args []interface{}) (interface{}, error) {
+func callString(args []any) (any, error) {
 	if err := checkArgs("string", 1, len(args)); err != nil {
 		return nil, err
 	}
 	return fmt.Sprintf("%v", args[0]), nil
 }
 
-func callInt(args []interface{}) (interface{}, error) {
+func callInt(args []any) (any, error) {
 	if err := checkArgs("int", 1, len(args)); err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func callInt(args []interface{}) (interface{}, error) {
 	}
 }
 
-func callDecimal2(args []interface{}) (interface{}, error) {
+func callDecimal2(args []any) (any, error) {
 	if err := checkArgs("decimal2", 1, len(args)); err != nil {
 		return nil, err
 	}
@@ -106,7 +106,7 @@ func callDecimal2(args []interface{}) (interface{}, error) {
 	}
 }
 
-func callFloat(args []interface{}) (interface{}, error) {
+func callFloat(args []any) (any, error) {
 	if err := checkArgs("float", 1, len(args)); err != nil {
 		return nil, err
 	}

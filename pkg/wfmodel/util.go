@@ -13,7 +13,7 @@ const PrintTableDelimiter = "/"
 const LogTsFormatQuoted = `"2006-01-02T15:04:05.000-0700"`
 
 // GetSpacedHeader - prints formatted struct field names, uses reflection, shoud not be used in prod
-func GetSpacedHeader(n interface{}) string {
+func GetSpacedHeader(n any) string {
 	t := reflect.TypeOf(n)
 	columns := make([]string, t.NumField())
 	for i := 0; i < t.NumField(); i++ {
@@ -85,7 +85,7 @@ func GetCreateTableCql(t reflect.Type, keyspace string, tableName string) string
 		strings.Join(keyDefs[:keyCount], ", "))
 }
 
-func ReadTimeFromRow(fieldName string, r map[string]interface{}) (time.Time, error) {
+func ReadTimeFromRow(fieldName string, r map[string]any) (time.Time, error) {
 	v, ok := r[fieldName].(time.Time)
 	if !ok {
 		return v, fmt.Errorf("cannot read time %s from %v", fieldName, r)
@@ -93,7 +93,7 @@ func ReadTimeFromRow(fieldName string, r map[string]interface{}) (time.Time, err
 	return v, nil
 }
 
-func ReadInt16FromRow(fieldName string, r map[string]interface{}) (int16, error) {
+func ReadInt16FromRow(fieldName string, r map[string]any) (int16, error) {
 	v, ok := r[fieldName].(int)
 	if !ok {
 		return int16(0), fmt.Errorf("cannot read int16 %s from %v", fieldName, r)
@@ -101,7 +101,7 @@ func ReadInt16FromRow(fieldName string, r map[string]interface{}) (int16, error)
 	return int16(v), nil
 }
 
-func ReadInt64FromRow(fieldName string, r map[string]interface{}) (int64, error) {
+func ReadInt64FromRow(fieldName string, r map[string]any) (int64, error) {
 	v, ok := r[fieldName].(int64)
 	if !ok {
 		return int64(0), fmt.Errorf("cannot read int64 %s from %v", fieldName, r)
@@ -109,7 +109,7 @@ func ReadInt64FromRow(fieldName string, r map[string]interface{}) (int64, error)
 	return v, nil
 }
 
-func ReadRunStatusFromRow(fieldName string, r map[string]interface{}) (RunStatusType, error) {
+func ReadRunStatusFromRow(fieldName string, r map[string]any) (RunStatusType, error) {
 	v, ok := r[fieldName].(int8)
 	if !ok {
 		return RunNone, fmt.Errorf("cannot read run status %s from %v", fieldName, r)
@@ -117,7 +117,7 @@ func ReadRunStatusFromRow(fieldName string, r map[string]interface{}) (RunStatus
 	return RunStatusType(v), nil
 }
 
-func ReadStringFromRow(fieldName string, r map[string]interface{}) (string, error) {
+func ReadStringFromRow(fieldName string, r map[string]any) (string, error) {
 	v, ok := r[fieldName].(string)
 	if !ok {
 		return v, fmt.Errorf("cannot read string %s from %v", fieldName, r)
@@ -125,7 +125,7 @@ func ReadStringFromRow(fieldName string, r map[string]interface{}) (string, erro
 	return v, nil
 }
 
-func ReadNodeBatchStatusFromRow(fieldName string, r map[string]interface{}) (NodeBatchStatusType, error) {
+func ReadNodeBatchStatusFromRow(fieldName string, r map[string]any) (NodeBatchStatusType, error) {
 	v, ok := r[fieldName].(int8)
 	if !ok {
 		return NodeBatchNone, fmt.Errorf("cannot read node/batch status %s from %v", fieldName, r)

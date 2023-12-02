@@ -186,7 +186,7 @@ func shuffleAndSaveInOrders(inOrders []*Order, totalChunks int, basePath string,
 		}
 
 		if strings.Contains(formats, "parquet") {
-			if err := parquetWriter.FileWriter.AddData(map[string]interface{}{
+			if err := parquetWriter.FileWriter.AddData(map[string]any{
 				"order_id":                      item.OrderId,
 				"customer_id":                   item.CustomerId,
 				"order_status":                  item.OrderStatus,
@@ -300,7 +300,7 @@ func shuffleAndSaveInOrderItems(inOrderItems []*OrderItem, totalChunks int, base
 				item.FreightValue))
 		}
 		if strings.Contains(formats, "parquet") {
-			if err := parquetWriter.FileWriter.AddData(map[string]interface{}{
+			if err := parquetWriter.FileWriter.AddData(map[string]any{
 				"order_id":            item.OrderId,
 				"order_item_id":       item.OrderItemId,
 				"product_id":          item.ProductId,
@@ -399,7 +399,7 @@ func sortAndSaveNoGroup(items []*NoGroupItem, fileBase string, formats string) {
 		}
 
 		for _, item := range items {
-			if err := w.FileWriter.AddData(map[string]interface{}{
+			if err := w.FileWriter.AddData(map[string]any{
 				"order_id":            item.OrderId,
 				"order_item_id":       item.OrderItemId,
 				"product_id":          item.ProductId,
@@ -502,7 +502,7 @@ func sortAndSaveGroup(items []*GroupItem, fileBase string, formats string) {
 		}
 
 		for _, item := range items {
-			if err := w.FileWriter.AddData(map[string]interface{}{
+			if err := w.FileWriter.AddData(map[string]any{
 				"total_value":              storage.ParquetWriterDecimal2(item.TotalOrderValue),
 				"order_purchase_timestamp": storage.ParquetWriterMilliTs(item.OrderPurchaseTs),
 				"order_id":                 item.OrderId,

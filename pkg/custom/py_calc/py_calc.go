@@ -46,7 +46,7 @@ func (procDef *PyCalcProcessorDef) GetFieldRefs() *sc.FieldRefs {
 			TableName: sc.CustomProcessorAlias,
 			FieldName: fieldName,
 			FieldType: fieldDef.Type}
-		i += 1
+		i++
 	}
 	return &fieldRefs
 }
@@ -173,7 +173,7 @@ func (procDef *PyCalcProcessorDef) GetUsedInTargetExpressionsFields() *sc.FieldR
 // Python 8601 requires ":" in the timezone
 const PythonDatetimeFormat string = "2006-01-02T15:04:05.000-07:00"
 
-func valueToPythonExpr(val interface{}) string {
+func valueToPythonExpr(val any) string {
 	switch typedVal := val.(type) {
 	case int64:
 		return fmt.Sprintf("%d", typedVal)
@@ -196,7 +196,7 @@ func valueToPythonExpr(val interface{}) string {
 	}
 }
 
-func pythonResultToRowsetValue(fieldRef *sc.FieldRef, fieldValue interface{}) (interface{}, error) {
+func pythonResultToRowsetValue(fieldRef *sc.FieldRef, fieldValue any) (any, error) {
 	switch fieldRef.FieldType {
 	case sc.FieldTypeString:
 		finalVal, ok := fieldValue.(string)
@@ -456,7 +456,7 @@ func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput
 			errors.WriteString(fmt.Sprintf("%s\n%s", errorText, getErrorLineNumberInfo(codeBase, rawSectionOutput)))
 		} else {
 			// SUCESS code snippet is there, try to get the result JSON
-			var itemResults map[string]interface{}
+			var itemResults map[string]any
 			jsonString := rawSectionOutput[sectionSuccessPos+len(successMarker):]
 			err := json.Unmarshal([]byte(jsonString), &itemResults)
 			if err != nil {
@@ -473,7 +473,7 @@ func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput
 					return err
 				}
 
-				vars[sc.CustomProcessorAlias] = map[string]interface{}{}
+				vars[sc.CustomProcessorAlias] = map[string]any{}
 
 				for _, outFieldRef := range *outFieldRefs {
 					pythonFieldValue, ok := itemResults[outFieldRef.FieldName]

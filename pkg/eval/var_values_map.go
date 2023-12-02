@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-type VarValuesMap map[string]map[string]interface{}
+type VarValuesMap map[string]map[string]any
 
 func (vars *VarValuesMap) Tables() string {
 	sb := strings.Builder{}

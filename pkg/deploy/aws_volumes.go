@@ -36,7 +36,6 @@ func (*AwsDeployProvider) CreateVolume(prjPair *ProjectPair, iNickname string, v
 		// If it was already created, save it for future use, but do not create
 		if foundVolIdByName != "" {
 			lb.Add(fmt.Sprintf("volume %s(%s) already there, updating project", prjPair.Live.Instances[iNickname].Volumes[volNickname].Name, foundVolIdByName))
-			//fmt.Printf("Setting existing %s-%s %s\n", iNickname, volNickname, foundVolIdByName)
 			prjPair.SetVolumeId(iNickname, volNickname, foundVolIdByName)
 		}
 	} else {

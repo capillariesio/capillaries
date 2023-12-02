@@ -7,7 +7,7 @@ import (
 	"github.com/itchyny/gojq"
 )
 
-func ExecLocalAndGetJsonValue(prj *Project, cmdPath string, params []string, query string) (interface{}, ExecResult) {
+func ExecLocalAndGetJsonValue(prj *Project, cmdPath string, params []string, query string) (any, ExecResult) {
 	er := ExecLocal(prj, cmdPath, params, prj.CliEnvVars, "")
 	if er.Error != nil {
 		return nil, er
@@ -20,7 +20,7 @@ func ExecLocalAndGetJsonValue(prj *Project, cmdPath string, params []string, que
 	}
 
 	// This is a brutal way to unmarshal incoming JSON, but it should work
-	var jsonObj map[string]interface{}
+	var jsonObj map[string]any
 	if err := json.Unmarshal([]byte(er.Stdout), &jsonObj); err != nil {
 		er.Error = fmt.Errorf("cannot unmarshal json, error %s, json %s", err.Error(), er.Stdout)
 		return nil, er

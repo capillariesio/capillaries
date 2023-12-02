@@ -7,7 +7,7 @@ import (
 )
 
 func TestVarValuesMapUtils(t *testing.T) {
-	varValuesMap := VarValuesMap{"some_table": map[string]interface{}{"some_field": 1}}
+	varValuesMap := VarValuesMap{"some_table": map[string]any{"some_field": 1}}
 	assert.Equal(t, "[some_table ]", varValuesMap.Tables())
 	assert.Equal(t, "[some_table.some_field ]", varValuesMap.Names())
 }

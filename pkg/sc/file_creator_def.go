@@ -165,10 +165,10 @@ func (creatorDef *FileCreatorDef) Deserialize(rawWriter json.RawMessage) error {
 	return nil
 }
 
-func (creatorDef *FileCreatorDef) CalculateFileRecordFromSrcVars(srcVars eval.VarValuesMap) ([]interface{}, error) {
+func (creatorDef *FileCreatorDef) CalculateFileRecordFromSrcVars(srcVars eval.VarValuesMap) ([]any, error) {
 	errors := make([]string, 0, 2)
 
-	fileRecord := make([]interface{}, len(creatorDef.Columns))
+	fileRecord := make([]any, len(creatorDef.Columns))
 
 	for colIdx := 0; colIdx < len(creatorDef.Columns); colIdx++ {
 		eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, &srcVars)
@@ -189,12 +189,12 @@ func (creatorDef *FileCreatorDef) CalculateFileRecordFromSrcVars(srcVars eval.Va
 	}
 }
 
-func (creatorDef *FileCreatorDef) CheckFileRecordHavingCondition(fileRecord []interface{}) (bool, error) {
+func (creatorDef *FileCreatorDef) CheckFileRecordHavingCondition(fileRecord []any) (bool, error) {
 	if creatorDef.Having == nil {
 		return true, nil
 	}
 	vars := eval.VarValuesMap{}
-	vars[CreatorAlias] = map[string]interface{}{}
+	vars[CreatorAlias] = map[string]any{}
 	if len(fileRecord) != len(creatorDef.Columns) {
 		return false, fmt.Errorf("file record length %d does not match file creator column list length %d", len(fileRecord), len(creatorDef.Columns))
 	}

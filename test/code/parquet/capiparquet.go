@@ -327,7 +327,7 @@ func cat(path string) error {
 
 type IndexedRow struct {
 	Key string
-	Row map[string]interface{}
+	Row map[string]any
 }
 
 func sortFile(path string, idxDef *sc.IdxDef) error {
@@ -383,7 +383,7 @@ func sortFile(path string, idxDef *sc.IdxDef) error {
 			return fmt.Errorf("cannot get row %d: %s", rowIdx, err.Error())
 		}
 
-		typedData := map[string]interface{}{}
+		typedData := map[string]any{}
 
 		for colIdx, fieldName := range fields {
 			se, _ := schemaElementMap[fieldName]

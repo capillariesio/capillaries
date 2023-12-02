@@ -26,7 +26,7 @@ type DependencyNodeEvent struct {
 
 func (e *DependencyNodeEvent) ToVars() eval.VarValuesMap {
 	return eval.VarValuesMap{
-		DependencyNodeEventTableName: map[string]interface{}{
+		DependencyNodeEventTableName: map[string]any{
 			"run_id":           int64(e.RunId),
 			"run_is_current":   e.RunIsCurrent,
 			"run_start_ts":     e.RunStartTs,
@@ -66,9 +66,9 @@ func (events DependencyNodeEvents) ToString() string {
 	return fmt.Sprintf("[%s]", strings.Join(items, ", "))
 }
 
-func NewVarsFromDepCtx(runId int16, e DependencyNodeEvent) eval.VarValuesMap {
+func NewVarsFromDepCtx(e DependencyNodeEvent) eval.VarValuesMap {
 	m := eval.VarValuesMap{}
-	m[WfmodelNamespace] = map[string]interface{}{
+	m[WfmodelNamespace] = map[string]any{
 		"NodeBatchNone":            int64(NodeBatchNone),
 		"NodeBatchStart":           int64(NodeBatchStart),
 		"NodeBatchSuccess":         int64(NodeBatchSuccess),
@@ -78,7 +78,7 @@ func NewVarsFromDepCtx(runId int16, e DependencyNodeEvent) eval.VarValuesMap {
 		"RunStart":                 int64(RunStart),
 		"RunComplete":              int64(RunComplete),
 		"RunStop":                  int64(RunStop)}
-	m[DependencyNodeEventTableName] = map[string]interface{}{
+	m[DependencyNodeEventTableName] = map[string]any{
 		"run_id":           int64(e.RunId),
 		"run_is_current":   e.RunIsCurrent,
 		"run_start_ts":     e.RunStartTs,

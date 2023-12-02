@@ -190,12 +190,12 @@ func (procDef *SomeTestCustomProcessorDef) GetFieldRefs() *FieldRefs {
 			TableName: CustomProcessorAlias,
 			FieldName: fieldName,
 			FieldType: fieldDef.Type}
-		i += 1
+		i++
 	}
 	return &fieldRefs
 }
 
-func (procDef *SomeTestCustomProcessorDef) Deserialize(raw json.RawMessage, customProcSettings json.RawMessage, caPath string, privateKeys map[string]string) error {
+func (procDef *SomeTestCustomProcessorDef) Deserialize(raw json.RawMessage, _ json.RawMessage, caPath string, privateKeys map[string]string) error {
 	var err error
 	if err = json.Unmarshal(raw, procDef); err != nil {
 		return fmt.Errorf("cannot unmarshal some_test_custom_processor def: %s", err.Error())

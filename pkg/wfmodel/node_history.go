@@ -86,7 +86,7 @@ type NodeHistoryEvent struct {
 func NodeHistoryEventAllFields() []string {
 	return []string{"ts", "run_id", "script_node", "status", "comment"}
 }
-func NewNodeHistoryEventFromMap(r map[string]interface{}, fields []string) (*NodeHistoryEvent, error) {
+func NewNodeHistoryEventFromMap(r map[string]any, fields []string) (*NodeHistoryEvent, error) {
 	res := &NodeHistoryEvent{}
 	for _, fieldName := range fields {
 		var err error

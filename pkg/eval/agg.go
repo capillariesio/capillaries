@@ -97,7 +97,7 @@ func (eCtx *EvalCtx) checkAgg(funcName string, callExp *ast.CallExpr, aggFunc Ag
 	return nil
 }
 
-func (eCtx *EvalCtx) CallAggStringAgg(callExp *ast.CallExpr, args []interface{}) (interface{}, error) {
+func (eCtx *EvalCtx) CallAggStringAgg(callExp *ast.CallExpr, args []any) (any, error) {
 	if err := eCtx.checkAgg("string_agg", callExp, AggStringAgg); err != nil {
 		return nil, err
 	}
@@ -118,7 +118,7 @@ func (eCtx *EvalCtx) CallAggStringAgg(callExp *ast.CallExpr, args []interface{})
 	}
 }
 
-func (eCtx *EvalCtx) CallAggSum(callExp *ast.CallExpr, args []interface{}) (interface{}, error) {
+func (eCtx *EvalCtx) CallAggSum(callExp *ast.CallExpr, args []any) (any, error) {
 	if err := eCtx.checkAgg("sum", callExp, AggSum); err != nil {
 		return nil, err
 	}
@@ -162,7 +162,7 @@ func (eCtx *EvalCtx) CallAggSum(callExp *ast.CallExpr, args []interface{}) (inte
 	}
 }
 
-func (eCtx *EvalCtx) CallAggAvg(callExp *ast.CallExpr, args []interface{}) (interface{}, error) {
+func (eCtx *EvalCtx) CallAggAvg(callExp *ast.CallExpr, args []any) (any, error) {
 	if err := eCtx.checkAgg("avg", callExp, AggAvg); err != nil {
 		return nil, err
 	}
@@ -209,7 +209,7 @@ func (eCtx *EvalCtx) CallAggAvg(callExp *ast.CallExpr, args []interface{}) (inte
 	}
 }
 
-func (eCtx *EvalCtx) CallAggCount(callExp *ast.CallExpr, args []interface{}) (interface{}, error) {
+func (eCtx *EvalCtx) CallAggCount(callExp *ast.CallExpr, args []any) (any, error) {
 	if err := eCtx.checkAgg("count", callExp, AggCount); err != nil {
 		return nil, err
 	}
@@ -220,7 +220,7 @@ func (eCtx *EvalCtx) CallAggCount(callExp *ast.CallExpr, args []interface{}) (in
 	return eCtx.Count, nil
 }
 
-func (eCtx *EvalCtx) CallAggMin(callExp *ast.CallExpr, args []interface{}) (interface{}, error) {
+func (eCtx *EvalCtx) CallAggMin(callExp *ast.CallExpr, args []any) (any, error) {
 	if err := eCtx.checkAgg("min", callExp, AggMin); err != nil {
 		return nil, err
 	}
@@ -289,7 +289,7 @@ func (eCtx *EvalCtx) CallAggMin(callExp *ast.CallExpr, args []interface{}) (inte
 	}
 }
 
-func (eCtx *EvalCtx) CallAggMax(callExp *ast.CallExpr, args []interface{}) (interface{}, error) {
+func (eCtx *EvalCtx) CallAggMax(callExp *ast.CallExpr, args []any) (any, error) {
 	if err := eCtx.checkAgg("max", callExp, AggMax); err != nil {
 		return nil, err
 	}

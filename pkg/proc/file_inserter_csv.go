@@ -12,7 +12,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-func (instr *FileInserter) createCsvFileAndStartWorker(logger *l.Logger) error {
+func (instr *FileInserter) createCsvFileAndStartWorker(logger *l.CapiLogger) error {
 	logger.PushF("proc.createCsvFileAndStartWorker")
 	defer logger.PopF()
 
@@ -67,7 +67,7 @@ func (instr *FileInserter) createCsvFileAndStartWorker(logger *l.Logger) error {
 	return nil
 }
 
-func (instr *FileInserter) csvFileInserterWorker(logger *l.Logger) {
+func (instr *FileInserter) csvFileInserterWorker(logger *l.CapiLogger) {
 	logger.PushF("proc.csvFileInserterWorker")
 	defer logger.PopF()
 

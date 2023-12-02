@@ -146,7 +146,7 @@ func evalExpressionWithFieldRefsAndCheckType(exp ast.Expr, fieldRefs FieldRefs, 
 		fName := fieldRefs[i].FieldName
 		fType := fieldRefs[i].FieldType
 		if _, ok := varValuesMap[tName]; !ok {
-			varValuesMap[tName] = map[string]interface{}{}
+			varValuesMap[tName] = map[string]any{}
 		}
 		switch fType {
 		case FieldTypeInt:

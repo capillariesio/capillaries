@@ -30,9 +30,9 @@ Message - carries data and signals to processors/nodes
 4. Timestamps are int (not uint) because Unix epoch is int
 */
 type Message struct {
-	Ts          int64       `json:"ts"`
-	MessageType int         `json:"message_type"`
-	Payload     interface{} `json:"payload"` // This depends on MessageType
+	Ts          int64 `json:"ts"`
+	MessageType int   `json:"message_type"`
+	Payload     any   `json:"payload"` // This depends on MessageType
 }
 
 func (msg Message) ToString() string {

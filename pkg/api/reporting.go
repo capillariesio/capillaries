@@ -11,7 +11,7 @@ import (
 	"github.com/gocql/gocql"
 )
 
-func GetRunHistory(logger *l.Logger, cqlSession *gocql.Session, keyspace string) ([]*wfmodel.RunHistoryEvent, error) {
+func GetRunHistory(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string) ([]*wfmodel.RunHistoryEvent, error) {
 	logger.PushF("api.GetRunHistory")
 	defer logger.PopF()
 
@@ -36,7 +36,7 @@ func GetRunHistory(logger *l.Logger, cqlSession *gocql.Session, keyspace string)
 	return result, nil
 }
 
-func GetRunsNodeHistory(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runIds []int16) ([]*wfmodel.NodeHistoryEvent, error) {
+func GetRunsNodeHistory(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runIds []int16) ([]*wfmodel.NodeHistoryEvent, error) {
 	logger.PushF("api.GetNodeHistory")
 	defer logger.PopF()
 
@@ -62,7 +62,7 @@ func GetRunsNodeHistory(logger *l.Logger, cqlSession *gocql.Session, keyspace st
 	return result, nil
 }
 
-func GetBatchHistory(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runIds []int16, scriptNodes []string) ([]*wfmodel.BatchHistoryEvent, error) {
+func GetBatchHistory(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runIds []int16, scriptNodes []string) ([]*wfmodel.BatchHistoryEvent, error) {
 	logger.PushF("api.GetBatchHistory")
 	defer logger.PopF()
 

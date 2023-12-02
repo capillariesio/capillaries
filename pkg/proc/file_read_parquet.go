@@ -15,14 +15,14 @@ import (
 	"github.com/fraugster/parquet-go/parquet"
 )
 
-func readParquetRowToValuesMap(d map[string]interface{},
+func readParquetRowToValuesMap(d map[string]any,
 	rowIdx int,
 	requestedParquetColumnNames []string,
 	parquetToCapiFieldNameMap map[string]string,
 	parquetToCapiTypeMap map[string]sc.TableFieldType,
 	schemaElementMap map[string]*parquet.SchemaElement,
 	colVars eval.VarValuesMap) error {
-	colVars[sc.ReaderAlias] = map[string]interface{}{}
+	colVars[sc.ReaderAlias] = map[string]any{}
 	for _, parquetColName := range requestedParquetColumnNames {
 		capiFieldName, ok := parquetToCapiFieldNameMap[parquetColName]
 		if !ok {
@@ -79,7 +79,7 @@ func readParquetRowToValuesMap(d map[string]interface{},
 	return nil
 }
 
-func readParquet(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.MessageProcessingContext, totalStartTime time.Time, filePath string, fileReadSeeker io.ReadSeeker) (BatchStats, error) {
+func readParquet(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, totalStartTime time.Time, filePath string, fileReadSeeker io.ReadSeeker) (BatchStats, error) {
 	bs := BatchStats{RowsRead: 0, RowsWritten: 0}
 	node := pCtx.CurrentScriptNode
 
@@ -162,24 +162,23 @@ func readParquet(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.MessagePr
 
 		// Write batch if needed
 		if inResult {
-			if err = instr.add(tableRecord); err == nil {
-				tableRecordBatchCount++
-				if tableRecordBatchCount == DefaultInserterBatchSize {
-					if err := instr.waitForWorkers(logger, pCtx); err != nil {
-						return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
-					}
-					reportWriteTable(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
-					batchStartTime = time.Now()
-					tableRecordBatchCount = 0
-					if err := instr.startWorkers(logger, pCtx); err != nil {
-						return bs, err
-					}
-
-				}
-				bs.RowsWritten++
-			} else {
+			if err = instr.add(tableRecord); err != nil {
 				return bs, fmt.Errorf("cannot add record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
 			}
+			tableRecordBatchCount++
+			if tableRecordBatchCount == DefaultInserterBatchSize {
+				if err := instr.waitForWorkers(logger, pCtx); err != nil {
+					return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+				}
+				reportWriteTable(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
+				batchStartTime = time.Now()
+				tableRecordBatchCount = 0
+				if err := instr.startWorkers(logger, pCtx); err != nil {
+					return bs, err
+				}
+
+			}
+			bs.RowsWritten++
 		}
 		bs.RowsRead++
 	}

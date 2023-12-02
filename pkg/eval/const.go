@@ -2,7 +2,7 @@ package eval
 
 import "time"
 
-var GolangConstants map[string]interface{} = map[string]interface{}{
+var GolangConstants = map[string]any{
 	"time.January":   time.January,
 	"time.February":  time.February,
 	"time.March":     time.March,

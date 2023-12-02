@@ -8,7 +8,7 @@ import (
 
 	"github.com/capillariesio/capillaries/pkg/sc"
 	gp "github.com/fraugster/parquet-go"
-	gp_parquet "github.com/fraugster/parquet-go/parquet"
+	pgparquet "github.com/fraugster/parquet-go/parquet"
 	"github.com/shopspring/decimal"
 )
 
@@ -18,10 +18,10 @@ type ParquetWriter struct {
 }
 
 func NewParquetWriter(ioWriter io.Writer, codec sc.ParquetCodecType) (*ParquetWriter, error) {
-	codecMap := map[sc.ParquetCodecType]gp_parquet.CompressionCodec{
-		sc.ParquetCodecGzip:         gp_parquet.CompressionCodec_GZIP,
-		sc.ParquetCodecSnappy:       gp_parquet.CompressionCodec_SNAPPY,
-		sc.ParquetCodecUncompressed: gp_parquet.CompressionCodec_UNCOMPRESSED,
+	codecMap := map[sc.ParquetCodecType]pgparquet.CompressionCodec{
+		sc.ParquetCodecGzip:         pgparquet.CompressionCodec_GZIP,
+		sc.ParquetCodecSnappy:       pgparquet.CompressionCodec_SNAPPY,
+		sc.ParquetCodecUncompressed: pgparquet.CompressionCodec_UNCOMPRESSED,
 	}
 	gpCodec, ok := codecMap[codec]
 	if !ok {
@@ -42,42 +42,42 @@ func (w *ParquetWriter) AddColumn(name string, fieldType sc.TableFieldType) erro
 	var err error
 	switch fieldType {
 	case sc.FieldTypeString:
-		params := &gp.ColumnParameters{LogicalType: gp_parquet.NewLogicalType()}
-		params.LogicalType.STRING = gp_parquet.NewStringType()
-		params.ConvertedType = gp_parquet.ConvertedTypePtr(gp_parquet.ConvertedType_UTF8)
-		s, err = gp.NewByteArrayStore(gp_parquet.Encoding_PLAIN, true, params)
+		params := &gp.ColumnParameters{LogicalType: pgparquet.NewLogicalType()}
+		params.LogicalType.STRING = pgparquet.NewStringType()
+		params.ConvertedType = pgparquet.ConvertedTypePtr(pgparquet.ConvertedType_UTF8)
+		s, err = gp.NewByteArrayStore(pgparquet.Encoding_PLAIN, true, params)
 	case sc.FieldTypeDateTime:
-		params := &gp.ColumnParameters{LogicalType: gp_parquet.NewLogicalType()}
-		params.LogicalType.TIMESTAMP = gp_parquet.NewTimestampType()
-		params.LogicalType.TIMESTAMP.Unit = gp_parquet.NewTimeUnit()
+		params := &gp.ColumnParameters{LogicalType: pgparquet.NewLogicalType()}
+		params.LogicalType.TIMESTAMP = pgparquet.NewTimestampType()
+		params.LogicalType.TIMESTAMP.Unit = pgparquet.NewTimeUnit()
 		// Go and Parquet support nanoseconds. Unfortunately, Cassandra supports only milliseconds. Millis are our lingua franca.
-		params.LogicalType.TIMESTAMP.Unit.MILLIS = gp_parquet.NewMilliSeconds()
-		params.ConvertedType = gp_parquet.ConvertedTypePtr(gp_parquet.ConvertedType_TIMESTAMP_MILLIS)
-		s, err = gp.NewInt64Store(gp_parquet.Encoding_PLAIN, true, params)
+		params.LogicalType.TIMESTAMP.Unit.MILLIS = pgparquet.NewMilliSeconds()
+		params.ConvertedType = pgparquet.ConvertedTypePtr(pgparquet.ConvertedType_TIMESTAMP_MILLIS)
+		s, err = gp.NewInt64Store(pgparquet.Encoding_PLAIN, true, params)
 	case sc.FieldTypeInt:
-		s, err = gp.NewInt64Store(gp_parquet.Encoding_PLAIN, true, &gp.ColumnParameters{})
+		s, err = gp.NewInt64Store(pgparquet.Encoding_PLAIN, true, &gp.ColumnParameters{})
 	case sc.FieldTypeDecimal2:
-		params := &gp.ColumnParameters{LogicalType: gp_parquet.NewLogicalType()}
-		params.LogicalType.DECIMAL = gp_parquet.NewDecimalType()
+		params := &gp.ColumnParameters{LogicalType: pgparquet.NewLogicalType()}
+		params.LogicalType.DECIMAL = pgparquet.NewDecimalType()
 		params.LogicalType.DECIMAL.Scale = 2
 		params.LogicalType.DECIMAL.Precision = 2
 		// This is to make fraugster/go-parquet happy so it writes this metadata,
 		// see buildElement() implementation in schema.go
 		params.Scale = &params.LogicalType.DECIMAL.Scale
 		params.Precision = &params.LogicalType.DECIMAL.Precision
-		params.ConvertedType = gp_parquet.ConvertedTypePtr(gp_parquet.ConvertedType_DECIMAL)
-		s, err = gp.NewInt64Store(gp_parquet.Encoding_PLAIN, true, params)
+		params.ConvertedType = pgparquet.ConvertedTypePtr(pgparquet.ConvertedType_DECIMAL)
+		s, err = gp.NewInt64Store(pgparquet.Encoding_PLAIN, true, params)
 	case sc.FieldTypeFloat:
-		s, err = gp.NewDoubleStore(gp_parquet.Encoding_PLAIN, true, &gp.ColumnParameters{})
+		s, err = gp.NewDoubleStore(pgparquet.Encoding_PLAIN, true, &gp.ColumnParameters{})
 	case sc.FieldTypeBool:
-		s, err = gp.NewBooleanStore(gp_parquet.Encoding_PLAIN, &gp.ColumnParameters{})
+		s, err = gp.NewBooleanStore(pgparquet.Encoding_PLAIN, &gp.ColumnParameters{})
 	default:
 		return fmt.Errorf("cannot add %s column %s: unsupported field type", fieldType, name)
 	}
 	if err != nil {
 		return fmt.Errorf("cannot create store for %s column %s: %s", fieldType, name, err.Error())
 	}
-	if err := w.FileWriter.AddColumnByPath([]string{name}, gp.NewDataColumn(s, gp_parquet.FieldRepetitionType_OPTIONAL)); err != nil {
+	if err := w.FileWriter.AddColumnByPath([]string{name}, gp.NewDataColumn(s, pgparquet.FieldRepetitionType_OPTIONAL)); err != nil {
 		return fmt.Errorf("cannot add %s column %s: %s", fieldType, name, err.Error())
 	}
 	w.StoreMap[name] = s
@@ -96,86 +96,86 @@ func (w *ParquetWriter) Close() error {
 	}
 	return nil
 }
-func ParquetWriterMilliTs(t time.Time) interface{} {
+func ParquetWriterMilliTs(t time.Time) any {
 	if t.Equal(sc.DefaultDateTime()) {
 		return nil
-	} else {
-		// Go and Parquet support nanoseconds. Unfortunately, Cassandra supports only milliseconds. Millis are our lingua franca.
-		return t.UnixMilli()
 	}
+
+	// Go and Parquet support nanoseconds. Unfortunately, Cassandra supports only milliseconds. Millis are our lingua franca.
+	return t.UnixMilli()
 }
 
-func ParquetWriterDecimal2(dec decimal.Decimal) interface{} {
+func ParquetWriterDecimal2(dec decimal.Decimal) any {
 	return dec.Mul(decimal.NewFromInt(100)).IntPart()
 }
 
-func isType(se *gp_parquet.SchemaElement, t gp_parquet.Type) bool {
+func isType(se *pgparquet.SchemaElement, t pgparquet.Type) bool {
 	return se.Type != nil && *se.Type == t
 }
 
-func isLogicalOrConvertedString(se *gp_parquet.SchemaElement) bool {
+func isLogicalOrConvertedString(se *pgparquet.SchemaElement) bool {
 	return se.LogicalType != nil && se.LogicalType.STRING != nil ||
-		se.ConvertedType != nil && *se.ConvertedType == gp_parquet.ConvertedType_UTF8
+		se.ConvertedType != nil && *se.ConvertedType == pgparquet.ConvertedType_UTF8
 }
 
-func isLogicalOrConvertedDecimal(se *gp_parquet.SchemaElement) bool {
+func isLogicalOrConvertedDecimal(se *pgparquet.SchemaElement) bool {
 	return se.LogicalType != nil && se.LogicalType.DECIMAL != nil ||
-		se.ConvertedType != nil && *se.ConvertedType == gp_parquet.ConvertedType_DECIMAL
+		se.ConvertedType != nil && *se.ConvertedType == pgparquet.ConvertedType_DECIMAL
 }
 
-func isLogicalOrConvertedDateTime(se *gp_parquet.SchemaElement) bool {
+func isLogicalOrConvertedDateTime(se *pgparquet.SchemaElement) bool {
 	return se.LogicalType != nil && se.LogicalType.TIMESTAMP != nil ||
-		se.ConvertedType != nil && (*se.ConvertedType == gp_parquet.ConvertedType_TIMESTAMP_MILLIS || *se.ConvertedType == gp_parquet.ConvertedType_TIMESTAMP_MICROS)
+		se.ConvertedType != nil && (*se.ConvertedType == pgparquet.ConvertedType_TIMESTAMP_MILLIS || *se.ConvertedType == pgparquet.ConvertedType_TIMESTAMP_MICROS)
 }
 
-func isParquetString(se *gp_parquet.SchemaElement) bool {
-	return isLogicalOrConvertedString(se) && isType(se, gp_parquet.Type_BYTE_ARRAY)
+func isParquetString(se *pgparquet.SchemaElement) bool {
+	return isLogicalOrConvertedString(se) && isType(se, pgparquet.Type_BYTE_ARRAY)
 }
 
-func isParquetIntDecimal2(se *gp_parquet.SchemaElement) bool {
+func isParquetIntDecimal2(se *pgparquet.SchemaElement) bool {
 	return isLogicalOrConvertedDecimal(se) &&
-		(isType(se, gp_parquet.Type_INT32) || isType(se, gp_parquet.Type_INT64)) &&
+		(isType(se, pgparquet.Type_INT32) || isType(se, pgparquet.Type_INT64)) &&
 		se.Scale != nil && *se.Scale > -20 && *se.Scale < 20 &&
 		se.Precision != nil && *se.Precision >= 0 && *se.Precision < 18
 }
 
-func isParquetFixedLengthByteArrayDecimal2(se *gp_parquet.SchemaElement) bool {
+func isParquetFixedLengthByteArrayDecimal2(se *pgparquet.SchemaElement) bool {
 	return isLogicalOrConvertedDecimal(se) &&
-		isType(se, gp_parquet.Type_FIXED_LEN_BYTE_ARRAY) &&
+		isType(se, pgparquet.Type_FIXED_LEN_BYTE_ARRAY) &&
 		se.Scale != nil && *se.Scale > -20 && *se.Scale < 20 &&
 		se.Precision != nil && *se.Precision >= 0 && *se.Precision <= 38
 }
 
-func isParquetDateTime(se *gp_parquet.SchemaElement) bool {
+func isParquetDateTime(se *pgparquet.SchemaElement) bool {
 	return isLogicalOrConvertedDateTime(se) &&
-		(isType(se, gp_parquet.Type_INT32) || isType(se, gp_parquet.Type_INT64))
+		(isType(se, pgparquet.Type_INT32) || isType(se, pgparquet.Type_INT64))
 }
 
-func isParquetInt96Date(se *gp_parquet.SchemaElement) bool {
-	return isType(se, gp_parquet.Type_INT96)
+func isParquetInt96Date(se *pgparquet.SchemaElement) bool {
+	return isType(se, pgparquet.Type_INT96)
 }
 
-func isParquetInt32Date(se *gp_parquet.SchemaElement) bool {
-	return se.Type != nil && *se.Type == gp_parquet.Type_INT32 &&
+func isParquetInt32Date(se *pgparquet.SchemaElement) bool {
+	return se.Type != nil && *se.Type == pgparquet.Type_INT32 &&
 		se.LogicalType != nil && se.LogicalType.DATE != nil
 }
 
-func isParquetInt(se *gp_parquet.SchemaElement) bool {
+func isParquetInt(se *pgparquet.SchemaElement) bool {
 	return (se.LogicalType == nil || se.LogicalType != nil && se.LogicalType.INTEGER != nil) &&
-		se.Type != nil && (*se.Type == gp_parquet.Type_INT32 || *se.Type == gp_parquet.Type_INT64)
+		se.Type != nil && (*se.Type == pgparquet.Type_INT32 || *se.Type == pgparquet.Type_INT64)
 }
 
-func isParquetFloat(se *gp_parquet.SchemaElement) bool {
+func isParquetFloat(se *pgparquet.SchemaElement) bool {
 	return se.LogicalType == nil &&
-		se.Type != nil && (*se.Type == gp_parquet.Type_FLOAT || *se.Type == gp_parquet.Type_DOUBLE)
+		se.Type != nil && (*se.Type == pgparquet.Type_FLOAT || *se.Type == pgparquet.Type_DOUBLE)
 }
 
-func isParquetBool(se *gp_parquet.SchemaElement) bool {
+func isParquetBool(se *pgparquet.SchemaElement) bool {
 	return se.LogicalType == nil &&
-		se.Type != nil && *se.Type == gp_parquet.Type_BOOLEAN
+		se.Type != nil && *se.Type == pgparquet.Type_BOOLEAN
 }
 
-func ParquetGuessCapiType(se *gp_parquet.SchemaElement) (sc.TableFieldType, error) {
+func ParquetGuessCapiType(se *pgparquet.SchemaElement) (sc.TableFieldType, error) {
 	if isParquetString(se) {
 		return sc.FieldTypeString, nil
 	} else if isParquetIntDecimal2(se) || isParquetFixedLengthByteArrayDecimal2(se) {
@@ -188,12 +188,11 @@ func ParquetGuessCapiType(se *gp_parquet.SchemaElement) (sc.TableFieldType, erro
 		return sc.FieldTypeFloat, nil
 	} else if isParquetBool(se) {
 		return sc.FieldTypeBool, nil
-	} else {
-		return sc.FieldTypeUnknown, fmt.Errorf("parquet schema element not supported: %v", se)
 	}
+	return sc.FieldTypeUnknown, fmt.Errorf("parquet schema element not supported: %v", se)
 }
 
-func ParquetReadString(val interface{}, se *gp_parquet.SchemaElement) (string, error) {
+func ParquetReadString(val any, se *pgparquet.SchemaElement) (string, error) {
 	if !isParquetString(se) {
 		return sc.DefaultString, fmt.Errorf("cannot read parquet string, schema %v", se)
 	}
@@ -204,7 +203,7 @@ func ParquetReadString(val interface{}, se *gp_parquet.SchemaElement) (string, e
 	return string(typedVal), nil
 }
 
-func ParquetReadDateTime(val interface{}, se *gp_parquet.SchemaElement) (time.Time, error) {
+func ParquetReadDateTime(val any, se *pgparquet.SchemaElement) (time.Time, error) {
 	if !isParquetDateTime(se) && !isParquetInt96Date(se) && !isParquetInt32Date(se) {
 		return sc.DefaultDateTime(), fmt.Errorf("cannot read parquet datetime, schema %v", se)
 	}
@@ -218,9 +217,9 @@ func ParquetReadDateTime(val interface{}, se *gp_parquet.SchemaElement) (time.Ti
 			return time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC).AddDate(0, 0, int(typedVal)).In(time.UTC), nil
 		} else {
 			switch *se.ConvertedType {
-			case gp_parquet.ConvertedType_TIMESTAMP_MILLIS:
+			case pgparquet.ConvertedType_TIMESTAMP_MILLIS:
 				return time.UnixMilli(int64(typedVal)).In(time.UTC), nil
-			case gp_parquet.ConvertedType_TIMESTAMP_MICROS:
+			case pgparquet.ConvertedType_TIMESTAMP_MICROS:
 				return time.UnixMicro(int64(typedVal)).In(time.UTC), nil
 			default:
 				return sc.DefaultDateTime(), fmt.Errorf("cannot read parquet datetime from int32, unsupported converted type, schema %v", se)
@@ -228,9 +227,9 @@ func ParquetReadDateTime(val interface{}, se *gp_parquet.SchemaElement) (time.Ti
 		}
 	case int64:
 		switch *se.ConvertedType {
-		case gp_parquet.ConvertedType_TIMESTAMP_MILLIS:
+		case pgparquet.ConvertedType_TIMESTAMP_MILLIS:
 			return time.UnixMilli(typedVal).In(time.UTC), nil
-		case gp_parquet.ConvertedType_TIMESTAMP_MICROS:
+		case pgparquet.ConvertedType_TIMESTAMP_MICROS:
 			return time.UnixMicro(typedVal).In(time.UTC), nil
 		default:
 			return sc.DefaultDateTime(), fmt.Errorf("cannot read parquet datetime from int64, unsupported converted type, schema %v", se)
@@ -243,7 +242,7 @@ func ParquetReadDateTime(val interface{}, se *gp_parquet.SchemaElement) (time.Ti
 	}
 }
 
-func ParquetReadInt(val interface{}, se *gp_parquet.SchemaElement) (int64, error) {
+func ParquetReadInt(val any, se *pgparquet.SchemaElement) (int64, error) {
 	if !isParquetInt(se) {
 		return sc.DefaultInt, fmt.Errorf("cannot read parquet int, schema %v", se)
 	}
@@ -269,7 +268,7 @@ func ParquetReadInt(val interface{}, se *gp_parquet.SchemaElement) (int64, error
 	}
 }
 
-func ParquetReadDecimal2(val interface{}, se *gp_parquet.SchemaElement) (decimal.Decimal, error) {
+func ParquetReadDecimal2(val any, se *pgparquet.SchemaElement) (decimal.Decimal, error) {
 	if !isParquetIntDecimal2(se) && !isParquetFixedLengthByteArrayDecimal2(se) {
 		return sc.DefaultDecimal2(), fmt.Errorf("cannot read parquet decimal2, schema %v", se)
 	}
@@ -311,7 +310,7 @@ func ParquetReadDecimal2(val interface{}, se *gp_parquet.SchemaElement) (decimal
 	}
 }
 
-func ParquetReadFloat(val interface{}, se *gp_parquet.SchemaElement) (float64, error) {
+func ParquetReadFloat(val any, se *pgparquet.SchemaElement) (float64, error) {
 	if !isParquetFloat(se) {
 		return sc.DefaultFloat, fmt.Errorf("cannot read parquet float, schema %v", se)
 	}
@@ -325,7 +324,7 @@ func ParquetReadFloat(val interface{}, se *gp_parquet.SchemaElement) (float64, e
 	}
 }
 
-func ParquetReadBool(val interface{}, se *gp_parquet.SchemaElement) (bool, error) {
+func ParquetReadBool(val any, se *pgparquet.SchemaElement) (bool, error) {
 	if !isParquetBool(se) {
 		return sc.DefaultBool, fmt.Errorf("cannot read parquet float, schema %v", se)
 	}

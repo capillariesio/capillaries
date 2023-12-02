@@ -24,6 +24,12 @@ jobs:
     - name: Build
       run: go build -v ./...
 
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@v3
+      with:
+        version: v1.55.2
+        args: --verbose --timeout 10m --fix=false --config=.golangci.yml
+
     - name: Generate coverage report for coveralls.io
       run: |
         go test -coverprofile=/var/tmp/capillaries.p.tmp -cover $(find ./ -name '*_test.go' -printf "%h\n" | sort -u)

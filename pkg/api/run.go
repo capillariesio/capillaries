@@ -19,7 +19,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-func StopRun(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId int16, comment string) error {
+func StopRun(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16, comment string) error {
 	logger.PushF("api.StopRun")
 	defer logger.PopF()
 
@@ -30,7 +30,7 @@ func StopRun(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId
 	return wfdb.SetRunStatus(logger, cqlSession, keyspace, runId, wfmodel.RunStop, comment, cql.IgnoreIfExists)
 }
 
-func StartRun(envConfig *env.EnvConfig, logger *l.Logger, amqpChannel *amqp.Channel, scriptFilePath string, paramsFilePath string, cqlSession *gocql.Session, keyspace string, startNodes []string, desc string) (int16, error) {
+func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp.Channel, scriptFilePath string, paramsFilePath string, cqlSession *gocql.Session, keyspace string, startNodes []string, desc string) (int16, error) {
 	logger.PushF("api.StartRun")
 	defer logger.PopF()
 
@@ -66,7 +66,7 @@ func StartRun(envConfig *env.EnvConfig, logger *l.Logger, amqpChannel *amqp.Chan
 
 	// Write affected nodes
 	affectedNodes := script.GetAffectedNodes(startNodes)
-	if err := wfdb.WriteRunProperties(logger, cqlSession, keyspace, runId, startNodes, affectedNodes, scriptFilePath, paramsFilePath, desc); err != nil {
+	if err := wfdb.WriteRunProperties(cqlSession, keyspace, runId, startNodes, affectedNodes, scriptFilePath, paramsFilePath, desc); err != nil {
 		return 0, err
 	}
 
@@ -162,7 +162,7 @@ func StartRun(envConfig *env.EnvConfig, logger *l.Logger, amqpChannel *amqp.Chan
 	return runId, nil
 }
 
-func RunNode(envConfig *env.EnvConfig, logger *l.Logger, nodeName string, runId int16, scriptFilePath string, paramsFilePath string, cqlSession *gocql.Session, keyspace string) (int16, error) {
+func RunNode(envConfig *env.EnvConfig, logger *l.CapiLogger, nodeName string, runId int16, scriptFilePath string, paramsFilePath string, cqlSession *gocql.Session, keyspace string) (int16, error) {
 	logger.PushF("api.RunNode")
 	defer logger.PopF()
 
@@ -192,7 +192,7 @@ func RunNode(envConfig *env.EnvConfig, logger *l.Logger, nodeName string, runId 
 
 	// Write affected nodes
 	affectedNodes := script.GetAffectedNodes([]string{nodeName})
-	if err := wfdb.WriteRunProperties(logger, cqlSession, keyspace, runId, []string{nodeName}, affectedNodes, scriptFilePath, paramsFilePath, "started by Toolbelt direct RunNode"); err != nil {
+	if err := wfdb.WriteRunProperties(cqlSession, keyspace, runId, []string{nodeName}, affectedNodes, scriptFilePath, paramsFilePath, "started by Toolbelt direct RunNode"); err != nil {
 		return 0, err
 	}
 

@@ -65,8 +65,6 @@ func (tsc *TunneledSshClient) Close() {
 func NewTunneledSshClient(sshConfig *SshConfigDef, ipAddress string) (*TunneledSshClient, error) {
 	bastionSshClientConfig, err := xfer.NewSshClientConfig(
 		sshConfig.User,
-		sshConfig.ExternalIpAddress,
-		sshConfig.Port,
 		sshConfig.PrivateKeyPath,
 		sshConfig.PrivateKeyPassword)
 	if err != nil {
@@ -99,8 +97,6 @@ func NewTunneledSshClient(sshConfig *SshConfigDef, ipAddress string) (*TunneledS
 
 		tunneledSshClientConfig, err := xfer.NewSshClientConfig(
 			sshConfig.User,
-			ipAddress,
-			sshConfig.Port,
 			sshConfig.PrivateKeyPath,
 			sshConfig.PrivateKeyPassword)
 		if err != nil {

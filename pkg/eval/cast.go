@@ -6,7 +6,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-func castNumberToStandardType(arg interface{}) (interface{}, error) {
+func castNumberToStandardType(arg any) (any, error) {
 	switch typedArg := arg.(type) {
 	case int:
 		return int64(typedArg), nil
@@ -27,7 +27,7 @@ func castNumberToStandardType(arg interface{}) (interface{}, error) {
 	}
 }
 
-func castNumberPairToCommonType(argLeft interface{}, argRight interface{}) (interface{}, interface{}, error) {
+func castNumberPairToCommonType(argLeft any, argRight any) (any, any, error) {
 	stdArgLeft, err := castNumberToStandardType(argLeft)
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid left arg: %s", err.Error())
@@ -78,7 +78,7 @@ func castNumberPairToCommonType(argLeft interface{}, argRight interface{}) (inte
 	return finalArgLeft, finalArgRight, nil
 }
 
-func castToInt64(arg interface{}) (int64, error) {
+func castToInt64(arg any) (int64, error) {
 	switch typedArg := arg.(type) {
 	case int:
 		return int64(typedArg), nil
@@ -103,7 +103,7 @@ func castToInt64(arg interface{}) (int64, error) {
 	}
 }
 
-func castToFloat64(arg interface{}) (float64, error) {
+func castToFloat64(arg any) (float64, error) {
 	switch typedArg := arg.(type) {
 	case int:
 		return float64(typedArg), nil
@@ -125,7 +125,7 @@ func castToFloat64(arg interface{}) (float64, error) {
 	}
 }
 
-func castToDecimal2(arg interface{}) (decimal.Decimal, error) {
+func castToDecimal2(arg any) (decimal.Decimal, error) {
 	switch typedArg := arg.(type) {
 	case int:
 		return decimal.NewFromInt(int64(typedArg)), nil

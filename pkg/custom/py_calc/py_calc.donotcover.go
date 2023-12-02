@@ -14,7 +14,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/proc"
 )
 
-func (procDef *PyCalcProcessorDef) Run(logger *l.Logger, pCtx *ctx.MessageProcessingContext, rsIn *proc.Rowset, flushVarsArray func(varsArray []*eval.VarValuesMap, varsArrayCount int) error) error {
+func (procDef *PyCalcProcessorDef) Run(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, rsIn *proc.Rowset, flushVarsArray func(varsArray []*eval.VarValuesMap, varsArrayCount int) error) error {
 	logger.PushF("custom.PyCalcProcessorDef.Run")
 	defer logger.PopF()
 

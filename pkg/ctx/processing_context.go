@@ -32,9 +32,8 @@ func (pCtx *MessageProcessingContext) DbConnect(envConfig *env.EnvConfig) error 
 
 func (pCtx *MessageProcessingContext) DbClose() {
 	if pCtx.CqlSession != nil {
-		if pCtx.CqlSession.Closed() {
-			// TODO: something is not clean in the code, find a way to communicate it without using logger
-		} else {
+		// TODO: if it's already closed, something is not clean in the code, find a way to communicate it without using logger
+		if !pCtx.CqlSession.Closed() {
 			pCtx.CqlSession.Close()
 		}
 	}

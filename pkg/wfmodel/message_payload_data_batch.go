@@ -27,10 +27,7 @@ func (dc *MessagePayloadDataBatch) ToString() string {
 }
 
 func (dc *MessagePayloadDataBatch) Deserialize(jsonBytes []byte) error {
-	if err := json.Unmarshal(jsonBytes, dc); err != nil {
-		return err
-	}
-	return nil
+	return json.Unmarshal(jsonBytes, dc)
 }
 
 func (dc MessagePayloadDataBatch) Serialize() ([]byte, error) {

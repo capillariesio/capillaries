@@ -13,7 +13,7 @@ func CheckDependencyPolicyAgainstNodeEventList(targetNodeDepPol *sc.DependencyPo
 	var err error
 
 	for eventIdx := 0; eventIdx < len(events); eventIdx++ {
-		vars := wfmodel.NewVarsFromDepCtx(0, events[eventIdx])
+		vars := wfmodel.NewVarsFromDepCtx(events[eventIdx])
 		events[eventIdx].SortKey, err = sc.BuildKey(vars[wfmodel.DependencyNodeEventTableName], &targetNodeDepPol.OrderIdxDef)
 		if err != nil {
 			return sc.NodeNogo, 0, "", fmt.Errorf("unexpectedly, cannot build key to sort events: %s", err.Error())
@@ -22,7 +22,7 @@ func CheckDependencyPolicyAgainstNodeEventList(targetNodeDepPol *sc.DependencyPo
 	sort.Slice(events, func(i, j int) bool { return events[i].SortKey < events[j].SortKey })
 
 	for eventIdx := 0; eventIdx < len(events); eventIdx++ {
-		vars := wfmodel.NewVarsFromDepCtx(0, events[eventIdx])
+		vars := wfmodel.NewVarsFromDepCtx(events[eventIdx])
 		eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, &vars)
 		for ruleIdx, rule := range targetNodeDepPol.Rules {
 			ruleMatched, err := eCtx.Eval(rule.ParsedExpression)

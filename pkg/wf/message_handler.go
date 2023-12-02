@@ -17,7 +17,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func checkDependencyNodesReady(logger *l.Logger, pCtx *ctx.MessageProcessingContext) (sc.ReadyToRunNodeCmdType, int16, int16, error) {
+func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) (sc.ReadyToRunNodeCmdType, int16, int16, error) {
 	logger.PushF("wf.checkDependencyNodesReady")
 	defer logger.PopF()
 
@@ -95,7 +95,7 @@ func checkDependencyNodesReady(logger *l.Logger, pCtx *ctx.MessageProcessingCont
 	return finalCmd, finalRunIdReader, finalRunIdLookup, nil
 }
 
-func SafeProcessBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.MessageProcessingContext, readerNodeRunId int16, lookupNodeRunId int16) (wfmodel.NodeBatchStatusType, proc.BatchStats, error) {
+func SafeProcessBatch(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, readerNodeRunId int16, lookupNodeRunId int16) (wfmodel.NodeBatchStatusType, proc.BatchStats, error) {
 	logger.PushF("wf.SafeProcessBatch")
 	defer logger.PopF()
 
@@ -140,7 +140,7 @@ func SafeProcessBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.Mess
 	return wfmodel.NodeBatchSuccess, bs, nil
 }
 
-func UpdateNodeStatusFromBatches(logger *l.Logger, pCtx *ctx.MessageProcessingContext) (wfmodel.NodeBatchStatusType, bool, error) {
+func UpdateNodeStatusFromBatches(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) (wfmodel.NodeBatchStatusType, bool, error) {
 	logger.PushF("wf.UpdateNodeStatusFromBatches")
 	defer logger.PopF()
 
@@ -173,7 +173,7 @@ func UpdateNodeStatusFromBatches(logger *l.Logger, pCtx *ctx.MessageProcessingCo
 	return totalNodeStatus, false, nil
 }
 
-func UpdateRunStatusFromNodes(logger *l.Logger, pCtx *ctx.MessageProcessingContext) error {
+func UpdateRunStatusFromNodes(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) error {
 	logger.PushF("wf.UpdateRunStatusFromNodes")
 	defer logger.PopF()
 
@@ -197,7 +197,7 @@ func UpdateRunStatusFromNodes(logger *l.Logger, pCtx *ctx.MessageProcessingConte
 	return nil
 }
 
-func refreshNodeAndRunStatus(logger *l.Logger, pCtx *ctx.MessageProcessingContext) error {
+func refreshNodeAndRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) error {
 	logger.PushF("wf.refreshNodeAndRunStatus")
 	defer logger.PopF()
 
@@ -218,7 +218,7 @@ func refreshNodeAndRunStatus(logger *l.Logger, pCtx *ctx.MessageProcessingContex
 	return nil
 }
 
-func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.Logger, msgTs int64, dataBatchInfo *wfmodel.MessagePayloadDataBatch) DaemonCmdType {
+func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msgTs int64, dataBatchInfo *wfmodel.MessagePayloadDataBatch) DaemonCmdType {
 	logger.PushF("wf.ProcessDataBatchMsg")
 	defer logger.PopF()
 

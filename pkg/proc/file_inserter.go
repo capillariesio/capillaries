@@ -26,13 +26,13 @@ type FileInserter struct {
 const DefaultFileInserterBatchCapacity int = 1000
 
 type WriteFileBatch struct {
-	Rows     [][]interface{}
+	Rows     [][]any
 	RowCount int
 }
 
 func newWriteFileBatch(batchCapacity int) *WriteFileBatch {
 	return &WriteFileBatch{
-		Rows:     make([][]interface{}, batchCapacity),
+		Rows:     make([][]any, batchCapacity),
 		RowCount: 0,
 	}
 }
@@ -70,7 +70,7 @@ func (instr *FileInserter) checkWorkerOutputForErrors() error {
 	}
 }
 
-func (instr *FileInserter) waitForWorker(logger *l.Logger, pCtx *ctx.MessageProcessingContext) error {
+func (instr *FileInserter) waitForWorker(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) error {
 	logger.PushF("proc.waitForWorkers/FieInserter")
 	defer logger.PopF()
 
@@ -110,7 +110,7 @@ func (instr *FileInserter) waitForWorker(logger *l.Logger, pCtx *ctx.MessageProc
 	}
 }
 
-func (instr *FileInserter) waitForWorkerAndCloseErrorsOut(logger *l.Logger, pCtx *ctx.MessageProcessingContext) error {
+func (instr *FileInserter) waitForWorkerAndCloseErrorsOut(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) error {
 	logger.PushF("proc.waitForWorkersAndClose/FileInserter")
 	defer logger.PopF()
 
@@ -121,7 +121,7 @@ func (instr *FileInserter) waitForWorkerAndCloseErrorsOut(logger *l.Logger, pCtx
 	return err
 }
 
-func (instr *FileInserter) add(row []interface{}) {
+func (instr *FileInserter) add(row []any) {
 	if instr.CurrentBatch == nil {
 		instr.CurrentBatch = newWriteFileBatch(instr.BatchCapacity)
 	}
@@ -135,7 +135,7 @@ func (instr *FileInserter) add(row []interface{}) {
 	}
 }
 
-func (instr *FileInserter) sendFileToFinal(logger *l.Logger, pCtx *ctx.MessageProcessingContext, privateKeys map[string]string) error {
+func (instr *FileInserter) sendFileToFinal(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, privateKeys map[string]string) error {
 	logger.PushF("proc.sendFileToFinal")
 	defer logger.PopF()
 

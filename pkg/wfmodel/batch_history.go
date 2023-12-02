@@ -36,7 +36,7 @@ type BatchHistoryEvent struct {
 func BatchHistoryEventAllFields() []string {
 	return []string{"ts", "run_id", "script_node", "batch_idx", "batches_total", "status", "first_token", "last_token", "instance", "thread", "comment"}
 }
-func NewBatchHistoryEventFromMap(r map[string]interface{}, fields []string) (*BatchHistoryEvent, error) {
+func NewBatchHistoryEventFromMap(r map[string]any, fields []string) (*BatchHistoryEvent, error) {
 	res := &BatchHistoryEvent{}
 	for _, fieldName := range fields {
 		var err error

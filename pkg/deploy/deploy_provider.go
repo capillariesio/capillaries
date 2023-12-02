@@ -28,9 +28,8 @@ func DeployProviderFactory(deployProviderName string) (DeployProvider, error) {
 		return &OpenstackDeployProvider{}, nil
 	} else if deployProviderName == DeployProviderAws {
 		return &AwsDeployProvider{}, nil
-	} else {
-		return nil, fmt.Errorf("unsupported deploy provider %s", deployProviderName)
 	}
+	return nil, fmt.Errorf("unsupported deploy provider %s", deployProviderName)
 }
 
 func reportPublicIp(prj *Project) {

@@ -15,7 +15,7 @@ type Rowset struct {
 	Fields                []sc.FieldRef
 	FieldsByFullAliasName map[string]int
 	FieldsByFieldName     map[string]int
-	Rows                  []*[]interface{}
+	Rows                  []*[]any
 	RowCount              int
 }
 
@@ -134,10 +134,10 @@ func (rs *Rowset) AppendFieldRefsWithFilter(fieldRefs *sc.FieldRefs, tableFilter
 
 func (rs *Rowset) InitRows(capacity int) error {
 	if rs.Rows == nil || len(rs.Rows) != capacity {
-		rs.Rows = make([](*[]interface{}), capacity)
+		rs.Rows = make([](*[]any), capacity)
 	}
 	for rowIdx := 0; rowIdx < capacity; rowIdx++ {
-		newRow := make([]interface{}, len(rs.Fields))
+		newRow := make([]any, len(rs.Fields))
 		rs.Rows[rowIdx] = &newRow
 		for colIdx := 0; colIdx < len(rs.Fields); colIdx++ {
 			switch rs.Fields[colIdx].FieldType {
@@ -170,8 +170,8 @@ func (rs *Rowset) ExportToVars(rowIdx int, vars *eval.VarValuesMap) error {
 	return rs.ExportToVarsWithAlias(rowIdx, vars, "")
 }
 
-func (rs *Rowset) GetTableRecord(rowIdx int) (map[string]interface{}, error) {
-	tableRecord := map[string]interface{}{}
+func (rs *Rowset) GetTableRecord(rowIdx int) (map[string]any, error) {
+	tableRecord := map[string]any{}
 	for colIdx := 0; colIdx < len(rs.Fields); colIdx++ {
 		fName := rs.Fields[colIdx].FieldName
 		valuePtr := (*rs.Rows[rowIdx])[rs.FieldsByFieldName[fName]]
@@ -210,7 +210,7 @@ func (rs *Rowset) ExportToVarsWithAlias(rowIdx int, vars *eval.VarValuesMap, use
 		fName := &rs.Fields[colIdx].FieldName
 		_, ok := (*vars)[*tName]
 		if !ok {
-			(*vars)[*tName] = map[string]interface{}{}
+			(*vars)[*tName] = map[string]any{}
 		}
 		valuePtr := (*rs.Rows[rowIdx])[colIdx]
 		switch assertedValuePtr := valuePtr.(type) {

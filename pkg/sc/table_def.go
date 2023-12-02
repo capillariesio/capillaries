@@ -48,7 +48,7 @@ func DefaultDecimal2() decimal.Decimal   { return decimal.NewFromFloat(0.0) }
 func DefaultCassandraDecimal2() *inf.Dec { return inf.NewDec(0, 0) }
 func DefaultDateTime() time.Time         { return time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC) } // Same as time.Time default
 
-func GetDefaultFieldTypeValue(fieldType TableFieldType) interface{} {
+func GetDefaultFieldTypeValue(fieldType TableFieldType) any {
 	switch fieldType {
 	case FieldTypeInt:
 		return DefaultInt
@@ -67,7 +67,7 @@ func GetDefaultFieldTypeValue(fieldType TableFieldType) interface{} {
 	}
 }
 
-func CheckValueType(val interface{}, fieldType TableFieldType) error {
+func CheckValueType(val any, fieldType TableFieldType) error {
 	switch assertedValue := val.(type) {
 	case int64:
 		if fieldType != FieldTypeInt {

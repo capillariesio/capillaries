@@ -33,7 +33,7 @@ type TableCreatorDef struct {
 	Indexes                       IdxDefMap
 }
 
-// func (fieldDef *WriteTableFieldDef) CheckValueType(val interface{}) error {
+// func (fieldDef *WriteTableFieldDef) CheckValueType(val any) error {
 // 	switch assertedValue := val.(type) {
 // 	case int64:
 // 		if fieldDef.Type != FieldTypeInt {
@@ -81,7 +81,7 @@ func (tcDef *TableCreatorDef) GetFieldRefsWithAlias(useTableAlias string) *Field
 			TableName: tName,
 			FieldName: fieldName,
 			FieldType: fieldDef.Type}
-		i += 1
+		i++
 	}
 	return &fieldRefs
 }
@@ -140,8 +140,8 @@ func (tcDef *TableCreatorDef) Deserialize(rawWriter json.RawMessage) error {
 	return nil
 }
 
-func (creatorDef *TableCreatorDef) GetFieldDefaultReadyForDb(fieldName string) (interface{}, error) {
-	writerFieldDef, ok := creatorDef.Fields[fieldName]
+func (tcDef *TableCreatorDef) GetFieldDefaultReadyForDb(fieldName string) (any, error) {
+	writerFieldDef, ok := tcDef.Fields[fieldName]
 	if !ok {
 		return nil, fmt.Errorf("default for unknown field %s", fieldName)
 	}
@@ -208,7 +208,7 @@ func (creatorDef *TableCreatorDef) GetFieldDefaultReadyForDb(fieldName string) (
 	}
 }
 
-func CalculateFieldValue(fieldName string, fieldDef *WriteTableFieldDef, srcVars eval.VarValuesMap, canUseAggFunc bool) (interface{}, error) {
+func CalculateFieldValue(fieldName string, fieldDef *WriteTableFieldDef, srcVars eval.VarValuesMap, canUseAggFunc bool) (any, error) {
 	calcWithAggFunc, aggFuncType, aggFuncArgs := eval.DetectRootAggFunc(fieldDef.ParsedExpression)
 	if !canUseAggFunc {
 		calcWithAggFunc = eval.AggFuncDisabled
@@ -225,18 +225,17 @@ func CalculateFieldValue(fieldName string, fieldDef *WriteTableFieldDef, srcVars
 	} else {
 		if err := CheckValueType(valVolatile, fieldDef.Type); err != nil {
 			return nil, fmt.Errorf("invalid field %s type: [%s]", fieldName, err.Error())
-		} else {
-			return valVolatile, nil
 		}
+		return valVolatile, nil
 	}
 }
 
-func (creatorDef *TableCreatorDef) CalculateTableRecordFromSrcVars(canUseAggFunc bool, srcVars eval.VarValuesMap) (map[string]interface{}, error) {
+func (tcDef *TableCreatorDef) CalculateTableRecordFromSrcVars(canUseAggFunc bool, srcVars eval.VarValuesMap) (map[string]any, error) {
 	errors := make([]string, 0, 2)
 
-	tableRecord := map[string]interface{}{}
+	tableRecord := map[string]any{}
 
-	for fieldName, fieldDef := range creatorDef.Fields {
+	for fieldName, fieldDef := range tcDef.Fields {
 		var err error
 		tableRecord[fieldName], err = CalculateFieldValue(fieldName, fieldDef, srcVars, canUseAggFunc)
 		if err != nil {
@@ -251,19 +250,19 @@ func (creatorDef *TableCreatorDef) CalculateTableRecordFromSrcVars(canUseAggFunc
 	}
 }
 
-func (creatorDef *TableCreatorDef) CheckTableRecordHavingCondition(tableRecord map[string]interface{}) (bool, error) {
-	if creatorDef.Having == nil {
+func (tcDef *TableCreatorDef) CheckTableRecordHavingCondition(tableRecord map[string]any) (bool, error) {
+	if tcDef.Having == nil {
 		// No Having condition specified
 		return true, nil
 	}
 	vars := eval.VarValuesMap{}
-	vars[CreatorAlias] = map[string]interface{}{}
+	vars[CreatorAlias] = map[string]any{}
 	for fieldName, fieldValue := range tableRecord {
 		vars[CreatorAlias][fieldName] = fieldValue
 	}
 
 	eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, &vars)
-	valVolatile, err := eCtx.Eval(creatorDef.Having)
+	valVolatile, err := eCtx.Eval(tcDef.Having)
 	if err != nil {
 		return false, fmt.Errorf("cannot evaluate 'having' expression: [%s]", err.Error())
 	}

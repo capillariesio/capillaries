@@ -18,9 +18,9 @@ func assertKeyErrorPrefix(t *testing.T, expectedErrorPrefix string, actualError 
 
 func assertKeyCompare(
 	t *testing.T,
-	row1 map[string]interface{},
+	row1 map[string]any,
 	moreLess string,
-	row2 map[string]interface{},
+	row2 map[string]any,
 	idxDef IdxDef) {
 
 	if moreLess != "<" && moreLess != ">" && moreLess != "==" {
@@ -48,7 +48,7 @@ func assertKeyCompare(
 func TestBad(t *testing.T) {
 
 	idxDef := IdxDef{Uniqueness: "UNIQUE", Components: []IdxComponentDef{{FieldName: "fld", SortOrder: IdxSortAsc, FieldType: FieldTypeInt}}}
-	row1 := map[string]interface{}{"fld": false}
+	row1 := map[string]any{"fld": false}
 
 	_, err := BuildKey(row1, &idxDef)
 	assert.Equal(t, "cannot convert value false to type int", err.Error())
@@ -108,13 +108,13 @@ func TestCombined(t *testing.T) {
 		},
 	}
 
-	row1 := map[string]interface{}{
+	row1 := map[string]any{
 		"field_int":    int64(1),
 		"field_string": "abc",
 		"field_float":  -2.3,
 		"field_bool":   false,
 	}
-	row2 := map[string]interface{}{
+	row2 := map[string]any{
 		"field_int":    int64(1),
 		"field_string": "Abc",
 		"field_float":  1.3,
@@ -152,12 +152,12 @@ func TestTime(t *testing.T) {
 
 	idxDef.Components[0].SortOrder = IdxSortAsc
 
-	row1 := map[string]interface{}{"fld": time.Date(1, time.January, 1, 2, 2, 2, 3000, time.UTC)}
-	row2 := map[string]interface{}{"fld": time.Date(1, time.January, 1, 2, 2, 2, 4000, time.UTC)}
+	row1 := map[string]any{"fld": time.Date(1, time.January, 1, 2, 2, 2, 3000, time.UTC)}
+	row2 := map[string]any{"fld": time.Date(1, time.January, 1, 2, 2, 2, 4000, time.UTC)}
 	assertKeyCompare(t, row1, "<", row2, idxDef)
 
-	row1 = map[string]interface{}{"fld": time.Date(850000, time.January, 1, 2, 2, 2, 3000, time.UTC)}
-	row2 = map[string]interface{}{"fld": time.Date(850000, time.January, 1, 2, 2, 2, 4000, time.UTC)}
+	row1 = map[string]any{"fld": time.Date(850000, time.January, 1, 2, 2, 2, 3000, time.UTC)}
+	row2 = map[string]any{"fld": time.Date(850000, time.January, 1, 2, 2, 2, 4000, time.UTC)}
 	assertKeyCompare(t, row1, "<", row2, idxDef)
 
 	idxDef.Components[0].SortOrder = IdxSortDesc
@@ -172,8 +172,8 @@ func TestBool(t *testing.T) {
 		Components: []IdxComponentDef{{FieldName: "fld", FieldType: FieldTypeBool}},
 	}
 
-	row1 := map[string]interface{}{"fld": false}
-	row2 := map[string]interface{}{"fld": true}
+	row1 := map[string]any{"fld": false}
+	row2 := map[string]any{"fld": true}
 
 	idxDef.Components[0].SortOrder = IdxSortAsc
 	assertKeyCompare(t, row1, "<", row2, idxDef)
@@ -191,22 +191,22 @@ func TestInt(t *testing.T) {
 
 	idxDef.Components[0].SortOrder = IdxSortAsc
 
-	row1 := map[string]interface{}{"fld": int64(1000)}
-	row2 := map[string]interface{}{"fld": int64(2000)}
+	row1 := map[string]any{"fld": int64(1000)}
+	row2 := map[string]any{"fld": int64(2000)}
 	assertKeyCompare(t, row1, "<", row2, idxDef)
 
-	row1 = map[string]interface{}{"fld": int64(-1000)}
-	row2 = map[string]interface{}{"fld": int64(-2000)}
+	row1 = map[string]any{"fld": int64(-1000)}
+	row2 = map[string]any{"fld": int64(-2000)}
 	assertKeyCompare(t, row1, ">", row2, idxDef)
 
-	row1 = map[string]interface{}{"fld": int64(-1000)}
-	row2 = map[string]interface{}{"fld": int64(50)}
+	row1 = map[string]any{"fld": int64(-1000)}
+	row2 = map[string]any{"fld": int64(50)}
 	assertKeyCompare(t, row1, "<", row2, idxDef)
 
 	idxDef.Components[0].SortOrder = IdxSortDesc
 
-	row1 = map[string]interface{}{"fld": int64(-1000)}
-	row2 = map[string]interface{}{"fld": int64(50)}
+	row1 = map[string]any{"fld": int64(-1000)}
+	row2 = map[string]any{"fld": int64(50)}
 	assertKeyCompare(t, row1, ">", row2, idxDef)
 
 }
@@ -219,34 +219,34 @@ func TestFloat(t *testing.T) {
 
 	idxDef.Components[0].SortOrder = IdxSortAsc
 
-	row1 := map[string]interface{}{"fld": 1.1}
-	row2 := map[string]interface{}{"fld": 1.2}
+	row1 := map[string]any{"fld": 1.1}
+	row2 := map[string]any{"fld": 1.2}
 	assertKeyCompare(t, row1, "<", row2, idxDef)
 
-	row1 = map[string]interface{}{"fld": math.Pow10(32)}
-	row2 = map[string]interface{}{"fld": math.Pow10(32) / 2}
+	row1 = map[string]any{"fld": math.Pow10(32)}
+	row2 = map[string]any{"fld": math.Pow10(32) / 2}
 	assertKeyCompare(t, row1, ">", row2, idxDef)
 
-	row1 = map[string]interface{}{"fld": -math.Pow10(32)}
-	row2 = map[string]interface{}{"fld": -math.Pow10(32) / 2}
+	row1 = map[string]any{"fld": -math.Pow10(32)}
+	row2 = map[string]any{"fld": -math.Pow10(32) / 2}
 	assertKeyCompare(t, row1, "<", row2, idxDef)
 
-	row1 = map[string]interface{}{"fld": math.Pow10(-32)}
-	row2 = map[string]interface{}{"fld": math.Pow10(-32) * 2}
+	row1 = map[string]any{"fld": math.Pow10(-32)}
+	row2 = map[string]any{"fld": math.Pow10(-32) * 2}
 	assertKeyCompare(t, row1, "<", row2, idxDef)
 
-	row1 = map[string]interface{}{"fld": -math.Pow10(-32)}
-	row2 = map[string]interface{}{"fld": -math.Pow10(-32) * 2}
+	row1 = map[string]any{"fld": -math.Pow10(-32)}
+	row2 = map[string]any{"fld": -math.Pow10(-32) * 2}
 	assertKeyCompare(t, row1, ">", row2, idxDef)
 
-	row1 = map[string]interface{}{"fld": -1.2}
-	row2 = map[string]interface{}{"fld": 0.005}
+	row1 = map[string]any{"fld": -1.2}
+	row2 = map[string]any{"fld": 0.005}
 	assertKeyCompare(t, row1, "<", row2, idxDef)
 
 	idxDef.Components[0].SortOrder = IdxSortDesc
 
-	row1 = map[string]interface{}{"fld": 1.1}
-	row2 = map[string]interface{}{"fld": 1.2}
+	row1 = map[string]any{"fld": 1.1}
+	row2 = map[string]any{"fld": 1.2}
 	assertKeyCompare(t, row1, ">", row2, idxDef)
 }
 
@@ -261,35 +261,35 @@ func TestString(t *testing.T) {
 	idxDef.Components[0].SortOrder = IdxSortAsc
 
 	// Different length
-	row1 := map[string]interface{}{"fld": "aaa"}
-	row2 := map[string]interface{}{"fld": "bb"}
+	row1 := map[string]any{"fld": "aaa"}
+	row2 := map[string]any{"fld": "bb"}
 	assertKeyCompare(t, row1, "<", row2, idxDef)
 
 	// Plain
-	row1 = map[string]interface{}{"fld": "aaa"}
-	row2 = map[string]interface{}{"fld": "bbb"}
+	row1 = map[string]any{"fld": "aaa"}
+	row2 = map[string]any{"fld": "bbb"}
 	assertKeyCompare(t, row1, "<", row2, idxDef)
 
 	// Ignore case
-	row1 = map[string]interface{}{"fld": "aaa"}
-	row2 = map[string]interface{}{"fld": "Abb"}
+	row1 = map[string]any{"fld": "aaa"}
+	row2 = map[string]any{"fld": "Abb"}
 	assertKeyCompare(t, row1, "<", row2, idxDef)
 
 	// Beyond StringLen
-	row1 = map[string]interface{}{"fld": "1234567890123456A"}
-	row2 = map[string]interface{}{"fld": "1234567890123456B"}
+	row1 = map[string]any{"fld": "1234567890123456A"}
+	row2 = map[string]any{"fld": "1234567890123456B"}
 	assertKeyCompare(t, row1, "==", row2, idxDef)
 
 	// Within StringLen
-	row1 = map[string]interface{}{"fld": "123456789012345A"}
-	row2 = map[string]interface{}{"fld": "123456789012345B"}
+	row1 = map[string]any{"fld": "123456789012345A"}
+	row2 = map[string]any{"fld": "123456789012345B"}
 	assertKeyCompare(t, row1, "<", row2, idxDef)
 
 	idxDef.Components[0].SortOrder = IdxSortDesc
 
 	// Reverse order
-	row1 = map[string]interface{}{"fld": "aaa"}
-	row2 = map[string]interface{}{"fld": "bbb"}
+	row1 = map[string]any{"fld": "aaa"}
+	row2 = map[string]any{"fld": "bbb"}
 	assertKeyCompare(t, row1, ">", row2, idxDef)
 }
 
@@ -301,37 +301,37 @@ func TestDecimal(t *testing.T) {
 
 	idxDef.Components[0].SortOrder = IdxSortAsc
 
-	row1 := map[string]interface{}{"fld": decimal.NewFromFloat32(0.23456)}
-	row2 := map[string]interface{}{"fld": decimal.NewFromFloat32(985.4)}
+	row1 := map[string]any{"fld": decimal.NewFromFloat32(0.23456)}
+	row2 := map[string]any{"fld": decimal.NewFromFloat32(985.4)}
 	assertKeyCompare(t, row1, "<", row2, idxDef)
 
-	row1 = map[string]interface{}{"fld": decimal.NewFromFloat32(0.23456)}
-	row2 = map[string]interface{}{"fld": decimal.NewFromFloat32(-985.4)}
+	row1 = map[string]any{"fld": decimal.NewFromFloat32(0.23456)}
+	row2 = map[string]any{"fld": decimal.NewFromFloat32(-985.4)}
 	assertKeyCompare(t, row1, ">", row2, idxDef)
 
-	row1 = map[string]interface{}{"fld": decimal.NewFromFloat32(0.002)}
-	row2 = map[string]interface{}{"fld": decimal.NewFromFloat32(0.01)}
+	row1 = map[string]any{"fld": decimal.NewFromFloat32(0.002)}
+	row2 = map[string]any{"fld": decimal.NewFromFloat32(0.01)}
 	assertKeyCompare(t, row1, "<", row2, idxDef)
 
-	row1 = map[string]interface{}{"fld": decimal.NewFromFloat32(-2000)}
-	row2 = map[string]interface{}{"fld": decimal.NewFromFloat32(-1000)}
+	row1 = map[string]any{"fld": decimal.NewFromFloat32(-2000)}
+	row2 = map[string]any{"fld": decimal.NewFromFloat32(-1000)}
 	assertKeyCompare(t, row1, "<", row2, idxDef)
 
 	idxDef.Components[0].SortOrder = IdxSortDesc
 
-	row1 = map[string]interface{}{"fld": decimal.NewFromFloat32(0.23456)}
-	row2 = map[string]interface{}{"fld": decimal.NewFromFloat32(985.4)}
+	row1 = map[string]any{"fld": decimal.NewFromFloat32(0.23456)}
+	row2 = map[string]any{"fld": decimal.NewFromFloat32(985.4)}
 	assertKeyCompare(t, row1, ">", row2, idxDef)
 
-	row1 = map[string]interface{}{"fld": decimal.NewFromFloat32(0.23456)}
-	row2 = map[string]interface{}{"fld": decimal.NewFromFloat32(-985.4)}
+	row1 = map[string]any{"fld": decimal.NewFromFloat32(0.23456)}
+	row2 = map[string]any{"fld": decimal.NewFromFloat32(-985.4)}
 	assertKeyCompare(t, row1, "<", row2, idxDef)
 
-	row1 = map[string]interface{}{"fld": decimal.NewFromFloat32(0.002)}
-	row2 = map[string]interface{}{"fld": decimal.NewFromFloat32(0.01)}
+	row1 = map[string]any{"fld": decimal.NewFromFloat32(0.002)}
+	row2 = map[string]any{"fld": decimal.NewFromFloat32(0.01)}
 	assertKeyCompare(t, row1, ">", row2, idxDef)
 
-	row1 = map[string]interface{}{"fld": decimal.NewFromFloat32(-2000)}
-	row2 = map[string]interface{}{"fld": decimal.NewFromFloat32(-1000)}
+	row1 = map[string]any{"fld": decimal.NewFromFloat32(-2000)}
+	row2 = map[string]any{"fld": decimal.NewFromFloat32(-1000)}
 	assertKeyCompare(t, row1, ">", row2, idxDef)
 }

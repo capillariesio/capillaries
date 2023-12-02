@@ -44,18 +44,18 @@ func signerFromPem(pemBytes []byte, password []byte) (ssh.Signer, error) {
 		}
 
 		return signer, nil
-	} else {
-		// generate signer instance from plain key
-		signer, err := ssh.ParsePrivateKey(pemBytes)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parsie plain private key %s", err.Error())
-		}
-
-		return signer, nil
 	}
+
+	// generate signer instance from plain key
+	signer, err := ssh.ParsePrivateKey(pemBytes)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parsie plain private key %s", err.Error())
+	}
+
+	return signer, nil
 }
 
-func parsePemBlock(block *pem.Block) (interface{}, error) {
+func parsePemBlock(block *pem.Block) (any, error) {
 	switch block.Type {
 	case "RSA PRIVATE KEY":
 		key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
@@ -83,7 +83,7 @@ func parsePemBlock(block *pem.Block) (interface{}, error) {
 	}
 }
 
-func NewSshClientConfig(user string, host string, port int, privateKeyPath string, privateKeyPassword string) (*ssh.ClientConfig, error) {
+func NewSshClientConfig(user string, privateKeyPath string, privateKeyPassword string) (*ssh.ClientConfig, error) {
 	keyPath := privateKeyPath
 	if strings.HasPrefix(keyPath, "~/") {
 		homeDir, _ := os.UserHomeDir()

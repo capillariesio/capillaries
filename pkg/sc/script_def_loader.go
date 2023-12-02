@@ -38,7 +38,7 @@ func NewScriptFromFileBytes(caPath string, privateKeys map[string]string, script
 
 	// Apply template params here, script def should know nothing about them: they may tweak some 3d-party tfm config
 
-	paramsMap := map[string]interface{}{}
+	paramsMap := map[string]any{}
 	if jsonBytesParams != nil {
 		if err := json.Unmarshal(jsonBytesParams, &paramsMap); err != nil {
 			return nil, fmt.Errorf("cannot unmarshal script params json from [%s]: [%s]", scriptParamsUri, err.Error()), ScriptInitContentProblem

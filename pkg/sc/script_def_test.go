@@ -228,27 +228,27 @@ func TestCreatorCalculateHaving(t *testing.T) {
 	assert.Nil(t, newScript.Deserialize([]byte(plainScriptJson), nil, nil, "", nil))
 
 	// Table writer: calculate having
-	var tableRecord map[string]interface{}
+	var tableRecord map[string]any
 	tableCreator := newScript.ScriptNodes["join_table1_table2"].TableCreator
 
-	tableRecord = map[string]interface{}{"total_value": 3}
+	tableRecord = map[string]any{"total_value": 3}
 	isHaving, _ = tableCreator.CheckTableRecordHavingCondition(tableRecord)
 	assert.True(t, isHaving)
 
-	tableRecord = map[string]interface{}{"total_value": 2}
+	tableRecord = map[string]any{"total_value": 2}
 	isHaving, _ = tableCreator.CheckTableRecordHavingCondition(tableRecord)
 	assert.False(t, isHaving)
 
 	// File writer: calculate having
-	var colVals []interface{}
+	var colVals []any
 	fileCreator := newScript.ScriptNodes["file_totals"].FileCreator
 
-	colVals = make([]interface{}, 0)
+	colVals = make([]any, 0)
 	colVals = append(colVals, 0, "a", 4, 0)
 	isHaving, _ = fileCreator.CheckFileRecordHavingCondition(colVals)
 	assert.True(t, isHaving)
 
-	colVals = make([]interface{}, 0)
+	colVals = make([]any, 0)
 	colVals = append(colVals, 0, "a", 3, 0)
 	isHaving, _ = fileCreator.CheckFileRecordHavingCondition(colVals)
 	assert.False(t, isHaving)
@@ -263,7 +263,7 @@ func TestCreatorCalculateOutput(t *testing.T) {
 
 	// Table creator: calculate fields
 
-	var fields map[string]interface{}
+	var fields map[string]any
 	vars = eval.VarValuesMap{"r": {"field_int1": int64(1), "field_string1": "a"}}
 	fields, _ = newScript.ScriptNodes["join_table1_table2"].TableCreator.CalculateTableRecordFromSrcVars(true, vars)
 	if len(fields) == 4 {
@@ -282,7 +282,7 @@ func TestCreatorCalculateOutput(t *testing.T) {
 
 	// File creator: calculate columns
 
-	var cols []interface{}
+	var cols []any
 	vars = eval.VarValuesMap{"r": {"field_int1": int64(1), "field_string1": "a", "total_value": decimal.NewFromInt(1), "item_count": int64(1)}}
 	cols, _ = newScript.ScriptNodes["file_totals"].FileCreator.CalculateFileRecordFromSrcVars(vars)
 	assert.Equal(t, 4, len(cols))

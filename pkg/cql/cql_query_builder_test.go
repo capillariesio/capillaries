@@ -30,7 +30,7 @@ func TestInsertRunParams(t *testing.T) {
 	assert.Equal(t, "INSERT INTO ks1.table1_00001 ( param_name ) VALUES ( ? ) IF NOT EXISTS;", q)
 
 	params, _ := qb.InsertRunParams()
-	assert.Equal(t, []interface{}([]interface{}{"param_value"}), params)
+	assert.Equal(t, []any([]any{"param_value"}), params)
 }
 
 func TestInsert(t *testing.T) {

@@ -113,9 +113,9 @@ func (procDef *TagAndDenormalizeProcessorDef) tagAndDenormalize(rsIn *proc.Rowse
 
 			varsArray[varsArrayCount] = &eval.VarValuesMap{}
 			// Write tag
-			(*varsArray[varsArrayCount])[sc.CustomProcessorAlias] = map[string]interface{}{procDef.TagFieldName: tag}
+			(*varsArray[varsArrayCount])[sc.CustomProcessorAlias] = map[string]any{procDef.TagFieldName: tag}
 			// Write r values
-			(*varsArray[varsArrayCount])[sc.ReaderAlias] = map[string]interface{}{}
+			(*varsArray[varsArrayCount])[sc.ReaderAlias] = map[string]any{}
 			for fieldName, fieldVal := range vars[sc.ReaderAlias] {
 				(*varsArray[varsArrayCount])[sc.ReaderAlias][fieldName] = fieldVal
 			}

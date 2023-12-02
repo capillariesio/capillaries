@@ -60,7 +60,7 @@ type ApiResponseError struct {
 }
 
 type ApiResponse struct {
-	Data  interface{}      `json:"data"`
+	Data  any              `json:"data"`
 	Error ApiResponseError `json:"error"`
 }
 
@@ -83,7 +83,7 @@ func pickAccessControlAllowOrigin(wc *env.WebapiConfig, r *http.Request) string 
 	return "no-allowed-origins"
 }
 
-func WriteApiError(l *l.Logger, wc *env.WebapiConfig, r *http.Request, w http.ResponseWriter, urlPath string, err error, httpStatus int) {
+func WriteApiError(l *l.CapiLogger, wc *env.WebapiConfig, r *http.Request, w http.ResponseWriter, urlPath string, err error, httpStatus int) {
 	w.Header().Set("Access-Control-Allow-Origin", pickAccessControlAllowOrigin(wc, r))
 	l.Error("cannot process %s: %s", urlPath, err.Error())
 	respJson, err := json.Marshal(ApiResponse{Error: ApiResponseError{Msg: err.Error()}})
@@ -94,7 +94,7 @@ func WriteApiError(l *l.Logger, wc *env.WebapiConfig, r *http.Request, w http.Re
 	}
 }
 
-func WriteApiSuccess(l *l.Logger, wc *env.WebapiConfig, r *http.Request, w http.ResponseWriter, data interface{}) {
+func WriteApiSuccess(l *l.CapiLogger, wc *env.WebapiConfig, r *http.Request, w http.ResponseWriter, data any) {
 	w.Header().Set("Access-Control-Allow-Origin", pickAccessControlAllowOrigin(wc, r))
 	respJson, err := json.Marshal(ApiResponse{Data: data})
 	if err != nil {
@@ -286,7 +286,7 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, mx)
 }
 
-func getRunPropsAndLifespans(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId int16) (*wfmodel.RunProperties, *wfmodel.RunLifespan, error) {
+func getRunPropsAndLifespans(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16) (*wfmodel.RunProperties, *wfmodel.RunLifespan, error) {
 	// Static run properties
 	// TODO: consider caching
 
@@ -508,7 +508,7 @@ func (h *UrlHandler) ksDrop(w http.ResponseWriter, r *http.Request) {
 
 type UrlHandler struct {
 	Env *env.EnvConfig
-	L   *l.Logger
+	L   *l.CapiLogger
 }
 
 type ctxKey struct {

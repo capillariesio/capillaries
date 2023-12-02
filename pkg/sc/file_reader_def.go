@@ -56,7 +56,7 @@ func (frDef *FileReaderDef) getFieldRefs() *FieldRefs {
 			TableName: ReaderAlias,
 			FieldName: fieldName,
 			FieldType: colDef.Type}
-		i += 1
+		i++
 	}
 	return &fieldRefs
 }
@@ -164,7 +164,7 @@ func (frDef *FileReaderDef) ResolveCsvColumnIndexesFromNames(srcHdrLine []string
 }
 
 func (frDef *FileReaderDef) ReadCsvLineToValuesMap(line *[]string, colVars eval.VarValuesMap) error {
-	colVars[ReaderAlias] = map[string]interface{}{}
+	colVars[ReaderAlias] = map[string]any{}
 	for colName, colDef := range frDef.Columns {
 		colData := (*line)[colDef.Csv.SrcColIdx]
 		switch colDef.Type {

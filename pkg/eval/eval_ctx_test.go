@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func assertEqual(t *testing.T, expString string, expectedResult interface{}, varValuesMap VarValuesMap) {
+func assertEqual(t *testing.T, expString string, expectedResult any, varValuesMap VarValuesMap) {
 	exp, err1 := parser.ParseExpr(expString)
 	if err1 != nil {
 		t.Error(fmt.Errorf("%s: %s", expString, err1.Error()))
@@ -40,7 +40,8 @@ func assertFloatNan(t *testing.T, expString string, varValuesMap VarValuesMap) {
 		t.Error(fmt.Errorf("%s: %s", expString, err2.Error()))
 		return
 	}
-	floatResult, _ := result.(float64)
+	floatResult, ok := result.(float64)
+	assert.True(t, ok)
 	assert.True(t, math.IsNaN(floatResult))
 }
 
@@ -305,7 +306,7 @@ const (
 	BinaryStringToBoolFunc
 )
 
-func assertBinaryEval(t *testing.T, evalFunc EvalFunc, valLeftVolatile interface{}, op token.Token, valRightVolatile interface{}, errorMessage string) {
+func assertBinaryEval(t *testing.T, evalFunc EvalFunc, valLeftVolatile any, op token.Token, valRightVolatile any, errorMessage string) {
 	var err error
 	eCtx := NewPlainEvalCtx(AggFuncDisabled)
 	switch evalFunc {
