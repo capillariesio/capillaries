@@ -159,7 +159,7 @@ func BuildKey(fieldMap map[string]any, idxDef *IdxDef) (string, error) {
 
 		// Used by file creator top. Not used by actual indexes - Cassandra cannot do proper ORDER BY anyways
 		if comp.SortOrder == IdxSortDesc {
-			var stringBytes []byte = []byte(stringValue)
+			stringBytes := []byte(stringValue)
 			for i, b := range stringBytes {
 				stringBytes[i] = 0xFF - b
 			}

@@ -133,9 +133,8 @@ func SafeProcessBatch(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.
 	if err != nil {
 		logger.DebugCtx(pCtx, "batch processed, error: %s", err.Error())
 		return wfmodel.NodeBatchFail, bs, fmt.Errorf("error running node %s of type %s in the script [%s]: [%s]", pCtx.CurrentScriptNode.Name, pCtx.CurrentScriptNode.Type, pCtx.BatchInfo.ScriptURI, err.Error())
-	} else {
-		logger.DebugCtx(pCtx, "batch processed ok")
 	}
+	logger.DebugCtx(pCtx, "batch processed ok")
 
 	return wfmodel.NodeBatchSuccess, bs, nil
 }
@@ -165,9 +164,9 @@ func UpdateNodeStatusFromBatches(logger *l.CapiLogger, pCtx *ctx.MessageProcessi
 		isApplied, err := wfdb.SetNodeStatus(logger, pCtx, totalNodeStatus, comment)
 		if err != nil {
 			return wfmodel.NodeBatchNone, false, err
-		} else {
-			return totalNodeStatus, isApplied, nil
 		}
+
+		return totalNodeStatus, isApplied, nil
 	}
 
 	return totalNodeStatus, false, nil
@@ -205,16 +204,17 @@ func refreshNodeAndRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingCo
 	if err != nil {
 		logger.ErrorCtx(pCtx, "cannot refresh run/node status: %s", err.Error())
 		return err
-	} else {
-		// Ideally, we should run the code below only if isApplied signaled something changed. But, there is a possibility
-		// that on the previous attempt, node status was updated and the daemon crashed right after that.
-		// We need to pick it up from there and refresh run status anyways.
-		err := UpdateRunStatusFromNodes(logger, pCtx)
-		if err != nil {
-			logger.ErrorCtx(pCtx, "cannot refresh run status: %s", err.Error())
-			return err
-		}
 	}
+
+	// Ideally, we should run the code below only if isApplied signaled something changed. But, there is a possibility
+	// that on the previous attempt, node status was updated and the daemon crashed right after that.
+	// We need to pick it up from there and refresh run status anyways.
+	err = UpdateRunStatusFromNodes(logger, pCtx)
+	if err != nil {
+		logger.ErrorCtx(pCtx, "cannot refresh run status: %s", err.Error())
+		return err
+	}
+
 	return nil
 }
 
@@ -233,7 +233,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msgTs i
 
 	var err error
 	var initProblem sc.ScriptInitProblemType
-	pCtx.Script, err, initProblem = sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, dataBatchInfo.ScriptURI, dataBatchInfo.ScriptParamsURI, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
+	pCtx.Script, initProblem, err = sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, dataBatchInfo.ScriptURI, dataBatchInfo.ScriptParamsURI, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
 	if initProblem != sc.ScriptInitNoProblem {
 		switch initProblem {
 		case sc.ScriptInitUrlProblem:

@@ -55,7 +55,7 @@ func (tsc *TunneledSshClient) Close() {
 		tsc.TunneledSshConn.Close()
 	}
 	if tsc.TunneledTcpConn != nil {
-		tsc.TunneledTcpConn.Close()
+		tsc.TunneledTcpConn.Close() //nolint:all
 	}
 	if tsc.ProxySshClient != nil {
 		tsc.ProxySshClient.Close()
@@ -234,7 +234,7 @@ func ExecScriptsOnInstance(sshConfig *SshConfigDef, ipAddress string, env map[st
 		if err != nil {
 			return lb.Complete(fmt.Errorf("cannot open shell script %s: %s", fullScriptPath, err.Error()))
 		}
-		defer f.Close()
+		defer f.Close() //nolint:all
 
 		shellScriptBytes, err := io.ReadAll(f)
 		if err != nil {

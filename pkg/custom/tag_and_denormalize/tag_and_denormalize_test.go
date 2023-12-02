@@ -155,7 +155,8 @@ func TestTagAndDenormalizeDeserializeFileCriteria(t *testing.T) {
 		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil)
 	assert.Nil(t, err)
 
-	tndProcessor, _ := scriptDef.ScriptNodes["tag_products"].CustomProcessor.(*TagAndDenormalizeProcessorDef)
+	tndProcessor, ok := scriptDef.ScriptNodes["tag_products"].CustomProcessor.(*TagAndDenormalizeProcessorDef)
+	assert.True(t, ok)
 	assert.Equal(t, 4, len(tndProcessor.ParsedTagCriteria))
 }
 
@@ -165,7 +166,8 @@ func TestTagAndDenormalizeRunEmbeddedCriteria(t *testing.T) {
 	err := scriptDef.Deserialize([]byte(scriptJson), &TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil)
 	assert.Nil(t, err)
 
-	tndProcessor, _ := scriptDef.ScriptNodes["tag_products"].CustomProcessor.(*TagAndDenormalizeProcessorDef)
+	tndProcessor, ok := scriptDef.ScriptNodes["tag_products"].CustomProcessor.(*TagAndDenormalizeProcessorDef)
+	assert.True(t, ok)
 	assert.Equal(t, 3, len(tndProcessor.ParsedTagCriteria))
 
 	// Initializing rowset is tedious and error-prone. Add schema first.
@@ -212,12 +214,14 @@ func TestTagAndDenormalizeRunEmbeddedCriteria(t *testing.T) {
 	assert.Equal(t, product_spec, flushedRow["r"]["product_spec"])
 	// p field must be in the result
 	var nextExpectedTag string
-	if flushedRow["p"]["tag"].(string) == "boys" {
+	flushedRowTag, ok := flushedRow["p"]["tag"].(string)
+	assert.True(t, ok)
+	if flushedRowTag == "boys" {
 		nextExpectedTag = "diving"
-	} else if flushedRow["p"]["tag"].(string) == "diving" {
+	} else if flushedRowTag == "diving" {
 		nextExpectedTag = "boys"
 	} else {
-		assert.Fail(t, fmt.Sprintf("unexpected tag %s", *(flushedRow["p"]["tag"].(*string))))
+		assert.Fail(t, fmt.Sprintf("unexpected tag %s", flushedRowTag))
 	}
 
 	flushedRow = *results[1]
@@ -237,7 +241,8 @@ func TestTagAndDenormalizeRunEmbeddedCriteria(t *testing.T) {
 		[]byte(re.ReplaceAllString(scriptJson, `"tag_criteria": {"boys":"re.BadGoMethod(\"aaa\")"}`)),
 		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil))
 
-	tndProcessor, _ = scriptDef.ScriptNodes["tag_products"].CustomProcessor.(*TagAndDenormalizeProcessorDef)
+	tndProcessor, ok = scriptDef.ScriptNodes["tag_products"].CustomProcessor.(*TagAndDenormalizeProcessorDef)
+	assert.True(t, ok)
 	assert.Equal(t, 1, len(tndProcessor.ParsedTagCriteria))
 
 	err = tndProcessor.tagAndDenormalize(rs, flushVarsArray)
@@ -247,7 +252,8 @@ func TestTagAndDenormalizeRunEmbeddedCriteria(t *testing.T) {
 	assert.Nil(t, scriptDef.Deserialize(
 		[]byte(re.ReplaceAllString(scriptJson, `"tag_criteria": {"boys":"math.Round(1.1)"}`)),
 		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil))
-	tndProcessor, _ = scriptDef.ScriptNodes["tag_products"].CustomProcessor.(*TagAndDenormalizeProcessorDef)
+	tndProcessor, ok = scriptDef.ScriptNodes["tag_products"].CustomProcessor.(*TagAndDenormalizeProcessorDef)
+	assert.True(t, ok)
 	assert.Equal(t, 1, len(tndProcessor.ParsedTagCriteria))
 
 	err = tndProcessor.tagAndDenormalize(rs, flushVarsArray)

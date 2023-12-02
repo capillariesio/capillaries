@@ -159,9 +159,8 @@ func (node *ScriptNodeDef) GetTargetName() string {
 		return node.TableCreator.Name
 	} else if node.HasFileCreator() {
 		return CreatorAlias
-	} else {
-		return "dev_error_uknown_target_name"
 	}
+	return "dev_error_uknown_target_name"
 }
 
 func (node *ScriptNodeDef) Deserialize(customProcessorDefFactory CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage, caPath string, privateKeys map[string]string) error {
@@ -255,9 +254,9 @@ func (node *ScriptNodeDef) Deserialize(customProcessorDefFactory CustomProcessor
 
 	if len(errors) > 0 {
 		return fmt.Errorf(strings.Join(errors, "; "))
-	} else {
-		return nil
 	}
+
+	return nil
 }
 
 func (node *ScriptNodeDef) evalCreatorAndLookupExpressionsAndCheckType() error {
@@ -318,9 +317,9 @@ func (node *ScriptNodeDef) evalCreatorAndLookupExpressionsAndCheckType() error {
 
 	if len(errors) > 0 {
 		return fmt.Errorf(strings.Join(errors, "; "))
-	} else {
-		return nil
 	}
+
+	return nil
 }
 
 func (node *ScriptNodeDef) getSourceFieldRefs() (*FieldRefs, error) {
@@ -328,9 +327,9 @@ func (node *ScriptNodeDef) getSourceFieldRefs() (*FieldRefs, error) {
 		return node.FileReader.getFieldRefs(), nil
 	} else if node.HasTableReader() {
 		return node.TableReader.TableCreator.GetFieldRefsWithAlias(ReaderAlias), nil
-	} else {
-		return nil, fmt.Errorf("dev error, node of type %s has no file or table reader", node.Type)
 	}
+
+	return nil, fmt.Errorf("dev error, node of type %s has no file or table reader", node.Type)
 }
 
 func (node *ScriptNodeDef) GetUniqueIndexesFieldRefs() *FieldRefs {
@@ -391,7 +390,7 @@ func (node *ScriptNodeDef) GetTokenIntervalsByNumberOfBatches() ([][]int64, erro
 			intervals[i] = []int64{int64(i), int64(i)}
 		}
 		return intervals, nil
-	} else {
-		return nil, fmt.Errorf("cannot find implementation for intervals for node %s", node.Name)
 	}
+
+	return nil, fmt.Errorf("cannot find implementation for intervals for node %s", node.Name)
 }

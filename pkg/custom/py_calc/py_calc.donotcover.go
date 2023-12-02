@@ -18,8 +18,6 @@ func (procDef *PyCalcProcessorDef) Run(logger *l.CapiLogger, pCtx *ctx.MessagePr
 	logger.PushF("custom.PyCalcProcessorDef.Run")
 	defer logger.PopF()
 
-	//err := procDef.executeCalculations(logger, pCtx, rsIn, rsOut, time.Duration(procDef.EnvSettings.ExecutionTimeout*int(time.Millisecond)))
-
 	timeout := time.Duration(procDef.EnvSettings.ExecutionTimeout * int(time.Millisecond))
 
 	codeBase, err := procDef.buildPythonCodebaseFromRowset(rsIn)
@@ -42,7 +40,7 @@ func (procDef *PyCalcProcessorDef) Run(logger *l.CapiLogger, pCtx *ctx.MessagePr
 	p.Stdout = &stdout
 	p.Stderr = &stderr
 
-	//return fmt.Errorf(codeBase.String())
+	// return fmt.Errorf(codeBase.String())
 
 	// Run
 	pythonStartTime := time.Now()
@@ -56,7 +54,7 @@ func (procDef *PyCalcProcessorDef) Run(logger *l.CapiLogger, pCtx *ctx.MessagePr
 	// Really verbose, use for troubleshooting only
 	// fmt.Println(codeBase, rawOutput)
 
-	//fmt.Println(fmt.Sprintf("err.Error():'%s', cmdCtx.Err():'%v'", err.Error(), cmdCtx.Err()))
+	// fmt.Println(fmt.Sprintf("err.Error():'%s', cmdCtx.Err():'%v'", err.Error(), cmdCtx.Err()))
 
 	if err != nil {
 		fullErrorInfo, err := procDef.analyseExecError(codeBase, rawOutput, rawErrors, err)
@@ -64,12 +62,10 @@ func (procDef *PyCalcProcessorDef) Run(logger *l.CapiLogger, pCtx *ctx.MessagePr
 			logger.ErrorCtx(pCtx, fullErrorInfo)
 		}
 		return fmt.Errorf("Python interpreter returned an error: %s", err)
-	} else {
-		if cmdCtx.Err() == context.DeadlineExceeded {
-			// Timeout occurred, err.Error() is probably: 'signal: killed'
-			return fmt.Errorf("Python calculation timeout %d s expired;", timeout)
-		} else {
-			return procDef.analyseExecSuccess(codeBase, rawOutput, rawErrors, procDef.GetFieldRefs(), rsIn, flushVarsArray)
-		}
 	}
+	if cmdCtx.Err() == context.DeadlineExceeded {
+		// Timeout occurred, err.Error() is probably: 'signal: killed'
+		return fmt.Errorf("Python calculation timeout %d s expired;", timeout)
+	}
+	return procDef.analyseExecSuccess(codeBase, rawOutput, rawErrors, procDef.GetFieldRefs(), rsIn, flushVarsArray)
 }

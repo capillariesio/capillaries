@@ -222,12 +222,11 @@ func CalculateFieldValue(fieldName string, fieldDef *WriteTableFieldDef, srcVars
 	valVolatile, err := eCtx.Eval(fieldDef.ParsedExpression)
 	if err != nil {
 		return nil, fmt.Errorf("cannot evaluate expression for field %s: [%s]", fieldName, err.Error())
-	} else {
-		if err := CheckValueType(valVolatile, fieldDef.Type); err != nil {
-			return nil, fmt.Errorf("invalid field %s type: [%s]", fieldName, err.Error())
-		}
-		return valVolatile, nil
 	}
+	if err := CheckValueType(valVolatile, fieldDef.Type); err != nil {
+		return nil, fmt.Errorf("invalid field %s type: [%s]", fieldName, err.Error())
+	}
+	return valVolatile, nil
 }
 
 func (tcDef *TableCreatorDef) CalculateTableRecordFromSrcVars(canUseAggFunc bool, srcVars eval.VarValuesMap) (map[string]any, error) {
@@ -245,9 +244,9 @@ func (tcDef *TableCreatorDef) CalculateTableRecordFromSrcVars(canUseAggFunc bool
 
 	if len(errors) > 0 {
 		return nil, fmt.Errorf(strings.Join(errors, "; "))
-	} else {
-		return tableRecord, nil
 	}
+
+	return tableRecord, nil
 }
 
 func (tcDef *TableCreatorDef) CheckTableRecordHavingCondition(tableRecord map[string]any) (bool, error) {

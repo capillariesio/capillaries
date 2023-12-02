@@ -232,7 +232,8 @@ func TestPyCalcDefCalculator(t *testing.T) {
 
 	// PyCalcProcessorDef implements both sc.CustomProcessorDef and proc.CustomProcessorRunner.
 	// We only need the sc.CustomProcessorDef part here, no plans to run Python as part of the unit testing process.
-	pyCalcProcDef := scriptDef.ScriptNodes["tax_table1"].CustomProcessor.(*PyCalcProcessorDef)
+	pyCalcProcDef, ok := scriptDef.ScriptNodes["tax_table1"].CustomProcessor.(*PyCalcProcessorDef)
+	assert.True(t, ok)
 
 	codeBase, err := pyCalcProcDef.buildPythonCodebaseFromRowset(rs)
 	assert.Nil(t, err)

@@ -184,9 +184,8 @@ func (creatorDef *FileCreatorDef) CalculateFileRecordFromSrcVars(srcVars eval.Va
 
 	if len(errors) > 0 {
 		return nil, fmt.Errorf(strings.Join(errors, "; "))
-	} else {
-		return fileRecord, nil
 	}
+	return fileRecord, nil
 }
 
 func (creatorDef *FileCreatorDef) CheckFileRecordHavingCondition(fileRecord []any) (bool, error) {

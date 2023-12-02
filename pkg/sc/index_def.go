@@ -81,8 +81,8 @@ func (idxDef *IdxDef) parseComponentExpr(fldExp *ast.Expr, fieldRefs *FieldRefs)
 
 	switch (*fldExp).(type) {
 	case *ast.CallExpr:
-		callExp, _ := (*fldExp).(*ast.CallExpr)
-		identExp, _ := callExp.Fun.(*ast.Ident)
+		callExp, _ := (*fldExp).(*ast.CallExpr) //nolint:all
+		identExp, _ := callExp.Fun.(*ast.Ident) //nolint:all
 		fieldRef, ok := fieldRefs.FindByFieldName(identExp.Name)
 		if !ok {
 			return fmt.Errorf("cannot parse order component func expression, field %s unknown", identExp.Name)
@@ -96,7 +96,7 @@ func (idxDef *IdxDef) parseComponentExpr(fldExp *ast.Expr, fieldRefs *FieldRefs)
 		for _, modifierExp := range callExp.Args {
 			switch modifierExpType := modifierExp.(type) {
 			case *ast.Ident:
-				modIdentExp, _ := modifierExp.(*ast.Ident)
+				modIdentExp, _ := modifierExp.(*ast.Ident) //nolint:all
 				switch modIdentExp.Name {
 				case string(IdxCaseSensitive):
 					idxCompDef.CaseSensitivity = IdxCaseSensitive
@@ -145,7 +145,7 @@ func (idxDef *IdxDef) parseComponentExpr(fldExp *ast.Expr, fieldRefs *FieldRefs)
 
 	case *ast.Ident:
 		// This is a component def without modifiers (not filed1(...), just field1), so just apply defaults
-		identExp, _ := (*fldExp).(*ast.Ident)
+		identExp, _ := (*fldExp).(*ast.Ident) //nolint:all
 
 		fieldRef, ok := fieldRefs.FindByFieldName(identExp.Name)
 		if !ok {
@@ -187,8 +187,8 @@ func (idxDefMap *IdxDefMap) parseRawIndexDefMap(rawIdxDefMap map[string]string, 
 		}
 		switch expIdxDef.(type) {
 		case *ast.CallExpr:
-			callExp, _ := expIdxDef.(*ast.CallExpr)
-			identExp, _ := callExp.Fun.(*ast.Ident)
+			callExp, _ := expIdxDef.(*ast.CallExpr) //nolint:all
+			identExp, _ := callExp.Fun.(*ast.Ident) //nolint:all
 
 			// Init idx def, defaults here if needed
 			idxDef := IdxDef{Uniqueness: IdxUniquenessUnknown}
@@ -224,7 +224,7 @@ func (idxDefMap *IdxDefMap) parseRawIndexDefMap(rawIdxDefMap map[string]string, 
 
 	if len(errors) > 0 {
 		return fmt.Errorf("cannot parse order definitions: [%s]", strings.Join(errors, "; "))
-	} else {
-		return nil
 	}
+
+	return nil
 }

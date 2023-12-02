@@ -101,9 +101,9 @@ func ExecLocal(prj *Project, cmdPath string, params []string, envVars map[string
 	} else if cmdCtx.Err() == context.DeadlineExceeded {
 		// Timeout occurred, err.Error() is probably: 'signal: killed'
 		return ExecResult{rawInput, rawOutput, rawErrors, elapsed, fmt.Errorf("cmd execution timeout exceeded")}
-	} else {
-		return ExecResult{rawInput, rawOutput, rawErrors, elapsed, nil}
 	}
+
+	return ExecResult{rawInput, rawOutput, rawErrors, elapsed, nil}
 }
 
 func BuildArtifacts(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {

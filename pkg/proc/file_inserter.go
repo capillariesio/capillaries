@@ -105,9 +105,9 @@ func (instr *FileInserter) waitForWorker(logger *l.CapiLogger, pCtx *ctx.Message
 
 	if len(errors) > 0 {
 		return fmt.Errorf(strings.Join(errors, "; "))
-	} else {
-		return nil
 	}
+
+	return nil
 }
 
 func (instr *FileInserter) waitForWorkerAndCloseErrorsOut(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) error {

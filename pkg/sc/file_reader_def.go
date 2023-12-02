@@ -142,9 +142,8 @@ func (frDef *FileReaderDef) Deserialize(rawReader json.RawMessage) error {
 
 	if len(errors) > 0 {
 		return fmt.Errorf(strings.Join(errors, "; "))
-	} else {
-		return nil
 	}
+	return nil
 }
 
 func (frDef *FileReaderDef) ResolveCsvColumnIndexesFromNames(srcHdrLine []string) error {

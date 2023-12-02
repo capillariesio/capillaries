@@ -45,7 +45,7 @@ func newSeed() int64 {
 	return (time.Now().Unix() << 32) + time.Now().UnixMilli() + seedCounter
 }
 
-func newTableInserter(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, tableCreator *sc.TableCreatorDef, batchSize int) *TableInserter {
+func newTableInserter(envConfig *env.EnvConfig, pCtx *ctx.MessageProcessingContext, tableCreator *sc.TableCreatorDef, batchSize int) *TableInserter {
 
 	return &TableInserter{
 		PCtx:            pCtx,
@@ -56,7 +56,6 @@ func newTableInserter(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.
 		NumWorkers:      envConfig.Cassandra.WriterWorkers,
 		MinInserterRate: envConfig.Cassandra.MinInserterRate,
 		RecordsInOpen:   false,
-		//Logger:        logger,
 	}
 }
 
@@ -75,7 +74,6 @@ func CreateIdxTableCql(keyspace string, runId int16, idxName string, idxDef *sc.
 	qb.Keyspace(keyspace).
 		ColumnDef("key", sc.FieldTypeString).
 		ColumnDef("rowid", sc.FieldTypeInt)
-		//ColumnDef("batch_idx", sc.FieldTypeInt)
 	if idxDef.Uniqueness == sc.IdxUnique {
 		// Key must be unique, let Cassandra enforce it for us: PRIMARY KEY (key)
 		qb.PartitionKey("key")
@@ -142,7 +140,6 @@ func (instr *TableInserter) waitForWorkers(logger *l.CapiLogger, pCtx *ctx.Messa
 				errors = append(errors, err.Error())
 				errCount++
 			}
-			//logger.DebugCtx(pCtx, "got result for sent record %d out of %d from instr.ErrorsOut, %d errors so far", i, instr.RecordsSent, errCount)
 
 			inserterRate := float64(i+1) / time.Since(startTime).Seconds()
 			// If it falls below min rate, it does not make sense to continue
@@ -176,9 +173,9 @@ func (instr *TableInserter) waitForWorkers(logger *l.CapiLogger, pCtx *ctx.Messa
 
 	if len(errors) > 0 {
 		return fmt.Errorf(strings.Join(errors, "; "))
-	} else {
-		return nil
 	}
+
+	return nil
 }
 
 func (instr *TableInserter) waitForWorkersAndCloseErrorsOut(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) {
@@ -413,32 +410,29 @@ func (instr *TableInserter) tableInserterWorker(logger *l.CapiLogger, pCtx *ctx.
 						}
 						// Success or not - we are done
 						break
-					} else {
-						if strings.Contains(err.Error(), "does not exist") {
-							// There is a chance this table is brand new and table schema was not propagated to all Cassandra nodes
-							if idxRetryCount < maxIdxRetries-1 {
-								logger.WarnCtx(instr.PCtx, "will wait for idx table %s to be created, retry count %d, got %s", idxTableName, idxRetryCount, err.Error())
-								// TODO: come up with a better waiting strategy (exp backoff, at least)
-								time.Sleep(5 * time.Second)
-							} else {
-								errorToReport = fmt.Errorf("cannot write to idx table %s after %d attempts, apparently, table schema still not propagated to all nodes: %s", idxTableName, idxRetryCount+1, err.Error())
-								break
-							}
-						} else if strings.Contains(err.Error(), "Operation timed out") {
-							// The cluster is overloaded, slow down
-							if idxRetryCount < maxIdxRetries-1 {
-								logger.WarnCtx(instr.PCtx, "cluster overloaded (%s), will wait for %dms before writing to idx table %s again, retry count %d", err.Error(), 10*curIdxExpBackoffFactor, idxTableName, idxRetryCount)
-								time.Sleep(time.Duration(10*curIdxExpBackoffFactor) * time.Millisecond)
-								curIdxExpBackoffFactor *= 2
-							} else {
-								errorToReport = fmt.Errorf("cannot write to idx table %s after %d attempts, still getting timeout: %s", idxTableName, idxRetryCount+1, err.Error())
-								break
-							}
-						} else {
-							// Some serious error happened, stop trying this idx record
-							errorToReport = db.WrapDbErrorWithQuery("cannot write to idx table", preparedDataQuery, err)
+					}
+					if strings.Contains(err.Error(), "does not exist") {
+						// There is a chance this table is brand new and table schema was not propagated to all Cassandra nodes
+						if idxRetryCount >= maxIdxRetries-1 {
+							errorToReport = fmt.Errorf("cannot write to idx table %s after %d attempts, apparently, table schema still not propagated to all nodes: %s", idxTableName, idxRetryCount+1, err.Error())
 							break
 						}
+						logger.WarnCtx(instr.PCtx, "will wait for idx table %s to be created, retry count %d, got %s", idxTableName, idxRetryCount, err.Error())
+						// TODO: come up with a better waiting strategy (exp backoff, at least)
+						time.Sleep(5 * time.Second)
+					} else if strings.Contains(err.Error(), "Operation timed out") {
+						// The cluster is overloaded, slow down
+						if idxRetryCount >= maxIdxRetries-1 {
+							errorToReport = fmt.Errorf("cannot write to idx table %s after %d attempts, still getting timeout: %s", idxTableName, idxRetryCount+1, err.Error())
+							break
+						}
+						logger.WarnCtx(instr.PCtx, "cluster overloaded (%s), will wait for %dms before writing to idx table %s again, retry count %d", err.Error(), 10*curIdxExpBackoffFactor, idxTableName, idxRetryCount)
+						time.Sleep(time.Duration(10*curIdxExpBackoffFactor) * time.Millisecond)
+						curIdxExpBackoffFactor *= 2
+					} else {
+						// Some serious error happened, stop trying this idx record
+						errorToReport = db.WrapDbErrorWithQuery("cannot write to idx table", preparedDataQuery, err)
+						break
 					}
 				} // idx retry loop
 			} // idx loop

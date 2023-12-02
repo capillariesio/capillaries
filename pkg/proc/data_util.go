@@ -108,13 +108,12 @@ func selectBatchFromDataTablePaged(logger *l.CapiLogger,
 		if err == nil {
 			break
 		}
-		if strings.Contains(err.Error(), "Operation timed out") || strings.Contains(err.Error(), "Cannot achieve consistency level") && selectRetryIdx < 3 {
-			logger.WarnCtx(pCtx, "cannot select %d rows from %s%s on retry %d, getting timeout/consistency error (%s), will wait for %dms and retry", batchSize, tableName, cql.RunIdSuffix(lookupNodeRunId), selectRetryIdx, err.Error(), 10*curSelectExpBackoffFactor)
-			time.Sleep(time.Duration(10*curSelectExpBackoffFactor) * time.Millisecond)
-			curSelectExpBackoffFactor *= 2
-		} else {
+		if !(strings.Contains(err.Error(), "Operation timed out") || strings.Contains(err.Error(), "Cannot achieve consistency level") && selectRetryIdx < 3) {
 			return nil, db.WrapDbErrorWithQuery(fmt.Sprintf("paged data scanner cannot select %d rows from %s%s after %d attempts; another worker may retry this batch later, but, if some unique idx records has been written already by current worker, the next worker handling this batch will throw an error on them and there is nothing we can do about it;", batchSize, tableName, cql.RunIdSuffix(lookupNodeRunId), selectRetryIdx+1), q, err)
 		}
+		logger.WarnCtx(pCtx, "cannot select %d rows from %s%s on retry %d, getting timeout/consistency error (%s), will wait for %dms and retry", batchSize, tableName, cql.RunIdSuffix(lookupNodeRunId), selectRetryIdx, err.Error(), 10*curSelectExpBackoffFactor)
+		time.Sleep(time.Duration(10*curSelectExpBackoffFactor) * time.Millisecond)
+		curSelectExpBackoffFactor *= 2
 		selectRetryIdx++
 	}
 

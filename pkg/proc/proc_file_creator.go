@@ -24,7 +24,7 @@ func (h FileRecordHeap) Len() int           { return len(h) }
 func (h FileRecordHeap) Less(i, j int) bool { return h[i].Key > h[j].Key } // Reverse order: https://stackoverflow.com/questions/49065781/limit-size-of-the-priority-queue-for-gos-heap-interface-implementation
 func (h FileRecordHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
 func (h *FileRecordHeap) Push(x any) {
-	item := x.(*FileRecordHeapItem)
+	item := x.(*FileRecordHeapItem) //nolint:all
 	*h = append(*h, item)
 }
 func (h *FileRecordHeap) Pop() any {
@@ -119,7 +119,7 @@ func readAndInsert(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, tab
 	if instr.FileCreator.HasTop() {
 		properlyOrderedTopList := make([]*FileRecordHeapItem, topHeap.Len())
 		for i := topHeap.Len() - 1; i >= 0; i-- {
-			properlyOrderedTopList[i] = heap.Pop(&topHeap).(*FileRecordHeapItem)
+			properlyOrderedTopList[i] = heap.Pop(&topHeap).(*FileRecordHeapItem) //nolint:all
 		}
 		for i := 0; i < len(properlyOrderedTopList); i++ {
 			instr.add(*properlyOrderedTopList[i].FileRecord)

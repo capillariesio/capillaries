@@ -165,9 +165,9 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *c
 		return readCsv(envConfig, logger, pCtx, totalStartTime, filePath, fileReader)
 	} else if node.FileReader.ReaderFileType == sc.ReaderFileTypeParquet {
 		return readParquet(envConfig, logger, pCtx, totalStartTime, filePath, fileReadSeeker)
-	} else {
-		return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("unknown reader file type: %d", node.FileReader.ReaderFileType)
 	}
+
+	return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("unknown reader file type: %d", node.FileReader.ReaderFileType)
 }
 
 func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
@@ -213,8 +213,7 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 	if inserterBatchSize < node.TableReader.RowsetSize {
 		inserterBatchSize = node.TableReader.RowsetSize
 	}
-	instr := newTableInserter(envConfig, logger, pCtx, &node.TableCreator, inserterBatchSize)
-	//instr.verifyTablesExist()
+	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, inserterBatchSize)
 	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}
@@ -338,8 +337,7 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 	if inserterBatchSize < node.TableReader.RowsetSize {
 		inserterBatchSize = node.TableReader.RowsetSize
 	}
-	instr := newTableInserter(envConfig, logger, pCtx, &node.TableCreator, inserterBatchSize)
-	//instr.verifyTablesExist()
+	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, inserterBatchSize)
 	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}
@@ -479,8 +477,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 	if inserterBatchSize < node.TableReader.RowsetSize {
 		inserterBatchSize = node.TableReader.RowsetSize
 	}
-	instr := newTableInserter(envConfig, logger, pCtx, &node.TableCreator, inserterBatchSize)
-	//instr.verifyTablesExist()
+	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, inserterBatchSize)
 	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}

@@ -38,8 +38,6 @@ func assertKeyCompare(
 		t.Errorf("%s\n", err2)
 	}
 
-	//t.Errorf("\n%s\n%s", key1, key2)
-
 	if moreLess == "<" && (key1 >= key2) || moreLess == ">" && (key1 <= key2) || moreLess == "==" && (key1 != key2) {
 		t.Errorf("\nExpected:\n%s\n%s\n%s\n", key1, moreLess, key2)
 	}

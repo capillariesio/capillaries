@@ -34,7 +34,7 @@ func (procDef *TagAndDenormalizeProcessorDef) GetUsedInTargetExpressionsFields()
 	return &procDef.UsedInCriteriaFields
 }
 
-func (procDef *TagAndDenormalizeProcessorDef) Deserialize(raw json.RawMessage, customProcSettings json.RawMessage, caPath string, privateKeys map[string]string) error {
+func (procDef *TagAndDenormalizeProcessorDef) Deserialize(raw json.RawMessage, _ json.RawMessage, caPath string, privateKeys map[string]string) error {
 	var err error
 	if err = json.Unmarshal(raw, procDef); err != nil {
 		return fmt.Errorf("cannot unmarshal tag_and_denormalize processor def: %s", err.Error())
@@ -76,9 +76,8 @@ func (procDef *TagAndDenormalizeProcessorDef) Deserialize(raw json.RawMessage, c
 
 	if len(errors) > 0 {
 		return fmt.Errorf(strings.Join(errors, "; "))
-	} else {
-		return nil
 	}
+	return nil
 }
 
 const tagAndDenormalizeFlushBufferSize int = 1000

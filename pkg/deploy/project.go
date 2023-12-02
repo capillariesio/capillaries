@@ -41,7 +41,7 @@ type PrivateSubnetDef struct {
 	Name             string `json:"name"`
 	Id               string `json:"id"`
 	Cidr             string `json:"cidr"`
-	AllocationPool   string `json:"allocation_pool"`    //start=192.168.199.2,end=192.168.199.254
+	AllocationPool   string `json:"allocation_pool"`    // start=192.168.199.2,end=192.168.199.254
 	AvailabilityZone string `json:"availability_zone"`  // AWS only
 	RouteTableToNat  string `json:"route_table_to_nat"` // AWS only
 }
@@ -452,8 +452,5 @@ func (prj *Project) SaveProject(fullPrjPath string) error {
 	if _, err := fPrj.WriteString(string(prjJsonBytes)); err != nil {
 		return err
 	}
-	if err = fPrj.Sync(); err != nil {
-		return err
-	}
-	return nil
+	return fPrj.Sync()
 }

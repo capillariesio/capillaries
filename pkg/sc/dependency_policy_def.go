@@ -44,25 +44,11 @@ type DependencyRule struct {
 	ParsedExpression ast.Expr
 }
 
-// type EventPriorityOrderDirection string
-
-// const (
-// 	EventSortAsc     EventPriorityOrderDirection = "asc"
-// 	EventSortDesc    EventPriorityOrderDirection = "desc"
-// 	EventSortUnknown EventPriorityOrderDirection = "unknown"
-// )
-
-// type EventPriorityOrderField struct {
-// 	FieldName string
-// 	Direction EventPriorityOrderDirection
-// }
-
 type DependencyPolicyDef struct {
 	EventPriorityOrderString string           `json:"event_priority_order"`
 	IsDefault                bool             `json:"is_default"`
 	Rules                    []DependencyRule `json:"rules"`
 	OrderIdxDef              IdxDef
-	//EventPriorityOrder       []EventPriorityOrderField
 }
 
 func NewFieldRefsFromNodeEvent() *FieldRefs {

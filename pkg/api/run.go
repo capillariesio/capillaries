@@ -38,7 +38,7 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp.
 		return 0, err
 	}
 
-	script, err, _ := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, scriptFilePath, paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
+	script, _, err := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, scriptFilePath, paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
 	if err != nil {
 		return 0, err
 	}
@@ -156,7 +156,7 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp.
 			amqp.Publishing{ContentType: "text/plain", Body: msgOutBytes})
 		if errSend != nil {
 			// Reconnect required
-			return 0, fmt.Errorf("failed to send next message: %v\n", errSend)
+			return 0, fmt.Errorf("failed to send next message: %s", errSend.Error())
 		}
 	}
 	return runId, nil
@@ -166,7 +166,7 @@ func RunNode(envConfig *env.EnvConfig, logger *l.CapiLogger, nodeName string, ru
 	logger.PushF("api.RunNode")
 	defer logger.PopF()
 
-	script, err, _ := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, scriptFilePath, paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
+	script, _, err := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, scriptFilePath, paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
 	if err != nil {
 		return 0, err
 	}

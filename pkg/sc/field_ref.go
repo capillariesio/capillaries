@@ -237,10 +237,9 @@ func checkAllowed(fieldRefsToCheck *FieldRefs, prohibitedFieldRefs *FieldRefs, a
 
 	if len(errors) > 0 {
 		return fmt.Errorf(strings.Join(errors, "; "))
-	} else {
-		return nil
 	}
 
+	return nil
 }
 
 type FieldRefParserFlag uint32
