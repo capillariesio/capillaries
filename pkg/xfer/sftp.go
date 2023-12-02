@@ -37,7 +37,7 @@ func parseSftpUri(uri string, privateKeys map[string]string) (*ParsedSftpUri, er
 
 	privateKeyPath, ok := privateKeys[userName]
 	if !ok {
-		return nil, fmt.Errorf("username %s in sftp uri %s not found in enviroment configuration", userName, uri)
+		return nil, fmt.Errorf("username %s in sftp uri %s not found in environment configuration", userName, uri)
 	}
 
 	hostParts := strings.Split(u.Host, ":")

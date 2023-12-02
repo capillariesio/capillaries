@@ -29,7 +29,7 @@ func usage(flagset *flag.FlagSet) {
 	fmt.Printf("Capillaries parquet tool\nUsage: capiparquet <command> <command parameters>\nCommands:\n")
 	fmt.Printf("  %s %s\n  %s %s %s %s\n  %s %s %s\n",
 		CmdCat, "<file>",
-		CmdDiff, "<left file>", "<right file>", "[optional paramaters]",
+		CmdDiff, "<left file>", "<right file>", "[optional parameters]",
 		CmdSort, "<file>", "<field3(asc),field1{desc),field2,...>")
 	if flagset != nil {
 		fmt.Printf("\n%s optional parameters:\n", flagset.Name())

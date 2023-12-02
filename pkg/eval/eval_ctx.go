@@ -637,7 +637,7 @@ func (eCtx *EvalCtx) Eval(exp ast.Expr) (any, error) {
 			eCtx.Value, err = eCtx.EvalUnaryMinus(exp.X)
 			return eCtx.Value, err
 		default:
-			return nil, fmt.Errorf("cannot evaluate unary op %v, unkown op", exp.Op)
+			return nil, fmt.Errorf("cannot evaluate unary op %v, unknown op", exp.Op)
 		}
 
 	case *ast.Ident:

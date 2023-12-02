@@ -62,7 +62,7 @@ func (msg *Message) Deserialize(jsonBytes []byte) error {
 	msg.Payload = &payload
 	err := json.Unmarshal(jsonBytes, &msg)
 	if err != nil {
-		// This is realy unexpected, log the whole json as bytes
+		// This is really unexpected, log the whole json as bytes
 		return fmt.Errorf("cannot deserialize message: %v. %v", jsonBytes, err)
 	}
 

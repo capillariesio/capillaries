@@ -456,7 +456,7 @@ func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput
 			// errors.WriteString(errorText)
 			errors.WriteString(fmt.Sprintf("%s\n%s", errorText, getErrorLineNumberInfo(codeBase, rawSectionOutput)))
 		} else {
-			// SUCESS code snippet is there, try to get the result JSON
+			// SUCCESS code snippet is there, try to get the result JSON
 			var itemResults map[string]any
 			jsonString := rawSectionOutput[sectionSuccessPos+len(successMarker):]
 			err := json.Unmarshal([]byte(jsonString), &itemResults)

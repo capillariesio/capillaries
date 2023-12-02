@@ -30,7 +30,7 @@ func (daemonCmd DaemonCmdType) ToString() string {
 	case DaemonCmdNone:
 		return "none"
 	case DaemonCmdAckSuccess:
-		return "sucess"
+		return "success"
 	case DaemonCmdRejectAndRetryLater:
 		return "reject_and_retry"
 	case DaemonCmdReconnectDb:

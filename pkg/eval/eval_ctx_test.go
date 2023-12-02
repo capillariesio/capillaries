@@ -72,7 +72,7 @@ func TestBad(t *testing.T) {
 	assertEvalError(t, "1 &^ 2", "cannot perform binary expression unknown op &^", VarValuesMap{}) // No plans to support this op
 
 	// Unsupported unary operators
-	assertEvalError(t, "&1", "cannot evaluate unary op &, unkown op", VarValuesMap{})
+	assertEvalError(t, "&1", "cannot evaluate unary op &, unknown op", VarValuesMap{})
 
 	// Unsupported selector expr
 	assertEvalError(t, "t1.fieldInt.w", "cannot evaluate selector expression &{t1 fieldInt}, unknown type of X: *ast.SelectorExpr", VarValuesMap{"t1": {"fieldInt": 1}})
