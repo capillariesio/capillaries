@@ -50,8 +50,8 @@ func (procDef *PyCalcProcessorDef) Run(logger *l.Logger, pCtx *ctx.MessageProces
 	pythonDur := time.Since(pythonStartTime)
 	logger.InfoCtx(pCtx, "PythonInterpreter: %d items in %v (%.0f items/s)", rsIn.RowCount, pythonDur, float64(rsIn.RowCount)/pythonDur.Seconds())
 
-	rawOutput := string(stdout.Bytes())
-	rawErrors := string(stderr.Bytes())
+	rawOutput := stdout.String()
+	rawErrors := stderr.String()
 
 	// Really verbose, use for troubleshooting only
 	// fmt.Println(codeBase, rawOutput)

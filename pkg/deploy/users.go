@@ -2,7 +2,6 @@ package deploy
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -41,7 +40,7 @@ func NewCreateInstanceUsersCommands(iDef *InstanceDef) ([]string, error) {
 				homeDir, _ := os.UserHomeDir()
 				keyPath = filepath.Join(homeDir, keyPath[2:])
 			}
-			keyBytes, err := ioutil.ReadFile(keyPath)
+			keyBytes, err := os.ReadFile(keyPath)
 			if err != nil {
 				return nil, fmt.Errorf("cannot read public key '%s' for user %s on %s: %s", uDef.PublicKeyPath, uDef.Name, iDef.HostName, err.Error())
 			}
@@ -78,7 +77,7 @@ func NewCopyPrivateKeysCommands(iDef *InstanceDef) ([]string, error) {
 				homeDir, _ := os.UserHomeDir()
 				keyPath = filepath.Join(homeDir, keyPath[2:])
 			}
-			keyBytes, err := ioutil.ReadFile(keyPath)
+			keyBytes, err := os.ReadFile(keyPath)
 			if err != nil {
 				return nil, fmt.Errorf("cannot read private key '%s' for user %s on %s: %s", keyPath, uDef.Name, iDef.HostName, err.Error())
 			}

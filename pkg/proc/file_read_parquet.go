@@ -162,21 +162,24 @@ func readParquet(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.MessagePr
 
 		// Write batch if needed
 		if inResult {
-			instr.add(tableRecord)
-			tableRecordBatchCount++
-			if tableRecordBatchCount == DefaultInserterBatchSize {
-				if err := instr.waitForWorkers(logger, pCtx); err != nil {
-					return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
-				}
-				reportWriteTable(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
-				batchStartTime = time.Now()
-				tableRecordBatchCount = 0
-				if err := instr.startWorkers(logger, pCtx); err != nil {
-					return bs, err
-				}
+			if err = instr.add(tableRecord); err == nil {
+				tableRecordBatchCount++
+				if tableRecordBatchCount == DefaultInserterBatchSize {
+					if err := instr.waitForWorkers(logger, pCtx); err != nil {
+						return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+					}
+					reportWriteTable(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
+					batchStartTime = time.Now()
+					tableRecordBatchCount = 0
+					if err := instr.startWorkers(logger, pCtx); err != nil {
+						return bs, err
+					}
 
+				}
+				bs.RowsWritten++
+			} else {
+				return bs, fmt.Errorf("cannot add record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
 			}
-			bs.RowsWritten++
 		}
 		bs.RowsRead++
 	}

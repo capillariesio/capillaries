@@ -155,7 +155,9 @@ func (creatorDef *FileCreatorDef) Deserialize(rawWriter json.RawMessage) error {
 		}
 		idxDefMap := IdxDefMap{}
 		rawIndexes := map[string]string{"top": fmt.Sprintf("non_unique(%s)", creatorDef.Top.RawOrder)}
-		idxDefMap.parseRawIndexDefMap(rawIndexes, creatorDef.getFieldRefs())
+		if err := idxDefMap.parseRawIndexDefMap(rawIndexes, creatorDef.getFieldRefs()); err != nil {
+			return fmt.Errorf("cannot parse raw index definition(s) for top: %s", err.Error())
+		}
 		creatorDef.Top.OrderIdxDef = *idxDefMap["top"]
 	}
 

@@ -66,7 +66,7 @@ func createAwsSecurityGroup(prjPair *ProjectPair, sgNickname string, isVerbose b
 		if er.Error != nil {
 			return lb.Complete(er.Error)
 		}
-		if result != true {
+		if !result {
 			if er.Error != nil {
 				return lb.Complete(fmt.Errorf("rule creation returned false: %v", rule))
 			}
@@ -81,7 +81,7 @@ func createAwsSecurityGroup(prjPair *ProjectPair, sgNickname string, isVerbose b
 
 func (*AwsDeployProvider) CreateSecurityGroups(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	sb := strings.Builder{}
-	for sgNickname, _ := range prjPair.Live.SecurityGroups {
+	for sgNickname := range prjPair.Live.SecurityGroups {
 		logMsg, err := createAwsSecurityGroup(prjPair, sgNickname, isVerbose)
 		AddLogMsg(&sb, logMsg)
 		if err != nil {
@@ -127,7 +127,7 @@ func deleteAwsSecurityGroup(prjPair *ProjectPair, sgNickname string, isVerbose b
 
 func (*AwsDeployProvider) DeleteSecurityGroups(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	sb := strings.Builder{}
-	for sgNickname, _ := range prjPair.Live.SecurityGroups {
+	for sgNickname := range prjPair.Live.SecurityGroups {
 		logMsg, err := deleteAwsSecurityGroup(prjPair, sgNickname, isVerbose)
 		AddLogMsg(&sb, logMsg)
 		if err != nil {

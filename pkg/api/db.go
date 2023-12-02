@@ -22,10 +22,7 @@ const AllowedKeyspaceNameRegex = "[a-zA-Z0-9_]+"
 func IsSystemKeyspaceName(keyspace string) bool {
 	re := regexp.MustCompile(ProhibitedKeyspaceNameRegex)
 	invalidNamePieceFound := re.FindString(keyspace)
-	if len(invalidNamePieceFound) > 0 {
-		return true
-	}
-	return false
+	return len(invalidNamePieceFound) > 0
 }
 
 func checkKeyspaceName(keyspace string) error {

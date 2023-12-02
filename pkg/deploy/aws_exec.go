@@ -27,12 +27,7 @@ func ExecLocalAndGetJsonValue(prj *Project, cmdPath string, params []string, que
 	}
 
 	iter := q.Run(jsonObj)
-	for {
-		v, ok := iter.Next()
-		if !ok {
-			break
-		}
-
+	if v, ok := iter.Next(); ok {
 		return v, er
 	}
 

@@ -130,7 +130,7 @@ func TestColumnIndexing(t *testing.T) {
 	assert.Equal(t, time.Date(2017, 10, 2, 10, 56, 33, 0, time.UTC), colRecord[ReaderAlias]["col_order_purchase_timestamp"])
 
 	// Good by name
-	colRecord, err = testReader(`
+	_, err = testReader(`
 		{
 			"urls": [""],
 			"csv":{

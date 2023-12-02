@@ -340,11 +340,15 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.Logger, msgTs int64
 	} else if lastBatchStatus == wfmodel.NodeBatchStart {
 		// This run/node/batch has been picked up by another crashed processor (processor crashed before marking success/fail)
 		if pCtx.CurrentScriptNode.RerunPolicy == sc.NodeRerun {
-			if err := proc.DeleteDataAndUniqueIndexesByBatchIdx(logger, pCtx); err != nil {
-				comment := fmt.Sprintf("cannot clean up leftovers of the previous processing of batch %s: %s", pCtx.BatchInfo.FullBatchId(), err.Error())
+			if deleteErr := proc.DeleteDataAndUniqueIndexesByBatchIdx(logger, pCtx); err != nil {
+				comment := fmt.Sprintf("cannot clean up leftovers of the previous processing of batch %s: %s", pCtx.BatchInfo.FullBatchId(), deleteErr.Error())
 				logger.ErrorCtx(pCtx, comment)
-				wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeFail, comment)
-				if db.IsDbConnError(err) {
+				setBatchStatusErr := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeFail, comment)
+				if setBatchStatusErr != nil {
+					comment += fmt.Sprintf("; cannot set batch status: %s", setBatchStatusErr.Error())
+					logger.ErrorCtx(pCtx, comment)
+				}
+				if db.IsDbConnError(deleteErr) {
 					return DaemonCmdReconnectDb
 				}
 				return DaemonCmdAckWithError

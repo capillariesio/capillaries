@@ -179,6 +179,7 @@ func main() {
 	var logChan = make(chan deploy.LogMsg, MaxWorkerThreads*5)
 	var sem = make(chan int, MaxWorkerThreads)
 	var errChan chan error
+	var parseErr error
 	errorsExpected := 1
 	var prjPair *deploy.ProjectPair
 	var fullPrjPath string
@@ -195,9 +196,12 @@ func main() {
 	}
 
 	if _, ok := singleThreadCommands[os.Args[1]]; ok {
-		commonArgs.Parse(os.Args[2:])
+		parseErr = commonArgs.Parse(os.Args[2:])
 	} else {
-		commonArgs.Parse(os.Args[3:])
+		parseErr = commonArgs.Parse(os.Args[3:])
+	}
+	if parseErr != nil {
+		log.Fatalf(parseErr.Error())
 	}
 
 	prjPair, fullPrjPath, prjErr = deploy.LoadProject(*argPrjFile)

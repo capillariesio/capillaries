@@ -144,7 +144,7 @@ func (instr *TableInserter) waitForWorkers(logger *l.Logger, pCtx *ctx.MessagePr
 			}
 			//logger.DebugCtx(pCtx, "got result for sent record %d out of %d from instr.ErrorsOut, %d errors so far", i, instr.RecordsSent, errCount)
 
-			inserterRate := float64(i+1) / time.Now().Sub(startTime).Seconds()
+			inserterRate := float64(i+1) / time.Since(startTime).Seconds()
 			// If it falls below min rate, it does not make sense to continue
 			if i > 5 && inserterRate < float64(instr.MinInserterRate) {
 				logger.DebugCtx(pCtx, "slow db insertion rate triggered, will stop reading from instr.ErrorsOut")
@@ -186,7 +186,10 @@ func (instr *TableInserter) waitForWorkersAndCloseErrorsOut(logger *l.Logger, pC
 	defer logger.PopF()
 
 	// Make sure no workers are running, so they do not hit closed ErrorsOut
-	instr.waitForWorkers(logger, pCtx)
+	if err := instr.waitForWorkers(logger, pCtx); err != nil {
+		logger.ErrorCtx(pCtx, fmt.Sprintf("error(s) while waiting for workers to complete: %s", err.Error()))
+	}
+
 	// Safe to close now
 	logger.DebugCtx(pCtx, "closing ErrorsOut")
 	close(instr.ErrorsOut)
@@ -232,11 +235,20 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 			continue
 		} else if dataQb == nil {
 			dataQb = cql.NewQB()
-			dataQb.WritePreparedColumn("rowid")
-			dataQb.WritePreparedColumn("batch_idx")
-			dataQb.WritePreparedValue("batch_idx", instr.PCtx.BatchInfo.BatchIdx)
+			if err := dataQb.WritePreparedColumn("rowid"); err != nil {
+				instr.ErrorsOut <- errorToReport
+				continue // next insert
+			}
+			if err := dataQb.WritePreparedColumn("batch_idx"); err != nil {
+				instr.ErrorsOut <- errorToReport
+				continue // next insert
+			}
+			if err := dataQb.WritePreparedValue("batch_idx", instr.PCtx.BatchInfo.BatchIdx); err != nil {
+				instr.ErrorsOut <- errorToReport
+				continue // next insert
+			}
 
-			for fieldName, _ := range *writeItem.TableRecord {
+			for fieldName := range *writeItem.TableRecord {
 				if err := dataQb.WritePreparedColumn(fieldName); err != nil {
 					errorToReport = fmt.Errorf("cannot prepare data query: %s", err)
 					break
@@ -261,7 +273,10 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 		instr.RandMutex.Unlock()
 
 		for fieldName, fieldValue := range *writeItem.TableRecord {
-			dataQb.WritePreparedValue(fieldName, fieldValue)
+			if err := dataQb.WritePreparedValue(fieldName, fieldValue); err != nil {
+				instr.ErrorsOut <- fmt.Errorf("cannot write prepared value for %s: %s", fieldName, err.Error())
+				continue // next insert
+			}
 		}
 		preparedDataQueryParams, err := dataQb.InsertRunParams()
 		if err != nil {
@@ -288,7 +303,10 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 						instr.RandMutex.Unlock()
 
 						// Set new rowid and re-build query params array (shouldn't throw errors this time)
-						dataQb.WritePreparedValue("rowid", (*writeItem.TableRecord)["rowid"])
+						if err := dataQb.WritePreparedValue("rowid", (*writeItem.TableRecord)["rowid"]); err != nil {
+							errorToReport = fmt.Errorf("cannot prepared value to rowid: %s", err.Error())
+							break
+						}
 						preparedDataQueryParams, _ = dataQb.InsertRunParams()
 					} else {
 						// No more retries
@@ -340,10 +358,22 @@ func (instr *TableInserter) tableInserterWorker(logger *l.Logger, pCtx *ctx.Mess
 				}
 
 				idxQb := cql.NewQB()
-				idxQb.WritePreparedColumn("key")
-				idxQb.WritePreparedValue("key", writeItem.IndexKeyMap[idxName])
-				idxQb.WritePreparedColumn("rowid")
-				idxQb.WritePreparedValue("rowid", (*writeItem.TableRecord)["rowid"])
+				if err := idxQb.WritePreparedColumn("key"); err != nil {
+					errorToReport = err
+					break
+				}
+				if err := idxQb.WritePreparedValue("key", writeItem.IndexKeyMap[idxName]); err != nil {
+					errorToReport = err
+					break
+				}
+				if err := idxQb.WritePreparedColumn("rowid"); err != nil {
+					errorToReport = err
+					break
+				}
+				if err := idxQb.WritePreparedValue("rowid", (*writeItem.TableRecord)["rowid"]); err != nil {
+					errorToReport = err
+					break
+				}
 
 				preparedIdxQuery, err := idxQb.Keyspace(instr.PCtx.BatchInfo.DataKeyspace).InsertRunPreparedQuery(idxName, instr.PCtx.BatchInfo.RunId, ifNotExistsFlag)
 				if err != nil {

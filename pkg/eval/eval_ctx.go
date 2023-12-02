@@ -468,7 +468,7 @@ func (eCtx *EvalCtx) EvalBinaryStringToBool(valLeftVolatile interface{}, op toke
 }
 
 func (eCtx *EvalCtx) EvalFunc(callExp *ast.CallExpr, funcName string, args []interface{}) (interface{}, error) {
-	var err error = nil
+	var err error
 	switch funcName {
 	case "math.Sqrt":
 		eCtx.Value, err = callMathSqrt(args)

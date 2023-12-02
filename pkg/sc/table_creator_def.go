@@ -129,7 +129,7 @@ func (tcDef *TableCreatorDef) Deserialize(rawWriter json.RawMessage) error {
 	}
 
 	re = regexp.MustCompile(AllowedIdxNameRegex)
-	for idxName, _ := range tcDef.Indexes {
+	for idxName := range tcDef.Indexes {
 		invalidNamePieceFound := re.FindString(idxName)
 		if len(invalidNamePieceFound) != len(idxName) {
 			return fmt.Errorf("invalid index name [%s]: allowed regex is [%s]", idxName, AllowedIdxNameRegex)

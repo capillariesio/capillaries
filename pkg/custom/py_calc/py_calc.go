@@ -295,7 +295,7 @@ func checkPythonFuncDefAvailability(usedPythonFunctionSignatures map[string]stru
 
 	// Walk through all Python signatures in calc expressions (we harvested them in Deserialize)
 	// and make sure correspondent python function defs are available
-	for usedSig, _ := range usedPythonFunctionSignatures {
+	for usedSig := range usedPythonFunctionSignatures {
 		if _, ok := availableDefSigs[usedSig]; !ok {
 			if _, ok := pythoBuiltinFunctions[usedSig]; !ok {
 				errors.WriteString(fmt.Sprintf("function def '%s' not found in Python file, and it's not in the list of allowed Python built-in functions; ", usedSig))
@@ -305,7 +305,7 @@ func checkPythonFuncDefAvailability(usedPythonFunctionSignatures map[string]stru
 
 	if errors.Len() > 0 {
 		var defs strings.Builder
-		for defSig, _ := range availableDefSigs {
+		for defSig := range availableDefSigs {
 			defs.WriteString(fmt.Sprintf("%s; ", defSig))
 		}
 		return fmt.Errorf("Python function defs availability check failed, the following functions are not defined: [%s]. Full list of available Python function definitions: %s", errors.String(), defs.String())

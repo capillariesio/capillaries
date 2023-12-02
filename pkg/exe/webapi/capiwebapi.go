@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -75,7 +75,7 @@ func pickAccessControlAllowOrigin(wc *env.WebapiConfig, r *http.Request) string 
 	}
 	for _, allowedOrigin := range allowedOrigins {
 		for _, requestedOrigin := range requestedOrigins {
-			if strings.ToUpper(requestedOrigin) == strings.ToUpper(allowedOrigin) {
+			if strings.EqualFold(requestedOrigin, allowedOrigin) {
 				return requestedOrigin
 			}
 		}
@@ -422,7 +422,7 @@ func (h *UrlHandler) ksStartRun(w http.ResponseWriter, r *http.Request) {
 	}
 	defer amqpChannel.Close()
 
-	bodyBytes, err := ioutil.ReadAll(r.Body)
+	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -460,7 +460,7 @@ func (h *UrlHandler) ksStopRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	bodyBytes, err := ioutil.ReadAll(r.Body)
+	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return

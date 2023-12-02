@@ -388,7 +388,7 @@ func createNatGatewayAndRoutePrivateSubnet(prjPair *ProjectPair, isVerbose bool)
 		return lb.Complete(er.Error)
 	}
 
-	if result != true {
+	if !result {
 		if er.Error != nil {
 			return lb.Complete(fmt.Errorf("route creation returned false"))
 		}
@@ -509,7 +509,7 @@ func createInternetGatewayAndRoutePublicSubnet(prjPair *ProjectPair, isVerbose b
 		return lb.Complete(er.Error)
 	}
 
-	if result != true {
+	if !result {
 		if er.Error != nil {
 			return lb.Complete(fmt.Errorf("route creation returned false"))
 		}

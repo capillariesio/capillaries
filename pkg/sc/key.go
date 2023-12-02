@@ -3,7 +3,6 @@ package sc
 import (
 	"bytes"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -59,7 +58,7 @@ func getNumericValueSign(v interface{}, expectedType TableFieldType) (string, in
 				newVal = d.Neg()
 			}
 		} else {
-			return "", nil, errors.New(fmt.Sprintf("cannot convert value %v to type %v", v, expectedType))
+			return "", nil, fmt.Errorf("cannot convert value %v to type %v", v, expectedType)
 		}
 
 	default:

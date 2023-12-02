@@ -134,7 +134,7 @@ func (instr *FileInserter) parquetFileInserterWorker(logger *l.Logger, codec sc.
 					d[instr.FileCreator.Columns[i].Parquet.ColumnName] = storage.ParquetWriterMilliTs(typedValue)
 				default:
 					errAddData = fmt.Errorf("cannot convert column %s value [%v] to Parquet: unsupported type", instr.FileCreator.Columns[i].Parquet.ColumnName, batch.Rows[rowIdx][i])
-					break
+					break //nolint:all , https://github.com/dominikh/go-tools/issues/59
 				}
 			}
 			if err := w.FileWriter.AddData(d); err != nil {

@@ -93,8 +93,8 @@ func ExecLocal(prj *Project, cmdPath string, params []string, envVars map[string
 	elapsed := time.Since(runStartTime).Seconds()
 
 	rawInput := fmt.Sprintf("%s %s", cmdPath, strings.Join(params, " "))
-	rawOutput := string(stdout.Bytes())
-	rawErrors := string(stderr.Bytes())
+	rawOutput := stdout.String()
+	rawErrors := stderr.String()
 	if err != nil {
 		// Cmd not found, nonzero exit status etc
 		return ExecResult{rawInput, rawOutput, rawErrors, elapsed, err}

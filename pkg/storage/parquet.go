@@ -77,7 +77,7 @@ func (w *ParquetWriter) AddColumn(name string, fieldType sc.TableFieldType) erro
 	if err != nil {
 		return fmt.Errorf("cannot create store for %s column %s: %s", fieldType, name, err.Error())
 	}
-	if err := w.FileWriter.AddColumn(name, gp.NewDataColumn(s, gp_parquet.FieldRepetitionType_OPTIONAL)); err != nil {
+	if err := w.FileWriter.AddColumnByPath([]string{name}, gp.NewDataColumn(s, gp_parquet.FieldRepetitionType_OPTIONAL)); err != nil {
 		return fmt.Errorf("cannot add %s column %s: %s", fieldType, name, err.Error())
 	}
 	w.StoreMap[name] = s

@@ -76,7 +76,7 @@ func NewLoggerFromLogger(srcLogger *Logger) (*Logger, error) {
 }
 
 func (l *Logger) Close() {
-	l.Logger.Sync()
+	l.Logger.Sync() //nolint:all
 }
 
 func (l *Logger) Debug(format string, a ...interface{}) {

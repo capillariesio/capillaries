@@ -207,18 +207,6 @@ func stringToArrayOfInt16(s string) ([]int16, error) {
 	return result, nil
 }
 
-func stringToArrayOfStrings(s string) ([]string, error) {
-	var result []string
-	if len(strings.TrimSpace(s)) > 0 {
-		stringItems := strings.Split(s, ",")
-		result = make([]string, len(stringItems))
-		for itemIdx, stringItem := range stringItems {
-			result[itemIdx] = stringItem
-		}
-	}
-	return result, nil
-}
-
 const (
 	CmdValidateScript      string = "validate_script"
 	CmdStartRun            string = "start_run"
@@ -396,10 +384,11 @@ func main() {
 			os.Exit(1)
 		}
 
-		nodeNames, err := stringToArrayOfStrings(*nodeNamesString)
-		if err != nil {
-			log.Fatalf(err.Error())
-			os.Exit(1)
+		var nodeNames []string
+		if len(strings.TrimSpace(*nodeNamesString)) > 0 {
+			nodeNames = strings.Split(*nodeNamesString, ",")
+		} else {
+			nodeNames = make([]string, 0)
 		}
 
 		runs, err := api.GetBatchHistory(logger, cqlSession, *keyspace, runIds, nodeNames)

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -135,6 +136,9 @@ func StartRun(envConfig *env.EnvConfig, logger *l.Logger, amqpChannel *amqp.Chan
 
 	logger.Info("sending %d messages for run %d...", len(allMsgs), runId)
 
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	// Send one msg after another
 	// TODO: there easily may be hundreds of messages, can we send them in a single shot?
 	for msgIdx := 0; msgIdx < len(allMsgs); msgIdx++ {
@@ -143,7 +147,8 @@ func StartRun(envConfig *env.EnvConfig, logger *l.Logger, amqpChannel *amqp.Chan
 			return 0, fmt.Errorf("cannot serialize outgoing message %v. %v", allMsgs[msgIdx].ToString(), errMsgOut)
 		}
 
-		errSend := amqpChannel.Publish(
+		errSend := amqpChannel.PublishWithContext(
+			ctx,
 			envConfig.Amqp.Exchange,    // exchange
 			allHandlerExeTypes[msgIdx], // routing key / hander exe type
 			false,                      // mandatory

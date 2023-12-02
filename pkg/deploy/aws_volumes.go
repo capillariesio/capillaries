@@ -91,9 +91,10 @@ func volNicknameToAwsSuggestedDeviceName(volumes map[string]*VolumeDef, volNickn
 	return "invalid-device-for-vol-" + volNickname
 }
 
-func awsFinalDeviceNameOld(suggestedDeviceName string) string {
-	return strings.ReplaceAll(suggestedDeviceName, "/dev/sd", "/dev/xvd")
-}
+// Not used
+// func awsFinalDeviceNameOld(suggestedDeviceName string) string {
+// 	return strings.ReplaceAll(suggestedDeviceName, "/dev/sd", "/dev/xvd")
+// }
 
 func awsFinalDeviceNameNitro(suggestedDeviceName string) string {
 	// See what lsblk shows for your case.

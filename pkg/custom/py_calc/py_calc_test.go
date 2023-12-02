@@ -148,7 +148,7 @@ const scriptJson string = `
 			},
 			"w": {
 				"top": {
-					"order": "taxed_field_int1(asc)"
+					"order": "field_int1(asc)"
 				},
 				"url_template": "taxed_table1.csv",
 				"columns": [
@@ -211,7 +211,7 @@ func TestPyCalcDefCalculator(t *testing.T) {
 	})
 
 	// Allocate rows
-	rs.InitRows(1)
+	assert.Nil(t, rs.InitRows(1))
 
 	// Initialize with pointers
 	i := int64(235)
@@ -232,7 +232,7 @@ func TestPyCalcDefCalculator(t *testing.T) {
 
 	// PyCalcProcessorDef implements both sc.CustomProcessorDef and proc.CustomProcessorRunner.
 	// We only need the sc.CustomProcessorDef part here, no plans to run Python as part of the unit testing process.
-	pyCalcProcDef := scriptDef.ScriptNodes["tax_table1"].CustomProcessor.(sc.CustomProcessorDef).(*PyCalcProcessorDef)
+	pyCalcProcDef := scriptDef.ScriptNodes["tax_table1"].CustomProcessor.(*PyCalcProcessorDef)
 
 	codeBase, err := pyCalcProcDef.buildPythonCodebaseFromRowset(rs)
 	assert.Nil(t, err)

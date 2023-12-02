@@ -3,7 +3,7 @@ package deploy
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -140,7 +140,7 @@ func ExecSsh(sshConfig *SshConfigDef, ipAddress string, cmd string) ExecResult {
 	err = session.Run(cmd)
 	elapsed := time.Since(runStartTime).Seconds()
 
-	er := ExecResult{cmd, string(stdout.Bytes()), string(stderr.Bytes()), elapsed, err}
+	er := ExecResult{cmd, stdout.String(), stderr.String(), elapsed, err}
 	return er
 }
 
@@ -240,7 +240,7 @@ func ExecScriptsOnInstance(sshConfig *SshConfigDef, ipAddress string, env map[st
 		}
 		defer f.Close()
 
-		shellScriptBytes, err := ioutil.ReadAll(f)
+		shellScriptBytes, err := io.ReadAll(f)
 		if err != nil {
 			return lb.Complete(fmt.Errorf("cannot read shell script %s: %s", fullScriptPath, err.Error()))
 		}

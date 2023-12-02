@@ -453,9 +453,9 @@ func TestTopLimit(t *testing.T) {
 
 	// Remove limit altogether
 
-	err = newScript.Deserialize(
+	assert.Nil(t, newScript.Deserialize(
 		[]byte(strings.Replace(plainScriptJson, `"limit": 500000`, `"some_bogus_setting": 500000`, 1)),
-		nil, nil, "", nil)
+		nil, nil, "", nil))
 	assert.Equal(t, 500000, newScript.ScriptNodes["file_totals"].FileCreator.Top.Limit)
 }
 

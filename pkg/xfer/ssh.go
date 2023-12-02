@@ -5,7 +5,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -24,10 +23,10 @@ func signerFromPem(pemBytes []byte, password []byte) (ssh.Signer, error) {
 		return nil, err
 	}
 
-	// handle encrypted key
-	if x509.IsEncryptedPEMBlock(pemBlock) {
+	// handle key encrypted with password
+	if x509.IsEncryptedPEMBlock(pemBlock) { //nolint:all
 		// decrypt PEM
-		pemBlock.Bytes, err = x509.DecryptPEMBlock(pemBlock, []byte(password))
+		pemBlock.Bytes, err = x509.DecryptPEMBlock(pemBlock, []byte(password)) //nolint:all
 		if err != nil {
 			return nil, fmt.Errorf("cannot decrypt PEM block %s", err.Error())
 		}
@@ -90,7 +89,7 @@ func NewSshClientConfig(user string, host string, port int, privateKeyPath strin
 		homeDir, _ := os.UserHomeDir()
 		keyPath = filepath.Join(homeDir, keyPath[2:])
 	}
-	pemBytes, err := ioutil.ReadFile(keyPath)
+	pemBytes, err := os.ReadFile(keyPath)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read private key file %s: %s", keyPath, err.Error())
 	}

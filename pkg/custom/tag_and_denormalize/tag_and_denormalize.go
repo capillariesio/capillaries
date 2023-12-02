@@ -53,7 +53,7 @@ func (procDef *TagAndDenormalizeProcessorDef) Deserialize(raw json.RawMessage, c
 			return fmt.Errorf("cannot get criteria file [%s]: %s", procDef.RawTagCriteriaUri, err.Error())
 		}
 
-		if criteriaBytes == nil || len(criteriaBytes) == 0 {
+		if len(criteriaBytes) == 0 {
 			return fmt.Errorf("criteria file [%s] is empty", procDef.RawTagCriteriaUri)
 		}
 

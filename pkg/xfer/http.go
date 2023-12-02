@@ -5,8 +5,8 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"path"
 	"time"
 )
@@ -19,13 +19,13 @@ const UriSchemeSftp string = "sftp"
 func GetHttpReadCloser(uri string, scheme string, certDir string) (io.ReadCloser, error) {
 	caCertPool := x509.NewCertPool()
 	if scheme == UriSchemeHttps {
-		files, err := ioutil.ReadDir(certDir)
+		files, err := os.ReadDir(certDir)
 		if err != nil {
 			return nil, fmt.Errorf("cannot read ca dir with PEM certs %s: %s", certDir, err.Error())
 		}
 
 		for _, f := range files {
-			caCert, err := ioutil.ReadFile(path.Join(certDir, f.Name()))
+			caCert, err := os.ReadFile(path.Join(certDir, f.Name()))
 			if err != nil {
 				return nil, fmt.Errorf("cannot read PEM cert %s: %s", f.Name(), err.Error())
 			}

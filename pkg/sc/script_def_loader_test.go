@@ -212,6 +212,10 @@ func (procDef *SomeTestCustomProcessorDef) Deserialize(raw json.RawMessage, cust
 		}
 	}
 
+	if len(errors) > 0 {
+		return fmt.Errorf(strings.Join(errors, ";"))
+	}
+
 	procDef.UsedInTargetExpressionsFields = GetFieldRefsUsedInAllTargetExpressions(procDef.ProducedFields)
 	return nil
 }
@@ -251,68 +255,68 @@ func TestNewScriptFromFileBytes(t *testing.T) {
 	assert.Equal(t, true, scriptDef.ScriptNodes["join_table1_table2"].Lookup.IsGroup)
 
 	// Tweak paramater name and make sure templating engine catches it
-	scriptDef, err, initProblem = NewScriptFromFileBytes("", nil,
+	_, err, _ = NewScriptFromFileBytes("", nil,
 		"someScriptUri", []byte(strings.ReplaceAll(parameterizedScriptJson, "source_table_for_test_custom_processor", "some_bad_param")),
 		"someScriptParamsUrl", []byte(paramsJson),
 		nil, nil)
 	assert.Contains(t, err.Error(), "unresolved parameter references", err.Error())
 
 	// Bad-formed JSON
-	scriptDef, err, initProblem = NewScriptFromFileBytes("", nil,
+	_, err, _ = NewScriptFromFileBytes("", nil,
 		"someScriptUri", []byte(strings.TrimSuffix(parameterizedScriptJson, "}")),
 		"someScriptParamsUrl", []byte(paramsJson),
 		nil, nil)
 	assert.Contains(t, err.Error(), "unexpected end of JSON input", err.Error())
 
 	// Invalid field in custom processor (Python) formula
-	scriptDef, err, initProblem = NewScriptFromFileBytes("", nil,
+	_, err, _ = NewScriptFromFileBytes("", nil,
 		"someScriptUri", []byte(strings.ReplaceAll(parameterizedScriptJson, "-r.field_int1*2", "r.bad_field")),
 		"someScriptParamsUrl", []byte(paramsJson),
 		&SomeTestCustomProcessorDefFactory{}, map[string]json.RawMessage{"some_test_custom_proc": []byte("{}")})
 	assert.Contains(t, err.Error(), "field usage error in custom processor creator")
 
 	// Invalid dependency policy
-	scriptDef, err, initProblem = NewScriptFromFileBytes("", nil,
+	_, err, _ = NewScriptFromFileBytes("", nil,
 		"someScriptUri", []byte(strings.ReplaceAll(parameterizedScriptJson, "run_is_current(desc),node_start_ts(desc)", "some_bad_event_priority_order")),
 		"someScriptParamsUrl", []byte(paramsJson),
 		&SomeTestCustomProcessorDefFactory{}, map[string]json.RawMessage{"some_test_custom_proc": []byte("{}")})
 	assert.Contains(t, err.Error(), "failed to deserialize dependency policy")
 
 	// Run (tweaked) dependency policy checker with some vanilla values and see if it works
-	scriptDef, err, initProblem = NewScriptFromFileBytes("", nil,
+	_, err, _ = NewScriptFromFileBytes("", nil,
 		"someScriptUri", []byte(strings.ReplaceAll(parameterizedScriptJson, "e.run_final_status == wfmodel.RunStart", "e.run_final_status == true")),
 		"someScriptParamsUrl", []byte(paramsJson),
 		&SomeTestCustomProcessorDefFactory{}, map[string]json.RawMessage{"some_test_custom_proc": []byte("{}")})
 	assert.Contains(t, err.Error(), "failed to test dependency policy")
 
 	re := regexp.MustCompile(`"expression": "e\.run[^"]+"`)
-	scriptDef, err, initProblem = NewScriptFromFileBytes("", nil,
+	_, err, _ = NewScriptFromFileBytes("", nil,
 		"someScriptUri", []byte(re.ReplaceAllString(parameterizedScriptJson, `"expression": 1`)),
 		"someScriptParamsUrl", []byte(paramsJson),
 		&SomeTestCustomProcessorDefFactory{}, map[string]json.RawMessage{"some_test_custom_proc": []byte("{}")})
 	assert.Contains(t, err.Error(), "cannot unmarshal dependency policy")
 
-	scriptDef, err, initProblem = NewScriptFromFileBytes("", nil,
+	_, err, _ = NewScriptFromFileBytes("", nil,
 		"someScriptUri", []byte(re.ReplaceAllString(parameterizedScriptJson, `"expression": "a.aaa"`)),
 		"someScriptParamsUrl", []byte(paramsJson),
 		&SomeTestCustomProcessorDefFactory{}, map[string]json.RawMessage{"some_test_custom_proc": []byte("{}")})
 	assert.Contains(t, err.Error(), "cannot parse rule expression 'a.aaa': all fields must be prefixed")
 
-	scriptDef, err, initProblem = NewScriptFromFileBytes("", nil,
+	_, err, _ = NewScriptFromFileBytes("", nil,
 		"someScriptUri", []byte(re.ReplaceAllString(parameterizedScriptJson, `"expression": "e.aaa"`)),
 		"someScriptParamsUrl", []byte(paramsJson),
 		&SomeTestCustomProcessorDefFactory{}, map[string]json.RawMessage{"some_test_custom_proc": []byte("{}")})
 	assert.Contains(t, err.Error(), "cannot parse rule expression 'e.aaa': field e.aaa not found")
 
 	// Tweak lookup isGroup = false and get error
-	scriptDef, err, initProblem = NewScriptFromFileBytes("", nil,
+	_, err, _ = NewScriptFromFileBytes("", nil,
 		"someScriptUri", []byte(parameterizedScriptJson),
 		"someScriptParamsUrl", []byte(strings.ReplaceAll(paramsJson, "true", "false")),
 		&SomeTestCustomProcessorDefFactory{}, map[string]json.RawMessage{"some_test_custom_proc": []byte("{}")})
 	assert.Contains(t, err.Error(), "cannot use agg functions")
 
 	// Invalid rerun_policy
-	scriptDef, err, initProblem = NewScriptFromFileBytes("", nil,
+	_, err, _ = NewScriptFromFileBytes("", nil,
 		"someScriptUri", []byte(strings.ReplaceAll(parameterizedScriptJson, "\"rerun_policy\": \"fail\"", "\"rerun_policy\": \"bad_rerun_policy\"")),
 		"someScriptParamsUrl", []byte(paramsJson),
 		&SomeTestCustomProcessorDefFactory{}, map[string]json.RawMessage{"some_test_custom_proc": []byte("{}")})

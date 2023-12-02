@@ -91,10 +91,10 @@ func TestConvertEval(t *testing.T) {
 	}
 
 	// Number to number
-	for k, _ := range varValuesMap["t1"] {
-		assertEqual(t, fmt.Sprintf("decimal2(t1.%s) == 1", k), true, varValuesMap)
-		assertEqual(t, fmt.Sprintf("float(t1.%s) == 1.0", k), true, varValuesMap)
-		assertEqual(t, fmt.Sprintf("int(t1.%s) == 1", k), true, varValuesMap)
+	for fldName := range varValuesMap["t1"] {
+		assertEqual(t, fmt.Sprintf("decimal2(t1.%s) == 1", fldName), true, varValuesMap)
+		assertEqual(t, fmt.Sprintf("float(t1.%s) == 1.0", fldName), true, varValuesMap)
+		assertEqual(t, fmt.Sprintf("int(t1.%s) == 1", fldName), true, varValuesMap)
 	}
 
 	// String to number
@@ -129,8 +129,8 @@ func TestArithmetic(t *testing.T) {
 			"fieldDecimal2": decimal.NewFromInt(2),
 		},
 	}
-	for k1, _ := range varValuesMap["t1"] {
-		for k2, _ := range varValuesMap["t2"] {
+	for k1 := range varValuesMap["t1"] {
+		for k2 := range varValuesMap["t2"] {
 			assertEqual(t, fmt.Sprintf("t1.%s + t2.%s == 3", k1, k2), true, varValuesMap)
 			assertEqual(t, fmt.Sprintf("t1.%s - t2.%s == -1", k1, k2), true, varValuesMap)
 			assertEqual(t, fmt.Sprintf("t1.%s * t2.%s == 2", k1, k2), true, varValuesMap)
@@ -191,8 +191,8 @@ func TestCompare(t *testing.T) {
 			"fieldDecimal2": decimal.NewFromInt(2),
 		},
 	}
-	for k1, _ := range varValuesMap["t1"] {
-		for k2, _ := range varValuesMap["t2"] {
+	for k1 := range varValuesMap["t1"] {
+		for k2 := range varValuesMap["t2"] {
 			assertEqual(t, fmt.Sprintf("t1.%s == t2.%s", k1, k2), false, varValuesMap)
 			assertEqual(t, fmt.Sprintf("t1.%s != t2.%s", k1, k2), true, varValuesMap)
 			assertEqual(t, fmt.Sprintf("t1.%s < t2.%s", k1, k2), true, varValuesMap)
@@ -246,7 +246,7 @@ func TestUnaryMinus(t *testing.T) {
 			"fieldDecimal2": decimal.NewFromInt(1),
 		},
 	}
-	for k, _ := range varValuesMap["t1"] {
+	for k := range varValuesMap["t1"] {
 		assertEqual(t, fmt.Sprintf("-t1.%s == -1", k), true, varValuesMap)
 	}
 }
@@ -280,12 +280,12 @@ func TestNewPlainEvalCtxAndInitializedAgg(t *testing.T) {
 
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr,1)`)
 	aggEnabledType, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
-	eCtx, err = NewPlainEvalCtxAndInitializedAgg(aggEnabledType, aggFuncType, aggFuncArgs)
+	_, err = NewPlainEvalCtxAndInitializedAgg(aggEnabledType, aggFuncType, aggFuncArgs)
 	assert.Equal(t, "string_agg second parameter must be a constant string", err.Error())
 
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr, a)`)
 	aggEnabledType, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
-	eCtx, err = NewPlainEvalCtxAndInitializedAgg(aggEnabledType, aggFuncType, aggFuncArgs)
+	_, err = NewPlainEvalCtxAndInitializedAgg(aggEnabledType, aggFuncType, aggFuncArgs)
 	assert.Equal(t, "string_agg second parameter must be a basic literal", err.Error())
 }
 

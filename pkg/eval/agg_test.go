@@ -121,21 +121,22 @@ func TestStringAgg(t *testing.T) {
 
 	// Bad number of args
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr)`)
-	eCtx, err = NewPlainEvalCtxWithVarsAndInitializedAgg(AggFuncEnabled, &varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
+	_, err = NewPlainEvalCtxWithVarsAndInitializedAgg(AggFuncEnabled, &varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
 	assert.Contains(t, err.Error(), "string_agg must have two parameters")
 
 	// Bad separators
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr, t2.someBadField)`)
-	eCtx, err = NewPlainEvalCtxWithVarsAndInitializedAgg(AggFuncEnabled, &varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
+	_, err = NewPlainEvalCtxWithVarsAndInitializedAgg(AggFuncEnabled, &varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
 	assert.Contains(t, err.Error(), "string_agg second parameter must be a basic literal")
 
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr, 123)`)
-	eCtx, err = NewPlainEvalCtxWithVarsAndInitializedAgg(AggFuncEnabled, &varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
+	_, err = NewPlainEvalCtxWithVarsAndInitializedAgg(AggFuncEnabled, &varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
 	assert.Contains(t, err.Error(), "string_agg second parameter must be a constant string")
 
 	// Bad data type
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldFloat, ",")`)
 	eCtx, err = NewPlainEvalCtxWithVarsAndInitializedAgg(AggFuncEnabled, &varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
+	assert.Nil(t, err)
 	// TODO: can we check expression type before Eval?
 	_, err = eCtx.Eval(exp)
 	assert.Contains(t, err.Error(), "unsupported type float64")
@@ -197,19 +198,12 @@ func TestSum(t *testing.T) {
 	_, err = eCtx.Eval(exp)
 	assert.Equal(t, "cannot evaluate sum(), it started with type decimal, now got int value 1", err.Error())
 
+	eCtx = NewPlainEvalCtx(AggFuncEnabled)
 	// Sum int empty
-	exp, _ = parser.ParseExpr("sum(t1.fieldInt)")
-	eCtx = NewPlainEvalCtx(AggFuncEnabled)
 	assert.Equal(t, int64(0), eCtx.Sum.Int)
-
 	// Sum float empty
-	exp, _ = parser.ParseExpr("sum(t1.fieldFloat)")
-	eCtx = NewPlainEvalCtx(AggFuncEnabled)
 	assert.Equal(t, float64(0), eCtx.Sum.Float)
-
 	// Sum dec empty
-	exp, _ = parser.ParseExpr("sum(t1.fieldDec)")
-	eCtx = NewPlainEvalCtx(AggFuncEnabled)
 	assert.Equal(t, defaultDecimal(), eCtx.Sum.Dec)
 }
 
@@ -226,8 +220,10 @@ func TestAvg(t *testing.T) {
 	eCtx = NewPlainEvalCtxWithVars(AggFuncEnabled, &varValuesMap)
 
 	varValuesMap["t1"]["fieldInt"] = 1
-	eCtx.Eval(exp)
-	eCtx.Eval(exp)
+	_, err = eCtx.Eval(exp)
+	assert.Nil(t, err)
+	_, err = eCtx.Eval(exp)
+	assert.Nil(t, err)
 	varValuesMap["t1"]["fieldInt"] = 2
 	result, _ = eCtx.Eval(exp)
 	assert.Equal(t, int64(1), result)
@@ -241,8 +237,10 @@ func TestAvg(t *testing.T) {
 	exp, _ = parser.ParseExpr("avg(t1.fieldFloat)")
 	eCtx = NewPlainEvalCtxWithVars(AggFuncEnabled, &varValuesMap)
 	varValuesMap["t1"]["fieldFloat"] = float64(1)
-	eCtx.Eval(exp)
-	eCtx.Eval(exp)
+	_, err = eCtx.Eval(exp)
+	assert.Nil(t, err)
+	_, err = eCtx.Eval(exp)
+	assert.Nil(t, err)
 	varValuesMap["t1"]["fieldFloat"] = float64(2)
 	result, _ = eCtx.Eval(exp)
 	assert.Equal(t, float64(1.3333333333333333), result)
@@ -256,8 +254,10 @@ func TestAvg(t *testing.T) {
 	exp, _ = parser.ParseExpr("avg(t1.fieldDec)")
 	eCtx = NewPlainEvalCtxWithVars(AggFuncEnabled, &varValuesMap)
 	varValuesMap["t1"]["fieldDec"] = decimal.NewFromInt(1)
-	eCtx.Eval(exp)
-	eCtx.Eval(exp)
+	_, err = eCtx.Eval(exp)
+	assert.Nil(t, err)
+	_, err = eCtx.Eval(exp)
+	assert.Nil(t, err)
 	varValuesMap["t1"]["fieldDec"] = decimal.NewFromInt(2)
 	result, _ = eCtx.Eval(exp)
 	assert.Equal(t, decimal.NewFromFloat32(1.33), result)
@@ -267,19 +267,13 @@ func TestAvg(t *testing.T) {
 	_, err = eCtx.Eval(exp)
 	assert.Equal(t, "cannot evaluate avg(), it started with type decimal, now got int value 1", err.Error())
 
+	eCtx = NewPlainEvalCtx(AggFuncEnabled)
+
 	// Avg int empty
-	exp, _ = parser.ParseExpr("avg(t1.fieldInt)")
-	eCtx = NewPlainEvalCtx(AggFuncEnabled)
 	assert.Equal(t, int64(0), eCtx.Avg.Int)
-
 	// Avg float empty
-	exp, _ = parser.ParseExpr("avg(t1.fieldFloat)")
-	eCtx = NewPlainEvalCtx(AggFuncEnabled)
 	assert.Equal(t, float64(0), eCtx.Avg.Float)
-
 	// Avg dec empty
-	exp, _ = parser.ParseExpr("avg(t1.fieldDec)")
-	eCtx = NewPlainEvalCtx(AggFuncEnabled)
 	assert.Equal(t, defaultDecimal(), eCtx.Avg.Dec)
 }
 
@@ -351,24 +345,14 @@ func TestMin(t *testing.T) {
 	result, _ = eCtx.Eval(exp)
 	assert.Equal(t, "a", result)
 
+	eCtx = NewPlainEvalCtx(AggFuncEnabled)
 	// Empty int
-	exp, _ = parser.ParseExpr("min(t1.fieldInt)")
-	eCtx = NewPlainEvalCtx(AggFuncEnabled)
 	assert.Equal(t, maxSupportedInt, eCtx.Min.Int)
-
 	// Empty float
-	exp, _ = parser.ParseExpr("min(t1.fieldFloat)")
-	eCtx = NewPlainEvalCtx(AggFuncEnabled)
 	assert.Equal(t, maxSupportedFloat, eCtx.Min.Float)
-
 	// Empty dec
-	exp, _ = parser.ParseExpr("min(t1.fieldDec)")
-	eCtx = NewPlainEvalCtx(AggFuncEnabled)
 	assert.Equal(t, maxSupportedDecimal(), eCtx.Min.Dec)
-
 	// Empty str
-	exp, _ = parser.ParseExpr("min(t1.fieldString)")
-	eCtx = NewPlainEvalCtx(AggFuncEnabled)
 	assert.Equal(t, "", eCtx.Min.Str)
 }
 
@@ -440,24 +424,14 @@ func TestMax(t *testing.T) {
 	result, _ = eCtx.Eval(exp)
 	assert.Equal(t, "b", result)
 
+	eCtx = NewPlainEvalCtx(AggFuncEnabled)
 	// Empty int
-	exp, _ = parser.ParseExpr("max(t1.fieldInt)")
-	eCtx = NewPlainEvalCtx(AggFuncEnabled)
 	assert.Equal(t, minSupportedInt, eCtx.Max.Int)
-
 	// Empty float
-	exp, _ = parser.ParseExpr("max(t1.fieldFloat)")
-	eCtx = NewPlainEvalCtx(AggFuncEnabled)
 	assert.Equal(t, minSupportedFloat, eCtx.Max.Float)
-
 	// Empty dec
-	exp, _ = parser.ParseExpr("max(t1.fieldDec)")
-	eCtx = NewPlainEvalCtx(AggFuncEnabled)
 	assert.Equal(t, minSupportedDecimal(), eCtx.Max.Dec)
-
 	// Empty str
-	exp, _ = parser.ParseExpr("max(t1.fieldString)")
-	eCtx = NewPlainEvalCtx(AggFuncEnabled)
 	assert.Equal(t, "", eCtx.Max.Str)
 }
 
@@ -477,7 +451,6 @@ func TestCount(t *testing.T) {
 	assert.Equal(t, int64(2), result)
 
 	// Empty
-	exp, _ = parser.ParseExpr("count()")
 	eCtx = NewPlainEvalCtx(AggFuncEnabled)
 	assert.Equal(t, int64(0), eCtx.Count)
 }

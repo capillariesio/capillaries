@@ -10,7 +10,7 @@ type VarValuesMap map[string]map[string]interface{}
 func (vars *VarValuesMap) Tables() string {
 	sb := strings.Builder{}
 	sb.WriteString("[")
-	for table, _ := range *vars {
+	for table := range *vars {
 		sb.WriteString(fmt.Sprintf("%s ", table))
 	}
 	sb.WriteString("]")
@@ -21,7 +21,7 @@ func (vars *VarValuesMap) Names() string {
 	sb := strings.Builder{}
 	sb.WriteString("[")
 	for table, fldMap := range *vars {
-		for fld, _ := range fldMap {
+		for fld := range fldMap {
 			sb.WriteString(fmt.Sprintf("%s.%s ", table, fld))
 		}
 	}

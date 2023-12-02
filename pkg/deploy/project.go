@@ -3,7 +3,6 @@ package deploy
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -352,12 +351,12 @@ func (prj *Project) validate() error {
 	}
 
 	// All file groups should be referenced, otherwise useless
-	for fgName, _ := range prj.FileGroupsUp {
+	for fgName := range prj.FileGroupsUp {
 		if _, ok := referencedUpFileGroups[fgName]; !ok {
 			return fmt.Errorf("up file group %s not reference by any instance, consider removing it", fgName)
 		}
 	}
-	for fgName, _ := range prj.FileGroupsDown {
+	for fgName := range prj.FileGroupsDown {
 		if _, ok := referencedDownFileGroups[fgName]; !ok {
 			return fmt.Errorf("down file group %s not reference by any instance, consider removing it", fgName)
 		}
@@ -376,7 +375,7 @@ func LoadProject(prjFile string) (*ProjectPair, string, error) {
 		return nil, "", fmt.Errorf("cannot find project file [%s]: [%s]", prjFullPath, err.Error())
 	}
 
-	prjBytes, err := ioutil.ReadFile(prjFullPath)
+	prjBytes, err := os.ReadFile(prjFullPath)
 	if err != nil {
 		return nil, "", fmt.Errorf("cannot read project file %s: %s", prjFullPath, err.Error())
 	}
@@ -446,10 +445,15 @@ func (prj *Project) SaveProject(fullPrjPath string) error {
 	}
 
 	fPrj, err := os.Create(fullPrjPath)
+	if err != nil {
+		return err
+	}
 	defer fPrj.Close()
 	if _, err := fPrj.WriteString(string(prjJsonBytes)); err != nil {
 		return err
 	}
-	fPrj.Sync()
+	if err = fPrj.Sync(); err != nil {
+		return err
+	}
 	return nil
 }

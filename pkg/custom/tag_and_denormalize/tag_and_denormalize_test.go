@@ -177,7 +177,7 @@ func TestTagAndDenormalizeRunEmbeddedCriteria(t *testing.T) {
 	})
 
 	// Allocate rows
-	rs.InitRows(1)
+	assert.Nil(t, rs.InitRows(1))
 
 	// Initialize with pointers
 	product_id := int64(1)
@@ -233,9 +233,9 @@ func TestTagAndDenormalizeRunEmbeddedCriteria(t *testing.T) {
 	re := regexp.MustCompile(`"tag_criteria": \{[^\}]+\}`)
 
 	// Bad function used
-	err = scriptDef.Deserialize(
+	assert.Nil(t, scriptDef.Deserialize(
 		[]byte(re.ReplaceAllString(scriptJson, `"tag_criteria": {"boys":"re.BadGoMethod(\"aaa\")"}`)),
-		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil)
+		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil))
 
 	tndProcessor, _ = scriptDef.ScriptNodes["tag_products"].CustomProcessor.(*TagAndDenormalizeProcessorDef)
 	assert.Equal(t, 1, len(tndProcessor.ParsedTagCriteria))
@@ -244,10 +244,9 @@ func TestTagAndDenormalizeRunEmbeddedCriteria(t *testing.T) {
 	assert.Contains(t, err.Error(), "cannot evaluate expression for tag boys criteria")
 
 	// Bad type
-	err = scriptDef.Deserialize(
+	assert.Nil(t, scriptDef.Deserialize(
 		[]byte(re.ReplaceAllString(scriptJson, `"tag_criteria": {"boys":"math.Round(1.1)"}`)),
-		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil)
-
+		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil))
 	tndProcessor, _ = scriptDef.ScriptNodes["tag_products"].CustomProcessor.(*TagAndDenormalizeProcessorDef)
 	assert.Equal(t, 1, len(tndProcessor.ParsedTagCriteria))
 
