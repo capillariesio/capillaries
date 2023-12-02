@@ -81,7 +81,7 @@ jobs:
 
     - name: pkg/sc test coverage threshold check
       env:
-          TESTCOVERAGE_THRESHOLD: 90.8
+          TESTCOVERAGE_THRESHOLD: 91.5
       run: |
             go test -v ./pkg/sc/... -coverprofile coverage.out -covermode count
             totalCoverage=`go tool cover -func=coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`
@@ -94,7 +94,7 @@ jobs:
 
     - name: pkg/custom/py_calc test coverage threshold check
       env:
-          TESTCOVERAGE_THRESHOLD: 81.3
+          TESTCOVERAGE_THRESHOLD: 83.3
       run: |
             go test -v ./pkg/custom/py_calc/... -coverprofile coverage.out -covermode count
             totalCoverage=`go tool cover -func=coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`
