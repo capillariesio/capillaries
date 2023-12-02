@@ -30,7 +30,7 @@ type EvalCtx struct {
 	Avg        AvgCollector
 	Min        MinCollector
 	Max        MaxCollector
-	Value      interface{}
+	Value      any
 	AggEnabled AggEnabledType
 }
 
@@ -115,12 +115,11 @@ func NewPlainEvalCtxWithVarsAndInitializedAgg(aggEnabled AggEnabledType, vars *V
 func checkArgs(funcName string, requiredArgCount int, actualArgCount int) error {
 	if actualArgCount != requiredArgCount {
 		return fmt.Errorf("cannot evaluate %s(), requires %d args, %d supplied", funcName, requiredArgCount, actualArgCount)
-	} else {
-		return nil
 	}
+	return nil
 }
 
-func (eCtx *EvalCtx) EvalBinaryInt(valLeftVolatile interface{}, op token.Token, valRightVolatile interface{}) (result int64, finalErr error) {
+func (eCtx *EvalCtx) EvalBinaryInt(valLeftVolatile any, op token.Token, valRightVolatile any) (result int64, finalErr error) {
 
 	result = math.MaxInt
 	valLeft, ok := valLeftVolatile.(int64)
@@ -159,7 +158,7 @@ func isCompareOp(op token.Token) bool {
 	return op == token.GTR || op == token.LSS || op == token.GEQ || op == token.LEQ || op == token.EQL || op == token.NEQ
 }
 
-func (eCtx *EvalCtx) EvalBinaryIntToBool(valLeftVolatile interface{}, op token.Token, valRightVolatile interface{}) (bool, error) {
+func (eCtx *EvalCtx) EvalBinaryIntToBool(valLeftVolatile any, op token.Token, valRightVolatile any) (bool, error) {
 
 	valLeft, ok := valLeftVolatile.(int64)
 	if !ok {
@@ -171,23 +170,22 @@ func (eCtx *EvalCtx) EvalBinaryIntToBool(valLeftVolatile interface{}, op token.T
 		return false, fmt.Errorf("cannot evaluate binary int64 expression '%v(%T) %v %v(%T)', invalid right arg", valLeft, valLeft, op, valRightVolatile, valRightVolatile)
 	}
 
-	if isCompareOp(op) {
-		if op == token.GTR && valLeft > valRight ||
-			op == token.LSS && valLeft < valRight ||
-			op == token.GEQ && valLeft >= valRight ||
-			op == token.LEQ && valLeft <= valRight ||
-			op == token.EQL && valLeft == valRight ||
-			op == token.NEQ && valLeft != valRight {
-			return true, nil
-		} else {
-			return false, nil
-		}
-	} else {
+	if !isCompareOp(op) {
 		return false, fmt.Errorf("cannot perform bool op %v against int %d and int %d", op, valLeft, valRight)
 	}
+
+	if op == token.GTR && valLeft > valRight ||
+		op == token.LSS && valLeft < valRight ||
+		op == token.GEQ && valLeft >= valRight ||
+		op == token.LEQ && valLeft <= valRight ||
+		op == token.EQL && valLeft == valRight ||
+		op == token.NEQ && valLeft != valRight {
+		return true, nil
+	}
+	return false, nil
 }
 
-func (eCtx *EvalCtx) EvalBinaryFloat64ToBool(valLeftVolatile interface{}, op token.Token, valRightVolatile interface{}) (bool, error) {
+func (eCtx *EvalCtx) EvalBinaryFloat64ToBool(valLeftVolatile any, op token.Token, valRightVolatile any) (bool, error) {
 
 	valLeft, ok := valLeftVolatile.(float64)
 	if !ok {
@@ -199,23 +197,22 @@ func (eCtx *EvalCtx) EvalBinaryFloat64ToBool(valLeftVolatile interface{}, op tok
 		return false, fmt.Errorf("cannot evaluate binary float64 expression '%v(%T) %v %v(%T)', invalid right arg", valLeft, valLeft, op, valRightVolatile, valRightVolatile)
 	}
 
-	if isCompareOp(op) {
-		if op == token.GTR && valLeft > valRight ||
-			op == token.LSS && valLeft < valRight ||
-			op == token.GEQ && valLeft >= valRight ||
-			op == token.LEQ && valLeft <= valRight ||
-			op == token.EQL && valLeft == valRight ||
-			op == token.NEQ && valLeft != valRight {
-			return true, nil
-		} else {
-			return false, nil
-		}
-	} else {
+	if !isCompareOp(op) {
 		return false, fmt.Errorf("cannot perform bool op %v against float %f and float %f", op, valLeft, valRight)
 	}
+
+	if op == token.GTR && valLeft > valRight ||
+		op == token.LSS && valLeft < valRight ||
+		op == token.GEQ && valLeft >= valRight ||
+		op == token.LEQ && valLeft <= valRight ||
+		op == token.EQL && valLeft == valRight ||
+		op == token.NEQ && valLeft != valRight {
+		return true, nil
+	}
+	return false, nil
 }
 
-func (eCtx *EvalCtx) EvalBinaryDecimal2ToBool(valLeftVolatile interface{}, op token.Token, valRightVolatile interface{}) (bool, error) {
+func (eCtx *EvalCtx) EvalBinaryDecimal2ToBool(valLeftVolatile any, op token.Token, valRightVolatile any) (bool, error) {
 
 	valLeft, ok := valLeftVolatile.(decimal.Decimal)
 	if !ok {
@@ -227,23 +224,21 @@ func (eCtx *EvalCtx) EvalBinaryDecimal2ToBool(valLeftVolatile interface{}, op to
 		return false, fmt.Errorf("cannot evaluate binary decimal2 expression '%v(%T) %v %v(%T)', invalid right arg", valLeft, valLeft, op, valRightVolatile, valRightVolatile)
 	}
 
-	if isCompareOp(op) {
-		if op == token.GTR && valLeft.Cmp(valRight) > 0 ||
-			op == token.LSS && valLeft.Cmp(valRight) < 0 ||
-			op == token.GEQ && valLeft.Cmp(valRight) >= 0 ||
-			op == token.LEQ && valLeft.Cmp(valRight) <= 0 ||
-			op == token.EQL && valLeft.Cmp(valRight) == 0 ||
-			op == token.NEQ && valLeft.Cmp(valRight) != 0 {
-			return true, nil
-		} else {
-			return false, nil
-		}
-	} else {
+	if !isCompareOp(op) {
 		return false, fmt.Errorf("cannot perform bool op %v against decimal2 %v and decimal2 %v", op, valLeft, valRight)
 	}
+	if op == token.GTR && valLeft.Cmp(valRight) > 0 ||
+		op == token.LSS && valLeft.Cmp(valRight) < 0 ||
+		op == token.GEQ && valLeft.Cmp(valRight) >= 0 ||
+		op == token.LEQ && valLeft.Cmp(valRight) <= 0 ||
+		op == token.EQL && valLeft.Cmp(valRight) == 0 ||
+		op == token.NEQ && valLeft.Cmp(valRight) != 0 {
+		return true, nil
+	}
+	return false, nil
 }
 
-func (eCtx *EvalCtx) EvalBinaryTimeToBool(valLeftVolatile interface{}, op token.Token, valRightVolatile interface{}) (bool, error) {
+func (eCtx *EvalCtx) EvalBinaryTimeToBool(valLeftVolatile any, op token.Token, valRightVolatile any) (bool, error) {
 
 	valLeft, ok := valLeftVolatile.(time.Time)
 	if !ok {
@@ -255,23 +250,21 @@ func (eCtx *EvalCtx) EvalBinaryTimeToBool(valLeftVolatile interface{}, op token.
 		return false, fmt.Errorf("cannot evaluate binary time expression '%v(%T) %v %v(%T)', invalid right arg", valLeft, valLeft, op, valRightVolatile, valRightVolatile)
 	}
 
-	if isCompareOp(op) {
-		if op == token.GTR && valLeft.After(valRight) ||
-			op == token.LSS && valLeft.Before(valRight) ||
-			op == token.GEQ && (valLeft.After(valRight) || valLeft == valRight) ||
-			op == token.LEQ && (valLeft.Before(valRight) || valLeft == valRight) ||
-			op == token.EQL && valLeft == valRight ||
-			op == token.NEQ && valLeft != valRight {
-			return true, nil
-		} else {
-			return false, nil
-		}
-	} else {
+	if !isCompareOp(op) {
 		return false, fmt.Errorf("cannot perform bool op %v against time %v and time %v", op, valLeft, valRight)
 	}
+	if op == token.GTR && valLeft.After(valRight) ||
+		op == token.LSS && valLeft.Before(valRight) ||
+		op == token.GEQ && (valLeft.After(valRight) || valLeft.Equal(valRight)) ||
+		op == token.LEQ && (valLeft.Before(valRight) || valLeft.Equal(valRight)) ||
+		op == token.EQL && valLeft.Equal(valRight) ||
+		op == token.NEQ && !valLeft.Equal(valRight) {
+		return true, nil
+	}
+	return false, nil
 }
 
-func (eCtx *EvalCtx) EvalBinaryFloat64(valLeftVolatile interface{}, op token.Token, valRightVolatile interface{}) (float64, error) {
+func (eCtx *EvalCtx) EvalBinaryFloat64(valLeftVolatile any, op token.Token, valRightVolatile any) (float64, error) {
 
 	valLeft, ok := valLeftVolatile.(float64)
 	if !ok {
@@ -297,7 +290,7 @@ func (eCtx *EvalCtx) EvalBinaryFloat64(valLeftVolatile interface{}, op token.Tok
 	}
 }
 
-func (eCtx *EvalCtx) EvalBinaryDecimal2(valLeftVolatile interface{}, op token.Token, valRightVolatile interface{}) (result decimal.Decimal, err error) {
+func (eCtx *EvalCtx) EvalBinaryDecimal2(valLeftVolatile any, op token.Token, valRightVolatile any) (result decimal.Decimal, err error) {
 
 	result = decimal.NewFromFloat(math.MaxFloat64)
 	err = nil
@@ -331,7 +324,7 @@ func (eCtx *EvalCtx) EvalBinaryDecimal2(valLeftVolatile interface{}, op token.To
 	}
 }
 
-func (eCtx *EvalCtx) EvalBinaryBool(valLeftVolatile interface{}, op token.Token, valRightVolatile interface{}) (bool, error) {
+func (eCtx *EvalCtx) EvalBinaryBool(valLeftVolatile any, op token.Token, valRightVolatile any) (bool, error) {
 
 	valLeft, ok := valLeftVolatile.(bool)
 	if !ok {
@@ -353,7 +346,7 @@ func (eCtx *EvalCtx) EvalBinaryBool(valLeftVolatile interface{}, op token.Token,
 	}
 }
 
-func (eCtx *EvalCtx) EvalBinaryBoolToBool(valLeftVolatile interface{}, op token.Token, valRightVolatile interface{}) (bool, error) {
+func (eCtx *EvalCtx) EvalBinaryBoolToBool(valLeftVolatile any, op token.Token, valRightVolatile any) (bool, error) {
 
 	valLeft, ok := valLeftVolatile.(bool)
 	if !ok {
@@ -365,16 +358,15 @@ func (eCtx *EvalCtx) EvalBinaryBoolToBool(valLeftVolatile interface{}, op token.
 		return false, fmt.Errorf("cannot evaluate binary bool expression '%v(%T) %v %v(%T)', invalid right arg", valLeft, valLeft, op, valRightVolatile, valRightVolatile)
 	}
 
-	if op == token.EQL || op == token.NEQ {
-		if op == token.EQL && valLeft == valRight ||
-			op == token.NEQ && valLeft != valRight {
-			return true, nil
-		} else {
-			return false, nil
-		}
-	} else {
+	if !(op == token.EQL || op == token.NEQ) {
 		return false, fmt.Errorf("cannot evaluate binary bool expression, op %v not supported (and will never be)", op)
 	}
+
+	if op == token.EQL && valLeft == valRight ||
+		op == token.NEQ && valLeft != valRight {
+		return true, nil
+	}
+	return false, nil
 }
 
 func (eCtx *EvalCtx) EvalUnaryBoolNot(exp ast.Expr) (bool, error) {
@@ -391,7 +383,7 @@ func (eCtx *EvalCtx) EvalUnaryBoolNot(exp ast.Expr) (bool, error) {
 	return !val, nil
 }
 
-func (eCtx *EvalCtx) EvalUnaryMinus(exp ast.Expr) (interface{}, error) {
+func (eCtx *EvalCtx) EvalUnaryMinus(exp ast.Expr) (any, error) {
 	valVolatile, err := eCtx.Eval(exp)
 	if err != nil {
 		return false, err
@@ -417,7 +409,7 @@ func (eCtx *EvalCtx) EvalUnaryMinus(exp ast.Expr) (interface{}, error) {
 	}
 }
 
-func (eCtx *EvalCtx) EvalBinaryString(valLeftVolatile interface{}, op token.Token, valRightVolatile interface{}) (string, error) {
+func (eCtx *EvalCtx) EvalBinaryString(valLeftVolatile any, op token.Token, valRightVolatile any) (string, error) {
 
 	valLeft, ok := valLeftVolatile.(string)
 	if !ok {
@@ -437,7 +429,7 @@ func (eCtx *EvalCtx) EvalBinaryString(valLeftVolatile interface{}, op token.Toke
 	}
 }
 
-func (eCtx *EvalCtx) EvalBinaryStringToBool(valLeftVolatile interface{}, op token.Token, valRightVolatile interface{}) (bool, error) {
+func (eCtx *EvalCtx) EvalBinaryStringToBool(valLeftVolatile any, op token.Token, valRightVolatile any) (bool, error) {
 
 	valLeft, ok := valLeftVolatile.(string)
 	if !ok {
@@ -451,24 +443,22 @@ func (eCtx *EvalCtx) EvalBinaryStringToBool(valLeftVolatile interface{}, op toke
 	}
 	valRight = strings.Replace(strings.Trim(valRight, "\""), `\"`, `"`, -1)
 
-	if isCompareOp(op) {
-		if op == token.GTR && valLeft > valRight ||
-			op == token.LSS && valLeft < valRight ||
-			op == token.GEQ && valLeft >= valRight ||
-			op == token.LEQ && valLeft <= valRight ||
-			op == token.EQL && valLeft == valRight ||
-			op == token.NEQ && valLeft != valRight {
-			return true, nil
-		} else {
-			return false, nil
-		}
-	} else {
+	if !isCompareOp(op) {
 		return false, fmt.Errorf("cannot perform bool op %v against string %v and string %v", op, valLeft, valRight)
 	}
+	if op == token.GTR && valLeft > valRight ||
+		op == token.LSS && valLeft < valRight ||
+		op == token.GEQ && valLeft >= valRight ||
+		op == token.LEQ && valLeft <= valRight ||
+		op == token.EQL && valLeft == valRight ||
+		op == token.NEQ && valLeft != valRight {
+		return true, nil
+	}
+	return false, nil
 }
 
-func (eCtx *EvalCtx) EvalFunc(callExp *ast.CallExpr, funcName string, args []interface{}) (interface{}, error) {
-	var err error = nil
+func (eCtx *EvalCtx) EvalFunc(callExp *ast.CallExpr, funcName string, args []any) (any, error) {
+	var err error
 	switch funcName {
 	case "math.Sqrt":
 		eCtx.Value, err = callMathSqrt(args)
@@ -532,7 +522,7 @@ func (eCtx *EvalCtx) EvalFunc(callExp *ast.CallExpr, funcName string, args []int
 	return eCtx.Value, err
 }
 
-func (eCtx *EvalCtx) Eval(exp ast.Expr) (interface{}, error) {
+func (eCtx *EvalCtx) Eval(exp ast.Expr) (any, error) {
 	switch exp := exp.(type) {
 	case *ast.BinaryExpr:
 		valLeftVolatile, err := eCtx.Eval(exp.X)
@@ -647,7 +637,7 @@ func (eCtx *EvalCtx) Eval(exp ast.Expr) (interface{}, error) {
 			eCtx.Value, err = eCtx.EvalUnaryMinus(exp.X)
 			return eCtx.Value, err
 		default:
-			return nil, fmt.Errorf("cannot evaluate unary op %v, unkown op", exp.Op)
+			return nil, fmt.Errorf("cannot evaluate unary op %v, unknown op", exp.Op)
 		}
 
 	case *ast.Ident:
@@ -662,7 +652,7 @@ func (eCtx *EvalCtx) Eval(exp ast.Expr) (interface{}, error) {
 		}
 
 	case *ast.CallExpr:
-		args := make([]interface{}, len(exp.Args))
+		args := make([]any, len(exp.Args))
 
 		for i, v := range exp.Args {
 			arg, err := eCtx.Eval(v)
@@ -674,16 +664,16 @@ func (eCtx *EvalCtx) Eval(exp ast.Expr) (interface{}, error) {
 
 		switch exp.Fun.(type) {
 		case *ast.Ident:
-			funcIdent, _ := exp.Fun.(*ast.Ident)
+			funcIdent, _ := exp.Fun.(*ast.Ident) //revive:disable-line
 			var err error
 			eCtx.Value, err = eCtx.EvalFunc(exp, funcIdent.Name, args)
 			return eCtx.Value, err
 
 		case *ast.SelectorExpr:
-			expSel := exp.Fun.(*ast.SelectorExpr)
+			expSel := exp.Fun.(*ast.SelectorExpr) //revive:disable-line
 			switch expSel.X.(type) {
 			case *ast.Ident:
-				expIdent, _ := expSel.X.(*ast.Ident)
+				expIdent, _ := expSel.X.(*ast.Ident) //revive:disable-line
 				var err error
 				eCtx.Value, err = eCtx.EvalFunc(exp, fmt.Sprintf("%s.%s", expIdent.Name, expSel.Sel.Name), args)
 				return eCtx.Value, err
@@ -698,7 +688,7 @@ func (eCtx *EvalCtx) Eval(exp ast.Expr) (interface{}, error) {
 	case *ast.SelectorExpr:
 		switch exp.X.(type) {
 		case *ast.Ident:
-			objectIdent, _ := exp.X.(*ast.Ident)
+			objectIdent, _ := exp.X.(*ast.Ident) //revive:disable-line
 			golangConst, ok := GolangConstants[fmt.Sprintf("%s.%s", objectIdent.Name, exp.Sel.Name)]
 			if ok {
 				eCtx.Value = golangConst

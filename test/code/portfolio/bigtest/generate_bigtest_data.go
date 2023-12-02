@@ -113,7 +113,7 @@ func generateHoldings(fileQuickHoldingsPath string, fileInHoldingsPath string, b
 				}
 			}
 
-			if err := w.FileWriter.AddData(map[string]interface{}{
+			if err := w.FileWriter.AddData(map[string]any{
 				"account_id": accId,
 				"d":          storage.ParquetWriterMilliTs(d),
 				"ticker":     line[2],
@@ -227,7 +227,7 @@ func generateTxns(fileQuickTxnsPath string, fileInTxnsPath string, bigAccountsMa
 				}
 			}
 
-			if err := w.FileWriter.AddData(map[string]interface{}{
+			if err := w.FileWriter.AddData(map[string]any{
 				"ts":         storage.ParquetWriterMilliTs(d),
 				"account_id": accId,
 				"ticker":     line[2],
@@ -318,7 +318,7 @@ func generateOutTotals(fileQuickAccountYearPath string, fileOutAccountYearPath s
 				return fmt.Errorf("cannot parse ret '%s' in account_year_perf_baseline: %s", line[3], err.Error())
 			}
 
-			if err := w.FileWriter.AddData(map[string]interface{}{
+			if err := w.FileWriter.AddData(map[string]any{
 				"ARK fund":                          accId,
 				"Period":                            line[1],
 				"Sector":                            line[2],
@@ -391,7 +391,7 @@ func generateOutBySector(fileQuickAccountPeriodSectorPath string, fileOutAccount
 				return fmt.Errorf("cannot parse ret '%s' in account_period_sector_perf_baseline: %s", line[3], err.Error())
 			}
 
-			if err := w.FileWriter.AddData(map[string]interface{}{
+			if err := w.FileWriter.AddData(map[string]any{
 				"ARK fund":                          accId,
 				"Period":                            line[1],
 				"Sector":                            line[2],
@@ -441,7 +441,7 @@ func generateAccounts(fileInAccountsPath string, quickAccountsMap map[string]str
 			if err != nil {
 				return fmt.Errorf("cannot parse account earliest_period_start '%s': %s", eps, err.Error())
 			}
-			if err := w.FileWriter.AddData(map[string]interface{}{
+			if err := w.FileWriter.AddData(map[string]any{
 				"account_id":            accId,
 				"earliest_period_start": storage.ParquetWriterMilliTs(d),
 			}); err != nil {

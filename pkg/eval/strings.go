@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-func callStringsReplaceAll(args []interface{}) (interface{}, error) {
+func callStringsReplaceAll(args []any) (any, error) {
 	if err := checkArgs("strings.ReplaceAll", 3, len(args)); err != nil {
 		return nil, err
 	}

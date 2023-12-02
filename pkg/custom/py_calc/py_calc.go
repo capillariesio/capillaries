@@ -46,24 +46,31 @@ func (procDef *PyCalcProcessorDef) GetFieldRefs() *sc.FieldRefs {
 			TableName: sc.CustomProcessorAlias,
 			FieldName: fieldName,
 			FieldType: fieldDef.Type}
-		i += 1
+		i++
 	}
 	return &fieldRefs
 }
 
-func harvestCallExp(callExp *ast.CallExpr, sigMap map[string]struct{}) {
+func harvestCallExp(callExp *ast.CallExpr, sigMap map[string]struct{}) error {
 	// This expression is a python fuction call.
 	// Build a func_name(arg,arg,...) signature for it to check our Python code later
-	funIdentExp, _ := callExp.Fun.(*ast.Ident)
+	funIdentExp, ok := callExp.Fun.(*ast.Ident)
+	if !ok {
+		return fmt.Errorf("cannot cast to ident in harvestCallExp")
+	}
 	funcSig := fmt.Sprintf("%s(%s)", funIdentExp.Name, strings.Trim(strings.Repeat("arg,", len(callExp.Args)), ","))
 	sigMap[funcSig] = struct{}{}
 
 	for _, argExp := range callExp.Args {
-		switch typedExp := argExp.(type) {
+		switch typedExp := argExp.(type) { //nolint:all
 		case *ast.CallExpr:
-			harvestCallExp(typedExp, sigMap)
+			if err := harvestCallExp(typedExp, sigMap); err != nil {
+				return err
+			}
 		}
 	}
+
+	return nil
 }
 
 func (procDef *PyCalcProcessorDef) Deserialize(raw json.RawMessage, customProcSettings json.RawMessage, caPath string, privateKeys map[string]string) error {
@@ -105,7 +112,9 @@ func (procDef *PyCalcProcessorDef) Deserialize(raw json.RawMessage, customProcSe
 		// Check top-level expression
 		switch typedExp := fieldDef.ParsedExpression.(type) {
 		case *ast.CallExpr:
-			harvestCallExp(typedExp, usedPythonFunctionSignatures)
+			if err := harvestCallExp(typedExp, usedPythonFunctionSignatures); err != nil {
+				errors = append(errors, fmt.Sprintf("cannot harvest Python call expressions in %s: %s", fieldDef.RawExpression, err.Error()))
+			}
 		case *ast.SelectorExpr:
 			// Assume it's a reader or calculated field. Do not check it here, checkFieldUsageInCustomProcessor() will do that
 		default:
@@ -159,9 +168,9 @@ func (procDef *PyCalcProcessorDef) Deserialize(raw json.RawMessage, customProcSe
 
 	if len(errors) > 0 {
 		return fmt.Errorf(strings.Join(errors, "; "))
-	} else {
-		return nil
 	}
+
+	return nil
 }
 
 func (procDef *PyCalcProcessorDef) GetUsedInTargetExpressionsFields() *sc.FieldRefs {
@@ -173,7 +182,7 @@ func (procDef *PyCalcProcessorDef) GetUsedInTargetExpressionsFields() *sc.FieldR
 // Python 8601 requires ":" in the timezone
 const PythonDatetimeFormat string = "2006-01-02T15:04:05.000-07:00"
 
-func valueToPythonExpr(val interface{}) string {
+func valueToPythonExpr(val any) string {
 	switch typedVal := val.(type) {
 	case int64:
 		return fmt.Sprintf("%d", typedVal)
@@ -196,57 +205,50 @@ func valueToPythonExpr(val interface{}) string {
 	}
 }
 
-func pythonResultToRowsetValue(fieldRef *sc.FieldRef, fieldValue interface{}) (interface{}, error) {
+func pythonResultToRowsetValue(fieldRef *sc.FieldRef, fieldValue any) (any, error) {
 	switch fieldRef.FieldType {
 	case sc.FieldTypeString:
 		finalVal, ok := fieldValue.(string)
-		if ok {
-			return finalVal, nil
-		} else {
+		if !ok {
 			return nil, fmt.Errorf("string %s, unexpected type %T(%v)", fieldRef.FieldName, fieldValue, fieldValue)
 		}
+		return finalVal, nil
 	case sc.FieldTypeBool:
 		finalVal, ok := fieldValue.(bool)
-		if ok {
-			return finalVal, nil
-		} else {
+		if !ok {
 			return nil, fmt.Errorf("bool %s, unexpected type %T(%v)", fieldRef.FieldName, fieldValue, fieldValue)
 		}
+		return finalVal, nil
 	case sc.FieldTypeInt:
 		finalVal, ok := fieldValue.(float64)
-		if ok {
-			finalIntVal := int64(finalVal)
-			return finalIntVal, nil
-		} else {
+		if !ok {
 			return nil, fmt.Errorf("int %s, unexpected type %T(%v)", fieldRef.FieldName, fieldValue, fieldValue)
 		}
+		finalIntVal := int64(finalVal)
+		return finalIntVal, nil
 	case sc.FieldTypeFloat:
 		finalVal, ok := fieldValue.(float64)
-		if ok {
-			return finalVal, nil
-		} else {
+		if !ok {
 			return nil, fmt.Errorf("float %s, unexpected type %T(%v)", fieldRef.FieldName, fieldValue, fieldValue)
 		}
+		return finalVal, nil
 	case sc.FieldTypeDecimal2:
 		finalVal, ok := fieldValue.(float64)
-		if ok {
-			finalDecVal := decimal.NewFromFloat(finalVal).Round(2)
-			return finalDecVal, nil
-		} else {
+		if !ok {
 			return nil, fmt.Errorf("decimal %s, unexpected type %T(%v)", fieldRef.FieldName, fieldValue, fieldValue)
 		}
+		finalDecVal := decimal.NewFromFloat(finalVal).Round(2)
+		return finalDecVal, nil
 	case sc.FieldTypeDateTime:
 		finalVal, ok := fieldValue.(string)
-		if ok {
-			timeVal, err := time.Parse(PythonDatetimeFormat, finalVal)
-			if err != nil {
-				return nil, fmt.Errorf("bad time result %s, unexpected format %s", fieldRef.FieldName, finalVal)
-			} else {
-				return timeVal, nil
-			}
-		} else {
+		if !ok {
 			return nil, fmt.Errorf("time %s, unexpected type %T(%v)", fieldRef.FieldName, fieldValue, fieldValue)
 		}
+		timeVal, err := time.Parse(PythonDatetimeFormat, finalVal)
+		if err != nil {
+			return nil, fmt.Errorf("bad time result %s, unexpected format %s", fieldRef.FieldName, finalVal)
+		}
+		return timeVal, nil
 	default:
 		return nil, fmt.Errorf("unexpected field type %s, %s, %T(%v)", fieldRef.FieldType, fieldRef.FieldName, fieldValue, fieldValue)
 	}
@@ -295,7 +297,7 @@ func checkPythonFuncDefAvailability(usedPythonFunctionSignatures map[string]stru
 
 	// Walk through all Python signatures in calc expressions (we harvested them in Deserialize)
 	// and make sure correspondent python function defs are available
-	for usedSig, _ := range usedPythonFunctionSignatures {
+	for usedSig := range usedPythonFunctionSignatures {
 		if _, ok := availableDefSigs[usedSig]; !ok {
 			if _, ok := pythoBuiltinFunctions[usedSig]; !ok {
 				errors.WriteString(fmt.Sprintf("function def '%s' not found in Python file, and it's not in the list of allowed Python built-in functions; ", usedSig))
@@ -305,7 +307,7 @@ func checkPythonFuncDefAvailability(usedPythonFunctionSignatures map[string]stru
 
 	if errors.Len() > 0 {
 		var defs strings.Builder
-		for defSig, _ := range availableDefSigs {
+		for defSig := range availableDefSigs {
 			defs.WriteString(fmt.Sprintf("%s; ", defSig))
 		}
 		return fmt.Errorf("Python function defs availability check failed, the following functions are not defined: [%s]. Full list of available Python function definitions: %s", errors.String(), defs.String())
@@ -394,7 +396,7 @@ func (procDef *PyCalcProcessorDef) analyseExecError(codeBase string, rawOutput s
 		strings.Contains(err.Error(), "no such file or directory") {
 		return "", fmt.Errorf("interpreter binary not found: %s", procDef.EnvSettings.InterpreterPath)
 	} else if strings.Contains(err.Error(), "exit status") {
-		//err.Error():'exit status 1', cmdCtx.Err():'%!s(<nil>)'
+		// err.Error():'exit status 1', cmdCtx.Err():'%!s(<nil>)'
 		// Python interpreter reported an error: there was a syntax error in the codebase and no results were returned
 		fullErrorInfo := fmt.Sprintf("interpreter returned an error (probably syntax):\n%s %v\n%s\n%s\n%s",
 			procDef.EnvSettings.InterpreterPath, procDef.EnvSettings.InterpreterParams,
@@ -402,16 +404,15 @@ func (procDef *PyCalcProcessorDef) analyseExecError(codeBase string, rawOutput s
 			rawErrors,
 			getErrorLineNumberInfo(codeBase, rawErrors))
 
-		//fmt.Println(fullErrorInfo)
+		// fmt.Println(fullErrorInfo)
 		return fullErrorInfo, fmt.Errorf("interpreter returned an error (probably syntax), see log for details: %s", rawErrors)
-	} else {
-		return "", fmt.Errorf("unexpected calculation errors: %s", rawErrors)
 	}
+	return "", fmt.Errorf("unexpected calculation errors: %s", rawErrors)
 }
 
 const pyCalcFlushBufferSize int = 1000
 
-func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput string, rawErrors string, outFieldRefs *sc.FieldRefs, rsIn *proc.Rowset, flushVarsArray func(varsArray []*eval.VarValuesMap, varsArrayCount int) error) error {
+func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput string, _ string, outFieldRefs *sc.FieldRefs, rsIn *proc.Rowset, flushVarsArray func(varsArray []*eval.VarValuesMap, varsArrayCount int) error) error {
 	// No Python interpreter errors, but there may be runtime errors and good results.
 	// Timeout error may be there too.
 
@@ -455,15 +456,15 @@ func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput
 			// errors.WriteString(errorText)
 			errors.WriteString(fmt.Sprintf("%s\n%s", errorText, getErrorLineNumberInfo(codeBase, rawSectionOutput)))
 		} else {
-			// SUCESS code snippet is there, try to get the result JSON
-			var itemResults map[string]interface{}
+			// SUCCESS code snippet is there, try to get the result JSON
+			var itemResults map[string]any
 			jsonString := rawSectionOutput[sectionSuccessPos+len(successMarker):]
 			err := json.Unmarshal([]byte(jsonString), &itemResults)
 			if err != nil {
 				// Bad JSON
 				errorText := fmt.Sprintf("%d:unexpected error, cannot deserialize results, %s, '%s'", rowIdx, err, jsonString)
 				errors.WriteString(errorText)
-				//logText.WriteString(errorText)
+				// logText.WriteString(errorText)
 			} else {
 				// Success
 
@@ -473,7 +474,7 @@ func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput
 					return err
 				}
 
-				vars[sc.CustomProcessorAlias] = map[string]interface{}{}
+				vars[sc.CustomProcessorAlias] = map[string]any{}
 
 				for _, outFieldRef := range *outFieldRefs {
 					pythonFieldValue, ok := itemResults[outFieldRef.FieldName]
@@ -505,17 +506,17 @@ func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput
 	}
 
 	if errors.Len() > 0 {
-		//fmt.Println(fmt.Sprintf("%s\nRaw output below:\n%s\nFull codebase below (may be big):\n%s", logText.String(), rawOutput, codeBase.String()))
+		// fmt.Println(fmt.Sprintf("%s\nRaw output below:\n%s\nFull codebase below (may be big):\n%s", logText.String(), rawOutput, codeBase.String()))
 		return fmt.Errorf(errors.String())
-	} else {
-		//fmt.Println(fmt.Sprintf("%s\nRaw output below:\n%s", logText.String(), rawOutput))
-		if varsArrayCount > 0 {
-			if err := flushVarsArray(varsArray, varsArrayCount); err != nil {
-				return fmt.Errorf("error flushing leftovers vars array of size %d: %s", varsArrayCount, err.Error())
-			}
-		}
-		return nil
 	}
+
+	// fmt.Println(fmt.Sprintf("%s\nRaw output below:\n%s", logText.String(), rawOutput))
+	if varsArrayCount > 0 {
+		if err := flushVarsArray(varsArray, varsArrayCount); err != nil {
+			return fmt.Errorf("error flushing leftovers vars array of size %d: %s", varsArrayCount, err.Error())
+		}
+	}
+	return nil
 }
 
 /*

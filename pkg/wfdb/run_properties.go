@@ -13,7 +13,7 @@ import (
 	"github.com/gocql/gocql"
 )
 
-func GetRunAffectedNodes(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId int16) ([]string, error) {
+func GetRunAffectedNodes(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16) ([]string, error) {
 	logger.PushF("wfdb.GetRunAffectedNodes")
 	defer logger.PopF()
 
@@ -31,7 +31,7 @@ func GetRunAffectedNodes(logger *l.Logger, cqlSession *gocql.Session, keyspace s
 // 	return getRunProperties(cqlSession, keyspace, 0)
 // }
 
-func GetRunProperties(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId int16) ([]*wfmodel.RunProperties, error) {
+func GetRunProperties(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16) ([]*wfmodel.RunProperties, error) {
 	logger.PushF("wfdb.GetRunProperties")
 	defer logger.PopF()
 
@@ -60,7 +60,7 @@ func GetRunProperties(logger *l.Logger, cqlSession *gocql.Session, keyspace stri
 	return runs, nil
 }
 
-func HarvestRunIdsByAffectedNodes(logger *l.Logger, pCtx *ctx.MessageProcessingContext, nodeNames []string) ([]int16, map[string][]int16, error) {
+func HarvestRunIdsByAffectedNodes(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) ([]int16, map[string][]int16, error) {
 	logger.PushF("wfdb.HarvestRunIdsByAffectedNodes")
 	defer logger.PopF()
 
@@ -100,7 +100,7 @@ func HarvestRunIdsByAffectedNodes(logger *l.Logger, pCtx *ctx.MessageProcessingC
 	return runIds, nodeAffectingRunIdsMap, nil
 }
 
-func WriteRunProperties(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId int16, startNodes []string, affectedNodes []string, scriptUri string, scriptParamsUri string, runDescription string) error {
+func WriteRunProperties(cqlSession *gocql.Session, keyspace string, runId int16, startNodes []string, affectedNodes []string, scriptUri string, scriptParamsUri string, runDescription string) error {
 	q := (&cql.QueryBuilder{}).
 		Keyspace(keyspace).
 		Write("run_id", runId).

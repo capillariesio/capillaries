@@ -44,25 +44,11 @@ type DependencyRule struct {
 	ParsedExpression ast.Expr
 }
 
-// type EventPriorityOrderDirection string
-
-// const (
-// 	EventSortAsc     EventPriorityOrderDirection = "asc"
-// 	EventSortDesc    EventPriorityOrderDirection = "desc"
-// 	EventSortUnknown EventPriorityOrderDirection = "unknown"
-// )
-
-// type EventPriorityOrderField struct {
-// 	FieldName string
-// 	Direction EventPriorityOrderDirection
-// }
-
 type DependencyPolicyDef struct {
 	EventPriorityOrderString string           `json:"event_priority_order"`
 	IsDefault                bool             `json:"is_default"`
 	Rules                    []DependencyRule `json:"rules"`
 	OrderIdxDef              IdxDef
-	//EventPriorityOrder       []EventPriorityOrderField
 }
 
 func NewFieldRefsFromNodeEvent() *FieldRefs {
@@ -89,7 +75,7 @@ func (polDef *DependencyPolicyDef) Deserialize(rawPol json.RawMessage) error {
 		return err
 	}
 
-	vars := wfmodel.NewVarsFromDepCtx(0, wfmodel.DependencyNodeEvent{})
+	vars := wfmodel.NewVarsFromDepCtx(wfmodel.DependencyNodeEvent{})
 	for ruleIdx := 0; ruleIdx < len(polDef.Rules); ruleIdx++ {
 		usedFieldRefs := FieldRefs{}
 		polDef.Rules[ruleIdx].ParsedExpression, err = ParseRawGolangExpressionStringAndHarvestFieldRefs(polDef.Rules[ruleIdx].RawExpression, &usedFieldRefs)
@@ -122,7 +108,7 @@ func (polDef *DependencyPolicyDef) parseEventPriorityOrderString() error {
 }
 
 func (polDef *DependencyPolicyDef) evalRuleExpressionsAndCheckType() error {
-	vars := wfmodel.NewVarsFromDepCtx(0, wfmodel.DependencyNodeEvent{})
+	vars := wfmodel.NewVarsFromDepCtx(wfmodel.DependencyNodeEvent{})
 	eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, &vars)
 	for ruleIdx, rule := range polDef.Rules {
 		result, err := eCtx.Eval(rule.ParsedExpression)

@@ -23,14 +23,14 @@ func TestValueToCqlParam(t *testing.T) {
 
 func TestInsertRunParams(t *testing.T) {
 	qb := NewQB()
-	qb.WritePreparedColumn("param_name")
-	qb.WritePreparedValue("param_name", "param_value")
+	assert.Nil(t, qb.WritePreparedColumn("param_name"))
+	assert.Nil(t, qb.WritePreparedValue("param_name", "param_value"))
 	q, err := qb.Keyspace("ks1").InsertRunPreparedQuery("table1", 1, IgnoreIfExists)
 	assert.Nil(t, err)
 	assert.Equal(t, "INSERT INTO ks1.table1_00001 ( param_name ) VALUES ( ? ) IF NOT EXISTS;", q)
 
-	params, err := qb.InsertRunParams()
-	assert.Equal(t, []interface{}([]interface{}{"param_value"}), params)
+	params, _ := qb.InsertRunParams()
+	assert.Equal(t, []any([]any{"param_value"}), params)
 }
 
 func TestInsert(t *testing.T) {

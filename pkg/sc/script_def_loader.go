@@ -14,7 +14,7 @@ const ScriptInitUrlProblem ScriptInitProblemType = 1
 const ScriptInitContentProblem ScriptInitProblemType = 2
 const ScriptInitConnectivityProblem ScriptInitProblemType = 3
 
-func NewScriptFromFileBytes(caPath string, privateKeys map[string]string, scriptUri string, jsonBytesScript []byte, scriptParamsUri string, jsonBytesParams []byte, customProcessorDefFactoryInstance CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage) (*ScriptDef, error, ScriptInitProblemType) {
+func NewScriptFromFileBytes(caPath string, privateKeys map[string]string, scriptUri string, jsonBytesScript []byte, scriptParamsUri string, jsonBytesParams []byte, customProcessorDefFactoryInstance CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage) (*ScriptDef, ScriptInitProblemType, error) {
 	// Make sure parameters are in canonical format: {param_name|param_type}
 	scriptString := string(jsonBytesScript)
 
@@ -33,15 +33,15 @@ func NewScriptFromFileBytes(caPath string, privateKeys map[string]string, script
 	re = regexp.MustCompile(`([^"]{[a-zA-Z0-9_]+\|(number|bool)})|({[a-zA-Z0-9_]+\|(number|bool)}[^"])`)
 	invalidParamRefs := re.FindAllString(scriptString, -1)
 	if len(invalidParamRefs) > 0 {
-		return nil, fmt.Errorf("cannot parse number/bool script parameter references in [%s], the following parameter references should not have extra characters between curly braces and double quotes: [%s]", scriptUri, strings.Join(invalidParamRefs, ",")), ScriptInitUrlProblem
+		return nil, ScriptInitUrlProblem, fmt.Errorf("cannot parse number/bool script parameter references in [%s], the following parameter references should not have extra characters between curly braces and double quotes: [%s]", scriptUri, strings.Join(invalidParamRefs, ","))
 	}
 
 	// Apply template params here, script def should know nothing about them: they may tweak some 3d-party tfm config
 
-	paramsMap := map[string]interface{}{}
+	paramsMap := map[string]any{}
 	if jsonBytesParams != nil {
 		if err := json.Unmarshal(jsonBytesParams, &paramsMap); err != nil {
-			return nil, fmt.Errorf("cannot unmarshal script params json from [%s]: [%s]", scriptParamsUri, err.Error()), ScriptInitContentProblem
+			return nil, ScriptInitContentProblem, fmt.Errorf("cannot unmarshal script params json from [%s]: [%s]", scriptParamsUri, err.Error())
 		}
 	}
 
@@ -72,7 +72,7 @@ func NewScriptFromFileBytes(caPath string, privateKeys map[string]string, script
 			replacerStrings[i] = fmt.Sprintf(`"{%s|bool}"`, templateParam)
 			replacerStrings[i+1] = fmt.Sprintf("%t", typedParamVal)
 		default:
-			return nil, fmt.Errorf("unsupported parameter type %T from [%s]: %s", templateParamVal, scriptParamsUri, templateParam), ScriptInitContentProblem
+			return nil, ScriptInitContentProblem, fmt.Errorf("unsupported parameter type %T from [%s]: %s", templateParamVal, scriptParamsUri, templateParam)
 		}
 		i += 2
 	}
@@ -89,13 +89,13 @@ func NewScriptFromFileBytes(caPath string, privateKeys map[string]string, script
 		}
 	}
 	if len(unresolvedParamMap) > 0 {
-		return nil, fmt.Errorf("unresolved parameter references in [%s]: %v; make sure that type in the script matches the type of the parameter value in the script parameters file", scriptUri, unresolvedParamMap), ScriptInitContentProblem
+		return nil, ScriptInitContentProblem, fmt.Errorf("unresolved parameter references in [%s]: %v; make sure that type in the script matches the type of the parameter value in the script parameters file", scriptUri, unresolvedParamMap)
 	}
 
 	newScript := &ScriptDef{}
 	if err := newScript.Deserialize([]byte(scriptString), customProcessorDefFactoryInstance, customProcessorsSettings, caPath, privateKeys); err != nil {
-		return nil, fmt.Errorf("cannot deserialize script %s(%s): %s", scriptUri, scriptParamsUri, err.Error()), ScriptInitContentProblem
+		return nil, ScriptInitContentProblem, fmt.Errorf("cannot deserialize script %s(%s): %s", scriptUri, scriptParamsUri, err.Error())
 	}
 
-	return newScript, nil, ScriptInitNoProblem
+	return newScript, ScriptInitNoProblem, nil
 }

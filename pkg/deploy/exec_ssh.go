@@ -3,7 +3,7 @@ package deploy
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -55,7 +55,7 @@ func (tsc *TunneledSshClient) Close() {
 		tsc.TunneledSshConn.Close()
 	}
 	if tsc.TunneledTcpConn != nil {
-		tsc.TunneledTcpConn.Close()
+		tsc.TunneledTcpConn.Close() //nolint:all
 	}
 	if tsc.ProxySshClient != nil {
 		tsc.ProxySshClient.Close()
@@ -65,8 +65,6 @@ func (tsc *TunneledSshClient) Close() {
 func NewTunneledSshClient(sshConfig *SshConfigDef, ipAddress string) (*TunneledSshClient, error) {
 	bastionSshClientConfig, err := xfer.NewSshClientConfig(
 		sshConfig.User,
-		sshConfig.ExternalIpAddress,
-		sshConfig.Port,
 		sshConfig.PrivateKeyPath,
 		sshConfig.PrivateKeyPassword)
 	if err != nil {
@@ -99,8 +97,6 @@ func NewTunneledSshClient(sshConfig *SshConfigDef, ipAddress string) (*TunneledS
 
 		tunneledSshClientConfig, err := xfer.NewSshClientConfig(
 			sshConfig.User,
-			ipAddress,
-			sshConfig.Port,
 			sshConfig.PrivateKeyPath,
 			sshConfig.PrivateKeyPassword)
 		if err != nil {
@@ -140,7 +136,7 @@ func ExecSsh(sshConfig *SshConfigDef, ipAddress string, cmd string) ExecResult {
 	err = session.Run(cmd)
 	elapsed := time.Since(runStartTime).Seconds()
 
-	er := ExecResult{cmd, string(stdout.Bytes()), string(stderr.Bytes()), elapsed, err}
+	er := ExecResult{cmd, stdout.String(), stderr.String(), elapsed, err}
 	return er
 }
 
@@ -238,9 +234,9 @@ func ExecScriptsOnInstance(sshConfig *SshConfigDef, ipAddress string, env map[st
 		if err != nil {
 			return lb.Complete(fmt.Errorf("cannot open shell script %s: %s", fullScriptPath, err.Error()))
 		}
-		defer f.Close()
+		defer f.Close() //nolint:all
 
-		shellScriptBytes, err := ioutil.ReadAll(f)
+		shellScriptBytes, err := io.ReadAll(f)
 		if err != nil {
 			return lb.Complete(fmt.Errorf("cannot read shell script %s: %s", fullScriptPath, err.Error()))
 		}

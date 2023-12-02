@@ -3,7 +3,6 @@ package env
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -61,7 +60,7 @@ func ReadEnvConfigFile(envConfigFile string) (*EnvConfig, error) {
 		}
 	}
 
-	envBytes, err := ioutil.ReadFile(configFullPath)
+	envBytes, err := os.ReadFile(configFullPath)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read env config file %s: %s", configFullPath, err.Error())
 	}

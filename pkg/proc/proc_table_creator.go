@@ -17,13 +17,13 @@ import (
 	"github.com/capillariesio/capillaries/pkg/xfer"
 )
 
-type TableRecord map[string]interface{}
-type TableRecordPtr *map[string]interface{}
+type TableRecord map[string]any
+type TableRecordPtr *map[string]any
 type TableRecordBatch []TableRecordPtr
 
 const DefaultInserterBatchSize int = 5000
 
-func reportWriteTable(logger *l.Logger, pCtx *ctx.MessageProcessingContext, recordCount int, dur time.Duration, indexCount int, workerCount int) {
+func reportWriteTable(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, recordCount int, dur time.Duration, indexCount int, workerCount int) {
 	logger.InfoCtx(pCtx, "WriteTable: %d items in %.3fs (%.0f items/s, %d indexes, eff rate %.0f writes/s), %d workers",
 		recordCount,
 		dur.Seconds(),
@@ -33,7 +33,7 @@ func reportWriteTable(logger *l.Logger, pCtx *ctx.MessageProcessingContext, reco
 		workerCount)
 }
 
-func reportWriteTableLeftovers(logger *l.Logger, pCtx *ctx.MessageProcessingContext, recordCount int, dur time.Duration, indexCount int, workerCount int) {
+func reportWriteTableLeftovers(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, recordCount int, dur time.Duration, indexCount int, workerCount int) {
 	logger.InfoCtx(pCtx, "WriteTableLeftovers: %d items in %.3fs (%.0f items/s, %d indexes, eff rate %.0f writes/s), %d workers",
 		recordCount,
 		dur.Seconds(),
@@ -43,7 +43,7 @@ func reportWriteTableLeftovers(logger *l.Logger, pCtx *ctx.MessageProcessingCont
 		workerCount)
 }
 
-func reportWriteTableComplete(logger *l.Logger, pCtx *ctx.MessageProcessingContext, readCount int, recordCount int, dur time.Duration, indexCount int, workerCount int) {
+func reportWriteTableComplete(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, readCount int, recordCount int, dur time.Duration, indexCount int, workerCount int) {
 	logger.InfoCtx(pCtx, "WriteTableComplete: read %d, wrote %d items in %.3fs (%.0f items/s, %d indexes, eff rate %.0f writes/s), %d workers",
 		readCount,
 		recordCount,
@@ -54,7 +54,7 @@ func reportWriteTableComplete(logger *l.Logger, pCtx *ctx.MessageProcessingConte
 		workerCount)
 }
 
-func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.MessageProcessingContext, srcFileIdx int) (BatchStats, error) {
+func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, srcFileIdx int) (BatchStats, error) {
 	logger.PushF("proc.RunReadFileForBatch")
 	defer logger.PopF()
 
@@ -165,13 +165,13 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.Logger, pCtx *ctx.M
 		return readCsv(envConfig, logger, pCtx, totalStartTime, filePath, fileReader)
 	} else if node.FileReader.ReaderFileType == sc.ReaderFileTypeParquet {
 		return readParquet(envConfig, logger, pCtx, totalStartTime, filePath, fileReadSeeker)
-	} else {
-		return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("unknown reader file type: %d", node.FileReader.ReaderFileType)
 	}
+
+	return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("unknown reader file type: %d", node.FileReader.ReaderFileType)
 }
 
 func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
-	logger *l.Logger,
+	logger *l.CapiLogger,
 	pCtx *ctx.MessageProcessingContext,
 	readerNodeRunId int16,
 	startLeftToken int64,
@@ -213,8 +213,7 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 	if inserterBatchSize < node.TableReader.RowsetSize {
 		inserterBatchSize = node.TableReader.RowsetSize
 	}
-	instr := newTableInserter(envConfig, logger, pCtx, &node.TableCreator, inserterBatchSize)
-	//instr.verifyTablesExist()
+	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, inserterBatchSize)
 	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}
@@ -243,15 +242,15 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 
 			// Write batch if needed
 			if inResult {
-				instr.add(tableRecord)
+				if err = instr.add(tableRecord); err != nil {
+					return fmt.Errorf("cannot add record to %s: [%s]", node.TableCreator.Name, err.Error())
+				}
 				rowsWritten++
 				bs.RowsWritten++
 			}
 		}
 
 		reportWriteTable(logger, pCtx, rowsWritten, time.Since(flushStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
-		flushStartTime = time.Now()
-		rowsWritten = 0
 
 		return nil
 	}
@@ -295,7 +294,7 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 }
 
 func RunCreateTableForBatch(envConfig *env.EnvConfig,
-	logger *l.Logger,
+	logger *l.CapiLogger,
 	pCtx *ctx.MessageProcessingContext,
 	readerNodeRunId int16,
 	startLeftToken int64,
@@ -338,8 +337,7 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 	if inserterBatchSize < node.TableReader.RowsetSize {
 		inserterBatchSize = node.TableReader.RowsetSize
 	}
-	instr := newTableInserter(envConfig, logger, pCtx, &node.TableCreator, inserterBatchSize)
-	//instr.verifyTablesExist()
+	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, inserterBatchSize)
 	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}
@@ -383,7 +381,9 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 
 			// Write batch if needed
 			if inResult {
-				instr.add(tableRecord)
+				if err = instr.add(tableRecord); err != nil {
+					return bs, fmt.Errorf("cannot add record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+				}
 				tableRecordBatchCount++
 				if tableRecordBatchCount == DefaultInserterBatchSize {
 					if err := instr.waitForWorkers(logger, pCtx); err != nil {
@@ -419,7 +419,7 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 }
 
 func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
-	logger *l.Logger,
+	logger *l.CapiLogger,
 	pCtx *ctx.MessageProcessingContext,
 	readerNodeRunId int16,
 	lookupNodeRunId int16,
@@ -477,8 +477,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 	if inserterBatchSize < node.TableReader.RowsetSize {
 		inserterBatchSize = node.TableReader.RowsetSize
 	}
-	instr := newTableInserter(envConfig, logger, pCtx, &node.TableCreator, inserterBatchSize)
-	//instr.verifyTablesExist()
+	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, inserterBatchSize)
 	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}
@@ -702,7 +701,9 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 
 							// Write batch if needed
 							if inResult {
-								instr.add(tableRecord)
+								if err = instr.add(tableRecord); err != nil {
+									return bs, fmt.Errorf("cannot add record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+								}
 								tableRecordBatchCount++
 								if tableRecordBatchCount == instr.BatchSize {
 									if err := instr.waitForWorkers(logger, pCtx); err != nil {
@@ -733,42 +734,40 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 			rightIdxPageIdx++
 		} // for each idx page
 
+		// For grouped - group
+		// For non-grouped left join - add empty left-side (those who have right counterpart were alredy hendled above)
+		// Non-grouped inner join - already handled above
 		if node.Lookup.IsGroup {
 			// Time to write the result of the grouped
 			for leftRowIdx := 0; leftRowIdx < rsLeft.RowCount; leftRowIdx++ {
-				tableRecord := map[string]interface{}{}
+				tableRecord := map[string]any{}
 				if !leftRowFoundRightLookup[leftRowIdx] {
-					if node.Lookup.LookupJoin == sc.LookupJoinLeft {
-
-						// Grouped left outer join with no data on the right
-
-						leftVars := eval.VarValuesMap{}
-						if err := rsLeft.ExportToVars(leftRowIdx, &leftVars); err != nil {
-							return bs, err
-						}
-
-						for fieldName, fieldDef := range node.TableCreator.Fields {
-							isAggEnabled, _, _ := eval.DetectRootAggFunc(fieldDef.ParsedExpression)
-							if isAggEnabled == eval.AggFuncEnabled {
-								// Aggregate func is used in field expression - ignore the expression and produce default
-								tableRecord[fieldName], err = node.TableCreator.GetFieldDefaultReadyForDb(fieldName)
-								if err != nil {
-									return bs, fmt.Errorf("cannot initialize default field %s: [%s]", fieldName, err.Error())
-								}
-							} else {
-								// No aggregate function used in field expression - assume it contains only left-side fields
-								tableRecord[fieldName], err = sc.CalculateFieldValue(fieldName, fieldDef, leftVars, false)
-								if err != nil {
-									return bs, err
-								}
-							}
-						}
-					} else {
-
+					if node.Lookup.LookupJoin == sc.LookupJoinInner {
 						// Grouped inner join with no data on the right
 						// Do not insert this left row
-
 						continue
+					}
+					// Grouped left outer join with no data on the right
+					leftVars := eval.VarValuesMap{}
+					if err := rsLeft.ExportToVars(leftRowIdx, &leftVars); err != nil {
+						return bs, err
+					}
+
+					for fieldName, fieldDef := range node.TableCreator.Fields {
+						isAggEnabled, _, _ := eval.DetectRootAggFunc(fieldDef.ParsedExpression)
+						if isAggEnabled == eval.AggFuncEnabled {
+							// Aggregate func is used in field expression - ignore the expression and produce default
+							tableRecord[fieldName], err = node.TableCreator.GetFieldDefaultReadyForDb(fieldName)
+							if err != nil {
+								return bs, fmt.Errorf("cannot initialize default field %s: [%s]", fieldName, err.Error())
+							}
+						} else {
+							// No aggregate function used in field expression - assume it contains only left-side fields
+							tableRecord[fieldName], err = sc.CalculateFieldValue(fieldName, fieldDef, leftVars, false)
+							if err != nil {
+								return bs, err
+							}
+						}
 					}
 				} else {
 
@@ -793,7 +792,9 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 
 				// Write batch if needed
 				if inResult {
-					instr.add(tableRecord)
+					if err = instr.add(tableRecord); err != nil {
+						return bs, fmt.Errorf("cannot add record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+					}
 					tableRecordBatchCount++
 					if tableRecordBatchCount == instr.BatchSize {
 						if err := instr.waitForWorkers(logger, pCtx); err != nil {
@@ -825,7 +826,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 					return bs, err
 				}
 
-				tableRecord := map[string]interface{}{}
+				tableRecord := map[string]any{}
 
 				for fieldName, fieldDef := range node.TableCreator.Fields {
 					if fieldDef.UsedFields.HasFieldsWithTableAlias(sc.LookupAlias) {
@@ -851,7 +852,9 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 
 				// Write batch if needed
 				if inResult {
-					instr.add(tableRecord)
+					if err = instr.add(tableRecord); err != nil {
+						return bs, fmt.Errorf("cannot add record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+					}
 					tableRecordBatchCount++
 					if tableRecordBatchCount == instr.BatchSize {
 						if err := instr.waitForWorkers(logger, pCtx); err != nil {
@@ -867,8 +870,6 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 					bs.RowsWritten++
 				}
 			}
-		} else {
-			// Non-grouped inner join, already handled above
 		}
 
 		bs.RowsRead += rsLeft.RowCount

@@ -7,7 +7,7 @@ import (
 
 func (*OpenstackDeployProvider) CreateSecurityGroups(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	sb := strings.Builder{}
-	for sgNickname, _ := range prjPair.Live.SecurityGroups {
+	for sgNickname := range prjPair.Live.SecurityGroups {
 		logMsg, err := createOpenstackSecurityGroup(prjPair, sgNickname, isVerbose)
 		AddLogMsg(&sb, logMsg)
 		if err != nil {
@@ -146,7 +146,7 @@ func createOpenstackSecurityGroup(prjPair *ProjectPair, sgNickname string, isVer
 
 func (*OpenstackDeployProvider) DeleteSecurityGroups(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {
 	sb := strings.Builder{}
-	for sgNickname, _ := range prjPair.Live.SecurityGroups {
+	for sgNickname := range prjPair.Live.SecurityGroups {
 		logMsg, err := deleteOpenstackSecurityGroup(prjPair, sgNickname, isVerbose)
 		AddLogMsg(&sb, logMsg)
 		if err != nil {

@@ -34,7 +34,7 @@ func (procDef *TagAndDenormalizeProcessorDef) GetUsedInTargetExpressionsFields()
 	return &procDef.UsedInCriteriaFields
 }
 
-func (procDef *TagAndDenormalizeProcessorDef) Deserialize(raw json.RawMessage, customProcSettings json.RawMessage, caPath string, privateKeys map[string]string) error {
+func (procDef *TagAndDenormalizeProcessorDef) Deserialize(raw json.RawMessage, _ json.RawMessage, caPath string, privateKeys map[string]string) error {
 	var err error
 	if err = json.Unmarshal(raw, procDef); err != nil {
 		return fmt.Errorf("cannot unmarshal tag_and_denormalize processor def: %s", err.Error())
@@ -53,7 +53,7 @@ func (procDef *TagAndDenormalizeProcessorDef) Deserialize(raw json.RawMessage, c
 			return fmt.Errorf("cannot get criteria file [%s]: %s", procDef.RawTagCriteriaUri, err.Error())
 		}
 
-		if criteriaBytes == nil || len(criteriaBytes) == 0 {
+		if len(criteriaBytes) == 0 {
 			return fmt.Errorf("criteria file [%s] is empty", procDef.RawTagCriteriaUri)
 		}
 
@@ -76,9 +76,8 @@ func (procDef *TagAndDenormalizeProcessorDef) Deserialize(raw json.RawMessage, c
 
 	if len(errors) > 0 {
 		return fmt.Errorf(strings.Join(errors, "; "))
-	} else {
-		return nil
 	}
+	return nil
 }
 
 const tagAndDenormalizeFlushBufferSize int = 1000
@@ -113,9 +112,9 @@ func (procDef *TagAndDenormalizeProcessorDef) tagAndDenormalize(rsIn *proc.Rowse
 
 			varsArray[varsArrayCount] = &eval.VarValuesMap{}
 			// Write tag
-			(*varsArray[varsArrayCount])[sc.CustomProcessorAlias] = map[string]interface{}{procDef.TagFieldName: tag}
+			(*varsArray[varsArrayCount])[sc.CustomProcessorAlias] = map[string]any{procDef.TagFieldName: tag}
 			// Write r values
-			(*varsArray[varsArrayCount])[sc.ReaderAlias] = map[string]interface{}{}
+			(*varsArray[varsArrayCount])[sc.ReaderAlias] = map[string]any{}
 			for fieldName, fieldVal := range vars[sc.ReaderAlias] {
 				(*varsArray[varsArrayCount])[sc.ReaderAlias][fieldName] = fieldVal
 			}

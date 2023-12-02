@@ -13,7 +13,7 @@ import (
 	"github.com/gocql/gocql"
 )
 
-func GetCurrentRunStatus(logger *l.Logger, pCtx *ctx.MessageProcessingContext) (wfmodel.RunStatusType, error) {
+func GetCurrentRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) (wfmodel.RunStatusType, error) {
 	logger.PushF("wfdb.GetCurrentRunStatus")
 	defer logger.PopF()
 
@@ -46,7 +46,7 @@ func GetCurrentRunStatus(logger *l.Logger, pCtx *ctx.MessageProcessingContext) (
 	return lastStatus, nil
 }
 
-func HarvestRunLifespans(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runIds []int16) (wfmodel.RunLifespanMap, error) {
+func HarvestRunLifespans(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runIds []int16) (wfmodel.RunLifespanMap, error) {
 	logger.PushF("wfdb.HarvestRunLifespans")
 	defer logger.PopF()
 
@@ -99,7 +99,7 @@ func HarvestRunLifespans(logger *l.Logger, cqlSession *gocql.Session, keyspace s
 	return runLifespanMap, nil
 }
 
-func SetRunStatus(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId int16, status wfmodel.RunStatusType, comment string, ifNotExistsFlag cql.IfNotExistsType) error {
+func SetRunStatus(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16, status wfmodel.RunStatusType, comment string, ifNotExistsFlag cql.IfNotExistsType) error {
 	logger.PushF("wfdb.SetRunStatus")
 	defer logger.PopF()
 

@@ -12,7 +12,7 @@ import (
 func TestTimeFunctions(t *testing.T) {
 	testTime := time.Date(2001, 1, 1, 1, 1, 1, 100000000, time.FixedZone("", -7200))
 	testTimeUtc := time.Date(2001, 1, 1, 0, 0, 0, 0, time.UTC)
-	varValuesMap := VarValuesMap{"t": map[string]interface{}{"test_time": testTime}}
+	varValuesMap := VarValuesMap{"t": map[string]any{"test_time": testTime}}
 
 	assertEqual(t, `time.Parse("2006-01-02T15:04:05.000-0700","2001-01-01T01:01:01.100-0200")`, testTime, varValuesMap)
 	assertEvalError(t, `time.Parse("2006-01-02T15:04:05.000-0700","2001-01-01T01:01:01.100-0200","aaa")`, "cannot evaluate time.Parse(), requires 2 args, 3 supplied", varValuesMap)
@@ -70,8 +70,8 @@ func TestNow(t *testing.T) {
 		return
 	}
 
-	resultTime, _ := result.(time.Time)
-
+	resultTime, ok := result.(time.Time)
+	assert.True(t, ok)
 	assert.True(t, time.Since(resultTime).Milliseconds() < 500)
 	assertEvalError(t, `time.Now(1)`, "cannot evaluate time.Now(), requires 0 args, 1 supplied", VarValuesMap{})
 }

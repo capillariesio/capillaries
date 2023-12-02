@@ -102,14 +102,14 @@ func InstanceFileGroupDownDefsToSpecs(prj *Project, ipAddress string, fgDef *Fil
 	}
 	defer tsc.Close()
 
-	sftp, err := sftp.NewClient(tsc.SshClient)
+	sftpClient, err := sftp.NewClient(tsc.SshClient)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create sftp client: %s", err.Error())
 	}
-	defer sftp.Close()
+	defer sftpClient.Close()
 
 	fileDownloadSpecs := make([]*FileDownloadSpec, 0)
-	w := sftp.Walk(fgDef.Src)
+	w := sftpClient.Walk(fgDef.Src)
 	for w.Step() {
 		if w.Err() != nil {
 			return nil, fmt.Errorf("sftp walker error in %s, %s: %s", fgDef.Src, w.Path(), w.Err().Error())
@@ -166,11 +166,11 @@ func UploadFileSftp(prj *Project, ipAddress string, srcPath string, dstPath stri
 	}
 	defer tsc.Close()
 
-	sftp, err := sftp.NewClient(tsc.SshClient)
+	sftpClient, err := sftp.NewClient(tsc.SshClient)
 	if err != nil {
 		return lb.Complete(fmt.Errorf("cannot create sftp client to %s: %s", ipAddress, err.Error()))
 	}
-	defer sftp.Close()
+	defer sftpClient.Close()
 
 	pathParts := strings.Split(dstPath, string(os.PathSeparator))
 	curPath := string(os.PathSeparator)
@@ -179,7 +179,7 @@ func UploadFileSftp(prj *Project, ipAddress string, srcPath string, dstPath stri
 			continue
 		}
 		curPath = filepath.Join(curPath, pathParts[partIdx])
-		fi, err := sftp.Stat(curPath)
+		fi, err := sftpClient.Stat(curPath)
 		if err == nil && fi.IsDir() {
 			// Nothing to do, we do not change existing directories
 			continue
@@ -229,7 +229,7 @@ func UploadFileSftp(prj *Project, ipAddress string, srcPath string, dstPath stri
 		return lb.Complete(fmt.Errorf("cannot delete dst file on upload %s: %s", dstPath, err.Error()))
 	}
 
-	dstFile, err := sftp.Create(dstPath)
+	dstFile, err := sftpClient.Create(dstPath)
 	if err != nil {
 		return lb.Complete(fmt.Errorf("cannot create on upload %s%s: %s", ipAddress, dstPath, err.Error()))
 	}
@@ -263,17 +263,17 @@ func DownloadFileSftp(prj *Project, ipAddress string, srcPath string, dstPath st
 	}
 	defer tsc.Close()
 
-	sftp, err := sftp.NewClient(tsc.SshClient)
+	sftpClient, err := sftp.NewClient(tsc.SshClient)
 	if err != nil {
 		return lb.Complete(fmt.Errorf("cannot create sftp client: %s", err.Error()))
 	}
-	defer sftp.Close()
+	defer sftpClient.Close()
 
 	if err := os.MkdirAll(filepath.Dir(dstPath), 0777); err != nil {
 		return lb.Complete(fmt.Errorf("cannot create target dir for %s: %s", dstPath, err.Error()))
 	}
 
-	srcFile, err := sftp.Open(srcPath)
+	srcFile, err := sftpClient.Open(srcPath)
 	if err != nil {
 		return lb.Complete(fmt.Errorf("cannot open for download %s: %s", srcPath, err.Error()))
 	}

@@ -331,7 +331,7 @@ func createOpenstackRouter(prjPair *ProjectPair, isVerbose bool) (LogMsg, error)
 		lb.Add(fmt.Sprintf("router %s seems to be connected to internet\n", prjPair.Live.Network.Router.Name))
 	} else {
 		lb.Add(fmt.Sprintf("router %s needs to be connected to internet\n", prjPair.Live.Network.Router.Name))
-		rows, er = execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"router", "set", "--external-gateway", prjPair.Live.Network.Router.ExternalGatewayNetworkName, prjPair.Live.Network.Router.Name})
+		_, er = execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"router", "set", "--external-gateway", prjPair.Live.Network.Router.ExternalGatewayNetworkName, prjPair.Live.Network.Router.Name})
 		lb.Add(er.ToString())
 		if er.Error != nil {
 			return lb.Complete(er.Error)
@@ -369,7 +369,7 @@ func deleteOpenstackRouter(prjPair *ProjectPair, isVerbose bool) (LogMsg, error)
 	}
 
 	// Release gateway. Some providers (genesis) will not remove port if gateway not released.
-	rows, er = execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"router", "unset", "--external-gateway", prjPair.Live.Network.Router.Name})
+	_, er = execLocalAndParseOpenstackOutput(&prjPair.Live, "openstack", []string{"router", "unset", "--external-gateway", prjPair.Live.Network.Router.Name})
 	lb.Add(er.ToString())
 	if er.Error != nil {
 		return lb.Complete(er.Error)

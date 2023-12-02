@@ -93,7 +93,6 @@ func (*OpenstackDeployProvider) CreateVolume(prjPair *ProjectPair, iNickname str
 		// If it was already created, save it for future use, but do not create
 		if foundVolIdByName != "" {
 			lb.Add(fmt.Sprintf("volume %s(%s) already there, updating project", prjPair.Live.Instances[iNickname].Volumes[volNickname].Name, foundVolIdByName))
-			//fmt.Printf("Setting existing %s-%s %s\n", iNickname, volNickname, foundVolIdByName)
 			prjPair.SetVolumeId(iNickname, volNickname, foundVolIdByName)
 		}
 	} else {
@@ -134,7 +133,6 @@ func (*OpenstackDeployProvider) CreateVolume(prjPair *ProjectPair, iNickname str
 
 	lb.Add(fmt.Sprintf("created volume %s: %s(%s)", volNickname, prjPair.Live.Instances[iNickname].Volumes[volNickname].Name, newId))
 	prjPair.SetVolumeId(iNickname, volNickname, newId)
-	//fmt.Printf("Setting id %s-%s %s\n", iNickname, volNickname, newId)
 
 	return lb.Complete(nil)
 }

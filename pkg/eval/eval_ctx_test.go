@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func assertEqual(t *testing.T, expString string, expectedResult interface{}, varValuesMap VarValuesMap) {
+func assertEqual(t *testing.T, expString string, expectedResult any, varValuesMap VarValuesMap) {
 	exp, err1 := parser.ParseExpr(expString)
 	if err1 != nil {
 		t.Error(fmt.Errorf("%s: %s", expString, err1.Error()))
@@ -40,7 +40,8 @@ func assertFloatNan(t *testing.T, expString string, varValuesMap VarValuesMap) {
 		t.Error(fmt.Errorf("%s: %s", expString, err2.Error()))
 		return
 	}
-	floatResult, _ := result.(float64)
+	floatResult, ok := result.(float64)
+	assert.True(t, ok)
 	assert.True(t, math.IsNaN(floatResult))
 }
 
@@ -71,7 +72,7 @@ func TestBad(t *testing.T) {
 	assertEvalError(t, "1 &^ 2", "cannot perform binary expression unknown op &^", VarValuesMap{}) // No plans to support this op
 
 	// Unsupported unary operators
-	assertEvalError(t, "&1", "cannot evaluate unary op &, unkown op", VarValuesMap{})
+	assertEvalError(t, "&1", "cannot evaluate unary op &, unknown op", VarValuesMap{})
 
 	// Unsupported selector expr
 	assertEvalError(t, "t1.fieldInt.w", "cannot evaluate selector expression &{t1 fieldInt}, unknown type of X: *ast.SelectorExpr", VarValuesMap{"t1": {"fieldInt": 1}})
@@ -91,10 +92,10 @@ func TestConvertEval(t *testing.T) {
 	}
 
 	// Number to number
-	for k, _ := range varValuesMap["t1"] {
-		assertEqual(t, fmt.Sprintf("decimal2(t1.%s) == 1", k), true, varValuesMap)
-		assertEqual(t, fmt.Sprintf("float(t1.%s) == 1.0", k), true, varValuesMap)
-		assertEqual(t, fmt.Sprintf("int(t1.%s) == 1", k), true, varValuesMap)
+	for fldName := range varValuesMap["t1"] {
+		assertEqual(t, fmt.Sprintf("decimal2(t1.%s) == 1", fldName), true, varValuesMap)
+		assertEqual(t, fmt.Sprintf("float(t1.%s) == 1.0", fldName), true, varValuesMap)
+		assertEqual(t, fmt.Sprintf("int(t1.%s) == 1", fldName), true, varValuesMap)
 	}
 
 	// String to number
@@ -129,8 +130,8 @@ func TestArithmetic(t *testing.T) {
 			"fieldDecimal2": decimal.NewFromInt(2),
 		},
 	}
-	for k1, _ := range varValuesMap["t1"] {
-		for k2, _ := range varValuesMap["t2"] {
+	for k1 := range varValuesMap["t1"] {
+		for k2 := range varValuesMap["t2"] {
 			assertEqual(t, fmt.Sprintf("t1.%s + t2.%s == 3", k1, k2), true, varValuesMap)
 			assertEqual(t, fmt.Sprintf("t1.%s - t2.%s == -1", k1, k2), true, varValuesMap)
 			assertEqual(t, fmt.Sprintf("t1.%s * t2.%s == 2", k1, k2), true, varValuesMap)
@@ -191,8 +192,8 @@ func TestCompare(t *testing.T) {
 			"fieldDecimal2": decimal.NewFromInt(2),
 		},
 	}
-	for k1, _ := range varValuesMap["t1"] {
-		for k2, _ := range varValuesMap["t2"] {
+	for k1 := range varValuesMap["t1"] {
+		for k2 := range varValuesMap["t2"] {
 			assertEqual(t, fmt.Sprintf("t1.%s == t2.%s", k1, k2), false, varValuesMap)
 			assertEqual(t, fmt.Sprintf("t1.%s != t2.%s", k1, k2), true, varValuesMap)
 			assertEqual(t, fmt.Sprintf("t1.%s < t2.%s", k1, k2), true, varValuesMap)
@@ -246,7 +247,7 @@ func TestUnaryMinus(t *testing.T) {
 			"fieldDecimal2": decimal.NewFromInt(1),
 		},
 	}
-	for k, _ := range varValuesMap["t1"] {
+	for k := range varValuesMap["t1"] {
 		assertEqual(t, fmt.Sprintf("-t1.%s == -1", k), true, varValuesMap)
 	}
 }
@@ -280,12 +281,12 @@ func TestNewPlainEvalCtxAndInitializedAgg(t *testing.T) {
 
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr,1)`)
 	aggEnabledType, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
-	eCtx, err = NewPlainEvalCtxAndInitializedAgg(aggEnabledType, aggFuncType, aggFuncArgs)
+	_, err = NewPlainEvalCtxAndInitializedAgg(aggEnabledType, aggFuncType, aggFuncArgs)
 	assert.Equal(t, "string_agg second parameter must be a constant string", err.Error())
 
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr, a)`)
 	aggEnabledType, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
-	eCtx, err = NewPlainEvalCtxAndInitializedAgg(aggEnabledType, aggFuncType, aggFuncArgs)
+	_, err = NewPlainEvalCtxAndInitializedAgg(aggEnabledType, aggFuncType, aggFuncArgs)
 	assert.Equal(t, "string_agg second parameter must be a basic literal", err.Error())
 }
 
@@ -305,7 +306,7 @@ const (
 	BinaryStringToBoolFunc
 )
 
-func assertBinaryEval(t *testing.T, evalFunc EvalFunc, valLeftVolatile interface{}, op token.Token, valRightVolatile interface{}, errorMessage string) {
+func assertBinaryEval(t *testing.T, evalFunc EvalFunc, valLeftVolatile any, op token.Token, valRightVolatile any, errorMessage string) {
 	var err error
 	eCtx := NewPlainEvalCtx(AggFuncDisabled)
 	switch evalFunc {

@@ -5,7 +5,7 @@ import (
 	"regexp"
 )
 
-func callReMatchString(args []interface{}) (interface{}, error) {
+func callReMatchString(args []any) (any, error) {
 	if err := checkArgs("re.MatchString", 2, len(args)); err != nil {
 		return nil, err
 	}

@@ -14,7 +14,7 @@ import (
 )
 
 type FileRecordHeapItem struct {
-	FileRecord *[]interface{}
+	FileRecord *[]any
 	Key        string
 }
 
@@ -23,11 +23,11 @@ type FileRecordHeap []*FileRecordHeapItem
 func (h FileRecordHeap) Len() int           { return len(h) }
 func (h FileRecordHeap) Less(i, j int) bool { return h[i].Key > h[j].Key } // Reverse order: https://stackoverflow.com/questions/49065781/limit-size-of-the-priority-queue-for-gos-heap-interface-implementation
 func (h FileRecordHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
-func (h *FileRecordHeap) Push(x interface{}) {
-	item := x.(*FileRecordHeapItem)
+func (h *FileRecordHeap) Push(x any) {
+	item := x.(*FileRecordHeapItem) //nolint:all
 	*h = append(*h, item)
 }
-func (h *FileRecordHeap) Pop() interface{} {
+func (h *FileRecordHeap) Pop() any {
 	old := *h
 	n := len(old)
 	item := old[n-1]
@@ -36,7 +36,7 @@ func (h *FileRecordHeap) Pop() interface{} {
 	return item
 }
 
-func readAndInsert(logger *l.Logger, pCtx *ctx.MessageProcessingContext, tableName string, rs *Rowset, instr *FileInserter, readerNodeRunId int16, startToken int64, endToken int64, srcBatchSize int) (BatchStats, error) {
+func readAndInsert(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, tableName string, rs *Rowset, instr *FileInserter, readerNodeRunId int16, startToken int64, endToken int64, srcBatchSize int) (BatchStats, error) {
 
 	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: tableName + cql.RunIdSuffix(readerNodeRunId), Dst: instr.FinalFileUrl}
 
@@ -87,7 +87,7 @@ func readAndInsert(logger *l.Logger, pCtx *ctx.MessageProcessingContext, tableNa
 			}
 
 			if instr.FileCreator.HasTop() {
-				keyVars := map[string]interface{}{}
+				keyVars := map[string]any{}
 				for i := 0; i < len(instr.FileCreator.Columns); i++ {
 					keyVars[instr.FileCreator.Columns[i].Name] = fileRecord[i]
 				}
@@ -119,7 +119,7 @@ func readAndInsert(logger *l.Logger, pCtx *ctx.MessageProcessingContext, tableNa
 	if instr.FileCreator.HasTop() {
 		properlyOrderedTopList := make([]*FileRecordHeapItem, topHeap.Len())
 		for i := topHeap.Len() - 1; i >= 0; i-- {
-			properlyOrderedTopList[i] = heap.Pop(&topHeap).(*FileRecordHeapItem)
+			properlyOrderedTopList[i] = heap.Pop(&topHeap).(*FileRecordHeapItem) //nolint:all
 		}
 		for i := 0; i < len(properlyOrderedTopList); i++ {
 			instr.add(*properlyOrderedTopList[i].FileRecord)
@@ -132,7 +132,7 @@ func readAndInsert(logger *l.Logger, pCtx *ctx.MessageProcessingContext, tableNa
 }
 
 func RunCreateFile(envConfig *env.EnvConfig,
-	logger *l.Logger,
+	logger *l.CapiLogger,
 	pCtx *ctx.MessageProcessingContext,
 	readerNodeRunId int16,
 	startToken int64,

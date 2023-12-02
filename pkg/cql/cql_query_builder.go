@@ -31,15 +31,14 @@ Data/idx table name for each run needs run id as a suffix
 func RunIdSuffix(runId int16) string {
 	if runId > 0 {
 		return fmt.Sprintf("_%05d", runId)
-	} else {
-		return ""
 	}
+	return ""
 }
 
 /*
 Helper used in query builder
 */
-func valueToString(value interface{}, quotePolicy QuotePolicyType) string {
+func valueToString(value any, quotePolicy QuotePolicyType) string {
 	switch v := value.(type) {
 	case string:
 		if quotePolicy == ForceUnquote {
@@ -58,7 +57,7 @@ func valueToString(value interface{}, quotePolicy QuotePolicyType) string {
 	}
 }
 
-func valueToCqlParam(value interface{}) interface{} {
+func valueToCqlParam(value any) any {
 	switch v := value.(type) {
 	case decimal.Decimal:
 		f, _ := v.Float64()
@@ -98,7 +97,7 @@ func (cd *queryBuilderColumnDefs) add(column string, fieldType sc.TableFieldType
 
 type queryBuilderPreparedColumnData struct {
 	Columns      [256]string
-	Values       [256]interface{}
+	Values       [256]any
 	ColumnIdxMap map[string]int
 	ValueIdxMap  map[string]int
 }
@@ -112,7 +111,7 @@ func (cd *queryBuilderPreparedColumnData) addColumnName(column string) error {
 	cd.ColumnIdxMap[column] = curColCount
 	return nil
 }
-func (cd *queryBuilderPreparedColumnData) addColumnValue(column string, value interface{}) error {
+func (cd *queryBuilderPreparedColumnData) addColumnValue(column string, value any) error {
 	colIdx, ok := cd.ColumnIdxMap[column]
 	if !ok {
 		return fmt.Errorf("cannot set value for non-prepared column %s, available columns are %v", column, cd.Columns)
@@ -128,7 +127,7 @@ type queryBuilderColumnData struct {
 	Len     int
 }
 
-func (cd *queryBuilderColumnData) add(column string, value interface{}, quotePolicy QuotePolicyType) {
+func (cd *queryBuilderColumnData) add(column string, value any, quotePolicy QuotePolicyType) {
 	cd.Values[cd.Len] = valueToString(value, quotePolicy)
 	cd.Columns[cd.Len] = column
 	cd.Len++
@@ -162,11 +161,11 @@ func (cc *queryBuilderConditions) addInString(column string, values []string) {
 	cc.Len++
 }
 
-func (cc *queryBuilderConditions) addSimple(column string, op string, value interface{}) {
+func (cc *queryBuilderConditions) addSimple(column string, op string, value any) {
 	cc.Items[cc.Len] = fmt.Sprintf("%s %s %s", column, op, valueToString(value, LeaveQuoteAsIs))
 	cc.Len++
 }
-func (cc *queryBuilderConditions) addSimpleForceUnquote(column string, op string, value interface{}) {
+func (cc *queryBuilderConditions) addSimpleForceUnquote(column string, op string, value any) {
 	cc.Items[cc.Len] = fmt.Sprintf("%s %s %s", column, op, valueToString(value, ForceUnquote))
 	cc.Len++
 }
@@ -230,7 +229,7 @@ func (qb *QueryBuilder) Limit(limit int) *QueryBuilder {
 /*
 Write - add a column for INSERT or UPDATE
 */
-func (qb *QueryBuilder) Write(column string, value interface{}) *QueryBuilder {
+func (qb *QueryBuilder) Write(column string, value any) *QueryBuilder {
 	qb.ColumnData.add(column, value, LeaveQuoteAsIs)
 	return qb
 }
@@ -239,14 +238,14 @@ func (qb *QueryBuilder) WritePreparedColumn(column string) error {
 	return qb.PreparedColumnData.addColumnName(column)
 }
 
-func (qb *QueryBuilder) WritePreparedValue(column string, value interface{}) error {
+func (qb *QueryBuilder) WritePreparedValue(column string, value any) error {
 	return qb.PreparedColumnData.addColumnValue(column, value)
 }
 
 /*
 WriteForceUnquote - add a column for INSERT or UPDATE
 */
-func (qb *QueryBuilder) WriteForceUnquote(column string, value interface{}) *QueryBuilder {
+func (qb *QueryBuilder) WriteForceUnquote(column string, value any) *QueryBuilder {
 	qb.ColumnData.add(column, value, ForceUnquote)
 	return qb
 }
@@ -254,7 +253,7 @@ func (qb *QueryBuilder) WriteForceUnquote(column string, value interface{}) *Que
 /*
 Cond - add condition for SELECT, UPDATE or DELETE
 */
-func (qb *QueryBuilder) Cond(column string, op string, value interface{}) *QueryBuilder {
+func (qb *QueryBuilder) Cond(column string, op string, value any) *QueryBuilder {
 	qb.Conditions.addSimple(column, op, value)
 	return qb
 }
@@ -292,7 +291,7 @@ func (qb *QueryBuilder) OrderBy(columns ...string) *QueryBuilder {
 	return qb
 }
 
-func (qb *QueryBuilder) If(column string, op string, value interface{}) *QueryBuilder {
+func (qb *QueryBuilder) If(column string, op string, value any) *QueryBuilder {
 	qb.IfConditions.addSimple(column, op, value)
 	return qb
 }
@@ -346,7 +345,7 @@ func (qb *QueryBuilder) InsertRunPreparedQuery(tableName string, runId int16, if
 	return q, nil
 }
 
-func (qb *QueryBuilder) InsertRunParams() ([]interface{}, error) {
+func (qb *QueryBuilder) InsertRunParams() ([]any, error) {
 	if len(qb.PreparedColumnData.ColumnIdxMap) != len(qb.PreparedColumnData.ValueIdxMap) {
 		return nil, fmt.Errorf("cannot produce insert params, length mismatch: columns %v, values %v", qb.PreparedColumnData.ColumnIdxMap, qb.PreparedColumnData.ValueIdxMap)
 	}

@@ -174,12 +174,7 @@ func (scriptDef *ScriptDef) resolveLookup(node *ScriptNodeDef) error {
 		return err
 	}
 
-	if err = node.Lookup.CheckPagedBatchSize(); err != nil {
-		return err
-	}
-
-	return nil
-
+	return node.Lookup.CheckPagedBatchSize()
 }
 
 func (scriptDef *ScriptDef) checkFieldUsageInCreator(node *ScriptNodeDef) error {
@@ -250,9 +245,9 @@ func (scriptDef *ScriptDef) checkFieldUsageInCreator(node *ScriptNodeDef) error 
 
 	if len(errors) > 0 {
 		return fmt.Errorf("%s", strings.Join(errors, "; "))
-	} else {
-		return nil
 	}
+
+	return nil
 }
 
 func (scriptDef *ScriptDef) checkFieldUsageInCustomProcessorCreator(node *ScriptNodeDef) error {

@@ -12,7 +12,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-func (instr *FileInserter) createCsvFileAndStartWorker(logger *l.Logger) error {
+func (instr *FileInserter) createCsvFileAndStartWorker(logger *l.CapiLogger) error {
 	logger.PushF("proc.createCsvFileAndStartWorker")
 	defer logger.PopF()
 
@@ -67,7 +67,7 @@ func (instr *FileInserter) createCsvFileAndStartWorker(logger *l.Logger) error {
 	return nil
 }
 
-func (instr *FileInserter) csvFileInserterWorker(logger *l.Logger) {
+func (instr *FileInserter) csvFileInserterWorker(logger *l.CapiLogger) {
 	logger.PushF("proc.csvFileInserterWorker")
 	defer logger.PopF()
 
@@ -121,13 +121,16 @@ func (instr *FileInserter) csvFileInserterWorker(logger *l.Logger) {
 			}
 		}
 
-		f.Sync()
-		if _, err := f.WriteString(b.String()); err != nil {
-			instr.ErrorsOut <- fmt.Errorf("cannot write string to %s(temp %s): [%s]", instr.FinalFileUrl, instr.TempFilePath, err.Error())
+		if err = f.Sync(); err == nil {
+			if _, err = f.WriteString(b.String()); err != nil {
+				instr.ErrorsOut <- fmt.Errorf("cannot write string to %s(temp %s): [%s]", instr.FinalFileUrl, instr.TempFilePath, err.Error())
+			} else {
+				dur := time.Since(batchStartTime)
+				logger.InfoCtx(instr.PCtx, "%d items in %.3fs (%.0f items/s)", batch.RowCount, dur.Seconds(), float64(batch.RowCount)/dur.Seconds())
+				instr.ErrorsOut <- nil
+			}
 		} else {
-			dur := time.Since(batchStartTime)
-			logger.InfoCtx(instr.PCtx, "%d items in %.3fs (%.0f items/s)", batch.RowCount, dur.Seconds(), float64(batch.RowCount)/dur.Seconds())
-			instr.ErrorsOut <- nil
+			instr.ErrorsOut <- fmt.Errorf("cannot sync file %s(temp %s): [%s]", instr.FinalFileUrl, instr.TempFilePath, err.Error())
 		}
 	} // next batch
 }

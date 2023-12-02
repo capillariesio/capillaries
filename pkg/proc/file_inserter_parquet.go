@@ -13,7 +13,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-func (instr *FileInserter) createParquetFileAndStartWorker(logger *l.Logger, codec sc.ParquetCodecType) error {
+func (instr *FileInserter) createParquetFileAndStartWorker(logger *l.CapiLogger, codec sc.ParquetCodecType) error {
 	logger.PushF("proc.createParquetFileAndStartWorker")
 	defer logger.PopF()
 
@@ -47,7 +47,7 @@ func (instr *FileInserter) createParquetFileAndStartWorker(logger *l.Logger, cod
 	return nil
 }
 
-func (instr *FileInserter) parquetFileInserterWorker(logger *l.Logger, codec sc.ParquetCodecType) {
+func (instr *FileInserter) parquetFileInserterWorker(logger *l.CapiLogger, codec sc.ParquetCodecType) {
 	logger.PushF("proc.parquetFileInserterWorker")
 	defer logger.PopF()
 
@@ -87,7 +87,7 @@ func (instr *FileInserter) parquetFileInserterWorker(logger *l.Logger, codec sc.
 		batchStartTime := time.Now()
 		var errAddData error
 		for rowIdx := 0; rowIdx < batch.RowCount; rowIdx++ {
-			d := map[string]interface{}{}
+			d := map[string]any{}
 			for i := 0; i < len(instr.FileCreator.Columns); i++ {
 				switch instr.FileCreator.Columns[i].Type {
 				case sc.FieldTypeString:
@@ -134,7 +134,7 @@ func (instr *FileInserter) parquetFileInserterWorker(logger *l.Logger, codec sc.
 					d[instr.FileCreator.Columns[i].Parquet.ColumnName] = storage.ParquetWriterMilliTs(typedValue)
 				default:
 					errAddData = fmt.Errorf("cannot convert column %s value [%v] to Parquet: unsupported type", instr.FileCreator.Columns[i].Parquet.ColumnName, batch.Rows[rowIdx][i])
-					break
+					break //nolint:all , https://github.com/dominikh/go-tools/issues/59
 				}
 			}
 			if err := w.FileWriter.AddData(d); err != nil {

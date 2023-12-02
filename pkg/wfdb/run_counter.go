@@ -10,7 +10,7 @@ import (
 	"github.com/gocql/gocql"
 )
 
-func GetNextRunCounter(logger *l.Logger, cqlSession *gocql.Session, keyspace string) (int16, error) {
+func GetNextRunCounter(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string) (int16, error) {
 	logger.PushF("wfdb.GetNextRunCounter")
 	defer logger.PopF()
 
@@ -43,7 +43,7 @@ func GetNextRunCounter(logger *l.Logger, cqlSession *gocql.Session, keyspace str
 			Cond("ks", "=", keyspace).
 			If("last_run", "=", lastRunId).
 			Update(wfmodel.TableNameRunCounter)
-		existingDataRow := map[string]interface{}{}
+		existingDataRow := map[string]any{}
 		isApplied, err := cqlSession.Query(q).MapScanCAS(existingDataRow)
 
 		if err != nil {

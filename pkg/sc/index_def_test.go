@@ -30,7 +30,7 @@ func TestIndexDefParser(t *testing.T) {
 		"idx_no_mods":     "unique(f_int,f_float,f_bool,f_str,f_time,f_dec)",
 	}
 	idxDefMap := IdxDefMap{}
-	idxDefMap.parseRawIndexDefMap(rawIdxDefMap, &fieldRefs)
+	assert.Nil(t, idxDefMap.parseRawIndexDefMap(rawIdxDefMap, &fieldRefs))
 
 	extractedFieldRefs := idxDefMap["idx_all_default"].getComponentFieldRefs("t2")
 	for i := 0; i < len(extractedFieldRefs); i++ {

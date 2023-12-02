@@ -20,7 +20,7 @@ func RunPropertiesAllFields() []string {
 	return []string{"run_id", "start_nodes", "affected_nodes", "script_uri", "script_params_uri", "run_description"}
 }
 
-func NewRunPropertiesFromMap(r map[string]interface{}, fields []string) (*RunProperties, error) {
+func NewRunPropertiesFromMap(r map[string]any, fields []string) (*RunProperties, error) {
 	res := &RunProperties{}
 	for _, fieldName := range fields {
 		var err error

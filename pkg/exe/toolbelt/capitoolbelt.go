@@ -48,8 +48,8 @@ func NodeBatchStatusToColor(status wfmodel.NodeBatchStatusType) string {
 func GetDotDiagram(scriptDef *sc.ScriptDef, dotDiagramType DotDiagramType, nodeColorMap map[string]string) string {
 	var b strings.Builder
 
-	const RecordFontSize int = 20
-	const ArrowFontSize int = 18
+	const recordFontSize int = 20
+	const arrowFontSize int = 18
 
 	urlEscaper := strings.NewReplacer(`{`, `\{`, `}`, `\}`, `|`, `\|`)
 	b.WriteString(fmt.Sprintf("\ndigraph %s {\nrankdir=\"TD\";\n node [fontname=\"Helvetica\"];\nedge [fontname=\"Helvetica\"];\ngraph [splines=true, pad=\"0.5\", ranksep=\"0.5\", nodesep=\"0.5\"];\n", dotDiagramType))
@@ -77,8 +77,8 @@ func GetDotDiagram(scriptDef *sc.ScriptDef, dotDiagramType DotDiagramType, nodeC
 			fileNames := make([]string, len(node.FileReader.SrcFileUrls))
 			copy(fileNames, node.FileReader.SrcFileUrls)
 
-			b.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [style=dotted, fontsize=\"%d\", label=\"%s\"];\n", node.FileReader.SrcFileUrls[0], node.GetTargetName(), ArrowFontSize, arrowLabelBuilder.String()))
-			b.WriteString(fmt.Sprintf("\"%s\" [shape=folder, fontsize=\"%d\", label=\"%s\", tooltip=\"Source data file(s)\"];\n", node.FileReader.SrcFileUrls[0], RecordFontSize, strings.Join(fileNames, "\\n")))
+			b.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [style=dotted, fontsize=\"%d\", label=\"%s\"];\n", node.FileReader.SrcFileUrls[0], node.GetTargetName(), arrowFontSize, arrowLabelBuilder.String()))
+			b.WriteString(fmt.Sprintf("\"%s\" [shape=folder, fontsize=\"%d\", label=\"%s\", tooltip=\"Source data file(s)\"];\n", node.FileReader.SrcFileUrls[0], recordFontSize, strings.Join(fileNames, "\\n")))
 		}
 
 		allUsedFields := sc.FieldRefs{}
@@ -110,15 +110,10 @@ func GetDotDiagram(scriptDef *sc.ScriptDef, dotDiagramType DotDiagramType, nodeC
 				inSrcArrowLabel = inSrcArrowLabelBuilder.String()
 			}
 			if node.HasFileCreator() {
-				// In (reader)
-				//if node.TableReader.ExpectedBatchesTotal > 1 {
-				//b.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [style=solid];\n", node.TableReader.TableName, node.Name))
-				//b.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [style=solid];\n", node.TableReader.TableName, node.Name))
-				//}
-				b.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [style=solid, fontsize=\"%d\", label=\"%s\"];\n", node.TableReader.TableName, node.Name, ArrowFontSize, inSrcArrowLabel))
+				b.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [style=solid, fontsize=\"%d\", label=\"%s\"];\n", node.TableReader.TableName, node.Name, arrowFontSize, inSrcArrowLabel))
 
 				// Node (file)
-				b.WriteString(fmt.Sprintf("\"%s\" [shape=record, penwidth=\"%s\", fontsize=\"%d\", fillcolor=\"%s\", style=\"filled\", label=\"{%s|creates file:\\n%s}\", tooltip=\"%s\"];\n", node.Name, penWidth, RecordFontSize, fillColor, node.Name, urlEscaper.Replace(node.FileCreator.UrlTemplate), node.Desc))
+				b.WriteString(fmt.Sprintf("\"%s\" [shape=record, penwidth=\"%s\", fontsize=\"%d\", fillcolor=\"%s\", style=\"filled\", label=\"{%s|creates file:\\n%s}\", tooltip=\"%s\"];\n", node.Name, penWidth, recordFontSize, fillColor, node.Name, urlEscaper.Replace(node.FileCreator.UrlTemplate), node.Desc))
 
 				// Out (file)
 				arrowLabelBuilder := strings.Builder{}
@@ -129,15 +124,10 @@ func GetDotDiagram(scriptDef *sc.ScriptDef, dotDiagramType DotDiagramType, nodeC
 					}
 				}
 
-				b.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [style=dotted, fontsize=\"%d\", label=\"%s\"];\n", node.Name, node.FileCreator.UrlTemplate, ArrowFontSize, arrowLabelBuilder.String()))
-				b.WriteString(fmt.Sprintf("\"%s\" [shape=note, fontsize=\"%d\", label=\"%s\", tooltip=\"Target data file(s)\"];\n", node.FileCreator.UrlTemplate, RecordFontSize, node.FileCreator.UrlTemplate))
+				b.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [style=dotted, fontsize=\"%d\", label=\"%s\"];\n", node.Name, node.FileCreator.UrlTemplate, arrowFontSize, arrowLabelBuilder.String()))
+				b.WriteString(fmt.Sprintf("\"%s\" [shape=note, fontsize=\"%d\", label=\"%s\", tooltip=\"Target data file(s)\"];\n", node.FileCreator.UrlTemplate, recordFontSize, node.FileCreator.UrlTemplate))
 			} else {
-				// In (reader)
-				// if node.TableReader.ExpectedBatchesTotal > 1 {
-				// 	b.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [style=solid];\n", node.TableReader.TableName, node.GetTargetName()))
-				// 	b.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [style=solid];\n", node.TableReader.TableName, node.GetTargetName()))
-				// }
-				b.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [style=solid, fontsize=\"%d\", label=\"%s\"];\n", node.TableReader.TableName, node.GetTargetName(), ArrowFontSize, inSrcArrowLabel))
+				b.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [style=solid, fontsize=\"%d\", label=\"%s\"];\n", node.TableReader.TableName, node.GetTargetName(), arrowFontSize, inSrcArrowLabel))
 			}
 
 			if node.HasLookup() {
@@ -153,7 +143,7 @@ func GetDotDiagram(scriptDef *sc.ScriptDef, dotDiagramType DotDiagramType, nodeC
 					inLkpArrowLabel = inLkpArrowLabelBuilder.String()
 				}
 				// In (lookup)
-				b.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [style=dashed, fontsize=\"%d\", label=\"%s\"];\n", node.Lookup.TableCreator.Name, node.GetTargetName(), ArrowFontSize, inLkpArrowLabel))
+				b.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [style=dashed, fontsize=\"%d\", label=\"%s\"];\n", node.Lookup.TableCreator.Name, node.GetTargetName(), arrowFontSize, inLkpArrowLabel))
 			}
 
 		}
@@ -161,9 +151,9 @@ func GetDotDiagram(scriptDef *sc.ScriptDef, dotDiagramType DotDiagramType, nodeC
 		if node.HasTableCreator() {
 			// Node (table)
 			if node.HasLookup() {
-				b.WriteString(fmt.Sprintf("\"%s\" [shape=record, penwidth=\"%s\", fontsize=\"%d\", fillcolor=\"%s\", style=\"filled\", label=\"{%s|creates table:\\n%s|group:%t, join:%s}\", tooltip=\"%s\"];\n", node.TableCreator.Name, penWidth, RecordFontSize, fillColor, node.Name, node.TableCreator.Name, node.Lookup.IsGroup, node.Lookup.LookupJoin, node.Desc))
+				b.WriteString(fmt.Sprintf("\"%s\" [shape=record, penwidth=\"%s\", fontsize=\"%d\", fillcolor=\"%s\", style=\"filled\", label=\"{%s|creates table:\\n%s|group:%t, join:%s}\", tooltip=\"%s\"];\n", node.TableCreator.Name, penWidth, recordFontSize, fillColor, node.Name, node.TableCreator.Name, node.Lookup.IsGroup, node.Lookup.LookupJoin, node.Desc))
 			} else {
-				b.WriteString(fmt.Sprintf("\"%s\" [shape=record, penwidth=\"%s\", fontsize=\"%d\", fillcolor=\"%s\", style=\"filled\", label=\"{%s|creates table:\\n%s}\", tooltip=\"%s\"];\n", node.TableCreator.Name, penWidth, RecordFontSize, fillColor, node.Name, node.TableCreator.Name, node.Desc))
+				b.WriteString(fmt.Sprintf("\"%s\" [shape=record, penwidth=\"%s\", fontsize=\"%d\", fillcolor=\"%s\", style=\"filled\", label=\"{%s|creates table:\\n%s}\", tooltip=\"%s\"];\n", node.TableCreator.Name, penWidth, recordFontSize, fillColor, node.Name, node.TableCreator.Name, node.Desc))
 			}
 		}
 	}
@@ -207,18 +197,6 @@ func stringToArrayOfInt16(s string) ([]int16, error) {
 	return result, nil
 }
 
-func stringToArrayOfStrings(s string) ([]string, error) {
-	var result []string
-	if len(strings.TrimSpace(s)) > 0 {
-		stringItems := strings.Split(s, ",")
-		result = make([]string, len(stringItems))
-		for itemIdx, stringItem := range stringItems {
-			result[itemIdx] = stringItem
-		}
-	}
-	return result, nil
-}
-
 const (
 	CmdValidateScript      string = "validate_script"
 	CmdStartRun            string = "start_run"
@@ -249,27 +227,25 @@ func usage(flagset *flag.FlagSet) {
 		fmt.Printf("\n%s parameters:\n", flagset.Name())
 		flagset.PrintDefaults()
 	}
-	os.Exit(0)
 }
 
 func main() {
-	//defer profile.Start().Stop()
+	// defer profile.Start().Stop()
 
 	envConfig, err := env.ReadEnvConfigFile("capitoolbelt.json")
 	if err != nil {
 		log.Fatalf(err.Error())
-		os.Exit(1)
 	}
 	envConfig.CustomProcessorDefFactoryInstance = &StandardToolbeltProcessorDefFactory{}
 	logger, err := l.NewLoggerFromEnvConfig(envConfig)
 	if err != nil {
 		log.Fatalf(err.Error())
-		os.Exit(1)
 	}
 	defer logger.Close()
 
 	if len(os.Args) <= 1 {
 		usage(nil)
+		os.Exit(0)
 	}
 
 	switch os.Args[1] {
@@ -281,12 +257,12 @@ func main() {
 		isFieldDag := validateScriptCmd.Bool("field_dag", false, "Print field DAG")
 		if err := validateScriptCmd.Parse(os.Args[2:]); err != nil || *scriptFilePath == "" || *paramsFilePath == "" || (!*isIdxDag && !*isFieldDag) {
 			usage(validateScriptCmd)
+			os.Exit(0)
 		}
 
-		script, err, _ := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, *scriptFilePath, *paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
+		script, _, err := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, *scriptFilePath, *paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
 		if err != nil {
 			log.Fatalf(err.Error())
-			os.Exit(1)
 		}
 
 		if *isIdxDag {
@@ -302,24 +278,22 @@ func main() {
 		runIdString := stopRunCmd.String("run_id", "", "Run id")
 		if err := stopRunCmd.Parse(os.Args[2:]); err != nil {
 			usage(stopRunCmd)
+			os.Exit(0)
 		}
 
 		runId, err := strconv.ParseInt(strings.TrimSpace(*runIdString), 10, 16)
 		if err != nil {
 			log.Fatalf(err.Error())
-			os.Exit(1)
 		}
 
 		cqlSession, err := db.NewSession(envConfig, *keyspace, db.DoNotCreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
-			os.Exit(1)
 		}
 
 		err = api.StopRun(logger, cqlSession, *keyspace, int16(runId), "stopped by toolbelt")
 		if err != nil {
 			log.Fatalf(err.Error())
-			os.Exit(1)
 		}
 
 	case CmdGetRunHistory:
@@ -327,18 +301,17 @@ func main() {
 		keyspace := getRunsCmd.String("keyspace", "", "Keyspace (session id)")
 		if err := getRunsCmd.Parse(os.Args[2:]); err != nil {
 			usage(getRunsCmd)
+			os.Exit(0)
 		}
 
 		cqlSession, err := db.NewSession(envConfig, *keyspace, db.DoNotCreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
-			os.Exit(1)
 		}
 
 		runs, err := api.GetRunHistory(logger, cqlSession, *keyspace)
 		if err != nil {
 			log.Fatalf(err.Error())
-			os.Exit(1)
 		}
 		fmt.Println(strings.Join(wfmodel.RunHistoryEventAllFields(), ","))
 		for _, r := range runs {
@@ -351,24 +324,22 @@ func main() {
 		runIdsString := getNodeHistoryCmd.String("run_ids", "", "Limit results to specific run ids (optional), comma-separated list")
 		if err := getNodeHistoryCmd.Parse(os.Args[2:]); err != nil {
 			usage(getNodeHistoryCmd)
+			os.Exit(0)
 		}
 
 		cqlSession, err := db.NewSession(envConfig, *keyspace, db.DoNotCreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
-			os.Exit(1)
 		}
 
 		runIds, err := stringToArrayOfInt16(*runIdsString)
 		if err != nil {
 			log.Fatalf(err.Error())
-			os.Exit(1)
 		}
 
 		nodes, err := api.GetRunsNodeHistory(logger, cqlSession, *keyspace, runIds)
 		if err != nil {
 			log.Fatalf(err.Error())
-			os.Exit(1)
 		}
 		fmt.Println(strings.Join(wfmodel.NodeHistoryEventAllFields(), ","))
 		for _, n := range nodes {
@@ -382,30 +353,29 @@ func main() {
 		nodeNamesString := getBatchHistoryCmd.String("nodes", "", "Limit results to specific node names (optional), comma-separated list")
 		if err := getBatchHistoryCmd.Parse(os.Args[2:]); err != nil {
 			usage(getBatchHistoryCmd)
+			os.Exit(0)
 		}
 
 		cqlSession, err := db.NewSession(envConfig, *keyspace, db.DoNotCreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
-			os.Exit(1)
 		}
 
 		runIds, err := stringToArrayOfInt16(*runIdsString)
 		if err != nil {
 			log.Fatalf(err.Error())
-			os.Exit(1)
 		}
 
-		nodeNames, err := stringToArrayOfStrings(*nodeNamesString)
-		if err != nil {
-			log.Fatalf(err.Error())
-			os.Exit(1)
+		var nodeNames []string
+		if len(strings.TrimSpace(*nodeNamesString)) > 0 {
+			nodeNames = strings.Split(*nodeNamesString, ",")
+		} else {
+			nodeNames = make([]string, 0)
 		}
 
 		runs, err := api.GetBatchHistory(logger, cqlSession, *keyspace, runIds, nodeNames)
 		if err != nil {
 			log.Fatalf(err.Error())
-			os.Exit(1)
 		}
 
 		fmt.Println(strings.Join(wfmodel.BatchHistoryEventAllFields(), ","))
@@ -422,12 +392,12 @@ func main() {
 		startNodesString := getTableCqlCmd.String("start_nodes", "", "Comma-separated list of start node names")
 		if err := getTableCqlCmd.Parse(os.Args[2:]); err != nil {
 			usage(getTableCqlCmd)
+			os.Exit(0)
 		}
 
-		script, err, _ := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, *scriptFilePath, *paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
+		script, _, err := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, *scriptFilePath, *paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
 		if err != nil {
 			log.Fatalf(err.Error())
-			os.Exit(1)
 		}
 
 		startNodes := strings.Split(*startNodesString, ",")
@@ -442,30 +412,27 @@ func main() {
 		runIdString := getRunStatusDiagramCmd.String("run_id", "", "Run id")
 		if err := getRunStatusDiagramCmd.Parse(os.Args[2:]); err != nil {
 			usage(getRunStatusDiagramCmd)
+			os.Exit(0)
 		}
 
 		runId, err := strconv.ParseInt(strings.TrimSpace(*runIdString), 10, 16)
 		if err != nil {
 			log.Fatalf(err.Error())
-			os.Exit(1)
 		}
 
-		script, err, _ := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, *scriptFilePath, *paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
+		script, _, err := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, *scriptFilePath, *paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
 		if err != nil {
 			log.Fatalf(err.Error())
-			os.Exit(1)
 		}
 
 		cqlSession, err := db.NewSession(envConfig, *keyspace, db.DoNotCreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
-			os.Exit(1)
 		}
 
 		nodes, err := api.GetRunsNodeHistory(logger, cqlSession, *keyspace, []int16{int16(runId)})
 		if err != nil {
 			log.Fatalf(err.Error())
-			os.Exit(1)
 		}
 
 		nodeColorMap := map[string]string{}
@@ -480,18 +447,17 @@ func main() {
 		keyspace := dropKsCmd.String("keyspace", "", "Keyspace (session id)")
 		if err := dropKsCmd.Parse(os.Args[2:]); err != nil {
 			usage(dropKsCmd)
+			os.Exit(0)
 		}
 
 		cqlSession, err := db.NewSession(envConfig, *keyspace, db.DoNotCreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
-			os.Exit(1)
 		}
 
 		err = api.DropKeyspace(logger, cqlSession, *keyspace)
 		if err != nil {
 			log.Fatalf(err.Error())
-			os.Exit(1)
 		}
 
 	case CmdStartRun:
@@ -502,6 +468,7 @@ func main() {
 		startNodesString := startRunCmd.String("start_nodes", "", "Comma-separated list of start node names")
 		if err := startRunCmd.Parse(os.Args[2:]); err != nil {
 			usage(startRunCmd)
+			os.Exit(0)
 		}
 
 		startNodes := strings.Split(*startNodesString, ",")
@@ -509,28 +476,24 @@ func main() {
 		cqlSession, err := db.NewSession(envConfig, *keyspace, db.CreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
-			os.Exit(1)
 		}
 
 		// RabbitMQ boilerplate
 		amqpConnection, err := amqp.Dial(envConfig.Amqp.URL)
 		if err != nil {
 			log.Fatalf(fmt.Sprintf("cannot dial RabbitMQ at %v, will reconnect: %v\n", envConfig.Amqp.URL, err))
-			os.Exit(1)
 		}
 		defer amqpConnection.Close()
 
 		amqpChannel, err := amqpConnection.Channel()
 		if err != nil {
 			log.Fatalf(fmt.Sprintf("cannot create amqp channel, will reconnect: %v\n", err))
-			os.Exit(1)
 		}
 		defer amqpChannel.Close()
 
 		runId, err := api.StartRun(envConfig, logger, amqpChannel, *scriptFilePath, *paramsFilePath, cqlSession, *keyspace, startNodes, "started by Toolbelt")
 		if err != nil {
 			log.Fatalf(err.Error())
-			os.Exit(1)
 		}
 
 		fmt.Println(runId)
@@ -544,6 +507,7 @@ func main() {
 		nodeName := execNodeCmd.String("node_id", "", "Script node name")
 		if err := execNodeCmd.Parse(os.Args[2:]); err != nil {
 			usage(execNodeCmd)
+			os.Exit(0)
 		}
 
 		runId := int16(*runIdParam)
@@ -553,18 +517,17 @@ func main() {
 		cqlSession, err := db.NewSession(envConfig, *keyspace, db.CreateKeyspaceOnConnect)
 		if err != nil {
 			log.Fatalf(err.Error())
-			os.Exit(1)
 		}
 
 		runId, err = api.RunNode(envConfig, logger, *nodeName, runId, *scriptFilePath, *paramsFilePath, cqlSession, *keyspace)
 		if err != nil {
 			log.Fatalf(err.Error())
-			os.Exit(1)
 		}
 		fmt.Printf("run %d, elapsed %v\n", runId, time.Since(startTime))
 
 	default:
 		fmt.Printf("invalid command: %s\n", os.Args[1])
 		usage(nil)
+		os.Exit(1)
 	}
 }

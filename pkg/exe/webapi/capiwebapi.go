@@ -4,10 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
-	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -60,7 +59,7 @@ type ApiResponseError struct {
 }
 
 type ApiResponse struct {
-	Data  interface{}      `json:"data"`
+	Data  any              `json:"data"`
 	Error ApiResponseError `json:"error"`
 }
 
@@ -75,7 +74,7 @@ func pickAccessControlAllowOrigin(wc *env.WebapiConfig, r *http.Request) string 
 	}
 	for _, allowedOrigin := range allowedOrigins {
 		for _, requestedOrigin := range requestedOrigins {
-			if strings.ToUpper(requestedOrigin) == strings.ToUpper(allowedOrigin) {
+			if strings.EqualFold(requestedOrigin, allowedOrigin) {
 				return requestedOrigin
 			}
 		}
@@ -83,9 +82,9 @@ func pickAccessControlAllowOrigin(wc *env.WebapiConfig, r *http.Request) string 
 	return "no-allowed-origins"
 }
 
-func WriteApiError(l *l.Logger, wc *env.WebapiConfig, r *http.Request, w http.ResponseWriter, urlPath string, err error, httpStatus int) {
+func WriteApiError(logger *l.CapiLogger, wc *env.WebapiConfig, r *http.Request, w http.ResponseWriter, urlPath string, err error, httpStatus int) {
 	w.Header().Set("Access-Control-Allow-Origin", pickAccessControlAllowOrigin(wc, r))
-	l.Error("cannot process %s: %s", urlPath, err.Error())
+	logger.Error("cannot process %s: %s", urlPath, err.Error())
 	respJson, err := json.Marshal(ApiResponse{Error: ApiResponseError{Msg: err.Error()}})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("unexpected: cannot serialize error response %s", err.Error()), httpStatus)
@@ -94,14 +93,14 @@ func WriteApiError(l *l.Logger, wc *env.WebapiConfig, r *http.Request, w http.Re
 	}
 }
 
-func WriteApiSuccess(l *l.Logger, wc *env.WebapiConfig, r *http.Request, w http.ResponseWriter, data interface{}) {
+func WriteApiSuccess(logger *l.CapiLogger, wc *env.WebapiConfig, r *http.Request, w http.ResponseWriter, data any) {
 	w.Header().Set("Access-Control-Allow-Origin", pickAccessControlAllowOrigin(wc, r))
 	respJson, err := json.Marshal(ApiResponse{Data: data})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("cannot serialize success response: %s", err.Error()), http.StatusInternalServerError)
 	} else {
 		if _, err := w.Write([]byte(respJson)); err != nil {
-			l.Error("cannot write success response, error %s, response %s", err.Error(), respJson)
+			logger.Error("cannot write success response, error %s, response %s", err.Error(), respJson)
 		}
 	}
 }
@@ -127,7 +126,17 @@ func (h *UrlHandler) ks(w http.ResponseWriter, r *http.Request) {
 	ksCount := 0
 
 	for _, row := range rows {
-		ks := row["keyspace_name"].(string)
+		ksVolatile, ok := row["keyspace_name"]
+		if !ok {
+			WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot find keyspace_name in the response"), http.StatusInternalServerError)
+			return
+		}
+
+		ks, ok := ksVolatile.(string)
+		if !ok {
+			WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot cast keyspace_name to string: %v", row["keyspace_name"]), http.StatusInternalServerError)
+			return
+		}
 		if len(ks) == 0 || api.IsSystemKeyspaceName(ks) {
 			continue
 		}
@@ -160,7 +169,7 @@ type WebapiNodeRunMatrix struct {
 }
 
 // Poor man's cache
-var NodeDescCache map[string]string = map[string]string{}
+var NodeDescCache = map[string]string{}
 var NodeDescCacheLock = sync.RWMutex{}
 
 func (h *UrlHandler) getNodeDesc(cqlSession *gocql.Session, keyspace string, runId int16, nodeName string) (string, error) {
@@ -181,7 +190,7 @@ func (h *UrlHandler) getNodeDesc(cqlSession *gocql.Session, keyspace string, run
 		return "", fmt.Errorf("invalid number of matching runs (%d), expected 1; this usually happens when webapi caller makes wrong assumptions about the process status", len(allRunsProps))
 	}
 
-	script, err, _ := sc.NewScriptFromFiles(h.Env.CaPath, h.Env.PrivateKeys, allRunsProps[0].ScriptUri, allRunsProps[0].ScriptParamsUri, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
+	script, _, err := sc.NewScriptFromFiles(h.Env.CaPath, h.Env.PrivateKeys, allRunsProps[0].ScriptUri, allRunsProps[0].ScriptParamsUri, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
 	if err != nil {
 		return "", err
 	}
@@ -223,7 +232,7 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 	}
 	sort.Slice(mx.RunLifespans, func(i, j int) bool { return mx.RunLifespans[i].RunId < mx.RunLifespans[j].RunId })
 
-	// Retireve all node events for this ks, for all runs
+	// Retrieve all node events for this ks, for all runs
 	nodeHistory, err := api.GetRunsNodeHistory(h.L, cqlSession, keyspace, []int16{})
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
@@ -278,15 +287,14 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 		} else if !leftPresent && !rightPresent {
 			// Sort by node name
 			return mx.Nodes[i].NodeName < mx.Nodes[j].NodeName
-		} else {
-			return leftTs.Before(rightTs)
 		}
+		return leftTs.Before(rightTs)
 	})
 
 	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, mx)
 }
 
-func getRunPropsAndLifespans(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId int16) (*wfmodel.RunProperties, *wfmodel.RunLifespan, error) {
+func getRunPropsAndLifespans(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16) (*wfmodel.RunProperties, *wfmodel.RunLifespan, error) {
 	// Static run properties
 	// TODO: consider caching
 
@@ -410,19 +418,19 @@ func (h *UrlHandler) ksStartRun(w http.ResponseWriter, r *http.Request) {
 
 	amqpConnection, err := amqp.Dial(h.Env.Amqp.URL)
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot dial RabbitMQ at %v, will reconnect: %v\n", h.Env.Amqp.URL, err), http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot dial RabbitMQ at %v, will reconnect: %v", h.Env.Amqp.URL, err), http.StatusInternalServerError)
 		return
 	}
 	defer amqpConnection.Close()
 
 	amqpChannel, err := amqpConnection.Channel()
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot create amqp channel: %v\n", err), http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot create amqp channel: %v", err), http.StatusInternalServerError)
 		return
 	}
 	defer amqpChannel.Close()
 
-	bodyBytes, err := ioutil.ReadAll(r.Body)
+	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -460,7 +468,7 @@ func (h *UrlHandler) ksStopRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	bodyBytes, err := ioutil.ReadAll(r.Body)
+	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -508,14 +516,14 @@ func (h *UrlHandler) ksDrop(w http.ResponseWriter, r *http.Request) {
 
 type UrlHandler struct {
 	Env *env.EnvConfig
-	L   *l.Logger
+	L   *l.CapiLogger
 }
 
 type ctxKey struct {
 }
 
 func getField(r *http.Request, index int) string {
-	fields := r.Context().Value(ctxKey{}).([]string)
+	fields := r.Context().Value(ctxKey{}).([]string) //nolint:all
 	return fields[index]
 }
 
@@ -548,7 +556,6 @@ func main() {
 	envConfig, err := env.ReadEnvConfigFile("capiwebapi.json")
 	if err != nil {
 		log.Fatalf(err.Error())
-		os.Exit(1)
 	}
 
 	// Webapi (like toolbelt and daemon) requires custom proc def factory, otherwise it will not be able to start runs
@@ -556,7 +563,6 @@ func main() {
 	logger, err := l.NewLoggerFromEnvConfig(envConfig)
 	if err != nil {
 		log.Fatalf(err.Error())
-		os.Exit(1)
 	}
 	defer logger.Close()
 
@@ -582,6 +588,5 @@ func main() {
 	logger.Info("listening on %d...", h.Env.Webapi.Port)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", h.Env.Webapi.Port), mux); err != nil {
 		log.Fatalf(err.Error())
-		os.Exit(1)
 	}
 }

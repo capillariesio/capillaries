@@ -5,7 +5,7 @@ import (
 	"math"
 )
 
-func callLen(args []interface{}) (interface{}, error) {
+func callLen(args []any) (any, error) {
 	if err := checkArgs("len", 1, len(args)); err != nil {
 		return nil, err
 	}
@@ -16,7 +16,7 @@ func callLen(args []interface{}) (interface{}, error) {
 	return len(argString), nil
 }
 
-func callMathSqrt(args []interface{}) (interface{}, error) {
+func callMathSqrt(args []any) (any, error) {
 	if err := checkArgs("math.Sqrt", 1, len(args)); err != nil {
 		return nil, err
 	}
@@ -28,7 +28,7 @@ func callMathSqrt(args []interface{}) (interface{}, error) {
 	return math.Sqrt(argFloat), nil
 }
 
-func callMathRound(args []interface{}) (interface{}, error) {
+func callMathRound(args []any) (any, error) {
 	if err := checkArgs("math.Round", 1, len(args)); err != nil {
 		return nil, err
 	}

@@ -38,7 +38,7 @@ func TestDefaultDependencyPolicyChecker(t *testing.T) {
 	events[0].RunIsCurrent = true
 
 	events[0].NodeStatus = wfmodel.NodeBatchRunStopReceived
-	cmd, runId, checkerLogMsg, err = CheckDependencyPolicyAgainstNodeEventList(&polDef, events)
+	cmd, _, checkerLogMsg, err = CheckDependencyPolicyAgainstNodeEventList(&polDef, events)
 	assert.Nil(t, err)
 	assert.Equal(t, sc.NodeNogo, cmd)
 	assert.Contains(t, checkerLogMsg, "no rules matched against events")
@@ -71,7 +71,7 @@ func TestDefaultDependencyPolicyChecker(t *testing.T) {
 	events[0].RunIsCurrent = false
 
 	events[0].NodeStatus = wfmodel.NodeBatchRunStopReceived
-	cmd, runId, checkerLogMsg, err = CheckDependencyPolicyAgainstNodeEventList(&polDef, events)
+	cmd, _, checkerLogMsg, err = CheckDependencyPolicyAgainstNodeEventList(&polDef, events)
 	assert.Nil(t, err)
 	assert.Equal(t, sc.NodeNogo, cmd)
 	assert.Contains(t, checkerLogMsg, "no rules matched against events")

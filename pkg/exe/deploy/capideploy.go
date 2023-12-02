@@ -46,7 +46,7 @@ func DumpLogChan(logChan chan deploy.LogMsg) {
 	}
 }
 
-func getNicknamesArg(commonArgs *flag.FlagSet, entityName string) (string, error) {
+func getNicknamesArg(entityName string) (string, error) {
 	if len(os.Args) < 3 {
 		return "", fmt.Errorf("not enough args, expected comma-separated list of %s or '*'", entityName)
 	}
@@ -159,7 +159,6 @@ Commands:
 	)
 	fmt.Printf("\nOptional parameters:\n")
 	flagset.PrintDefaults()
-	os.Exit(0)
 }
 
 func main() {
@@ -175,10 +174,11 @@ func main() {
 	cmdStartTs := time.Now()
 
 	throttle := time.Tick(time.Second) // One call per second, to avoid error 429 on openstack calls
-	const MaxWorkerThreads int = 10
-	var logChan = make(chan deploy.LogMsg, MaxWorkerThreads*5)
-	var sem = make(chan int, MaxWorkerThreads)
+	const maxWorkerThreads int = 10
+	var logChan = make(chan deploy.LogMsg, maxWorkerThreads*5)
+	var sem = make(chan int, maxWorkerThreads)
 	var errChan chan error
+	var parseErr error
 	errorsExpected := 1
 	var prjPair *deploy.ProjectPair
 	var fullPrjPath string
@@ -195,9 +195,12 @@ func main() {
 	}
 
 	if _, ok := singleThreadCommands[os.Args[1]]; ok {
-		commonArgs.Parse(os.Args[2:])
+		parseErr = commonArgs.Parse(os.Args[2:])
 	} else {
-		commonArgs.Parse(os.Args[3:])
+		parseErr = commonArgs.Parse(os.Args[3:])
+	}
+	if parseErr != nil {
+		log.Fatalf(parseErr.Error())
 	}
 
 	prjPair, fullPrjPath, prjErr = deploy.LoadProject(*argPrjFile)
@@ -226,7 +229,7 @@ func main() {
 			<-sem
 		}()
 	} else if os.Args[1] == CmdCreateInstances || os.Args[1] == CmdDeleteInstances {
-		nicknames, err := getNicknamesArg(commonArgs, "instances")
+		nicknames, err := getNicknamesArg("instances")
 		if err != nil {
 			log.Fatalf(err.Error())
 		}
@@ -310,7 +313,7 @@ func main() {
 		os.Args[1] == CmdConfigServices ||
 		os.Args[1] == CmdStartServices ||
 		os.Args[1] == CmdStopServices {
-		nicknames, err := getNicknamesArg(commonArgs, "instances")
+		nicknames, err := getNicknamesArg("instances")
 		if err != nil {
 			log.Fatalf(err.Error())
 		}
@@ -369,7 +372,7 @@ func main() {
 		}
 
 	} else if os.Args[1] == CmdCreateVolumes || os.Args[1] == CmdAttachVolumes || os.Args[1] == CmdDeleteVolumes {
-		nicknames, err := getNicknamesArg(commonArgs, "instances")
+		nicknames, err := getNicknamesArg("instances")
 		if err != nil {
 			log.Fatalf(err.Error())
 		}
@@ -423,7 +426,7 @@ func main() {
 	} else {
 		switch os.Args[1] {
 		case CmdUploadFiles:
-			nicknames, err := getNicknamesArg(commonArgs, "file groups to upload")
+			nicknames, err := getNicknamesArg("file groups to upload")
 			if err != nil {
 				log.Fatalf(err.Error())
 			}
@@ -469,7 +472,7 @@ func main() {
 			}
 
 		case CmdDownloadFiles:
-			nicknames, err := getNicknamesArg(commonArgs, "file groups to download")
+			nicknames, err := getNicknamesArg("file groups to download")
 			if err != nil {
 				log.Fatalf(err.Error())
 			}

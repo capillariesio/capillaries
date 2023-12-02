@@ -46,14 +46,12 @@ func main() {
 	envConfig, err := env.ReadEnvConfigFile("capidaemon.json")
 	if err != nil {
 		log.Fatalf(err.Error())
-		os.Exit(1)
 	}
 	envConfig.CustomProcessorDefFactoryInstance = &StandardDaemonProcessorDefFactory{}
 
 	logger, err := l.NewLoggerFromEnvConfig(envConfig)
 	if err != nil {
 		log.Fatalf(err.Error())
-		os.Exit(1)
 	}
 	defer logger.Close()
 
@@ -84,8 +82,9 @@ func main() {
 				os.Exit(0)
 			}
 		case <-timeoutChannel:
+			logger.Info("timeout while reconnecting to mq, will try to reconnect again")
 			// Break from select
-			break
+			break //nolint:all
 		}
 	}
 }

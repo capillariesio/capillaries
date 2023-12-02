@@ -155,7 +155,9 @@ func (creatorDef *FileCreatorDef) Deserialize(rawWriter json.RawMessage) error {
 		}
 		idxDefMap := IdxDefMap{}
 		rawIndexes := map[string]string{"top": fmt.Sprintf("non_unique(%s)", creatorDef.Top.RawOrder)}
-		idxDefMap.parseRawIndexDefMap(rawIndexes, creatorDef.getFieldRefs())
+		if err := idxDefMap.parseRawIndexDefMap(rawIndexes, creatorDef.getFieldRefs()); err != nil {
+			return fmt.Errorf("cannot parse raw index definition(s) for top: %s", err.Error())
+		}
 		creatorDef.Top.OrderIdxDef = *idxDefMap["top"]
 	}
 
@@ -163,10 +165,10 @@ func (creatorDef *FileCreatorDef) Deserialize(rawWriter json.RawMessage) error {
 	return nil
 }
 
-func (creatorDef *FileCreatorDef) CalculateFileRecordFromSrcVars(srcVars eval.VarValuesMap) ([]interface{}, error) {
+func (creatorDef *FileCreatorDef) CalculateFileRecordFromSrcVars(srcVars eval.VarValuesMap) ([]any, error) {
 	errors := make([]string, 0, 2)
 
-	fileRecord := make([]interface{}, len(creatorDef.Columns))
+	fileRecord := make([]any, len(creatorDef.Columns))
 
 	for colIdx := 0; colIdx < len(creatorDef.Columns); colIdx++ {
 		eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, &srcVars)
@@ -182,20 +184,19 @@ func (creatorDef *FileCreatorDef) CalculateFileRecordFromSrcVars(srcVars eval.Va
 
 	if len(errors) > 0 {
 		return nil, fmt.Errorf(strings.Join(errors, "; "))
-	} else {
-		return fileRecord, nil
 	}
+	return fileRecord, nil
 }
 
-func (creatorDef *FileCreatorDef) CheckFileRecordHavingCondition(fileRecord []interface{}) (bool, error) {
+func (creatorDef *FileCreatorDef) CheckFileRecordHavingCondition(fileRecord []any) (bool, error) {
+	if len(fileRecord) != len(creatorDef.Columns) {
+		return false, fmt.Errorf("file record length %d does not match file creator column list length %d", len(fileRecord), len(creatorDef.Columns))
+	}
 	if creatorDef.Having == nil {
 		return true, nil
 	}
 	vars := eval.VarValuesMap{}
-	vars[CreatorAlias] = map[string]interface{}{}
-	if len(fileRecord) != len(creatorDef.Columns) {
-		return false, fmt.Errorf("file record length %d does not match file creator column list length %d", len(fileRecord), len(creatorDef.Columns))
-	}
+	vars[CreatorAlias] = map[string]any{}
 	for colIdx := 0; colIdx < len(creatorDef.Columns); colIdx++ {
 		fieldName := creatorDef.Columns[colIdx].Name
 		fieldValue := fileRecord[colIdx]

@@ -22,10 +22,7 @@ const AllowedKeyspaceNameRegex = "[a-zA-Z0-9_]+"
 func IsSystemKeyspaceName(keyspace string) bool {
 	re := regexp.MustCompile(ProhibitedKeyspaceNameRegex)
 	invalidNamePieceFound := re.FindString(keyspace)
-	if len(invalidNamePieceFound) > 0 {
-		return true
-	}
-	return false
+	return len(invalidNamePieceFound) > 0
 }
 
 func checkKeyspaceName(keyspace string) error {
@@ -68,7 +65,7 @@ func GetTablesCql(script *sc.ScriptDef, keyspace string, runId int16, startNodeN
 }
 
 // Used by Toolbelt and Webapi
-func DropKeyspace(logger *l.Logger, cqlSession *gocql.Session, keyspace string) error {
+func DropKeyspace(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string) error {
 	logger.PushF("api.DropKeyspace")
 	defer logger.PopF()
 
@@ -87,7 +84,7 @@ func DropKeyspace(logger *l.Logger, cqlSession *gocql.Session, keyspace string) 
 }
 
 // wfdb wrapper for webapi use
-func HarvestRunLifespans(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runIds []int16) (wfmodel.RunLifespanMap, error) {
+func HarvestRunLifespans(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runIds []int16) (wfmodel.RunLifespanMap, error) {
 	logger.PushF("api.HarvestRunLifespans")
 	defer logger.PopF()
 
@@ -95,14 +92,14 @@ func HarvestRunLifespans(logger *l.Logger, cqlSession *gocql.Session, keyspace s
 }
 
 // wfdb wrapper for webapi use
-func GetRunProperties(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId int16) ([]*wfmodel.RunProperties, error) {
+func GetRunProperties(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16) ([]*wfmodel.RunProperties, error) {
 	logger.PushF("api.GetRunProperties")
 	defer logger.PopF()
 	return wfdb.GetRunProperties(logger, cqlSession, keyspace, runId)
 }
 
 // wfdb wrapper for webapi use
-func GetNodeHistoryForRun(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId int16) ([]*wfmodel.NodeHistoryEvent, error) {
+func GetNodeHistoryForRun(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16) ([]*wfmodel.NodeHistoryEvent, error) {
 	logger.PushF("api.GetNodeHistoryForRun")
 	defer logger.PopF()
 
@@ -110,7 +107,7 @@ func GetNodeHistoryForRun(logger *l.Logger, cqlSession *gocql.Session, keyspace 
 }
 
 // wfdb wrapper for webapi use
-func GetRunNodeBatchHistory(logger *l.Logger, cqlSession *gocql.Session, keyspace string, runId int16, nodeName string) ([]*wfmodel.BatchHistoryEvent, error) {
+func GetRunNodeBatchHistory(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16, nodeName string) ([]*wfmodel.BatchHistoryEvent, error) {
 	logger.PushF("api.GetRunNodeBatchHistory")
 	defer logger.PopF()
 	return wfdb.GetRunNodeBatchHistory(logger, cqlSession, keyspace, runId, nodeName)

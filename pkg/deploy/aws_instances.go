@@ -161,7 +161,7 @@ func waitForAwsInstanceToBeCreated(prj *Project, instanceId string, timeoutSecon
 		if status != "pending" {
 			return lb.Complete(fmt.Errorf("%s was built, but the status is unknown: %s", instanceId, status))
 		}
-		if time.Since(startWaitTs).Seconds() > float64(prj.Timeouts.OpenstackInstanceCreation) {
+		if time.Since(startWaitTs).Seconds() > float64(timeoutSeconds) {
 			return lb.Complete(fmt.Errorf("giving up after waiting for %s to be created", instanceId))
 		}
 		time.Sleep(10 * time.Second)
@@ -184,7 +184,7 @@ func assignAwsFloatingIp(prj *Project, instanceId string, floatingIp string, isV
 	return lb.Complete(nil)
 }
 
-func (*AwsDeployProvider) CreateInstanceAndWaitForCompletion(prjPair *ProjectPair, iNickname string, flavorId string, imageId string, availabilityZone string, isVerbose bool) (LogMsg, error) {
+func (*AwsDeployProvider) CreateInstanceAndWaitForCompletion(prjPair *ProjectPair, iNickname string, flavorId string, imageId string, _ string, isVerbose bool) (LogMsg, error) {
 	sb := strings.Builder{}
 
 	logMsg, err := createAwsInstance(prjPair, iNickname, flavorId, imageId, isVerbose)

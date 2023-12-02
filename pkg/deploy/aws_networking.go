@@ -161,7 +161,7 @@ func waitForAwsVpcToBeCreated(prj *Project, vpcId string, timeoutSeconds int, is
 		if status != "pending" {
 			return lb.Complete(fmt.Errorf("vpc %s was built, but the status is %s", vpcId, status))
 		}
-		if time.Since(startWaitTs).Seconds() > float64(prj.Timeouts.OpenstackInstanceCreation) {
+		if time.Since(startWaitTs).Seconds() > float64(timeoutSeconds) {
 			return lb.Complete(fmt.Errorf("giving up after waiting for vpc %s to be created", vpcId))
 		}
 		time.Sleep(10 * time.Second)
@@ -388,7 +388,7 @@ func createNatGatewayAndRoutePrivateSubnet(prjPair *ProjectPair, isVerbose bool)
 		return lb.Complete(er.Error)
 	}
 
-	if result != true {
+	if !result {
 		if er.Error != nil {
 			return lb.Complete(fmt.Errorf("route creation returned false"))
 		}
@@ -463,7 +463,7 @@ func createInternetGatewayAndRoutePublicSubnet(prjPair *ProjectPair, isVerbose b
 			return lb.Complete(er.Error)
 		}
 	} else if attachedVpcId != prjPair.Live.Network.Id {
-		return lb.Complete(fmt.Errorf("network gateway %s seems to be attached to a wrong vpc %s already\n", prjPair.Live.Network.Router.Name, attachedVpcId))
+		return lb.Complete(fmt.Errorf("network gateway %s seems to be attached to a wrong vpc %s already", prjPair.Live.Network.Router.Name, attachedVpcId))
 	} else {
 		lb.Add(fmt.Sprintf("network gateway %s seems to be attached to vpc already\n", prjPair.Live.Network.Router.Name))
 	}
@@ -509,7 +509,7 @@ func createInternetGatewayAndRoutePublicSubnet(prjPair *ProjectPair, isVerbose b
 		return lb.Complete(er.Error)
 	}
 
-	if result != true {
+	if !result {
 		if er.Error != nil {
 			return lb.Complete(fmt.Errorf("route creation returned false"))
 		}

@@ -63,7 +63,7 @@ func RunHistoryEventAllFields() []string {
 	return []string{"ts", "run_id", "status", "comment"}
 }
 
-func NewRunHistoryEventFromMap(r map[string]interface{}, fields []string) (*RunHistoryEvent, error) {
+func NewRunHistoryEventFromMap(r map[string]any, fields []string) (*RunHistoryEvent, error) {
 	res := &RunHistoryEvent{}
 	for _, fieldName := range fields {
 		var err error

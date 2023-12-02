@@ -56,9 +56,9 @@ func CmdChainExecToString(title string, logContent string, err error, isVerbose 
 %s
 =========================================
 `, title, logContent)
-	} else {
-		return title
 	}
+
+	return title
 }
 
 func ExecLocal(prj *Project, cmdPath string, params []string, envVars map[string]string, dir string) ExecResult {
@@ -93,17 +93,17 @@ func ExecLocal(prj *Project, cmdPath string, params []string, envVars map[string
 	elapsed := time.Since(runStartTime).Seconds()
 
 	rawInput := fmt.Sprintf("%s %s", cmdPath, strings.Join(params, " "))
-	rawOutput := string(stdout.Bytes())
-	rawErrors := string(stderr.Bytes())
+	rawOutput := stdout.String()
+	rawErrors := stderr.String()
 	if err != nil {
 		// Cmd not found, nonzero exit status etc
 		return ExecResult{rawInput, rawOutput, rawErrors, elapsed, err}
 	} else if cmdCtx.Err() == context.DeadlineExceeded {
 		// Timeout occurred, err.Error() is probably: 'signal: killed'
 		return ExecResult{rawInput, rawOutput, rawErrors, elapsed, fmt.Errorf("cmd execution timeout exceeded")}
-	} else {
-		return ExecResult{rawInput, rawOutput, rawErrors, elapsed, nil}
 	}
+
+	return ExecResult{rawInput, rawOutput, rawErrors, elapsed, nil}
 }
 
 func BuildArtifacts(prjPair *ProjectPair, isVerbose bool) (LogMsg, error) {

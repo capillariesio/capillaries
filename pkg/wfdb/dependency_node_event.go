@@ -9,11 +9,11 @@ import (
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
-func BuildDependencyNodeEventLists(logger *l.Logger, pCtx *ctx.MessageProcessingContext, depNodeNames []string) (map[string][]wfmodel.DependencyNodeEvent, error) {
+func BuildDependencyNodeEventLists(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, depNodeNames []string) (map[string][]wfmodel.DependencyNodeEvent, error) {
 	logger.PushF("wfdb.buildDependencyNodeEventLists")
 	defer logger.PopF()
 
-	affectingRunIds, nodeAffectingRunIdsMap, err := HarvestRunIdsByAffectedNodes(logger, pCtx, depNodeNames)
+	affectingRunIds, nodeAffectingRunIdsMap, err := HarvestRunIdsByAffectedNodes(logger, pCtx)
 	if err != nil {
 		return nil, err
 	}

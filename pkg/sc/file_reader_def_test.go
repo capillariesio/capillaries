@@ -130,7 +130,7 @@ func TestColumnIndexing(t *testing.T) {
 	assert.Equal(t, time.Date(2017, 10, 2, 10, 56, 33, 0, time.UTC), colRecord[ReaderAlias]["col_order_purchase_timestamp"])
 
 	// Good by name
-	colRecord, err = testReader(`
+	_, err = testReader(`
 		{
 			"urls": [""],
 			"csv":{
@@ -308,7 +308,7 @@ func TestReadString(t *testing.T) {
 	srcLineWithData := []string{"", "data_str", ""}
 	srcLineEmpty := []string{"", "", ""}
 
-	goodTestScenarios := [][]interface{}{
+	goodTestScenarios := [][]any{
 		{confNoFormatNoDefault, srcLineWithData, "data_str"},
 		{confNoFormatNoDefault, srcLineEmpty, ""},
 		{confNoFormatWithDefault, srcLineEmpty, "default_str"},
@@ -362,7 +362,7 @@ func TestReadDatetime(t *testing.T) {
 	defaultVal := time.Date(2001, time.July, 7, 11, 22, 33, 700000000, time.UTC)
 	nullVal := GetDefaultFieldTypeValue(FieldTypeDateTime)
 
-	goodTestScenarios := [][]interface{}{
+	goodTestScenarios := [][]any{
 		{confGoodFormatGoodDefault, srcLineGood, goodVal},
 		{confGoodFormatGoodDefault, srcLineEmpty, defaultVal},
 		{confGoodFormatNoDefault, srcLineEmpty, nullVal},
@@ -419,7 +419,7 @@ func TestReadInt(t *testing.T) {
 	srcLineSimpleFormat := []string{"", "111", ""}
 	srcLineEmpty := []string{"", "", ""}
 
-	goodTestScenarios := [][]interface{}{
+	goodTestScenarios := [][]any{
 		{confComplexFormatWithDefault, srcLineComplexFormat, int64(111)},
 		{confSimpleFormatNoDefault, srcLineSimpleFormat, int64(111)},
 		{confNoFormatNoDefault, srcLineSimpleFormat, int64(111)},
@@ -474,7 +474,7 @@ func TestReadFloat(t *testing.T) {
 	srcLineSimpleFormat := []string{"", "111.222", ""}
 	srcLineEmpty := []string{"", "", ""}
 
-	goodTestScenarios := [][]interface{}{
+	goodTestScenarios := [][]any{
 		{confComplexFormatWithDefault, srcLineComplexFormat, float64(111.222)},
 		{confSimpleFormatNoDefault, srcLineSimpleFormat, float64(111.222)},
 		{confNoFormatNoDefault, srcLineSimpleFormat, float64(111.222)},
@@ -529,7 +529,7 @@ func TestReadDecimal(t *testing.T) {
 	srcLineSimpleFormat := []string{"", "12.34", ""}
 	srcLineEmpty := []string{"", "", ""}
 
-	goodTestScenarios := [][]interface{}{
+	goodTestScenarios := [][]any{
 		{confComplexFormatWithDefault, srcLineComplexFormat, decimal.NewFromFloat32(12.34)},
 		{confSimpleFormatNoDefault, srcLineSimpleFormat, decimal.NewFromFloat32(12.34)},
 		{confNoFormatNoDefault, srcLineSimpleFormat, decimal.NewFromFloat32(12.34)},
@@ -595,7 +595,7 @@ func TestReadBool(t *testing.T) {
 	srcLineEmpty := []string{"", "", ""}
 	srcLineBad := []string{"", "bad", ""}
 
-	goodTestScenarios := [][]interface{}{
+	goodTestScenarios := [][]any{
 		{confNoFormatNoDefault, srcLineTrue, true},
 		{confNoFormatNoDefault, srcLineFalse, false},
 		{confNoFormatNoDefault, srcLineTrueCap, true},

@@ -14,7 +14,7 @@ func (*OpenstackDeployProvider) GetFlavorIds(prjPair *ProjectPair, flavorMap map
 		return lb.Complete(er.Error)
 	}
 
-	for flavorName, _ := range flavorMap {
+	for flavorName := range flavorMap {
 		foundFlavorIdByName := findOpenstackColumnValue(rows, "ID", "Name", flavorName)
 		if foundFlavorIdByName == "" {
 			return lb.Complete(fmt.Errorf("cannot find flavor %s", flavorName))
@@ -34,7 +34,7 @@ func (*OpenstackDeployProvider) GetImageIds(prjPair *ProjectPair, imageMap map[s
 		return lb.Complete(er.Error)
 	}
 
-	for name, _ := range imageMap {
+	for name := range imageMap {
 		foundIdByName := findOpenstackColumnValue(rows, "ID", "Name", name)
 		if foundIdByName == "" {
 			return lb.Complete(fmt.Errorf("cannot find image %s", name))
@@ -54,7 +54,7 @@ func (*OpenstackDeployProvider) GetKeypairs(prjPair *ProjectPair, keypairMap map
 		return lb.Complete(er.Error)
 	}
 
-	for keypairName, _ := range keypairMap {
+	for keypairName := range keypairMap {
 		foundName := findOpenstackColumnValue(rows, "Fingerprint", "Name", keypairName)
 		if foundName == "" {
 			return lb.Complete(fmt.Errorf("cannot find keypair %s, you have to create it before running this command", keypairName))

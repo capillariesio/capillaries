@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func callTimeParse(args []interface{}) (interface{}, error) {
+func callTimeParse(args []any) (any, error) {
 	if err := checkArgs("time.Parse", 2, len(args)); err != nil {
 		return nil, err
 	}
@@ -17,7 +17,7 @@ func callTimeParse(args []interface{}) (interface{}, error) {
 	return time.Parse(arg0, arg1)
 }
 
-func callTimeFormat(args []interface{}) (interface{}, error) {
+func callTimeFormat(args []any) (any, error) {
 	if err := checkArgs("time.Format", 2, len(args)); err != nil {
 		return nil, err
 	}
@@ -29,7 +29,7 @@ func callTimeFormat(args []interface{}) (interface{}, error) {
 	return arg0.Format(arg1), nil
 }
 
-func callTimeFixedZone(args []interface{}) (interface{}, error) {
+func callTimeFixedZone(args []any) (any, error) {
 	if err := checkArgs("time.FixedZone", 2, len(args)); err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func callTimeFixedZone(args []interface{}) (interface{}, error) {
 	return time.FixedZone(arg0, int(arg1)), nil
 }
 
-func callTimeDate(args []interface{}) (interface{}, error) {
+func callTimeDate(args []any) (any, error) {
 	if err := checkArgs("time.Date", 8, len(args)); err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func callTimeDate(args []interface{}) (interface{}, error) {
 	return time.Date(int(arg0), arg1, int(arg2), int(arg3), int(arg4), int(arg5), int(arg6), arg7), nil
 }
 
-func callTimeDiffMilli(args []interface{}) (interface{}, error) {
+func callTimeDiffMilli(args []any) (any, error) {
 	if err := checkArgs("time.DiffMilli", 2, len(args)); err != nil {
 		return nil, err
 	}
@@ -72,14 +72,14 @@ func callTimeDiffMilli(args []interface{}) (interface{}, error) {
 	return arg0.Sub(arg1).Milliseconds(), nil
 }
 
-func callTimeNow(args []interface{}) (interface{}, error) {
+func callTimeNow(args []any) (any, error) {
 	if err := checkArgs("time.Now", 0, len(args)); err != nil {
 		return nil, err
 	}
 	return time.Now(), nil
 }
 
-func callTimeUnix(args []interface{}) (interface{}, error) {
+func callTimeUnix(args []any) (any, error) {
 	if err := checkArgs("time.Unix", 1, len(args)); err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func callTimeUnix(args []interface{}) (interface{}, error) {
 	return arg0.Unix(), nil
 }
 
-func callTimeUnixMilli(args []interface{}) (interface{}, error) {
+func callTimeUnixMilli(args []any) (any, error) {
 	if err := checkArgs("time.UnixMilli", 1, len(args)); err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func callTimeUnixMilli(args []interface{}) (interface{}, error) {
 	return arg0.UnixMilli(), nil
 }
 
-func callTimeBefore(args []interface{}) (interface{}, error) {
+func callTimeBefore(args []any) (any, error) {
 	if err := checkArgs("time.Before", 2, len(args)); err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func callTimeBefore(args []interface{}) (interface{}, error) {
 	return arg0.Before(arg1), nil
 }
 
-func callTimeAfter(args []interface{}) (interface{}, error) {
+func callTimeAfter(args []any) (any, error) {
 	if err := checkArgs("time.After", 2, len(args)); err != nil {
 		return nil, err
 	}

@@ -30,7 +30,7 @@ func (daemonCmd DaemonCmdType) ToString() string {
 	case DaemonCmdNone:
 		return "none"
 	case DaemonCmdAckSuccess:
-		return "sucess"
+		return "success"
 	case DaemonCmdRejectAndRetryLater:
 		return "reject_and_retry"
 	case DaemonCmdReconnectDb:
@@ -74,7 +74,7 @@ func amqpDeliveryToString(d amqp.Delivery) string {
 		len(d.Body))
 }
 
-func processDelivery(envConfig *env.EnvConfig, logger *l.Logger, delivery *amqp.Delivery) DaemonCmdType {
+func processDelivery(envConfig *env.EnvConfig, logger *l.CapiLogger, delivery *amqp.Delivery) DaemonCmdType {
 	logger.PushF("wf.processDelivery")
 	defer logger.PopF()
 
@@ -102,7 +102,7 @@ func processDelivery(envConfig *env.EnvConfig, logger *l.Logger, delivery *amqp.
 	}
 }
 
-func AmqpFullReconnectCycle(envConfig *env.EnvConfig, logger *l.Logger, osSignalChannel chan os.Signal) DaemonCmdType {
+func AmqpFullReconnectCycle(envConfig *env.EnvConfig, logger *l.CapiLogger, osSignalChannel chan os.Signal) DaemonCmdType {
 	logger.PushF("wf.AmqpFullReconnectCycle")
 	defer logger.PopF()
 
@@ -138,7 +138,7 @@ func AmqpFullReconnectCycle(envConfig *env.EnvConfig, logger *l.Logger, osSignal
 	return daemonCmd
 }
 
-func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.Logger, osSignalChannel chan os.Signal, amqpChannel *amqp.Channel, chanAmqpErrors chan *amqp.Error) DaemonCmdType {
+func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, osSignalChannel chan os.Signal, amqpChannel *amqp.Channel, chanAmqpErrors chan *amqp.Error) DaemonCmdType {
 	logger.PushF("wf.amqpConnectAndSelect")
 	defer logger.PopF()
 
@@ -296,13 +296,16 @@ func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.Logger, osSignalCh
 				return DaemonCmdQuit
 			}
 
-			logger.PushF("wf.amqpConnectAndSelect_worker")
-			defer logger.PopF()
+			// TODO: come up with safe logging
+			// it's tempting to move it into the async func below, but it will break the logger stack
+			// leaving it here is not good eiter: revive says "prefer not to defer inside loops"
+			// logger.PushF("wf.amqpConnectAndSelect_worker")
+			// defer logger.PopF()
 
 			// Lock one slot in the semaphore
 			sem <- 1
 
-			go func(threadLogger *l.Logger, delivery amqp.Delivery, _channel amqp.Channel) {
+			go func(threadLogger *l.CapiLogger, delivery amqp.Delivery, _channel *amqp.Channel) {
 				var err error
 
 				// I have spotted cases when m.Body is empty and Aknowledger is nil. Handle them.
@@ -348,7 +351,7 @@ func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.Logger, osSignalCh
 				// Unlock semaphore slot
 				<-sem
 
-			}(threadLogger, amqpDelivery, *amqpChannel)
+			}(threadLogger, amqpDelivery, amqpChannel)
 		}
 	}
 }

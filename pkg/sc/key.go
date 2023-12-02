@@ -3,7 +3,6 @@ package sc
 import (
 	"bytes"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -18,9 +17,9 @@ import (
 
 const BeginningOfTimeMicro = int64(-62135596800000000) // time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC).UnixMicro()
 
-func getNumericValueSign(v interface{}, expectedType TableFieldType) (string, interface{}, error) {
+func getNumericValueSign(v any, expectedType TableFieldType) (string, any, error) {
 	var sign string
-	var newVal interface{}
+	var newVal any
 
 	switch expectedType {
 	case FieldTypeInt:
@@ -59,16 +58,16 @@ func getNumericValueSign(v interface{}, expectedType TableFieldType) (string, in
 				newVal = d.Neg()
 			}
 		} else {
-			return "", nil, errors.New(fmt.Sprintf("cannot convert value %v to type %v", v, expectedType))
+			return "", nil, fmt.Errorf("cannot convert value %v to type %v", v, expectedType)
 		}
 
 	default:
-		return "", nil, fmt.Errorf("unexpectedly, cannot convert value %v to type %v, type not supported", v, expectedType)
+		return "", nil, fmt.Errorf("cannot convert value %v to type %v, type not supported", v, expectedType)
 	}
 	return sign, newVal, nil
 }
 
-func BuildKey(fieldMap map[string]interface{}, idxDef *IdxDef) (string, error) {
+func BuildKey(fieldMap map[string]any, idxDef *IdxDef) (string, error) {
 	var keyBuffer bytes.Buffer
 	t := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
 	flipReplacer := strings.NewReplacer("0", "9", "1", "8", "2", "7", "3", "6", "4", "5", "5", "4", "6", "3", "7", "2", "8", "1", "9", "0")
@@ -106,7 +105,10 @@ func BuildKey(fieldMap map[string]interface{}, idxDef *IdxDef) (string, error) {
 
 		case FieldTypeDecimal2:
 			if sign, absVal, err := getNumericValueSign(fieldMap[comp.FieldName], FieldTypeDecimal2); err == nil {
-				decVal, _ := absVal.(decimal.Decimal)
+				decVal, ok := absVal.(decimal.Decimal)
+				if !ok {
+					return "", fmt.Errorf("cannot convert value %v to type decimal2", fieldMap[comp.FieldName])
+				}
 				floatVal, _ := decVal.Float64()
 				stringValue = strings.ReplaceAll(fmt.Sprintf("%s%66s", sign, fmt.Sprintf("%.32f", floatVal)), " ", "0")
 				// If this is a negative value, flip every digit
@@ -157,7 +159,7 @@ func BuildKey(fieldMap map[string]interface{}, idxDef *IdxDef) (string, error) {
 
 		// Used by file creator top. Not used by actual indexes - Cassandra cannot do proper ORDER BY anyways
 		if comp.SortOrder == IdxSortDesc {
-			var stringBytes []byte = []byte(stringValue)
+			stringBytes := []byte(stringValue)
 			for i, b := range stringBytes {
 				stringBytes[i] = 0xFF - b
 			}
