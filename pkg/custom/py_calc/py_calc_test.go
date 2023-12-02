@@ -387,3 +387,22 @@ func TestPyCalcDefBadScript(t *testing.T) {
 	assert.Contains(t, err.Error(), "py_calc interpreter path canot be empty")
 
 }
+
+func TestPythonResultToRowsetValueFailures(t *testing.T) {
+	_, err := pythonResultToRowsetValue(&sc.FieldRef{TableName: "p", FieldName: "field_int1", FieldType: sc.FieldTypeInt}, true)
+	assert.Contains(t, err.Error(), "int field_int1, unexpected type bool(true)")
+	_, err = pythonResultToRowsetValue(&sc.FieldRef{TableName: "p", FieldName: "field_float1", FieldType: sc.FieldTypeFloat}, true)
+	assert.Contains(t, err.Error(), "float field_float1, unexpected type bool(true)")
+	_, err = pythonResultToRowsetValue(&sc.FieldRef{TableName: "p", FieldName: "field_decimal1", FieldType: sc.FieldTypeDecimal2}, true)
+	assert.Contains(t, err.Error(), "decimal field_decimal1, unexpected type bool(true)")
+	_, err = pythonResultToRowsetValue(&sc.FieldRef{TableName: "p", FieldName: "field_string1", FieldType: sc.FieldTypeString}, true)
+	assert.Contains(t, err.Error(), "string field_string1, unexpected type bool(true)")
+	_, err = pythonResultToRowsetValue(&sc.FieldRef{TableName: "p", FieldName: "field_datetime1", FieldType: sc.FieldTypeDateTime}, true)
+	assert.Contains(t, err.Error(), "time field_datetime1, unexpected type bool(true)")
+	_, err = pythonResultToRowsetValue(&sc.FieldRef{TableName: "p", FieldName: "field_datetime1", FieldType: sc.FieldTypeDateTime}, "aaa")
+	assert.Contains(t, err.Error(), "bad time result field_datetime1, unexpected format aaa")
+	_, err = pythonResultToRowsetValue(&sc.FieldRef{TableName: "p", FieldName: "field_bool1", FieldType: sc.FieldTypeBool}, "aaa")
+	assert.Contains(t, err.Error(), "bool field_bool1, unexpected type string(aaa)")
+	_, err = pythonResultToRowsetValue(&sc.FieldRef{TableName: "p", FieldName: "bad_field", FieldType: sc.FieldTypeUnknown}, "")
+	assert.Contains(t, err.Error(), "unexpected field type unknown, bad_field, string()")
+}
