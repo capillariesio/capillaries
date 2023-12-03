@@ -298,7 +298,7 @@ func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, osSign
 
 			// TODO: come up with safe logging
 			// it's tempting to move it into the async func below, but it will break the logger stack
-			// leaving it here is not good eiter: revive says "prefer not to defer inside loops"
+			// leaving it here is not good either: revive says "prefer not to defer inside loops"
 			// logger.PushF("wf.amqpConnectAndSelect_worker")
 			// defer logger.PopF()
 
