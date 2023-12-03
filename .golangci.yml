@@ -1,4 +1,5 @@
 # https://golangci-lint.run/usage/configuration/#config-file
+# ~/go/bin/golangci-lint run ./pkg/...
 linters:
   disable-all: true
   enable:
@@ -88,10 +89,10 @@ linters-settings:
        # Rule tuning
        - name: cognitive-complexity
          arguments:
-           - 400 # TODO: do something
+           - 250 # TODO: do something
        - name: cyclomatic
          arguments:
-           - 100
+           - 70
        - name: function-result-limit
          arguments:
            - 4
