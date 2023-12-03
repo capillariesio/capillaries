@@ -89,7 +89,7 @@ linters-settings:
        # Rule tuning
        - name: cognitive-complexity
          arguments:
-           - 164 # TODO: do something
+           - 137 # TODO: do something
        - name: cyclomatic
          arguments:
            - 70
