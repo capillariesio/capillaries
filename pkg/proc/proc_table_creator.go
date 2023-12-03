@@ -381,15 +381,9 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 
 			// Write batch if needed
 			if inResult {
-				if err = instr.add(tableRecord); err != nil {
-					return bs, fmt.Errorf("cannot add record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
-				}
-				tableRecordBatchCount++
-				if tableRecordBatchCount == DefaultInserterBatchSize {
-					tableRecordBatchCount, batchStartTime, err = saveCompletedBatch(pCtx, logger, &node.TableCreator, tableRecordBatchCount, batchStartTime, instr)
-					if err != nil {
-						return bs, err
-					}
+				tableRecordBatchCount, batchStartTime, err = addRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, tableRecordBatchCount, batchStartTime, instr)
+				if err != nil {
+					return bs, err
 				}
 				bs.RowsWritten++
 			}
@@ -619,6 +613,61 @@ func produceNonGroupedTableRecordForCheldlessLeft(node *sc.ScriptNodeDef, rsLeft
 	return tableRecord, nil
 }
 
+func addRecordAndSaveBatchIfNeeded(pCtx *ctx.MessageProcessingContext, logger *l.CapiLogger, node *sc.ScriptNodeDef, tableRecord map[string]any, tableRecordBatchCount int, batchStartTime time.Time, instr *TableInserter) (int, time.Time, error) {
+	if err := instr.add(tableRecord); err != nil {
+		return tableRecordBatchCount, batchStartTime, fmt.Errorf("cannot add record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+	}
+	tableRecordBatchCount++
+	if tableRecordBatchCount == instr.BatchSize {
+		tableRecordBatchCount, batchStartTime, err := saveCompletedBatch(pCtx, logger, &node.TableCreator, tableRecordBatchCount, batchStartTime, instr)
+		if err != nil {
+			return tableRecordBatchCount, batchStartTime, err
+		}
+	}
+	return tableRecordBatchCount, batchStartTime, nil
+}
+
+func checkHavingAddRecordAndSaveBatchIfNeeded(pCtx *ctx.MessageProcessingContext, logger *l.CapiLogger, node *sc.ScriptNodeDef, tableRecord map[string]any, tableRecordBatchCount int, batchStartTime time.Time, instr *TableInserter) (int, time.Time, int, error) {
+	rowsWritten := 0
+	// Check table creator having
+	inResult, err := node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
+	if err != nil {
+		return tableRecordBatchCount, batchStartTime, 0, fmt.Errorf("cannot check having condition [%s], table record [%v]: [%s]", node.TableCreator.RawHaving, tableRecord, err.Error())
+	}
+
+	// Write batch if needed
+	if inResult {
+		tableRecordBatchCount, batchStartTime, err = addRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, tableRecordBatchCount, batchStartTime, instr)
+		if err != nil {
+			return tableRecordBatchCount, batchStartTime, 0, err
+		}
+		rowsWritten++
+	}
+
+	return tableRecordBatchCount, batchStartTime, rowsWritten, nil
+}
+
+func checkRunCreateTableRelForBatchSanity(node *sc.ScriptNodeDef, readerNodeRunId int16, lookupNodeRunId int16) error {
+	if readerNodeRunId == 0 {
+		return fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
+	}
+
+	if lookupNodeRunId == 0 {
+		return fmt.Errorf("this node has a dependency node to lookup data at that was never started in this keyspace (lookupNodeRunId == 0)")
+	}
+
+	if !node.HasTableReader() {
+		return fmt.Errorf("node does not have table reader")
+	}
+	if !node.HasTableCreator() {
+		return fmt.Errorf("node does not have table creator")
+	}
+	if !node.HasLookup() {
+		return fmt.Errorf("node does not have lookup")
+	}
+	return nil
+}
+
 func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 	logger *l.CapiLogger,
 	pCtx *ctx.MessageProcessingContext,
@@ -637,22 +686,8 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 
 	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: node.TableReader.TableName + cql.RunIdSuffix(readerNodeRunId), Dst: node.TableCreator.Name + cql.RunIdSuffix(readerNodeRunId)}
 
-	if readerNodeRunId == 0 {
-		return bs, fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
-	}
-
-	if lookupNodeRunId == 0 {
-		return bs, fmt.Errorf("this node has a dependency node to lookup data at that was never started in this keyspace (lookupNodeRunId == 0)")
-	}
-
-	if !node.HasTableReader() {
-		return bs, fmt.Errorf("node does not have table reader")
-	}
-	if !node.HasTableCreator() {
-		return bs, fmt.Errorf("node does not have table creator")
-	}
-	if !node.HasLookup() {
-		return bs, fmt.Errorf("node does not have lookup")
+	if err := checkRunCreateTableRelForBatchSanity(node, readerNodeRunId, lookupNodeRunId); err != nil {
+		return bs, err
 	}
 
 	// Fields to read from source table
@@ -833,26 +868,13 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 								return bs, err
 							}
 
-							// Check table creator having
-							inResult, err := node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
+							var rowsWritten int
+							tableRecordBatchCount, batchStartTime, rowsWritten, err = checkHavingAddRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, tableRecordBatchCount, batchStartTime, instr)
 							if err != nil {
-								return bs, fmt.Errorf("cannot check having condition [%s], table record [%v]: [%s]", node.TableCreator.RawHaving, tableRecord, err.Error())
+								return bs, err
 							}
+							bs.RowsWritten += rowsWritten
 
-							// Write batch if needed
-							if inResult {
-								if err = instr.add(tableRecord); err != nil {
-									return bs, fmt.Errorf("cannot add record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
-								}
-								tableRecordBatchCount++
-								if tableRecordBatchCount == instr.BatchSize {
-									tableRecordBatchCount, batchStartTime, err = saveCompletedBatch(pCtx, logger, &node.TableCreator, tableRecordBatchCount, batchStartTime, instr)
-									if err != nil {
-										return bs, err
-									}
-								}
-								bs.RowsWritten++
-							}
 						} // non-group result row written
 					} // group case handled
 				} // for each found right row
@@ -884,26 +906,12 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 					continue
 				}
 
-				// Check table creator having
-				inResult, err := node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
+				var rowsWritten int
+				tableRecordBatchCount, batchStartTime, rowsWritten, err = checkHavingAddRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, tableRecordBatchCount, batchStartTime, instr)
 				if err != nil {
-					return bs, fmt.Errorf("cannot check having condition [%s], table record [%v]: [%s]", node.TableCreator.RawHaving, tableRecord, err.Error())
+					return bs, err
 				}
-
-				// Write batch if needed
-				if inResult {
-					if err = instr.add(tableRecord); err != nil {
-						return bs, fmt.Errorf("cannot add record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
-					}
-					tableRecordBatchCount++
-					if tableRecordBatchCount == instr.BatchSize {
-						tableRecordBatchCount, batchStartTime, err = saveCompletedBatch(pCtx, logger, &node.TableCreator, tableRecordBatchCount, batchStartTime, instr)
-						if err != nil {
-							return bs, err
-						}
-					}
-					bs.RowsWritten++
-				}
+				bs.RowsWritten += rowsWritten
 			}
 		} else if node.Lookup.LookupJoin == sc.LookupJoinLeft {
 
@@ -913,6 +921,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 
 			for leftRowIdx := 0; leftRowIdx < rsLeft.RowCount; leftRowIdx++ {
 				if leftRowFoundRightLookup[leftRowIdx] {
+					// This left row had right counterparts and grouped result was already written
 					continue
 				}
 
@@ -921,26 +930,12 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 					return bs, nil
 				}
 
-				// Check table creator having
-				inResult, err := node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
+				var rowsWritten int
+				tableRecordBatchCount, batchStartTime, rowsWritten, err = checkHavingAddRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, tableRecordBatchCount, batchStartTime, instr)
 				if err != nil {
-					return bs, fmt.Errorf("cannot check having condition [%s], table record [%v]: [%s]", node.TableCreator.RawHaving, tableRecord, err.Error())
+					return bs, err
 				}
-
-				// Write batch if needed
-				if inResult {
-					if err = instr.add(tableRecord); err != nil {
-						return bs, fmt.Errorf("cannot add record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
-					}
-					tableRecordBatchCount++
-					if tableRecordBatchCount == instr.BatchSize {
-						tableRecordBatchCount, batchStartTime, err = saveCompletedBatch(pCtx, logger, &node.TableCreator, tableRecordBatchCount, batchStartTime, instr)
-						if err != nil {
-							return bs, err
-						}
-					}
-					bs.RowsWritten++
-				}
+				bs.RowsWritten += rowsWritten
 			}
 		}
 

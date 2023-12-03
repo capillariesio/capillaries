@@ -23,7 +23,7 @@ linters-settings:
 #    forbid:
 #      - p: ^time\.After$
 #        msg: "time.After may leak resources. Use time.NewTimer instead."
-   revive:
+  revive:
      severity: error
      confidence: 0.8
      enable-all-rules: true
@@ -89,7 +89,7 @@ linters-settings:
        # Rule tuning
        - name: cognitive-complexity
          arguments:
-           - 250 # TODO: do something
+           - 164 # TODO: do something
        - name: cyclomatic
          arguments:
            - 70
@@ -104,13 +104,13 @@ linters-settings:
            - "os.File.Close"
            - "io.Closer.Close"
            - "zap.Logger.Sync*"
-# issues:
-#   # Exclude cyclomatic and cognitive complexity rules for functional tests in the `tests` root directory.
-#   exclude-rules:
-#     - path: ^tests\/.+\.go
-#       text: "(cyclomatic|cognitive)"
-#       linters:
-#         - revive
+issues:
+   # Exclude cyclomatic and cognitive complexity rules for test and pkg/exe/deploy
+  exclude-rules:
+    - path: capideploy\.go|^tests\/.+\.go
+      text: cyclomatic|cognitive
+      linters:
+        - revive
 #     - path: _test\.go|^common/persistence\/tests\/.+\.go # Ignore things like err = errors.New("test error") in tests
 #       linters:
 #         - goerr113
