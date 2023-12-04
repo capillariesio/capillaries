@@ -55,7 +55,7 @@ func (tsc *TunneledSshClient) Close() {
 		tsc.TunneledSshConn.Close()
 	}
 	if tsc.TunneledTcpConn != nil {
-		tsc.TunneledTcpConn.Close() //nolint:all
+		tsc.TunneledTcpConn.Close()
 	}
 	if tsc.ProxySshClient != nil {
 		tsc.ProxySshClient.Close()
@@ -215,6 +215,20 @@ func (lb *LogBuilder) Complete(err error) (LogMsg, error) {
 	return LogMsg(lb.Sb.String()), err
 }
 
+func readScriptFile(fullScriptPath string) (string, error) {
+	f, err := os.Open(fullScriptPath)
+	if err != nil {
+		return "", fmt.Errorf("cannot open shell script %s: %s", fullScriptPath, err.Error())
+	}
+	defer f.Close()
+
+	shellScriptBytes, err := io.ReadAll(f)
+	if err != nil {
+		return "", fmt.Errorf("cannot read shell script %s: %s", fullScriptPath, err.Error())
+	}
+	return string(shellScriptBytes), nil
+}
+
 func ExecScriptsOnInstance(sshConfig *SshConfigDef, ipAddress string, env map[string]string, prjFileDirPath string, shellScriptFiles []string, isVerbose bool) (LogMsg, error) {
 	lb := NewLogBuilder(fmt.Sprintf("ExecScriptsOnInstance: %s on %s", shellScriptFiles, ipAddress), isVerbose)
 
@@ -229,19 +243,12 @@ func ExecScriptsOnInstance(sshConfig *SshConfigDef, ipAddress string, env map[st
 			cmdBuilder.WriteString(fmt.Sprintf("%s=%s\n", k, v))
 		}
 
-		fullScriptPath := filepath.Join(prjFileDirPath, shellScriptFile)
-		f, err := os.Open(fullScriptPath)
+		shellScriptString, err := readScriptFile(filepath.Join(prjFileDirPath, shellScriptFile))
 		if err != nil {
-			return lb.Complete(fmt.Errorf("cannot open shell script %s: %s", fullScriptPath, err.Error()))
-		}
-		defer f.Close() //nolint:all
-
-		shellScriptBytes, err := io.ReadAll(f)
-		if err != nil {
-			return lb.Complete(fmt.Errorf("cannot read shell script %s: %s", fullScriptPath, err.Error()))
+			return lb.Complete(err)
 		}
 
-		cmdBuilder.WriteString(string(shellScriptBytes))
+		cmdBuilder.WriteString(shellScriptString)
 
 		er := ExecSsh(sshConfig, ipAddress, cmdBuilder.String())
 		lb.Add(er.ToString())

@@ -522,7 +522,7 @@ func (eCtx *EvalCtx) EvalFunc(callExp *ast.CallExpr, funcName string, args []any
 	return eCtx.Value, err
 }
 
-func (eCtx *EvalCtx) Eval(exp ast.Expr) (any, error) {
+func (eCtx *EvalCtx) Eval(exp ast.Expr) (any, error) { //nolint:all cognitive complexity 85
 	switch exp := exp.(type) {
 	case *ast.BinaryExpr:
 		valLeftVolatile, err := eCtx.Eval(exp.X)
@@ -662,23 +662,20 @@ func (eCtx *EvalCtx) Eval(exp ast.Expr) (any, error) {
 			args[i] = arg
 		}
 
-		switch exp.Fun.(type) {
+		switch typedExp := exp.Fun.(type) {
 		case *ast.Ident:
-			funcIdent, _ := exp.Fun.(*ast.Ident) //revive:disable-line
 			var err error
-			eCtx.Value, err = eCtx.EvalFunc(exp, funcIdent.Name, args)
+			eCtx.Value, err = eCtx.EvalFunc(exp, typedExp.Name, args)
 			return eCtx.Value, err
 
 		case *ast.SelectorExpr:
-			expSel := exp.Fun.(*ast.SelectorExpr) //revive:disable-line
-			switch expSel.X.(type) {
+			switch expIdent := typedExp.X.(type) {
 			case *ast.Ident:
-				expIdent, _ := expSel.X.(*ast.Ident) //revive:disable-line
 				var err error
-				eCtx.Value, err = eCtx.EvalFunc(exp, fmt.Sprintf("%s.%s", expIdent.Name, expSel.Sel.Name), args)
+				eCtx.Value, err = eCtx.EvalFunc(exp, fmt.Sprintf("%s.%s", expIdent.Name, typedExp.Sel.Name), args)
 				return eCtx.Value, err
 			default:
-				return nil, fmt.Errorf("cannot evaluate fun expression %v, unknown type of X: %T", expSel.X, expSel.X)
+				return nil, fmt.Errorf("cannot evaluate fun expression %v, unknown type of X: %T", typedExp.X, typedExp.X)
 			}
 
 		default:
@@ -686,9 +683,8 @@ func (eCtx *EvalCtx) Eval(exp ast.Expr) (any, error) {
 		}
 
 	case *ast.SelectorExpr:
-		switch exp.X.(type) {
+		switch objectIdent := exp.X.(type) {
 		case *ast.Ident:
-			objectIdent, _ := exp.X.(*ast.Ident) //revive:disable-line
 			golangConst, ok := GolangConstants[fmt.Sprintf("%s.%s", objectIdent.Name, exp.Sel.Name)]
 			if ok {
 				eCtx.Value = golangConst

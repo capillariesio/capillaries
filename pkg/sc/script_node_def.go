@@ -163,6 +163,76 @@ func (node *ScriptNodeDef) GetTargetName() string {
 	return "dev_error_uknown_target_name"
 }
 
+func (node *ScriptNodeDef) initReader() error {
+	if node.HasTableReader() {
+		if err := json.Unmarshal(node.RawReader, &node.TableReader); err != nil {
+			return fmt.Errorf("cannot unmarshal table reader: [%s]", err.Error())
+		}
+		errors := make([]string, 0)
+		if len(node.TableReader.TableName) == 0 {
+			errors = append(errors, "table reader cannot reference empty table name")
+		}
+		if node.TableReader.ExpectedBatchesTotal == 0 {
+			node.TableReader.ExpectedBatchesTotal = 1
+		} else if node.TableReader.ExpectedBatchesTotal < 0 || node.TableReader.ExpectedBatchesTotal > MaxAcceptedBatchesByTableReader {
+			errors = append(errors, fmt.Sprintf("table reader can accept between 1 and %d batches, %d specified", MaxAcceptedBatchesByTableReader, node.TableReader.ExpectedBatchesTotal))
+		}
+		if node.TableReader.RowsetSize < 0 || MaxRowsetSize < node.TableReader.RowsetSize {
+			errors = append(errors, fmt.Sprintf("invalid rowset size %d, table reader can accept between 0 (defaults to %d) and %d", node.TableReader.RowsetSize, DefaultRowsetSize, MaxRowsetSize))
+		}
+		if node.TableReader.RowsetSize == 0 {
+			node.TableReader.RowsetSize = DefaultRowsetSize
+		}
+		if len(errors) > 0 {
+			return fmt.Errorf(strings.Join(errors, "; "))
+		}
+	} else if node.HasFileReader() {
+		if err := node.FileReader.Deserialize(node.RawReader); err != nil {
+			return fmt.Errorf("cannot deserialize file reader [%s]: [%s]", string(node.RawReader), err.Error())
+		}
+	}
+
+	return nil
+}
+
+func (node *ScriptNodeDef) initCreator() error {
+	if node.HasTableCreator() {
+		if err := node.TableCreator.Deserialize(node.RawWriter); err != nil {
+			return fmt.Errorf("cannot deserialize table creator [%s]: [%s]", strings.ReplaceAll(string(node.RawWriter), "\n", " "), err.Error())
+		}
+	} else if node.HasFileCreator() {
+		if err := node.FileCreator.Deserialize(node.RawWriter); err != nil {
+			return fmt.Errorf("cannot deserialize file creator [%s]: [%s]", strings.ReplaceAll(string(node.RawWriter), "\n", " "), err.Error())
+		}
+	}
+	return nil
+}
+
+func (node *ScriptNodeDef) initCustomProcessor(customProcessorDefFactory CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage, caPath string, privateKeys map[string]string) error {
+	if node.HasCustomProcessor() {
+		if customProcessorDefFactory == nil {
+			return fmt.Errorf("undefined custom processor factory")
+		}
+		if customProcessorsSettings == nil {
+			return fmt.Errorf("missing custom processor settings section")
+		}
+		var ok bool
+		node.CustomProcessor, ok = customProcessorDefFactory.Create(node.CustomProcessorType)
+		if !ok {
+			return fmt.Errorf("cannot deserialize unknown custom processor %s", node.CustomProcessorType)
+		}
+		customProcSettings, ok := customProcessorsSettings[node.CustomProcessorType]
+		if !ok {
+			return fmt.Errorf("cannot find custom processing settings for [%s] in the environment config file", node.CustomProcessorType)
+		}
+		if err := node.CustomProcessor.Deserialize(node.RawProcessorDef, customProcSettings, caPath, privateKeys); err != nil {
+			re := regexp.MustCompile("[ \r\n]+")
+			return fmt.Errorf("cannot deserialize custom processor [%s]: [%s]", re.ReplaceAllString(string(node.RawProcessorDef), ""), err.Error())
+		}
+	}
+	return nil
+}
+
 func (node *ScriptNodeDef) Deserialize(customProcessorDefFactory CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage, caPath string, privateKeys map[string]string) error {
 	errors := make([]string, 0)
 
@@ -189,67 +259,18 @@ func (node *ScriptNodeDef) Deserialize(customProcessorDefFactory CustomProcessor
 	}
 
 	// Reader
-
-	if node.HasTableReader() {
-		if err := json.Unmarshal(node.RawReader, &node.TableReader); err != nil {
-			errors = append(errors, fmt.Sprintf("cannot unmarshal table reader: [%s]", err.Error()))
-		}
-		if len(node.TableReader.TableName) == 0 {
-			errors = append(errors, "table reader cannot reference empty table name")
-		}
-		if node.TableReader.ExpectedBatchesTotal == 0 {
-			node.TableReader.ExpectedBatchesTotal = 1
-		} else if node.TableReader.ExpectedBatchesTotal < 0 || node.TableReader.ExpectedBatchesTotal > MaxAcceptedBatchesByTableReader {
-			errors = append(errors, fmt.Sprintf("table reader can accept between 1 and %d batches, %d specified", MaxAcceptedBatchesByTableReader, node.TableReader.ExpectedBatchesTotal))
-		}
-		if node.TableReader.RowsetSize < 0 || MaxRowsetSize < node.TableReader.RowsetSize {
-			errors = append(errors, fmt.Sprintf("invalid rowset size %d, table reader can accept between 0 (defaults to %d) and %d", node.TableReader.RowsetSize, DefaultRowsetSize, MaxRowsetSize))
-		}
-		if node.TableReader.RowsetSize == 0 {
-			node.TableReader.RowsetSize = DefaultRowsetSize
-		}
-
-	} else if node.HasFileReader() {
-		if err := node.FileReader.Deserialize(node.RawReader); err != nil {
-			errors = append(errors, fmt.Sprintf("cannot deserialize file reader [%s]: [%s]", string(node.RawReader), err.Error()))
-		}
+	if err := node.initReader(); err != nil {
+		errors = append(errors, err.Error())
 	}
 
 	// Creator
-
-	if node.HasTableCreator() {
-		if err := node.TableCreator.Deserialize(node.RawWriter); err != nil {
-			errors = append(errors, fmt.Sprintf("cannot deserialize table creator [%s]: [%s]", strings.ReplaceAll(string(node.RawWriter), "\n", " "), err.Error()))
-		}
-	} else if node.HasFileCreator() {
-		if err := node.FileCreator.Deserialize(node.RawWriter); err != nil {
-			errors = append(errors, fmt.Sprintf("cannot deserialize file creator [%s]: [%s]", strings.ReplaceAll(string(node.RawWriter), "\n", " "), err.Error()))
-		}
+	if err := node.initCreator(); err != nil {
+		errors = append(errors, err.Error())
 	}
 
 	// Custom processor
-
-	if node.HasCustomProcessor() {
-		if customProcessorDefFactory == nil {
-			return fmt.Errorf("undefined custom processor factory")
-		}
-		if customProcessorsSettings == nil {
-			return fmt.Errorf("missing custom processor settings section")
-		}
-		var ok bool
-		node.CustomProcessor, ok = customProcessorDefFactory.Create(node.CustomProcessorType)
-		if !ok {
-			errors = append(errors, fmt.Sprintf("cannot deserialize unknown custom processor %s", node.CustomProcessorType))
-		} else {
-			if customProcSettings, ok := customProcessorsSettings[node.CustomProcessorType]; !ok {
-				errors = append(errors, fmt.Sprintf("cannot find custom processing settings for [%s] in the environment config file", node.CustomProcessorType))
-			} else {
-				if err := node.CustomProcessor.Deserialize(node.RawProcessorDef, customProcSettings, caPath, privateKeys); err != nil {
-					re := regexp.MustCompile("[ \r\n]+")
-					errors = append(errors, fmt.Sprintf("cannot deserialize custom processor [%s]: [%s]", re.ReplaceAllString(string(node.RawProcessorDef), ""), err.Error()))
-				}
-			}
-		}
+	if err := node.initCustomProcessor(customProcessorDefFactory, customProcessorsSettings, caPath, privateKeys); err != nil {
+		errors = append(errors, err.Error())
 	}
 
 	if len(errors) > 0 {

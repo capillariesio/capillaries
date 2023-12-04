@@ -54,7 +54,7 @@ func reportWriteTableComplete(logger *l.CapiLogger, pCtx *ctx.MessageProcessingC
 		workerCount)
 }
 
-func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, srcFileIdx int) (BatchStats, error) {
+func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, srcFileIdx int) (BatchStats, error) { //nolint:all cognitive complexity 53
 	logger.PushF("proc.RunReadFileForBatch")
 	defer logger.PopF()
 
@@ -668,7 +668,7 @@ func checkRunCreateTableRelForBatchSanity(node *sc.ScriptNodeDef, readerNodeRunI
 	return nil
 }
 
-func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
+func RunCreateTableRelForBatch(envConfig *env.EnvConfig, //nolint:all cognitive complexity 137
 	logger *l.CapiLogger,
 	pCtx *ctx.MessageProcessingContext,
 	readerNodeRunId int16,

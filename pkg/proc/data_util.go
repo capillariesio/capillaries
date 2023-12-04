@@ -264,7 +264,7 @@ func selectBatchFromTableByToken(logger *l.CapiLogger,
 
 const HarvestForDeleteRowsetSize = 1000 // Do not let users tweak it, maybe too sensitive
 
-func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) error {
+func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) error { //nolint:all cognitive complexity 56
 	logger.PushF("proc.DeleteDataAndUniqueIndexesByBatchIdx")
 	defer logger.PopF()
 

@@ -430,7 +430,7 @@ func TestReadInt(t *testing.T) {
 	for i := 0; i < len(goodTestScenarios); i++ {
 		scenario := goodTestScenarios[i]
 		colRecord, err := testReader(scenario[0].(string), scenario[1].([]string))
-		assert.Nil(t, err)
+		assert.Nil(t, err, fmt.Sprintf("test scenario %d", i))
 		assert.Equal(t, scenario[2], colRecord[ReaderAlias]["col_1"], fmt.Sprintf("Test %d", i))
 	}
 

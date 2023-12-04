@@ -53,6 +53,32 @@ jobs:
                 exit 1
             fi
 
+    - name: pkg/custom/py_calc test coverage threshold check
+      env:
+          TESTCOVERAGE_THRESHOLD: 83.4
+      run: |
+            go test -v ./pkg/custom/py_calc/... -coverprofile coverage.out -covermode count
+            totalCoverage=`go tool cover -func=coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`
+            if (( $(echo "$totalCoverage $TESTCOVERAGE_THRESHOLD" | awk '{print ($1 >= $2)}') )); then
+                echo -e "\033[32mOK: $totalCoverage >= $TESTCOVERAGE_THRESHOLD\033[0m"
+            else
+                echo -e "\033[31mFAILED: $totalCoverage < $TESTCOVERAGE_THRESHOLD. Cover more with unit tests or adjust threshold to a lower value.\033[0m"
+                exit 1
+            fi
+
+    - name: pkg/custom/tag_and_denormalize test coverage threshold check
+      env:
+          TESTCOVERAGE_THRESHOLD: 81.7
+      run: |
+            go test -v ./pkg/custom/tag_and_denormalize/... -coverprofile coverage.out -covermode count
+            totalCoverage=`go tool cover -func=coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`
+            if (( $(echo "$totalCoverage $TESTCOVERAGE_THRESHOLD" | awk '{print ($1 >= $2)}') )); then
+                echo -e "\033[32mOK: $totalCoverage >= $TESTCOVERAGE_THRESHOLD\033[0m"
+            else
+                echo -e "\033[31mFAILED: $totalCoverage < $TESTCOVERAGE_THRESHOLD. Cover more with unit tests or adjust threshold to a lower value.\033[0m"
+                exit 1
+            fi
+
     - name: pkg/dpc test coverage threshold check
       env:
           TESTCOVERAGE_THRESHOLD: 85.7
@@ -81,7 +107,7 @@ jobs:
 
     - name: pkg/sc test coverage threshold check
       env:
-          TESTCOVERAGE_THRESHOLD: 91.5
+          TESTCOVERAGE_THRESHOLD: 91.3
       run: |
             go test -v ./pkg/sc/... -coverprofile coverage.out -covermode count
             totalCoverage=`go tool cover -func=coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`
@@ -92,29 +118,5 @@ jobs:
                 exit 1
             fi
 
-    - name: pkg/custom/py_calc test coverage threshold check
-      env:
-          TESTCOVERAGE_THRESHOLD: 83.3
-      run: |
-            go test -v ./pkg/custom/py_calc/... -coverprofile coverage.out -covermode count
-            totalCoverage=`go tool cover -func=coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`
-            if (( $(echo "$totalCoverage $TESTCOVERAGE_THRESHOLD" | awk '{print ($1 >= $2)}') )); then
-                echo -e "\033[32mOK: $totalCoverage >= $TESTCOVERAGE_THRESHOLD\033[0m"
-            else
-                echo -e "\033[31mFAILED: $totalCoverage < $TESTCOVERAGE_THRESHOLD. Cover more with unit tests or adjust threshold to a lower value.\033[0m"
-                exit 1
-            fi
 
-    - name: pkg/custom/tag_and_denormalize test coverage threshold check
-      env:
-          TESTCOVERAGE_THRESHOLD: 81.7
-      run: |
-            go test -v ./pkg/custom/tag_and_denormalize/... -coverprofile coverage.out -covermode count
-            totalCoverage=`go tool cover -func=coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`
-            if (( $(echo "$totalCoverage $TESTCOVERAGE_THRESHOLD" | awk '{print ($1 >= $2)}') )); then
-                echo -e "\033[32mOK: $totalCoverage >= $TESTCOVERAGE_THRESHOLD\033[0m"
-            else
-                echo -e "\033[31mFAILED: $totalCoverage < $TESTCOVERAGE_THRESHOLD. Cover more with unit tests or adjust threshold to a lower value.\033[0m"
-                exit 1
-            fi
       

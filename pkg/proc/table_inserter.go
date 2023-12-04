@@ -488,20 +488,18 @@ func (instr *TableInserter) insertIdxRecord(logger *l.CapiLogger, idxName string
 
 		if err == nil {
 			if !isApplied {
-				if existingIdxRow["key"] == idxKey && existingIdxRow["rowid"] == curRowid {
-					if idxRetryCount > 0 {
-						// Assuming Cassandra managed to insert the record on the previous attempt but returned an error
-						logger.WarnCtx(instr.PCtx, "duplicate idx record found (%s) in idx %s on retry %d when writing (%d,'%s'), assuming this retry was successful, proceeding as usual", idxName, existingIdxRow, idxRetryCount, curRowid, idxKey)
-					} else {
-						// This is the first attempt, and the record we neeed is already there. Doesn't sound right
-						errorToReturn = fmt.Errorf("cannot write duplicate index key [%s] and proper rowid with %s,%d on retry %d, existing record [%v], assuming it was some other writer, throwing error", pq.Query, idxKey, curRowid, idxRetryCount, existingIdxRow)
-						break
-					}
-				} else {
+				if existingIdxRow["key"] != idxKey || existingIdxRow["rowid"] != curRowid {
 					// We screwed up, a record with this key and different rowid is already there, report everything we can
 					errorToReturn = fmt.Errorf("cannot write duplicate index key [%s] with %s,%d on retry %d, existing record [%v], rowid is different", pq.Query, idxKey, curRowid, idxRetryCount, existingIdxRow)
 					break
 				}
+				if idxRetryCount == 0 {
+					// This is the first attempt, and the record we neeed is already there. Doesn't sound right
+					errorToReturn = fmt.Errorf("cannot write duplicate index key [%s] and proper rowid with %s,%d on retry %d, existing record [%v], assuming it was some other writer, throwing error", pq.Query, idxKey, curRowid, idxRetryCount, existingIdxRow)
+					break
+				}
+				// Assuming Cassandra managed to insert the record on the previous attempt but returned an error
+				logger.WarnCtx(instr.PCtx, "duplicate idx record found (%s) in idx %s on retry %d when writing (%d,'%s'), assuming this retry was successful, proceeding as usual", idxName, existingIdxRow, idxRetryCount, curRowid, idxKey)
 			}
 			// Success or not - we are done
 			return nil

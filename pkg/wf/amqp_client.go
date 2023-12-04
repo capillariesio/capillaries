@@ -138,10 +138,7 @@ func AmqpFullReconnectCycle(envConfig *env.EnvConfig, logger *l.CapiLogger, osSi
 	return daemonCmd
 }
 
-func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, osSignalChannel chan os.Signal, amqpChannel *amqp.Channel, chanAmqpErrors chan *amqp.Error) DaemonCmdType {
-	logger.PushF("wf.amqpConnectAndSelect")
-	defer logger.PopF()
-
+func initAmqpDeliveryChannel(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp.Channel, ampqChannelConsumerTag string) (<-chan amqp.Delivery, DaemonCmdType) {
 	errExchange := amqpChannel.ExchangeDeclare(
 		envConfig.Amqp.Exchange, // exchange name
 		"direct",                // type, "direct"
@@ -152,7 +149,7 @@ func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, osSign
 		nil)                     // arguments
 	if errExchange != nil {
 		logger.Error("cannot declare exchange %s, will reconnect: %s", envConfig.Amqp.Exchange, errExchange.Error())
-		return DaemonCmdReconnectQueue
+		return nil, DaemonCmdReconnectQueue
 	}
 
 	errExchange = amqpChannel.ExchangeDeclare(
@@ -165,7 +162,7 @@ func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, osSign
 		nil)                               // arguments
 	if errExchange != nil {
 		logger.Error("cannot declare exchange %s, will reconnect: %s", envConfig.Amqp.Exchange+DlxSuffix, errExchange.Error())
-		return DaemonCmdReconnectQueue
+		return nil, DaemonCmdReconnectQueue
 	}
 
 	// TODO: declare exchange for non-data signals and handle them in a separate queue
@@ -179,7 +176,7 @@ func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, osSign
 		amqp.Table{"x-dead-letter-exchange": envConfig.Amqp.Exchange + DlxSuffix, "x-dead-letter-routing-key": envConfig.HandlerExecutableType + DlxSuffix}) // arguments
 	if err != nil {
 		logger.Error("cannot declare queue %s, will reconnect: %s\n", envConfig.HandlerExecutableType, err.Error())
-		return DaemonCmdReconnectQueue
+		return nil, DaemonCmdReconnectQueue
 	}
 
 	amqpQueueDlx, err := amqpChannel.QueueDeclare(
@@ -191,7 +188,7 @@ func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, osSign
 		amqp.Table{"x-dead-letter-exchange": envConfig.Amqp.Exchange, "x-dead-letter-routing-key": envConfig.HandlerExecutableType, "x-message-ttl": envConfig.DeadLetterTtl})
 	if err != nil {
 		logger.Error("cannot declare queue %s, will reconnect: %s\n", envConfig.HandlerExecutableType+DlxSuffix, err.Error())
-		return DaemonCmdReconnectQueue
+		return nil, DaemonCmdReconnectQueue
 	}
 
 	errBind := amqpChannel.QueueBind(
@@ -202,7 +199,7 @@ func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, osSign
 		nil)                             // args
 	if errBind != nil {
 		logger.Error("cannot bind queue %s with routing key %s, exchange %s , will reconnect: %s", amqpQueue.Name, envConfig.HandlerExecutableType, envConfig.Amqp.Exchange, errBind.Error())
-		return DaemonCmdReconnectQueue
+		return nil, DaemonCmdReconnectQueue
 	}
 
 	errBind = amqpChannel.QueueBind(
@@ -213,16 +210,15 @@ func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, osSign
 		nil)                                       // args
 	if errBind != nil {
 		logger.Error("cannot bind queue %s with routing key %s, exchange %s , will reconnect: %s", amqpQueueDlx.Name, envConfig.HandlerExecutableType+DlxSuffix, envConfig.Amqp.Exchange+DlxSuffix, errBind.Error())
-		return DaemonCmdReconnectQueue
+		return nil, DaemonCmdReconnectQueue
 	}
 
 	errQos := amqpChannel.Qos(envConfig.Amqp.PrefetchCount, envConfig.Amqp.PrefetchSize, false)
 	if errQos != nil {
 		logger.Error("cannot set Qos, will reconnect: %s", errQos.Error())
-		return DaemonCmdReconnectQueue
+		return nil, DaemonCmdReconnectQueue
 	}
 
-	ampqChannelConsumerTag := logger.ZapMachine.String + "/consumer"
 	chanDeliveries, err := amqpChannel.Consume(
 		amqpQueue.Name,         // queue
 		ampqChannelConsumerTag, // unique consumer tag, default go ampq implementation is os.argv[0] (is it really unique?)
@@ -233,9 +229,24 @@ func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, osSign
 		nil)                    // args
 	if err != nil {
 		logger.Error("cannot register consumer, queue %s, will reconnect: %s", amqpQueue.Name, err.Error())
-		return DaemonCmdReconnectQueue
+		return nil, DaemonCmdReconnectQueue
 	}
-	logger.Info("started consuming queue %s, routing key %s, exchange %s", amqpQueue.Name, envConfig.HandlerExecutableType, envConfig.Amqp.Exchange)
+
+	return chanDeliveries, DaemonCmdNone
+}
+
+func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, osSignalChannel chan os.Signal, amqpChannel *amqp.Channel, chanAmqpErrors chan *amqp.Error) DaemonCmdType { //nolint:all cognitive complexity 74
+	logger.PushF("wf.amqpConnectAndSelect")
+	defer logger.PopF()
+
+	ampqChannelConsumerTag := logger.ZapMachine.String + "/consumer"
+
+	chanDeliveries, daemonCmd := initAmqpDeliveryChannel(envConfig, logger, amqpChannel, ampqChannelConsumerTag)
+	if daemonCmd != DaemonCmdNone {
+		return daemonCmd
+	}
+
+	logger.Info("started consuming queue %s, routing key %s, exchange %s", envConfig.HandlerExecutableType, envConfig.HandlerExecutableType, envConfig.Amqp.Exchange)
 
 	var sem = make(chan int, envConfig.ThreadPoolSize)
 
@@ -305,6 +316,7 @@ func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, osSign
 			// Lock one slot in the semaphore
 			sem <- 1
 
+			// envConfig.ThreadPoolSize goroutenes run simultaneously
 			go func(threadLogger *l.CapiLogger, delivery amqp.Delivery, _channel *amqp.Channel) {
 				var err error
 
@@ -313,6 +325,7 @@ func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, osSign
 					threadLogger.Error("processor detected empty Acknowledger, assuming closed amqp channel, will reconnect: %s", amqpDeliveryToString(delivery))
 					daemonCommands <- DaemonCmdReconnectQueue
 				} else {
+					// The main call
 					daemonCmd := processDelivery(envConfig, threadLogger, &delivery)
 
 					if daemonCmd == DaemonCmdAckSuccess || daemonCmd == DaemonCmdAckWithError {
@@ -339,7 +352,7 @@ func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, osSign
 						// 	daemonCommands <- daemonCmd
 						// }
 
-						// Verdict: we do not handle machine sleep scenario, amqp091-go goes into deadlock when shutting down.
+						// Verdict: we do not handle machine sleep scenario, amqp091-go goes into deadlock when shutting down the box as of 2022
 						daemonCommands <- daemonCmd
 					} else if daemonCmd == DaemonCmdQuit {
 						daemonCommands <- DaemonCmdQuit
