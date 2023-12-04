@@ -208,7 +208,11 @@ func (h *UrlHandler) getNodeDesc(cqlSession *gocql.Session, keyspace string, run
 }
 
 func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
-	keyspace := getField(r, 0)
+	keyspace, err := getField(r, 0)
+	if err != nil {
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		return
+	}
 	cqlSession, err := db.NewSession(h.Env, keyspace, db.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
@@ -327,7 +331,11 @@ type RunNodeBatchesInfo struct {
 }
 
 func (h *UrlHandler) ksRunNodeBatchHistory(w http.ResponseWriter, r *http.Request) {
-	keyspace := getField(r, 0)
+	keyspace, err := getField(r, 0)
+	if err != nil {
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		return
+	}
 	cqlSession, err := db.NewSession(h.Env, keyspace, db.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
@@ -335,7 +343,13 @@ func (h *UrlHandler) ksRunNodeBatchHistory(w http.ResponseWriter, r *http.Reques
 	}
 	defer cqlSession.Close()
 
-	runId, err := strconv.Atoi(getField(r, 1))
+	runIdString, err := getField(r, 1)
+	if err != nil {
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		return
+	}
+
+	runId, err := strconv.Atoi(runIdString)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -350,7 +364,12 @@ func (h *UrlHandler) ksRunNodeBatchHistory(w http.ResponseWriter, r *http.Reques
 
 	// Batch history
 
-	nodeName := getField(r, 2)
+	nodeName, err := getField(r, 2)
+	if err != nil {
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		return
+	}
+
 	result.RunNodeBatchHistory, err = api.GetRunNodeBatchHistory(h.L, cqlSession, keyspace, int16(runId), nodeName)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
@@ -366,7 +385,12 @@ type RunNodesInfo struct {
 }
 
 func (h *UrlHandler) ksRunNodeHistory(w http.ResponseWriter, r *http.Request) {
-	keyspace := getField(r, 0)
+	keyspace, err := getField(r, 0)
+	if err != nil {
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		return
+	}
+
 	cqlSession, err := db.NewSession(h.Env, keyspace, db.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
@@ -374,7 +398,13 @@ func (h *UrlHandler) ksRunNodeHistory(w http.ResponseWriter, r *http.Request) {
 	}
 	defer cqlSession.Close()
 
-	runId, err := strconv.Atoi(getField(r, 1))
+	runIdString, err := getField(r, 1)
+	if err != nil {
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		return
+	}
+
+	runId, err := strconv.Atoi(runIdString)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -409,7 +439,12 @@ func (h *UrlHandler) ksStartRunOptions(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UrlHandler) ksStartRun(w http.ResponseWriter, r *http.Request) {
-	keyspace := getField(r, 0)
+	keyspace, err := getField(r, 0)
+	if err != nil {
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		return
+	}
+
 	cqlSession, err := db.NewSession(h.Env, keyspace, db.CreateKeyspaceOnConnect)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
@@ -461,7 +496,12 @@ func (h *UrlHandler) ksStopRunOptions(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UrlHandler) ksStopRun(w http.ResponseWriter, r *http.Request) {
-	keyspace := getField(r, 0)
+	keyspace, err := getField(r, 0)
+	if err != nil {
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		return
+	}
+
 	cqlSession, err := db.NewSession(h.Env, keyspace, db.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
@@ -480,7 +520,13 @@ func (h *UrlHandler) ksStopRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	runId, err := strconv.Atoi(getField(r, 1))
+	runIdString, err := getField(r, 1)
+	if err != nil {
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		return
+	}
+
+	runId, err := strconv.Atoi(runIdString)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -499,7 +545,12 @@ func (h *UrlHandler) ksDropOptions(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UrlHandler) ksDrop(w http.ResponseWriter, r *http.Request) {
-	keyspace := getField(r, 0)
+	keyspace, err := getField(r, 0)
+	if err != nil {
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		return
+	}
+
 	cqlSession, err := db.NewSession(h.Env, keyspace, db.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
@@ -522,9 +573,15 @@ type UrlHandler struct {
 type ctxKey struct {
 }
 
-func getField(r *http.Request, index int) string {
-	fields := r.Context().Value(ctxKey{}).([]string) //nolint:all
-	return fields[index]
+func getField(r *http.Request, index int) (string, error) {
+	fields, ok := r.Context().Value(ctxKey{}).([]string)
+	if !ok {
+		return "", fmt.Errorf("no fields in http request")
+	}
+	if len(fields) <= index {
+		return "", fmt.Errorf("no t enough fields in http request, index %d", index)
+	}
+	return fields[index], nil
 }
 
 var routes []route

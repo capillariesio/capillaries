@@ -81,76 +81,76 @@ func BuildKey(fieldMap map[string]any, idxDef *IdxDef) (string, error) {
 
 		switch comp.FieldType {
 		case FieldTypeInt:
-			if sign, absVal, err := getNumericValueSign(fieldMap[comp.FieldName], FieldTypeInt); err == nil {
-				stringValue = fmt.Sprintf("%s%018d", sign, absVal)
-				// If this is a negative value, flip every digit
-				if sign == "-" {
-					stringValue = flipReplacer.Replace(stringValue)
-				}
-			} else {
+			sign, absVal, err := getNumericValueSign(fieldMap[comp.FieldName], FieldTypeInt)
+			if err != nil {
 				return "", err
+			}
+			stringValue = fmt.Sprintf("%s%018d", sign, absVal)
+			// If this is a negative value, flip every digit
+			if sign == "-" {
+				stringValue = flipReplacer.Replace(stringValue)
 			}
 
 		case FieldTypeFloat:
 			// We should support numbers as big as 10^32 and with 32 digits afetr decimal point
-			if sign, absVal, err := getNumericValueSign(fieldMap[comp.FieldName], FieldTypeFloat); err == nil {
-				stringValue = strings.ReplaceAll(fmt.Sprintf("%s%66s", sign, fmt.Sprintf("%.32f", absVal)), " ", "0")
-				// If this is a negative value, flip every digit
-				if sign == "-" {
-					stringValue = flipReplacer.Replace(stringValue)
-				}
-			} else {
+			sign, absVal, err := getNumericValueSign(fieldMap[comp.FieldName], FieldTypeFloat)
+			if err != nil {
 				return "", err
+			}
+			stringValue = strings.ReplaceAll(fmt.Sprintf("%s%66s", sign, fmt.Sprintf("%.32f", absVal)), " ", "0")
+			// If this is a negative value, flip every digit
+			if sign == "-" {
+				stringValue = flipReplacer.Replace(stringValue)
 			}
 
 		case FieldTypeDecimal2:
-			if sign, absVal, err := getNumericValueSign(fieldMap[comp.FieldName], FieldTypeDecimal2); err == nil {
-				decVal, ok := absVal.(decimal.Decimal)
-				if !ok {
-					return "", fmt.Errorf("cannot convert value %v to type decimal2", fieldMap[comp.FieldName])
-				}
-				floatVal, _ := decVal.Float64()
-				stringValue = strings.ReplaceAll(fmt.Sprintf("%s%66s", sign, fmt.Sprintf("%.32f", floatVal)), " ", "0")
-				// If this is a negative value, flip every digit
-				if sign == "-" {
-					stringValue = flipReplacer.Replace(stringValue)
-				}
-			} else {
+			sign, absVal, err := getNumericValueSign(fieldMap[comp.FieldName], FieldTypeDecimal2)
+			if err != nil {
 				return "", err
+			}
+			decVal, ok := absVal.(decimal.Decimal)
+			if !ok {
+				return "", fmt.Errorf("cannot convert value %v to type decimal2", fieldMap[comp.FieldName])
+			}
+			floatVal, _ := decVal.Float64()
+			stringValue = strings.ReplaceAll(fmt.Sprintf("%s%66s", sign, fmt.Sprintf("%.32f", floatVal)), " ", "0")
+			// If this is a negative value, flip every digit
+			if sign == "-" {
+				stringValue = flipReplacer.Replace(stringValue)
 			}
 
 		case FieldTypeDateTime:
 			// We support time differences up to microsecond. Not nanosecond! Cassandra supports only milliseconds. Millis are our lingua franca.
-			if t, ok := fieldMap[comp.FieldName].(time.Time); ok {
-				stringValue = fmt.Sprintf("%020d", t.UnixMicro()-BeginningOfTimeMicro)
-			} else {
+			t, ok := fieldMap[comp.FieldName].(time.Time)
+			if !ok {
 				return "", fmt.Errorf("cannot convert value %v to type datetime", fieldMap[comp.FieldName])
 			}
+			stringValue = fmt.Sprintf("%020d", t.UnixMicro()-BeginningOfTimeMicro)
 
 		case FieldTypeString:
-			if s, ok := fieldMap[comp.FieldName].(string); ok {
-				// Normalize the string
-				transformedString, _, _ := transform.String(t, s)
-				// Take only first 64 (or whatever we have in StringLen) characters
-				// use "%-64s" sprint format to pad with spaces on the right
-				formatString := fmt.Sprintf("%s-%ds", "%", comp.StringLen)
-				stringValue = fmt.Sprintf(formatString, transformedString)[:comp.StringLen]
-				if comp.CaseSensitivity == IdxIgnoreCase {
-					stringValue = strings.ToUpper(stringValue)
-				}
-			} else {
+			s, ok := fieldMap[comp.FieldName].(string)
+			if !ok {
 				return "", fmt.Errorf("cannot convert value %v to type string", fieldMap[comp.FieldName])
+			}
+			// Normalize the string
+			transformedString, _, _ := transform.String(t, s)
+			// Take only first 64 (or whatever we have in StringLen) characters
+			// use "%-64s" sprint format to pad with spaces on the right
+			formatString := fmt.Sprintf("%s-%ds", "%", comp.StringLen)
+			stringValue = fmt.Sprintf(formatString, transformedString)[:comp.StringLen]
+			if comp.CaseSensitivity == IdxIgnoreCase {
+				stringValue = strings.ToUpper(stringValue)
 			}
 
 		case FieldTypeBool:
-			if b, ok := fieldMap[comp.FieldName].(bool); ok {
-				if b {
-					stringValue = "T" // "F" < "T"
-				} else {
-					stringValue = "F"
-				}
-			} else {
+			b, ok := fieldMap[comp.FieldName].(bool)
+			if !ok {
 				return "", fmt.Errorf("cannot convert value %v to type bool", fieldMap[comp.FieldName])
+			}
+			if b {
+				stringValue = "T" // "F" < "T"
+			} else {
+				stringValue = "F"
 			}
 
 		default:

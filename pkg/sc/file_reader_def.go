@@ -162,156 +162,192 @@ func (frDef *FileReaderDef) ResolveCsvColumnIndexesFromNames(srcHdrLine []string
 	return nil
 }
 
+func toString(colName string, colData string, colDef *FileReaderColumnDef, colVars eval.VarValuesMap) error {
+	if len(colDef.Csv.SrcColFormat) > 0 {
+		return fmt.Errorf("cannot read string column %s, data '%s': format '%s' was specified, but string fields do not accept format specifier, remove this setting", colName, colData, colDef.Csv.SrcColFormat)
+	}
+	if len(colData) == 0 {
+		if len(colDef.DefaultValue) > 0 {
+			colVars[ReaderAlias][colName] = colDef.DefaultValue
+		} else {
+			colVars[ReaderAlias][colName] = GetDefaultFieldTypeValue(FieldTypeString)
+		}
+	} else {
+		colVars[ReaderAlias][colName] = colData
+	}
+	return nil
+}
+
+func toBool(colName string, colData string, colDef *FileReaderColumnDef, colVars eval.VarValuesMap) error {
+	if len(colDef.Csv.SrcColFormat) > 0 {
+		return fmt.Errorf("cannot read bool column %s, data '%s': format '%s' was specified, but bool fields do not accept format specifier, remove this setting", colName, colData, colDef.Csv.SrcColFormat)
+	}
+
+	var err error
+	if len(strings.TrimSpace(colData)) == 0 {
+		if len(strings.TrimSpace(colDef.DefaultValue)) > 0 {
+			colVars[ReaderAlias][colName], err = strconv.ParseBool(colDef.DefaultValue)
+			if err != nil {
+				return fmt.Errorf("cannot read bool column %s, from default value string '%s', allowed values are true,false,T,F,0,1: %s", colName, colDef.DefaultValue, err.Error())
+			}
+		} else {
+			colVars[ReaderAlias][colName] = GetDefaultFieldTypeValue(FieldTypeBool)
+		}
+	} else {
+		colVars[ReaderAlias][colName], err = strconv.ParseBool(colData)
+		if err != nil {
+			return fmt.Errorf("cannot read bool column %s, data '%s', allowed values are true,false,T,F,0,1: %s", colName, colData, err.Error())
+		}
+	}
+	return nil
+}
+
+func toInt(colName string, colData string, colDef *FileReaderColumnDef, colVars eval.VarValuesMap) error {
+	if len(strings.TrimSpace(colData)) == 0 {
+		if len(strings.TrimSpace(colDef.DefaultValue)) > 0 {
+			valInt, err := strconv.ParseInt(colDef.DefaultValue, 10, 64)
+			if err != nil {
+				return fmt.Errorf("cannot read int64 column %s from default value string '%s': %s", colName, colDef.DefaultValue, err.Error())
+			}
+			colVars[ReaderAlias][colName] = valInt
+		} else {
+			colVars[ReaderAlias][colName] = GetDefaultFieldTypeValue(FieldTypeInt)
+		}
+	} else {
+		if len(colDef.Csv.SrcColFormat) > 0 {
+			var valInt int64
+			_, err := fmt.Sscanf(colData, colDef.Csv.SrcColFormat, &valInt)
+			if err != nil {
+				return fmt.Errorf("cannot read int64 column %s, data '%s', format '%s': %s", colName, colData, colDef.Csv.SrcColFormat, err.Error())
+			}
+			colVars[ReaderAlias][colName] = valInt
+		} else {
+			valInt, err := strconv.ParseInt(colData, 10, 64)
+			if err != nil {
+				return fmt.Errorf("cannot read int64 column %s, data '%s', no format: %s", colName, colData, err.Error())
+			}
+			colVars[ReaderAlias][colName] = valInt
+		}
+	}
+	return nil
+}
+
+func toDateTime(colName string, colData string, colDef *FileReaderColumnDef, colVars eval.VarValuesMap) error {
+	if len(strings.TrimSpace(colData)) == 0 {
+		if len(strings.TrimSpace(colDef.DefaultValue)) > 0 {
+			valTime, err := time.Parse(colDef.Csv.SrcColFormat, colDef.DefaultValue)
+			if err != nil {
+				return fmt.Errorf("cannot read time column %s from default value string '%s': %s", colName, colDef.DefaultValue, err.Error())
+			}
+			colVars[ReaderAlias][colName] = valTime
+		} else {
+			colVars[ReaderAlias][colName] = GetDefaultFieldTypeValue(FieldTypeDateTime)
+		}
+	} else {
+		if len(colDef.Csv.SrcColFormat) == 0 {
+			return fmt.Errorf("cannot read datetime column %s, data '%s': column format is missing, consider specifying something like 2006-01-02T15:04:05.000-0700, see go datetime format documentation for details", colName, colData)
+		}
+
+		valTime, err := time.Parse(colDef.Csv.SrcColFormat, colData)
+		if err != nil {
+			return fmt.Errorf("cannot read datetime column %s, data '%s', format '%s': %s", colName, colData, colDef.Csv.SrcColFormat, err.Error())
+		}
+		colVars[ReaderAlias][colName] = valTime
+	}
+	return nil
+}
+
+func toFloat(colName string, colData string, colDef *FileReaderColumnDef, colVars eval.VarValuesMap) error {
+	if len(strings.TrimSpace(colData)) == 0 {
+		if len(strings.TrimSpace(colDef.DefaultValue)) > 0 {
+			valFloat, err := strconv.ParseFloat(colDef.DefaultValue, 64)
+			if err != nil {
+				return fmt.Errorf("cannot read float64 column %s from default value string '%s': %s", colName, colDef.DefaultValue, err.Error())
+			}
+			colVars[ReaderAlias][colName] = valFloat
+		} else {
+			colVars[ReaderAlias][colName] = GetDefaultFieldTypeValue(FieldTypeFloat)
+		}
+	} else {
+		if len(colDef.Csv.SrcColFormat) > 0 {
+			var valFloat float64
+			_, err := fmt.Sscanf(colData, colDef.Csv.SrcColFormat, &valFloat)
+			if err != nil {
+				return fmt.Errorf("cannot read float64 column %s, data '%s', format '%s': %s", colName, colData, colDef.Csv.SrcColFormat, err.Error())
+			}
+			colVars[ReaderAlias][colName] = valFloat
+		} else {
+			valFloat, err := strconv.ParseFloat(colData, 64)
+			if err != nil {
+				return fmt.Errorf("cannot read float64 column %s, data '%s', no format: %s", colName, colData, err.Error())
+			}
+			colVars[ReaderAlias][colName] = valFloat
+		}
+	}
+	return nil
+}
+
+func toDecimal2(colName string, colData string, colDef *FileReaderColumnDef, colVars eval.VarValuesMap) error {
+	// Round to 2 digits after decimal point right away
+	if len(strings.TrimSpace(colData)) == 0 {
+		if len(strings.TrimSpace(colDef.DefaultValue)) > 0 {
+			valDec, err := decimal.NewFromString(colDef.DefaultValue)
+			if err != nil {
+				return fmt.Errorf("cannot read decimal2 column %s from default value string '%s': %s", colName, colDef.DefaultValue, err.Error())
+			}
+			colVars[ReaderAlias][colName] = valDec.Round(2)
+		} else {
+			colVars[ReaderAlias][colName] = GetDefaultFieldTypeValue(FieldTypeDecimal2)
+		}
+	} else {
+		var valFloat float64
+		if len(colDef.Csv.SrcColFormat) > 0 {
+			// Decimal type does not support sscanf, so sscanf string first
+			_, err := fmt.Sscanf(colData, colDef.Csv.SrcColFormat, &valFloat)
+			if err != nil {
+				return fmt.Errorf("cannot read decimal2 column %s, data '%s', format '%s': %s", colName, colData, colDef.Csv.SrcColFormat, err.Error())
+			}
+			colVars[ReaderAlias][colName] = decimal.NewFromFloat(valFloat).Round(2)
+		} else {
+			valDec, err := decimal.NewFromString(colData)
+			if err != nil {
+				return fmt.Errorf("cannot read decimal2 column %s, cannot parse data '%s': %s", colName, colData, err.Error())
+			}
+			colVars[ReaderAlias][colName] = valDec.Round(2)
+		}
+	}
+	return nil
+}
+
 func (frDef *FileReaderDef) ReadCsvLineToValuesMap(line *[]string, colVars eval.VarValuesMap) error {
 	colVars[ReaderAlias] = map[string]any{}
 	for colName, colDef := range frDef.Columns {
 		colData := (*line)[colDef.Csv.SrcColIdx]
 		switch colDef.Type {
 		case FieldTypeString:
-			if len(colDef.Csv.SrcColFormat) > 0 {
-				return fmt.Errorf("cannot read string column %s, data '%s': format '%s' was specified, but string fields do not accept format specifier, remove this setting", colName, colData, colDef.Csv.SrcColFormat)
+			if err := toString(colName, colData, colDef, colVars); err != nil {
+				return err
 			}
-			if len(colData) == 0 {
-				if len(colDef.DefaultValue) > 0 {
-					colVars[ReaderAlias][colName] = colDef.DefaultValue
-				} else {
-					colVars[ReaderAlias][colName] = GetDefaultFieldTypeValue(FieldTypeString)
-				}
-			} else {
-				colVars[ReaderAlias][colName] = colData
-			}
-
 		case FieldTypeBool:
-			if len(colDef.Csv.SrcColFormat) > 0 {
-				return fmt.Errorf("cannot read bool column %s, data '%s': format '%s' was specified, but bool fields do not accept format specifier, remove this setting", colName, colData, colDef.Csv.SrcColFormat)
+			if err := toBool(colName, colData, colDef, colVars); err != nil {
+				return err
 			}
-
-			var err error
-			if len(strings.TrimSpace(colData)) == 0 {
-				if len(strings.TrimSpace(colDef.DefaultValue)) > 0 {
-					colVars[ReaderAlias][colName], err = strconv.ParseBool(colDef.DefaultValue)
-					if err != nil {
-						return fmt.Errorf("cannot read bool column %s, from default value string '%s', allowed values are true,false,T,F,0,1: %s", colName, colDef.DefaultValue, err.Error())
-					}
-				} else {
-					colVars[ReaderAlias][colName] = GetDefaultFieldTypeValue(FieldTypeBool)
-				}
-			} else {
-				colVars[ReaderAlias][colName], err = strconv.ParseBool(colData)
-				if err != nil {
-					return fmt.Errorf("cannot read bool column %s, data '%s', allowed values are true,false,T,F,0,1: %s", colName, colData, err.Error())
-				}
-			}
-
 		case FieldTypeInt:
-			if len(strings.TrimSpace(colData)) == 0 {
-				if len(strings.TrimSpace(colDef.DefaultValue)) > 0 {
-					valInt, err := strconv.ParseInt(colDef.DefaultValue, 10, 64)
-					if err != nil {
-						return fmt.Errorf("cannot read int64 column %s from default value string '%s': %s", colName, colDef.DefaultValue, err.Error())
-					}
-					colVars[ReaderAlias][colName] = valInt
-				} else {
-					colVars[ReaderAlias][colName] = GetDefaultFieldTypeValue(FieldTypeInt)
-				}
-			} else {
-				if len(colDef.Csv.SrcColFormat) > 0 {
-					var valInt int64
-					_, err := fmt.Sscanf(colData, colDef.Csv.SrcColFormat, &valInt)
-					if err != nil {
-						return fmt.Errorf("cannot read int64 column %s, data '%s', format '%s': %s", colName, colData, colDef.Csv.SrcColFormat, err.Error())
-					}
-					colVars[ReaderAlias][colName] = valInt
-				} else {
-					valInt, err := strconv.ParseInt(colData, 10, 64)
-					if err != nil {
-						return fmt.Errorf("cannot read int64 column %s, data '%s', no format: %s", colName, colData, err.Error())
-					}
-					colVars[ReaderAlias][colName] = valInt
-				}
+			if err := toInt(colName, colData, colDef, colVars); err != nil {
+				return err
 			}
-
 		case FieldTypeDateTime:
-			if len(strings.TrimSpace(colData)) == 0 {
-				if len(strings.TrimSpace(colDef.DefaultValue)) > 0 {
-					valTime, err := time.Parse(colDef.Csv.SrcColFormat, colDef.DefaultValue)
-					if err != nil {
-						return fmt.Errorf("cannot read time column %s from default value string '%s': %s", colName, colDef.DefaultValue, err.Error())
-					}
-					colVars[ReaderAlias][colName] = valTime
-				} else {
-					colVars[ReaderAlias][colName] = GetDefaultFieldTypeValue(FieldTypeDateTime)
-				}
-			} else {
-				if len(colDef.Csv.SrcColFormat) == 0 {
-					return fmt.Errorf("cannot read datetime column %s, data '%s': column format is missing, consider specifying something like 2006-01-02T15:04:05.000-0700, see go datetime format documentation for details", colName, colData)
-				}
-
-				valTime, err := time.Parse(colDef.Csv.SrcColFormat, colData)
-				if err != nil {
-					return fmt.Errorf("cannot read datetime column %s, data '%s', format '%s': %s", colName, colData, colDef.Csv.SrcColFormat, err.Error())
-				}
-				colVars[ReaderAlias][colName] = valTime
+			if err := toDateTime(colName, colData, colDef, colVars); err != nil {
+				return err
 			}
-
 		case FieldTypeFloat:
-			if len(strings.TrimSpace(colData)) == 0 {
-				if len(strings.TrimSpace(colDef.DefaultValue)) > 0 {
-					valFloat, err := strconv.ParseFloat(colDef.DefaultValue, 64)
-					if err != nil {
-						return fmt.Errorf("cannot read float64 column %s from default value string '%s': %s", colName, colDef.DefaultValue, err.Error())
-					}
-					colVars[ReaderAlias][colName] = valFloat
-				} else {
-					colVars[ReaderAlias][colName] = GetDefaultFieldTypeValue(FieldTypeFloat)
-				}
-			} else {
-				if len(colDef.Csv.SrcColFormat) > 0 {
-					var valFloat float64
-					_, err := fmt.Sscanf(colData, colDef.Csv.SrcColFormat, &valFloat)
-					if err != nil {
-						return fmt.Errorf("cannot read float64 column %s, data '%s', format '%s': %s", colName, colData, colDef.Csv.SrcColFormat, err.Error())
-					}
-					colVars[ReaderAlias][colName] = valFloat
-				} else {
-					valFloat, err := strconv.ParseFloat(colData, 64)
-					if err != nil {
-						return fmt.Errorf("cannot read float64 column %s, data '%s', no format: %s", colName, colData, err.Error())
-					}
-					colVars[ReaderAlias][colName] = valFloat
-				}
+			if err := toFloat(colName, colData, colDef, colVars); err != nil {
+				return err
 			}
-
 		case FieldTypeDecimal2:
-			// Round to 2 digits after decimal point right away
-			if len(strings.TrimSpace(colData)) == 0 {
-				if len(strings.TrimSpace(colDef.DefaultValue)) > 0 {
-					valDec, err := decimal.NewFromString(colDef.DefaultValue)
-					if err != nil {
-						return fmt.Errorf("cannot read decimal2 column %s from default value string '%s': %s", colName, colDef.DefaultValue, err.Error())
-					}
-					colVars[ReaderAlias][colName] = valDec.Round(2)
-				} else {
-					colVars[ReaderAlias][colName] = GetDefaultFieldTypeValue(FieldTypeDecimal2)
-				}
-			} else {
-				var valFloat float64
-				if len(colDef.Csv.SrcColFormat) > 0 {
-					// Decimal type does not support sscanf, so sscanf string first
-					_, err := fmt.Sscanf(colData, colDef.Csv.SrcColFormat, &valFloat)
-					if err != nil {
-						return fmt.Errorf("cannot read decimal2 column %s, data '%s', format '%s': %s", colName, colData, colDef.Csv.SrcColFormat, err.Error())
-					}
-					colVars[ReaderAlias][colName] = decimal.NewFromFloat(valFloat).Round(2)
-				} else {
-					valDec, err := decimal.NewFromString(colData)
-					if err != nil {
-						return fmt.Errorf("cannot read decimal2 column %s, cannot parse data '%s': %s", colName, colData, err.Error())
-					}
-					colVars[ReaderAlias][colName] = valDec.Round(2)
-				}
+			if err := toDecimal2(colName, colData, colDef, colVars); err != nil {
+				return err
 			}
-
 		default:
 			return fmt.Errorf("cannot read column %s, data '%s': unsupported column type '%s'", colName, colData, colDef.Type)
 		}

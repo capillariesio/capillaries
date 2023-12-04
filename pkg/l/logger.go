@@ -76,7 +76,7 @@ func NewLoggerFromLogger(srcLogger *CapiLogger) (*CapiLogger, error) {
 }
 
 func (l *CapiLogger) Close() {
-	l.ZapLogger.Sync() //nolint:all
+	l.ZapLogger.Sync()
 }
 
 func (l *CapiLogger) Debug(format string, a ...any) {

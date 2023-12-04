@@ -357,7 +357,7 @@ func sortFile(path string, idxDef *sc.IdxDef) error {
 		if err != nil {
 			return fmt.Errorf("cannot guess column type %s: %s", fieldName, err.Error())
 		}
-		for idxFieldIdx, _ := range idxDef.Components {
+		for idxFieldIdx := range idxDef.Components {
 			if idxDef.Components[idxFieldIdx].FieldName == fieldName {
 				idxDef.Components[idxFieldIdx].FieldType = types[fieldIdx]
 				break
@@ -365,7 +365,7 @@ func sortFile(path string, idxDef *sc.IdxDef) error {
 		}
 	}
 
-	for i, _ := range idxDef.Components {
+	for i := range idxDef.Components {
 		if idxDef.Components[i].FieldType == sc.FieldTypeUnknown {
 			return fmt.Errorf("cannot find column %s in the parquet file", idxDef.Components[i].FieldName)
 		}

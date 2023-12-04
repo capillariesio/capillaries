@@ -30,7 +30,9 @@ type TableInserter struct {
 	// TODO: the only reason we have this is because we decided to end handlers
 	// with "defer instr.waitForWorkersAndCloseErrorsOut(logger, pCtx)" - not the cleanest way, get rid of this bool thingy.
 	// That defer is convenient because there are so many early returns.
-	RecordsInOpen bool
+	RecordsInOpen          bool
+	DoesNotExistPause      float32
+	OperationTimedOutPause float32
 }
 
 type WriteChannelItem struct {
@@ -48,14 +50,16 @@ func newSeed() int64 {
 func newTableInserter(envConfig *env.EnvConfig, pCtx *ctx.MessageProcessingContext, tableCreator *sc.TableCreatorDef, batchSize int) *TableInserter {
 
 	return &TableInserter{
-		PCtx:            pCtx,
-		TableCreator:    tableCreator,
-		BatchSize:       batchSize,
-		ErrorsOut:       make(chan error, batchSize),
-		RowidRand:       rand.New(rand.NewSource(newSeed())),
-		NumWorkers:      envConfig.Cassandra.WriterWorkers,
-		MinInserterRate: envConfig.Cassandra.MinInserterRate,
-		RecordsInOpen:   false,
+		PCtx:                   pCtx,
+		TableCreator:           tableCreator,
+		BatchSize:              batchSize,
+		ErrorsOut:              make(chan error, batchSize),
+		RowidRand:              rand.New(rand.NewSource(newSeed())),
+		NumWorkers:             envConfig.Cassandra.WriterWorkers,
+		MinInserterRate:        envConfig.Cassandra.MinInserterRate,
+		RecordsInOpen:          false,
+		DoesNotExistPause:      5.0,  // sec
+		OperationTimedOutPause: 10.0, // sec
 	}
 }
 
@@ -84,23 +88,6 @@ func CreateIdxTableCql(keyspace string, runId int16, idxName string, idxDef *sc.
 	}
 	return qb.CreateRun(idxName, runId, cql.IgnoreIfExists)
 }
-
-// Obsolete: now we create all run-specific tables in api.StartRun
-//
-// func (instr *TableInserter) verifyTablesExist() error {
-// 	q := CreateDataTableCql(instr.PCtx.BatchInfo.DataKeyspace, instr.PCtx.BatchInfo.RunId, instr.TableCreator)
-// 	if err := instr.PCtx.CqlSession.Query(q).Exec(); err != nil {
-// 		return db.WrapDbErrorWithQuery("cannot create data table", q, err)
-// 	}
-
-// 	for idxName, idxDef := range instr.TableCreator.Indexes {
-// 		q := CreateIdxTableCql(instr.PCtx.BatchInfo.DataKeyspace, instr.PCtx.BatchInfo.RunId, idxName, idxDef)
-// 		if err := instr.PCtx.CqlSession.Query(q).Exec(); err != nil {
-// 			return db.WrapDbErrorWithQuery("cannot create idx table", q, err)
-// 		}
-// 	}
-// 	return nil
-// }
 
 func (instr *TableInserter) startWorkers(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) error {
 	logger.PushF("proc.startWorkers/TableInserter")
@@ -209,237 +196,370 @@ func (instr *TableInserter) add(tableRecord TableRecord) error {
 	return nil
 }
 
+func newDataQueryBuilder(keyspace string, writeItem *WriteChannelItem, batchIdx int16) (*cql.QueryBuilder, error) {
+	dataQb := cql.NewQB().Keyspace(keyspace)
+	if err := dataQb.WritePreparedColumn("rowid"); err != nil {
+		return nil, err
+	}
+	if err := dataQb.WritePreparedColumn("batch_idx"); err != nil {
+		return nil, err
+	}
+	if err := dataQb.WritePreparedValue("batch_idx", batchIdx); err != nil {
+		return nil, err
+	}
+
+	for fieldName := range *writeItem.TableRecord {
+		if err := dataQb.WritePreparedColumn(fieldName); err != nil {
+			return nil, err
+		}
+	}
+	return dataQb, nil
+}
+
+func newIdxQueryBuilder(keyspace string) (*cql.QueryBuilder, error) {
+	idxQb := cql.NewQB().Keyspace(keyspace)
+	if err := idxQb.WritePreparedColumn("key"); err != nil {
+		return nil, err
+	}
+	if err := idxQb.WritePreparedColumn("rowid"); err != nil {
+		return nil, err
+	}
+	return idxQb, nil
+}
+
+type PreparedQuery struct {
+	Qb    *cql.QueryBuilder
+	Query string
+}
+
+func (instr *TableInserter) tableNameWithSuffix(tableName string) string {
+	return fmt.Sprintf("%s%s", tableName, cql.RunIdSuffix(instr.PCtx.BatchInfo.RunId))
+}
+
+// TEST ONLY
+// type TestScenario int
+// const (
+// 	TestDataDoesNotExist TestScenario = iota
+// 	TestDataOperationTimedOut
+// 	TestDataSerious
+// 	TestDataNotApplied
+// 	TestIdxDoesNotExist
+// 	TestIdxOperationTimedOut
+// 	TestIdxSerious
+// 	TestIdxNotAppliedSamePresentFirstRun
+// 	TestIdxNotAppliedSamePresentSecondRun
+// 	TestIdxNotAppliedDiffPresent
+// )
+// const CurrentTestScenario TestScenario = TestDataDoesNotExist
+
+func (instr *TableInserter) insertDataRecord(logger *l.CapiLogger, writeItem *WriteChannelItem, pq *PreparedQuery) (int64, error) {
+	maxDataRetries := 5
+	curDataExpBackoffFactor := float32(1.0)
+	curRowid := int64(0)
+	var errorToReturn error
+
+	// This is the first item from the channel, initialize prepared query, do this once
+	if pq.Qb == nil {
+		var err error
+		// rowid=?, batch_idx=123, field1=?, field2=?
+		pq.Qb, err = newDataQueryBuilder(instr.PCtx.BatchInfo.DataKeyspace, writeItem, instr.PCtx.BatchInfo.BatchIdx)
+		if err != nil {
+			return curRowid, fmt.Errorf("cannot create insert data query builder: %s", err.Error())
+		}
+		// insert into table.name_run_id rowid=?, batch_idx=123, field1=?, field2=?
+		pq.Query, err = pq.Qb.InsertRunPreparedQuery(
+			instr.TableCreator.Name,
+			instr.PCtx.BatchInfo.RunId,
+			cql.IgnoreIfExists) // INSERT IF NOT EXISTS; if exists,  returned isApplied = false
+		if err != nil {
+			return curRowid, fmt.Errorf("cannot prepare insert data query string: %s", err.Error())
+		}
+	}
+
+	instr.RandMutex.Lock()
+	curRowid = instr.RowidRand.Int63()
+	instr.RandMutex.Unlock()
+
+	// field1=123, field2=456
+	for fieldName, fieldValue := range *writeItem.TableRecord {
+		if err := pq.Qb.WritePreparedValue(fieldName, fieldValue); err != nil {
+			return curRowid, fmt.Errorf("cannot write prepared value for %s: %s", fieldName, err.Error())
+		}
+	}
+
+	for dataRetryCount := 0; dataRetryCount < maxDataRetries; dataRetryCount++ {
+		// rowid=111
+		if err := pq.Qb.WritePreparedValue("rowid", curRowid); err != nil {
+			return curRowid, fmt.Errorf("cannot write rowid to prepared query: %s", err.Error())
+		}
+
+		// returns "field1":123, "field2":456
+		preparedDataQueryParams, err := pq.Qb.InsertRunParams()
+		if err != nil {
+			return curRowid, fmt.Errorf("cannot generate insert params for prepared query %s: %s", pq.Query, err.Error())
+		}
+
+		existingDataRow := map[string]any{}
+		var isApplied bool
+		isApplied, err = instr.PCtx.CqlSession.Query(pq.Query, preparedDataQueryParams...).MapScanCAS(existingDataRow)
+
+		// TEST ONLY (comment out pq.Qb.InsertRunParams() and instr.PCtx.CqlSession.Query() above)
+		// var err error
+		// if dataRetryCount == 0 {
+		// 	instr.DoesNotExistPause = 0.01      // speed things up for testing
+		// 	instr.OperationTimedOutPause = 0.01 // speed things up for testing
+		// 	if CurrentTestScenario == TestDataDoesNotExist {
+		// 		// log: will wait for table ... to be created, retry count 0, got does not exist
+		// 		// retry and succeed
+		// 		err = fmt.Errorf("does not exist")
+		// 	} else if CurrentTestScenario == TestDataOperationTimedOut {
+		// 		// log: cluster overloaded (Operation timed out), will wait for ...ms before writing to data table ... again, retry count 0
+		// 		// retry and succeed
+		// 		err = fmt.Errorf("Operation timed out")
+		// 	} else if CurrentTestScenario == TestDataSerious {
+		// 		// UI: some serious error; cannot write to data table
+		// 		// give up immediately and report failure
+		// 		err = fmt.Errorf("some serious error")
+		// 	} else if CurrentTestScenario == TestDataNotApplied {
+		// 		// log: duplicate rowid not written [INSERT INTO ...], existing record [...], retry count 0
+		// 		 // retry with new rowid and succeed
+		// 		isApplied = false
+		// 	}
+		// } else {
+		// 	preparedDataQueryParams, _ := pq.Qb.InsertRunParams()
+		// 	isApplied, err = instr.PCtx.CqlSession.Query(pq.Query, preparedDataQueryParams...).MapScanCAS(existingDataRow)
+		// }
+
+		if err == nil {
+
+			if isApplied {
+				// Success
+				return curRowid, nil
+			}
+
+			// This rowid is already in the db, retry or give up
+			if dataRetryCount >= maxDataRetries-1 {
+				// No more retries
+				logger.ErrorCtx(instr.PCtx, "duplicate rowid not written [%s], existing record [%v], retry count %d reached, giving up", pq.Query, existingDataRow, dataRetryCount)
+				errorToReturn = fmt.Errorf("cannot write to data table after multiple attempts, keep getting rowid duplicates [%s]", pq.Query)
+				break
+			}
+
+			// Retry now with a new rowid
+			logger.InfoCtx(instr.PCtx, "duplicate rowid not written [%s], existing record [%v], retry count %d", pq.Query, existingDataRow, dataRetryCount)
+			instr.RandMutex.Lock()
+			instr.RowidRand = rand.New(rand.NewSource(newSeed()))
+			curRowid = instr.RowidRand.Int63()
+			instr.RandMutex.Unlock()
+		} else {
+			if strings.Contains(err.Error(), "does not exist") {
+				// There is a chance this table is brand new and table schema was not propagated to all Cassandra nodes
+				if dataRetryCount >= maxDataRetries-1 {
+					errorToReturn = fmt.Errorf("cannot write to data table %s after %d attempts, apparently, table schema still not propagated to all nodes: %s", instr.tableNameWithSuffix(instr.TableCreator.Name), dataRetryCount+1, err.Error())
+					break
+				}
+				logger.WarnCtx(instr.PCtx, "will wait for table %s to be created, retry count %d, got %s", instr.tableNameWithSuffix(instr.TableCreator.Name), dataRetryCount, err.Error())
+				// TODO: come up with a better waiting strategy (exp backoff, at least)
+				time.Sleep(time.Duration(instr.DoesNotExistPause) * time.Second)
+			} else if strings.Contains(err.Error(), "Operation timed out") {
+				// The cluster is overloaded, slow down
+				if dataRetryCount >= maxDataRetries-1 {
+					errorToReturn = fmt.Errorf("cannot write to data table %s after %d attempts, still getting timeouts: %s", instr.tableNameWithSuffix(instr.TableCreator.Name), dataRetryCount+1, err.Error())
+					break
+				}
+				logger.WarnCtx(instr.PCtx, "cluster overloaded (%s), will wait for %fms before writing to data table %s again, retry count %d", err.Error(), 10*curDataExpBackoffFactor, instr.tableNameWithSuffix(instr.TableCreator.Name), dataRetryCount)
+				time.Sleep(time.Duration(instr.OperationTimedOutPause*curDataExpBackoffFactor) * time.Millisecond)
+				curDataExpBackoffFactor *= 2.0
+			} else {
+				// Some serious error happened, stop trying this rowid
+				errorToReturn = db.WrapDbErrorWithQuery("cannot write to data table", pq.Query, err)
+				break
+			}
+		}
+	} // data retry loop
+
+	// Failure
+	return curRowid, errorToReturn
+}
+
+func (instr *TableInserter) insertIdxRecord(logger *l.CapiLogger, idxName string, idxUniqueness sc.IdxUniqueness, idxKey string, curRowid int64, pq *PreparedQuery) error {
+	maxIdxRetries := 5
+	curIdxExpBackoffFactor := float32(1.0)
+	var err error
+
+	ifNotExistsFlag := cql.ThrowIfExists
+	if idxUniqueness == sc.IdxUnique {
+		ifNotExistsFlag = cql.IgnoreIfExists
+	}
+
+	// Prepare generic idx insert query, do this once for all indexes and rows
+	if pq.Qb == nil {
+		// key=?, rowid=?
+		pq.Qb, err = newIdxQueryBuilder(instr.PCtx.BatchInfo.DataKeyspace)
+		if err != nil {
+			return fmt.Errorf("cannot prepare idx builder: %s", err.Error())
+		}
+	}
+
+	// insert into idx_table.name_run_id key=?, rowid=?
+	// idxName is different than on the previous call, update it
+	pq.Query, err = pq.Qb.InsertRunPreparedQuery(idxName, instr.PCtx.BatchInfo.RunId, ifNotExistsFlag)
+	if err != nil {
+		return fmt.Errorf("cannot prepare idx query: %s", err.Error())
+	}
+
+	// Provide parameters
+	if err := pq.Qb.WritePreparedValue("key", idxKey); err != nil {
+		return err
+	}
+	if err := pq.Qb.WritePreparedValue("rowid", curRowid); err != nil {
+		return err
+	}
+
+	// returns "key":"aaa", "rowid":123
+	preparedIdxQueryParams, err := pq.Qb.InsertRunParams()
+	if err != nil {
+		return fmt.Errorf("cannot provide idx query params for %s: %s", pq.Query, err.Error())
+	}
+
+	var errorToReturn error
+	for idxRetryCount := 0; idxRetryCount < maxIdxRetries; idxRetryCount++ {
+		existingIdxRow := map[string]any{}
+		var isApplied = true
+
+		if idxUniqueness == sc.IdxUnique {
+			// Unique idx assumed, check isApplied
+			isApplied, err = instr.PCtx.CqlSession.Query(pq.Query, preparedIdxQueryParams...).MapScanCAS(existingIdxRow)
+		} else {
+			// No uniqueness assumed, just insert
+			err = instr.PCtx.CqlSession.Query(pq.Query, preparedIdxQueryParams...).Exec()
+		}
+
+		// TEST ONLY (comment out if idxUniqueness == sc.IdxUnique {...} else {...} above)
+		// var err error
+		// if idxRetryCount == 0 {
+		// 	instr.DoesNotExistPause = 0.01      // speed things up for testing
+		// 	instr.OperationTimedOutPause = 0.01 // speed things up for testing
+		// 	if CurrentTestScenario == TestIdxDoesNotExist {
+		// 		// log: will wait for idx table ... to be created, retry count 0, got does not exist
+		// 		// retry and succeed
+		// 		err = fmt.Errorf("does not exist")
+		// 	} else if CurrentTestScenario == TestIdxOperationTimedOut {
+		// 		// log: cluster overloaded (Operation timed out), will wait for ...ms before writing to idx table ... again, retry count 0
+		// 		// retry and succeed
+		// 		err = fmt.Errorf("Operation timed out")
+		// 	} else if CurrentTestScenario == TestIdxSerious {
+		// 		// UI: some serious error; cannot insert idx record
+		// 		// give up immediately and report failure
+		// 		err = fmt.Errorf("some serious error")
+		// 	} else if CurrentTestScenario == TestIdxNotAppliedSamePresentFirstRun {
+		// 		// UI: cannot write duplicate index key [INSERT INTO ...] and proper rowid with ... on retry 0
+		// 		// give up immediately and report failure
+		// 		isApplied = false
+		// 		existingIdxRow["key"] = idxKey
+		// 		existingIdxRow["rowid"] = curRowid
+		// 	} else if CurrentTestScenario == TestIdxNotAppliedSamePresentSecondRun {
+		// 		// log: duplicate idx record found ... on retry 1 when writing ..., assuming this retry was successful, proceeding as usual
+		// 		// consider it a success
+		// 		// Simulate first successfull attempt:
+		// 		if idxUniqueness == sc.IdxUnique {
+		// 			isApplied, err = instr.PCtx.CqlSession.Query(pq.Query, preparedIdxQueryParams...).MapScanCAS(existingIdxRow)
+		// 		} else {
+		// 			err = instr.PCtx.CqlSession.Query(pq.Query, preparedIdxQueryParams...).Exec()
+		// 		}
+		// 		idxRetryCount = 1 // Pretend it is a second attempt, which makes the key/rowid coincidence legit
+		// 		isApplied = false
+		// 		existingIdxRow["key"] = idxKey
+		// 		existingIdxRow["rowid"] = curRowid
+		// 	} else if CurrentTestScenario == TestIdxNotAppliedDiffPresent {
+		// 		// UI: cannot write duplicate index key ... with ... on retry 0, existing record [...], rowid is different
+		// 		// give up immediately and report failure
+		// 		isApplied = false
+		// 		existingIdxRow["key"] = idxKey
+		// 		existingIdxRow["rowid"] = curRowid + 1
+		// 	}
+		// } else {
+		// 	if idxUniqueness == sc.IdxUnique {
+		// 		isApplied, err = instr.PCtx.CqlSession.Query(pq.Query, preparedIdxQueryParams...).MapScanCAS(existingIdxRow)
+		// 	} else {
+		// 		err = instr.PCtx.CqlSession.Query(pq.Query, preparedIdxQueryParams...).Exec()
+		// 	}
+		// }
+
+		if err == nil {
+			if !isApplied {
+				if existingIdxRow["key"] != idxKey || existingIdxRow["rowid"] != curRowid {
+					// We screwed up, a record with this key and different rowid is already there, report everything we can
+					errorToReturn = fmt.Errorf("cannot write duplicate index key [%s] with %s,%d on retry %d, existing record [%v], rowid is different", pq.Query, idxKey, curRowid, idxRetryCount, existingIdxRow)
+					break
+				}
+				if idxRetryCount == 0 {
+					// This is the first attempt, and the record we neeed is already there. Doesn't sound right
+					errorToReturn = fmt.Errorf("cannot write duplicate index key [%s] and proper rowid with %s,%d on retry %d, existing record [%v], assuming it was some other writer, throwing error", pq.Query, idxKey, curRowid, idxRetryCount, existingIdxRow)
+					break
+				}
+				// Assuming Cassandra managed to insert the record on the previous attempt but returned an error
+				logger.WarnCtx(instr.PCtx, "duplicate idx record found (%s) in idx %s on retry %d when writing (%d,'%s'), assuming this retry was successful, proceeding as usual", idxName, existingIdxRow, idxRetryCount, curRowid, idxKey)
+			}
+			// Success or not - we are done
+			return nil
+		}
+
+		if strings.Contains(err.Error(), "does not exist") {
+			// There is a chance this table is brand new and table schema was not propagated to all Cassandra nodes
+			if idxRetryCount >= maxIdxRetries-1 {
+				errorToReturn = fmt.Errorf("cannot write to idx table %s after %d attempts, apparently, table schema still not propagated to all nodes: %s", instr.tableNameWithSuffix(idxName), idxRetryCount+1, err.Error())
+				break
+			}
+			logger.WarnCtx(instr.PCtx, "will wait for idx table %s to be created, retry count %d, got %s", instr.tableNameWithSuffix(idxName), idxRetryCount, err.Error())
+			// TODO: come up with a better waiting strategy (exp backoff, at least)
+			time.Sleep(time.Duration(instr.DoesNotExistPause) * time.Second)
+		} else if strings.Contains(err.Error(), "Operation timed out") {
+			// The cluster is overloaded, slow down
+			if idxRetryCount >= maxIdxRetries-1 {
+				errorToReturn = fmt.Errorf("cannot write to idx table %s after %d attempts, still getting timeout: %s", instr.tableNameWithSuffix(idxName), idxRetryCount+1, err.Error())
+				break
+			}
+			logger.WarnCtx(instr.PCtx, "cluster overloaded (%s), will wait for %fms before writing to idx table %s again, retry count %d", err.Error(), 10*curIdxExpBackoffFactor, instr.tableNameWithSuffix(idxName), idxRetryCount)
+			time.Sleep(time.Duration(instr.OperationTimedOutPause*curIdxExpBackoffFactor) * time.Millisecond)
+			curIdxExpBackoffFactor *= 2.0
+		} else {
+			// Some serious error happened, stop trying this idx record
+			errorToReturn = db.WrapDbErrorWithQuery("cannot write to idx table", pq.Query, err)
+			break
+		}
+	} // idx retry loop
+
+	// Failure
+	return errorToReturn
+}
+
 func (instr *TableInserter) tableInserterWorker(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) {
 	logger.PushF("proc.tableInserterWorker")
 	defer logger.PopF()
 
 	logger.DebugCtx(pCtx, "writer started reading from RecordsIn")
-	dataTableName := instr.TableCreator.Name + cql.RunIdSuffix(instr.PCtx.BatchInfo.RunId)
 
-	var dataQb *cql.QueryBuilder
-	var preparedDataQueryErr error
-	var preparedDataQuery string
+	pdq := PreparedQuery{}
+	piq := PreparedQuery{}
 
 	handledRecordCount := 0
 	for writeItem := range instr.RecordsIn {
 		handledRecordCount++
-		maxDataRetries := 5
-		curDataExpBackoffFactor := 1
 		var errorToReport error
 
-		if preparedDataQueryErr != nil {
-			instr.ErrorsOut <- fmt.Errorf("cannot prepare data query: %s", preparedDataQueryErr)
-			continue
-		} else if dataQb == nil {
-			dataQb = cql.NewQB()
-			if err := dataQb.WritePreparedColumn("rowid"); err != nil {
-				instr.ErrorsOut <- errorToReport
-				continue // next insert
-			}
-			if err := dataQb.WritePreparedColumn("batch_idx"); err != nil {
-				instr.ErrorsOut <- errorToReport
-				continue // next insert
-			}
-			if err := dataQb.WritePreparedValue("batch_idx", instr.PCtx.BatchInfo.BatchIdx); err != nil {
-				instr.ErrorsOut <- errorToReport
-				continue // next insert
-			}
-
-			for fieldName := range *writeItem.TableRecord {
-				if err := dataQb.WritePreparedColumn(fieldName); err != nil {
-					errorToReport = fmt.Errorf("cannot prepare data query: %s", err)
-					break
-				}
-			}
-			if errorToReport != nil {
-				instr.ErrorsOut <- errorToReport
-				continue // next insert
-			}
-
-			var err error
-			preparedDataQuery, err = dataQb.Keyspace(instr.PCtx.BatchInfo.DataKeyspace).
-				InsertRunPreparedQuery(instr.TableCreator.Name, instr.PCtx.BatchInfo.RunId, cql.IgnoreIfExists) // INSERT IF NOT EXISTS; if exists,  returned isApplied = false
-			if err != nil {
-				instr.ErrorsOut <- fmt.Errorf("cannot prepare data query: %s", err)
-				continue // next insert
-			}
-		}
-
-		instr.RandMutex.Lock()
-		(*writeItem.TableRecord)["rowid"] = instr.RowidRand.Int63()
-		instr.RandMutex.Unlock()
-
-		for fieldName, fieldValue := range *writeItem.TableRecord {
-			if err := dataQb.WritePreparedValue(fieldName, fieldValue); err != nil {
-				instr.ErrorsOut <- fmt.Errorf("cannot write prepared value for %s: %s", fieldName, err.Error())
-				continue // next insert
-			}
-		}
-		preparedDataQueryParams, err := dataQb.InsertRunParams()
-		if err != nil {
-			instr.ErrorsOut <- fmt.Errorf("cannot provide insert params for prepared query %s: %s", preparedDataQuery, err.Error())
-			continue // next insert
-		}
-
-		for dataRetryCount := 0; dataRetryCount < maxDataRetries; dataRetryCount++ {
-
-			existingDataRow := map[string]any{}
-			isApplied, err := instr.PCtx.CqlSession.Query(preparedDataQuery, preparedDataQueryParams...).MapScanCAS(existingDataRow)
-
-			if err == nil {
-				if isApplied {
-					// Success
-					break
-				}
-
-				// This rowidw as already there, retry or give up
-				if dataRetryCount >= maxDataRetries-1 {
-					// No more retries
-					logger.ErrorCtx(instr.PCtx, "duplicate rowid not written [%s], existing record [%v], retry count %d reached, giving up", preparedDataQuery, existingDataRow, dataRetryCount)
-					errorToReport = fmt.Errorf("cannot write to data table after multiple attempts, keep getting rowid duplicates [%s]", preparedDataQuery)
-					break
-				}
-
-				// Retry now with a new rowid
-				logger.InfoCtx(instr.PCtx, "duplicate rowid not written [%s], existing record [%v], retry count %d", preparedDataQuery, existingDataRow, dataRetryCount)
-				instr.RandMutex.Lock()
-				instr.RowidRand = rand.New(rand.NewSource(newSeed()))
-				(*writeItem.TableRecord)["rowid"] = instr.RowidRand.Int63()
-				instr.RandMutex.Unlock()
-
-				// Set new rowid and re-build query params array (shouldn't throw errors this time)
-				if err := dataQb.WritePreparedValue("rowid", (*writeItem.TableRecord)["rowid"]); err != nil {
-					errorToReport = fmt.Errorf("cannot prepared value to rowid: %s", err.Error())
-					break
-				}
-
-				// Will retry (if retry count allows)
-				preparedDataQueryParams, _ = dataQb.InsertRunParams()
-			} else {
-				if strings.Contains(err.Error(), "does not exist") {
-					// There is a chance this table is brand new and table schema was not propagated to all Cassandra nodes
-					if dataRetryCount >= maxDataRetries-1 {
-						errorToReport = fmt.Errorf("cannot write to data table %s after %d attempts, apparently, table schema still not propagated to all nodes: %s", dataTableName, dataRetryCount+1, err.Error())
-						break
-					}
-
-					logger.WarnCtx(instr.PCtx, "will wait for table %s to be created, retry count %d, got %s", dataTableName, dataRetryCount, err.Error())
-					// TODO: come up with a better waiting strategy (exp backoff, at least)
-					time.Sleep(5 * time.Second)
-				} else if strings.Contains(err.Error(), "Operation timed out") {
-					// The cluster is overloaded, slow down
-					if dataRetryCount >= maxDataRetries-1 {
-						errorToReport = fmt.Errorf("cannot write to data table %s after %d attempts, still getting timeouts: %s", dataTableName, dataRetryCount+1, err.Error())
-						break
-					}
-					logger.WarnCtx(instr.PCtx, "cluster overloaded (%s), will wait for %dms before writing to data table %s again, retry count %d", err.Error(), 10*curDataExpBackoffFactor, dataTableName, dataRetryCount)
-					time.Sleep(time.Duration(10*curDataExpBackoffFactor) * time.Millisecond)
-					curDataExpBackoffFactor *= 2
-				} else {
-					// Some serious error happened, stop trying this rowid
-					errorToReport = db.WrapDbErrorWithQuery("cannot write to data table", preparedDataQuery, err)
-					break
-				}
-			}
-		} // data retry loop
-
+		curRowid, errorToReport := instr.insertDataRecord(logger, &writeItem, &pdq)
 		if errorToReport == nil {
 			// Index tables
 			for idxName, idxDef := range instr.TableCreator.Indexes {
-
-				maxIdxRetries := 5
-				idxTableName := idxName + cql.RunIdSuffix(instr.PCtx.BatchInfo.RunId)
-				curIdxExpBackoffFactor := 1
-
-				ifNotExistsFlag := cql.ThrowIfExists
-				if idxDef.Uniqueness == sc.IdxUnique {
-					ifNotExistsFlag = cql.IgnoreIfExists
-				}
-
-				idxQb := cql.NewQB()
-				if err := idxQb.WritePreparedColumn("key"); err != nil {
-					errorToReport = err
+				if err := instr.insertIdxRecord(logger, idxName, idxDef.Uniqueness, writeItem.IndexKeyMap[idxName], curRowid, &piq); err != nil {
+					errorToReport = fmt.Errorf("cannot insert idx record: %s", err.Error())
 					break
 				}
-				if err := idxQb.WritePreparedValue("key", writeItem.IndexKeyMap[idxName]); err != nil {
-					errorToReport = err
-					break
-				}
-				if err := idxQb.WritePreparedColumn("rowid"); err != nil {
-					errorToReport = err
-					break
-				}
-				if err := idxQb.WritePreparedValue("rowid", (*writeItem.TableRecord)["rowid"]); err != nil {
-					errorToReport = err
-					break
-				}
-
-				preparedIdxQuery, err := idxQb.Keyspace(instr.PCtx.BatchInfo.DataKeyspace).InsertRunPreparedQuery(idxName, instr.PCtx.BatchInfo.RunId, ifNotExistsFlag)
-				if err != nil {
-					errorToReport = fmt.Errorf("cannot prepare idx query: %s", err.Error())
-					break
-				}
-				preparedIdxQueryParams, err := idxQb.InsertRunParams()
-				if err != nil {
-					errorToReport = fmt.Errorf("cannot provide idx query params for %s: %s", preparedIdxQuery, err.Error())
-					break
-				}
-
-				for idxRetryCount := 0; idxRetryCount < maxIdxRetries; idxRetryCount++ {
-					existingIdxRow := map[string]any{}
-					var isApplied = true
-					var err error
-					if idxDef.Uniqueness == sc.IdxUnique {
-						// Unique idx assumed, check isApplied
-						isApplied, err = instr.PCtx.CqlSession.Query(preparedIdxQuery, preparedIdxQueryParams...).MapScanCAS(existingIdxRow)
-					} else {
-						// No uniqueness assumed, just insert
-						err = instr.PCtx.CqlSession.Query(preparedIdxQuery, preparedIdxQueryParams...).Exec()
-					}
-
-					if err == nil {
-						if !isApplied {
-							// If attempt number > 0, there is a chance that Cassandra managed to insert the record on the previous attempt but returned an error
-							if idxRetryCount > 0 && existingIdxRow["key"] == writeItem.IndexKeyMap[idxName] && existingIdxRow["rowid"] == (*writeItem.TableRecord)["rowid"] {
-								// Cassandra screwed up, but we know how to handle it, the record is there, just log a warning
-								logger.WarnCtx(instr.PCtx, "duplicate idx record found (%s) in idx %s on retry %d when writing (%d,'%s'), assuming this retry was successful, proceeding as usual", idxName, existingIdxRow, idxRetryCount, (*writeItem.TableRecord)["rowid"], writeItem.IndexKeyMap[idxName])
-							} else {
-								// We screwed up, report everything we can
-								errorToReport = fmt.Errorf("cannot write duplicate index key [%s] on retry %d, existing record [%v]", preparedDataQuery, idxRetryCount, existingIdxRow)
-							}
-						}
-						// Success or not - we are done
-						break
-					}
-					if strings.Contains(err.Error(), "does not exist") {
-						// There is a chance this table is brand new and table schema was not propagated to all Cassandra nodes
-						if idxRetryCount >= maxIdxRetries-1 {
-							errorToReport = fmt.Errorf("cannot write to idx table %s after %d attempts, apparently, table schema still not propagated to all nodes: %s", idxTableName, idxRetryCount+1, err.Error())
-							break
-						}
-						logger.WarnCtx(instr.PCtx, "will wait for idx table %s to be created, retry count %d, got %s", idxTableName, idxRetryCount, err.Error())
-						// TODO: come up with a better waiting strategy (exp backoff, at least)
-						time.Sleep(5 * time.Second)
-					} else if strings.Contains(err.Error(), "Operation timed out") {
-						// The cluster is overloaded, slow down
-						if idxRetryCount >= maxIdxRetries-1 {
-							errorToReport = fmt.Errorf("cannot write to idx table %s after %d attempts, still getting timeout: %s", idxTableName, idxRetryCount+1, err.Error())
-							break
-						}
-						logger.WarnCtx(instr.PCtx, "cluster overloaded (%s), will wait for %dms before writing to idx table %s again, retry count %d", err.Error(), 10*curIdxExpBackoffFactor, idxTableName, idxRetryCount)
-						time.Sleep(time.Duration(10*curIdxExpBackoffFactor) * time.Millisecond)
-						curIdxExpBackoffFactor *= 2
-					} else {
-						// Some serious error happened, stop trying this idx record
-						errorToReport = db.WrapDbErrorWithQuery("cannot write to idx table", preparedDataQuery, err)
-						break
-					}
-				} // idx retry loop
 			} // idx loop
 		}
-		// logger.DebugCtx(pCtx, "writer wrote")
 		instr.ErrorsOut <- errorToReport
-	}
+	} // items loop
 	logger.DebugCtx(pCtx, "done reading from RecordsIn, this writer worker handled %d records from instr.RecordsIn", handledRecordCount)
 	// Decrease busy worker count
 	instr.WorkerWaitGroup.Done()

@@ -54,7 +54,7 @@ func reportWriteTableComplete(logger *l.CapiLogger, pCtx *ctx.MessageProcessingC
 		workerCount)
 }
 
-func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, srcFileIdx int) (BatchStats, error) {
+func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, srcFileIdx int) (BatchStats, error) { //nolint:all cognitive complexity 53
 	logger.PushF("proc.RunReadFileForBatch")
 	defer logger.PopF()
 
@@ -381,20 +381,9 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 
 			// Write batch if needed
 			if inResult {
-				if err = instr.add(tableRecord); err != nil {
-					return bs, fmt.Errorf("cannot add record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
-				}
-				tableRecordBatchCount++
-				if tableRecordBatchCount == DefaultInserterBatchSize {
-					if err := instr.waitForWorkers(logger, pCtx); err != nil {
-						return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
-					}
-					reportWriteTable(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
-					batchStartTime = time.Now()
-					tableRecordBatchCount = 0
-					if err := instr.startWorkers(logger, pCtx); err != nil {
-						return bs, err
-					}
+				tableRecordBatchCount, batchStartTime, err = addRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, tableRecordBatchCount, batchStartTime, instr)
+				if err != nil {
+					return bs, err
 				}
 				bs.RowsWritten++
 			}
@@ -418,7 +407,268 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 	return bs, nil
 }
 
-func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
+func buildKeysToFindInTheLookupIndex(rsLeft *Rowset, scriptNodeLookup sc.LookupDef) ([]string, map[string][]int, error) {
+	// Build keys to find in the lookup index, one key may yield multiple rowids
+	keyToLeftRowIdxMap := map[string][]int{}
+	for rowIdx := 0; rowIdx < rsLeft.RowCount; rowIdx++ {
+		vars := eval.VarValuesMap{}
+		if err := rsLeft.ExportToVars(rowIdx, &vars); err != nil {
+			return nil, nil, err
+		}
+		key, err := sc.BuildKey(vars[sc.ReaderAlias], scriptNodeLookup.TableCreator.Indexes[scriptNodeLookup.IndexName])
+		if err != nil {
+			return nil, nil, err
+		}
+
+		_, ok := keyToLeftRowIdxMap[key]
+		if !ok {
+			keyToLeftRowIdxMap[key] = make([]int, 0)
+		}
+		keyToLeftRowIdxMap[key] = append(keyToLeftRowIdxMap[key], rowIdx)
+	}
+
+	keysToFind := make([]string, len(keyToLeftRowIdxMap))
+	i := 0
+	for k := range keyToLeftRowIdxMap {
+		keysToFind[i] = k
+		i++
+	}
+
+	return keysToFind, keyToLeftRowIdxMap, nil
+}
+
+func getRightRowidsToFind(rsIdx *Rowset) (map[int64]struct{}, map[int64]string) {
+	// Build a map of right-row-id -> key
+	rightRowIdToKeyMap := map[int64]string{}
+	for rowIdx := 0; rowIdx < rsIdx.RowCount; rowIdx++ {
+		rightRowId := *((*rsIdx.Rows[rowIdx])[rsIdx.FieldsByFieldName["rowid"]].(*int64))
+		key := *((*rsIdx.Rows[rowIdx])[rsIdx.FieldsByFieldName["key"]].(*string))
+		rightRowIdToKeyMap[rightRowId] = key
+	}
+
+	rowidsToFind := make(map[int64]struct{}, len(rightRowIdToKeyMap))
+	for k := range rightRowIdToKeyMap {
+		rowidsToFind[k] = struct{}{}
+	}
+
+	return rowidsToFind, rightRowIdToKeyMap
+}
+
+func setupEvalCtxForGroup(node *sc.ScriptNodeDef, rsLeft *Rowset) (map[int64]map[string]*eval.EvalCtx, error) {
+	eCtxMap := map[int64]map[string]*eval.EvalCtx{}
+	if !node.Lookup.IsGroup {
+		return eCtxMap, nil
+	}
+	if node.Lookup.IsGroup {
+		for rowIdx := 0; rowIdx < rsLeft.RowCount; rowIdx++ {
+			rowid := *((*rsLeft.Rows[rowIdx])[rsLeft.FieldsByFieldName["rowid"]].(*int64))
+			eCtxMap[rowid] = map[string]*eval.EvalCtx{}
+			for fieldName, fieldDef := range node.TableCreator.Fields {
+				aggFuncEnabled, aggFuncType, aggFuncArgs := eval.DetectRootAggFunc(fieldDef.ParsedExpression)
+				newCtx, newCtxErr := eval.NewPlainEvalCtxAndInitializedAgg(aggFuncEnabled, aggFuncType, aggFuncArgs)
+				if newCtxErr != nil {
+					return nil, newCtxErr
+				}
+				eCtxMap[rowid][fieldName] = newCtx
+			}
+		}
+	}
+	return eCtxMap, nil
+}
+
+func evalRowGroupedFields(writerFieldDefs map[string]*sc.WriteTableFieldDef, rsLeft *Rowset, leftRowIdx int, rsRight *Rowset, rightRowIdx int, eCtxMap map[int64]map[string]*eval.EvalCtx) error {
+	leftRowid := *((*rsLeft.Rows[leftRowIdx])[rsLeft.FieldsByFieldName["rowid"]].(*int64))
+	for fieldName, fieldDef := range writerFieldDefs {
+		eCtxMap[leftRowid][fieldName].Vars = &eval.VarValuesMap{}
+		if err := rsLeft.ExportToVars(leftRowIdx, eCtxMap[leftRowid][fieldName].Vars); err != nil {
+			return err
+		}
+		if err := rsRight.ExportToVarsWithAlias(rightRowIdx, eCtxMap[leftRowid][fieldName].Vars, sc.LookupAlias); err != nil {
+			return err
+		}
+		_, err := eCtxMap[leftRowid][fieldName].Eval(fieldDef.ParsedExpression)
+		if err != nil {
+			return fmt.Errorf("cannot evaluate target expression [%s]: [%s]", fieldDef.RawExpression, err.Error())
+		}
+	}
+	return nil
+}
+
+func checkLookupFilter(lookupDef *sc.LookupDef, rsRight *Rowset, rightRowIdx int) (bool, error) {
+	lookupFilterOk := true
+	if lookupDef.UsesFilter() {
+		vars := eval.VarValuesMap{}
+		if err := rsRight.ExportToVars(rightRowIdx, &vars); err != nil {
+			return false, err
+		}
+		var err error
+		lookupFilterOk, err = lookupDef.CheckFilterCondition(vars)
+		if err != nil {
+			return false, fmt.Errorf("cannot check filter condition [%s] against [%v]: [%s]", lookupDef.RawFilter, vars, err.Error())
+		}
+	}
+	return lookupFilterOk, nil
+}
+
+func saveCompletedBatch(pCtx *ctx.MessageProcessingContext, logger *l.CapiLogger, tableCreator *sc.TableCreatorDef, tableRecordBatchCount int, batchStartTime time.Time, instr *TableInserter) (int, time.Time, error) {
+	if err := instr.waitForWorkers(logger, pCtx); err != nil {
+		return 0, time.Now(), fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, tableCreator.Name, err.Error())
+	}
+	reportWriteTable(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(tableCreator.Indexes), instr.NumWorkers)
+	if err := instr.startWorkers(logger, pCtx); err != nil {
+		return 0, time.Now(), err
+	}
+	return 0, time.Now(), nil
+}
+
+func produceGroupedTableRecord(node *sc.ScriptNodeDef, rsLeft *Rowset, leftRowIdx int, leftRowFoundRightLookup []bool, eCtxMap map[int64]map[string]*eval.EvalCtx) (map[string]any, error) {
+
+	tableRecord := map[string]any{}
+
+	if !leftRowFoundRightLookup[leftRowIdx] {
+		if node.Lookup.LookupJoin == sc.LookupJoinInner {
+			// Grouped inner join with no data on the right
+			// Do not insert this left row
+			return nil, nil
+		}
+		// Grouped left outer join with no data on the right
+		leftVars := eval.VarValuesMap{}
+		if err := rsLeft.ExportToVars(leftRowIdx, &leftVars); err != nil {
+			return nil, err
+		}
+
+		var err error
+		for fieldName, fieldDef := range node.TableCreator.Fields {
+			isAggEnabled, _, _ := eval.DetectRootAggFunc(fieldDef.ParsedExpression)
+			if isAggEnabled == eval.AggFuncEnabled {
+				// Aggregate func is used in field expression - ignore the expression and produce default
+				tableRecord[fieldName], err = node.TableCreator.GetFieldDefaultReadyForDb(fieldName)
+				if err != nil {
+					return nil, fmt.Errorf("cannot initialize default field %s: [%s]", fieldName, err.Error())
+				}
+			} else {
+				// No aggregate function used in field expression - assume it contains only left-side fields
+				tableRecord[fieldName], err = sc.CalculateFieldValue(fieldName, fieldDef, leftVars, false)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+	} else {
+		// Grouped inner or left outer with present data on the right
+		leftRowid := *((*rsLeft.Rows[leftRowIdx])[rsLeft.FieldsByFieldName["rowid"]].(*int64))
+		for fieldName, fieldDef := range node.TableCreator.Fields {
+			finalValue := eCtxMap[leftRowid][fieldName].Value
+
+			if err := sc.CheckValueType(finalValue, fieldDef.Type); err != nil {
+				return nil, fmt.Errorf("invalid field %s type: [%s]", fieldName, err.Error())
+			}
+			tableRecord[fieldName] = finalValue
+		}
+	}
+	return tableRecord, nil
+}
+
+func produceNonGroupedTableRecordForLeftWithChildren(node *sc.ScriptNodeDef, rsLeft *Rowset, leftRowIdx int, rsRight *Rowset, rightRowIdx int) (map[string]any, error) {
+	vars := eval.VarValuesMap{}
+	if err := rsLeft.ExportToVars(leftRowIdx, &vars); err != nil {
+		return nil, err
+	}
+	if err := rsRight.ExportToVarsWithAlias(rightRowIdx, &vars, sc.LookupAlias); err != nil {
+		return nil, err
+	}
+
+	// We are ready to write this result right away, so prepare the output tableRecord
+	tableRecord, err := node.TableCreator.CalculateTableRecordFromSrcVars(false, vars)
+	if err != nil {
+		return nil, fmt.Errorf("cannot populate table record from [%v]: [%s]", vars, err.Error())
+	}
+	return tableRecord, nil
+}
+
+func produceNonGroupedTableRecordForCheldlessLeft(node *sc.ScriptNodeDef, rsLeft *Rowset, leftRowIdx int) (map[string]any, error) {
+	tableRecord := map[string]any{}
+
+	leftVars := eval.VarValuesMap{}
+	if err := rsLeft.ExportToVars(leftRowIdx, &leftVars); err != nil {
+		return nil, err
+	}
+
+	var err error
+	for fieldName, fieldDef := range node.TableCreator.Fields {
+		if fieldDef.UsedFields.HasFieldsWithTableAlias(sc.LookupAlias) {
+			// This field expression uses fields from lkp table - produce default value
+			tableRecord[fieldName], err = node.TableCreator.GetFieldDefaultReadyForDb(fieldName)
+			if err != nil {
+				return nil, fmt.Errorf("cannot initialize non-grouped default field %s: [%s]", fieldName, err.Error())
+			}
+		} else {
+			// This field expression does not use fields from lkp table - assume the expression contains only left-side fields
+			tableRecord[fieldName], err = sc.CalculateFieldValue(fieldName, fieldDef, leftVars, false)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return tableRecord, nil
+}
+
+func addRecordAndSaveBatchIfNeeded(pCtx *ctx.MessageProcessingContext, logger *l.CapiLogger, node *sc.ScriptNodeDef, tableRecord map[string]any, tableRecordBatchCount int, batchStartTime time.Time, instr *TableInserter) (int, time.Time, error) {
+	if err := instr.add(tableRecord); err != nil {
+		return tableRecordBatchCount, batchStartTime, fmt.Errorf("cannot add record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+	}
+	tableRecordBatchCount++
+	if tableRecordBatchCount == instr.BatchSize {
+		tableRecordBatchCount, batchStartTime, err := saveCompletedBatch(pCtx, logger, &node.TableCreator, tableRecordBatchCount, batchStartTime, instr)
+		if err != nil {
+			return tableRecordBatchCount, batchStartTime, err
+		}
+	}
+	return tableRecordBatchCount, batchStartTime, nil
+}
+
+func checkHavingAddRecordAndSaveBatchIfNeeded(pCtx *ctx.MessageProcessingContext, logger *l.CapiLogger, node *sc.ScriptNodeDef, tableRecord map[string]any, tableRecordBatchCount int, batchStartTime time.Time, instr *TableInserter) (int, time.Time, int, error) {
+	rowsWritten := 0
+	// Check table creator having
+	inResult, err := node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
+	if err != nil {
+		return tableRecordBatchCount, batchStartTime, 0, fmt.Errorf("cannot check having condition [%s], table record [%v]: [%s]", node.TableCreator.RawHaving, tableRecord, err.Error())
+	}
+
+	// Write batch if needed
+	if inResult {
+		tableRecordBatchCount, batchStartTime, err = addRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, tableRecordBatchCount, batchStartTime, instr)
+		if err != nil {
+			return tableRecordBatchCount, batchStartTime, 0, err
+		}
+		rowsWritten++
+	}
+
+	return tableRecordBatchCount, batchStartTime, rowsWritten, nil
+}
+
+func checkRunCreateTableRelForBatchSanity(node *sc.ScriptNodeDef, readerNodeRunId int16, lookupNodeRunId int16) error {
+	if readerNodeRunId == 0 {
+		return fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
+	}
+
+	if lookupNodeRunId == 0 {
+		return fmt.Errorf("this node has a dependency node to lookup data at that was never started in this keyspace (lookupNodeRunId == 0)")
+	}
+
+	if !node.HasTableReader() {
+		return fmt.Errorf("node does not have table reader")
+	}
+	if !node.HasTableCreator() {
+		return fmt.Errorf("node does not have table creator")
+	}
+	if !node.HasLookup() {
+		return fmt.Errorf("node does not have lookup")
+	}
+	return nil
+}
+
+func RunCreateTableRelForBatch(envConfig *env.EnvConfig, //nolint:all cognitive complexity 137
 	logger *l.CapiLogger,
 	pCtx *ctx.MessageProcessingContext,
 	readerNodeRunId int16,
@@ -436,22 +686,8 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 
 	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: node.TableReader.TableName + cql.RunIdSuffix(readerNodeRunId), Dst: node.TableCreator.Name + cql.RunIdSuffix(readerNodeRunId)}
 
-	if readerNodeRunId == 0 {
-		return bs, fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
-	}
-
-	if lookupNodeRunId == 0 {
-		return bs, fmt.Errorf("this node has a dependency node to lookup data at that was never started in this keyspace (lookupNodeRunId == 0)")
-	}
-
-	if !node.HasTableReader() {
-		return bs, fmt.Errorf("node does not have table reader")
-	}
-	if !node.HasTableCreator() {
-		return bs, fmt.Errorf("node does not have table creator")
-	}
-	if !node.HasLookup() {
-		return bs, fmt.Errorf("node does not have lookup")
+	if err := checkRunCreateTableRelForBatchSanity(node, readerNodeRunId, lookupNodeRunId); err != nil {
+		return bs, err
 	}
 
 	// Fields to read from source table
@@ -509,54 +745,28 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 
 		// Setup eval ctx for each target field if grouping is involved
 		// map: rowid -> field -> ctx
-		eCtxMap := map[int64]map[string]*eval.EvalCtx{}
-		if node.HasLookup() && node.Lookup.IsGroup {
-			for rowIdx := 0; rowIdx < rsLeft.RowCount; rowIdx++ {
-				rowid := *((*rsLeft.Rows[rowIdx])[rsLeft.FieldsByFieldName["rowid"]].(*int64))
-				eCtxMap[rowid] = map[string]*eval.EvalCtx{}
-				for fieldName, fieldDef := range node.TableCreator.Fields {
-					aggFuncEnabled, aggFuncType, aggFuncArgs := eval.DetectRootAggFunc(fieldDef.ParsedExpression)
-					newCtx, newCtxErr := eval.NewPlainEvalCtxAndInitializedAgg(aggFuncEnabled, aggFuncType, aggFuncArgs)
-					if newCtxErr != nil {
-						return bs, newCtxErr
-					}
-					eCtxMap[rowid][fieldName] = newCtx
-				}
-			}
+		eCtxMap, err := setupEvalCtxForGroup(node, rsLeft)
+		if err != nil {
+			return bs, err
 		}
 
-		// Build keys to find in the lookup index, one key may yield multiple rowids
-		keyToLeftRowIdxMap := map[string][]int{}
+		// Array that says if a left row has any right counterparts
 		leftRowFoundRightLookup := make([]bool, rsLeft.RowCount)
 		for rowIdx := 0; rowIdx < rsLeft.RowCount; rowIdx++ {
 			leftRowFoundRightLookup[rowIdx] = false
-			vars := eval.VarValuesMap{}
-			if err := rsLeft.ExportToVars(rowIdx, &vars); err != nil {
-				return bs, err
-			}
-			key, err := sc.BuildKey(vars[sc.ReaderAlias], node.Lookup.TableCreator.Indexes[node.Lookup.IndexName])
-			if err != nil {
-				return bs, err
-			}
-
-			_, ok := keyToLeftRowIdxMap[key]
-			if !ok {
-				keyToLeftRowIdxMap[key] = make([]int, 0)
-			}
-			keyToLeftRowIdxMap[key] = append(keyToLeftRowIdxMap[key], rowIdx)
 		}
 
-		keysToFind := make([]string, len(keyToLeftRowIdxMap))
-		i := 0
-		for k := range keyToLeftRowIdxMap {
-			keysToFind[i] = k
-			i++
+		// Build keys to find in the lookup index, one key may yield multiple rowids
+		keysToFind, keyToLeftRowIdxMap, err := buildKeysToFindInTheLookupIndex(rsLeft, node.Lookup)
+		if err != nil {
+			return bs, err
 		}
 
 		lookupFieldRefs := sc.FieldRefs{}
 		lookupFieldRefs.AppendWithFilter(node.TableCreator.UsedInHavingFields, node.Lookup.TableCreator.Name)
 		lookupFieldRefs.AppendWithFilter(node.TableCreator.UsedInTargetExpressionsFields, node.Lookup.TableCreator.Name)
 
+		// Select from idx table by keys
 		rsIdx := NewRowsetFromFieldRefs(
 			sc.FieldRefs{sc.RowidFieldRef(node.Lookup.IndexName)},
 			sc.FieldRefs{sc.KeyTokenFieldRef()},
@@ -583,19 +793,9 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 			}
 
 			// Build a map of right-row-id -> key
-			rightRowIdToKeyMap := map[int64]string{}
-			for rowIdx := 0; rowIdx < rsIdx.RowCount; rowIdx++ {
-				rightRowId := *((*rsIdx.Rows[rowIdx])[rsIdx.FieldsByFieldName["rowid"]].(*int64))
-				key := *((*rsIdx.Rows[rowIdx])[rsIdx.FieldsByFieldName["key"]].(*string))
-				rightRowIdToKeyMap[rightRowId] = key
-			}
+			rightRowidsToFind, rightRowIdToKeyMap := getRightRowidsToFind(rsIdx)
 
-			rowidsToFind := make(map[int64]struct{}, len(rightRowIdToKeyMap))
-			for k := range rightRowIdToKeyMap {
-				rowidsToFind[k] = struct{}{}
-			}
-
-			logger.DebugCtx(pCtx, "selectBatchFromIdxTablePaged: leftPageIdx %d, rightIdxPageIdx %d, queried %d keys in %.3fs, retrieved %d rowids", leftPageIdx, rightIdxPageIdx, len(keysToFind), time.Since(selectIdxBatchStartTime).Seconds(), len(rowidsToFind))
+			logger.DebugCtx(pCtx, "selectBatchFromIdxTablePaged: leftPageIdx %d, rightIdxPageIdx %d, queried %d keys in %.3fs, retrieved %d right rowids", leftPageIdx, rightIdxPageIdx, len(keysToFind), time.Since(selectIdxBatchStartTime).Seconds(), len(rightRowidsToFind))
 
 			// Select from right table by rowid
 			rsRight := NewRowsetFromFieldRefs(
@@ -614,12 +814,12 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 					lookupNodeRunId,
 					node.Lookup.RightLookupReadBatchSize,
 					rightPageState,
-					rowidsToFind)
+					rightRowidsToFind)
 				if err != nil {
 					return bs, err
 				}
 
-				logger.DebugCtx(pCtx, "selectBatchFromDataTablePaged: leftPageIdx %d, rightIdxPageIdx %d, rightDataPageIdx %d, queried %d rowids in %.3fs, retrieved %d rowids", leftPageIdx, rightIdxPageIdx, rightDataPageIdx, len(rowidsToFind), time.Since(selectBatchStartTime).Seconds(), rsRight.RowCount)
+				logger.DebugCtx(pCtx, "selectBatchFromDataTablePaged: leftPageIdx %d, rightIdxPageIdx %d, rightDataPageIdx %d, queried %d rowids in %.3fs, retrieved %d rowids", leftPageIdx, rightIdxPageIdx, rightDataPageIdx, len(rightRowidsToFind), time.Since(selectBatchStartTime).Seconds(), rsRight.RowCount)
 
 				if rsRight.RowCount == 0 {
 					break
@@ -629,95 +829,52 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 					rightRowId := *((*rsRight.Rows[rightRowIdx])[rsRight.FieldsByFieldName["rowid"]].(*int64))
 					rightRowKey := rightRowIdToKeyMap[rightRowId]
 
-					// Remove this right rowid from the set, we do not need it anymore. Reset page state.
+					// Remove this right rowid from the set, we do not need it anymore.
+					// Reset page state, we will have to start over
 					rightPageState = nil
-					delete(rowidsToFind, rightRowId)
+					delete(rightRowidsToFind, rightRowId)
 
 					// Check filter condition if needed
-					lookupFilterOk := true
-					if node.Lookup.UsesFilter() {
-						vars := eval.VarValuesMap{}
-						if err := rsRight.ExportToVars(rightRowIdx, &vars); err != nil {
-							return bs, err
-						}
-						var err error
-						lookupFilterOk, err = node.Lookup.CheckFilterCondition(vars)
-						if err != nil {
-							return bs, fmt.Errorf("cannot check filter condition [%s] against [%v]: [%s]", node.Lookup.RawFilter, vars, err.Error())
-						}
+					lookupFilterOk, err := checkLookupFilter(&node.Lookup, rsRight, rightRowIdx)
+					if err != nil {
+						return bs, err
 					}
 
 					if !lookupFilterOk {
+						// Skip this right row
 						continue
 					}
 
 					if node.Lookup.IsGroup {
 						// Find correspondent row from rsLeft, merge left and right and
-						// call group eval eCtxMap[leftRowid] for each output field
+						// call group eval eCtxMap[leftRowid] for each output field,
+						// but do not write them yet - there may be more
 						for _, leftRowIdx := range keyToLeftRowIdxMap[rightRowKey] {
 
 							leftRowFoundRightLookup[leftRowIdx] = true
-
-							leftRowid := *((*rsLeft.Rows[leftRowIdx])[rsLeft.FieldsByFieldName["rowid"]].(*int64))
-							for fieldName, fieldDef := range node.TableCreator.Fields {
-								eCtxMap[leftRowid][fieldName].Vars = &eval.VarValuesMap{}
-								if err := rsLeft.ExportToVars(leftRowIdx, eCtxMap[leftRowid][fieldName].Vars); err != nil {
-									return bs, err
-								}
-								if err := rsRight.ExportToVarsWithAlias(rightRowIdx, eCtxMap[leftRowid][fieldName].Vars, sc.LookupAlias); err != nil {
-									return bs, err
-								}
-								_, err := eCtxMap[leftRowid][fieldName].Eval(fieldDef.ParsedExpression)
-								if err != nil {
-									return bs, fmt.Errorf("cannot evaluate target expression [%s]: [%s]", fieldDef.RawExpression, err.Error())
-								}
+							if err := evalRowGroupedFields(node.TableCreator.Fields, rsLeft, leftRowIdx, rsRight, rightRowIdx, eCtxMap); err != nil {
+								return bs, err
 							}
 						}
 					} else {
-						// Non-group. Find correspondent row from rsLeft, merge left and right and call row-level eval
+						// Non-group, and the right row was found for the parent left row.
+						// Find correspondent row from rsLeft, merge left and right and call row-level eval
 						for _, leftRowIdx := range keyToLeftRowIdxMap[rightRowKey] {
 
 							leftRowFoundRightLookup[leftRowIdx] = true
 
-							vars := eval.VarValuesMap{}
-							if err := rsLeft.ExportToVars(leftRowIdx, &vars); err != nil {
-								return bs, err
-							}
-							if err := rsRight.ExportToVarsWithAlias(rightRowIdx, &vars, sc.LookupAlias); err != nil {
+							tableRecord, err := produceNonGroupedTableRecordForLeftWithChildren(node, rsLeft, leftRowIdx, rsRight, rightRowIdx)
+							if err != nil {
 								return bs, err
 							}
 
-							// We are ready to write this result right away, so prepare the output tableRecord
-							tableRecord, err := node.TableCreator.CalculateTableRecordFromSrcVars(false, vars)
+							var rowsWritten int
+							tableRecordBatchCount, batchStartTime, rowsWritten, err = checkHavingAddRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, tableRecordBatchCount, batchStartTime, instr)
 							if err != nil {
-								return bs, fmt.Errorf("cannot populate table record from [%v]: [%s]", vars, err.Error())
+								return bs, err
 							}
+							bs.RowsWritten += rowsWritten
 
-							// Check table creator having
-							inResult, err := node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
-							if err != nil {
-								return bs, fmt.Errorf("cannot check having condition [%s], table record [%v]: [%s]", node.TableCreator.RawHaving, tableRecord, err.Error())
-							}
-
-							// Write batch if needed
-							if inResult {
-								if err = instr.add(tableRecord); err != nil {
-									return bs, fmt.Errorf("cannot add record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
-								}
-								tableRecordBatchCount++
-								if tableRecordBatchCount == instr.BatchSize {
-									if err := instr.waitForWorkers(logger, pCtx); err != nil {
-										return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
-									}
-									reportWriteTable(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
-									batchStartTime = time.Now()
-									tableRecordBatchCount = 0
-									if err := instr.startWorkers(logger, pCtx); err != nil {
-										return bs, err
-									}
-								}
-								bs.RowsWritten++
-							}
 						} // non-group result row written
 					} // group case handled
 				} // for each found right row
@@ -738,77 +895,23 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 		// For non-grouped left join - add empty left-side (those who have right counterpart were alredy hendled above)
 		// Non-grouped inner join - already handled above
 		if node.Lookup.IsGroup {
-			// Time to write the result of the grouped
+			// Time to write the result of the grouped we evaluated above using eCtxMap
 			for leftRowIdx := 0; leftRowIdx < rsLeft.RowCount; leftRowIdx++ {
-				tableRecord := map[string]any{}
-				if !leftRowFoundRightLookup[leftRowIdx] {
-					if node.Lookup.LookupJoin == sc.LookupJoinInner {
-						// Grouped inner join with no data on the right
-						// Do not insert this left row
-						continue
-					}
-					// Grouped left outer join with no data on the right
-					leftVars := eval.VarValuesMap{}
-					if err := rsLeft.ExportToVars(leftRowIdx, &leftVars); err != nil {
-						return bs, err
-					}
-
-					for fieldName, fieldDef := range node.TableCreator.Fields {
-						isAggEnabled, _, _ := eval.DetectRootAggFunc(fieldDef.ParsedExpression)
-						if isAggEnabled == eval.AggFuncEnabled {
-							// Aggregate func is used in field expression - ignore the expression and produce default
-							tableRecord[fieldName], err = node.TableCreator.GetFieldDefaultReadyForDb(fieldName)
-							if err != nil {
-								return bs, fmt.Errorf("cannot initialize default field %s: [%s]", fieldName, err.Error())
-							}
-						} else {
-							// No aggregate function used in field expression - assume it contains only left-side fields
-							tableRecord[fieldName], err = sc.CalculateFieldValue(fieldName, fieldDef, leftVars, false)
-							if err != nil {
-								return bs, err
-							}
-						}
-					}
-				} else {
-
-					// Grouped inner or left outer with present data on the right
-
-					leftRowid := *((*rsLeft.Rows[leftRowIdx])[rsLeft.FieldsByFieldName["rowid"]].(*int64))
-					for fieldName, fieldDef := range node.TableCreator.Fields {
-						finalValue := eCtxMap[leftRowid][fieldName].Value
-
-						if err := sc.CheckValueType(finalValue, fieldDef.Type); err != nil {
-							return bs, fmt.Errorf("invalid field %s type: [%s]", fieldName, err.Error())
-						}
-						tableRecord[fieldName] = finalValue
-					}
-				}
-
-				// Check table creator having
-				inResult, err := node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
+				tableRecord, err := produceGroupedTableRecord(node, rsLeft, leftRowIdx, leftRowFoundRightLookup, eCtxMap)
 				if err != nil {
-					return bs, fmt.Errorf("cannot check having condition [%s], table record [%v]: [%s]", node.TableCreator.RawHaving, tableRecord, err.Error())
+					return bs, err
+				}
+				if tableRecord == nil {
+					// No record generated, it's ok (inner join and no right rows)
+					continue
 				}
 
-				// Write batch if needed
-				if inResult {
-					if err = instr.add(tableRecord); err != nil {
-						return bs, fmt.Errorf("cannot add record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
-					}
-					tableRecordBatchCount++
-					if tableRecordBatchCount == instr.BatchSize {
-						if err := instr.waitForWorkers(logger, pCtx); err != nil {
-							return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
-						}
-						reportWriteTable(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
-						batchStartTime = time.Now()
-						tableRecordBatchCount = 0
-						if err := instr.startWorkers(logger, pCtx); err != nil {
-							return bs, err
-						}
-					}
-					bs.RowsWritten++
+				var rowsWritten int
+				tableRecordBatchCount, batchStartTime, rowsWritten, err = checkHavingAddRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, tableRecordBatchCount, batchStartTime, instr)
+				if err != nil {
+					return bs, err
 				}
+				bs.RowsWritten += rowsWritten
 			}
 		} else if node.Lookup.LookupJoin == sc.LookupJoinLeft {
 
@@ -818,57 +921,21 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 
 			for leftRowIdx := 0; leftRowIdx < rsLeft.RowCount; leftRowIdx++ {
 				if leftRowFoundRightLookup[leftRowIdx] {
+					// This left row had right counterparts and grouped result was already written
 					continue
 				}
 
-				leftVars := eval.VarValuesMap{}
-				if err := rsLeft.ExportToVars(leftRowIdx, &leftVars); err != nil {
+				tableRecord, err := produceNonGroupedTableRecordForCheldlessLeft(node, rsLeft, leftRowIdx)
+				if err != nil {
+					return bs, nil
+				}
+
+				var rowsWritten int
+				tableRecordBatchCount, batchStartTime, rowsWritten, err = checkHavingAddRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, tableRecordBatchCount, batchStartTime, instr)
+				if err != nil {
 					return bs, err
 				}
-
-				tableRecord := map[string]any{}
-
-				for fieldName, fieldDef := range node.TableCreator.Fields {
-					if fieldDef.UsedFields.HasFieldsWithTableAlias(sc.LookupAlias) {
-						// This field expression uses fields from lkp table - produce default value
-						tableRecord[fieldName], err = node.TableCreator.GetFieldDefaultReadyForDb(fieldName)
-						if err != nil {
-							return bs, fmt.Errorf("cannot initialize non-grouped default field %s: [%s]", fieldName, err.Error())
-						}
-					} else {
-						// This field expression does not use fields from lkp table - assume the expression contains only left-side fields
-						tableRecord[fieldName], err = sc.CalculateFieldValue(fieldName, fieldDef, leftVars, false)
-						if err != nil {
-							return bs, err
-						}
-					}
-				}
-
-				// Check table creator having
-				inResult, err := node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
-				if err != nil {
-					return bs, fmt.Errorf("cannot check having condition [%s], table record [%v]: [%s]", node.TableCreator.RawHaving, tableRecord, err.Error())
-				}
-
-				// Write batch if needed
-				if inResult {
-					if err = instr.add(tableRecord); err != nil {
-						return bs, fmt.Errorf("cannot add record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
-					}
-					tableRecordBatchCount++
-					if tableRecordBatchCount == instr.BatchSize {
-						if err := instr.waitForWorkers(logger, pCtx); err != nil {
-							return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
-						}
-						reportWriteTable(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
-						batchStartTime = time.Now()
-						tableRecordBatchCount = 0
-						if err := instr.startWorkers(logger, pCtx); err != nil {
-							return bs, err
-						}
-					}
-					bs.RowsWritten++
-				}
+				bs.RowsWritten += rowsWritten
 			}
 		}
 
@@ -880,10 +947,9 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 	} // for each source table batch
 
 	// Write leftovers regardless of tableRecordBatchCount == 0
-	if err := instr.waitForWorkers(logger, pCtx); err != nil {
-		return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+	if _, _, err := saveCompletedBatch(pCtx, logger, &node.TableCreator, tableRecordBatchCount, batchStartTime, instr); err != nil {
+		return bs, err
 	}
-	reportWriteTableLeftovers(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
 
 	bs.Elapsed = time.Since(totalStartTime)
 	reportWriteTableComplete(logger, pCtx, bs.RowsRead, bs.RowsWritten, bs.Elapsed, len(node.TableCreator.Indexes), instr.NumWorkers)

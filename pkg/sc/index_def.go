@@ -79,10 +79,12 @@ func (idxDef *IdxDef) parseComponentExpr(fldExp *ast.Expr, fieldRefs *FieldRefs)
 		StringLen:       DefaultStringComponentLen, // Users can override it, see below
 		FieldType:       FieldTypeUnknown}
 
-	switch (*fldExp).(type) {
+	switch typedFldExp := (*fldExp).(type) {
 	case *ast.CallExpr:
-		callExp, _ := (*fldExp).(*ast.CallExpr) //nolint:all
-		identExp, _ := callExp.Fun.(*ast.Ident) //nolint:all
+		identExp, ok := typedFldExp.Fun.(*ast.Ident)
+		if !ok {
+			return fmt.Errorf("cannot parse order component func expression, field %s is not an ident", identExp.Name)
+		}
 		fieldRef, ok := fieldRefs.FindByFieldName(identExp.Name)
 		if !ok {
 			return fmt.Errorf("cannot parse order component func expression, field %s unknown", identExp.Name)
@@ -93,11 +95,10 @@ func (idxDef *IdxDef) parseComponentExpr(fldExp *ast.Expr, fieldRefs *FieldRefs)
 		idxCompDef.FieldName = identExp.Name
 
 		// Parse args: asc/desc, case_sensitive/ignore_case, number-string length
-		for _, modifierExp := range callExp.Args {
+		for _, modifierExp := range typedFldExp.Args {
 			switch modifierExpType := modifierExp.(type) {
 			case *ast.Ident:
-				modIdentExp, _ := modifierExp.(*ast.Ident) //nolint:all
-				switch modIdentExp.Name {
+				switch modifierExpType.Name {
 				case string(IdxCaseSensitive):
 					idxCompDef.CaseSensitivity = IdxCaseSensitive
 				case string(IdxIgnoreCase):
@@ -109,7 +110,7 @@ func (idxDef *IdxDef) parseComponentExpr(fldExp *ast.Expr, fieldRefs *FieldRefs)
 				default:
 					return fmt.Errorf(
 						"unknown modifier %s for field %s, expected %s,%s,%s,%s",
-						modIdentExp.Name, identExp.Name, IdxIgnoreCase, IdxCaseSensitive, IdxSortAsc, IdxSortDesc)
+						modifierExpType.Name, identExp.Name, IdxIgnoreCase, IdxCaseSensitive, IdxSortAsc, IdxSortDesc)
 				}
 			case *ast.BasicLit:
 				switch modifierExpType.Kind {
@@ -145,16 +146,14 @@ func (idxDef *IdxDef) parseComponentExpr(fldExp *ast.Expr, fieldRefs *FieldRefs)
 
 	case *ast.Ident:
 		// This is a component def without modifiers (not filed1(...), just field1), so just apply defaults
-		identExp, _ := (*fldExp).(*ast.Ident) //nolint:all
-
-		fieldRef, ok := fieldRefs.FindByFieldName(identExp.Name)
+		fieldRef, ok := fieldRefs.FindByFieldName(typedFldExp.Name)
 		if !ok {
-			return fmt.Errorf("cannot parse order component ident expression, field %s unknown", identExp.Name)
+			return fmt.Errorf("cannot parse order component ident expression, field %s unknown", typedFldExp.Name)
 		}
 
 		// Defaults
 		idxCompDef.FieldType = (*fieldRef).FieldType
-		idxCompDef.FieldName = identExp.Name
+		idxCompDef.FieldName = typedFldExp.Name
 
 	default:
 		return fmt.Errorf(
@@ -185,10 +184,12 @@ func (idxDefMap *IdxDefMap) parseRawIndexDefMap(rawIdxDefMap map[string]string, 
 		if err != nil {
 			return fmt.Errorf("cannot parse order def '%s': %v", rawIdxDef, err)
 		}
-		switch expIdxDef.(type) {
+		switch typedExp := expIdxDef.(type) {
 		case *ast.CallExpr:
-			callExp, _ := expIdxDef.(*ast.CallExpr) //nolint:all
-			identExp, _ := callExp.Fun.(*ast.Ident) //nolint:all
+			identExp, ok := typedExp.Fun.(*ast.Ident)
+			if !ok {
+				return fmt.Errorf("cannot parse call exp %v, expected ident", typedExp.Fun)
+			}
 
 			// Init idx def, defaults here if needed
 			idxDef := IdxDef{Uniqueness: IdxUniquenessUnknown}
@@ -205,7 +206,7 @@ func (idxDefMap *IdxDefMap) parseRawIndexDefMap(rawIdxDefMap map[string]string, 
 			}
 
 			// Walk through args - idx field components
-			for _, fldExp := range callExp.Args {
+			for _, fldExp := range typedExp.Args {
 				err := idxDef.parseComponentExpr(&fldExp, fieldRefs)
 				if err != nil {
 					errors = append(errors, fmt.Sprintf("index %s: [%s]", rawIdxDef, err.Error()))

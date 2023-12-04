@@ -62,9 +62,9 @@ func harvestCallExp(callExp *ast.CallExpr, sigMap map[string]struct{}) error {
 	sigMap[funcSig] = struct{}{}
 
 	for _, argExp := range callExp.Args {
-		switch typedExp := argExp.(type) { //nolint:all
-		case *ast.CallExpr:
-			if err := harvestCallExp(typedExp, sigMap); err != nil {
+		callExp, ok := argExp.(*ast.CallExpr)
+		if ok {
+			if err := harvestCallExp(callExp, sigMap); err != nil {
 				return err
 			}
 		}
@@ -412,7 +412,7 @@ func (procDef *PyCalcProcessorDef) analyseExecError(codeBase string, rawOutput s
 
 const pyCalcFlushBufferSize int = 1000
 
-func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput string, _ string, outFieldRefs *sc.FieldRefs, rsIn *proc.Rowset, flushVarsArray func(varsArray []*eval.VarValuesMap, varsArrayCount int) error) error {
+func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput string, _ string, outFieldRefs *sc.FieldRefs, rsIn *proc.Rowset, flushVarsArray func(varsArray []*eval.VarValuesMap, varsArrayCount int) error) error { //nolint:all cognitive complexity 57
 	// No Python interpreter errors, but there may be runtime errors and good results.
 	// Timeout error may be there too.
 

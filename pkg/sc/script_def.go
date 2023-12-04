@@ -18,37 +18,7 @@ type ScriptDef struct {
 	IndexNodeMap          map[string](*ScriptNodeDef)
 }
 
-func (scriptDef *ScriptDef) Deserialize(jsonBytesScript []byte, customProcessorDefFactory CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage, caPath string, privateKeys map[string]string) error {
-
-	if err := json.Unmarshal(jsonBytesScript, &scriptDef); err != nil {
-		return fmt.Errorf("cannot unmarshal script json: [%s]", err.Error())
-	}
-
-	errors := make([]string, 0, 2)
-
-	// Deserialize node by node
-	for nodeName, node := range scriptDef.ScriptNodes {
-		node.Name = nodeName
-		if err := node.Deserialize(customProcessorDefFactory, customProcessorsSettings, caPath, privateKeys); err != nil {
-			errors = append(errors, fmt.Sprintf("cannot deserialize node %s: [%s]", nodeName, err.Error()))
-		}
-	}
-
-	if len(errors) > 0 {
-		return fmt.Errorf(strings.Join(errors, "; "))
-	}
-
-	// Table -> node map, to look for ord and lkp indexes, for those nodes that create tables
-	scriptDef.TableCreatorNodeMap = map[string]*ScriptNodeDef{}
-	for _, node := range scriptDef.ScriptNodes {
-		if node.HasTableCreator() {
-			if _, ok := scriptDef.TableCreatorNodeMap[node.TableCreator.Name]; ok {
-				return fmt.Errorf("duplicate table name: %s", node.TableCreator.Name)
-			}
-			scriptDef.TableCreatorNodeMap[node.TableCreator.Name] = node
-		}
-	}
-	// Index -> node map, to look for ord and lkp indexes, for those nodes that create tables
+func (scriptDef *ScriptDef) buildIndexNodeMap() error {
 	scriptDef.IndexNodeMap = map[string]*ScriptNodeDef{}
 	for _, node := range scriptDef.ScriptNodes {
 		if node.HasTableCreator() {
@@ -63,37 +33,23 @@ func (scriptDef *ScriptDef) Deserialize(jsonBytesScript []byte, customProcessorD
 			}
 		}
 	}
+	return nil
+}
 
+func (scriptDef *ScriptDef) buildTableCreatorNodeMap() error {
+	scriptDef.TableCreatorNodeMap = map[string]*ScriptNodeDef{}
 	for _, node := range scriptDef.ScriptNodes {
-		if err := scriptDef.resolveReader(node); err != nil {
-			return fmt.Errorf("failed to resolve reader for node %s: [%s]", node.Name, err.Error())
+		if node.HasTableCreator() {
+			if _, ok := scriptDef.TableCreatorNodeMap[node.TableCreator.Name]; ok {
+				return fmt.Errorf("duplicate table name: %s", node.TableCreator.Name)
+			}
+			scriptDef.TableCreatorNodeMap[node.TableCreator.Name] = node
 		}
 	}
+	return nil
+}
 
-	for _, node := range scriptDef.ScriptNodes {
-		if err := scriptDef.resolveLookup(node); err != nil {
-			return fmt.Errorf("failed to resolve lookup for node %s: [%s]", node.Name, err.Error())
-		}
-	}
-
-	for _, node := range scriptDef.ScriptNodes {
-		if err := scriptDef.checkFieldUsageInCustomProcessorCreator(node); err != nil {
-			return fmt.Errorf("field usage error in custom processor creator, node %s: [%s]", node.Name, err.Error())
-		}
-	}
-
-	for _, node := range scriptDef.ScriptNodes {
-		if err := scriptDef.checkFieldUsageInCreator(node); err != nil {
-			return fmt.Errorf("field usage error in creator, node %s: [%s]", node.Name, err.Error())
-		}
-	}
-
-	for _, node := range scriptDef.ScriptNodes {
-		if err := node.evalCreatorAndLookupExpressionsAndCheckType(); err != nil {
-			return fmt.Errorf("failed evaluating creator/lookup expressions for node %s: [%s]", node.Name, err.Error())
-		}
-	}
-
+func (scriptDef *ScriptDef) checkDependencyPolicyUsage() error {
 	depPolMap := map[string](*DependencyPolicyDef){}
 	defaultDepPolCount := 0
 	var defaultDepPol *DependencyPolicyDef
@@ -131,8 +87,70 @@ func (scriptDef *ScriptDef) Deserialize(jsonBytesScript []byte, customProcessorD
 			}
 		}
 	}
-
 	return nil
+}
+
+func (scriptDef *ScriptDef) Deserialize(jsonBytesScript []byte, customProcessorDefFactory CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage, caPath string, privateKeys map[string]string) error {
+
+	if err := json.Unmarshal(jsonBytesScript, &scriptDef); err != nil {
+		return fmt.Errorf("cannot unmarshal script json: [%s]", err.Error())
+	}
+
+	errors := make([]string, 0, 2)
+
+	// Deserialize node by node
+	for nodeName, node := range scriptDef.ScriptNodes {
+		node.Name = nodeName
+		if err := node.Deserialize(customProcessorDefFactory, customProcessorsSettings, caPath, privateKeys); err != nil {
+			errors = append(errors, fmt.Sprintf("cannot deserialize node %s: [%s]", nodeName, err.Error()))
+		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf(strings.Join(errors, "; "))
+	}
+
+	// Table -> node map, to look for ord and lkp indexes, for those nodes that create tables
+	if err := scriptDef.buildTableCreatorNodeMap(); err != nil {
+		return err
+	}
+
+	// Index -> node map, to look for ord and lkp indexes, for those nodes that create tables
+	if err := scriptDef.buildIndexNodeMap(); err != nil {
+		return err
+	}
+
+	for _, node := range scriptDef.ScriptNodes {
+		if err := scriptDef.resolveReader(node); err != nil {
+			return fmt.Errorf("failed to resolve reader for node %s: [%s]", node.Name, err.Error())
+		}
+	}
+
+	for _, node := range scriptDef.ScriptNodes {
+		if err := scriptDef.resolveLookup(node); err != nil {
+			return fmt.Errorf("failed to resolve lookup for node %s: [%s]", node.Name, err.Error())
+		}
+	}
+
+	for _, node := range scriptDef.ScriptNodes {
+		if err := scriptDef.checkFieldUsageInCustomProcessorCreator(node); err != nil {
+			return fmt.Errorf("field usage error in custom processor creator, node %s: [%s]", node.Name, err.Error())
+		}
+	}
+
+	for _, node := range scriptDef.ScriptNodes {
+		if err := scriptDef.checkFieldUsageInCreator(node); err != nil {
+			return fmt.Errorf("field usage error in creator, node %s: [%s]", node.Name, err.Error())
+		}
+	}
+
+	for _, node := range scriptDef.ScriptNodes {
+		if err := node.evalCreatorAndLookupExpressionsAndCheckType(); err != nil {
+			return fmt.Errorf("failed evaluating creator/lookup expressions for node %s: [%s]", node.Name, err.Error())
+		}
+	}
+
+	return scriptDef.checkDependencyPolicyUsage()
 }
 
 func (scriptDef *ScriptDef) resolveReader(node *ScriptNodeDef) error {

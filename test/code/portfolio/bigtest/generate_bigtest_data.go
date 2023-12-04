@@ -37,7 +37,7 @@ func readQuickAccounts(fileQuickAccountsPath string) (map[string]string, []strin
 	}
 	a := make([]string, len(m))
 	i := 0
-	for k, _ := range m {
+	for k := range m {
 		a[i] = k
 		i++
 	}

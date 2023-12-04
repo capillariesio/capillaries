@@ -13,6 +13,25 @@ import (
 	"github.com/capillariesio/capillaries/pkg/sc"
 )
 
+func addRecordAndWriteBatchIfNeeded(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, node *sc.ScriptNodeDef, instr *TableInserter, tableRecord map[string]any, tableRecordBatchCount int, batchStartTime time.Time) (int, time.Time, error) {
+	if err := instr.add(tableRecord); err != nil {
+		return tableRecordBatchCount, batchStartTime, fmt.Errorf("cannot add record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+	}
+	tableRecordBatchCount++
+	if tableRecordBatchCount == instr.BatchSize {
+		if err := instr.waitForWorkers(logger, pCtx); err != nil {
+			return tableRecordBatchCount, batchStartTime, fmt.Errorf("cannot save record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+		}
+		reportWriteTable(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
+		tableRecordBatchCount = 0
+		batchStartTime = time.Now()
+		if err := instr.startWorkers(logger, pCtx); err != nil {
+			return tableRecordBatchCount, batchStartTime, err
+		}
+	}
+	return tableRecordBatchCount, batchStartTime, nil
+}
+
 func readCsv(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, totalStartTime time.Time, filePath string, fileReader io.Reader) (BatchStats, error) {
 	bs := BatchStats{RowsRead: 0, RowsWritten: 0}
 	node := pCtx.CurrentScriptNode
@@ -68,21 +87,9 @@ func readCsv(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessagePr
 
 			// Write batch if needed
 			if inResult {
-				if err = instr.add(tableRecord); err != nil {
-					return bs, fmt.Errorf("cannot add record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
-				}
-				tableRecordBatchCount++
-				if tableRecordBatchCount == DefaultInserterBatchSize {
-					if err := instr.waitForWorkers(logger, pCtx); err != nil {
-						return bs, fmt.Errorf("cannot save record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
-					}
-					reportWriteTable(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
-					batchStartTime = time.Now()
-					tableRecordBatchCount = 0
-					if err := instr.startWorkers(logger, pCtx); err != nil {
-						return bs, err
-					}
-
+				tableRecordBatchCount, batchStartTime, err = addRecordAndWriteBatchIfNeeded(logger, pCtx, node, instr, tableRecord, tableRecordBatchCount, batchStartTime)
+				if err != nil {
+					return bs, err
 				}
 				bs.RowsWritten++
 			}

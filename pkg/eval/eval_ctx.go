@@ -522,88 +522,117 @@ func (eCtx *EvalCtx) EvalFunc(callExp *ast.CallExpr, funcName string, args []any
 	return eCtx.Value, err
 }
 
+func (eCtx *EvalCtx) evalBinaryArithmeticExp(valLeftVolatile any, exp *ast.BinaryExpr, valRightVolatile any) (any, error) {
+	switch valLeftVolatile.(type) {
+	case string:
+		var err error
+		eCtx.Value, err = eCtx.EvalBinaryString(valLeftVolatile, exp.Op, valRightVolatile)
+		return eCtx.Value, err
+	default:
+		// Assume both args are numbers (int, float, dec)
+		stdArgLeft, stdArgRight, err := castNumberPairToCommonType(valLeftVolatile, valRightVolatile)
+		if err != nil {
+			return nil, fmt.Errorf("cannot perform binary arithmetic op, incompatible arg types '%v(%T)' %v '%v(%T)' ", valLeftVolatile, valLeftVolatile, exp.Op, valRightVolatile, valRightVolatile)
+		}
+		switch stdArgLeft.(type) {
+		case int64:
+			eCtx.Value, err = eCtx.EvalBinaryInt(stdArgLeft, exp.Op, stdArgRight)
+			return eCtx.Value, err
+		case float64:
+			eCtx.Value, err = eCtx.EvalBinaryFloat64(stdArgLeft, exp.Op, stdArgRight)
+			return eCtx.Value, err
+		case decimal.Decimal:
+			eCtx.Value, err = eCtx.EvalBinaryDecimal2(stdArgLeft, exp.Op, stdArgRight)
+			return eCtx.Value, err
+		default:
+			return nil, fmt.Errorf("cannot perform binary arithmetic op, unexpected std type '%v(%T)' %v '%v(%T)' ", valLeftVolatile, valLeftVolatile, exp.Op, valRightVolatile, valRightVolatile)
+		}
+	}
+}
+
+func (eCtx *EvalCtx) evalBinaryBoolToBoolExp(valLeftVolatile any, exp *ast.BinaryExpr, valRightVolatile any) (any, error) {
+	switch valLeftTyped := valLeftVolatile.(type) {
+	case bool:
+		var err error
+		eCtx.Value, err = eCtx.EvalBinaryBool(valLeftTyped, exp.Op, valRightVolatile)
+		return eCtx.Value, err
+	default:
+		return nil, fmt.Errorf("cannot perform binary op %v against %T left", exp.Op, valLeftVolatile)
+	}
+}
+func (eCtx *EvalCtx) evalBinaryCompareExp(valLeftVolatile any, exp *ast.BinaryExpr, valRightVolatile any) (any, error) {
+	var err error
+	switch valLeftVolatile.(type) {
+	case time.Time:
+		eCtx.Value, err = eCtx.EvalBinaryTimeToBool(valLeftVolatile, exp.Op, valRightVolatile)
+		return eCtx.Value, err
+	case string:
+		eCtx.Value, err = eCtx.EvalBinaryStringToBool(valLeftVolatile, exp.Op, valRightVolatile)
+		return eCtx.Value, err
+	case bool:
+		eCtx.Value, err = eCtx.EvalBinaryBoolToBool(valLeftVolatile, exp.Op, valRightVolatile)
+		return eCtx.Value, err
+	default:
+		// Assume both args are numbers (int, float, dec)
+		stdArgLeft, stdArgRight, err := castNumberPairToCommonType(valLeftVolatile, valRightVolatile)
+		if err != nil {
+			return nil, fmt.Errorf("cannot perform binary comp op, incompatible arg types '%v(%T)' %v '%v(%T)' ", valLeftVolatile, valLeftVolatile, exp.Op, valRightVolatile, valRightVolatile)
+		}
+		switch stdArgLeft.(type) {
+		case int64:
+			eCtx.Value, err = eCtx.EvalBinaryIntToBool(stdArgLeft, exp.Op, stdArgRight)
+			return eCtx.Value, err
+		case float64:
+			eCtx.Value, err = eCtx.EvalBinaryFloat64ToBool(stdArgLeft, exp.Op, stdArgRight)
+			return eCtx.Value, err
+		case decimal.Decimal:
+			eCtx.Value, err = eCtx.EvalBinaryDecimal2ToBool(stdArgLeft, exp.Op, stdArgRight)
+			return eCtx.Value, err
+		default:
+			return nil, fmt.Errorf("cannot perform binary comp op, unexpected std type '%v(%T)' %v '%v(%T)' ", valLeftVolatile, valLeftVolatile, exp.Op, valRightVolatile, valRightVolatile)
+		}
+	}
+}
+
+func (eCtx *EvalCtx) evalBinaryExp(exp *ast.BinaryExpr) (any, error) {
+	valLeftVolatile, err := eCtx.Eval(exp.X)
+	if err != nil {
+		return nil, err
+	}
+	valRightVolatile, err := eCtx.Eval(exp.Y)
+	if err != nil {
+		return 0, err
+	}
+	if exp.Op == token.ADD || exp.Op == token.SUB || exp.Op == token.MUL || exp.Op == token.QUO || exp.Op == token.REM {
+		return eCtx.evalBinaryArithmeticExp(valLeftVolatile, exp, valRightVolatile)
+	} else if exp.Op == token.LOR || exp.Op == token.LAND {
+		return eCtx.evalBinaryBoolToBoolExp(valLeftVolatile, exp, valRightVolatile)
+	} else if exp.Op == token.GTR || exp.Op == token.GEQ || exp.Op == token.LSS || exp.Op == token.LEQ || exp.Op == token.EQL || exp.Op == token.NEQ {
+		return eCtx.evalBinaryCompareExp(valLeftVolatile, exp, valRightVolatile)
+	}
+	return nil, fmt.Errorf("cannot perform binary expression unknown op %v", exp.Op)
+}
+
+func (eCtx *EvalCtx) evalUnaryExp(exp *ast.UnaryExpr) (any, error) {
+	switch exp.Op {
+	case token.NOT:
+		var err error
+		eCtx.Value, err = eCtx.EvalUnaryBoolNot(exp.X)
+		return eCtx.Value, err
+	case token.SUB:
+		var err error
+		eCtx.Value, err = eCtx.EvalUnaryMinus(exp.X)
+		return eCtx.Value, err
+	default:
+		return nil, fmt.Errorf("cannot evaluate unary op %v, unknown op", exp.Op)
+	}
+}
+
 func (eCtx *EvalCtx) Eval(exp ast.Expr) (any, error) {
 	switch exp := exp.(type) {
 	case *ast.BinaryExpr:
-		valLeftVolatile, err := eCtx.Eval(exp.X)
-		if err != nil {
-			return nil, err
-		}
+		return eCtx.evalBinaryExp(exp)
 
-		valRightVolatile, err := eCtx.Eval(exp.Y)
-		if err != nil {
-			return 0, err
-		}
-
-		if exp.Op == token.ADD || exp.Op == token.SUB || exp.Op == token.MUL || exp.Op == token.QUO || exp.Op == token.REM {
-			switch valLeftVolatile.(type) {
-			case string:
-				eCtx.Value, err = eCtx.EvalBinaryString(valLeftVolatile, exp.Op, valRightVolatile)
-				return eCtx.Value, err
-
-			default:
-				// Assume both args are numbers (int, float, dec)
-				stdArgLeft, stdArgRight, err := castNumberPairToCommonType(valLeftVolatile, valRightVolatile)
-				if err != nil {
-					return nil, fmt.Errorf("cannot perform binary arithmetic op, incompatible arg types '%v(%T)' %v '%v(%T)' ", valLeftVolatile, valLeftVolatile, exp.Op, valRightVolatile, valRightVolatile)
-				}
-				switch stdArgLeft.(type) {
-				case int64:
-					eCtx.Value, err = eCtx.EvalBinaryInt(stdArgLeft, exp.Op, stdArgRight)
-					return eCtx.Value, err
-				case float64:
-					eCtx.Value, err = eCtx.EvalBinaryFloat64(stdArgLeft, exp.Op, stdArgRight)
-					return eCtx.Value, err
-				case decimal.Decimal:
-					eCtx.Value, err = eCtx.EvalBinaryDecimal2(stdArgLeft, exp.Op, stdArgRight)
-					return eCtx.Value, err
-				default:
-					return nil, fmt.Errorf("cannot perform binary arithmetic op, unexpected std type '%v(%T)' %v '%v(%T)' ", valLeftVolatile, valLeftVolatile, exp.Op, valRightVolatile, valRightVolatile)
-				}
-			}
-		} else if exp.Op == token.LOR || exp.Op == token.LAND {
-			switch valLeftTyped := valLeftVolatile.(type) {
-			case bool:
-				eCtx.Value, err = eCtx.EvalBinaryBool(valLeftTyped, exp.Op, valRightVolatile)
-				return eCtx.Value, err
-			default:
-				return nil, fmt.Errorf("cannot perform binary op %v against %T left", exp.Op, valLeftVolatile)
-			}
-
-		} else if exp.Op == token.GTR || exp.Op == token.GEQ || exp.Op == token.LSS || exp.Op == token.LEQ || exp.Op == token.EQL || exp.Op == token.NEQ {
-			switch valLeftVolatile.(type) {
-			case time.Time:
-				eCtx.Value, err = eCtx.EvalBinaryTimeToBool(valLeftVolatile, exp.Op, valRightVolatile)
-				return eCtx.Value, err
-			case string:
-				eCtx.Value, err = eCtx.EvalBinaryStringToBool(valLeftVolatile, exp.Op, valRightVolatile)
-				return eCtx.Value, err
-			case bool:
-				eCtx.Value, err = eCtx.EvalBinaryBoolToBool(valLeftVolatile, exp.Op, valRightVolatile)
-				return eCtx.Value, err
-			default:
-				// Assume both args are numbers (int, float, dec)
-				stdArgLeft, stdArgRight, err := castNumberPairToCommonType(valLeftVolatile, valRightVolatile)
-				if err != nil {
-					return nil, fmt.Errorf("cannot perform binary comp op, incompatible arg types '%v(%T)' %v '%v(%T)' ", valLeftVolatile, valLeftVolatile, exp.Op, valRightVolatile, valRightVolatile)
-				}
-				switch stdArgLeft.(type) {
-				case int64:
-					eCtx.Value, err = eCtx.EvalBinaryIntToBool(stdArgLeft, exp.Op, stdArgRight)
-					return eCtx.Value, err
-				case float64:
-					eCtx.Value, err = eCtx.EvalBinaryFloat64ToBool(stdArgLeft, exp.Op, stdArgRight)
-					return eCtx.Value, err
-				case decimal.Decimal:
-					eCtx.Value, err = eCtx.EvalBinaryDecimal2ToBool(stdArgLeft, exp.Op, stdArgRight)
-					return eCtx.Value, err
-				default:
-					return nil, fmt.Errorf("cannot perform binary comp op, unexpected std type '%v(%T)' %v '%v(%T)' ", valLeftVolatile, valLeftVolatile, exp.Op, valRightVolatile, valRightVolatile)
-				}
-			}
-		} else {
-			return nil, fmt.Errorf("cannot perform binary expression unknown op %v", exp.Op)
-		}
 	case *ast.BasicLit:
 		switch exp.Kind {
 		case token.INT:
@@ -626,19 +655,9 @@ func (eCtx *EvalCtx) Eval(exp ast.Expr) (any, error) {
 		default:
 			return nil, fmt.Errorf("cannot evaluate expression %s of type %v", exp.Value, exp.Kind)
 		}
+
 	case *ast.UnaryExpr:
-		switch exp.Op {
-		case token.NOT:
-			var err error
-			eCtx.Value, err = eCtx.EvalUnaryBoolNot(exp.X)
-			return eCtx.Value, err
-		case token.SUB:
-			var err error
-			eCtx.Value, err = eCtx.EvalUnaryMinus(exp.X)
-			return eCtx.Value, err
-		default:
-			return nil, fmt.Errorf("cannot evaluate unary op %v, unknown op", exp.Op)
-		}
+		return eCtx.evalUnaryExp(exp)
 
 	case *ast.Ident:
 		if exp.Name == "true" {
@@ -662,23 +681,20 @@ func (eCtx *EvalCtx) Eval(exp ast.Expr) (any, error) {
 			args[i] = arg
 		}
 
-		switch exp.Fun.(type) {
+		switch typedExp := exp.Fun.(type) {
 		case *ast.Ident:
-			funcIdent, _ := exp.Fun.(*ast.Ident) //revive:disable-line
 			var err error
-			eCtx.Value, err = eCtx.EvalFunc(exp, funcIdent.Name, args)
+			eCtx.Value, err = eCtx.EvalFunc(exp, typedExp.Name, args)
 			return eCtx.Value, err
 
 		case *ast.SelectorExpr:
-			expSel := exp.Fun.(*ast.SelectorExpr) //revive:disable-line
-			switch expSel.X.(type) {
+			switch expIdent := typedExp.X.(type) {
 			case *ast.Ident:
-				expIdent, _ := expSel.X.(*ast.Ident) //revive:disable-line
 				var err error
-				eCtx.Value, err = eCtx.EvalFunc(exp, fmt.Sprintf("%s.%s", expIdent.Name, expSel.Sel.Name), args)
+				eCtx.Value, err = eCtx.EvalFunc(exp, fmt.Sprintf("%s.%s", expIdent.Name, typedExp.Sel.Name), args)
 				return eCtx.Value, err
 			default:
-				return nil, fmt.Errorf("cannot evaluate fun expression %v, unknown type of X: %T", expSel.X, expSel.X)
+				return nil, fmt.Errorf("cannot evaluate fun expression %v, unknown type of X: %T", typedExp.X, typedExp.X)
 			}
 
 		default:
@@ -686,9 +702,8 @@ func (eCtx *EvalCtx) Eval(exp ast.Expr) (any, error) {
 		}
 
 	case *ast.SelectorExpr:
-		switch exp.X.(type) {
+		switch objectIdent := exp.X.(type) {
 		case *ast.Ident:
-			objectIdent, _ := exp.X.(*ast.Ident) //revive:disable-line
 			golangConst, ok := GolangConstants[fmt.Sprintf("%s.%s", objectIdent.Name, exp.Sel.Name)]
 			if ok {
 				eCtx.Value = golangConst
