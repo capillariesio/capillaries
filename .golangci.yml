@@ -24,6 +24,14 @@ linters-settings:
 #    forbid:
 #      - p: ^time\.After$
 #        msg: "time.After may leak resources. Use time.NewTimer instead."
+  errcheck:
+     severity: error
+     confidence: 0.8
+     rules:
+       - name: unhandled-error
+         arguments:
+           - "*"
+
   revive:
      severity: error
      confidence: 0.8
@@ -113,6 +121,10 @@ issues:
       text: cyclomatic|cognitive
       linters:
         - revive
+    - path: .+\.go
+      text: Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Sync|.*Flush|os\.Remove(All)?|.*print(f|ln)?|os\.(Un)?Setenv). is not checked
+      linters:
+        - errcheck
 #     - path: _test\.go|^common/persistence\/tests\/.+\.go # Ignore things like err = errors.New("test error") in tests
 #       linters:
 #         - goerr113

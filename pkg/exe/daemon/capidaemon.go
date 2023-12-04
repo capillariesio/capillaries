@@ -83,8 +83,8 @@ func main() {
 			}
 		case <-timeoutChannel:
 			logger.Info("timeout while reconnecting to mq, will try to reconnect again")
-			// Break from select
-			break //nolint:all
+			// Legit break from select, but not from enclosing for
+			break //nolint:all useless-break
 		}
 	}
 }
