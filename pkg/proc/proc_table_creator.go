@@ -953,5 +953,16 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig, //nolint:all cognitive 
 
 	bs.Elapsed = time.Since(totalStartTime)
 	reportWriteTableComplete(logger, pCtx, bs.RowsRead, bs.RowsWritten, bs.Elapsed, len(node.TableCreator.Indexes), instr.NumWorkers)
+	// TEST ONLY
+	// To test DeleteDataAndUniqueIndexesByBatchIdx:
+	// uncomment the exit()
+	// start the daemon
+	// run lookup_quicktest
+	// wait for the daemon to finish
+	// comment the exit()
+	// start the daemon
+	// in the log, watch for DeleteDataAndUniqueIndexesByBatchIdx messagesbatchStartTime
+	// make sure lookup_quicktest completed successfully and result data is good
+	// os.Exit(0)
 	return bs, nil
 }

@@ -262,23 +262,75 @@ func selectBatchFromTableByToken(logger *l.CapiLogger,
 	return lastRetrievedToken, nil
 }
 
+func initRowidsAndKeysToDelete(rowCount int, indexesMap sc.IdxDefMap) ([]int64, map[string][]string) {
+	rowIdsToDelete := make([]int64, rowCount)
+	uniqueKeysToDeleteMap := map[string][]string{} // unique_idx_name -> list_of_keys_to_delete
+	for idxName, idxDef := range indexesMap {
+		if idxDef.Uniqueness == sc.IdxUnique {
+			uniqueKeysToDeleteMap[idxName] = make([]string, rowCount)
+		}
+	}
+	return rowIdsToDelete, uniqueKeysToDeleteMap
+}
+
+func populateUniqueKeysToDeleteMap(uniqueKeysToDeleteMap map[string][]string, indexesMap sc.IdxDefMap, rowIdsToDeleteCount int, tableRecord map[string]any) error {
+	for idxName, idxDef := range indexesMap {
+		if _, ok := uniqueKeysToDeleteMap[idxName]; ok {
+			var err error
+			uniqueKeysToDeleteMap[idxName][rowIdsToDeleteCount], err = sc.BuildKey(tableRecord, idxDef)
+			if err != nil {
+				return fmt.Errorf("while deleting previous batch attempt leftovers, cannot build a key for index %s from [%v]: %s", idxName, tableRecord, err.Error())
+			}
+			if len(uniqueKeysToDeleteMap[idxName][rowIdsToDeleteCount]) == 0 {
+				return fmt.Errorf("invalid empty key calculated for %v", tableRecord)
+			}
+		}
+	}
+	return nil
+}
+
+func deleteDataRecordByRowid(pCtx *ctx.MessageProcessingContext, rowids []int64) error {
+	q := (&cql.QueryBuilder{}).
+		Keyspace(pCtx.BatchInfo.DataKeyspace).
+		CondInInt("rowid", rowids).
+		DeleteRun(pCtx.CurrentScriptNode.TableCreator.Name, pCtx.BatchInfo.RunId)
+	if err := pCtx.CqlSession.Query(q).Exec(); err != nil {
+		return db.WrapDbErrorWithQuery("cannot delete from data table", q, err)
+	}
+	return nil
+}
+
+func deleteIdxRecordByKey(pCtx *ctx.MessageProcessingContext, idxName string, keys []string) error {
+	q := (&cql.QueryBuilder{}).
+		Keyspace(pCtx.BatchInfo.DataKeyspace).
+		CondInString("key", keys).
+		DeleteRun(idxName, pCtx.BatchInfo.RunId)
+	if err := pCtx.CqlSession.Query(q).Exec(); err != nil {
+		return db.WrapDbErrorWithQuery("cannot delete from idx table", q, err)
+	}
+	return nil
+}
+
 const HarvestForDeleteRowsetSize = 1000 // Do not let users tweak it, maybe too sensitive
 
-func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) error { //nolint:all cognitive complexity 56
+// To test it, see comments in the end of RunCreateTableRelForBatch
+func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) error {
 	logger.PushF("proc.DeleteDataAndUniqueIndexesByBatchIdx")
 	defer logger.PopF()
-
-	logger.DebugCtx(pCtx, "deleting data records for %s...", pCtx.BatchInfo.FullBatchId())
-	deleteStartTime := time.Now()
 
 	if !pCtx.CurrentScriptNode.HasTableCreator() {
 		logger.InfoCtx(pCtx, "no table creator, nothing to delete for %s", pCtx.BatchInfo.FullBatchId())
 		return nil
 	}
 
-	// Select from data table by rowid, retrieve all fields that are involved i building unique indexes
-	uniqueIdxFieldRefs := pCtx.CurrentScriptNode.GetUniqueIndexesFieldRefs()
+	logger.DebugCtx(pCtx, "deleting data records for %s...", pCtx.BatchInfo.FullBatchId())
 
+	deleteStartTime := time.Now()
+
+	// Retrieve ALL records from data table (we cannot filter by batch_idx, this is Cassandra),
+	// retrieve all fields that are involved in building unique indexes.
+	// It may take a while, but there is no other way.
+	uniqueIdxFieldRefs := pCtx.CurrentScriptNode.GetUniqueIndexesFieldRefs()
 	rs := NewRowsetFromFieldRefs(
 		sc.FieldRefs{sc.RowidFieldRef(pCtx.CurrentScriptNode.TableCreator.Name)},
 		*uniqueIdxFieldRefs,
@@ -302,70 +354,64 @@ func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.Messag
 			break
 		}
 
-		// Harvest rowids with batchIdx we are interested in, also harvest keys
-
 		// Prepare the storage for rowids and keys
-		rowIdsToDelete := make([]int64, rs.RowCount)
-		uniqueKeysToDeleteMap := map[string][]string{} // unique_idx_name -> list_of_keys_to_delete
-		for idxName, idxDef := range pCtx.CurrentScriptNode.TableCreator.Indexes {
-			if idxDef.Uniqueness == sc.IdxUnique {
-				uniqueKeysToDeleteMap[idxName] = make([]string, rs.RowCount)
-			}
-		}
+		rowIdsToDelete, uniqueKeysToDeleteMap := initRowidsAndKeysToDelete(rs.RowCount, pCtx.CurrentScriptNode.TableCreator.Indexes)
 
 		rowIdsToDeleteCount := 0
 		for rowIdx := 0; rowIdx < rs.RowCount; rowIdx++ {
 			rowId := *((*rs.Rows[rowIdx])[rs.FieldsByFieldName["rowid"]].(*int64))
 			batchIdx := int16(*((*rs.Rows[rowIdx])[rs.FieldsByFieldName["batch_idx"]].(*int64)))
-			if batchIdx == pCtx.BatchInfo.BatchIdx {
-				// Add this rowid to the list
-				rowIdsToDelete[rowIdsToDeleteCount] = rowId
-				// Build the key and add it to the list
-				tableRecord, err := rs.GetTableRecord(rowIdx)
-				if err != nil {
-					return fmt.Errorf("while deleting previous batch attempt leftovers, cannot get table record from [%v]: %s", rs.Rows[rowIdx], err.Error())
-				}
-				for idxName, idxDef := range pCtx.CurrentScriptNode.TableCreator.Indexes {
-					if _, ok := uniqueKeysToDeleteMap[idxName]; ok {
-						uniqueKeysToDeleteMap[idxName][rowIdsToDeleteCount], err = sc.BuildKey(tableRecord, idxDef)
-						if err != nil {
-							return fmt.Errorf("while deleting previous batch attempt leftovers, cannot build a key for index %s from [%v]: %s", idxName, tableRecord, err.Error())
-						}
-						if len(uniqueKeysToDeleteMap[idxName][rowIdsToDeleteCount]) == 0 {
-							logger.ErrorCtx(pCtx, "invalid empty key calculated for %v", tableRecord)
-						}
-					}
-				}
-				rowIdsToDeleteCount++
-			}
-		}
-		if rowIdsToDeleteCount > 0 {
-			rowIdsToDelete = rowIdsToDelete[:rowIdsToDeleteCount]
-			// NOTE: Assuming Delete won't interfere with paging
-			logger.DebugCtx(pCtx, "deleting %d data records from %s: %v", len(rowIdsToDelete), pCtx.BatchInfo.FullBatchId(), rowIdsToDelete)
-			qbDel := cql.QueryBuilder{}
-			qDel := qbDel.
-				Keyspace(pCtx.BatchInfo.DataKeyspace).
-				CondInInt("rowid", rowIdsToDelete[:rowIdsToDeleteCount]).
-				DeleteRun(pCtx.CurrentScriptNode.TableCreator.Name, pCtx.BatchInfo.RunId)
-			if err := pCtx.CqlSession.Query(qDel).Exec(); err != nil {
-				return db.WrapDbErrorWithQuery("cannot delete from data table", qDel, err)
-			}
-			logger.InfoCtx(pCtx, "deleted %d records from data table for %s, now will delete from %d indexes", len(rowIdsToDelete), pCtx.BatchInfo.FullBatchId(), len(uniqueKeysToDeleteMap))
 
-			for idxName, idxKeysToDelete := range uniqueKeysToDeleteMap {
-				logger.DebugCtx(pCtx, "deleting %d idx %s records from %d/%s idx %s for batch_idx %d: %v", len(rowIdsToDelete), idxName, pCtx.BatchInfo.RunId, pCtx.BatchInfo.TargetNodeName, idxName, pCtx.BatchInfo.BatchIdx, idxKeysToDelete)
-				qbDel := cql.QueryBuilder{}
-				qDel := qbDel.
-					Keyspace(pCtx.BatchInfo.DataKeyspace).
-					CondInString("key", idxKeysToDelete[:rowIdsToDeleteCount]).
-					DeleteRun(idxName, pCtx.BatchInfo.RunId)
-				if err := pCtx.CqlSession.Query(qDel).Exec(); err != nil {
-					return db.WrapDbErrorWithQuery("cannot delete from idx table", qDel, err)
-				}
-				logger.InfoCtx(pCtx, "deleted %d records from idx table %s for batch %d/%s/%d", len(rowIdsToDelete), idxName, pCtx.BatchInfo.RunId, pCtx.BatchInfo.TargetNodeName, pCtx.BatchInfo.BatchIdx)
+			// Harvest only rowids with batchIdx we are interested in (specific batch_idx), also harvest keys
+			if batchIdx != pCtx.BatchInfo.BatchIdx {
+				continue
 			}
+
+			// Add this rowid to the list of rowids to delete
+			rowIdsToDelete[rowIdsToDeleteCount] = rowId
+
+			// Get full table record, not just rowid+batch_idx
+			tableRecord, err := rs.GetTableRecord(rowIdx)
+			if err != nil {
+				return fmt.Errorf("while deleting previous batch attempt leftovers, cannot get table record from [%v]: %s", rs.Rows[rowIdx], err.Error())
+			}
+
+			// For each idx, build the key and add it to the uniqueKeysToDeleteMap
+			if err := populateUniqueKeysToDeleteMap(uniqueKeysToDeleteMap,
+				pCtx.CurrentScriptNode.TableCreator.Indexes,
+				rowIdsToDeleteCount,
+				tableRecord); err != nil {
+				return err
+			}
+			rowIdsToDeleteCount++
 		}
+
+		if rowIdsToDeleteCount > 0 {
+
+			// Trim unused empty rowid slots
+			rowIdsToDelete = rowIdsToDelete[:rowIdsToDeleteCount]
+
+			// Delete data records by rowid
+			logger.DebugCtx(pCtx, "deleting %d data records from %s: %v", len(rowIdsToDelete), pCtx.BatchInfo.FullBatchId(), rowIdsToDelete)
+			if err := deleteDataRecordByRowid(pCtx, rowIdsToDelete); err != nil {
+				return err
+			}
+
+			// Delete index records by key
+			logger.InfoCtx(pCtx, "deleted %d records from data table for %s, now will delete from %d indexes", len(rowIdsToDelete), pCtx.BatchInfo.FullBatchId(), len(uniqueKeysToDeleteMap))
+			for idxName, idxKeysToDelete := range uniqueKeysToDeleteMap {
+				// Trim unused empty key slots
+				trimmedIdxKeysToDelete := idxKeysToDelete[:rowIdsToDeleteCount]
+				logger.DebugCtx(pCtx, "deleting %d idx %s records from %d/%s idx %s for batch_idx %d: '%s'", len(rowIdsToDelete), idxName, pCtx.BatchInfo.RunId, pCtx.BatchInfo.TargetNodeName, idxName, pCtx.BatchInfo.BatchIdx, strings.Join(trimmedIdxKeysToDelete, `','`))
+				if err := deleteIdxRecordByKey(pCtx, idxName, trimmedIdxKeysToDelete); err != nil {
+					return err
+				}
+			}
+
+			// TODO: assuming Delete won't interfere with paging used above;
+			// do we need to reset the pageState? After all, we have deleted some records from that table.
+		}
+
 		if rs.RowCount < pCtx.CurrentScriptNode.TableReader.RowsetSize || len(pageState) == 0 {
 			break
 		}

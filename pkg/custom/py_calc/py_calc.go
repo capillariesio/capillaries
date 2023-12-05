@@ -402,7 +402,7 @@ func (procDef *PyCalcProcessorDef) analyseExecError(codeBase string, rawOutput s
 			procDef.EnvSettings.InterpreterPath, procDef.EnvSettings.InterpreterParams,
 			rawOutput,
 			rawErrors,
-			getErrorLineNumberInfo(codeBase, rawErrors))
+			getErrorLineNumberInfo(&codeBase, rawErrors))
 
 		// fmt.Println(fullErrorInfo)
 		return fullErrorInfo, fmt.Errorf("interpreter returned an error (probably syntax), see log for details: %s", rawErrors)
@@ -412,7 +412,47 @@ func (procDef *PyCalcProcessorDef) analyseExecError(codeBase string, rawOutput s
 
 const pyCalcFlushBufferSize int = 1000
 
-func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput string, _ string, outFieldRefs *sc.FieldRefs, rsIn *proc.Rowset, flushVarsArray func(varsArray []*eval.VarValuesMap, varsArrayCount int) error) error { //nolint:all cognitive complexity 57
+func getRowResultJson(rowIdx int, codeBase *string, rawOutput *string, sectionEndPos int) (string, string, error) {
+	startMarker := fmt.Sprintf("%s:%d", FORMULA_MARKER_DATA_POINTS_INITIALIZATION, rowIdx)
+	endMarker := fmt.Sprintf("%s:%d", FORMULA_MARKER_END, rowIdx)
+	relSectionStartPos := strings.Index((*rawOutput)[sectionEndPos:], startMarker)
+	relSectionEndPos := strings.Index((*rawOutput)[sectionEndPos:], endMarker)
+	sectionStartPos := sectionEndPos + relSectionStartPos
+	if sectionStartPos == -1 {
+		return "", "", fmt.Errorf("%d: unexpected, cannot find calculation start marker %s;", rowIdx, startMarker)
+	}
+	sectionEndPos = sectionEndPos + relSectionEndPos
+	if sectionEndPos == -1 {
+		return "", "", fmt.Errorf("%d: unexpected, cannot find calculation end marker %s;", rowIdx, endMarker)
+	}
+	if sectionStartPos > sectionEndPos {
+		return "", "", fmt.Errorf("%d: unexpected, end marker %s(%d) is earlier than start marker %s(%d);", rowIdx, endMarker, sectionStartPos, endMarker, sectionEndPos)
+	}
+
+	rawSectionOutput := (*rawOutput)[sectionStartPos:sectionEndPos]
+	successMarker := fmt.Sprintf("%s:%d", FORMULA_MARKER_SUCCESS, rowIdx)
+	sectionSuccessPos := strings.Index(rawSectionOutput, successMarker)
+	if sectionSuccessPos == -1 {
+		// There was an error calculating fields for this item
+		// Assume the last line of the out is the error
+		errorLines := strings.Split(rawSectionOutput, "\n")
+		errorText := ""
+		for i := len(errorLines) - 1; i >= 0; i-- {
+			errorText = strings.Trim(errorLines[i], "\r \t")
+			if len(errorText) > 0 {
+				break
+			}
+		}
+		errorText = fmt.Sprintf("%d:cannot calculate data points;%s; ", rowIdx, errorText)
+		// errors.WriteString(errorText)
+		return "", fmt.Sprintf("%s\n%s", errorText, getErrorLineNumberInfo(codeBase, rawSectionOutput)), nil
+	}
+
+	// SUCCESS code snippet is there, will try to parse the result JSON
+	return rawSectionOutput[sectionSuccessPos+len(successMarker):], "", nil
+}
+
+func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput string, _ string, outFieldRefs *sc.FieldRefs, rsIn *proc.Rowset, flushVarsArray func(varsArray []*eval.VarValuesMap, varsArrayCount int) error) error {
 	// No Python interpreter errors, but there may be runtime errors and good results.
 	// Timeout error may be there too.
 
@@ -422,43 +462,15 @@ func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput
 
 	sectionEndPos := 0
 	for rowIdx := 0; rowIdx < rsIn.RowCount; rowIdx++ {
-		startMarker := fmt.Sprintf("%s:%d", FORMULA_MARKER_DATA_POINTS_INITIALIZATION, rowIdx)
-		endMarker := fmt.Sprintf("%s:%d", FORMULA_MARKER_END, rowIdx)
-		relSectionStartPos := strings.Index(rawOutput[sectionEndPos:], startMarker)
-		relSectionEndPos := strings.Index(rawOutput[sectionEndPos:], endMarker)
-		sectionStartPos := sectionEndPos + relSectionStartPos
-		if sectionStartPos == -1 {
-			return fmt.Errorf("%d: unexpected, cannot find calculation start marker %s;", rowIdx, startMarker)
+		jsonString, rowError, fatalError := getRowResultJson(rowIdx, &codeBase, &rawOutput, sectionEndPos)
+		if fatalError != nil {
+			return fatalError
 		}
-		sectionEndPos = sectionEndPos + relSectionEndPos
-		if sectionEndPos == -1 {
-			return fmt.Errorf("%d: unexpected, cannot find calculation end marker %s;", rowIdx, endMarker)
-		}
-		if sectionStartPos > sectionEndPos {
-			return fmt.Errorf("%d: unexpected, end marker %s(%d) is earlier than start marker %s(%d);", rowIdx, endMarker, sectionStartPos, endMarker, sectionEndPos)
-		}
-
-		rawSectionOutput := rawOutput[sectionStartPos:sectionEndPos]
-		successMarker := fmt.Sprintf("%s:%d", FORMULA_MARKER_SUCCESS, rowIdx)
-		sectionSuccessPos := strings.Index(rawSectionOutput, successMarker)
-		if sectionSuccessPos == -1 {
-			// There was an error calculating fields for this item
-			// Assume the last line of the out is the error
-			errorLines := strings.Split(rawSectionOutput, "\n")
-			errorText := ""
-			for i := len(errorLines) - 1; i >= 0; i-- {
-				errorText = strings.Trim(errorLines[i], "\r \t")
-				if len(errorText) > 0 {
-					break
-				}
-			}
-			errorText = fmt.Sprintf("%d:cannot calculate data points;%s; ", rowIdx, errorText)
-			// errors.WriteString(errorText)
-			errors.WriteString(fmt.Sprintf("%s\n%s", errorText, getErrorLineNumberInfo(codeBase, rawSectionOutput)))
+		if len(rowError) > 0 {
+			errors.WriteString(rowError)
 		} else {
-			// SUCCESS code snippet is there, try to get the result JSON
+			// SUCCESS code snippet jsonString is there, try to get the result JSON
 			var itemResults map[string]any
-			jsonString := rawSectionOutput[sectionSuccessPos+len(successMarker):]
 			err := json.Unmarshal([]byte(jsonString), &itemResults)
 			if err != nil {
 				// Bad JSON
@@ -522,7 +534,7 @@ func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput
 /*
 getErrorLineNumbers - shows error lines +/- 5 if error info found in the output
 */
-func getErrorLineNumberInfo(codeBase string, rawErrors string) string {
+func getErrorLineNumberInfo(codeBase *string, rawErrors string) string {
 	var errorLineNumberInfo strings.Builder
 
 	reErrLine := regexp.MustCompile(`File "<stdin>", line ([\d]+)`)
@@ -534,7 +546,7 @@ func getErrorLineNumberInfo(codeBase string, rawErrors string) string {
 				errorLineNumberInfo.WriteString(fmt.Sprintf("Unexpected error, cannot parse error line number (%s): %s", groupMatches[matchIdx][1], errAtoi))
 			} else {
 				errorLineNumberInfo.WriteString(fmt.Sprintf("Source code lines close to the error location (line %d):\n", errLineNum))
-				scanner := bufio.NewScanner(strings.NewReader(codeBase))
+				scanner := bufio.NewScanner(strings.NewReader(*codeBase))
 				lineNum := 1
 				for scanner.Scan() {
 					if lineNum+15 >= errLineNum && lineNum-15 <= errLineNum {
