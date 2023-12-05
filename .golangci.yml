@@ -4,26 +4,20 @@
 linters:
   disable-all: true
   enable:
-#    - goerr113
+#    - goerr113 WIP
     - errcheck
-#    - goimports
-    # - paralleltest # missing the call to method parallel, but testify does not seem to work well with parallel test: https://github.com/stretchr/testify/issues/187
-    - revive # revive supersedes golint, which is now archived
+    - goimports
+    - revive
     - staticcheck
     - vet
-#    - forbidigo
+    - forbidigo
 run:
-#  skip-dirs:
-#    - ^api
-#    - ^proto
-#    - ^.git
+  skip-dirs:
+    - ^ui
+    - ^build
+    - ^doc
+    - ^.git
 linters-settings:
-#  govet:
-#    fieldalignment: 0
-#  forbidigo:
-#    forbid:
-#      - p: ^time\.After$
-#        msg: "time.After may leak resources. Use time.NewTimer instead."
   errcheck:
      severity: error
      confidence: 0.8
@@ -44,54 +38,20 @@ linters-settings:
          disabled: true
        - name: argument-limit
          disabled: true
-#       - name: bare-return
-#         disabled: true
-#       - name: banned-characters
-#         disabled: true
-#       - name: bool-literal-in-expr
-#         disabled: true
-#       - name: confusing-naming
-#         disabled: true
        - name: empty-lines
          disabled: true
-#       - name: error-naming
-#         disabled: true
-#       - name: errorf
-#         disabled: true
        - name: exported
          disabled: true
-#       - name: file-header
-#         disabled: true
        - name: function-length
          disabled: true
-#       - name: imports-blacklist
-#         disabled: true
-#       - name: increment-decrement
-#         disabled: true
        - name: line-length-limit
          disabled: true
        - name: max-public-structs
          disabled: true
-#       - name: nested-structs
-#         disabled: true
-#       - name: package-comments
-#         disabled: true
-#       - name: string-format
-#         disabled: true
-#       - name: unexported-naming
-#         disabled: true
-#       - name: unexported-return
-#         disabled: true
-#       - name: unused-parameter
-#         disabled: true
        - name: unused-receiver
          disabled: true
-#       - name: use-any
-#         disabled: true
        - name: var-naming
          disabled: true
-#       - name: empty-block
-#         disabled: true
        - name: flag-parameter
          disabled: true
 
@@ -115,8 +75,11 @@ linters-settings:
            - "zap.Logger.Sync"
            - "net.Conn.Close"
 issues:
-   # Exclude cyclomatic and cognitive complexity rules for test and pkg/exe/deploy
   exclude-rules:
+    - path: pkg\/proc\/proc_file_creator\.go
+      text: "unchecked-type-assertion: type cast result is unchecked in [^ ]+FileRecordHeapItem"
+      linters:
+        - revive
     - path: capideploy\.go|^tests\/.+\.go
       text: cyclomatic|cognitive
       linters:
@@ -125,10 +88,23 @@ issues:
       text: Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Sync|.*Flush|os\.Remove(All)?|.*print(f|ln)?|os\.(Un)?Setenv). is not checked
       linters:
         - errcheck
-#     - path: _test\.go|^common/persistence\/tests\/.+\.go # Ignore things like err = errors.New("test error") in tests
-#       linters:
-#         - goerr113
-#     - path: ^tools\/.+\.go
-#       linters:
-#         - goerr113
-#         - revive
+    - path: pkg\/xfer\/ssh\.go
+      text: "SA1019: x509.IsEncryptedPEMBlock|SA1019: x509.DecryptPEMBlock"
+      linters:
+        - staticcheck
+    - path: pkg\/proc\/proc_table_creator\.go
+      text: function RunCreateTableRelForBatch has (cyclomatic|cognitive) complexity
+      linters:
+        - revive
+    - path: pkg\/exe\/toolbelt\/capitoolbelt\.go
+      text: function GetDotDiagram has cognitive complexity|function main has (cyclomatic|cognitive) complexity
+      linters:
+        - revive
+    - path: pkg\/wf\/amqp_client\.go
+      text: function amqpConnectAndSelect has cognitive complexity
+      linters:
+        - revive
+    - path: pkg\/exe\/toolbelt\/.+\.go|pkg\/exe\/deploy\/.+\.go|pkg\/deploy\/.+\.go
+      text: use of `fmt.Print(|f|ln)` forbidden by pattern
+      linters:
+        - forbidigo

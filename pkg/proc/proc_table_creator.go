@@ -54,7 +54,21 @@ func reportWriteTableComplete(logger *l.CapiLogger, pCtx *ctx.MessageProcessingC
 		workerCount)
 }
 
-func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, srcFileIdx int) (BatchStats, error) { //nolint:all cognitive complexity 53
+func checkRunReadFileForBatchSanity(node *sc.ScriptNodeDef, srcFileIdx int) error {
+	if !node.HasFileReader() {
+		return fmt.Errorf("node does not have file reader")
+	}
+	if !node.HasTableCreator() {
+		return fmt.Errorf("node does not have table creator")
+	}
+
+	if srcFileIdx < 0 || srcFileIdx >= len(node.FileReader.SrcFileUrls) {
+		return fmt.Errorf("cannot find file to read: asked to read src file with index %d while there are only %d source files available", srcFileIdx, len(node.FileReader.SrcFileUrls))
+	}
+	return nil
+}
+
+func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, srcFileIdx int) (BatchStats, error) {
 	logger.PushF("proc.RunReadFileForBatch")
 	defer logger.PopF()
 
@@ -63,16 +77,10 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *c
 
 	node := pCtx.CurrentScriptNode
 
-	if !node.HasFileReader() {
-		return bs, fmt.Errorf("node does not have file reader")
-	}
-	if !node.HasTableCreator() {
-		return bs, fmt.Errorf("node does not have table creator")
+	if err := checkRunReadFileForBatchSanity(node, srcFileIdx); err != nil {
+		return bs, err
 	}
 
-	if srcFileIdx < 0 || srcFileIdx >= len(node.FileReader.SrcFileUrls) {
-		return bs, fmt.Errorf("cannot find file to read: asked to read src file with index %d while there are only %d source files available", srcFileIdx, len(node.FileReader.SrcFileUrls))
-	}
 	filePath := node.FileReader.SrcFileUrls[srcFileIdx]
 
 	u, err := url.Parse(filePath)
@@ -668,7 +676,7 @@ func checkRunCreateTableRelForBatchSanity(node *sc.ScriptNodeDef, readerNodeRunI
 	return nil
 }
 
-func RunCreateTableRelForBatch(envConfig *env.EnvConfig, //nolint:all cognitive complexity 137
+func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 	logger *l.CapiLogger,
 	pCtx *ctx.MessageProcessingContext,
 	readerNodeRunId int16,
@@ -953,5 +961,16 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig, //nolint:all cognitive 
 
 	bs.Elapsed = time.Since(totalStartTime)
 	reportWriteTableComplete(logger, pCtx, bs.RowsRead, bs.RowsWritten, bs.Elapsed, len(node.TableCreator.Indexes), instr.NumWorkers)
+	// TEST ONLY
+	// To test DeleteDataAndUniqueIndexesByBatchIdx:
+	// uncomment the exit()
+	// start the daemon
+	// run lookup_quicktest
+	// wait for the daemon to finish
+	// comment the exit()
+	// start the daemon
+	// in the log, watch for DeleteDataAndUniqueIndexesByBatchIdx messagesbatchStartTime
+	// make sure lookup_quicktest completed successfully and result data is good
+	// os.Exit(0)
 	return bs, nil
 }

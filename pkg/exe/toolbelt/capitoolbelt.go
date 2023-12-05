@@ -45,7 +45,7 @@ func NodeBatchStatusToColor(status wfmodel.NodeBatchStatusType) string {
 	}
 }
 
-func GetDotDiagram(scriptDef *sc.ScriptDef, dotDiagramType DotDiagramType, nodeColorMap map[string]string) string { //nolint:all cognitive complexity 82
+func GetDotDiagram(scriptDef *sc.ScriptDef, dotDiagramType DotDiagramType, nodeColorMap map[string]string) string {
 	var b strings.Builder
 
 	const recordFontSize int = 20
@@ -229,7 +229,7 @@ func usage(flagset *flag.FlagSet) {
 	}
 }
 
-func main() { //nolint:all cognitive complexity 90
+func main() {
 	// defer profile.Start().Stop()
 
 	envConfig, err := env.ReadEnvConfigFile("capitoolbelt.json")
