@@ -235,7 +235,7 @@ func initAmqpDeliveryChannel(envConfig *env.EnvConfig, logger *l.CapiLogger, amq
 	return chanDeliveries, DaemonCmdNone
 }
 
-func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, osSignalChannel chan os.Signal, amqpChannel *amqp.Channel, chanAmqpErrors chan *amqp.Error) DaemonCmdType { //nolint:all cognitive complexity 74
+func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, osSignalChannel chan os.Signal, amqpChannel *amqp.Channel, chanAmqpErrors chan *amqp.Error) DaemonCmdType {
 	logger.PushF("wf.amqpConnectAndSelect")
 	defer logger.PopF()
 

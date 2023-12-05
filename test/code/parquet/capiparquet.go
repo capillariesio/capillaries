@@ -16,7 +16,6 @@ import (
 	"github.com/capillariesio/capillaries/pkg/storage"
 	gp "github.com/fraugster/parquet-go"
 	"github.com/fraugster/parquet-go/parquet"
-	//"github.com/pkg/profile"
 )
 
 const (
@@ -476,7 +475,7 @@ func sortFile(path string, idxDef *sc.IdxDef) error {
 }
 
 func main() {
-	//defer profile.Start().Stop()
+	// defer profile.Start().Stop()
 	if len(os.Args) <= 1 {
 		usage(nil)
 	}

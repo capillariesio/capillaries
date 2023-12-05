@@ -503,7 +503,7 @@ func main() {
 
 	bigAccountsMap := map[string][]string{} // ARKK-> [ARKK-000000,ARKK-000001]
 	for i := 0; i < totalAccounts; i++ {
-		accLocalIdx := i / len(quickAccounts) //0,0,0,0,0,0,1,1,1,1,1,1,2,2,2,2,2,2,
+		accLocalIdx := i / len(quickAccounts) // 0,0,0,0,0,0,1,1,1,1,1,1,2,2,2,2,2,2,
 		accPrefix := quickAccounts[i%len(quickAccounts)]
 		if _, ok := bigAccountsMap[accPrefix]; !ok {
 			bigAccountsMap[accPrefix] = make([]string, accountsPerOriginalQuick)
