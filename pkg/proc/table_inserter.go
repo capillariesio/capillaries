@@ -461,7 +461,7 @@ func (instr *TableInserter) insertIdxRecord(logger *l.CapiLogger, idxName string
 		// 	} else if CurrentTestScenario == TestIdxNotAppliedSamePresentSecondRun {
 		// 		// log: duplicate idx record found ... on retry 1 when writing ..., assuming this retry was successful, proceeding as usual
 		// 		// consider it a success
-		// 		// Simulate first successfull attempt:
+		// 		// Simulate first successful attempt:
 		// 		if idxUniqueness == sc.IdxUnique {
 		// 			isApplied, err = instr.PCtx.CqlSession.Query(pq.Query, preparedIdxQueryParams...).MapScanCAS(existingIdxRow)
 		// 		} else {
