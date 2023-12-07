@@ -337,7 +337,7 @@ func main() {
 			log.Fatalf(err.Error())
 		}
 
-		nodes, err := api.GetRunsNodeHistory(logger, cqlSession, *keyspace, runIds)
+		nodes, err := api.GetNodeHistoryForRuns(logger, cqlSession, *keyspace, runIds)
 		if err != nil {
 			log.Fatalf(err.Error())
 		}
@@ -373,7 +373,7 @@ func main() {
 			nodeNames = make([]string, 0)
 		}
 
-		runs, err := api.GetBatchHistory(logger, cqlSession, *keyspace, runIds, nodeNames)
+		runs, err := api.GetBatchHistoryForRunsAndNodes(logger, cqlSession, *keyspace, runIds, nodeNames)
 		if err != nil {
 			log.Fatalf(err.Error())
 		}
@@ -430,7 +430,7 @@ func main() {
 			log.Fatalf(err.Error())
 		}
 
-		nodes, err := api.GetRunsNodeHistory(logger, cqlSession, *keyspace, []int16{int16(runId)})
+		nodes, err := api.GetNodeHistoryForRuns(logger, cqlSession, *keyspace, []int16{int16(runId)})
 		if err != nil {
 			log.Fatalf(err.Error())
 		}

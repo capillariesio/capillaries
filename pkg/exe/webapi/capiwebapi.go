@@ -237,7 +237,7 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 	sort.Slice(mx.RunLifespans, func(i, j int) bool { return mx.RunLifespans[i].RunId < mx.RunLifespans[j].RunId })
 
 	// Retrieve all node events for this ks, for all runs
-	nodeHistory, err := api.GetRunsNodeHistory(h.L, cqlSession, keyspace, []int16{})
+	nodeHistory, err := api.GetNodeHistoryForRuns(h.L, cqlSession, keyspace, []int16{})
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
