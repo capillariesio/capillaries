@@ -19,6 +19,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+// Used by Webapi and Toolbelt (stop_run command)
 func StopRun(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16, comment string) error {
 	logger.PushF("api.StopRun")
 	defer logger.PopF()
@@ -30,6 +31,8 @@ func StopRun(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, r
 	return wfdb.SetRunStatus(logger, cqlSession, keyspace, runId, wfmodel.RunStop, comment, cql.IgnoreIfExists)
 }
 
+// Used by Webapi and Toolbelt (start_run command). This is the way to start Capillaries processing.
+// startNodes parameter contains names of the script nodes to be executed right upon run start.
 func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp.Channel, scriptFilePath string, paramsFilePath string, cqlSession *gocql.Session, keyspace string, startNodes []string, desc string) (int16, error) {
 	logger.PushF("api.StartRun")
 	defer logger.PopF()
@@ -162,6 +165,7 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp.
 	return runId, nil
 }
 
+// Used by Toolbelt (exec_node command), can be used for testing Capillaries node execution without RabbitMQ wokflow
 func RunNode(envConfig *env.EnvConfig, logger *l.CapiLogger, nodeName string, runId int16, scriptFilePath string, paramsFilePath string, cqlSession *gocql.Session, keyspace string) (int16, error) {
 	logger.PushF("api.RunNode")
 	defer logger.PopF()

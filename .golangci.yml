@@ -80,7 +80,7 @@ issues:
       text: "unchecked-type-assertion: type cast result is unchecked in [^ ]+FileRecordHeapItem"
       linters:
         - revive
-    - path: capideploy\.go|^tests\/.+\.go
+    - path: ^tests\/.+\.go
       text: cyclomatic|cognitive
       linters:
         - revive
@@ -104,7 +104,7 @@ issues:
       text: function amqpConnectAndSelect has cognitive complexity
       linters:
         - revive
-    - path: pkg\/exe\/toolbelt\/.+\.go|pkg\/exe\/deploy\/.+\.go|pkg\/deploy\/.+\.go
+    - path: pkg\/exe\/toolbelt\/.+\.go
       text: use of `fmt.Print(|f|ln)` forbidden by pattern
       linters:
         - forbidigo

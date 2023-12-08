@@ -17,9 +17,6 @@ Custom [processors](../doc/glossary.md#processor):
 ## db
 Cassandra-specific
 
-## deploy
-Utility functions used by [Deploy tool](../doc/glossary.md#deploy-tool)
-
 ## dpc
 [Dependency policy checker](../doc/scriptconfig.md#dependency_policies)
 
@@ -54,4 +51,4 @@ Workflow db access functions
 Workflow model
 
 ## xfer
-SSH/HTTP/SFTP utility functions used by [processors](../doc/glossary.md#processor) and [Deploy tool](../doc/glossary.md#deploy-tool)
+SSH/HTTP/SFTP utility functions used by [processors](../doc/glossary.md#processor)

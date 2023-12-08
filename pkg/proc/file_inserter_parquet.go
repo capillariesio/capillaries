@@ -92,7 +92,7 @@ func (instr *FileInserter) generateMapToAdd(batch *WriteFileBatch, rowIdx int) (
 		}
 	}
 
-	return nil, fmt.Errorf("no fields to write")
+	return d, nil
 }
 
 func (instr *FileInserter) parquetFileInserterWorker(logger *l.CapiLogger, codec sc.ParquetCodecType) {

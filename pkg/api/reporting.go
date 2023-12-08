@@ -11,6 +11,7 @@ import (
 	"github.com/gocql/gocql"
 )
 
+// Used by Toolbelt (get_run_history command) to retrieve run status history for a keyspace (used in integration tests)
 func GetRunHistory(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string) ([]*wfmodel.RunHistoryEvent, error) {
 	logger.PushF("api.GetRunHistory")
 	defer logger.PopF()
@@ -36,7 +37,8 @@ func GetRunHistory(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace str
 	return result, nil
 }
 
-func GetRunsNodeHistory(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runIds []int16) ([]*wfmodel.NodeHistoryEvent, error) {
+// Used by Webapi and Toolbelt (get_node_history, get_run_status_diagram commands) to retrieve each node status history for multiple runs (used by WebUI main screen and in integration tests)
+func GetNodeHistoryForRuns(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runIds []int16) ([]*wfmodel.NodeHistoryEvent, error) {
 	logger.PushF("api.GetNodeHistory")
 	defer logger.PopF()
 
@@ -62,7 +64,8 @@ func GetRunsNodeHistory(logger *l.CapiLogger, cqlSession *gocql.Session, keyspac
 	return result, nil
 }
 
-func GetBatchHistory(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runIds []int16, scriptNodes []string) ([]*wfmodel.BatchHistoryEvent, error) {
+// Used by Toolbelt (get_batch_history command) to retrieve batch status history for a subset of runs and nodes (not used in Webapi or tests at the moment, and may be deprecated)
+func GetBatchHistoryForRunsAndNodes(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runIds []int16, scriptNodes []string) ([]*wfmodel.BatchHistoryEvent, error) {
 	logger.PushF("api.GetBatchHistory")
 	defer logger.PopF()
 
