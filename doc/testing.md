@@ -2,19 +2,28 @@
 
 ## Unit tests and code coverage
 
-cd into any directory under pkg/ and run 
+To run all unit tests:
+
 ```
-go test -v
+./test_unit.sh
 ```
 
-To see test code coverage:
+Code coverage:
+
 ```
-go test -v -coverprofile=/var/tmp/capillaries.p
+go test -coverprofile=/var/tmp/capillaries.p.tmp -cover $(find ./ -name '*_test.go' -printf "%h\n" | sort -u)
+cat /var/tmp/capillaries.p.tmp | grep -v "donotcover" > /var/tmp/capillaries.p
 go tool cover -html=/var/tmp/capillaries.p -o=/var/tmp/capillaries.html
 ```
 and open /var/tmp/capillaries.html in a web browser.
 
 ## Integration tests
+
+To run all integration tests, make sure you have RabbitMQ, Casandra and Capillaries Daemon running (either in Docker containers or as regular applications), test data is present (see ./copy_demo_data.sh) and run:
+
+```
+./test_unit.sh
+```
 
 There is a number of extensive integration tests that cover a big part of Capillaries script, database, and workflow functionality:
 

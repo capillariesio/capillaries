@@ -34,15 +34,15 @@ rm $outDir/header $outDir/data $outDir/data0 $outDir/data1
 
 
 if ! diff -b $outDir/taxed_order_items_py_baseline.csv $outDir/taxed_order_items_py.csv; then
-  echo "Python custom processor test FAILED"
+  echo -e "Python custom processor test \033[0;31mFAILED\e[0m"
   exit 1
 else
-  echo "Python custom processor test SUCCESS"
+  echo -e "Python custom processor test \033[0;32mOK\e[0m"
 fi
 
 if ! diff -b $outDir/taxed_order_items_go_baseline.csv $outDir/taxed_order_items_go.csv; then
-  echo "Golang table-to-table test FAILED"
+  echo -e "Golang table-to-table test \033[0;31mFAILED\e[0m"
   exit 1
 else
-  echo "Golang table-to-table test SUCCESS"
+  echo -e "Golang table-to-table test \033[0;32mOK\e[0m"
 fi
