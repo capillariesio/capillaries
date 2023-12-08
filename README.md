@@ -1,4 +1,4 @@
-# <img src="doc/logo.svg" alt="logo" width="60"/> Capillaries <div style="float:right;"> [![coveralls](https://coveralls.io/repos/github/capillariesio/capillaries/badge.svg?branch=main)](https://coveralls.io/github/capillariesio/capillaries?branch=main) [![goreport](https://goreportcard.com/badge/github.com/capillariesio/capillaries)](https://goreportcard.com/report/github.com/capillariesio/capillaries)[![Go Reference](https://pkg.go.dev/badge/github.com/capillariesio/capillaries.svg)](https://pkg.go.dev/github.com/capillariesio/capillaries)</div>
+# <img src="doc/logo.svg" alt="logo" width="60"/> Capillaries <div style="float:right;"> [![coveralls](https://coveralls.io/repos/github/capillariesio/capillaries/badge.svg?branch=main)](https://coveralls.io/github/capillariesio/capillaries?branch=main) [![goreport](https://goreportcard.com/badge/github.com/capillariesio/capillaries)](https://goreportcard.com/report/github.com/capillariesio/capillaries) [![Go Reference](https://pkg.go.dev/badge/github.com/capillariesio/capillaries.svg)](https://pkg.go.dev/github.com/capillariesio/capillaries)</div>
 
 
 Capillaries is a data processing framework that:
