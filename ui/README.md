@@ -2,9 +2,7 @@
 
 Capillaries-UI is a simple [SPA](https://en.wikipedia.org/wiki/Single-page_application) that provides user access to Capillaries environment (RabbitMQ queues and Cassandra storage) using [Webapi](#webapi)
 
-It uses [Svelte](https://svelte.dev/) for building UI components, [rollup.js](https://rollupjs.org/) for bundling, [sirv](https://www.npmjs.com/package/sirv) for serving static content.
-
-Serves at 8080. In production environment, consider using some production-grade web server instead of sirv.
+It uses [Svelte](https://svelte.dev/) for building UI components. Serves at 8080 in dev mode. In production environment, consider using some production-grade web server.
 
 ## Requirements
 
