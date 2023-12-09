@@ -1,8 +1,9 @@
 FROM golang:1.21
 
 # These image lacks pip and dateutil
-RUN apt update
-RUN apt install -y python3-full python3-dateutil
+RUN apt-get update
+RUN apt-get install -y apt-transport-https
+RUN apt-get install -y python3-full python3-dateutil
 
 WORKDIR /usr/src/capillaries
 

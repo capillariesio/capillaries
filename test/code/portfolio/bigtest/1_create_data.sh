@@ -1,3 +1,5 @@
+#!/bin/bash
+
 cfgDir=/tmp/capi_cfg/portfolio_bigtest
 inDir=/tmp/capi_in/portfolio_bigtest
 outDir=/tmp/capi_out/portfolio_bigtest
