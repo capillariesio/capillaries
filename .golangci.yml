@@ -96,10 +96,6 @@ issues:
       text: function RunCreateTableRelForBatch has (cyclomatic|cognitive) complexity
       linters:
         - revive
-    - path: pkg\/exe\/toolbelt\/capitoolbelt\.go
-      text: function GetDotDiagram has cognitive complexity|function main has (cyclomatic|cognitive) complexity
-      linters:
-        - revive
     - path: pkg\/wf\/amqp_client\.go
       text: function amqpConnectAndSelect has cognitive complexity
       linters:
