@@ -38,8 +38,8 @@ type WriteFileColumnDef struct {
 	Type             TableFieldType             `json:"type"` // To be checked when checking expressions and to be used in Having
 	Csv              WriteCsvColumnSettings     `json:"csv,omitempty"`
 	Parquet          WriteParquetColumnSettings `json:"parquet,omitempty"`
-	ParsedExpression ast.Expr
-	UsedFields       FieldRefs
+	ParsedExpression ast.Expr                   `json:"-"`
+	UsedFields       FieldRefs                  `json:"-"`
 }
 
 type TopDef struct {
@@ -57,16 +57,16 @@ type ParquetCreatorSettings struct {
 }
 
 type FileCreatorDef struct {
-	RawHaving                     string `json:"having"`
-	Having                        ast.Expr
-	UsedInHavingFields            FieldRefs
-	UsedInTargetExpressionsFields FieldRefs
+	RawHaving                     string                 `json:"having,omitempty"`
+	Having                        ast.Expr               `json:"-"`
+	UsedInHavingFields            FieldRefs              `json:"-"`
+	UsedInTargetExpressionsFields FieldRefs              `json:"-"`
 	Columns                       []WriteFileColumnDef   `json:"columns"`
 	UrlTemplate                   string                 `json:"url_template"`
-	Top                           TopDef                 `json:"top"`
+	Top                           TopDef                 `json:"top,omitempty"`
 	Csv                           CsvCreatorSettings     `json:"csv,omitempty"`
 	Parquet                       ParquetCreatorSettings `json:"parquet,omitempty"`
-	CreatorFileType               int
+	CreatorFileType               int                    `json:"-"`
 }
 
 const MaxFileCreatorTopLimit int = 500000

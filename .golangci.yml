@@ -92,6 +92,10 @@ issues:
       text: "SA1019: x509.IsEncryptedPEMBlock|SA1019: x509.DecryptPEMBlock"
       linters:
         - staticcheck
+    - path: pkg\/storage\/parquet\.go
+      text: "SA5001: should check returned error before deferring f.Close()"
+      linters:
+        - staticcheck
     - path: pkg\/proc\/proc_table_creator\.go
       text: function RunCreateTableRelForBatch has (cyclomatic|cognitive) complexity
       linters:

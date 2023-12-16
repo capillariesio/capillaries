@@ -12,9 +12,9 @@ import (
 )
 
 type CsvReaderColumnSettings struct {
-	SrcColIdx    int    `json:"col_idx"`
-	SrcColHeader string `json:"col_hdr"`
-	SrcColFormat string `json:"col_format"` // Optional for all except datetime
+	SrcColIdx    int    `json:"col_idx,omitempty"`
+	SrcColHeader string `json:"col_hdr,omitempty"`
+	SrcColFormat string `json:"col_format,omitempty"` // Optional for all except datetime
 }
 
 type ParquetReaderColumnSettings struct {
@@ -22,17 +22,17 @@ type ParquetReaderColumnSettings struct {
 }
 
 type FileReaderColumnDef struct {
-	DefaultValue string                      `json:"col_default_value"` // Optional. If omitted, zero value is used
+	DefaultValue string                      `json:"col_default_value,omitempty"` // Optional. If omitted, zero value is used
 	Type         TableFieldType              `json:"col_type"`
 	Csv          CsvReaderColumnSettings     `json:"csv,omitempty"`
 	Parquet      ParquetReaderColumnSettings `json:"parquet,omitempty"`
 }
 
 type CsvReaderSettings struct {
-	SrcFileHdrLineIdx       int    `json:"hdr_line_idx"`
-	SrcFileFirstDataLineIdx int    `json:"first_data_line_idx"`
-	Separator               string `json:"separator"`
-	ColumnIndexingMode      FileColumnIndexingMode
+	SrcFileHdrLineIdx       int                    `json:"hdr_line_idx"`
+	SrcFileFirstDataLineIdx int                    `json:"first_data_line_idx,omitempty"`
+	Separator               string                 `json:"separator,omitempty"`
+	ColumnIndexingMode      FileColumnIndexingMode `json:"-"`
 }
 
 const (
@@ -45,7 +45,7 @@ type FileReaderDef struct {
 	SrcFileUrls    []string                        `json:"urls"`
 	Columns        map[string]*FileReaderColumnDef `json:"columns"` // Keys are names used in table writer
 	Csv            CsvReaderSettings               `json:"csv,omitempty"`
-	ReaderFileType int
+	ReaderFileType int                             `json:"-"`
 }
 
 func (frDef *FileReaderDef) getFieldRefs() *FieldRefs {

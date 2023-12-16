@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -17,6 +19,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
+	"github.com/capillariesio/capillaries/pkg/storage"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
@@ -229,11 +232,13 @@ const (
 	CmdGetRunStatusDiagram string = "drop_run_status_diagram"
 	CmdDropKeyspace        string = "drop_keyspace"
 	CmdGetTableCql         string = "get_table_cql"
+	CmdProtoFileReader     string = "proto_file_reader"
+	CmdProtoFileCreator    string = "proto_file_creator"
 )
 
 func usage(flagset *flag.FlagSet) {
 	fmt.Printf("Capillaries toolbelt\nUsage: capitoolbelt <command> <command parameters>\nCommands:\n")
-	fmt.Printf("  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n",
+	fmt.Printf("  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n",
 		CmdValidateScript,
 		CmdStartRun,
 		CmdStopRun,
@@ -243,7 +248,9 @@ func usage(flagset *flag.FlagSet) {
 		CmdGetBatchHistory,
 		CmdGetRunStatusDiagram,
 		CmdDropKeyspace,
-		CmdGetTableCql)
+		CmdGetTableCql,
+		CmdProtoFileReader,
+		CmdProtoFileCreator)
 	if flagset != nil {
 		fmt.Printf("\n%s parameters:\n", flagset.Name())
 		flagset.PrintDefaults()
@@ -570,6 +577,226 @@ func execNode(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 	return 0
 }
 
+func protoFileReader() int {
+	cmd := flag.NewFlagSet(CmdProtoFileReader, flag.ExitOnError)
+	filePath := cmd.String("file", "", "path to sample file")
+	fileType := cmd.String("file_type", "csv", "csv or parquet")
+	csvHeaderLine := cmd.Int("csv_hdr_line_idx", -1, "csv only: index of the header line, default is -1 - no header")
+	csvFirstDataLine := cmd.Int("csv_first_line_idx", 0, "csv only: index of the first data line, previous line is")
+	csvSeparator := cmd.String("csv_separator", ",", "csv field separator")
+	if err := cmd.Parse(os.Args[2:]); err != nil || *filePath == "" || (*fileType != "csv" && *fileType != "parquet") || *csvHeaderLine >= *csvFirstDataLine || *csvSeparator == "" {
+		usage(cmd)
+		return 0
+	}
+
+	// Create file reader
+	fileReaderDef := sc.FileReaderDef{
+		SrcFileUrls: []string{*filePath},
+		Columns:     map[string]*sc.FileReaderColumnDef{}}
+
+	var errGuess error
+	var guessedFields []*storage.GuessedField
+	var fieldSettingsRemover *regexp.Regexp
+	if *fileType == "csv" {
+		guessedFields, errGuess = storage.CsvGuessFields(*filePath, *csvHeaderLine, *csvFirstDataLine, *csvSeparator)
+		if errGuess != nil && (guessedFields == nil || len(guessedFields) == 0) {
+			fmt.Fprintln(os.Stderr, errGuess.Error())
+			return 1
+		}
+		fileReaderDef.ReaderFileType = sc.ReaderFileTypeCsv
+		fileReaderDef.Csv = sc.CsvReaderSettings{
+			SrcFileHdrLineIdx:       *csvHeaderLine,
+			SrcFileFirstDataLineIdx: *csvFirstDataLine,
+			Separator:               *csvSeparator,
+			ColumnIndexingMode:      sc.FileColumnIndexingUnknown}
+
+		for colIdx, gf := range guessedFields {
+			colIdxToUse := colIdx
+			if len(gf.OriginalHeader) > 0 {
+				// Do not use col indexes, use headers
+				colIdxToUse = 0
+			}
+			fileReaderDef.Columns[gf.CapiName] = &sc.FileReaderColumnDef{
+				Type: gf.Type,
+				Csv: sc.CsvReaderColumnSettings{
+					SrcColIdx:    colIdxToUse,
+					SrcColHeader: gf.OriginalHeader,
+					SrcColFormat: gf.Format}}
+		}
+		fieldSettingsRemover = regexp.MustCompile(`,*[ \t\n]*"parquet":[ \t\n]*{[^}]*}`)
+	} else {
+		guessedFields, errGuess = storage.ParquetGuessFields(*filePath)
+		if errGuess != nil && (guessedFields == nil || len(guessedFields) == 0) {
+			fmt.Fprintln(os.Stderr, errGuess.Error())
+			return 1
+		}
+		fileReaderDef.ReaderFileType = sc.ReaderFileTypeParquet
+		for _, gf := range guessedFields {
+			fileReaderDef.Columns[gf.CapiName] = &sc.FileReaderColumnDef{
+				Type: gf.Type,
+				Parquet: sc.ParquetReaderColumnSettings{
+					SrcColName: gf.OriginalHeader}}
+		}
+		fieldSettingsRemover = regexp.MustCompile(`[ \t\n]*"csv":[ \t\n]*{[^}]*},*`)
+	}
+
+	// Create matching table creator
+	reNonAlphanum := regexp.MustCompile("[^a-zA-Z0-9_]")
+	tableCreatorDef := sc.TableCreatorDef{
+		Name:   "table_for_" + reNonAlphanum.ReplaceAllString(*filePath, "_"),
+		Fields: map[string]*sc.WriteTableFieldDef{}}
+
+	for capiFileColName, readerColDef := range fileReaderDef.Columns {
+		capiTableFieldName := strings.Replace(capiFileColName, "col_", "", 1)
+		tableCreatorDef.Fields[capiTableFieldName] = &sc.WriteTableFieldDef{
+			RawExpression: "r." + capiFileColName,
+			Type:          readerColDef.Type}
+	}
+
+	fileReaderBytes, errMarshal := json.MarshalIndent(fileReaderDef, "   ", " ")
+	if errMarshal != nil {
+		fmt.Fprintln(os.Stderr, errMarshal.Error())
+		return 1
+	}
+
+	tableWriterBytes, errMarshal := json.MarshalIndent(tableCreatorDef, "   ", " ")
+	if errMarshal != nil {
+		fmt.Fprintln(os.Stderr, errMarshal.Error())
+		return 1
+	}
+
+	fmt.Printf(
+		`{
+ "nodes": {
+  "read_%s": {
+   "type": "file_table",
+   "desc": "%s",
+   "start_policy": "manual",
+   "r": %s,
+   "w": %s
+  }
+ },
+ "dependency_policies": {
+  "current_active_first_stopped_nogo": %s
+  }
+}`,
+		reNonAlphanum.ReplaceAllString(*filePath, "_"),
+		"Read file "+*filePath+" to table",
+		fieldSettingsRemover.ReplaceAllString(string(fileReaderBytes), ""),
+		string(tableWriterBytes),
+		strings.ReplaceAll(sc.DefaultPolicyCheckerConf, "\t", " "))
+
+	if errGuess != nil {
+		fmt.Fprintln(os.Stderr, errGuess.Error())
+		return 1
+	}
+
+	return 0
+}
+
+func protoFileCreator() int {
+	cmd := flag.NewFlagSet(CmdProtoFileCreator, flag.ExitOnError)
+	filePath := cmd.String("file", "", "path to sample file")
+	fileType := cmd.String("file_type", "csv", "csv or parquet")
+	csvHeaderLine := cmd.Int("csv_hdr_line_idx", -1, "csv only: index of the header line, default is -1 - no header")
+	csvFirstDataLine := cmd.Int("csv_first_line_idx", 0, "csv only: index of the first data line, previous line is")
+	csvSeparator := cmd.String("csv_separator", ",", "csv field separator")
+	if err := cmd.Parse(os.Args[2:]); err != nil || *filePath == "" || (*fileType != "csv" && *fileType != "parquet") || *csvHeaderLine >= *csvFirstDataLine || *csvSeparator == "" {
+		usage(cmd)
+		return 0
+	}
+
+	// Create matching table reader
+	tableReaderDef := sc.TableReaderDef{
+		TableName: "table_to_read_data_from"}
+
+	// Create file creator
+	fileCreatorDef := sc.FileCreatorDef{
+		UrlTemplate: "output." + *fileType}
+
+	var errGuess error
+	var guessedFields []*storage.GuessedField
+	var fieldSettingsRemover *regexp.Regexp
+	if *fileType == "csv" {
+		guessedFields, errGuess = storage.CsvGuessFields(*filePath, *csvHeaderLine, *csvFirstDataLine, *csvSeparator)
+		if errGuess != nil && (guessedFields == nil || len(guessedFields) == 0) {
+			fmt.Fprintln(os.Stderr, errGuess.Error())
+			return 1
+		}
+		fileCreatorDef.Csv.Separator = *csvSeparator
+		fileCreatorDef.Columns = make([]sc.WriteFileColumnDef, len(guessedFields))
+		for colIdx, gf := range guessedFields {
+			fileCreatorDef.Columns[colIdx] = sc.WriteFileColumnDef{
+				Name:          gf.CapiName,
+				RawExpression: "r." + strings.ReplaceAll(gf.CapiName, "col_", ""),
+				Type:          gf.Type,
+				Csv: sc.WriteCsvColumnSettings{
+					Format: gf.Format,
+					Header: gf.OriginalHeader}}
+		}
+		fieldSettingsRemover = regexp.MustCompile(`,*[ \t\n]*"parquet":[ \t\n]*{[^}]*}`)
+	} else {
+		guessedFields, errGuess = storage.ParquetGuessFields(*filePath)
+		if errGuess != nil && (guessedFields == nil || len(guessedFields) == 0) {
+			fmt.Fprintln(os.Stderr, errGuess.Error())
+			return 1
+		}
+		fileCreatorDef.Parquet.Codec = sc.ParquetCodecGzip
+		fileCreatorDef.Columns = make([]sc.WriteFileColumnDef, len(guessedFields))
+		for colIdx, gf := range guessedFields {
+			fileCreatorDef.Columns[colIdx] = sc.WriteFileColumnDef{
+				Name:          gf.CapiName,
+				RawExpression: "r." + strings.ReplaceAll(gf.CapiName, "col_", ""),
+				Type:          gf.Type,
+				Parquet: sc.WriteParquetColumnSettings{
+					ColumnName: gf.OriginalHeader}}
+		}
+		fieldSettingsRemover = regexp.MustCompile(`[ \t\n]*"csv":[ \t\n]*{[^}]*},*`)
+	}
+
+	tableReaderBytes, errMarshal := json.MarshalIndent(tableReaderDef, "   ", " ")
+	if errMarshal != nil {
+		fmt.Fprintln(os.Stderr, errMarshal.Error())
+		return 1
+	}
+
+	fileCreatorBytes, errMarshal := json.MarshalIndent(fileCreatorDef, "   ", " ")
+	if errMarshal != nil {
+		fmt.Fprintln(os.Stderr, errMarshal.Error())
+		return 1
+	}
+
+	reNonAlphanum := regexp.MustCompile("[^a-zA-Z0-9_]")
+	topRemover := regexp.MustCompile(`[ \t\n]*"top":[ \t\n]*{[^}]*},*`)
+
+	fmt.Printf(
+		`{
+ "nodes": {
+  "write_file_%s": {
+   "type": "table_file",
+   "desc": "%s",
+   "r": %s,
+   "w": %s
+  }
+ },
+ "dependency_policies": {
+  "current_active_first_stopped_nogo": %s
+  }
+}`,
+		reNonAlphanum.ReplaceAllString(*filePath, "_"),
+		"Write to file "+*filePath,
+		string(tableReaderBytes),
+		topRemover.ReplaceAllString(fieldSettingsRemover.ReplaceAllString(string(fileCreatorBytes), ""), ""),
+		strings.ReplaceAll(sc.DefaultPolicyCheckerConf, "\t", " "))
+
+	if errGuess != nil {
+		fmt.Fprintln(os.Stderr, errGuess.Error())
+		return 1
+	}
+
+	return 0
+}
+
 func main() {
 	// defer profile.Start().Stop()
 
@@ -622,6 +849,12 @@ func main() {
 
 	case CmdExecNode:
 		os.Exit(execNode(envConfig, logger))
+
+	case CmdProtoFileReader:
+		os.Exit(protoFileReader())
+
+	case CmdProtoFileCreator:
+		os.Exit(protoFileCreator())
 
 	default:
 		fmt.Printf("invalid command: %s\n", os.Args[1])

@@ -9,7 +9,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
-// This conf should be never referenced in prod code. It's always in the the config.json. Or in the unit tests.
+// This conf should be never referenced in prod code. It's always in the the config.json. Or in the unit tests. Or in helper tools.
 const DefaultPolicyCheckerConf string = `
 {
 	"is_default": true,

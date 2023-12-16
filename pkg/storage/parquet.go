@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"os"
+	"regexp"
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/sc"
@@ -334,4 +336,38 @@ func ParquetReadBool(val any, se *pgparquet.SchemaElement) (bool, error) {
 	default:
 		return sc.DefaultBool, fmt.Errorf("cannot read parquet bool from %T, schema %v", se, typedVal)
 	}
+}
+
+func ParquetGuessFields(filePath string) ([]*GuessedField, error) {
+	var guessedFields []*GuessedField
+
+	f, err := os.Open(filePath)
+	defer f.Close()
+
+	if f == nil {
+		return guessedFields, fmt.Errorf("cannot open parquet file %s: %s", filePath, err.Error())
+	}
+
+	reader, err := gp.NewFileReader(f)
+	if err != nil {
+		return guessedFields, err
+	}
+
+	// Digest schema
+	reNonAlphanum := regexp.MustCompile("[^a-zA-Z0-9_]")
+	schemaDef := reader.GetSchemaDefinition()
+	guessedFields = make([]*GuessedField, len(schemaDef.RootColumn.Children))
+	for i, column := range schemaDef.RootColumn.Children {
+		t, err := ParquetGuessCapiType(column.SchemaElement)
+		if err != nil {
+			return guessedFields, fmt.Errorf("cannot read parquet column %s: %s", column.SchemaElement.Name, err.Error())
+		}
+		guessedFields[i] = &GuessedField{
+			OriginalHeader: column.SchemaElement.Name,
+			CapiName:       "col_" + reNonAlphanum.ReplaceAllString(column.SchemaElement.Name, "_"),
+			Type:           t,
+			Format:         ""} // unused for Parquet
+	}
+
+	return guessedFields, nil
 }
