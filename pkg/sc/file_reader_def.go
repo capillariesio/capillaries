@@ -43,8 +43,8 @@ const (
 
 type FileReaderDef struct {
 	SrcFileUrls    []string                        `json:"urls"`
-	Columns        map[string]*FileReaderColumnDef `json:"columns"` // Keys are names used in table writer
 	Csv            CsvReaderSettings               `json:"csv,omitempty"`
+	Columns        map[string]*FileReaderColumnDef `json:"columns"` // Keys are names used in table writer
 	ReaderFileType int                             `json:"-"`
 }
 

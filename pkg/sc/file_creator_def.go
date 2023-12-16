@@ -57,15 +57,15 @@ type ParquetCreatorSettings struct {
 }
 
 type FileCreatorDef struct {
-	RawHaving                     string                 `json:"having,omitempty"`
-	Having                        ast.Expr               `json:"-"`
-	UsedInHavingFields            FieldRefs              `json:"-"`
-	UsedInTargetExpressionsFields FieldRefs              `json:"-"`
-	Columns                       []WriteFileColumnDef   `json:"columns"`
 	UrlTemplate                   string                 `json:"url_template"`
+	RawHaving                     string                 `json:"having,omitempty"`
 	Top                           TopDef                 `json:"top,omitempty"`
 	Csv                           CsvCreatorSettings     `json:"csv,omitempty"`
 	Parquet                       ParquetCreatorSettings `json:"parquet,omitempty"`
+	Columns                       []WriteFileColumnDef   `json:"columns"`
+	Having                        ast.Expr               `json:"-"`
+	UsedInHavingFields            FieldRefs              `json:"-"`
+	UsedInTargetExpressionsFields FieldRefs              `json:"-"`
 	CreatorFileType               int                    `json:"-"`
 }
 
