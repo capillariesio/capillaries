@@ -679,9 +679,12 @@ func protoFileReaderCreator() int {
 		fieldSettingsRemover = regexp.MustCompile(`[ \t\n]*"csv":[ \t\n]*{[^}]*},*`)
 	}
 
+	reNonAlphanum := regexp.MustCompile("[^a-zA-Z0-9_]")
+	sanitizedFileName := reNonAlphanum.ReplaceAllString(srcFileName, "_")
+
 	// Create matching table creator
 	tableCreatorDef := sc.TableCreatorDef{
-		Name:   "some_table",
+		Name:   sanitizedFileName,
 		Fields: map[string]*sc.WriteTableFieldDef{}}
 
 	for capiFileColName, readerColDef := range fileReaderDef.Columns {
@@ -693,7 +696,7 @@ func protoFileReaderCreator() int {
 
 	// Create matching table reader
 	tableReaderDef := sc.TableReaderDef{
-		TableName: "some_table"}
+		TableName: sanitizedFileName}
 
 	fileReaderBytes, errMarshal := json.Marshal(fileReaderDef)
 	if errMarshal != nil {

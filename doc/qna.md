@@ -6,13 +6,21 @@ Q&A
 Q. What kind of data providers can I use as data source? What media the results can be written to?
 
 A. At the moment, Capillaries can only read and write CSV and Parquet files. It can read from:
-- local file system
+- file system
 - http/https
 - [sftp](./glossary.md#sftp-uris) URIs
 
 and write to:
-- local file system
+- file system
 - [sftp](./glossary.md#sftp-uris) URIs
+
+## Getting started with Capillaries scripts
+
+Q. I have my data file(s) ready, but I am not sure how to create a Capillaries script that would process them. What's the best way to start?
+
+A. You may want to try [Toolbelt](./glossary.md#toolbelt) `proto_file_reader_creator` command, it can read your source file and generate a simple Capillaries script that reads data from your file in `/tmp/capi_in`, saves it to the Capillaries table, and writes it back to the file with the same name in `/tmp/capi_out`. Check out [proto_file_reader_creator integration test](../test/code/proto_file_reader_creator/README.md), it creates Capillaries scripts on the fly and runs them against your Capillaries setup.
+
+Make sure the script this command generated from your data file works as you expect, and add more [processsing nodes](./glossary.md#script-node) to it.
 
 ## Limits
 
@@ -28,7 +36,7 @@ A. There is no support for NULL values. To mitigate it, Capillaries offers suppo
 
 ## Re-processing granularity
 
-Q. OK, Capillaries offers [runs](glossary.md#run) as a tool to handle scenarios when some data was not processed properly. After making all necessary fixes, operators can re-start a run (or multiple runs) to overwrite data for all nodes affected by this run - in intermediate Cassandra [tables](glossary.md#table) and in the result files. But it may unnecessarily affect too many nodes and take too long. Can I re-process a single failed [script node](glossary.md#script-node)? A single failed [batch](glossary.md#data-batch)?
+Q. I can see that Capillaries offers [runs](glossary.md#run) as a tool to handle scenarios when some data was not processed properly. After making all necessary fixes, operators can re-start a run (or multiple runs) to overwrite data for all nodes affected by this run - in intermediate Cassandra [tables](glossary.md#table) and in the result files. But it may unnecessarily affect too many nodes and take too long. Can I re-process a single failed [script node](glossary.md#script-node)? A single failed [batch](glossary.md#data-batch)?
 
 A. Re-processing nodes: yes, to some extent. But it has to be part of the script design. You can design your Capillaries [script](glossary.md#script) in a way so the node in question and all its dependants can only be started [manually](scriptconfig.md#start_policy). This means that even on successful script execution, the operator will have to manually start a run that processes only one node in question, and manually start a run that processes its dependants.  
 
