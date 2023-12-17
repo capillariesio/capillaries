@@ -33,7 +33,7 @@ const (
 	DotDiagramRunStatus DotDiagramType = "run_status"
 )
 
-func NodeBatchStatusToColor(status wfmodel.NodeBatchStatusType) string {
+func nodeBatchStatusToColor(status wfmodel.NodeBatchStatusType) string {
 	switch status {
 	case wfmodel.NodeBatchNone:
 		return "white"
@@ -517,7 +517,7 @@ func getRunStatusDiagram(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 
 	nodeColorMap := map[string]string{}
 	for _, node := range nodes {
-		nodeColorMap[node.ScriptNode] = NodeBatchStatusToColor(node.Status)
+		nodeColorMap[node.ScriptNode] = nodeBatchStatusToColor(node.Status)
 	}
 
 	fmt.Println(getDotDiagram(script, DotDiagramRunStatus, nodeColorMap))
@@ -582,7 +582,7 @@ func protoFileReaderCreator() int {
 	filePath := cmd.String("file", "", "path to sample file")
 	fileType := cmd.String("file_type", "csv", "csv or parquet")
 	csvHeaderLine := cmd.Int("csv_hdr_line_idx", -1, "csv only: index of the header line")
-	csvFirstDataLine := cmd.Int("csv_first_line_idx", 0, "csv only: index of the first data line, previous line is")
+	csvFirstDataLine := cmd.Int("csv_first_line_idx", 0, "csv only: index of the first data line, nust be greater than csv_hdr_line_idx")
 	csvSeparator := cmd.String("csv_separator", ",", "csv only: field separator")
 	if err := cmd.Parse(os.Args[2:]); err != nil || *filePath == "" || (*fileType != "csv" && *fileType != "parquet") || *csvHeaderLine >= *csvFirstDataLine || *csvSeparator == "" {
 		usage(cmd)

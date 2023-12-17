@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# Makes toolbelt call get_run_history in a loop until run status is as requested
 wait()
 {
     local keyspace=$1
@@ -45,6 +46,7 @@ one_daemon_run()
 
     SECONDS=0
 
+    # A hack to support *_quicktest additional dir level
     if [ -d "../../../../pkg/exe/toolbelt" ]; then
         pushd ../../../../pkg/exe/toolbelt
     else
@@ -74,6 +76,7 @@ one_daemon_run_no_params()
 
     SECONDS=0
 
+    # A hack to support *_quicktest additional dir level
     if [ -d "../../../../pkg/exe/toolbelt" ]; then
         pushd ../../../../pkg/exe/toolbelt
     else
@@ -105,6 +108,7 @@ two_daemon_runs()
 
     SECONDS=0
 
+    # A hack to support *_quicktest additional dir level
     if [ -d "../../../../pkg/exe/toolbelt" ]; then
         pushd ../../../../pkg/exe/toolbelt
     else
@@ -136,7 +140,7 @@ two_daemon_runs()
     echo "$(($duration / 60))m $(($duration % 60))s elapsed."
 }
 
-
+# Same as above, but sends requests to capiwebapi instead of calling capitoolbelt
 two_daemon_runs_webapi()
 {
     local keyspace=$1
@@ -148,6 +152,8 @@ two_daemon_runs_webapi()
 
     SECONDS=0
 
+    # A hack to support *_quicktest additional dir level
+    # Still required for webapi test - wait() uses toolbelt
     if [ -d "../../../../pkg/exe/toolbelt" ]; then
         pushd ../../../../pkg/exe/toolbelt
     else

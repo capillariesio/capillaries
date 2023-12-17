@@ -20,10 +20,10 @@ type GuessedField struct {
 }
 
 func guessCsvType(strVal string) (sc.TableFieldType, string) {
-	reDecimal2 := regexp.MustCompile(`^(\+|-|)[0-9]*\.[0-9][0-9]$`) // Exactly two digits after decimal point
-	reInt := regexp.MustCompile(`^(\+|-|)[0-9]+$`)
-	reFloat := regexp.MustCompile(`^(\+|-|)[0-9]*\.[0-9]+$`) // No scientificnotation support
-	reBool := regexp.MustCompile(`^(true|false|t|f|True|False|TRUE|FALSE)$`)
+	reDecimal2 := regexp.MustCompile(`^(\+|-|)[0-9]*\.[0-9][0-9]$`)              // Exactly two digits after decimal point
+	reInt := regexp.MustCompile(`^(\+|-|)[0-9]+$`)                               // Just digits
+	reFloat := regexp.MustCompile(`^(\+|-|)[0-9]*\.[0-9]+$`)                     // No scientific notation support
+	reBool := regexp.MustCompile(`^(true|false|t|f|T|F|True|False|TRUE|FALSE)$`) // Whatever strconv.ParseBool supports
 	reDt := []*regexp.Regexp{
 		regexp.MustCompile(`^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]$`),
 		regexp.MustCompile(`^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9]$`),
@@ -93,6 +93,7 @@ func CsvGuessFields(filePath string, csvHeaderLineIdx int, csvFirstDataLineIdx i
 	lineIdx := 0
 	reNonAlphanum := regexp.MustCompile("[^a-zA-Z0-9_]")
 
+	// If we find something more generic than on previous steps, make data type more generic (eventually, string)
 	generalizeMap := map[sc.TableFieldType]map[sc.TableFieldType]sc.TableFieldType{
 		sc.FieldTypeUnknown: {
 			sc.FieldTypeUnknown:  sc.FieldTypeUnknown,
