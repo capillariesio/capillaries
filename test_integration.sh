@@ -16,3 +16,7 @@ pushd ./test/code/portfolio/quicktest
 ./test_one_run.sh
 popd
 
+pushd ./test/code/proto_file_reader_creator
+./test_one_run.sh
+popd
+

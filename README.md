@@ -21,7 +21,7 @@ Capillaries is a data processing framework that:
 
 ## Getting started
 
-On Mac, WSL or Linux, run:
+On Mac, WSL or Linux, run in bash shell:
 
 ```
 git clone https://github.com/capillariesio/capillaries.git

@@ -591,8 +591,17 @@ func protoFileReaderCreator() int {
 
 	srcFileName := filepath.Base(*filePath)
 
-	srcFileFinalPath := "/tmp/capi_in/proto_file_reader_creator/" + srcFileName
-	tgtFileFinalPath := "/tmp/capi_out/proto_file_reader_creator/" + srcFileName
+	srcFileFinalPath := "/tmp/capi_in/proto_file_reader_creator_quicktest/" + srcFileName
+	tgtFileFinalPath := "/tmp/capi_out/proto_file_reader_creator_quicktest/" + srcFileName
+
+	// Some reasonable defaults that match our test expectations in test/data/proto_file_reader_creator
+	fileWriterFormatMap := map[sc.TableFieldType]string{
+		sc.FieldTypeString:   "%s",
+		sc.FieldTypeInt:      "%d",
+		sc.FieldTypeFloat:    "%.3f",
+		sc.FieldTypeDecimal2: "%s",
+		sc.FieldTypeDateTime: "2006-01-02 15:04:05",
+		sc.FieldTypeBool:     "%t"}
 
 	// Create file reader
 	fileReaderDef := sc.FileReaderDef{
@@ -640,7 +649,7 @@ func protoFileReaderCreator() int {
 				RawExpression: "r." + strings.ReplaceAll(gf.CapiName, "col_", ""),
 				Type:          gf.Type,
 				Csv: sc.WriteCsvColumnSettings{
-					Format: gf.Format,
+					Format: fileWriterFormatMap[gf.Type],
 					Header: gf.OriginalHeader}}
 		}
 		fieldSettingsRemover = regexp.MustCompile(`,*[ \t\n]*"parquet":[ \t\n]*{[^}]*}`)

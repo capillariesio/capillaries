@@ -20,10 +20,10 @@ type GuessedField struct {
 }
 
 func guessCsvType(strVal string) (sc.TableFieldType, string) {
-	reDecimal2 := regexp.MustCompile(`^(\+|-|)[0-9]*\.[0-9](|[0-9])$`)
+	reDecimal2 := regexp.MustCompile(`^(\+|-|)[0-9]*\.[0-9][0-9]$`) // Exactly two digits after decimal point
 	reInt := regexp.MustCompile(`^(\+|-|)[0-9]+$`)
-	reFloat := regexp.MustCompile(`^(\+|-|)[0-9]*\.[0-9]+$`)
-	reBool := regexp.MustCompile(`^(true|false|t|f)$`)
+	reFloat := regexp.MustCompile(`^(\+|-|)[0-9]*\.[0-9]+$`) // No scientificnotation support
+	reBool := regexp.MustCompile(`^(true|false|t|f|True|False|TRUE|FALSE)$`)
 	reDt := []*regexp.Regexp{
 		regexp.MustCompile(`^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]$`),
 		regexp.MustCompile(`^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9]$`),
@@ -52,7 +52,7 @@ func guessCsvType(strVal string) (sc.TableFieldType, string) {
 		"2006-01-02 15:04:05.0000000-0700"}
 
 	if reDecimal2.MatchString(strings.TrimSpace(strVal)) {
-		return sc.FieldTypeDecimal2, "%s"
+		return sc.FieldTypeDecimal2, "%f" // Capillaries uses %f format specifier for decimal2 fields (because it uses sscanf(float) internally)
 	}
 	if reInt.MatchString(strings.TrimSpace(strVal)) {
 		return sc.FieldTypeInt, "%d"
@@ -61,7 +61,7 @@ func guessCsvType(strVal string) (sc.TableFieldType, string) {
 		return sc.FieldTypeFloat, "%f"
 	}
 	if reBool.MatchString(strings.ToLower(strings.TrimSpace(strVal))) {
-		return sc.FieldTypeBool, "%t"
+		return sc.FieldTypeBool, "" // Capillaries does not accept format specifier for bool fields
 	}
 
 	for i, re := range reDt {
@@ -73,7 +73,7 @@ func guessCsvType(strVal string) (sc.TableFieldType, string) {
 	if len(strVal) == 0 {
 		return sc.FieldTypeUnknown, ""
 	}
-	return sc.FieldTypeString, "%s"
+	return sc.FieldTypeString, "" // Capillaries does not accept format specifier for string fields
 }
 
 func CsvGuessFields(filePath string, csvHeaderLineIdx int, csvFirstDataLineIdx int, csvSeparator string) ([]*GuessedField, error) {
