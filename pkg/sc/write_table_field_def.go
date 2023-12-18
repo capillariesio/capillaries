@@ -8,9 +8,9 @@ import (
 type WriteTableFieldDef struct {
 	RawExpression    string         `json:"expression"`
 	Type             TableFieldType `json:"type"`
-	DefaultValue     string         `json:"default_value"` // Optional. If omitted, default zero value is used
-	ParsedExpression ast.Expr
-	UsedFields       FieldRefs
+	DefaultValue     string         `json:"default_value,omitempty"` // Optional. If omitted, default zero value is used
+	ParsedExpression ast.Expr       `json:"-"`
+	UsedFields       FieldRefs      `json:"-"`
 }
 
 func GetFieldRefsUsedInAllTargetExpressions(fieldDefMap map[string]*WriteTableFieldDef) FieldRefs {

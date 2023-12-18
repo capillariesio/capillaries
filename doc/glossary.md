@@ -215,7 +215,13 @@ Defines how file reader reads columns from the source file (CSV, Parquet).
 
 `csv.col_hdr`: source file column header; prohibited if col_idx is specified
 
-`csv.col_format`: optional for `int`, `float` and `decimal2` fields (will be used by `fmt.Sscanf()` if provided); required for `datetime` fields (will be used by `time.Parse()` if provided); prohibited for `string` and `bool` fields
+`csv.col_format`: depends on the field type:
+- `int`: must include `%d`, `fmt.Sscanf()` is used internally
+- `float`: must include `%f`, `fmt.Sscanf()` is used internally
+- `decimal2`: must include `%f`, `fmt.Sscanf()` is used internally
+- `datetime`: must include Go `2006-01-02 15:04:05`-style format specifier, `time.Parse()` is used internally
+- `string`: should not specify format, whole field contents will be loaded
+- `bool`: should not specify format, `strconv.ParseBool` is used internally
 
 ### Parquet reader column properties
 
@@ -256,7 +262,13 @@ Defines how file writer saves values to the target file (CSV, Parquet).
 
 ### CSV-specific writer column properties
 
-`format`: Go format string to be used when writing a value as text to the file
+`format`: Go format string to be used when writing a value as text to the file, depends on the column type:
+- `int`: must include `%d`
+- `float`: must include `%f`
+- `decimal2`: must include `%s`
+- `datetime`: must include Go `2006-01-02 15:04:05`-style format specifier
+- `string`: must include `%s`
+- `bool`: must include `%t`
 
 `header`: column header to be used in the target file
 

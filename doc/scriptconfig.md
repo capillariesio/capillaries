@@ -119,7 +119,7 @@ Most Capillaries integration tests use file URLs. [tag_and_denormalize test](../
 File reader only. Array of file reader [column definitions](glossary.md#file-reader-column-definition)
 
 #### r.csv.hdr_line_idx
-CSV reader only: line index to read header values from
+CSV reader only: line index to read header values from, -1 if none
 
 #### r.csv.first_data_line_idx
 CSV reader only: first data line index

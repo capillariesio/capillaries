@@ -106,9 +106,9 @@ type ScriptNodeDef struct {
 	Type                NodeType        `json:"type"`
 	Desc                string          `json:"desc"`
 	StartPolicy         NodeStartPolicy `json:"start_policy"`
-	RerunPolicy         NodeRerunPolicy `json:"rerun_policy"`
-	CustomProcessorType string          `json:"custom_proc_type"`
-	HandlerExeType      string          `json:"handler_exe_type"`
+	RerunPolicy         NodeRerunPolicy `json:"rerun_policy,omitempty"`
+	CustomProcessorType string          `json:"custom_proc_type,omitempty"`
+	HandlerExeType      string          `json:"handler_exe_type,omitempty"`
 
 	RawReader   json.RawMessage `json:"r"` // This depends on tfm type
 	TableReader TableReaderDef

@@ -1,3 +1,5 @@
+#!/bin/bash
+
 cfgDir=/tmp/capi_cfg/tag_and_denormalize_quicktest
 inDir=/tmp/capi_in/tag_and_denormalize_quicktest
 outDir=/tmp/capi_out/tag_and_denormalize_quicktest

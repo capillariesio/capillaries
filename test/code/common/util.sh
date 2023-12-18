@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# Makes toolbelt call get_run_history in a loop until run status is as requested
 wait()
 {
     local keyspace=$1
@@ -45,6 +46,7 @@ one_daemon_run()
 
     SECONDS=0
 
+    # A hack to support *_quicktest additional dir level
     if [ -d "../../../../pkg/exe/toolbelt" ]; then
         pushd ../../../../pkg/exe/toolbelt
     else
@@ -54,6 +56,36 @@ one_daemon_run()
     go run capitoolbelt.go drop_keyspace -keyspace=$keyspace
     
     go run capitoolbelt.go start_run -script_file=$scriptFile -params_file=$paramsFile -keyspace=$keyspace -start_nodes=$startNodes
+    echo "Waiting for run to start..."
+    wait $keyspace 1 1 $outDir
+    echo "Waiting for run to finish, make sure pkg/exe/daemon is running..."
+    wait $keyspace 1 2 $outDir
+    go run capitoolbelt.go get_node_history -keyspace=$keyspace -run_ids=1
+
+    popd
+    duration=$SECONDS
+    echo "$(($duration / 60))m $(($duration % 60))s elapsed."    
+}
+
+one_daemon_run_no_params()
+{
+    local keyspace=$1
+    local scriptFile=$2
+    local outDir=$3
+    local startNodes=$4
+
+    SECONDS=0
+
+    # A hack to support *_quicktest additional dir level
+    if [ -d "../../../../pkg/exe/toolbelt" ]; then
+        pushd ../../../../pkg/exe/toolbelt
+    else
+        pushd ../../../pkg/exe/toolbelt
+    fi
+
+    go run capitoolbelt.go drop_keyspace -keyspace=$keyspace
+    
+    go run capitoolbelt.go start_run -script_file=$scriptFile -keyspace=$keyspace -start_nodes=$startNodes
     echo "Waiting for run to start..."
     wait $keyspace 1 1 $outDir
     echo "Waiting for run to finish, make sure pkg/exe/daemon is running..."
@@ -76,6 +108,7 @@ two_daemon_runs()
 
     SECONDS=0
 
+    # A hack to support *_quicktest additional dir level
     if [ -d "../../../../pkg/exe/toolbelt" ]; then
         pushd ../../../../pkg/exe/toolbelt
     else
@@ -107,7 +140,7 @@ two_daemon_runs()
     echo "$(($duration / 60))m $(($duration % 60))s elapsed."
 }
 
-
+# Same as above, but sends requests to capiwebapi instead of calling capitoolbelt
 two_daemon_runs_webapi()
 {
     local keyspace=$1
@@ -119,6 +152,8 @@ two_daemon_runs_webapi()
 
     SECONDS=0
 
+    # A hack to support *_quicktest additional dir level
+    # Still required for webapi test - wait() uses toolbelt
     if [ -d "../../../../pkg/exe/toolbelt" ]; then
         pushd ../../../../pkg/exe/toolbelt
     else

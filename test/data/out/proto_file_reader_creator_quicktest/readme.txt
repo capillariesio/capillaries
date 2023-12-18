@@ -1,0 +1,1 @@
+Placeholder dir for result files

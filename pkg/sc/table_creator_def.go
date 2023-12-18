@@ -23,14 +23,14 @@ type TableUpdaterDef struct {
 }
 
 type TableCreatorDef struct {
-	Name                          string `json:"name"`
-	RawHaving                     string `json:"having"`
-	Having                        ast.Expr
-	UsedInHavingFields            FieldRefs
-	UsedInTargetExpressionsFields FieldRefs
-	Fields                        map[string]*WriteTableFieldDef `json:"fields"`
-	RawIndexes                    map[string]string              `json:"indexes"`
-	Indexes                       IdxDefMap
+	Name                          string                         `json:"name"`
+	RawHaving                     string                         `json:"having,omitempty"`
+	Having                        ast.Expr                       `json:"-"`
+	UsedInHavingFields            FieldRefs                      `json:"-"`
+	UsedInTargetExpressionsFields FieldRefs                      `json:"-"`
+	Fields                        map[string]*WriteTableFieldDef `json:"fields,omitempty"`
+	RawIndexes                    map[string]string              `json:"indexes,omitempty"`
+	Indexes                       IdxDefMap                      `json:"-"`
 }
 
 // func (fieldDef *WriteTableFieldDef) CheckValueType(val any) error {

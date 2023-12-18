@@ -85,6 +85,10 @@ As a next step, you can check out other [integration tests](testing.md#integrati
 
 ## Setting up your dev machine
 
+### Shell
+
+Capillaries test scripts requires bash-compatible shell.
+
 ### Windows users
 
 If you are running Windows, you will be using WSL for development, so make sure your dev environment can run and debug from WSL (for example, if you use VSCode, make sure it runs from WSL, has Remote Development pack installed and has "WSL" on the left end of the status bar).
@@ -120,7 +124,7 @@ All settings in pkg/exe/daemon/capidaemon.json and pkg/exe/toolbelt/capitoolbelt
 Start with the test that executes [script nodes](glossary.md#script-node) directly, without involving RabbitMQ or Capillaries [Daemon](glossary.md#daemon):
 
 ```
-cd test/code/lookup
+cd test/code/lookup/quicktest
 ./test_exec_nodes.sh
 ```
 
@@ -135,12 +139,20 @@ go run capidaemon.go
 
 Check out its stdout- make sure it successfully connected to RabbitMQ.
 
-In another command line session, run the test:
+In another command line session, run the test in a single run:
 
 ```
-cd test/code/lookup
+cd test/code/lookup/quicktest
+./test_one_run.sh
+```
+
+or, for two-runs scenario:
+
+```
+cd test/code/lookup/quicktest
 ./test_two_runs.sh
 ```
+
 
 ## Next steps
 
