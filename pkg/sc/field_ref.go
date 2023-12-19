@@ -180,17 +180,17 @@ func evalExpressionWithFieldRefsAndCheckType(exp ast.Expr, fieldRefs FieldRefs, 
 		}
 
 		result, err := eCtx.Eval(exp)
-		if err != nil {
-			if !(strings.Contains(err.Error(), "divide by zero") || // int, float
-				strings.Contains(err.Error(), "decimal division by 0")) { // decimal
-				return err
-			}
-			deltaInt += int64(1)
-			deltaFloat += float64(2.35)
-			deltaDecimal = deltaDecimal.Add(decimal.NewFromFloat(3.45))
-		} else {
+		if err == nil {
 			return CheckValueType(result, expectedType)
 		}
+
+		if !(strings.Contains(err.Error(), "divide by zero") || // int, float
+			strings.Contains(err.Error(), "decimal division by 0")) { // decimal
+			return err
+		}
+		deltaInt += int64(1)
+		deltaFloat += float64(2.35)
+		deltaDecimal = deltaDecimal.Add(decimal.NewFromFloat(3.45))
 	}
 
 	return fmt.Errorf("unexpectedly keep getting divide by zero error when evalExpressionWithFieldRefsAndCheckType")
