@@ -5,6 +5,15 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Validate script",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/toolbelt",
+            "program": "${workspaceFolder}/pkg/exe/toolbelt/capitoolbelt.go",
+            "args": ["validate_script","-script_file=/tmp/capi_cfg/proto_file_reader_creator_quicktest/script_csv.json"]
+        },
+        {
             "name": "Proto CSV",
             "type": "go",
             "request": "launch",
@@ -14,7 +23,7 @@
             "args": ["proto_file_reader_creator","-file_type=csv", "-csv_hdr_line_idx=0", "-csv_first_line_idx=1", "-file=../../../test/data/in/lookup_quicktest/olist_order_items_dataset.csv"]
         },
         {
-            "name": "Proto Parquet creator",
+            "name": "Proto Parquet",
             "type": "go",
             "request": "launch",
             "mode": "debug",

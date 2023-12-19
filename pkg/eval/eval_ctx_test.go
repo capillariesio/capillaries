@@ -151,6 +151,9 @@ func TestArithmetic(t *testing.T) {
 	assertEqual(t, "t1.fieldDecimal2 / t2.fieldInt == 0.5", true, varValuesMap)
 	assertEqual(t, "t1.fieldInt / t2.fieldDecimal2 == 0.5", true, varValuesMap)
 
+	// Parenthesis
+	assertEqual(t, "(t1.fieldInt + 1)/ t2.fieldDecimal2 == 1.0", true, varValuesMap)
+
 	// Div by zero
 	assertEvalError(t, "t1.fieldInt / 0", "runtime error: integer divide by zero", varValuesMap)
 	assertEqual(t, "t1.fieldFloat32 / 0", math.Inf(1), varValuesMap)
@@ -168,7 +171,6 @@ func TestArithmetic(t *testing.T) {
 		},
 	}
 	assertEqual(t, `t1.field1+t1.field2+"d"`, `aaac"ccd`, varValuesMap)
-
 }
 
 func TestCompare(t *testing.T) {
