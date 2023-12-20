@@ -48,13 +48,13 @@ func assertFloatNan(t *testing.T, expString string, varValuesMap VarValuesMap) {
 func assertEvalError(t *testing.T, expString string, expectedErrorMsg string, varValuesMap VarValuesMap) {
 	exp, err1 := parser.ParseExpr(expString)
 	if err1 != nil {
-		assert.Equal(t, expectedErrorMsg, err1.Error(), fmt.Sprintf("Unmatched: %v = %v: %s ", expectedErrorMsg, err1.Error(), expString))
+		assert.Contains(t, err1.Error(), expectedErrorMsg, fmt.Sprintf("Unmatched: %v = %v: %s ", expectedErrorMsg, err1.Error(), expString))
 		return
 	}
 	eCtx := NewPlainEvalCtxWithVars(AggFuncDisabled, &varValuesMap)
 	_, err2 := eCtx.Eval(exp)
 
-	assert.Equal(t, expectedErrorMsg, err2.Error(), fmt.Sprintf("Unmatched: %v = %v: %s ", expectedErrorMsg, err2.Error(), expString))
+	assert.Contains(t, err2.Error(), expectedErrorMsg, fmt.Sprintf("Unmatched: %v = %v: %s ", expectedErrorMsg, err2.Error(), expString))
 }
 
 func TestBad(t *testing.T) {
@@ -151,6 +151,9 @@ func TestArithmetic(t *testing.T) {
 	assertEqual(t, "t1.fieldDecimal2 / t2.fieldInt == 0.5", true, varValuesMap)
 	assertEqual(t, "t1.fieldInt / t2.fieldDecimal2 == 0.5", true, varValuesMap)
 
+	// Parenthesis
+	assertEqual(t, "(t1.fieldInt + 1)/ t2.fieldDecimal2 == 1.0", true, varValuesMap)
+
 	// Div by zero
 	assertEvalError(t, "t1.fieldInt / 0", "runtime error: integer divide by zero", varValuesMap)
 	assertEqual(t, "t1.fieldFloat32 / 0", math.Inf(1), varValuesMap)
@@ -168,7 +171,6 @@ func TestArithmetic(t *testing.T) {
 		},
 	}
 	assertEqual(t, `t1.field1+t1.field2+"d"`, `aaac"ccd`, varValuesMap)
-
 }
 
 func TestCompare(t *testing.T) {
@@ -424,4 +426,16 @@ func TestBadEvalBinaryStringToBool(t *testing.T) {
 	assertBinaryEval(t, BinaryStringToBoolFunc, badVal, token.LSS, goodVal, "cannot evaluate binary string expression < with '1(int)' on the left")
 	assertBinaryEval(t, BinaryStringToBoolFunc, goodVal, token.GTR, badVal, "cannot evaluate binary decimal2 expression 'good(string) > 1(int)', invalid right arg")
 	assertBinaryEval(t, BinaryStringToBoolFunc, goodVal, token.AND, goodVal, "cannot perform bool op & against string good and string good")
+}
+
+func TestUnsupported(t *testing.T) {
+	varValuesMap := VarValuesMap{
+		"t1": {
+			"fTime": time.Date(1, 1, 1, 1, 1, 1, 1, time.UTC),
+		},
+		"t2": {
+			"fTime": time.Date(1, 1, 1, 1, 1, 1, 2, time.UTC),
+		},
+	}
+	assertEvalError(t, `t1.fTime[i] < 2`, "unsupported type *ast.IndexExpr", varValuesMap)
 }

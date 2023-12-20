@@ -328,7 +328,7 @@ func (node *ScriptNodeDef) evalCreatorAndLookupExpressionsAndCheckType() error {
 		for i := 0; i < len(node.FileCreator.Columns); i++ {
 			colDef := &node.FileCreator.Columns[i]
 			if err := evalExpressionWithFieldRefsAndCheckType(colDef.ParsedExpression, node.FileCreator.UsedInTargetExpressionsFields, colDef.Type); err != nil {
-				errors = append(errors, fmt.Sprintf("cannot evaluate table creator target field %s expression [%s]: [%s]", colDef.Name, colDef.RawExpression, err.Error()))
+				errors = append(errors, fmt.Sprintf("cannot evaluate file creator target field %s expression [%s]: [%s]", colDef.Name, colDef.RawExpression, err.Error()))
 			}
 		}
 	}

@@ -435,7 +435,8 @@ func TestBadCreatorHaving(t *testing.T) {
 	err = newScript.Deserialize(
 		[]byte(strings.Replace(plainScriptJson, `"having": "w.total_value > 3"`, `"having": "w.total_value == true"`, 1)),
 		nil, nil, "", nil)
-	assert.Contains(t, err.Error(), "cannot evaluate file creator 'having' expression [w.total_value == true]: [cannot perform binary comp op, incompatible arg types '2.34(decimal.Decimal)' == 'true(bool)' ]")
+	assert.Contains(t, err.Error(), "cannot evaluate file creator 'having' expression [w.total_value == true]: [cannot perform binary comp op, incompatible arg types '0(decimal.Decimal)' == 'true(bool)' ]")
+
 }
 
 func TestTopLimit(t *testing.T) {
@@ -443,6 +444,8 @@ func TestTopLimit(t *testing.T) {
 
 	newScript := &ScriptDef{}
 	assert.Nil(t, newScript.Deserialize([]byte(plainScriptJson), nil, nil, "", nil))
+
+	assert.Equal(t, "w", newScript.ScriptNodes["file_totals"].GetTargetName())
 
 	// Tweak limit beyond allowed maximum
 

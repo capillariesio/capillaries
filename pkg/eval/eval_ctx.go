@@ -628,6 +628,7 @@ func (eCtx *EvalCtx) evalUnaryExp(exp *ast.UnaryExpr) (any, error) {
 	}
 }
 
+// When adding support for another expression here, make sure it's also handled in harvestFieldRefsFromParsedExpression()
 func (eCtx *EvalCtx) Eval(exp ast.Expr) (any, error) {
 	switch exp := exp.(type) {
 	case *ast.BinaryExpr:
@@ -729,7 +730,10 @@ func (eCtx *EvalCtx) Eval(exp ast.Expr) (any, error) {
 			return nil, fmt.Errorf("cannot evaluate selector expression %v, unknown type of X: %T", exp.X, exp.X)
 		}
 
+	case *ast.ParenExpr:
+		return eCtx.Eval(exp.X)
+
 	default:
-		return nil, fmt.Errorf("cannot evaluate generic expression %v of unknown type %T", exp, exp)
+		return nil, fmt.Errorf("cannot evaluate expression %v of unsupported type %T", exp, exp)
 	}
 }

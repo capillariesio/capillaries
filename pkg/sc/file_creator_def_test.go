@@ -63,7 +63,6 @@ func TestFileCreatorDefFailures(t *testing.T) {
 
 	re = regexp.MustCompile(`"order": "[^"]+"`)
 	assert.Contains(t, c.Deserialize([]byte(re.ReplaceAllString(nodeCfgCsvJson, `"order": "bad_field(asc)"`))).Error(), "cannot parse raw index definition(s) for top")
-
 }
 
 func TestCheckFileRecordHavingCondition(t *testing.T) {

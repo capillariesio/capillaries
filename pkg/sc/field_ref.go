@@ -140,45 +140,60 @@ func evalExpressionWithFieldRefsAndCheckType(exp ast.Expr, fieldRefs FieldRefs, 
 		// Nothing to evaluate
 		return nil
 	}
-	varValuesMap := eval.VarValuesMap{}
-	for i := 0; i < len(fieldRefs); i++ {
-		tName := fieldRefs[i].TableName
-		fName := fieldRefs[i].FieldName
-		fType := fieldRefs[i].FieldType
-		if _, ok := varValuesMap[tName]; !ok {
-			varValuesMap[tName] = map[string]any{}
+
+	deltaInt := int64(0)
+	deltaFloat := float64(0)
+	deltaDecimal := decimal.NewFromFloat(0)
+
+	for deltaInt < 5 {
+		varValuesMap := eval.VarValuesMap{}
+		for i := 0; i < len(fieldRefs); i++ {
+			tName := fieldRefs[i].TableName
+			fName := fieldRefs[i].FieldName
+			fType := fieldRefs[i].FieldType
+			if _, ok := varValuesMap[tName]; !ok {
+				varValuesMap[tName] = map[string]any{}
+			}
+			switch fType {
+			case FieldTypeInt:
+				varValuesMap[tName][fName] = int64(0) + deltaInt
+			case FieldTypeFloat:
+				varValuesMap[tName][fName] = float64(0.0) + deltaFloat
+			case FieldTypeBool:
+				varValuesMap[tName][fName] = false
+			case FieldTypeString:
+				varValuesMap[tName][fName] = "12345.67" // There may be a float() call out there
+			case FieldTypeDateTime:
+				varValuesMap[tName][fName] = time.Now()
+			case FieldTypeDecimal2:
+				varValuesMap[tName][fName] = decimal.NewFromFloat(0.0).Add(deltaDecimal)
+			default:
+				return fmt.Errorf("evalExpressionWithFieldRefsAndCheckType unsupported field type %s", fieldRefs[i].FieldType)
+
+			}
 		}
-		switch fType {
-		case FieldTypeInt:
-			varValuesMap[tName][fName] = int64(0)
-		case FieldTypeFloat:
-			varValuesMap[tName][fName] = float64(0.0)
-		case FieldTypeBool:
-			varValuesMap[tName][fName] = false
-		case FieldTypeString:
-			varValuesMap[tName][fName] = "12345.67" // There may be a float() call out there
-		case FieldTypeDateTime:
-			varValuesMap[tName][fName] = time.Now()
-		case FieldTypeDecimal2:
-			varValuesMap[tName][fName] = decimal.NewFromFloat(2.34)
-		default:
-			return fmt.Errorf("evalExpressionWithFieldRefsAndCheckType unsupported field type %s", fieldRefs[i].FieldType)
 
+		aggFuncEnabled, aggFuncType, aggFuncArgs := eval.DetectRootAggFunc(exp)
+		eCtx, err := eval.NewPlainEvalCtxWithVarsAndInitializedAgg(aggFuncEnabled, &varValuesMap, aggFuncType, aggFuncArgs)
+		if err != nil {
+			return err
 		}
+
+		result, err := eCtx.Eval(exp)
+		if err == nil {
+			return CheckValueType(result, expectedType)
+		}
+
+		if !(strings.Contains(err.Error(), "divide by zero") || // int, float
+			strings.Contains(err.Error(), "decimal division by 0")) { // decimal
+			return err
+		}
+		deltaInt += int64(1)
+		deltaFloat += float64(2.35)
+		deltaDecimal = deltaDecimal.Add(decimal.NewFromFloat(3.45))
 	}
 
-	aggFuncEnabled, aggFuncType, aggFuncArgs := eval.DetectRootAggFunc(exp)
-	eCtx, err := eval.NewPlainEvalCtxWithVarsAndInitializedAgg(aggFuncEnabled, &varValuesMap, aggFuncType, aggFuncArgs)
-	if err != nil {
-		return err
-	}
-
-	result, err := eCtx.Eval(exp)
-	if err != nil {
-		return err
-	}
-
-	return CheckValueType(result, expectedType)
+	return fmt.Errorf("unexpectedly keep getting divide by zero error when evalExpressionWithFieldRefsAndCheckType")
 }
 
 func (fieldRefs *FieldRefs) FindByFieldName(fieldName string) (*FieldRef, bool) {
@@ -295,6 +310,9 @@ func harvestFieldRefsFromParsedExpression(exp ast.Expr, usedFields *FieldRefs, p
 					assertedExp.Name, ReaderAlias, CreatorAlias)
 			}
 		}
+
+	case *ast.ParenExpr:
+		return harvestFieldRefsFromParsedExpression(assertedExp.X, usedFields, parserFlags)
 	}
 
 	return nil
