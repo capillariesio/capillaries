@@ -110,7 +110,7 @@ func BuildKey(fieldMap map[string]any, idxDef *IdxDef) (string, error) {
 			}
 			decVal, ok := absVal.(decimal.Decimal)
 			if !ok {
-				return "", fmt.Errorf("cannot convert value %v to type decimal2", fieldMap[comp.FieldName])
+				return "", fmt.Errorf("unexpectedly cannot convert value %v to type decimal2", fieldMap[comp.FieldName])
 			}
 			floatVal, _ := decVal.Float64()
 			stringValue = strings.ReplaceAll(fmt.Sprintf("%s%66s", sign, fmt.Sprintf("%.32f", floatVal)), " ", "0")

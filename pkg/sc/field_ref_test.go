@@ -1,6 +1,7 @@
 package sc
 
 import (
+	"go/parser"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,4 +20,35 @@ func TestAppendWithFilter(t *testing.T) {
 
 	targetRefs.Append(sourceRefs)
 	assert.Equal(t, 3, len(targetRefs))
+}
+
+func TestEvalFieldRefExpression(t *testing.T) {
+	fieldRefs := FieldRefs{
+		{
+			FieldType: FieldTypeInt,
+			TableName: "r",
+			FieldName: "fieldInt"},
+		{
+			FieldType: FieldTypeFloat,
+			TableName: "r",
+			FieldName: "fieldFloat"},
+		{
+			FieldType: FieldTypeDecimal2,
+			TableName: "r",
+			FieldName: "fieldDec"}}
+
+	exp, err := parser.ParseExpr(`r.fieldInt/r.fieldFloat`)
+	assert.Nil(t, err)
+	err = evalExpressionWithFieldRefsAndCheckType(exp, fieldRefs, FieldTypeFloat)
+	assert.Nil(t, err)
+
+	exp, err = parser.ParseExpr(`r.fieldFloat/r.fieldDec`)
+	assert.Nil(t, err)
+	err = evalExpressionWithFieldRefsAndCheckType(exp, fieldRefs, FieldTypeFloat)
+	assert.Nil(t, err)
+
+	exp, err = parser.ParseExpr(`r.fieldInt/r.fieldDec`)
+	assert.Nil(t, err)
+	err = evalExpressionWithFieldRefsAndCheckType(exp, fieldRefs, FieldTypeInt)
+	assert.Contains(t, err.Error(), "expected type int, but got decimal")
 }

@@ -445,6 +445,8 @@ func TestTopLimit(t *testing.T) {
 	newScript := &ScriptDef{}
 	assert.Nil(t, newScript.Deserialize([]byte(plainScriptJson), nil, nil, "", nil))
 
+	assert.Equal(t, "w", newScript.ScriptNodes["file_totals"].GetTargetName())
+
 	// Tweak limit beyond allowed maximum
 
 	err = newScript.Deserialize(
