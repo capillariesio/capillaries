@@ -288,11 +288,12 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 			return false
 		} else if leftPresent && !rightPresent {
 			return true
-		} else if !leftPresent && !rightPresent {
-			// Sort by node name
-			return mx.Nodes[i].NodeName < mx.Nodes[j].NodeName
+		} else if leftPresent && rightPresent && !leftTs.Equal(rightTs) {
+			return leftTs.Before(rightTs)
 		}
-		return leftTs.Before(rightTs)
+
+		// Sort by node name
+		return mx.Nodes[i].NodeName < mx.Nodes[j].NodeName
 	})
 
 	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, mx)

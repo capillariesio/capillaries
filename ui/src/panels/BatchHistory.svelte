@@ -14,6 +14,19 @@
 	let finishedBatches = '';
 	let svgSummary = '';
 	let executionDetailsVisible = false;
+	let elapsedAverage = 0;
+	let elapsedMedian = 0;
+
+	function findMedian(arr) {
+ 	   arr.sort((a, b) => a - b);
+	    const middleIndex = Math.floor(arr.length / 2);
+
+    	if (arr.length % 2 === 0) {
+        	return (arr[middleIndex - 1] + arr[middleIndex]) / 2;
+    	} else {
+        	return arr[middleIndex];
+	    }
+	}
 
 	function arrayToReadable(arr) {
 		var result = '';
@@ -113,9 +126,9 @@
 					let bottomY = (batchIdx + 1) * lineWidth;
 					svgSummary += `<path d="M${startX},${topY} L${endX},${topY} L${endX},${bottomY} L${startX},${bottomY} Z" fill="${nodeStatusToColor(
 						batchStatusMap[batchIdx]
-					)}" ><title>Batch ${batchIdx} ${Math.ceil(
+					)}" ><title>Batch ${batchIdx} ${(
 						(batchEndMap[batchIdx] - batchStartMap[batchIdx]) / 1000
-					).toString()}s</title></path>`;
+					).toFixed(1)}s</title></path>`;
 				}
 			}
 			svgSummary += '</svg>';
@@ -126,15 +139,24 @@
 			svgSummary += '</svg>';
 		}
 
+		var elapsed = []
+		var elapsedSum = 0;
 		for (let i = 0; i < batch_history.length; i++) {
 			let e = batch_history[i];
 			if (e.batch_idx in batchStartMap) {
 				if (e.batch_idx in batchEndMap) {
 					batch_history[i].elapsed = (batchEndMap[e.batch_idx] - batchStartMap[e.batch_idx]) / 1000;
+					elapsed.push(batch_history[i].elapsed);
+					elapsedSum += batch_history[i].elapsed;
 				} else {
 					batch_history[i].elapsed = (Date.now() - batchStartMap[e.batch_idx]) / 1000;
 				}
 			}
+		}
+
+		if (elapsed.length > 0) {
+			elapsedAverage = (elapsedSum / elapsed.length).toFixed(1);
+			elapsedMedian = findMedian(elapsed).toFixed(1);
 		}
 	});
 </script>
@@ -157,6 +179,14 @@
 						<tr>
 							<td>Elapsed:</td>
 							<td>{nodeElapsed}s</td>
+						</tr>
+						<tr>
+							<td>Elapsed average:</td>
+							<td>{elapsedAverage}s</td>
+						</tr>
+						<tr>
+							<td>Elapsed median:</td>
+							<td>{elapsedMedian}s</td>
 						</tr>
 						<tr>
 							<td>Batches not started:</td>
