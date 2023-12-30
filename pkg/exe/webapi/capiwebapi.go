@@ -172,25 +172,26 @@ type WebapiNodeRunMatrix struct {
 var NodeDescCache = map[string]string{}
 var NodeDescCacheLock = sync.RWMutex{}
 
-func (h *UrlHandler) getNodeDesc(cqlSession *gocql.Session, keyspace string, runId int16, nodeName string) (string, error) {
+func (h *UrlHandler) getNodeDesc(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16, nodeName string) (string, error) {
 
+	nodeKey := keyspace + ":" + nodeName
 	NodeDescCacheLock.RLock()
-	nodeDesc, ok := NodeDescCache[keyspace+nodeName]
+	nodeDesc, ok := NodeDescCache[nodeKey]
 	NodeDescCacheLock.RUnlock()
 	if ok {
 		return nodeDesc, nil
 	}
 
-	allRunsProps, err := api.GetRunProperties(h.L, cqlSession, keyspace, int16(runId))
+	// Static run props
+
+	runProps, err := getRunProps(logger, cqlSession, keyspace, runId)
 	if err != nil {
 		return "", err
 	}
 
-	if len(allRunsProps) != 1 {
-		return "", fmt.Errorf("invalid number of matching runs (%d), expected 1; this usually happens when webapi caller makes wrong assumptions about the process status", len(allRunsProps))
-	}
+	// Now we have script URI, load it
 
-	script, _, err := sc.NewScriptFromFiles(h.Env.CaPath, h.Env.PrivateKeys, allRunsProps[0].ScriptUri, allRunsProps[0].ScriptParamsUri, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
+	script, _, err := sc.NewScriptFromFiles(h.Env.CaPath, h.Env.PrivateKeys, runProps.ScriptUri, runProps.ScriptParamsUri, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
 	if err != nil {
 		return "", err
 	}
@@ -201,7 +202,12 @@ func (h *UrlHandler) getNodeDesc(cqlSession *gocql.Session, keyspace string, run
 	}
 
 	NodeDescCacheLock.RLock()
-	NodeDescCache[keyspace+nodeName] = nodeDef.Desc
+	if len(NodeDescCache) > 1000 {
+		for k := range NodeDescCache {
+			delete(NodeDescCache, k)
+		}
+	}
+	NodeDescCache[nodeKey] = nodeDef.Desc
 	NodeDescCacheLock.RUnlock()
 
 	return nodeDef.Desc, nil
@@ -264,7 +270,7 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 	mx.Nodes = make([]WebapiNodeRunMatrixRow, len(nodeRunStatusMap))
 	nodeCount := 0
 	for nodeName, runNodeStatusMap := range nodeRunStatusMap {
-		nodeDesc, err := h.getNodeDesc(cqlSession, keyspace, runLifespanMap[1].RunId, nodeName)
+		nodeDesc, err := h.getNodeDesc(h.L, cqlSession, keyspace, runLifespanMap[1].RunId, nodeName)
 		if err != nil {
 			WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot get node description: %s", err.Error()), http.StatusInternalServerError)
 			return
@@ -288,27 +294,57 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 			return false
 		} else if leftPresent && !rightPresent {
 			return true
-		} else if !leftPresent && !rightPresent {
-			// Sort by node name
-			return mx.Nodes[i].NodeName < mx.Nodes[j].NodeName
+		} else if leftPresent && rightPresent && !leftTs.Equal(rightTs) {
+			return leftTs.Before(rightTs)
 		}
-		return leftTs.Before(rightTs)
+
+		// Sort by node name
+		return mx.Nodes[i].NodeName < mx.Nodes[j].NodeName
 	})
 
 	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, mx)
 }
 
-func getRunPropsAndLifespans(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16) (*wfmodel.RunProperties, *wfmodel.RunLifespan, error) {
-	// Static run properties
-	// TODO: consider caching
+// Poor man's cache
+var RunPropsCache = map[string]*wfmodel.RunProperties{}
+var RunPropsCacheLock = sync.RWMutex{}
 
+func getRunProps(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16) (*wfmodel.RunProperties, error) {
+	runPropsCacheKey := keyspace + ":" + fmt.Sprintf("%d", runId)
+	RunPropsCacheLock.RLock()
+	oneRunProps, ok := RunPropsCache[runPropsCacheKey]
+	RunPropsCacheLock.RUnlock()
+
+	if ok {
+		return oneRunProps, nil
+	}
 	allRunsProps, err := api.GetRunProperties(logger, cqlSession, keyspace, int16(runId))
 	if err != nil {
-		return nil, nil, err
+		return nil, err
+	}
+	if len(allRunsProps) != 1 {
+		return nil, fmt.Errorf("invalid number of matching runs (%d), expected 1; this usually happens when webapi caller makes wrong assumptions about the process status", len(allRunsProps))
 	}
 
-	if len(allRunsProps) != 1 {
-		return nil, nil, fmt.Errorf("invalid number of matching runs (%d), expected 1; this usually happens when webapi caller makes wrong assumptions about the process status", len(allRunsProps))
+	RunPropsCacheLock.RLock()
+	if len(RunPropsCache) > 1000 {
+		for k := range RunPropsCache {
+			delete(RunPropsCache, k)
+		}
+	}
+	RunPropsCache[runPropsCacheKey] = allRunsProps[0]
+	RunPropsCacheLock.RUnlock()
+
+	return allRunsProps[0], nil
+}
+
+func getRunPropsAndLifespans(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16) (*wfmodel.RunProperties, *wfmodel.RunLifespan, error) {
+
+	// Static run props
+
+	runProps, err := getRunProps(logger, cqlSession, keyspace, runId)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	// Run status
@@ -321,7 +357,7 @@ func getRunPropsAndLifespans(logger *l.CapiLogger, cqlSession *gocql.Session, ke
 		return nil, nil, fmt.Errorf("invalid number of run life spans (%d), expected 1 ", len(runLifeSpans))
 	}
 
-	return allRunsProps[0], runLifeSpans[int16(runId)], nil
+	return runProps, runLifeSpans[int16(runId)], nil
 }
 
 type RunNodeBatchesInfo struct {
