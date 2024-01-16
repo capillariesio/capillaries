@@ -71,7 +71,7 @@ func (tcDef *TableCreatorDef) GetSingleUniqueIndexDef() (string, *IdxDef, error)
 	}
 	for idxName, idxDef := range tcDef.Indexes {
 		if idxDef.Uniqueness != IdxUnique {
-			return "", nil, fmt.Errorf("cannot process node configuration %s, idx %s nust be unique", tcDef.Name, idxName)
+			return "", nil, fmt.Errorf("cannot process node configuration %s, idx %s must be unique", tcDef.Name, idxName)
 		}
 		return idxName, idxDef, nil
 	}
