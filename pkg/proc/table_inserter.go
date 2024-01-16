@@ -125,7 +125,7 @@ func (instr *TableInserter) waitForWorkers(logger *l.CapiLogger, pCtx *ctx.Messa
 
 	logger.DebugCtx(pCtx, "started reading RecordsSent=%d from instr.ErrorsOut", instr.RecordsSent)
 
-	errors := make([]string, 0)
+	errorsFound := make([]string, 0)
 	if instr.RecordsSent > 0 {
 		errCount := 0
 		startTime := time.Now()
@@ -134,7 +134,7 @@ func (instr *TableInserter) waitForWorkers(logger *l.CapiLogger, pCtx *ctx.Messa
 		for i := 0; i < instr.RecordsSent; i++ {
 			err := <-instr.ErrorsOut
 			if err != nil {
-				errors = append(errors, err.Error())
+				errorsFound = append(errorsFound, err.Error())
 				errCount++
 			}
 
@@ -142,7 +142,7 @@ func (instr *TableInserter) waitForWorkers(logger *l.CapiLogger, pCtx *ctx.Messa
 			// If it falls below min rate, it does not make sense to continue
 			if i > 5 && inserterRate < float64(instr.MinInserterRate) {
 				logger.DebugCtx(pCtx, "slow db insertion rate triggered, will stop reading from instr.ErrorsOut")
-				errors = append(errors, fmt.Sprintf("table inserter detected slow db insertion rate %.0f records/s, wrote %d records out of %d", inserterRate, i, instr.RecordsSent))
+				errorsFound = append(errorsFound, fmt.Sprintf("table inserter detected slow db insertion rate %.0f records/s, wrote %d records out of %d", inserterRate, i, instr.RecordsSent))
 				errCount++
 				break
 			}
@@ -168,8 +168,8 @@ func (instr *TableInserter) waitForWorkers(logger *l.CapiLogger, pCtx *ctx.Messa
 	instr.WorkerWaitGroup.Wait()
 	logger.DebugCtx(pCtx, "writer workers are done")
 
-	if len(errors) > 0 {
-		return fmt.Errorf(strings.Join(errors, "; "))
+	if len(errorsFound) > 0 {
+		return fmt.Errorf(strings.Join(errorsFound, "; "))
 	}
 
 	return nil
@@ -351,30 +351,29 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, writ
 			logger.ErrorCtx(instr.PCtx, "duplicate rowid not written [%s], existing record [%v], retry count %d reached, giving up", pq.Query, existingDataRow, retryCount)
 			errorToReturn = fmt.Errorf("cannot write to data table, got rowid duplicate [%s]: %w", pq.Query, ErrDuplicateRowid)
 			break
-		} else {
-			if strings.Contains(err.Error(), "does not exist") {
-				// There is a chance this table is brand new and table schema was not propagated to all Cassandra nodes
-				if retryCount >= maxRetries-1 {
-					errorToReturn = fmt.Errorf("cannot write to data table %s after %d attempts, apparently, table schema still not propagated to all nodes: %s", instr.tableNameWithSuffix(instr.TableCreator.Name), retryCount+1, err.Error())
-					break
-				}
-				logger.WarnCtx(instr.PCtx, "will wait for table %s to be created, retry count %d, got %s", instr.tableNameWithSuffix(instr.TableCreator.Name), retryCount, err.Error())
-				// TODO: come up with a better waiting strategy (exp backoff, at least)
-				time.Sleep(time.Duration(instr.DoesNotExistPause) * time.Second)
-			} else if strings.Contains(err.Error(), "Operation timed out") {
-				// The cluster is overloaded, slow down
-				if retryCount >= maxRetries-1 {
-					errorToReturn = fmt.Errorf("cannot write to data table %s after %d attempts, still getting timeouts: %s", instr.tableNameWithSuffix(instr.TableCreator.Name), retryCount+1, err.Error())
-					break
-				}
-				logger.WarnCtx(instr.PCtx, "cluster overloaded (%s), will wait for %fms before writing to data table %s again, retry count %d", err.Error(), 10*curDataExpBackoffFactor, instr.tableNameWithSuffix(instr.TableCreator.Name), retryCount)
-				time.Sleep(time.Duration(instr.OperationTimedOutPause*curDataExpBackoffFactor) * time.Millisecond)
-				curDataExpBackoffFactor *= 2.0
-			} else {
-				// Some serious error happened, stop trying this rowid
-				errorToReturn = db.WrapDbErrorWithQuery("cannot write to data table", pq.Query, err)
+		}
+		if strings.Contains(err.Error(), "does not exist") {
+			// There is a chance this table is brand new and table schema was not propagated to all Cassandra nodes
+			if retryCount >= maxRetries-1 {
+				errorToReturn = fmt.Errorf("cannot write to data table %s after %d attempts, apparently, table schema still not propagated to all nodes: %s", instr.tableNameWithSuffix(instr.TableCreator.Name), retryCount+1, err.Error())
 				break
 			}
+			logger.WarnCtx(instr.PCtx, "will wait for table %s to be created, retry count %d, got %s", instr.tableNameWithSuffix(instr.TableCreator.Name), retryCount, err.Error())
+			// TODO: come up with a better waiting strategy (exp backoff, at least)
+			time.Sleep(time.Duration(instr.DoesNotExistPause) * time.Second)
+		} else if strings.Contains(err.Error(), "Operation timed out") {
+			// The cluster is overloaded, slow down
+			if retryCount >= maxRetries-1 {
+				errorToReturn = fmt.Errorf("cannot write to data table %s after %d attempts, still getting timeouts: %s", instr.tableNameWithSuffix(instr.TableCreator.Name), retryCount+1, err.Error())
+				break
+			}
+			logger.WarnCtx(instr.PCtx, "cluster overloaded (%s), will wait for %fms before writing to data table %s again, retry count %d", err.Error(), 10*curDataExpBackoffFactor, instr.tableNameWithSuffix(instr.TableCreator.Name), retryCount)
+			time.Sleep(time.Duration(instr.OperationTimedOutPause*curDataExpBackoffFactor) * time.Millisecond)
+			curDataExpBackoffFactor *= 2.0
+		} else {
+			// Some serious error happened, stop trying this rowid
+			errorToReturn = db.WrapDbErrorWithQuery("cannot write to data table", pq.Query, err)
+			break
 		}
 	} // data retry loop
 
@@ -469,6 +468,57 @@ func (instr *TableInserter) insertIdxRecordWithRowid(logger *l.CapiLogger, idxNa
 			err = instr.PCtx.CqlSession.Query(pq.Query, preparedIdxQueryParams...).Exec()
 		}
 
+		// TEST ONLY (comment out if idxUniqueness == sc.IdxUnique {...} else {...} above)
+		// var err error
+		// if idxRetryCount == 0 {
+		// 	instr.DoesNotExistPause = 0.01      // speed things up for testing
+		// 	instr.OperationTimedOutPause = 0.01 // speed things up for testing
+		// 	if CurrentTestScenario == TestIdxDoesNotExist {
+		// 		// log: will wait for idx table ... to be created, retry count 0, got does not exist
+		// 		// retry and succeed
+		// 		err = fmt.Errorf("does not exist")
+		// 	} else if CurrentTestScenario == TestIdxOperationTimedOut {
+		// 		// log: cluster overloaded (Operation timed out), will wait for ...ms before writing to idx table ... again, retry count 0
+		// 		// retry and succeed
+		// 		err = fmt.Errorf("Operation timed out")
+		// 	} else if CurrentTestScenario == TestIdxSerious {
+		// 		// UI: some serious error; cannot insert idx record
+		// 		// give up immediately and report failure
+		// 		err = fmt.Errorf("some serious error")
+		// 	} else if CurrentTestScenario == TestIdxNotAppliedSamePresentFirstRun {
+		// 		// UI: cannot write duplicate index key [INSERT INTO ...] and proper rowid with ... on retry 0
+		// 		// give up immediately and report failure
+		// 		isApplied = false
+		// 		existingIdxRow["key"] = idxKey
+		// 		existingIdxRow["rowid"] = curRowid
+		// 	} else if CurrentTestScenario == TestIdxNotAppliedSamePresentSecondRun {
+		// 		// log: duplicate idx record found ... on retry 1 when writing ..., assuming this retry was successful, proceeding as usual
+		// 		// consider it a success
+		// 		// Simulate first successful attempt:
+		// 		if idxUniqueness == sc.IdxUnique {
+		// 			isApplied, err = instr.PCtx.CqlSession.Query(pq.Query, preparedIdxQueryParams...).MapScanCAS(existingIdxRow)
+		// 		} else {
+		// 			err = instr.PCtx.CqlSession.Query(pq.Query, preparedIdxQueryParams...).Exec()
+		// 		}
+		// 		idxRetryCount = 1 // Pretend it is a second attempt, which makes the key/rowid coincidence legit
+		// 		isApplied = false
+		// 		existingIdxRow["key"] = idxKey
+		// 		existingIdxRow["rowid"] = curRowid
+		// 	} else if CurrentTestScenario == TestIdxNotAppliedDiffPresent {
+		// 		// UI: cannot write duplicate index key ... with ... on retry 0, existing record [...], rowid is different
+		// 		// give up immediately and report failure
+		// 		isApplied = false
+		// 		existingIdxRow["key"] = idxKey
+		// 		existingIdxRow["rowid"] = curRowid + 1
+		// 	}
+		// } else {
+		// 	if idxUniqueness == sc.IdxUnique {
+		// 		isApplied, err = instr.PCtx.CqlSession.Query(pq.Query, preparedIdxQueryParams...).MapScanCAS(existingIdxRow)
+		// 	} else {
+		// 		err = instr.PCtx.CqlSession.Query(pq.Query, preparedIdxQueryParams...).Exec()
+		// 	}
+		// }
+
 		if err == nil {
 			if !isApplied {
 				if existingIdxRow["key"] != idxKey || existingIdxRow["rowid"] != curRowid {
@@ -536,14 +586,13 @@ func (instr *TableInserter) insertDistinctIdxAndDataRecords(logger *l.CapiLogger
 				return nil
 			}
 
-			if errors.Is(errInsertData, ErrDuplicateRowid) {
-				// Delete inserted idx record before trying another rowid
-				errDelete := deleteIdxRecordByKey(pCtx, idxName, []string{writeItem.IndexKeyMap[idxName]})
-				if errDelete != nil {
-					return errDelete
-				}
-			} else {
+			if !errors.Is(errInsertData, ErrDuplicateRowid) {
 				return errInsertData
+			}
+			// Delete inserted idx record before trying another rowid
+			errDelete := deleteIdxRecordByKey(pCtx, idxName, []string{writeItem.IndexKeyMap[idxName]})
+			if errDelete != nil {
+				return errDelete
 			}
 		} else if errors.Is(errInsertIdx, ErrDuplicateKey) {
 			// ErrDuplicateKey is ok, this means we already have a distinct record, nothing to do here
@@ -589,8 +638,9 @@ func (instr *TableInserter) tableInserterWorker(logger *l.CapiLogger, pCtx *ctx.
 			idxName, _, err := instr.TableCreator.GetSingleUniqueIndexDef()
 			if err != nil {
 				errorToReport = fmt.Errorf("unsupported configuration error: %s", err.Error())
+			} else {
+				errorToReport = instr.insertDistinctIdxAndDataRecords(logger, pCtx, idxName, &writeItem, &pdq, &piq)
 			}
-			errorToReport = instr.insertDistinctIdxAndDataRecords(logger, pCtx, idxName, &writeItem, &pdq, &piq)
 		} else {
 			errorToReport = fmt.Errorf("unsupported instr.DataIdxSeqMode %d", instr.DataIdxSeqMode)
 		}
