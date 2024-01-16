@@ -71,7 +71,7 @@ func guessCsvType(strVal string) (sc.TableFieldType, string) {
 	}
 
 	if len(strVal) == 0 {
-		return sc.FieldTypeUnknown, ""
+		return sc.FieldTypeString, ""
 	}
 	return sc.FieldTypeString, "" // Capillaries does not accept format specifier for string fields
 }

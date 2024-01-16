@@ -17,6 +17,8 @@ import (
 	"github.com/capillariesio/capillaries/pkg/xfer"
 )
 
+const DistinctIdxName string = "idx_distinct"
+
 type TableRecord map[string]any
 type TableRecordPtr *map[string]any
 type TableRecordBatch []TableRecordPtr
@@ -221,7 +223,7 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 	if inserterBatchSize < node.TableReader.RowsetSize {
 		inserterBatchSize = node.TableReader.RowsetSize
 	}
-	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, inserterBatchSize)
+	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, inserterBatchSize, DataIdxSeqModeDataFirst)
 	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}
@@ -345,7 +347,7 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 	if inserterBatchSize < node.TableReader.RowsetSize {
 		inserterBatchSize = node.TableReader.RowsetSize
 	}
-	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, inserterBatchSize)
+	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, inserterBatchSize, DataIdxSeqModeDataFirst)
 	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}
@@ -395,6 +397,150 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 				}
 				bs.RowsWritten++
 			}
+		}
+
+		bs.RowsRead += rsIn.RowCount
+		if rsIn.RowCount < leftBatchSize {
+			break
+		}
+	} // for each source table batch
+
+	// Write leftovers regardless of tableRecordBatchCount == 0
+	if err := instr.waitForWorkers(logger, pCtx); err != nil {
+		return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+	}
+	reportWriteTableLeftovers(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
+
+	bs.Elapsed = time.Since(totalStartTime)
+	reportWriteTableComplete(logger, pCtx, bs.RowsRead, bs.RowsWritten, bs.Elapsed, len(node.TableCreator.Indexes), instr.NumWorkers)
+
+	return bs, nil
+}
+
+func RunCreateDistinctTableForBatch(envConfig *env.EnvConfig,
+	logger *l.CapiLogger,
+	pCtx *ctx.MessageProcessingContext,
+	readerNodeRunId int16,
+	startLeftToken int64,
+	endLeftToken int64) (BatchStats, error) {
+
+	logger.PushF("proc.RunCreateDistinctTableForBatch")
+	defer logger.PopF()
+
+	node := pCtx.CurrentScriptNode
+
+	batchStartTime := time.Now()
+	totalStartTime := time.Now()
+	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: node.TableReader.TableName + cql.RunIdSuffix(readerNodeRunId), Dst: node.TableCreator.Name + cql.RunIdSuffix(readerNodeRunId)}
+
+	if readerNodeRunId == 0 {
+		return bs, fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
+	}
+
+	if !node.HasTableReader() {
+		return bs, fmt.Errorf("node does not have table reader")
+	}
+	if !node.HasTableCreator() {
+		return bs, fmt.Errorf("node does not have table creator")
+	}
+
+	if node.TableCreator.RawHaving != "" {
+		return bs, fmt.Errorf("distinct_table node is not allowed to have Having condition")
+	}
+
+	if node.RerunPolicy == sc.NodeRerun {
+		return bs, fmt.Errorf("distinct_table node is not allowed to have rerun policy, no reruns possible")
+	}
+
+	if _, _, err := node.TableCreator.GetSingleUniqueIndexDef(); err != nil {
+		return bs, err
+	}
+
+	/*
+		// Create our own unique index with the name DistinctIdxName
+		idxComponents := make([]sc.IdxComponentDef, len(node.TableCreator.Fields))
+		componentCount := 0
+		for fName, fDef := range node.TableCreator.Fields {
+			idxComponents[componentCount] = sc.IdxComponentDef{
+				FieldName:       fName,
+				CaseSensitivity: sc.IdxCaseSensitive,
+				SortOrder:       sc.IdxSortAsc,
+				StringLen:       sc.DefaultStringComponentLen,
+				FieldType:       fDef.Type}
+			componentCount++
+		}
+
+		// Very important: TableCreator.Fields map is unordered, so order idx components
+		sort.Slice(idxComponents, func(i, j int) bool {
+			return idxComponents[i].FieldName < idxComponents[j].FieldName
+		})
+
+		node.TableCreator.Indexes = sc.IdxDefMap{
+			DistinctIdxName: &sc.IdxDef{
+				Uniqueness: sc.IdxUnique,
+				Components: idxComponents}}
+	*/
+
+	// Fields to read from source table
+	srcLeftFieldRefs := sc.FieldRefs{}
+	srcLeftFieldRefs.AppendWithFilter(node.TableCreator.UsedInTargetExpressionsFields, sc.ReaderAlias)
+
+	leftBatchSize := node.TableReader.RowsetSize
+	tableRecordBatchCount := 0
+	curStartLeftToken := startLeftToken
+
+	rsIn := NewRowsetFromFieldRefs(
+		sc.FieldRefs{sc.RowidFieldRef(node.TableReader.TableName)},
+		sc.FieldRefs{sc.RowidTokenFieldRef()},
+		srcLeftFieldRefs)
+
+	inserterBatchSize := DefaultInserterBatchSize
+	if inserterBatchSize < node.TableReader.RowsetSize {
+		inserterBatchSize = node.TableReader.RowsetSize
+	}
+	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, inserterBatchSize, DataIdxSeqModeDistinctIdxFirst)
+	if err := instr.startWorkers(logger, pCtx); err != nil {
+		return bs, err
+	}
+	defer instr.waitForWorkersAndCloseErrorsOut(logger, pCtx)
+
+	for {
+		lastRetrievedLeftToken, err := selectBatchFromTableByToken(logger,
+			pCtx,
+			rsIn,
+			node.TableReader.TableName,
+			readerNodeRunId,
+			leftBatchSize,
+			curStartLeftToken,
+			endLeftToken)
+		if err != nil {
+			return bs, err
+		}
+		curStartLeftToken = lastRetrievedLeftToken + 1
+
+		if rsIn.RowCount == 0 {
+			break
+		}
+
+		// Save rsIn
+		for outRowIdx := 0; outRowIdx < rsIn.RowCount; outRowIdx++ {
+			vars := eval.VarValuesMap{}
+			if err := rsIn.ExportToVars(outRowIdx, &vars); err != nil {
+				return bs, err
+			}
+
+			tableRecord, err := node.TableCreator.CalculateTableRecordFromSrcVars(false, vars)
+			if err != nil {
+				return bs, fmt.Errorf("cannot populate table record from [%v]: [%s]", vars, err.Error())
+			}
+
+			tableRecordBatchCount, batchStartTime, err = addRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, tableRecordBatchCount, batchStartTime, instr)
+			if err != nil {
+				return bs, err
+			}
+
+			// TODO: this is incorrect, find a way to return proper RowsWritten or abandon them for distinct node
+			bs.RowsWritten++
 		}
 
 		bs.RowsRead += rsIn.RowCount
@@ -721,7 +867,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 	if inserterBatchSize < node.TableReader.RowsetSize {
 		inserterBatchSize = node.TableReader.RowsetSize
 	}
-	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, inserterBatchSize)
+	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, inserterBatchSize, DataIdxSeqModeDataFirst)
 	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}

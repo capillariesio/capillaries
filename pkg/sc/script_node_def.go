@@ -53,6 +53,7 @@ const (
 	NodeTypeTableLookupTable    NodeType = "table_lookup_table"
 	NodeTypeTableFile           NodeType = "table_file"
 	NodeTypeTableCustomTfmTable NodeType = "table_custom_tfm_table"
+	NodeTypeDistinctTable       NodeType = "distinct_table"
 )
 
 func ValidateNodeType(nodeType NodeType) error {
@@ -60,6 +61,7 @@ func ValidateNodeType(nodeType NodeType) error {
 		nodeType == NodeTypeTableTable ||
 		nodeType == NodeTypeTableLookupTable ||
 		nodeType == NodeTypeTableFile ||
+		nodeType == NodeTypeDistinctTable ||
 		nodeType == NodeTypeTableCustomTfmTable {
 		return nil
 	}
@@ -131,6 +133,7 @@ func (node *ScriptNodeDef) HasTableReader() bool {
 	return node.Type == NodeTypeTableTable ||
 		node.Type == NodeTypeTableLookupTable ||
 		node.Type == NodeTypeTableFile ||
+		node.Type == NodeTypeDistinctTable ||
 		node.Type == NodeTypeTableCustomTfmTable
 }
 func (node *ScriptNodeDef) HasFileReader() bool {
@@ -148,6 +151,7 @@ func (node *ScriptNodeDef) HasCustomProcessor() bool {
 func (node *ScriptNodeDef) HasTableCreator() bool {
 	return node.Type == NodeTypeFileTable ||
 		node.Type == NodeTypeTableTable ||
+		node.Type == NodeTypeDistinctTable ||
 		node.Type == NodeTypeTableLookupTable ||
 		node.Type == NodeTypeTableCustomTfmTable
 }

@@ -77,7 +77,6 @@
 		responseError =
 			validateKeyspace(keyspace) +
 			validateUri(scriptUri) +
-			validateUri(paramsUri) +
 			validateStartNodes(startNodes);
 		if (responseError.length == 0) {
 			// For this ks, cache last used run parameters

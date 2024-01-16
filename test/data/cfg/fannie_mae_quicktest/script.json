@@ -1,0 +1,127 @@
+{
+	"nodes": {
+		"read_file": {
+			"type": "file_table",
+			"desc": "Read file CAS_2023-R03_G2_022023-102023.csv to table",
+			"start_policy": "manual",
+			"r": {
+				"urls": [
+					"/tmp/capi_in/fannie_mae_quicktest/CAS_2023-R03_G2_022023-102023.csv"
+				],
+				"csv": {
+					"hdr_line_idx": -1,
+					"separator": "|"
+				},
+				"columns": {
+					"loan_identifier": {
+						"col_type": "int",
+						"csv": {
+							"col_idx": 1,
+							"col_format": "%d"
+						}
+					}
+				}
+			},
+			"w": {
+				"name": "loan_ids",
+				"fields": {
+					"loan_id": {
+						"expression": "r.loan_identifier",
+						"type": "int"
+					}
+				}
+			}
+		},
+		"distinct_loan_ids": {
+			"type": "distinct_table",
+			"desc": "Select distinct loan ids",
+			"rerun_policy": "fail",
+			"r": {
+				"table": "loan_ids"
+			},
+			"w": {
+				"name": "distinct_loan_ids",
+				"fields": {
+					"loan_id": {
+						"expression": "r.loan_id",
+						"type": "int"
+					}
+				},
+                "indexes": {
+                    "idx_distinct_loan_id": "unique(loan_id)"
+                }
+			}
+		},
+		"write_file": {
+			"type": "table_file",
+			"desc": "Write from table to file fannie_mae_creator_quicktest/loan_ids.csv",
+			"r": {
+				"table": "distinct_loan_ids"
+			},
+			"w": {
+                "top": {
+                    "order": "loan_id(asc)"
+                },
+				"url_template": "/tmp/capi_out/fannie_mae_quicktest/distinct_loan_ids.csv",
+				"csv": {
+					"separator": ","
+				},
+				"columns": [
+					{
+						"expression": "r.loan_id",
+						"name": "loan_id",
+						"type": "int",
+						"csv": {
+							"format": "%d",
+							"header": "loan_id"
+						}
+					}
+				]
+			}
+		}
+	},
+	"dependency_policies": {
+		"current_active_first_stopped_nogo": {
+			"is_default": true,
+			"event_priority_order": "run_is_current(desc),node_start_ts(desc)",
+			"rules": [
+				{
+					"cmd": "go",
+					"expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchSuccess"
+				},
+				{
+					"cmd": "wait",
+					"expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchNone"
+				},
+				{
+					"cmd": "wait",
+					"expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchStart"
+				},
+				{
+					"cmd": "nogo",
+					"expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchFail"
+				},
+				{
+					"cmd": "go",
+					"expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchSuccess"
+				},
+				{
+					"cmd": "wait",
+					"expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchNone"
+				},
+				{
+					"cmd": "wait",
+					"expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchStart"
+				},
+				{
+					"cmd": "go",
+					"expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchSuccess"
+				},
+				{
+					"cmd": "nogo",
+					"expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchFail"
+				}
+			]
+		}
+	}
+}
