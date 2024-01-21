@@ -17,8 +17,6 @@ import (
 	"github.com/capillariesio/capillaries/pkg/xfer"
 )
 
-const DistinctIdxName string = "idx_distinct"
-
 type TableRecord map[string]any
 type TableRecordPtr *map[string]any
 type TableRecordBatch []TableRecordPtr
@@ -455,31 +453,6 @@ func RunCreateDistinctTableForBatch(envConfig *env.EnvConfig,
 	if _, _, err := node.TableCreator.GetSingleUniqueIndexDef(); err != nil {
 		return bs, err
 	}
-
-	/*
-		// Create our own unique index with the name DistinctIdxName
-		idxComponents := make([]sc.IdxComponentDef, len(node.TableCreator.Fields))
-		componentCount := 0
-		for fName, fDef := range node.TableCreator.Fields {
-			idxComponents[componentCount] = sc.IdxComponentDef{
-				FieldName:       fName,
-				CaseSensitivity: sc.IdxCaseSensitive,
-				SortOrder:       sc.IdxSortAsc,
-				StringLen:       sc.DefaultStringComponentLen,
-				FieldType:       fDef.Type}
-			componentCount++
-		}
-
-		// Very important: TableCreator.Fields map is unordered, so order idx components
-		sort.Slice(idxComponents, func(i, j int) bool {
-			return idxComponents[i].FieldName < idxComponents[j].FieldName
-		})
-
-		node.TableCreator.Indexes = sc.IdxDefMap{
-			DistinctIdxName: &sc.IdxDef{
-				Uniqueness: sc.IdxUnique,
-				Components: idxComponents}}
-	*/
 
 	// Fields to read from source table
 	srcLeftFieldRefs := sc.FieldRefs{}

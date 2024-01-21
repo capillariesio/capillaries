@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source ../common/util.sh
+source ../../common/util.sh
 
 keyspace="fannie_mae_quicktest"
 scriptFile=/tmp/capi_cfg/fannie_mae_quicktest/script.json

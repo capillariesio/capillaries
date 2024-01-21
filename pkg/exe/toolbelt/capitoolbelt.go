@@ -582,7 +582,7 @@ func protoFileReaderCreator() int {
 	filePath := cmd.String("file", "", "path to sample file")
 	fileType := cmd.String("file_type", "csv", "csv or parquet")
 	csvHeaderLine := cmd.Int("csv_hdr_line_idx", -1, "csv only: index of the header line")
-	csvFirstDataLine := cmd.Int("csv_first_line_idx", 0, "csv only: index of the first data line, nust be greater than csv_hdr_line_idx")
+	csvFirstDataLine := cmd.Int("csv_first_line_idx", 0, "csv only: index of the first data line, must be greater than csv_hdr_line_idx")
 	csvSeparator := cmd.String("csv_separator", ",", "csv only: field separator")
 	if err := cmd.Parse(os.Args[2:]); err != nil || *filePath == "" || (*fileType != "csv" && *fileType != "parquet") || *csvHeaderLine >= *csvFirstDataLine || *csvSeparator == "" {
 		usage(cmd)

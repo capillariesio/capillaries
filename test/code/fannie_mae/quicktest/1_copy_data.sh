@@ -23,9 +23,9 @@ else
 fi
 
 echo "Copying config files to "$cfgDir
-cp -r ../../data/cfg/fannie_mae_quicktest/* $cfgDir/
+cp -r ../../../data/cfg/fannie_mae_quicktest/* $cfgDir/
 echo "Copying in files to "$inDir
-cp -r ../../data/in/fannie_mae_quicktest/* $inDir/
+cp -r ../../../data/in/fannie_mae_quicktest/* $inDir/
 echo "Copying out files to "$outDir
 echo "Placeholder for fannie_mae_quicktest output files" > $outDir/readme.txt
-cp -r ../../data/out/fannie_mae_quicktest/* $outDir/
+cp -r ../../../data/out/fannie_mae_quicktest/* $outDir/

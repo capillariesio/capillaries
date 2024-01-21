@@ -1,0 +1,268 @@
+{
+	"nodes": {
+		"read_file": {
+			"type": "file_table",
+			"desc": "Read files to table",
+			"start_policy": "manual",
+			"r": {
+				"urls": [
+					"/tmp/capi_in/fannie_mae_bigtest/CAS_2023_R06_G1_000.parquet",
+					"/tmp/capi_in/fannie_mae_bigtest/CAS_2023_R06_G1_001.parquet",
+					"/tmp/capi_in/fannie_mae_bigtest/CAS_2023_R06_G1_002.parquet",
+					"/tmp/capi_in/fannie_mae_bigtest/CAS_2023_R06_G1_003.parquet",
+					"/tmp/capi_in/fannie_mae_bigtest/CAS_2023_R07_G2_000.parquet",
+					"/tmp/capi_in/fannie_mae_bigtest/CAS_2023_R07_G2_001.parquet",
+					"/tmp/capi_in/fannie_mae_bigtest/CAS_2023_R07_G2_002.parquet",
+					"/tmp/capi_in/fannie_mae_bigtest/CAS_2023_R07_G2_003.parquet",
+					"/tmp/capi_in/fannie_mae_bigtest/CAS_2023_R08_G1_000.parquet"
+				],
+				"columns": {
+					"col_loan_id": {
+						"col_type": "int",
+						"parquet": {
+							"col_name": "Loan Identifier"
+						}
+					},
+					"col_deal_name": {
+						"col_type": "string",
+						"parquet": {
+							"col_name": "Deal Name"
+						}
+					},
+					"col_origination_date": {
+						"col_type": "int",
+						"parquet": {
+							"col_name": "Origination Date"
+						}
+					},
+					"col_original_interest_rate": {
+						"col_type": "float",
+						"parquet": {
+							"col_name": "Original Interest Rate"
+						}
+					},
+					"col_debt_to_income": {
+						"col_type": "int",
+						"parquet": {
+							"col_name": "Debt-To-Income (DTI)"
+						}
+					},
+					"col_ltv": {
+						"col_type": "int",
+						"parquet": {
+							"col_name": "Original Loan to Value Ratio (LTV)"
+						}
+					},
+					"col_original_upb": {
+						"col_type": "decimal2",
+						"parquet": {
+							"col_name": "Original UPB"
+						}
+					},
+					"col_zip_code_short": {
+						"col_type": "string",
+						"parquet": {
+							"col_name": "Zip Code Short"
+						}
+					}
+				}
+			},
+			"w": {
+				"name": "loan_ids",
+				"fields": {
+					"loan_id": {
+						"expression": "r.col_loan_id",
+						"type": "int"
+					},
+					"origination_date": {
+						"expression": "r.col_origination_date",
+						"type": "int"
+					},
+					"deal_name": {
+						"expression": "r.col_deal_name",
+						"type": "string"
+					},
+					"original_interest_rate": {
+						"expression": "r.col_original_interest_rate",
+						"type": "float"
+					},
+					"original_income": {
+						"expression": "decimal2(r.col_original_upb / r.col_debt_to_income * 12)",
+						"type": "decimal2"
+					},
+					"original_value": {
+						"expression": "decimal2(r.col_original_upb / r.col_ltv * 100)",
+						"type": "decimal2"
+					},
+					"zip_code_short": {
+						"expression": "r.col_zip_code_short",
+						"type": "string"
+					}
+				}
+			}
+		},
+		"distinct_loan_ids": {
+			"type": "distinct_table",
+			"desc": "Select distinct loan ids",
+			"rerun_policy": "fail",
+			"r": {
+				"table": "loan_ids",
+				"expected_batches_total": 100
+			},
+			"w": {
+				"name": "distinct_loan_ids",
+				"fields": {
+					"loan_id": {
+						"expression": "r.loan_id",
+						"type": "int"
+					},
+					"origination_date": {
+						"expression": "r.origination_date",
+						"type": "int"
+					},
+					"deal_name": {
+						"expression": "r.deal_name",
+						"type": "string"
+					},
+					"original_interest_rate": {
+						"expression": "r.original_interest_rate",
+						"type": "float"
+					},
+					"original_income": {
+						"expression": "r.original_income",
+						"type": "decimal2"
+					},
+					"original_value": {
+						"expression": "r.original_value",
+						"type": "decimal2"
+					},
+					"zip_code_short": {
+						"expression": "r.zip_code_short",
+						"type": "string"
+					}
+				},
+				"indexes": {
+					"idx_distinct_loan_id": "unique(loan_id,origination_date,deal_name,original_interest_rate,original_income,original_value,zip_code_short)"
+				}
+			}
+		},
+		"write_file": {
+			"type": "table_file",
+			"desc": "Write from table to file loan_ids.parquet",
+			"r": {
+				"table": "distinct_loan_ids"
+			},
+			"w": {
+				"top": {
+					"order": "loan_id(asc)"
+				},
+				"url_template": "/tmp/capi_out/fannie_mae_bigtest/distinct_loan_ids.parquet",
+				"csv": {
+					"separator": ","
+				},
+				"columns": [
+					{
+						"parquet": {
+							"column_name": "loan_id"
+						},
+						"name": "loan_id",
+						"expression": "r.loan_id",
+						"type": "int"
+					},
+					{
+						"parquet": {
+							"column_name": "origination_date"
+						},
+						"name": "origination_date",
+						"expression": "r.origination_date",
+						"type": "int"
+					},
+					{
+						"parquet": {
+							"column_name": "deal_name"
+						},
+						"name": "deal_name",
+						"expression": "r.deal_name",
+						"type": "string"
+					},
+					{
+						"parquet": {
+							"column_name": "original_interest_rate"
+						},
+						"name": "original_interest_rate",
+						"expression": "r.original_interest_rate",
+						"type": "float"
+					},
+					{
+						"parquet": {
+							"column_name": "original_income"
+						},
+						"name": "original_income",
+						"expression": "r.original_income",
+						"type": "decimal2"
+					},
+					{
+						"parquet": {
+							"column_name": "original_value"
+						},
+						"name": "original_value",
+						"expression": "r.original_value",
+						"type": "decimal2"
+					},
+					{
+						"parquet": {
+							"column_name": "zip_code_short"
+						},
+						"name": "zip_code_short",
+						"expression": "r.zip_code_short",
+						"type": "string"
+					}
+				]
+			}
+		}
+	},
+	"dependency_policies": {
+		"current_active_first_stopped_nogo": {
+			"is_default": true,
+			"event_priority_order": "run_is_current(desc),node_start_ts(desc)",
+			"rules": [
+				{
+					"cmd": "go",
+					"expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchSuccess"
+				},
+				{
+					"cmd": "wait",
+					"expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchNone"
+				},
+				{
+					"cmd": "wait",
+					"expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchStart"
+				},
+				{
+					"cmd": "nogo",
+					"expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchFail"
+				},
+				{
+					"cmd": "go",
+					"expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchSuccess"
+				},
+				{
+					"cmd": "wait",
+					"expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchNone"
+				},
+				{
+					"cmd": "wait",
+					"expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchStart"
+				},
+				{
+					"cmd": "go",
+					"expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchSuccess"
+				},
+				{
+					"cmd": "nogo",
+					"expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchFail"
+				}
+			]
+		}
+	}
+}

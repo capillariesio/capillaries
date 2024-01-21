@@ -62,7 +62,7 @@ func newTableInserter(envConfig *env.EnvConfig, pCtx *ctx.MessageProcessingConte
 		PCtx:                   pCtx,
 		TableCreator:           tableCreator,
 		BatchSize:              batchSize,
-		ErrorsOut:              make(chan error, batchSize),
+		ErrorsOut:              make(chan error, batchSize*envConfig.Cassandra.WriterWorkers), // Important to be able to host max possible errors, otherwise deadlock
 		RowidRand:              rand.New(rand.NewSource(newSeed())),
 		NumWorkers:             envConfig.Cassandra.WriterWorkers,
 		MinInserterRate:        envConfig.Cassandra.MinInserterRate,
@@ -103,7 +103,9 @@ func (instr *TableInserter) startWorkers(logger *l.CapiLogger, pCtx *ctx.Message
 	logger.PushF("proc.startWorkers/TableInserter")
 	defer logger.PopF()
 
-	instr.RecordsIn = make(chan WriteChannelItem, instr.BatchSize)
+	// Size of RecordsIn is extremely important. In the worst (unlikely) case, it should be capable of holding instr.BatchSize * number_of_writers records.
+	// If we fail to provide that space, we may end up in a deadlock
+	instr.RecordsIn = make(chan WriteChannelItem, instr.BatchSize*instr.NumWorkers)
 	logger.DebugCtx(pCtx, "startWorkers created RecordsIn,now launching %d writers...", instr.NumWorkers)
 	instr.RecordsInOpen = true
 
@@ -320,11 +322,11 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, writ
 		// 	instr.DoesNotExistPause = 0.01      // speed things up for testing
 		// 	instr.OperationTimedOutPause = 0.01 // speed things up for testing
 		// 	if CurrentTestScenario == TestDataDoesNotExist {
-		// 		// log: will wait for table ... to be created, retry count 0, got does not exist
+		// 		// log: will wait for table ... to be created, table retry count 0, got does not exist
 		// 		// retry and succeed
 		// 		err = fmt.Errorf("does not exist")
 		// 	} else if CurrentTestScenario == TestDataOperationTimedOut {
-		// 		// log: cluster overloaded (Operation timed out), will wait for ...ms before writing to data table ... again, retry count 0
+		// 		// log: cluster overloaded (Operation timed out), will wait for ...ms before writing to data table ... again, table retry count 0
 		// 		// retry and succeed
 		// 		err = fmt.Errorf("Operation timed out")
 		// 	} else if CurrentTestScenario == TestDataSerious {
@@ -332,7 +334,7 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, writ
 		// 		// give up immediately and report failure
 		// 		err = fmt.Errorf("some serious error")
 		// 	} else if CurrentTestScenario == TestDataNotApplied {
-		// 		// log: duplicate rowid not written [INSERT INTO ...], existing record [...], retry count 0
+		// 		// log: duplicate rowid not written [INSERT INTO ...], existing record [...], table retry count 0
 		// 		 // retry with new rowid and succeed
 		// 		isApplied = false
 		// 	}
@@ -347,8 +349,8 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, writ
 				return nil
 			}
 
-			// This rowid is already in the db, time to panic
-			logger.ErrorCtx(instr.PCtx, "duplicate rowid not written [%s], existing record [%v], retry count %d reached, giving up", pq.Query, existingDataRow, retryCount)
+			// This rowid is already in the db, time to panic. But this is not the end of the world if we are working with distinct_table, so log a warning, not an error
+			logger.WarnCtx(instr.PCtx, "duplicate rowid not written [%s], existing record [%v], table retry count %d reached, giving up", pq.Query, existingDataRow, retryCount)
 			errorToReturn = fmt.Errorf("cannot write to data table, got rowid duplicate [%s]: %w", pq.Query, ErrDuplicateRowid)
 			break
 		}
@@ -358,7 +360,7 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, writ
 				errorToReturn = fmt.Errorf("cannot write to data table %s after %d attempts, apparently, table schema still not propagated to all nodes: %s", instr.tableNameWithSuffix(instr.TableCreator.Name), retryCount+1, err.Error())
 				break
 			}
-			logger.WarnCtx(instr.PCtx, "will wait for table %s to be created, retry count %d, got %s", instr.tableNameWithSuffix(instr.TableCreator.Name), retryCount, err.Error())
+			logger.WarnCtx(instr.PCtx, "will wait for table %s to be created, table retry count %d, got %s", instr.tableNameWithSuffix(instr.TableCreator.Name), retryCount, err.Error())
 			// TODO: come up with a better waiting strategy (exp backoff, at least)
 			time.Sleep(time.Duration(instr.DoesNotExistPause) * time.Second)
 		} else if strings.Contains(err.Error(), "Operation timed out") {
@@ -367,7 +369,7 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, writ
 				errorToReturn = fmt.Errorf("cannot write to data table %s after %d attempts, still getting timeouts: %s", instr.tableNameWithSuffix(instr.TableCreator.Name), retryCount+1, err.Error())
 				break
 			}
-			logger.WarnCtx(instr.PCtx, "cluster overloaded (%s), will wait for %fms before writing to data table %s again, retry count %d", err.Error(), 10*curDataExpBackoffFactor, instr.tableNameWithSuffix(instr.TableCreator.Name), retryCount)
+			logger.WarnCtx(instr.PCtx, "cluster overloaded (%s), will wait for %fms before writing to data table %s again, table retry count %d", err.Error(), 10*curDataExpBackoffFactor, instr.tableNameWithSuffix(instr.TableCreator.Name), retryCount)
 			time.Sleep(time.Duration(instr.OperationTimedOutPause*curDataExpBackoffFactor) * time.Millisecond)
 			curDataExpBackoffFactor *= 2.0
 		} else {
@@ -404,10 +406,10 @@ func (instr *TableInserter) insertDataRecord(logger *l.CapiLogger, writeItem *Wr
 			logger.ErrorCtx(instr.PCtx, errorToReturn.Error())
 			return curRowid, errorToReturn
 		}
-		logger.WarnCtx(instr.PCtx, "duplicate rowid not written [%s], retry count %d", pq.Query, retryCount)
+		logger.WarnCtx(instr.PCtx, "duplicate rowid not written [%s], rowid retry count %d", pq.Query, retryCount)
 	}
 
-	errorToReturn := fmt.Errorf("duplicate rowid not written [%s], giving up after %d retries", pq.Query, maxRetries)
+	errorToReturn := fmt.Errorf("duplicate rowid not written [%s], giving up after %d rowid retries", pq.Query, maxRetries)
 	logger.ErrorCtx(instr.PCtx, errorToReturn.Error())
 	return curRowid, errorToReturn
 }
@@ -474,11 +476,11 @@ func (instr *TableInserter) insertIdxRecordWithRowid(logger *l.CapiLogger, idxNa
 		// 	instr.DoesNotExistPause = 0.01      // speed things up for testing
 		// 	instr.OperationTimedOutPause = 0.01 // speed things up for testing
 		// 	if CurrentTestScenario == TestIdxDoesNotExist {
-		// 		// log: will wait for idx table ... to be created, retry count 0, got does not exist
+		// 		// log: will wait for idx table ... to be created, table retry count 0, got does not exist
 		// 		// retry and succeed
 		// 		err = fmt.Errorf("does not exist")
 		// 	} else if CurrentTestScenario == TestIdxOperationTimedOut {
-		// 		// log: cluster overloaded (Operation timed out), will wait for ...ms before writing to idx table ... again, retry count 0
+		// 		// log: cluster overloaded (Operation timed out), will wait for ...ms before writing to idx table ... again, table retry count 0
 		// 		// retry and succeed
 		// 		err = fmt.Errorf("Operation timed out")
 		// 	} else if CurrentTestScenario == TestIdxSerious {
@@ -544,7 +546,7 @@ func (instr *TableInserter) insertIdxRecordWithRowid(logger *l.CapiLogger, idxNa
 				errorToReturn = fmt.Errorf("cannot write to idx table %s after %d attempts, apparently, table schema still not propagated to all nodes: %s", instr.tableNameWithSuffix(idxName), retryCount+1, err.Error())
 				break
 			}
-			logger.WarnCtx(instr.PCtx, "will wait for idx table %s to be created, retry count %d, got %s", instr.tableNameWithSuffix(idxName), retryCount, err.Error())
+			logger.WarnCtx(instr.PCtx, "will wait for idx table %s to be created, table retry count %d, got %s", instr.tableNameWithSuffix(idxName), retryCount, err.Error())
 			// TODO: come up with a better waiting strategy (exp backoff, at least)
 			time.Sleep(time.Duration(instr.DoesNotExistPause) * time.Second)
 		} else if strings.Contains(err.Error(), "Operation timed out") {
@@ -553,7 +555,7 @@ func (instr *TableInserter) insertIdxRecordWithRowid(logger *l.CapiLogger, idxNa
 				errorToReturn = fmt.Errorf("cannot write to idx table %s after %d attempts, still getting timeout: %s", instr.tableNameWithSuffix(idxName), retryCount+1, err.Error())
 				break
 			}
-			logger.WarnCtx(instr.PCtx, "cluster overloaded (%s), will wait for %fms before writing to idx table %s again, retry count %d", err.Error(), 10*curIdxExpBackoffFactor, instr.tableNameWithSuffix(idxName), retryCount)
+			logger.WarnCtx(instr.PCtx, "cluster overloaded (%s), will wait for %fms before writing to idx table %s again, table retry count %d", err.Error(), 10*curIdxExpBackoffFactor, instr.tableNameWithSuffix(idxName), retryCount)
 			time.Sleep(time.Duration(instr.OperationTimedOutPause*curIdxExpBackoffFactor) * time.Millisecond)
 			curIdxExpBackoffFactor *= 2.0
 		} else {
@@ -590,12 +592,14 @@ func (instr *TableInserter) insertDistinctIdxAndDataRecords(logger *l.CapiLogger
 				return errInsertData
 			}
 			// Delete inserted idx record before trying another rowid
-			errDelete := deleteIdxRecordByKey(pCtx, idxName, []string{writeItem.IndexKeyMap[idxName]})
+			errDelete := deleteIdxRecordByKey(logger, pCtx, idxName, []string{writeItem.IndexKeyMap[idxName]})
 			if errDelete != nil {
 				return errDelete
 			}
+			logger.InfoCtx(pCtx, "cannot insert duplicate rowid on %d attempt: key %s, rowid %d", retryCount, writeItem.IndexKeyMap[idxName], curRowid)
 		} else if errors.Is(errInsertIdx, ErrDuplicateKey) {
 			// ErrDuplicateKey is ok, this means we already have a distinct record, nothing to do here
+			logger.DebugCtx(pCtx, "already have a distinct record, nothing to do here: key %s, rowid %d", writeItem.IndexKeyMap[idxName], curRowid)
 			return nil
 		} else {
 			// Some serious error
