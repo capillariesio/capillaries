@@ -860,7 +860,7 @@
 		},
 		"05_deal_summaries": {
 			"type": "table_lookup_table",
-			"desc": "For each deal, , calculate aggregates from calculated loan summaries",
+			"desc": "For each deal, calculate aggregates from calculated loan summaries",
 			"r": {
 				"table": "deal_names",
 				"expected_batches_total": "{expected_batches|number}"

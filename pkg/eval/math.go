@@ -3,6 +3,9 @@ package eval
 import (
 	"fmt"
 	"math"
+	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 func callLen(args []any) (any, error) {
@@ -25,6 +28,70 @@ func callIntIif(args []any) (any, error) {
 	arg2, ok2 := args[2].(int64)
 	if !ok0 || !ok1 || !ok2 {
 		return nil, fmt.Errorf("cannot evaluate int.Iif(), invalid args %v", args)
+	}
+	if arg0 {
+		return arg1, nil
+	}
+	return arg2, nil
+}
+
+func callFloatIif(args []any) (any, error) {
+	if err := checkArgs("iif", 3, len(args)); err != nil {
+		return nil, err
+	}
+	arg0, ok0 := args[0].(bool)
+	arg1, ok1 := args[1].(float64)
+	arg2, ok2 := args[2].(float64)
+	if !ok0 || !ok1 || !ok2 {
+		return nil, fmt.Errorf("cannot evaluate float.Iif(), invalid args %v", args)
+	}
+	if arg0 {
+		return arg1, nil
+	}
+	return arg2, nil
+}
+
+func callDecimal2Iif(args []any) (any, error) {
+	if err := checkArgs("iif", 3, len(args)); err != nil {
+		return nil, err
+	}
+	arg0, ok0 := args[0].(bool)
+	arg1, ok1 := args[1].(decimal.Decimal)
+	arg2, ok2 := args[2].(decimal.Decimal)
+	if !ok0 || !ok1 || !ok2 {
+		return nil, fmt.Errorf("cannot evaluate decimal2.Iif(), invalid args %v", args)
+	}
+	if arg0 {
+		return arg1, nil
+	}
+	return arg2, nil
+}
+
+func callStringIif(args []any) (any, error) {
+	if err := checkArgs("iif", 3, len(args)); err != nil {
+		return nil, err
+	}
+	arg0, ok0 := args[0].(bool)
+	arg1, ok1 := args[1].(string)
+	arg2, ok2 := args[2].(string)
+	if !ok0 || !ok1 || !ok2 {
+		return nil, fmt.Errorf("cannot evaluate string.Iif(), invalid args %v", args)
+	}
+	if arg0 {
+		return arg1, nil
+	}
+	return arg2, nil
+}
+
+func callTimeIif(args []any) (any, error) {
+	if err := checkArgs("iif", 3, len(args)); err != nil {
+		return nil, err
+	}
+	arg0, ok0 := args[0].(bool)
+	arg1, ok1 := args[1].(time.Time)
+	arg2, ok2 := args[2].(time.Time)
+	if !ok0 || !ok1 || !ok2 {
+		return nil, fmt.Errorf("cannot evaluate time.Iif(), invalid args %v", args)
 	}
 	if arg0 {
 		return arg1, nil
