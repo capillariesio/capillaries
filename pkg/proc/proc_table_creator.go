@@ -250,7 +250,11 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 
 			// Write batch if needed
 			if inResult {
-				if err = instr.add(tableRecord); err != nil {
+				indexKeyMap, err := instr.buildIndexKeys(tableRecord)
+				if err != nil {
+					return fmt.Errorf("cannot build index keys for %s: [%s]", node.TableCreator.Name, err.Error())
+				}
+				if err = instr.add(tableRecord, indexKeyMap); err != nil {
 					return fmt.Errorf("cannot add record to %s: [%s]", node.TableCreator.Name, err.Error())
 				}
 				rowsWritten++
@@ -389,7 +393,11 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 
 			// Write batch if needed
 			if inResult {
-				tableRecordBatchCount, batchStartTime, err = addRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, tableRecordBatchCount, batchStartTime, instr)
+				indexKeyMap, err := instr.buildIndexKeys(tableRecord)
+				if err != nil {
+					return bs, fmt.Errorf("cannot build index keys for %s: [%s]", node.TableCreator.Name, err.Error())
+				}
+				tableRecordBatchCount, batchStartTime, err = addRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, indexKeyMap, tableRecordBatchCount, batchStartTime, instr)
 				if err != nil {
 					return bs, err
 				}
@@ -446,11 +454,8 @@ func RunCreateDistinctTableForBatch(envConfig *env.EnvConfig,
 		return bs, fmt.Errorf("distinct_table node is not allowed to have Having condition")
 	}
 
-	if node.RerunPolicy == sc.NodeRerun {
-		return bs, fmt.Errorf("distinct_table node is not allowed to have rerun policy, no reruns possible")
-	}
-
-	if _, _, err := node.TableCreator.GetSingleUniqueIndexDef(); err != nil {
+	distinctIdxName, _, err := node.TableCreator.GetSingleUniqueIndexDef()
+	if err != nil {
 		return bs, err
 	}
 
@@ -478,6 +483,10 @@ func RunCreateDistinctTableForBatch(envConfig *env.EnvConfig,
 	defer instr.waitForWorkersAndCloseErrorsOut(logger, pCtx)
 
 	for {
+		// Poor man's cache that spans across rsIn retrieved, works well for low-cardinality datasets
+		usedDistinctKeysMap := map[string]struct{}{}
+		distinctCacheHits := 0
+
 		lastRetrievedLeftToken, err := selectBatchFromTableByToken(logger,
 			pCtx,
 			rsIn,
@@ -507,14 +516,30 @@ func RunCreateDistinctTableForBatch(envConfig *env.EnvConfig,
 				return bs, fmt.Errorf("cannot populate table record from [%v]: [%s]", vars, err.Error())
 			}
 
-			tableRecordBatchCount, batchStartTime, err = addRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, tableRecordBatchCount, batchStartTime, instr)
+			indexKeyMap, err := instr.buildIndexKeys(tableRecord)
 			if err != nil {
-				return bs, err
+				return bs, fmt.Errorf("cannot build index keys for %s: [%s]", node.TableCreator.Name, err.Error())
 			}
 
-			// TODO: this is incorrect, find a way to return proper RowsWritten or abandon them for distinct node
-			bs.RowsWritten++
+			uniqueDistinctKey := indexKeyMap[distinctIdxName]
+
+			// Poor man's cache
+			if _, ok := usedDistinctKeysMap[uniqueDistinctKey]; !ok {
+				usedDistinctKeysMap[uniqueDistinctKey] = struct{}{}
+				tableRecordBatchCount, batchStartTime, err = addRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, indexKeyMap, tableRecordBatchCount, batchStartTime, instr)
+				if err != nil {
+					return bs, err
+				}
+
+				// TODO: this is incorrect, find a way to return proper RowsWritten or abandon them for distinct node altogether
+				bs.RowsWritten++
+			} else {
+				distinctCacheHits++
+				logger.DebugCtx(pCtx, "skipped writing unique key %s to %s, already written", uniqueDistinctKey, node.TableCreator.Name)
+			}
 		}
+
+		logger.DebugCtx(pCtx, "distinct cache hits %d/%d=%d percent %s", distinctCacheHits, rsIn.RowCount, distinctCacheHits*100/rsIn.RowCount, node.TableCreator.Name)
 
 		bs.RowsRead += rsIn.RowCount
 		if rsIn.RowCount < leftBatchSize {
@@ -740,8 +765,8 @@ func produceNonGroupedTableRecordForCheldlessLeft(node *sc.ScriptNodeDef, rsLeft
 	return tableRecord, nil
 }
 
-func addRecordAndSaveBatchIfNeeded(pCtx *ctx.MessageProcessingContext, logger *l.CapiLogger, node *sc.ScriptNodeDef, tableRecord map[string]any, tableRecordBatchCount int, batchStartTime time.Time, instr *TableInserter) (int, time.Time, error) {
-	if err := instr.add(tableRecord); err != nil {
+func addRecordAndSaveBatchIfNeeded(pCtx *ctx.MessageProcessingContext, logger *l.CapiLogger, node *sc.ScriptNodeDef, tableRecord map[string]any, indexKeyMap map[string]string, tableRecordBatchCount int, batchStartTime time.Time, instr *TableInserter) (int, time.Time, error) {
+	if err := instr.add(tableRecord, indexKeyMap); err != nil {
 		return tableRecordBatchCount, batchStartTime, fmt.Errorf("cannot add record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
 	}
 	tableRecordBatchCount++
@@ -764,7 +789,11 @@ func checkHavingAddRecordAndSaveBatchIfNeeded(pCtx *ctx.MessageProcessingContext
 
 	// Write batch if needed
 	if inResult {
-		tableRecordBatchCount, batchStartTime, err = addRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, tableRecordBatchCount, batchStartTime, instr)
+		indexKeyMap, err := instr.buildIndexKeys(tableRecord)
+		if err != nil {
+			return tableRecordBatchCount, batchStartTime, 0, fmt.Errorf("cannot build index keys for %s: [%s]", node.TableCreator.Name, err.Error())
+		}
+		tableRecordBatchCount, batchStartTime, err = addRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, indexKeyMap, tableRecordBatchCount, batchStartTime, instr)
 		if err != nil {
 			return tableRecordBatchCount, batchStartTime, 0, err
 		}

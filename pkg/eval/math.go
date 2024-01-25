@@ -16,6 +16,22 @@ func callLen(args []any) (any, error) {
 	return len(argString), nil
 }
 
+func callIntIif(args []any) (any, error) {
+	if err := checkArgs("iif", 3, len(args)); err != nil {
+		return nil, err
+	}
+	arg0, ok0 := args[0].(bool)
+	arg1, ok1 := args[1].(int64)
+	arg2, ok2 := args[2].(int64)
+	if !ok0 || !ok1 || !ok2 {
+		return nil, fmt.Errorf("cannot evaluate int.Iif(), invalid args %v", args)
+	}
+	if arg0 {
+		return arg1, nil
+	}
+	return arg2, nil
+}
+
 func callMathSqrt(args []any) (any, error) {
 	if err := checkArgs("math.Sqrt", 1, len(args)); err != nil {
 		return nil, err

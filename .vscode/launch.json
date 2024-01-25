@@ -9,9 +9,9 @@
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "cwd":"${workspaceFolder}/../capillaries-fanniemae/parquet",
-            "program": "${workspaceFolder}/test/code/fannie_mae/fannie_mae_to_parquet.go",
-            "args": ["CAS 2023 R06 G1", "../csv/CAS_2023_R06_G1"]
+            "cwd":"${workspaceFolder}/test/code/fannie_mae/bigtest",
+            "program": "${workspaceFolder}/test/code/fannie_mae/bigtest/fannie_mae_to_parquet.go",
+            "args": ["CAS 2023 R02 G1", "${workspaceFolder}/../capillaries-fanniemae/csv/CAS_2023_R02_G1", "${workspaceFolder}/../capillaries-fanniemae/parquet"]
         },
         {
             "name": "Validate script",

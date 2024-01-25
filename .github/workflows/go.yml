@@ -94,7 +94,7 @@ jobs:
 
     - name: pkg/eval test coverage threshold check
       env:
-          TESTCOVERAGE_THRESHOLD: 96.3
+          TESTCOVERAGE_THRESHOLD: 96.4
       run: |
             go test -v ./pkg/eval/... -coverprofile coverage.out -covermode count
             totalCoverage=`go tool cover -func=coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`
@@ -107,7 +107,7 @@ jobs:
 
     - name: pkg/sc test coverage threshold check
       env:
-          TESTCOVERAGE_THRESHOLD: 91.6
+          TESTCOVERAGE_THRESHOLD: 91.8
       run: |
             go test -v ./pkg/sc/... -coverprofile coverage.out -covermode count
             totalCoverage=`go tool cover -func=coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`

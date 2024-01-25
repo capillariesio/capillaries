@@ -1,0 +1,6 @@
+{
+    "expected_batches": 10,
+    "dir_cfg": "/tmp/capi_cfg/fannie_mae_quicktest",
+    "dir_in": "/tmp/capi_in/fannie_mae_quicktest",
+    "dir_out": "/tmp/capi_out/fannie_mae_quicktest"
+}

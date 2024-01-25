@@ -80,7 +80,7 @@ func readParquetRowToValuesMap(d map[string]any,
 }
 
 func readParquet(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, totalStartTime time.Time, filePath string, fileReadSeeker io.ReadSeeker) (BatchStats, error) {
-	bs := BatchStats{RowsRead: 0, RowsWritten: 0}
+	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: filePath}
 	node := pCtx.CurrentScriptNode
 
 	if fileReadSeeker == nil {
@@ -162,7 +162,11 @@ func readParquet(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.Messa
 
 		// Write batch if needed
 		if inResult {
-			if err = instr.add(tableRecord); err != nil {
+			indexKeyMap, err := instr.buildIndexKeys(tableRecord)
+			if err != nil {
+				return bs, fmt.Errorf("cannot build index keys for %s: [%s]", node.TableCreator.Name, err.Error())
+			}
+			if err = instr.add(tableRecord, indexKeyMap); err != nil {
 				return bs, fmt.Errorf("cannot add record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
 			}
 			tableRecordBatchCount++

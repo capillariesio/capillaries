@@ -474,6 +474,8 @@ func (eCtx *EvalCtx) EvalFunc(callExp *ast.CallExpr, funcName string, args []any
 		eCtx.Value, err = callInt(args)
 	case "decimal2":
 		eCtx.Value, err = callDecimal2(args)
+	case "int.iif":
+		eCtx.Value, err = callIntIif(args)
 	case "time.Parse":
 		eCtx.Value, err = callTimeParse(args)
 	case "time.Format":

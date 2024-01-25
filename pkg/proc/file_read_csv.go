@@ -14,7 +14,11 @@ import (
 )
 
 func addRecordAndWriteBatchIfNeeded(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, node *sc.ScriptNodeDef, instr *TableInserter, tableRecord map[string]any, tableRecordBatchCount int, batchStartTime time.Time) (int, time.Time, error) {
-	if err := instr.add(tableRecord); err != nil {
+	indexKeyMap, err := instr.buildIndexKeys(tableRecord)
+	if err != nil {
+		return tableRecordBatchCount, batchStartTime, fmt.Errorf("cannot build index keys for %s: [%s]", node.TableCreator.Name, err.Error())
+	}
+	if err := instr.add(tableRecord, indexKeyMap); err != nil {
 		return tableRecordBatchCount, batchStartTime, fmt.Errorf("cannot add record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
 	}
 	tableRecordBatchCount++
@@ -33,7 +37,7 @@ func addRecordAndWriteBatchIfNeeded(logger *l.CapiLogger, pCtx *ctx.MessageProce
 }
 
 func readCsv(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, totalStartTime time.Time, filePath string, fileReader io.Reader) (BatchStats, error) {
-	bs := BatchStats{RowsRead: 0, RowsWritten: 0}
+	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: filePath}
 	node := pCtx.CurrentScriptNode
 
 	r := csv.NewReader(fileReader)

@@ -7,7 +7,7 @@ outDir=/tmp/capi_out/fannie_mae_bigtest
 if [ ! -d $cfgDir ]; then
   mkdir -p $cfgDir
 else
-  rm -f $cfgDir/*
+  rm -fR $cfgDir/*
 fi
 
 if [ ! -d $inDir ]; then

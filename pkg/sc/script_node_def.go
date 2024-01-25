@@ -277,6 +277,16 @@ func (node *ScriptNodeDef) Deserialize(customProcessorDefFactory CustomProcessor
 		errors = append(errors, err.Error())
 	}
 
+	// Distinct table
+	if node.Type == NodeTypeDistinctTable {
+		if node.RerunPolicy != NodeFail {
+			errors = append(errors, "distinct_table node must have fail policy, no reruns possible")
+		}
+		if _, _, err := node.TableCreator.GetSingleUniqueIndexDef(); err != nil {
+			errors = append(errors, err.Error())
+		}
+	}
+
 	if len(errors) > 0 {
 		return fmt.Errorf(strings.Join(errors, "; "))
 	}
@@ -418,4 +428,19 @@ func (node *ScriptNodeDef) GetTokenIntervalsByNumberOfBatches() ([][]int64, erro
 	}
 
 	return nil, fmt.Errorf("cannot find implementation for intervals for node %s", node.Name)
+}
+
+func (node *ScriptNodeDef) isNodeUsesIdx(idxName string) bool {
+	if node.HasLookup() && node.Lookup.IndexName == idxName {
+		return true
+	}
+
+	distinctIdxCandidate, ok := node.TableCreator.Indexes[idxName]
+	if ok {
+		if node.Type == NodeTypeDistinctTable && distinctIdxCandidate.Uniqueness == IdxUnique {
+			return true
+		}
+	}
+
+	return false
 }

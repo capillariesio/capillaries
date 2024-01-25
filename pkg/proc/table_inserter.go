@@ -192,15 +192,20 @@ func (instr *TableInserter) waitForWorkersAndCloseErrorsOut(logger *l.CapiLogger
 	logger.DebugCtx(pCtx, "closed ErrorsOut")
 }
 
-func (instr *TableInserter) add(tableRecord TableRecord) error {
+func (instr *TableInserter) buildIndexKeys(tableRecord TableRecord) (map[string]string, error) {
 	indexKeyMap := map[string]string{}
 	for idxName, idxDef := range instr.TableCreator.Indexes {
 		var err error
 		indexKeyMap[idxName], err = sc.BuildKey(tableRecord, idxDef)
 		if err != nil {
-			return fmt.Errorf("cannot build key for idx %s, table record [%v]: [%s]", idxName, tableRecord, err.Error())
+			return nil, fmt.Errorf("cannot build key for idx %s, table record [%v]: [%s]", idxName, tableRecord, err.Error())
 		}
 	}
+
+	return indexKeyMap, nil
+}
+
+func (instr *TableInserter) add(tableRecord TableRecord, indexKeyMap map[string]string) error {
 
 	instr.RecordsSent++
 	instr.RecordsIn <- WriteChannelItem{TableRecord: &tableRecord, IndexKeyMap: indexKeyMap}
@@ -569,7 +574,7 @@ func (instr *TableInserter) insertIdxRecordWithRowid(logger *l.CapiLogger, idxNa
 	return errorToReturn
 }
 
-func (instr *TableInserter) insertDistinctIdxAndDataRecords(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, idxName string, writeItem *WriteChannelItem, pdq *PreparedQuery, piq *PreparedQuery) error {
+func (instr *TableInserter) insertDistinctIdxAndDataRecords(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, idxName string, writeItem *WriteChannelItem, pdq *PreparedQuery, piq *PreparedQuery) (int64, error) {
 	logger.PushF("proc.insertDistinctIdxAndDataRecords")
 	defer logger.PopF()
 
@@ -585,31 +590,31 @@ func (instr *TableInserter) insertDistinctIdxAndDataRecords(logger *l.CapiLogger
 		if errInsertIdx == nil {
 			errInsertData := instr.insertDataRecordWithRowid(logger, writeItem, curRowid, pdq)
 			if errInsertData == nil {
-				return nil
+				return curRowid, nil
 			}
 
 			if !errors.Is(errInsertData, ErrDuplicateRowid) {
-				return errInsertData
+				return curRowid, errInsertData
 			}
 			// Delete inserted idx record before trying another rowid
 			errDelete := deleteIdxRecordByKey(logger, pCtx, idxName, []string{writeItem.IndexKeyMap[idxName]})
 			if errDelete != nil {
-				return errDelete
+				return curRowid, errDelete
 			}
 			logger.InfoCtx(pCtx, "cannot insert duplicate rowid on %d attempt: key %s, rowid %d", retryCount, writeItem.IndexKeyMap[idxName], curRowid)
 		} else if errors.Is(errInsertIdx, ErrDuplicateKey) {
 			// ErrDuplicateKey is ok, this means we already have a distinct record, nothing to do here
 			logger.DebugCtx(pCtx, "already have a distinct record, nothing to do here: key %s, rowid %d", writeItem.IndexKeyMap[idxName], curRowid)
-			return nil
+			return curRowid, nil
 		} else {
 			// Some serious error
-			return errInsertIdx
+			return curRowid, errInsertIdx
 		}
 	} // retry loop
 
 	errorToReport := fmt.Errorf("cannot insert distinct idx/data records after %d attempts", maxRetries)
 	logger.ErrorCtx(pCtx, errorToReport.Error())
-	return errorToReport
+	return curRowid, errorToReport
 }
 
 func (instr *TableInserter) tableInserterWorker(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) {
@@ -639,11 +644,24 @@ func (instr *TableInserter) tableInserterWorker(logger *l.CapiLogger, pCtx *ctx.
 			}
 		} else if instr.DataIdxSeqMode == DataIdxSeqModeDistinctIdxFirst {
 			// Assuming there is only one index def here, and it's unique
-			idxName, _, err := instr.TableCreator.GetSingleUniqueIndexDef()
+			distinctIdxName, _, err := instr.TableCreator.GetSingleUniqueIndexDef()
 			if err != nil {
 				errorToReport = fmt.Errorf("unsupported configuration error: %s", err.Error())
 			} else {
-				errorToReport = instr.insertDistinctIdxAndDataRecords(logger, pCtx, idxName, &writeItem, &pdq, &piq)
+				var newRowid int64
+				newRowid, errorToReport = instr.insertDistinctIdxAndDataRecords(logger, pCtx, distinctIdxName, &writeItem, &pdq, &piq)
+				if errorToReport == nil {
+					// Create records for other indexes if any (they all must be non-unique)
+					for idxName, idxDef := range instr.TableCreator.Indexes {
+						if idxName == distinctIdxName {
+							continue
+						}
+						if err := instr.insertIdxRecordWithRowid(logger, idxName, idxDef.Uniqueness, writeItem.IndexKeyMap[idxName], newRowid, &piq); err != nil {
+							errorToReport = fmt.Errorf("cannot insert idx record: %s", err.Error())
+							break
+						}
+					} // idx loop
+				}
 			}
 		} else {
 			errorToReport = fmt.Errorf("unsupported instr.DataIdxSeqMode %d", instr.DataIdxSeqMode)

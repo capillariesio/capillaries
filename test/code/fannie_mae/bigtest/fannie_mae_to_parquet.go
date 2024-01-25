@@ -167,7 +167,14 @@ func getColIdxMap(filePath string) (map[string]int, error) {
 	return m, nil
 }
 
-func fannieMaeCsvToParquet(dealName string, files []string, colIdxMap map[string]int) error {
+func printFileStatus(newElCounter int, newElCounterIncludingIrrelevant int, curFileName string) {
+	if newElCounterIncludingIrrelevant > 0 {
+		fmt.Printf("%d / %d (%.0f%%) %s\n", newElCounter, newElCounterIncludingIrrelevant, float64(newElCounter)*100/float64(newElCounterIncludingIrrelevant), curFileName)
+	} else {
+		fmt.Printf("0 / 0 (100%%) %s\n", curFileName)
+	}
+}
+func fannieMaeCsvToParquet(dealName string, files []string, colIdxMap map[string]int, outDir string) error {
 	colTypeMap := map[string]sc.TableFieldType{
 		"Reference Pool ID":                            sc.FieldTypeInt,
 		"Loan Identifier":                              sc.FieldTypeInt,
@@ -297,10 +304,30 @@ func fannieMaeCsvToParquet(dealName string, files []string, colIdxMap map[string
 		"Loan Holdback Effective Date":                            struct{}{},
 		"Next Interest Rate Adjustment Date":                      struct{}{},
 		"Next Payment Change Date":                                struct{}{}}
+
+	colSupportedMap := map[string]struct{}{
+		"Loan Identifier":                    struct{}{},
+		"Deal Name":                          struct{}{},
+		"Origination Date":                   struct{}{},
+		"Original UPB":                       struct{}{},
+		"UPB at Issuance":                    struct{}{},
+		"Original Loan Term":                 struct{}{},
+		"Monthly Reporting Period":           struct{}{},
+		"Current Actual UPB":                 struct{}{},
+		"Remaining Months to Legal Maturity": struct{}{},
+		"Remaining Months To Maturity":       struct{}{},
+		"Zero Balance Effective Date":        struct{}{},
+		"Scheduled Principal Current":        struct{}{},
+		"Original Interest Rate":             struct{}{},
+		"Seller Name":                        struct{}{},
+		"Servicer Name":                      struct{}{},
+	}
+
 	var fParquet *os.File
-	var curFilePath string
+	var curFileName string
 	fileCounter := 0
 	var newElCounter int
+	var newElCounterIncludingIrrelevant int
 	var w *storage.ParquetWriter
 
 	for _, srcFilePath := range files {
@@ -325,14 +352,15 @@ func fannieMaeCsvToParquet(dealName string, files []string, colIdxMap map[string
 			}
 
 			if fParquet == nil {
-				curFilePath = fmt.Sprintf("%s_%03d.parquet", strings.ReplaceAll(dealName, " ", "_"), fileCounter)
-				fParquet, err = os.Create(curFilePath)
+				curFileName = fmt.Sprintf("%s_%03d.parquet", strings.ReplaceAll(dealName, " ", "_"), fileCounter)
+				fParquet, err = os.Create(path.Join(outDir, curFileName))
 				if err != nil {
-					return fmt.Errorf("cannot create file '%s': %s", curFilePath, err.Error())
+					return fmt.Errorf("cannot create file '%s': %s", curFileName, err.Error())
 				}
 
 				fileCounter++
 				newElCounter = 0
+				newElCounterIncludingIrrelevant = 0
 
 				w, err = storage.NewParquetWriter(fParquet, sc.ParquetCodecGzip)
 				if err != nil {
@@ -340,8 +368,10 @@ func fannieMaeCsvToParquet(dealName string, files []string, colIdxMap map[string
 				}
 
 				for colName, colType := range colTypeMap {
-					if err := w.AddColumn(colName, colType); err != nil {
-						return err
+					if _, isSupported := colSupportedMap[colName]; isSupported {
+						if err := w.AddColumn(colName, colType); err != nil {
+							return err
+						}
 					}
 				}
 			}
@@ -352,6 +382,10 @@ func fannieMaeCsvToParquet(dealName string, files []string, colIdxMap map[string
 				colIdx := colIdxMap[colName]
 				if colIdx >= len(line) {
 					// Whatever, a column is missing, it happens here
+					continue
+				}
+				if _, isSupported := colSupportedMap[colName]; !isSupported {
+					// We do not use this column, so do not write it to parquet
 					continue
 				}
 				strVal := line[colIdx]
@@ -414,20 +448,60 @@ func fannieMaeCsvToParquet(dealName string, files []string, colIdxMap map[string
 				}
 			}
 
-			if err := w.FileWriter.AddData(valMap); err != nil {
-				return fmt.Errorf("cannot write %v: %s", valMap, err.Error())
+			// Filter out payments beyond paid off date
+			zeroBalEffDateVolatile, ok := valMap["Zero Balance Effective Date"]
+			if !ok {
+				return fmt.Errorf("cannot find Zero Balance Effective Date")
+			}
+			zeroBalEffDate, ok := zeroBalEffDateVolatile.(int64)
+			if !ok {
+				return fmt.Errorf("cannot convert Zero Balance Effective Date: %v,%t", zeroBalEffDateVolatile, zeroBalEffDateVolatile)
+			}
+
+			schedPrincipalCurrVolatile, ok := valMap["Scheduled Principal Current"]
+			if !ok {
+				return fmt.Errorf("cannot find Scheduled Principal Current")
+			}
+			// It's written to parquet as int64
+			schedPrincipalCurr, ok := schedPrincipalCurrVolatile.(int64)
+			if !ok {
+				return fmt.Errorf("cannot convert Scheduled Principal Current: %v,%t", schedPrincipalCurrVolatile, schedPrincipalCurrVolatile)
+			}
+
+			newElCounterIncludingIrrelevant++
+
+			if zeroBalEffDate > 0 && schedPrincipalCurr == int64(0) {
+				continue
+			}
+
+			// Ids for quicktest data generation:
+			// 2023_R01_G1 134238766 134240147
+			// 2023_R02_G1 134597426 134597477
+			loanIdAny, _ := valMap["Loan Identifier"]
+			loanId, ok := loanIdAny.(int64)
+			if !ok {
+				return fmt.Errorf("aaa")
+			}
+			if loanId != 134238766 && loanId != 134240147 && loanId != 134597426 && loanId != 134597477 {
+				continue
 			}
 
 			newElCounter++
 
-			if newElCounter == 100000 {
+			if err := w.FileWriter.AddData(valMap); err != nil {
+				return fmt.Errorf("cannot write %v: %s", valMap, err.Error())
+			}
+
+			if newElCounter == 500000 {
 				if err := w.Close(); err != nil {
-					return fmt.Errorf("cannot close parquet writer '%s': %s", curFilePath, err.Error())
+					return fmt.Errorf("cannot close parquet writer '%s': %s", curFileName, err.Error())
 				}
 
 				if err := fParquet.Close(); err != nil {
-					return fmt.Errorf("cannot close file '%s': %s", curFilePath, err.Error())
+					return fmt.Errorf("cannot close file '%s': %s", curFileName, err.Error())
 				}
+
+				printFileStatus(newElCounter, newElCounterIncludingIrrelevant, curFileName)
 
 				fParquet = nil
 				w = nil
@@ -438,20 +512,22 @@ func fannieMaeCsvToParquet(dealName string, files []string, colIdxMap map[string
 
 	if fParquet != nil {
 		if err := w.Close(); err != nil {
-			return fmt.Errorf("cannot close parquet writer '%s': %s", curFilePath, err.Error())
+			return fmt.Errorf("cannot close parquet writer '%s': %s", curFileName, err.Error())
 		}
 
 		if err := fParquet.Close(); err != nil {
-			return fmt.Errorf("cannot close file '%s': %s", curFilePath, err.Error())
+			return fmt.Errorf("cannot close file '%s': %s", curFileName, err.Error())
 		}
+
+		printFileStatus(newElCounter, newElCounterIncludingIrrelevant, curFileName)
 	}
 
 	return nil
 }
 
 func main() {
-	if len(os.Args) < 3 {
-		fmt.Fprintln(os.Stderr, "required parameters: <deal name> <directory with CAS files>")
+	if len(os.Args) < 4 {
+		fmt.Fprintln(os.Stderr, "required parameters: <deal name> <directory with CAS files> <output directory>")
 		os.Exit(1)
 	}
 
@@ -473,7 +549,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = fannieMaeCsvToParquet(os.Args[1], files, colIdxMap)
+	err = fannieMaeCsvToParquet(os.Args[1], files, colIdxMap, os.Args[3])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)

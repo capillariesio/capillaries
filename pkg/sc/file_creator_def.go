@@ -69,7 +69,8 @@ type FileCreatorDef struct {
 	CreatorFileType               int                    `json:"-"`
 }
 
-const MaxFileCreatorTopLimit int = 500000
+// 500k is conservative
+const MaxFileCreatorTopLimit int = 5000000
 
 func (creatorDef *FileCreatorDef) getFieldRefs() *FieldRefs {
 	fieldRefs := make(FieldRefs, len(creatorDef.Columns))

@@ -1,8 +1,12 @@
 #!/bin/bash
 
-outDir=/tmp/capi_out/fannie_mae_quicktest
+export outDir=/tmp/capi_out/fannie_mae_quicktest
+export cmdDiff="go run ../../parquet/capiparquet.go"
 
-if ! diff -b $outDir/distinct_loan_ids.csv $outDir/distinct_loan_ids_baseline.csv; then
+if ! $cmdDiff diff $outDir/deal_seller_summaries_baseline.parquet $outDir/deal_seller_summaries.parquet ||
+  ! $cmdDiff diff $outDir/deal_servicer_summaries_baseline.parquet $outDir/deal_servicer_summaries.parquet ||
+  ! $cmdDiff diff $outDir/deal_summaries_baseline.parquet $outDir/deal_summaries.parquet ||
+  ! $cmdDiff diff $outDir/loan_summaries_calculated_baseline.parquet $outDir/loan_summaries_calculated.parquet; then
   echo -e "\033[0;31mdiff FAILED\e[0m"
   exit 1
 else

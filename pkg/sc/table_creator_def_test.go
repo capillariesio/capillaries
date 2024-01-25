@@ -210,13 +210,17 @@ func TestCreatorIndexes(t *testing.T) {
 	confReplacer := strings.NewReplacer(`unique`, `non_unique`)
 	assert.Nil(t, c.Deserialize([]byte(confReplacer.Replace(tableCreatorNodeJson))))
 	_, _, err = c.GetSingleUniqueIndexDef()
-	assert.Contains(t, err.Error(), "must be unique")
+	assert.Contains(t, err.Error(), "with no unique indexes, expected exactly one unique idx definition")
 
 	c = TableCreatorDef{}
 	confReplacer = strings.NewReplacer(`"idx_1": "unique(field_string(case_sensitive))"`, ``)
 	assert.Nil(t, c.Deserialize([]byte(confReplacer.Replace(tableCreatorNodeJson))))
 	_, _, err = c.GetSingleUniqueIndexDef()
 	assert.Contains(t, err.Error(), "expected exactly one unique idx definition")
+
+	c = TableCreatorDef{}
+	confReplacer = strings.NewReplacer(`unique(field_string(case_sensitive))`, `non_unique(field_float)`)
+	assert.Nil(t, c.Deserialize([]byte(confReplacer.Replace(tableCreatorNodeJson))))
 
 	c = TableCreatorDef{}
 	confReplacer = strings.NewReplacer(`unique(field_string(case_sensitive))`, `bla(field_string(case_sensitive))`)
