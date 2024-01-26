@@ -24,7 +24,9 @@ fi
 
 echo "Copying config files to "$cfgDir
 cp -r ../../../data/cfg/fannie_mae_quicktest/* $cfgDir/
+
 echo "Copying in files to "$inDir
 cp -r ../../../data/in/fannie_mae_quicktest/* $inDir/
+
 echo "Copying out files to "$outDir
 cp -r ../../../data/out/fannie_mae_quicktest/* $outDir/

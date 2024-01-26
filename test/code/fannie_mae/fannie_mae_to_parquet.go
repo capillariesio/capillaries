@@ -169,9 +169,9 @@ func getColIdxMap(filePath string) (map[string]int, error) {
 
 func printFileStatus(newElCounter int, newElCounterIncludingIrrelevant int, curFileName string) {
 	if newElCounterIncludingIrrelevant > 0 {
-		fmt.Printf("%d / %d (%.0f%%) %s\n", newElCounter, newElCounterIncludingIrrelevant, float64(newElCounter)*100/float64(newElCounterIncludingIrrelevant), curFileName)
+		fmt.Printf("%d\t/\t%d\t%.0f%%\t%s\n", newElCounter, newElCounterIncludingIrrelevant, float64(newElCounter)*100/float64(newElCounterIncludingIrrelevant), curFileName)
 	} else {
-		fmt.Printf("0 / 0 (100%%) %s\n", curFileName)
+		fmt.Printf("0\t/\t0\t100%%\t%s\n", curFileName)
 	}
 }
 func fannieMaeCsvToParquet(dealName string, files []string, colIdxMap map[string]int, outDir string) error {
@@ -320,7 +320,8 @@ func fannieMaeCsvToParquet(dealName string, files []string, colIdxMap map[string
 		"Scheduled Principal Current":        struct{}{},
 		"Original Interest Rate":             struct{}{},
 		"Seller Name":                        struct{}{},
-		"Servicer Name":                      struct{}{},
+		// "Servicer Name":                        struct{}{}, do not rely on it, it becomes empty the moment the mtge is paid off, and it can potentially change along the way (?)
+		"Borrower Credit Score at Origination": struct{}{},
 	}
 
 	var fParquet *os.File
@@ -477,14 +478,14 @@ func fannieMaeCsvToParquet(dealName string, files []string, colIdxMap map[string
 			// Ids for quicktest data generation:
 			// 2023_R01_G1 134238766 134240147
 			// 2023_R02_G1 134597426 134597477
-			loanIdAny, _ := valMap["Loan Identifier"]
-			loanId, ok := loanIdAny.(int64)
-			if !ok {
-				return fmt.Errorf("aaa")
-			}
-			if loanId != 134238766 && loanId != 134240147 && loanId != 134597426 && loanId != 134597477 {
-				continue
-			}
+			// loanIdAny, _ := valMap["Loan Identifier"]
+			// loanId, ok := loanIdAny.(int64)
+			// if !ok {
+			// 	return fmt.Errorf("aaa")
+			// }
+			// if loanId != 134238766 && loanId != 134240147 && loanId != 134597426 && loanId != 134597477 {
+			// 	continue
+			// }
 
 			newElCounter++
 

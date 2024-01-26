@@ -5,10 +5,7 @@
 			"desc": "Read source files to a table",
 			"start_policy": "manual",
 			"r": {
-				"urls": [
-					"{dir_in}/CAS_2023_R01_G1_000.parquet",
-					"{dir_in}/CAS_2023_R02_G1_000.parquet"
-				],
+				"urls": "{file_urls|stringlist}",
 				"columns": {
 					"col_loan_id": {
 						"col_type": "int",
@@ -28,12 +25,6 @@
 							"col_name": "Seller Name"
 						}
 					},
-					"col_servicer_name": {
-						"col_type": "string",
-						"parquet": {
-							"col_name": "Servicer Name"
-						}
-					},
 					"col_origination_date": {
 						"col_type": "int",
 						"parquet": {
@@ -44,6 +35,12 @@
 						"col_type": "float",
 						"parquet": {
 							"col_name": "Original Interest Rate"
+						}
+					},
+					"col_borrower_credit_score_at_origination": {
+						"col_type": "int",
+						"parquet": {
+							"col_name": "Borrower Credit Score at Origination"
 						}
 					},
 					"col_original_upb": {
@@ -116,13 +113,13 @@
 						"expression": "r.col_seller_name",
 						"type": "string"
 					},
-					"servicer_name": {
-						"expression": "r.col_servicer_name",
-						"type": "string"
-					},
 					"original_interest_rate": {
 						"expression": "r.col_original_interest_rate",
 						"type": "float"
+					},
+					"borrower_credit_score_at_origination": {
+						"expression": "r.col_borrower_credit_score_at_origination",
+						"type": "int"
 					},
 					"original_upb": {
 						"expression": "r.col_original_upb",
@@ -173,13 +170,13 @@
 						"expression": "r.seller_name",
 						"type": "string"
 					},
-					"servicer_name": {
-						"expression": "r.servicer_name",
-						"type": "string"
-					},
 					"original_interest_rate": {
 						"expression": "r.original_interest_rate",
 						"type": "float"
+					},
+					"borrower_credit_score_at_origination": {
+						"expression": "r.borrower_credit_score_at_origination",
+						"type": "int"
 					},
 					"original_upb": {
 						"expression": "r.original_upb",
@@ -231,13 +228,13 @@
 						"expression": "r.seller_name",
 						"type": "string"
 					},
-					"servicer_name": {
-						"expression": "r.servicer_name",
-						"type": "string"
-					},
 					"original_interest_rate": {
 						"expression": "r.original_interest_rate",
 						"type": "float"
+					},
+					"borrower_credit_score_at_origination": {
+						"expression": "r.borrower_credit_score_at_origination",
+						"type": "int"
 					},
 					"original_upb": {
 						"expression": "r.original_upb",
@@ -309,13 +306,13 @@
 						"expression": "r.seller_name",
 						"type": "string"
 					},
-					"servicer_name": {
-						"expression": "r.servicer_name",
-						"type": "string"
-					},
 					"original_interest_rate": {
 						"expression": "r.original_interest_rate",
 						"type": "float"
+					},
+					"borrower_credit_score_at_origination": {
+						"expression": "r.borrower_credit_score_at_origination",
+						"type": "int"
 					},
 					"original_upb": {
 						"expression": "r.original_upb",
@@ -352,8 +349,7 @@
 				},
 				"indexes": {
 					"idx_loan_summaries_calculated_deal_name": "non_unique(deal_name)",
-					"idx_loan_summaries_calculated_deal_name_seller_name": "non_unique(deal_name,seller_name)",
-					"idx_loan_summaries_calculated_deal_name_servicer_name": "non_unique(deal_name,servicer_name)"
+					"idx_loan_summaries_calculated_deal_name_seller_name": "non_unique(deal_name,seller_name)"
 				}
 			}
 		},
@@ -388,16 +384,16 @@
 						"type": "string"
 					},
 					{
-						"parquet": { "column_name": "servicer_name" },
-						"name": "servicer_name",
-						"expression": "r.servicer_name",
-						"type": "string"
-					},
-					{
 						"parquet": { "column_name": "original_interest_rate" },
 						"name": "original_interest_rate",
 						"expression": "r.original_interest_rate",
 						"type": "float"
+					},
+					{
+						"parquet": { "column_name": "borrower_credit_score_at_origination" },
+						"name": "borrower_credit_score_at_origination",
+						"expression": "r.borrower_credit_score_at_origination",
+						"type": "int"
 					},
 					{
 						"parquet": { "column_name": "origination_date" },
@@ -496,31 +492,6 @@
 				}
 			}
 		},
-		"03_deal_servicers": {
-			"type": "distinct_table",
-			"desc": "Select distinct servicers",
-			"rerun_policy": "fail",
-			"r": {
-				"table": "loan_ids",
-				"expected_batches_total": "{expected_batches|number}"
-			},
-			"w": {
-				"name": "deal_servicers",
-				"fields": {
-					"deal_name": {
-						"expression": "r.deal_name",
-						"type": "string"
-					},
-					"servicer_name": {
-						"expression": "r.servicer_name",
-						"type": "string"
-					}
-				},
-				"indexes": {
-					"idx_servicers_deal_name_servicer_name": "unique(deal_name,servicer_name)"
-				}
-			}
-		},
 		"05_deal_seller_summaries": {
 			"type": "table_lookup_table",
 			"desc": "For each deal/seller, calculate aggregates from calculated loan summaries",
@@ -557,6 +528,18 @@
 					"max_original_interest_rate": {
 						"expression": "max(l.original_interest_rate)",
 						"type": "float"
+					},
+					"avg_borrower_credit_score_at_origination": {
+						"expression": "avg(float(l.borrower_credit_score_at_origination))",
+						"type": "float"
+					},
+					"min_borrower_credit_score_at_origination": {
+						"expression": "min(l.borrower_credit_score_at_origination)",
+						"type": "int"
+					},
+					"max_borrower_credit_score_at_origination": {
+						"expression": "max(l.borrower_credit_score_at_origination)",
+						"type": "int"
 					},
 					"total_original_upb": {
 						"expression": "sum(l.original_upb)",
@@ -632,165 +615,22 @@
 						"type": "float"
 					},
 					{
-						"parquet": { "column_name": "total_original_upb" },
-						"name": "total_original_upb",
-						"expression": "r.total_original_upb",
-						"type": "decimal2"
-					},
-					{
-						"parquet": { "column_name": "total_original_upb_paid_off_ratio" },
-						"name": "total_original_upb_paid_off_ratio",
-						"expression": "float(r.total_paid_off_amount)/float(r.total_original_upb)",
+						"parquet": { "column_name": "avg_borrower_credit_score_at_origination" },
+						"name": "avg_borrower_credit_score_at_origination",
+						"expression": "r.avg_borrower_credit_score_at_origination",
 						"type": "float"
 					},
 					{
-						"parquet": { "column_name": "total_upb_at_issuance" },
-						"name": "total_upb_at_issuance",
-						"expression": "r.total_upb_at_issuance",
-						"type": "decimal2"
-					},
-					{
-						"parquet": { "column_name": "total_loans" },
-						"name": "total_loans",
-						"expression": "r.total_loans",
+						"parquet": { "column_name": "min_borrower_credit_score_at_origination" },
+						"name": "min_borrower_credit_score_at_origination",
+						"expression": "r.min_borrower_credit_score_at_origination",
 						"type": "int"
 					},
 					{
-						"parquet": { "column_name": "total_original_loan_term_30y" },
-						"name": "total_original_loan_term_30y",
-						"expression": "r.total_original_loan_term_30y",
+						"parquet": { "column_name": "max_borrower_credit_score_at_origination" },
+						"name": "max_borrower_credit_score_at_origination",
+						"expression": "r.max_borrower_credit_score_at_origination",
 						"type": "int"
-					},
-					{
-						"parquet": { "column_name": "avg_payments_behind_ratio" },
-						"name": "avg_payments_behind_ratio",
-						"expression": "r.avg_payments_behind_ratio",
-						"type": "float"
-					},
-					{
-						"parquet": { "column_name": "total_paid_off_amount" },
-						"name": "total_paid_off_amount",
-						"expression": "r.total_paid_off_amount",
-						"type": "decimal2"
-					},
-					{
-						"parquet": { "column_name": "avg_paid_off_ratio" },
-						"name": "avg_paid_off_ratio",
-						"expression": "r.avg_paid_off_ratio",
-						"type": "float"
-					}
-				]
-			}
-		},
-		"05_deal_servicer_summaries": {
-			"type": "table_lookup_table",
-			"desc": "For each deal/servicer, calculate aggregates from calculated loan summaries",
-			"rerun_policy": "fail",
-			"r": {
-				"table": "deal_servicers",
-				"expected_batches_total": "{expected_batches|number}"
-			},
-			"l": {
-				"index_name": "idx_loan_summaries_calculated_deal_name_servicer_name",
-				"join_on": "r.deal_name,r.servicer_name",
-				"group": true,
-				"join_type": "left"
-			},
-			"w": {
-				"name": "deal_servicer_summaries",
-				"fields": {
-					"deal_name": {
-						"expression": "r.deal_name",
-						"type": "string"
-					},
-					"servicer_name": {
-						"expression": "r.servicer_name",
-						"type": "string"
-					},
-					"avg_original_interest_rate": {
-						"expression": "avg(l.original_interest_rate)",
-						"type": "float"
-					},
-					"min_original_interest_rate": {
-						"expression": "min(l.original_interest_rate)",
-						"type": "float"
-					},
-					"max_original_interest_rate": {
-						"expression": "max(l.original_interest_rate)",
-						"type": "float"
-					},
-					"total_original_upb": {
-						"expression": "sum(l.original_upb)",
-						"type": "decimal2"
-					},
-					"total_upb_at_issuance": {
-						"expression": "sum(l.upb_at_issuance)",
-						"type": "decimal2"
-					},
-					"total_loans": {
-						"expression": "count()",
-						"type": "int"
-					},
-					"total_original_loan_term_30y": {
-						"expression": "sum(l.is_original_loan_term_30y)",
-						"type": "int"
-					},
-					"avg_payments_behind_ratio": {
-						"expression": "avg(l.payments_behind_ratio)",
-						"type": "float"
-					},
-					"total_paid_off_amount": {
-						"expression": "sum(l.paid_off_amount)",
-						"type": "decimal2"
-					},
-					"avg_paid_off_ratio": {
-						"expression": "avg(l.paid_off_ratio)",
-						"type": "float"
-					}
-				}
-			}
-		},
-		"06_write_file_deal_servicer_summaries": {
-			"type": "table_file",
-			"desc": "Write from table to file deal_servicer_summaries.parquet",
-			"r": {
-				"table": "deal_servicer_summaries"
-			},
-			"w": {
-				"top": {
-					"order": "deal_name(asc),servicer_name(asc)"
-				},
-				"url_template": "{dir_out}/deal_servicer_summaries.parquet",
-				"columns": [
-					{
-						"parquet": { "column_name": "deal_name" },
-						"name": "deal_name",
-						"expression": "r.deal_name",
-						"type": "string"
-					},
-					{
-						"parquet": { "column_name": "servicer_name" },
-						"name": "servicer_name",
-						"expression": "r.servicer_name",
-						"type": "string"
-					},
-					{
-						"parquet": { "column_name": "avg_original_interest_rate" },
-						"name": "avg_original_interest_rate",
-						"expression": "r.avg_original_interest_rate",
-						"type": "float"
-					},
-					{
-						"parquet": { "column_name": "min_original_interest_rate" },
-						"name": "min_original_interest_rate",
-						"expression": "r.min_original_interest_rate",
-						"type": "float"
-					},
-					{
-						"parquet": { "column_name": "max_original_interest_rate" },
-						"name": "max_original_interest_rate",
-						"expression": "r.max_original_interest_rate",
-						"type": "float"
 					},
 					{
 						"parquet": { "column_name": "total_original_upb" },
@@ -875,6 +715,18 @@
 						"expression": "max(l.original_interest_rate)",
 						"type": "float"
 					},
+					"avg_borrower_credit_score_at_origination": {
+						"expression": "avg(float(l.borrower_credit_score_at_origination))",
+						"type": "float"
+					},
+					"min_borrower_credit_score_at_origination": {
+						"expression": "min(l.borrower_credit_score_at_origination)",
+						"type": "int"
+					},
+					"max_borrower_credit_score_at_origination": {
+						"expression": "max(l.borrower_credit_score_at_origination)",
+						"type": "int"
+					},
 					"total_original_upb": {
 						"expression": "sum(l.original_upb)",
 						"type": "decimal2"
@@ -941,6 +793,24 @@
 						"name": "max_original_interest_rate",
 						"expression": "r.max_original_interest_rate",
 						"type": "float"
+					},
+					{
+						"parquet": { "column_name": "avg_borrower_credit_score_at_origination" },
+						"name": "avg_borrower_credit_score_at_origination",
+						"expression": "r.avg_borrower_credit_score_at_origination",
+						"type": "float"
+					},
+					{
+						"parquet": { "column_name": "min_borrower_credit_score_at_origination" },
+						"name": "min_borrower_credit_score_at_origination",
+						"expression": "r.min_borrower_credit_score_at_origination",
+						"type": "int"
+					},
+					{
+						"parquet": { "column_name": "max_borrower_credit_score_at_origination" },
+						"name": "max_borrower_credit_score_at_origination",
+						"expression": "r.max_borrower_credit_score_at_origination",
+						"type": "int"
 					},
 					{
 						"parquet": { "column_name": "total_original_upb" },

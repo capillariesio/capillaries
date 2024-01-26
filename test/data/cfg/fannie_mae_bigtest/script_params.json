@@ -1,6 +1,24 @@
 {
     "expected_batches": 100,
     "dir_cfg": "/tmp/capi_cfg/fannie_mae_bigtest",
-    "dir_in": "/tmp/capi_in/fannie_mae_bigtest",
+    "file_urls_all": [
+        "/tmp/capi_in/fannie_mae_bigtest/CAS_2023_R01_G1_000.parquet",
+        "/tmp/capi_in/fannie_mae_bigtest/CAS_2023_R01_G1_001.parquet",
+        "/tmp/capi_in/fannie_mae_bigtest/CAS_2023_R02_G1_000.parquet",
+        "/tmp/capi_in/fannie_mae_bigtest/CAS_2023_R02_G1_001.parquet",
+        "/tmp/capi_in/fannie_mae_bigtest/CAS_2023_R03_G2_000.parquet",
+        "/tmp/capi_in/fannie_mae_bigtest/CAS_2023_R03_G2_001.parquet",
+        "/tmp/capi_in/fannie_mae_bigtest/CAS_2023_R04_G1_000.parquet",
+        "/tmp/capi_in/fannie_mae_bigtest/CAS_2023_R04_G1_001.parquet",
+        "/tmp/capi_in/fannie_mae_bigtest/CAS_2023_R05_G1_000.parquet",
+        "/tmp/capi_in/fannie_mae_bigtest/CAS_2023_R06_G1_000.parquet",
+        "/tmp/capi_in/fannie_mae_bigtest/CAS_2023_R07_G2_000.parquet",
+        "/tmp/capi_in/fannie_mae_bigtest/CAS_2023_R08_G1_000.parquet"
+    ],
+    "file_urls": [
+        "/tmp/capi_in/fannie_mae_bigtest/CAS_2023_R01_G1_000.parquet",
+        "/tmp/capi_in/fannie_mae_bigtest/CAS_2023_R01_G1_001.parquet",
+        "/tmp/capi_in/fannie_mae_bigtest/CAS_2023_R08_G1_000.parquet"
+    ],
     "dir_out": "/tmp/capi_out/fannie_mae_bigtest"
 }
