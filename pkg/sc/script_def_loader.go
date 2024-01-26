@@ -23,7 +23,7 @@ func NewScriptFromFileBytes(caPath string, privateKeys map[string]string, script
 	scriptString = re.ReplaceAllString(scriptString, "{$1|string}")
 
 	// Remove spaces: {  param_name | param_type } -> {param_name|param_type}
-	re = regexp.MustCompile(`{[ ]*([a-zA-Z0-9_]+)[ ]*\|[ ]*(string|number|bool)[ ]*}`)
+	re = regexp.MustCompile(`{[ ]*([a-zA-Z0-9_]+)[ ]*\|[ ]*(string|number|bool|stringlist)[ ]*}`)
 	scriptString = re.ReplaceAllString(scriptString, "{$1|$2}")
 
 	// Verify that number/bool must be like "{param_name|number}", no extra characters between double quotes and curly braces
@@ -72,7 +72,27 @@ func NewScriptFromFileBytes(caPath string, privateKeys map[string]string, script
 			replacerStrings[i] = fmt.Sprintf(`"{%s|bool}"`, templateParam)
 			replacerStrings[i+1] = fmt.Sprintf("%t", typedParamVal)
 		default:
-			return nil, ScriptInitContentProblem, fmt.Errorf("unsupported parameter type %T from [%s]: %s", templateParamVal, scriptParamsUri, templateParam)
+			arrayParamVal, ok := templateParamVal.([]interface{})
+			if ok {
+				switch arrayParamVal[0].(type) {
+				case string:
+					// It's a stringlist
+					replacerStrings[i] = fmt.Sprintf(`"{%s|stringlist}"`, templateParam)
+					strArray := make([]string, len(arrayParamVal))
+					for i, itemAny := range arrayParamVal {
+						itemStr, ok := itemAny.(string)
+						if !ok {
+							return nil, ScriptInitContentProblem, fmt.Errorf("stringlist contains non-string value type %T from [%s]: %s", itemAny, scriptParamsUri, templateParam)
+						}
+						strArray[i] = fmt.Sprintf(`"%s"`, itemStr)
+					}
+					replacerStrings[i+1] = fmt.Sprintf("[%s]", strings.Join(strArray, ","))
+				default:
+					return nil, ScriptInitContentProblem, fmt.Errorf("unsupported array parameter type %T from [%s]: %s", arrayParamVal, scriptParamsUri, templateParam)
+				}
+			} else {
+				return nil, ScriptInitContentProblem, fmt.Errorf("unsupported parameter type %T from [%s]: %s", templateParamVal, scriptParamsUri, templateParam)
+			}
 		}
 		i += 2
 	}
