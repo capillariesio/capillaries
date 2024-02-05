@@ -33,7 +33,7 @@ cp ../../../data/cfg/fannie_mae_bigtest/* $cfgDir/
 cp ../../../data/cfg/fannie_mae_quicktest/py/* $cfgDir/py/
 
 echo "Copying in files to "$inDir
-cp -r ../../../../../capillaries-fanniemae/parquet/CAS_2023_*.parquet $inDir/
+cp -r ../../../../../capillaries-fanniemae/parquet/CAS_202*.parquet $inDir/
 
 echo "Copying out files to "$outDir
 echo "Placeholder for fannie_mae_bigtest output files" > $outDir/readme.txt
