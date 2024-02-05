@@ -72,7 +72,7 @@ func NewScriptFromFileBytes(caPath string, privateKeys map[string]string, script
 			replacerStrings[i] = fmt.Sprintf(`"{%s|bool}"`, templateParam)
 			replacerStrings[i+1] = fmt.Sprintf("%t", typedParamVal)
 		default:
-			arrayParamVal, ok := templateParamVal.([]interface{})
+			arrayParamVal, ok := templateParamVal.([]any)
 			if ok {
 				switch arrayParamVal[0].(type) {
 				case string:
