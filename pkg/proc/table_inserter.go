@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
@@ -52,8 +53,7 @@ type WriteChannelItem struct {
 var seedCounter = int64(0)
 
 func newSeed() int64 {
-	seedCounter += 3333
-	return (time.Now().Unix() << 32) + time.Now().UnixMilli() + seedCounter
+	return (time.Now().Unix() << 32) + time.Now().UnixMilli() + atomic.AddInt64(&seedCounter, 1)
 }
 
 func newTableInserter(envConfig *env.EnvConfig, pCtx *ctx.MessageProcessingContext, tableCreator *sc.TableCreatorDef, batchSize int, dataIdxSeqMode DataIdxSeqModeType) *TableInserter {
@@ -393,13 +393,10 @@ func (instr *TableInserter) insertDataRecord(logger *l.CapiLogger, writeItem *Wr
 	defer logger.PopF()
 
 	const maxRetries int = 5
-	var curRowid int64
+	instr.RandMutex.Lock()
+	curRowid := instr.RowidRand.Int63()
+	instr.RandMutex.Unlock()
 	for retryCount := 0; retryCount < maxRetries; retryCount++ {
-
-		instr.RandMutex.Lock()
-		instr.RowidRand = rand.New(rand.NewSource(newSeed()))
-		curRowid = instr.RowidRand.Int63()
-		instr.RandMutex.Unlock()
 
 		err := instr.insertDataRecordWithRowid(logger, writeItem, curRowid, pq)
 		if err == nil {
@@ -410,6 +407,11 @@ func (instr *TableInserter) insertDataRecord(logger *l.CapiLogger, writeItem *Wr
 			errorToReturn := fmt.Errorf("cannot insert data record [%s]: %s", pq.Query, err.Error())
 			logger.ErrorCtx(instr.PCtx, errorToReturn.Error())
 			return curRowid, errorToReturn
+		} else if retryCount < maxRetries-1 {
+			instr.RandMutex.Lock()
+			instr.RowidRand = rand.New(rand.NewSource(newSeed()))
+			curRowid = instr.RowidRand.Int63()
+			instr.RandMutex.Unlock()
 		}
 		logger.WarnCtx(instr.PCtx, "duplicate rowid not written [%s], rowid retry count %d", pq.Query, retryCount)
 	}
@@ -579,13 +581,10 @@ func (instr *TableInserter) insertDistinctIdxAndDataRecords(logger *l.CapiLogger
 	defer logger.PopF()
 
 	const maxRetries int = 5
-	var curRowid int64
+	instr.RandMutex.Lock()
+	curRowid := instr.RowidRand.Int63()
+	instr.RandMutex.Unlock()
 	for retryCount := 0; retryCount < maxRetries; retryCount++ {
-		instr.RandMutex.Lock()
-		instr.RowidRand = rand.New(rand.NewSource(newSeed()))
-		curRowid = instr.RowidRand.Int63()
-		instr.RandMutex.Unlock()
-
 		errInsertIdx := instr.insertIdxRecordWithRowid(logger, idxName, sc.IdxUnique, writeItem.IndexKeyMap[idxName], curRowid, piq)
 		if errInsertIdx == nil {
 			errInsertData := instr.insertDataRecordWithRowid(logger, writeItem, curRowid, pdq)
@@ -606,6 +605,11 @@ func (instr *TableInserter) insertDistinctIdxAndDataRecords(logger *l.CapiLogger
 			// ErrDuplicateKey is ok, this means we already have a distinct record, nothing to do here
 			logger.DebugCtx(pCtx, "already have a distinct record, nothing to do here: key %s, rowid %d", writeItem.IndexKeyMap[idxName], curRowid)
 			return curRowid, nil
+		} else if retryCount < maxRetries-1 {
+			instr.RandMutex.Lock()
+			instr.RowidRand = rand.New(rand.NewSource(newSeed()))
+			curRowid = instr.RowidRand.Int63()
+			instr.RandMutex.Unlock()
 		} else {
 			// Some serious error
 			return curRowid, errInsertIdx
