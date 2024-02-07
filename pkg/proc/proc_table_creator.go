@@ -221,7 +221,7 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 	if inserterBatchSize < node.TableReader.RowsetSize {
 		inserterBatchSize = node.TableReader.RowsetSize
 	}
-	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, inserterBatchSize, DataIdxSeqModeDataFirst)
+	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, inserterBatchSize, DataIdxSeqModeDataFirst, logger.ZapMachine.Key)
 	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}
@@ -349,7 +349,7 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 	if inserterBatchSize < node.TableReader.RowsetSize {
 		inserterBatchSize = node.TableReader.RowsetSize
 	}
-	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, inserterBatchSize, DataIdxSeqModeDataFirst)
+	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, inserterBatchSize, DataIdxSeqModeDataFirst, logger.ZapMachine.Key)
 	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}
@@ -476,7 +476,7 @@ func RunCreateDistinctTableForBatch(envConfig *env.EnvConfig,
 	if inserterBatchSize < node.TableReader.RowsetSize {
 		inserterBatchSize = node.TableReader.RowsetSize
 	}
-	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, inserterBatchSize, DataIdxSeqModeDistinctIdxFirst)
+	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, inserterBatchSize, DataIdxSeqModeDistinctIdxFirst, logger.ZapMachine.Key)
 	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}
@@ -869,7 +869,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 	if inserterBatchSize < node.TableReader.RowsetSize {
 		inserterBatchSize = node.TableReader.RowsetSize
 	}
-	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, inserterBatchSize, DataIdxSeqModeDataFirst)
+	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, inserterBatchSize, DataIdxSeqModeDataFirst, logger.ZapMachine.Key)
 	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}

@@ -3,6 +3,7 @@ package proc
 import (
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"math/rand"
 	"strings"
 	"sync"
@@ -31,6 +32,7 @@ type TableInserter struct {
 	RecordsIn       chan WriteChannelItem // Channel to pass records from the main function like RunCreateTableForBatch, usig add(), to TableInserter
 	ErrorsOut       chan error
 	RowidRand       *rand.Rand
+	MachineHash     int64
 	RandMutex       sync.Mutex
 	NumWorkers      int
 	MinInserterRate int
@@ -52,18 +54,22 @@ type WriteChannelItem struct {
 
 var seedCounter = int64(0)
 
-func newSeed() int64 {
-	return (time.Now().Unix() << 32) + time.Now().UnixMilli() + atomic.AddInt64(&seedCounter, 1)
+func newSeed(hash int64) int64 {
+	return (time.Now().Unix() << 32) + time.Now().UnixMilli() + hash + atomic.AddInt64(&seedCounter, 1000)
 }
 
-func newTableInserter(envConfig *env.EnvConfig, pCtx *ctx.MessageProcessingContext, tableCreator *sc.TableCreatorDef, batchSize int, dataIdxSeqMode DataIdxSeqModeType) *TableInserter {
+func newTableInserter(envConfig *env.EnvConfig, pCtx *ctx.MessageProcessingContext, tableCreator *sc.TableCreatorDef, batchSize int, dataIdxSeqMode DataIdxSeqModeType, stringForHash string) *TableInserter {
+	stringHash := fnv.New64a()
+	stringHash.Write([]byte(stringForHash))
+	hash := int64(stringHash.Sum64())
 
 	return &TableInserter{
 		PCtx:                   pCtx,
 		TableCreator:           tableCreator,
 		BatchSize:              batchSize,
 		ErrorsOut:              make(chan error, batchSize*envConfig.Cassandra.WriterWorkers), // Important to be able to host max possible errors, otherwise deadlock
-		RowidRand:              rand.New(rand.NewSource(newSeed())),
+		RowidRand:              rand.New(rand.NewSource(newSeed(hash))),
+		MachineHash:            hash,
 		NumWorkers:             envConfig.Cassandra.WriterWorkers,
 		MinInserterRate:        envConfig.Cassandra.MinInserterRate,
 		RecordsInOpen:          false,
@@ -409,7 +415,7 @@ func (instr *TableInserter) insertDataRecord(logger *l.CapiLogger, writeItem *Wr
 			return curRowid, errorToReturn
 		} else if retryCount < maxRetries-1 {
 			instr.RandMutex.Lock()
-			instr.RowidRand = rand.New(rand.NewSource(newSeed()))
+			instr.RowidRand = rand.New(rand.NewSource(newSeed(instr.MachineHash)))
 			curRowid = instr.RowidRand.Int63()
 			instr.RandMutex.Unlock()
 		}
@@ -580,7 +586,7 @@ func (instr *TableInserter) insertDistinctIdxAndDataRecords(logger *l.CapiLogger
 	logger.PushF("proc.insertDistinctIdxAndDataRecords")
 	defer logger.PopF()
 
-	const maxRetries int = 5
+	const maxRetries int = 20
 	instr.RandMutex.Lock()
 	curRowid := instr.RowidRand.Int63()
 	instr.RandMutex.Unlock()
@@ -607,7 +613,7 @@ func (instr *TableInserter) insertDistinctIdxAndDataRecords(logger *l.CapiLogger
 			return curRowid, nil
 		} else if retryCount < maxRetries-1 {
 			instr.RandMutex.Lock()
-			instr.RowidRand = rand.New(rand.NewSource(newSeed()))
+			instr.RowidRand = rand.New(rand.NewSource(newSeed(instr.MachineHash + logger.ZapThread.Integer)))
 			curRowid = instr.RowidRand.Int63()
 			instr.RandMutex.Unlock()
 		} else {

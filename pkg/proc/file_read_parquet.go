@@ -126,7 +126,7 @@ func readParquet(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.Messa
 	tableRecordBatchCount := 0
 
 	// Prepare inserter
-	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, DefaultInserterBatchSize, DataIdxSeqModeDataFirst)
+	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, DefaultInserterBatchSize, DataIdxSeqModeDataFirst, logger.ZapMachine.Key)
 	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}

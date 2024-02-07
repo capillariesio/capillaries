@@ -49,7 +49,7 @@ func readCsv(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessagePr
 	var lineIdx int64
 	tableRecordBatchCount := 0
 
-	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, DefaultInserterBatchSize, DataIdxSeqModeDataFirst)
+	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, DefaultInserterBatchSize, DataIdxSeqModeDataFirst, logger.ZapMachine.Key)
 	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}
