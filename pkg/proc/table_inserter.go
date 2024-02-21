@@ -26,27 +26,20 @@ const (
 )
 
 type TableInserter struct {
-	PCtx         *ctx.MessageProcessingContext
-	TableCreator *sc.TableCreatorDef
-	// BatchSize    int
-	RecordsIn             chan WriteChannelItem // Channel to pass records from the main function like RunCreateTableForBatch, usig add(), to TableInserter
-	RecordWrittenStatuses chan error
-	// RowidRand       *rand.Rand
-	MachineHash      int64
-	RandMutex        sync.Mutex
-	NumWorkers       int
-	MinInserterRate  int
-	WorkerWaitGroup  sync.WaitGroup
-	RecordsSent      int // Records sent to RecordsIn
-	RecordsProcessed int // Number of items received in RecordWrittenStatuses
-	// TODO: the only reason we have this is because we decided to end handlers
-	// with "defer instr.waitForWorkersAndCloseErrorsOut(logger, pCtx)" - not the cleanest way, get rid of this bool thingy.
-	// That defer is convenient because there are so many early returns.
-	// RecordsInOpen          bool
-	DoesNotExistPause      float32
-	OperationTimedOutPause float32
-	DataIdxSeqMode         DataIdxSeqModeType
-	// NoMoreRecordsInSignaled bool
+	PCtx                       *ctx.MessageProcessingContext
+	TableCreator               *sc.TableCreatorDef
+	RecordsIn                  chan WriteChannelItem // Channel to pass records from the main function like RunCreateTableForBatch, usig add(), to TableInserter
+	RecordWrittenStatuses      chan error
+	RecordWrittenStatusesMutex sync.Mutex
+	MachineHash                int64
+	NumWorkers                 int
+	MinInserterRate            int
+	WorkerWaitGroup            sync.WaitGroup
+	RecordsSent                int // Records sent to RecordsIn
+	RecordsProcessed           int // Number of items received in RecordWrittenStatuses
+	DoesNotExistPause          float32
+	OperationTimedOutPause     float32
+	DataIdxSeqMode             DataIdxSeqModeType
 }
 
 type WriteChannelItem struct {
@@ -57,7 +50,6 @@ type WriteChannelItem struct {
 var seedCounter = int64(0)
 
 func newSeed(hash int64) int64 {
-	// return (time.Now().Unix() << 32) + time.Now().UnixMilli() + hash + atomic.AddInt64(&seedCounter, 1)
 	return hash + atomic.AddInt64(&seedCounter, 1)
 }
 
@@ -81,7 +73,6 @@ func createInserterAndStartWorkers(logger *l.CapiLogger, envConfig *env.EnvConfi
 		DoesNotExistPause:      5.0,  // sec
 		OperationTimedOutPause: 10.0, // sec
 		DataIdxSeqMode:         dataIdxSeqMode,
-		// NoMoreRecordsInSignaled: false,
 	}
 
 	logger.DebugCtx(pCtx, "launching %d writers...", instr.NumWorkers)
@@ -148,8 +139,9 @@ func (instr *TableInserter) letWorkersDrainRecordWrittenStatuses(logger *l.CapiL
 			errorsFound = append(errorsFound, err.Error())
 			errCount++
 		}
-		inserterRate := float64(drainedRecordCount) / time.Since(startTime).Seconds()
+
 		// If it falls below min rate, it does not make sense to continue
+		inserterRate := float64(drainedRecordCount) / time.Since(startTime).Seconds()
 		if drainedRecordCount > 5 && inserterRate < float64(instr.MinInserterRate) {
 			logger.DebugCtx(pCtx, "slow db insertion rate triggered, will stop reading from instr.RecordWrittenStatuses")
 			errorsFound = append(errorsFound, fmt.Sprintf("table inserter detected slow db insertion rate %.0f records/s, wrote %d records out of %d", inserterRate, drainedRecordCount, instr.RecordsSent))
@@ -177,9 +169,6 @@ func (instr *TableInserter) letWorkersDrainRecordWrittenStatusesAndCloseInserter
 		}
 	}
 
-	// Tell workers they should not wait for items in RecordsIn and get out of the "for !instr.NoMoreRecordsInSignaled" loop
-	// instr.NoMoreRecordsInSignaled = true
-
 	// Close instr.RecordsIn, so workers can get out of the "for writeItem := range instr.RecordsIn" loop
 	logger.DebugCtx(pCtx, "closing RecordsIn")
 	close(instr.RecordsIn)
@@ -190,7 +179,7 @@ func (instr *TableInserter) letWorkersDrainRecordWrittenStatusesAndCloseInserter
 	instr.WorkerWaitGroup.Wait()
 	logger.DebugCtx(pCtx, "writer workers are done")
 
-	// Now it's safe to
+	// Now it's safe to close RecordWrittenStatuses
 	logger.DebugCtx(pCtx, "closing RecordWrittenStatuses")
 	close(instr.RecordWrittenStatuses)
 	logger.DebugCtx(pCtx, "closed RecordWrittenStatuses")
@@ -625,7 +614,7 @@ func (instr *TableInserter) tableInserterWorker(logger *l.CapiLogger, pCtx *ctx.
 	defer logger.PopF()
 
 	// Each writer thread has its own rand, so we do not have to critsec it.
-	// Asuming machine hashes are different for all daemon machines!
+	// Assuming machine hashes are different for all daemon machines!
 	rowidRand := rand.New(rand.NewSource(newSeed(instr.MachineHash)))
 
 	pdq := PreparedQuery{}
@@ -634,7 +623,7 @@ func (instr *TableInserter) tableInserterWorker(logger *l.CapiLogger, pCtx *ctx.
 	logger.DebugCtx(pCtx, "started reading from RecordsIn")
 
 	handledRecordCount := 0
-	//for !instr.NoMoreRecordsInSignaled {
+
 	// For each record in instr.RecordsIn, we MUST produce one item in instr.RecordWrittenStatuses
 	for writeItem := range instr.RecordsIn {
 		handledRecordCount++
@@ -675,17 +664,19 @@ func (instr *TableInserter) tableInserterWorker(logger *l.CapiLogger, pCtx *ctx.
 		} else {
 			errorToReport = fmt.Errorf("unsupported instr.DataIdxSeqMode %d", instr.DataIdxSeqMode)
 		}
+
+		instr.RecordWrittenStatusesMutex.Lock()
 		for len(instr.RecordWrittenStatuses) == cap(instr.RecordWrittenStatuses) {
 			logger.ErrorCtx(pCtx, "cannot write to RecordWrittenStatuses, waiting for letWorkersDrainRecordWrittenStatuses to be called, RecordWrittenStatuses len/cap: %d / %d, RecordsIn len/cap: %d / %d ", len(instr.RecordWrittenStatuses), cap(instr.RecordWrittenStatuses), len(instr.RecordsIn), cap(instr.RecordsIn))
-			time.Sleep(1000 * time.Millisecond)
+			time.Sleep(100 * time.Millisecond)
 		}
 		instr.RecordWrittenStatuses <- errorToReport
+		instr.RecordWrittenStatusesMutex.Unlock()
+
 	} // items loop
-	// logger.DebugCtx(pCtx, "waiting for !instr.NoMoreRecordsInSignaled...")
-	//time.Sleep(100 * time.Millisecond)
-	//} // for !instr.NoMoreRecordsInSignaled
 
 	logger.DebugCtx(pCtx, "done reading from RecordsIn, this writer worker handled %d records from instr.RecordsIn", handledRecordCount)
+
 	// Decrease busy worker count
 	instr.WorkerWaitGroup.Done()
 }
