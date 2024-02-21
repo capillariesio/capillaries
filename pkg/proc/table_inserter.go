@@ -58,7 +58,9 @@ func createInserterAndStartWorkers(logger *l.CapiLogger, envConfig *env.EnvConfi
 	defer logger.PopF()
 
 	stringHash := fnv.New64a()
-	stringHash.Write([]byte(stringForHash))
+	if _, err := stringHash.Write([]byte(stringForHash)); err != nil {
+		return nil, err
+	}
 
 	instr := &TableInserter{
 		PCtx:                   pCtx,
