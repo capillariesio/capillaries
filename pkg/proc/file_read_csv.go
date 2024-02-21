@@ -13,30 +13,6 @@ import (
 	"github.com/capillariesio/capillaries/pkg/sc"
 )
 
-func addRecordAndWriteBatchIfNeeded(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, node *sc.ScriptNodeDef, instr *TableInserter, tableRecord map[string]any, tableRecordBatchCount int, batchStartTime time.Time) (int, time.Time, error) {
-	indexKeyMap, err := instr.buildIndexKeys(tableRecord)
-	if err != nil {
-		return tableRecordBatchCount, batchStartTime, fmt.Errorf("cannot build index keys for %s: [%s]", node.TableCreator.Name, err.Error())
-	}
-	if err := instr.add(tableRecord, indexKeyMap); err != nil {
-		return tableRecordBatchCount, batchStartTime, fmt.Errorf("cannot add record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
-	}
-	tableRecordBatchCount++
-	// if tableRecordBatchCount == instr.BatchSize {
-	if tableRecordBatchCount == cap(instr.RecordsIn) {
-		if err := instr.waitForWorkers(logger, pCtx); err != nil {
-			return tableRecordBatchCount, batchStartTime, fmt.Errorf("cannot save record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
-		}
-		reportWriteTable(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
-		tableRecordBatchCount = 0
-		batchStartTime = time.Now()
-		if err := instr.startWorkers(logger, pCtx); err != nil {
-			return tableRecordBatchCount, batchStartTime, err
-		}
-	}
-	return tableRecordBatchCount, batchStartTime, nil
-}
-
 func readCsv(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, totalStartTime time.Time, filePath string, fileReader io.Reader) (BatchStats, error) {
 	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: filePath}
 	node := pCtx.CurrentScriptNode
@@ -48,15 +24,15 @@ func readCsv(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessagePr
 	r.LazyQuotes = true
 
 	var lineIdx int64
-	tableRecordBatchCount := 0
+	// tableRecordBatchCount := 0
 
-	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, DefaultInserterBatchSize, DataIdxSeqModeDataFirst, logger.ZapMachine.String)
-	if err := instr.startWorkers(logger, pCtx); err != nil {
+	instr, err := createInserterAndStartWorkers(logger, envConfig, pCtx, &node.TableCreator, DefaultInserterBatchSize, DataIdxSeqModeDataFirst, logger.ZapMachine.String)
+	if err != nil {
 		return bs, err
 	}
-	defer instr.waitForWorkersAndCloseErrorsOut(logger, pCtx)
+	defer instr.letWorkersDrainRecordWrittenStatusesAndCloseInserter(logger, pCtx)
 
-	batchStartTime := time.Now()
+	// batchStartTime := time.Now()
 
 	for {
 		line, err := r.Read()
@@ -92,10 +68,20 @@ func readCsv(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessagePr
 
 			// Write batch if needed
 			if inResult {
-				tableRecordBatchCount, batchStartTime, err = addRecordAndWriteBatchIfNeeded(logger, pCtx, node, instr, tableRecord, tableRecordBatchCount, batchStartTime)
+				indexKeyMap, err := instr.buildIndexKeys(tableRecord)
 				if err != nil {
-					return bs, err
+					return bs, fmt.Errorf("cannot build index keys for %s: [%s]", node.TableCreator.Name, err.Error())
 				}
+
+				if len(instr.RecordWrittenStatuses) == cap(instr.RecordWrittenStatuses) {
+					if err := instr.letWorkersDrainRecordWrittenStatuses(logger, pCtx); err != nil {
+						return bs, err
+					}
+				}
+				if err := instr.add(logger, pCtx, tableRecord, indexKeyMap); err != nil {
+					return bs, fmt.Errorf("cannot add record to inserter %s: [%s]", node.TableCreator.Name, err.Error())
+				}
+
 				bs.RowsWritten++
 			}
 			bs.RowsRead++
@@ -103,11 +89,14 @@ func readCsv(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessagePr
 		lineIdx++
 	}
 
-	// Write leftovers regardless of tableRecordBatchCount == 0
-	if err := instr.waitForWorkers(logger, pCtx); err != nil {
-		return bs, fmt.Errorf("cannot save leftover record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+	// Write leftovers if anything was sent at all
+	if instr.RecordsSent > 0 {
+		if err := instr.letWorkersDrainRecordWrittenStatuses(logger, pCtx); err != nil {
+			return bs, err
+		}
 	}
-	reportWriteTableLeftovers(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
+
+	// reportWriteTableLeftovers(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
 
 	bs.Elapsed = time.Since(totalStartTime)
 	reportWriteTableComplete(logger, pCtx, bs.RowsRead, bs.RowsWritten, bs.Elapsed, len(node.TableCreator.Indexes), instr.NumWorkers)

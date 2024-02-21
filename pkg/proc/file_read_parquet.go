@@ -123,16 +123,16 @@ func readParquet(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.Messa
 	}
 
 	lineIdx := int64(0)
-	tableRecordBatchCount := 0
+	// tableRecordBatchCount := 0
 
 	// Prepare inserter
-	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, DefaultInserterBatchSize, DataIdxSeqModeDataFirst, logger.ZapMachine.String)
-	if err := instr.startWorkers(logger, pCtx); err != nil {
+	instr, err := createInserterAndStartWorkers(logger, envConfig, pCtx, &node.TableCreator, DefaultInserterBatchSize, DataIdxSeqModeDataFirst, logger.ZapMachine.String)
+	if err != nil {
 		return bs, err
 	}
-	defer instr.waitForWorkersAndCloseErrorsOut(logger, pCtx)
+	defer instr.letWorkersDrainRecordWrittenStatusesAndCloseInserter(logger, pCtx)
 
-	batchStartTime := time.Now()
+	// batchStartTime := time.Now()
 	for {
 		d, err := reader.NextRow()
 
@@ -166,32 +166,29 @@ func readParquet(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.Messa
 			if err != nil {
 				return bs, fmt.Errorf("cannot build index keys for %s: [%s]", node.TableCreator.Name, err.Error())
 			}
-			if err = instr.add(tableRecord, indexKeyMap); err != nil {
-				return bs, fmt.Errorf("cannot add record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
-			}
-			tableRecordBatchCount++
-			if tableRecordBatchCount == DefaultInserterBatchSize {
-				if err := instr.waitForWorkers(logger, pCtx); err != nil {
-					return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
-				}
-				reportWriteTable(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
-				batchStartTime = time.Now()
-				tableRecordBatchCount = 0
-				if err := instr.startWorkers(logger, pCtx); err != nil {
+
+			if len(instr.RecordWrittenStatuses) == cap(instr.RecordWrittenStatuses) {
+				if err := instr.letWorkersDrainRecordWrittenStatuses(logger, pCtx); err != nil {
 					return bs, err
 				}
-
 			}
+			if err := instr.add(logger, pCtx, tableRecord, indexKeyMap); err != nil {
+				return bs, fmt.Errorf("cannot add record to inserter %s: [%s]", node.TableCreator.Name, err.Error())
+			}
+
 			bs.RowsWritten++
 		}
 		bs.RowsRead++
 	}
 
-	// Write leftovers regardless of tableRecordBatchCount == 0
-	if err := instr.waitForWorkers(logger, pCtx); err != nil {
-		return bs, fmt.Errorf("cannot save leftover record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+	// Write leftovers if anything was sent at all
+	if instr.RecordsSent > 0 {
+		if err := instr.letWorkersDrainRecordWrittenStatuses(logger, pCtx); err != nil {
+			return bs, err
+		}
 	}
-	reportWriteTableLeftovers(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
+
+	// reportWriteTableLeftovers(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
 
 	bs.Elapsed = time.Since(totalStartTime)
 	reportWriteTableComplete(logger, pCtx, bs.RowsRead, bs.RowsWritten, bs.Elapsed, len(node.TableCreator.Indexes), instr.NumWorkers)

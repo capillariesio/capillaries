@@ -129,7 +129,7 @@ func (instr *FileInserter) parquetFileInserterWorker(logger *l.CapiLogger, codec
 
 	for batch := range instr.BatchesIn {
 		if errOpen != nil {
-			instr.ErrorsOut <- errOpen
+			instr.RecordWrittenStatuses <- errOpen
 			continue
 		}
 		batchStartTime := time.Now()
@@ -147,11 +147,11 @@ func (instr *FileInserter) parquetFileInserterWorker(logger *l.CapiLogger, codec
 		}
 
 		if errAddData != nil {
-			instr.ErrorsOut <- errAddData
+			instr.RecordWrittenStatuses <- errAddData
 		} else {
 			dur := time.Since(batchStartTime)
 			logger.InfoCtx(instr.PCtx, "%d items in %.3fs (%.0f items/s)", batch.RowCount, dur.Seconds(), float64(batch.RowCount)/dur.Seconds())
-			instr.ErrorsOut <- nil
+			instr.RecordWrittenStatuses <- nil
 		}
 	} // next batch
 

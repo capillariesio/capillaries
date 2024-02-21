@@ -23,6 +23,7 @@ type TableRecordBatch []TableRecordPtr
 
 const DefaultInserterBatchSize int = 5000
 
+/*
 func reportWriteTable(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, recordCount int, dur time.Duration, indexCount int, workerCount int) {
 	logger.InfoCtx(pCtx, "WriteTable: %d items in %.3fs (%.0f items/s, %d indexes, eff rate %.0f writes/s), %d workers",
 		recordCount,
@@ -32,7 +33,9 @@ func reportWriteTable(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, 
 		float64(recordCount*(indexCount+1))/dur.Seconds(),
 		workerCount)
 }
+*/
 
+/*
 func reportWriteTableLeftovers(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, recordCount int, dur time.Duration, indexCount int, workerCount int) {
 	logger.InfoCtx(pCtx, "WriteTableLeftovers: %d items in %.3fs (%.0f items/s, %d indexes, eff rate %.0f writes/s), %d workers",
 		recordCount,
@@ -42,6 +45,7 @@ func reportWriteTableLeftovers(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 		float64(recordCount*(indexCount+1))/dur.Seconds(),
 		workerCount)
 }
+*/
 
 func reportWriteTableComplete(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, readCount int, recordCount int, dur time.Duration, indexCount int, workerCount int) {
 	logger.InfoCtx(pCtx, "WriteTableComplete: read %d, wrote %d items in %.3fs (%.0f items/s, %d indexes, eff rate %.0f writes/s), %d workers",
@@ -217,22 +221,17 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 		sc.FieldRefs{sc.RowidTokenFieldRef()},
 		srcLeftFieldRefs)
 
-	// inserterBatchSize := DefaultInserterBatchSize
-	// if inserterBatchSize < node.TableReader.RowsetSize {
-	//	inserterBatchSize = node.TableReader.RowsetSize
-	// }
-	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, leftBatchSize, DataIdxSeqModeDataFirst, logger.ZapMachine.String)
-	if err := instr.startWorkers(logger, pCtx); err != nil {
+	instr, err := createInserterAndStartWorkers(logger, envConfig, pCtx, &node.TableCreator, leftBatchSize/2, DataIdxSeqModeDataFirst, logger.ZapMachine.String)
+	if err != nil {
 		return bs, err
 	}
-	defer instr.waitForWorkersAndCloseErrorsOut(logger, pCtx)
+	defer instr.letWorkersDrainRecordWrittenStatusesAndCloseInserter(logger, pCtx)
 
 	flushVarsArray := func(varsArray []*eval.VarValuesMap, varsArrayCount int) error {
 		logger.PushF("proc.flushRowset")
 		defer logger.PopF()
 
-		flushStartTime := time.Now()
-		rowsWritten := 0
+		// rowsWritten := 0
 
 		for outRowIdx := 0; outRowIdx < varsArrayCount; outRowIdx++ {
 			vars := varsArray[outRowIdx]
@@ -254,15 +253,17 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 				if err != nil {
 					return fmt.Errorf("cannot build index keys for %s: [%s]", node.TableCreator.Name, err.Error())
 				}
-				if err = instr.add(tableRecord, indexKeyMap); err != nil {
-					return fmt.Errorf("cannot add record to %s: [%s]", node.TableCreator.Name, err.Error())
+
+				if err := addRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, indexKeyMap, instr); err != nil {
+					return err
 				}
-				rowsWritten++
+
+				// rowsWritten++
 				bs.RowsWritten++
 			}
 		}
 
-		reportWriteTable(logger, pCtx, rowsWritten, time.Since(flushStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
+		// reportWriteTable(logger, pCtx, rowsWritten, time.Since(flushStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
 
 		return nil
 	}
@@ -317,7 +318,7 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 
 	node := pCtx.CurrentScriptNode
 
-	batchStartTime := time.Now()
+	// batchStartTime := time.Now()
 	totalStartTime := time.Now()
 	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: node.TableReader.TableName + cql.RunIdSuffix(readerNodeRunId), Dst: node.TableCreator.Name + cql.RunIdSuffix(readerNodeRunId)}
 
@@ -337,7 +338,7 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 	srcLeftFieldRefs.AppendWithFilter(node.TableCreator.UsedInTargetExpressionsFields, sc.ReaderAlias)
 
 	leftBatchSize := node.TableReader.RowsetSize
-	tableRecordBatchCount := 0
+	// tableRecordBatchCount := 0
 	curStartLeftToken := startLeftToken
 
 	rsIn := NewRowsetFromFieldRefs(
@@ -345,15 +346,11 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 		sc.FieldRefs{sc.RowidTokenFieldRef()},
 		srcLeftFieldRefs)
 
-	// inserterBatchSize := DefaultInserterBatchSize
-	// if inserterBatchSize < node.TableReader.RowsetSize {
-	//	inserterBatchSize = node.TableReader.RowsetSize
-	// }
-	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, leftBatchSize, DataIdxSeqModeDataFirst, logger.ZapMachine.String)
-	if err := instr.startWorkers(logger, pCtx); err != nil {
+	instr, err := createInserterAndStartWorkers(logger, envConfig, pCtx, &node.TableCreator, leftBatchSize/2, DataIdxSeqModeDataFirst, logger.ZapMachine.String)
+	if err != nil {
 		return bs, err
 	}
-	defer instr.waitForWorkersAndCloseErrorsOut(logger, pCtx)
+	defer instr.letWorkersDrainRecordWrittenStatusesAndCloseInserter(logger, pCtx)
 
 	for {
 		lastRetrievedLeftToken, err := selectBatchFromTableByToken(logger,
@@ -397,8 +394,7 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 				if err != nil {
 					return bs, fmt.Errorf("cannot build index keys for %s: [%s]", node.TableCreator.Name, err.Error())
 				}
-				tableRecordBatchCount, batchStartTime, err = addRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, indexKeyMap, tableRecordBatchCount, batchStartTime, instr)
-				if err != nil {
+				if err := addRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, indexKeyMap, instr); err != nil {
 					return bs, err
 				}
 				bs.RowsWritten++
@@ -411,11 +407,14 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 		}
 	} // for each source table batch
 
-	// Write leftovers regardless of tableRecordBatchCount == 0
-	if err := instr.waitForWorkers(logger, pCtx); err != nil {
-		return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+	// Write leftovers if anything was sent at all
+	if instr.RecordsSent > 0 {
+		if err := instr.letWorkersDrainRecordWrittenStatuses(logger, pCtx); err != nil {
+			return bs, err
+		}
 	}
-	reportWriteTableLeftovers(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
+
+	// reportWriteTableLeftovers(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
 
 	bs.Elapsed = time.Since(totalStartTime)
 	reportWriteTableComplete(logger, pCtx, bs.RowsRead, bs.RowsWritten, bs.Elapsed, len(node.TableCreator.Indexes), instr.NumWorkers)
@@ -435,7 +434,7 @@ func RunCreateDistinctTableForBatch(envConfig *env.EnvConfig,
 
 	node := pCtx.CurrentScriptNode
 
-	batchStartTime := time.Now()
+	// batchStartTime := time.Now()
 	totalStartTime := time.Now()
 	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: node.TableReader.TableName + cql.RunIdSuffix(readerNodeRunId), Dst: node.TableCreator.Name + cql.RunIdSuffix(readerNodeRunId)}
 
@@ -464,7 +463,7 @@ func RunCreateDistinctTableForBatch(envConfig *env.EnvConfig,
 	srcLeftFieldRefs.AppendWithFilter(node.TableCreator.UsedInTargetExpressionsFields, sc.ReaderAlias)
 
 	leftBatchSize := node.TableReader.RowsetSize
-	tableRecordBatchCount := 0
+	// tableRecordBatchCount := 0
 	curStartLeftToken := startLeftToken
 
 	rsIn := NewRowsetFromFieldRefs(
@@ -472,16 +471,11 @@ func RunCreateDistinctTableForBatch(envConfig *env.EnvConfig,
 		sc.FieldRefs{sc.RowidTokenFieldRef()},
 		srcLeftFieldRefs)
 
-	// inserterBatchSize := DefaultInserterBatchSize
-	// if inserterBatchSize < node.TableReader.RowsetSize {
-	//	inserterBatchSize = node.TableReader.RowsetSize
-	// }
-	// inserterBatchSize := node.TableReader.RowsetSize
-	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, leftBatchSize, DataIdxSeqModeDistinctIdxFirst, logger.ZapMachine.String)
-	if err := instr.startWorkers(logger, pCtx); err != nil {
+	instr, err := createInserterAndStartWorkers(logger, envConfig, pCtx, &node.TableCreator, leftBatchSize/2, DataIdxSeqModeDistinctIdxFirst, logger.ZapMachine.String)
+	if err != nil {
 		return bs, err
 	}
-	defer instr.waitForWorkersAndCloseErrorsOut(logger, pCtx)
+	defer instr.letWorkersDrainRecordWrittenStatusesAndCloseInserter(logger, pCtx)
 
 	for {
 		// Poor man's cache that spans across rsIn retrieved, works well for low-cardinality datasets
@@ -527,8 +521,7 @@ func RunCreateDistinctTableForBatch(envConfig *env.EnvConfig,
 			// Poor man's cache
 			if _, ok := usedDistinctKeysMap[uniqueDistinctKey]; !ok {
 				usedDistinctKeysMap[uniqueDistinctKey] = struct{}{}
-				tableRecordBatchCount, batchStartTime, err = addRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, indexKeyMap, tableRecordBatchCount, batchStartTime, instr)
-				if err != nil {
+				if err := addRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, indexKeyMap, instr); err != nil {
 					return bs, err
 				}
 
@@ -548,11 +541,14 @@ func RunCreateDistinctTableForBatch(envConfig *env.EnvConfig,
 		}
 	} // for each source table batch
 
-	// Write leftovers regardless of tableRecordBatchCount == 0
-	if err := instr.waitForWorkers(logger, pCtx); err != nil {
-		return bs, fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
+	// Write leftovers if anything was sent at all
+	if instr.RecordsSent > 0 {
+		if err := instr.letWorkersDrainRecordWrittenStatuses(logger, pCtx); err != nil {
+			return bs, err
+		}
 	}
-	reportWriteTableLeftovers(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
+
+	// reportWriteTableLeftovers(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
 
 	bs.Elapsed = time.Since(totalStartTime)
 	reportWriteTableComplete(logger, pCtx, bs.RowsRead, bs.RowsWritten, bs.Elapsed, len(node.TableCreator.Indexes), instr.NumWorkers)
@@ -663,6 +659,7 @@ func checkLookupFilter(lookupDef *sc.LookupDef, rsRight *Rowset, rightRowIdx int
 	return lookupFilterOk, nil
 }
 
+/*
 func saveCompletedBatch(pCtx *ctx.MessageProcessingContext, logger *l.CapiLogger, tableCreator *sc.TableCreatorDef, tableRecordBatchCount int, batchStartTime time.Time, instr *TableInserter) (int, time.Time, error) {
 	if err := instr.waitForWorkers(logger, pCtx); err != nil {
 		return 0, time.Now(), fmt.Errorf("cannot save record batch of size %d to %s: [%s]", tableRecordBatchCount, tableCreator.Name, err.Error())
@@ -673,6 +670,7 @@ func saveCompletedBatch(pCtx *ctx.MessageProcessingContext, logger *l.CapiLogger
 	}
 	return 0, time.Now(), nil
 }
+*/
 
 func produceGroupedTableRecord(node *sc.ScriptNodeDef, rsLeft *Rowset, leftRowIdx int, leftRowFoundRightLookup []bool, eCtxMap map[int64]map[string]*eval.EvalCtx) (map[string]any, error) {
 
@@ -766,43 +764,45 @@ func produceNonGroupedTableRecordForCheldlessLeft(node *sc.ScriptNodeDef, rsLeft
 	return tableRecord, nil
 }
 
-func addRecordAndSaveBatchIfNeeded(pCtx *ctx.MessageProcessingContext, logger *l.CapiLogger, node *sc.ScriptNodeDef, tableRecord map[string]any, indexKeyMap map[string]string, tableRecordBatchCount int, batchStartTime time.Time, instr *TableInserter) (int, time.Time, error) {
-	if err := instr.add(tableRecord, indexKeyMap); err != nil {
-		return tableRecordBatchCount, batchStartTime, fmt.Errorf("cannot add record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
-	}
-	tableRecordBatchCount++
-	// if tableRecordBatchCount == instr.BatchSize {
-	if tableRecordBatchCount == cap(instr.RecordsIn) {
-		tableRecordBatchCount, batchStartTime, err := saveCompletedBatch(pCtx, logger, &node.TableCreator, tableRecordBatchCount, batchStartTime, instr)
-		if err != nil {
-			return tableRecordBatchCount, batchStartTime, err
+func addRecordAndSaveBatchIfNeeded(pCtx *ctx.MessageProcessingContext, logger *l.CapiLogger, node *sc.ScriptNodeDef, tableRecord map[string]any, indexKeyMap map[string]string, instr *TableInserter) error {
+	logger.PushF("proc.addRecordAndSaveBatchIfNeeded")
+	defer logger.PopF()
+
+	if len(instr.RecordWrittenStatuses) == cap(instr.RecordWrittenStatuses) {
+		if err := instr.letWorkersDrainRecordWrittenStatuses(logger, pCtx); err != nil {
+			return err
 		}
 	}
-	return tableRecordBatchCount, batchStartTime, nil
+	if err := instr.add(logger, pCtx, tableRecord, indexKeyMap); err != nil {
+		return fmt.Errorf("cannot add record to inserter %s: [%s]", node.TableCreator.Name, err.Error())
+	}
+	return nil
 }
 
-func checkHavingAddRecordAndSaveBatchIfNeeded(pCtx *ctx.MessageProcessingContext, logger *l.CapiLogger, node *sc.ScriptNodeDef, tableRecord map[string]any, tableRecordBatchCount int, batchStartTime time.Time, instr *TableInserter) (int, time.Time, int, error) {
+func checkHavingAddRecordAndSaveBatchIfNeeded(pCtx *ctx.MessageProcessingContext, logger *l.CapiLogger, node *sc.ScriptNodeDef, tableRecord map[string]any, instr *TableInserter) error {
+	logger.PushF("proc.checkHavingAddRecordAndSaveBatchIfNeeded")
+	defer logger.PopF()
+
 	rowsWritten := 0
 	// Check table creator having
 	inResult, err := node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
 	if err != nil {
-		return tableRecordBatchCount, batchStartTime, 0, fmt.Errorf("cannot check having condition [%s], table record [%v]: [%s]", node.TableCreator.RawHaving, tableRecord, err.Error())
+		return fmt.Errorf("cannot check having condition [%s], table record [%v]: [%s]", node.TableCreator.RawHaving, tableRecord, err.Error())
 	}
 
 	// Write batch if needed
 	if inResult {
 		indexKeyMap, err := instr.buildIndexKeys(tableRecord)
 		if err != nil {
-			return tableRecordBatchCount, batchStartTime, 0, fmt.Errorf("cannot build index keys for %s: [%s]", node.TableCreator.Name, err.Error())
+			return fmt.Errorf("cannot build index keys for %s: [%s]", node.TableCreator.Name, err.Error())
 		}
-		tableRecordBatchCount, batchStartTime, err = addRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, indexKeyMap, tableRecordBatchCount, batchStartTime, instr)
-		if err != nil {
-			return tableRecordBatchCount, batchStartTime, 0, err
+		if err := addRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, indexKeyMap, instr); err != nil {
+			return err
 		}
 		rowsWritten++
 	}
 
-	return tableRecordBatchCount, batchStartTime, rowsWritten, nil
+	return nil
 }
 
 func checkRunCreateTableRelForBatchSanity(node *sc.ScriptNodeDef, readerNodeRunId int16, lookupNodeRunId int16) error {
@@ -839,7 +839,6 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 
 	node := pCtx.CurrentScriptNode
 
-	batchStartTime := time.Now()
 	totalStartTime := time.Now()
 
 	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: node.TableReader.TableName + cql.RunIdSuffix(readerNodeRunId), Dst: node.TableCreator.Name + cql.RunIdSuffix(readerNodeRunId)}
@@ -860,22 +859,17 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 	}
 
 	leftBatchSize := node.TableReader.RowsetSize
-	tableRecordBatchCount := 0
 
 	rsLeft := NewRowsetFromFieldRefs(
 		sc.FieldRefs{sc.RowidFieldRef(node.TableReader.TableName)},
 		sc.FieldRefs{sc.RowidTokenFieldRef()},
 		srcLeftFieldRefs)
 
-	// inserterBatchSize := DefaultInserterBatchSize
-	// if inserterBatchSize < node.TableReader.RowsetSize {
-	//	inserterBatchSize = node.TableReader.RowsetSize
-	// }
-	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, leftBatchSize, DataIdxSeqModeDataFirst, logger.ZapMachine.String)
-	if err := instr.startWorkers(logger, pCtx); err != nil {
+	instr, err := createInserterAndStartWorkers(logger, envConfig, pCtx, &node.TableCreator, leftBatchSize/2, DataIdxSeqModeDataFirst, logger.ZapMachine.String)
+	if err != nil {
 		return bs, err
 	}
-	defer instr.waitForWorkersAndCloseErrorsOut(logger, pCtx)
+	defer instr.letWorkersDrainRecordWrittenStatusesAndCloseInserter(logger, pCtx)
 
 	curStartLeftToken := startLeftToken
 	leftPageIdx := 0
@@ -1027,8 +1021,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 							}
 
 							var rowsWritten int
-							tableRecordBatchCount, batchStartTime, rowsWritten, err = checkHavingAddRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, tableRecordBatchCount, batchStartTime, instr)
-							if err != nil {
+							if err := checkHavingAddRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, instr); err != nil {
 								return bs, err
 							}
 							bs.RowsWritten += rowsWritten
@@ -1065,8 +1058,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 				}
 
 				var rowsWritten int
-				tableRecordBatchCount, batchStartTime, rowsWritten, err = checkHavingAddRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, tableRecordBatchCount, batchStartTime, instr)
-				if err != nil {
+				if err = checkHavingAddRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, instr); err != nil {
 					return bs, err
 				}
 				bs.RowsWritten += rowsWritten
@@ -1089,8 +1081,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 				}
 
 				var rowsWritten int
-				tableRecordBatchCount, batchStartTime, rowsWritten, err = checkHavingAddRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, tableRecordBatchCount, batchStartTime, instr)
-				if err != nil {
+				if err := checkHavingAddRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, instr); err != nil {
 					return bs, err
 				}
 				bs.RowsWritten += rowsWritten
@@ -1104,9 +1095,11 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 		leftPageIdx++
 	} // for each source table batch
 
-	// Write leftovers regardless of tableRecordBatchCount == 0
-	if _, _, err := saveCompletedBatch(pCtx, logger, &node.TableCreator, tableRecordBatchCount, batchStartTime, instr); err != nil {
-		return bs, err
+	// Write leftovers if anything was sent at all
+	if instr.RecordsSent > 0 {
+		if err := instr.letWorkersDrainRecordWrittenStatuses(logger, pCtx); err != nil {
+			return bs, err
+		}
 	}
 
 	bs.Elapsed = time.Since(totalStartTime)

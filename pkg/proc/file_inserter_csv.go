@@ -88,7 +88,7 @@ func (instr *FileInserter) csvFileInserterWorker(logger *l.CapiLogger) {
 
 	for batch := range instr.BatchesIn {
 		if errOpen != nil {
-			instr.ErrorsOut <- errOpen
+			instr.RecordWrittenStatuses <- errOpen
 			continue
 		}
 		batchStartTime := time.Now()
@@ -123,14 +123,14 @@ func (instr *FileInserter) csvFileInserterWorker(logger *l.CapiLogger) {
 
 		if err = f.Sync(); err == nil {
 			if _, err = f.WriteString(b.String()); err != nil {
-				instr.ErrorsOut <- fmt.Errorf("cannot write string to %s(temp %s): [%s]", instr.FinalFileUrl, instr.TempFilePath, err.Error())
+				instr.RecordWrittenStatuses <- fmt.Errorf("cannot write string to %s(temp %s): [%s]", instr.FinalFileUrl, instr.TempFilePath, err.Error())
 			} else {
 				dur := time.Since(batchStartTime)
 				logger.InfoCtx(instr.PCtx, "%d items in %.3fs (%.0f items/s)", batch.RowCount, dur.Seconds(), float64(batch.RowCount)/dur.Seconds())
-				instr.ErrorsOut <- nil
+				instr.RecordWrittenStatuses <- nil
 			}
 		} else {
-			instr.ErrorsOut <- fmt.Errorf("cannot sync file %s(temp %s): [%s]", instr.FinalFileUrl, instr.TempFilePath, err.Error())
+			instr.RecordWrittenStatuses <- fmt.Errorf("cannot sync file %s(temp %s): [%s]", instr.FinalFileUrl, instr.TempFilePath, err.Error())
 		}
 	} // next batch
 }

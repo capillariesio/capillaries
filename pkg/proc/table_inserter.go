@@ -29,22 +29,24 @@ type TableInserter struct {
 	PCtx         *ctx.MessageProcessingContext
 	TableCreator *sc.TableCreatorDef
 	// BatchSize    int
-	RecordsIn chan WriteChannelItem // Channel to pass records from the main function like RunCreateTableForBatch, usig add(), to TableInserter
-	ErrorsOut chan error
+	RecordsIn             chan WriteChannelItem // Channel to pass records from the main function like RunCreateTableForBatch, usig add(), to TableInserter
+	RecordWrittenStatuses chan error
 	// RowidRand       *rand.Rand
-	MachineHash     int64
-	RandMutex       sync.Mutex
-	NumWorkers      int
-	MinInserterRate int
-	WorkerWaitGroup sync.WaitGroup
-	RecordsSent     int // Records sent to RecordsIn
+	MachineHash      int64
+	RandMutex        sync.Mutex
+	NumWorkers       int
+	MinInserterRate  int
+	WorkerWaitGroup  sync.WaitGroup
+	RecordsSent      int // Records sent to RecordsIn
+	RecordsProcessed int // Number of items received in RecordWrittenStatuses
 	// TODO: the only reason we have this is because we decided to end handlers
 	// with "defer instr.waitForWorkersAndCloseErrorsOut(logger, pCtx)" - not the cleanest way, get rid of this bool thingy.
 	// That defer is convenient because there are so many early returns.
-	RecordsInOpen          bool
-	DoesNotExistPause      float32
-	OperationTimedOutPause float32
-	DataIdxSeqMode         DataIdxSeqModeType
+	// RecordsInOpen          bool
+	DoesNotExistPause       float32
+	OperationTimedOutPause  float32
+	DataIdxSeqMode          DataIdxSeqModeType
+	NoMoreRecordsInSignaled bool
 }
 
 type WriteChannelItem struct {
@@ -59,26 +61,45 @@ func newSeed(hash int64) int64 {
 	return hash + atomic.AddInt64(&seedCounter, 1)
 }
 
-func newTableInserter(envConfig *env.EnvConfig, pCtx *ctx.MessageProcessingContext, tableCreator *sc.TableCreatorDef, batchSize int, dataIdxSeqMode DataIdxSeqModeType, stringForHash string) *TableInserter {
+func createInserterAndStartWorkers(logger *l.CapiLogger, envConfig *env.EnvConfig, pCtx *ctx.MessageProcessingContext, tableCreator *sc.TableCreatorDef, channelSize int, dataIdxSeqMode DataIdxSeqModeType, stringForHash string) (*TableInserter, error) {
+	logger.PushF("proc.createInserterAndStartWorkers/TableInserter")
+	defer logger.PopF()
+
 	stringHash := fnv.New64a()
 	stringHash.Write([]byte(stringForHash))
-	// hash := int64(stringHash.Sum64())
 
-	return &TableInserter{
-		PCtx:         pCtx,
-		TableCreator: tableCreator,
-		// BatchSize:    batchSize,
-		// ErrorsOut:    make(chan error, batchSize*envConfig.Cassandra.WriterWorkers), // Important to be able to host max possible errors produced by all writers, otherwise deadlock
-		ErrorsOut: make(chan error, batchSize), // Important to be able to host max possible errors produced by all writers, otherwise deadlock
-		// RowidRand:              rand.New(rand.NewSource(newSeed(hash))),
-		MachineHash:            int64(stringHash.Sum64()),
-		NumWorkers:             envConfig.Cassandra.WriterWorkers,
-		MinInserterRate:        envConfig.Cassandra.MinInserterRate,
-		RecordsInOpen:          false,
-		DoesNotExistPause:      5.0,  // sec
-		OperationTimedOutPause: 10.0, // sec
-		DataIdxSeqMode:         dataIdxSeqMode,
+	instr := &TableInserter{
+		PCtx:                    pCtx,
+		TableCreator:            tableCreator,
+		RecordsIn:               make(chan WriteChannelItem, channelSize), // Capacity should match RecordWrittenStatuses
+		RecordWrittenStatuses:   make(chan error, channelSize),            // Capacity should match RecordsIn
+		MachineHash:             int64(stringHash.Sum64()),
+		NumWorkers:              envConfig.Cassandra.WriterWorkers,
+		MinInserterRate:         envConfig.Cassandra.MinInserterRate,
+		RecordsSent:             0,    // Total number of records added to RecordsIn
+		RecordsProcessed:        0,    // Total number of records read from RecordsOut
+		DoesNotExistPause:       5.0,  // sec
+		OperationTimedOutPause:  10.0, // sec
+		DataIdxSeqMode:          dataIdxSeqMode,
+		NoMoreRecordsInSignaled: false,
 	}
+
+	logger.DebugCtx(pCtx, "launching %d writers...", instr.NumWorkers)
+
+	for w := 0; w < instr.NumWorkers; w++ {
+		newLogger, err := l.NewLoggerFromLogger(logger)
+		if err != nil {
+			return nil, err
+		}
+		// Increase busy worker count
+		instr.WorkerWaitGroup.Add(1)
+		go instr.tableInserterWorker(newLogger, pCtx)
+	}
+
+	logger.DebugCtx(pCtx, "launched %d writers", instr.NumWorkers)
+
+	return instr, nil
+
 }
 
 func CreateDataTableCql(keyspace string, runId int16, tableCreator *sc.TableCreatorDef) string {
@@ -107,77 +128,36 @@ func CreateIdxTableCql(keyspace string, runId int16, idxName string, idxDef *sc.
 	return qb.CreateRun(idxName, runId, cql.IgnoreIfExists)
 }
 
-func (instr *TableInserter) startWorkers(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) error {
-	logger.PushF("proc.startWorkers/TableInserter")
+func (instr *TableInserter) letWorkersDrainRecordWrittenStatuses(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) error {
+	logger.PushF("proc.letWorkersDrainRecordWrittenStatuses/TableInserter")
 	defer logger.PopF()
 
-	// Size of RecordsIn is extremely important. In the worst (unlikely) case, it should be capable of holding instr.BatchSize * number_of_writers records.
-	// If we fail to provide that space, we may end up in a deadlock
-	// instr.RecordsIn = make(chan WriteChannelItem, instr.BatchSize*instr.NumWorkers)
-	instr.RecordsIn = make(chan WriteChannelItem, cap(instr.ErrorsOut))
-	logger.DebugCtx(pCtx, "startWorkers created RecordsIn,now launching %d writers...", instr.NumWorkers)
-	instr.RecordsInOpen = true
-
-	for w := 0; w < instr.NumWorkers; w++ {
-		newLogger, err := l.NewLoggerFromLogger(logger)
-		if err != nil {
-			return err
-		}
-		// Increase busy worker count
-		instr.WorkerWaitGroup.Add(1)
-		go instr.tableInserterWorker(newLogger, pCtx)
-	}
-	return nil
-}
-
-func (instr *TableInserter) waitForWorkers(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) error {
-	logger.PushF("proc.waitForWorkers/TableInserter")
-	defer logger.PopF()
-
-	logger.DebugCtx(pCtx, "started reading RecordsSent=%d from instr.ErrorsOut", instr.RecordsSent)
-
+	drainedRecordCount := 0
 	errorsFound := make([]string, 0)
-	if instr.RecordsSent > 0 {
-		errCount := 0
-		startTime := time.Now()
-		// 1. It's crucial that the number of errors to receive eventually should match instr.RecordsSent
-		// 2. We do not need an extra select/timeout here - we are guaranteed to receive something in instr.ErrorsOut because of cassndra read timeouts (5-15s or so)
-		for i := 0; i < instr.RecordsSent; i++ {
-			err := <-instr.ErrorsOut
-			if err != nil {
-				errorsFound = append(errorsFound, err.Error())
-				errCount++
-			}
+	errCount := 0
+	startTime := time.Now()
+	logger.DebugCtx(pCtx, "started draining at RecordsSent=%d from instr.RecordWrittenStatuses", instr.RecordsSent)
 
-			inserterRate := float64(i+1) / time.Since(startTime).Seconds()
-			// If it falls below min rate, it does not make sense to continue
-			if i > 5 && inserterRate < float64(instr.MinInserterRate) {
-				logger.DebugCtx(pCtx, "slow db insertion rate triggered, will stop reading from instr.ErrorsOut")
-				errorsFound = append(errorsFound, fmt.Sprintf("table inserter detected slow db insertion rate %.0f records/s, wrote %d records out of %d", inserterRate, i, instr.RecordsSent))
-				errCount++
-				break
-			}
+	// 1. It's crucial that the number of errors to receive eventually should match instr.RecordsSent
+	// 2. We do not need an extra select/timeout here - we are guaranteed to receive something in instr.RecordWrittenStatuses because of cassandra read timeouts (5-15s or so)
+	for instr.RecordsSent > instr.RecordsProcessed {
+		err := <-instr.RecordWrittenStatuses
+		instr.RecordsProcessed++
+		drainedRecordCount++
+		if err != nil {
+			errorsFound = append(errorsFound, err.Error())
+			errCount++
 		}
-		logger.DebugCtx(pCtx, "done writing RecordsSent=%d from instr.ErrorsOut, %d errors", instr.RecordsSent, errCount)
-
-		// Reset for the next cycle, if it ever happens
-		instr.RecordsSent = 0
-	} else {
-		logger.DebugCtx(pCtx, "no need to waitfor writer results, no records were sent")
+		inserterRate := float64(drainedRecordCount) / time.Since(startTime).Seconds()
+		// If it falls below min rate, it does not make sense to continue
+		if drainedRecordCount > 5 && inserterRate < float64(instr.MinInserterRate) {
+			logger.DebugCtx(pCtx, "slow db insertion rate triggered, will stop reading from instr.RecordWrittenStatuses")
+			errorsFound = append(errorsFound, fmt.Sprintf("table inserter detected slow db insertion rate %.0f records/s, wrote %d records out of %d", inserterRate, drainedRecordCount, instr.RecordsSent))
+			errCount++
+			break
+		}
 	}
-
-	// Close instr.RecordsIn, it will trigger the completion of all writer workers
-	if instr.RecordsInOpen {
-		logger.DebugCtx(pCtx, "closing RecordsIn")
-		close(instr.RecordsIn)
-		logger.DebugCtx(pCtx, "closed RecordsIn")
-		instr.RecordsInOpen = false
-	}
-
-	// Wait for all writer threads to complete, otherwise they will keep writing to instr.ErrorsOut, which can close anytime after we exit this function
-	logger.DebugCtx(pCtx, "waiting for writer workers to complete...")
-	instr.WorkerWaitGroup.Wait()
-	logger.DebugCtx(pCtx, "writer workers are done")
+	logger.DebugCtx(pCtx, "done draining %d records at RecordsSent=%d from instr.RecordWrittenStatuses, %d errors", drainedRecordCount, instr.RecordsSent, errCount)
 
 	if len(errorsFound) > 0 {
 		return fmt.Errorf(strings.Join(errorsFound, "; "))
@@ -186,19 +166,34 @@ func (instr *TableInserter) waitForWorkers(logger *l.CapiLogger, pCtx *ctx.Messa
 	return nil
 }
 
-func (instr *TableInserter) waitForWorkersAndCloseErrorsOut(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) {
-	logger.PushF("proc.waitForWorkersAndClose/TableInserter")
+func (instr *TableInserter) letWorkersDrainRecordWrittenStatusesAndCloseInserter(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) {
+	logger.PushF("proc.letWorkersDrainRecordWrittenStatusesAndCloseInserter/TableInserter")
 	defer logger.PopF()
 
-	// Make sure no workers are running, so they do not hit closed ErrorsOut
-	if err := instr.waitForWorkers(logger, pCtx); err != nil {
-		logger.ErrorCtx(pCtx, fmt.Sprintf("error(s) while waiting for workers to complete: %s", err.Error()))
+	// If anything was sent at all - drain
+	if instr.RecordsSent > 0 {
+		if err := instr.letWorkersDrainRecordWrittenStatuses(logger, pCtx); err != nil {
+			logger.ErrorCtx(pCtx, fmt.Sprintf("error(s) while waiting for workers to drain RecordsIn: %s", err.Error()))
+		}
 	}
 
-	// Safe to close now
-	logger.DebugCtx(pCtx, "closing ErrorsOut")
-	close(instr.ErrorsOut)
-	logger.DebugCtx(pCtx, "closed ErrorsOut")
+	// Tell workers they should not wait for items in RecordsIn and get out of the "for !instr.NoMoreRecordsInSignaled" loop
+	instr.NoMoreRecordsInSignaled = true
+
+	// Close instr.RecordsIn, so workers can get out of the "for writeItem := range instr.RecordsIn" loop
+	logger.DebugCtx(pCtx, "closing RecordsIn")
+	close(instr.RecordsIn)
+	logger.DebugCtx(pCtx, "closed RecordsIn")
+
+	// Workers complete
+	logger.DebugCtx(pCtx, "waiting for writer workers to complete...")
+	instr.WorkerWaitGroup.Wait()
+	logger.DebugCtx(pCtx, "writer workers are done")
+
+	// Now it's safe to
+	logger.DebugCtx(pCtx, "closing RecordWrittenStatuses")
+	close(instr.RecordWrittenStatuses)
+	logger.DebugCtx(pCtx, "closed RecordWrittenStatuses")
 }
 
 func (instr *TableInserter) buildIndexKeys(tableRecord TableRecord) (map[string]string, error) {
@@ -214,9 +209,10 @@ func (instr *TableInserter) buildIndexKeys(tableRecord TableRecord) (map[string]
 	return indexKeyMap, nil
 }
 
-func (instr *TableInserter) add(tableRecord TableRecord, indexKeyMap map[string]string) error {
-	if len(instr.RecordsIn) == cap(instr.RecordsIn) {
-		return fmt.Errorf("RecordsIn cap %d reached", cap(instr.RecordsIn))
+func (instr *TableInserter) add(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, tableRecord TableRecord, indexKeyMap map[string]string) error {
+	for len(instr.RecordsIn) == cap(instr.RecordsIn) {
+		logger.DebugCtx(pCtx, "RecordsIn cap %d reached, waiting for workers to drain RecordsIn...", cap(instr.RecordsIn))
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	instr.RecordsSent++
@@ -632,58 +628,62 @@ func (instr *TableInserter) tableInserterWorker(logger *l.CapiLogger, pCtx *ctx.
 	// Asuming machine hashes are different for all daemon machines!
 	rowidRand := rand.New(rand.NewSource(newSeed(instr.MachineHash)))
 
-	logger.DebugCtx(pCtx, "writer started reading from RecordsIn, %d / %d items", len(instr.RecordsIn), cap(instr.RecordsIn))
-
 	pdq := PreparedQuery{}
 	piq := PreparedQuery{}
 
+	logger.DebugCtx(pCtx, "started reading from RecordsIn")
+
 	handledRecordCount := 0
-	// For each record in instr.RecordsIn, we MUST produce one item in instr.ErrorsOut
-	for writeItem := range instr.RecordsIn {
-		handledRecordCount++
-		var errorToReport error
-		if instr.DataIdxSeqMode == DataIdxSeqModeDataFirst {
-			var newRowid int64
-			newRowid, errorToReport = instr.insertDataRecord(logger, &writeItem, &pdq, rowidRand)
-			if errorToReport == nil {
-				// Index tables
-				for idxName, idxDef := range instr.TableCreator.Indexes {
-					if err := instr.insertIdxRecordWithRowid(logger, idxName, idxDef.Uniqueness, writeItem.IndexKeyMap[idxName], newRowid, &piq); err != nil {
-						errorToReport = fmt.Errorf("cannot insert idx record: %s", err.Error())
-						break
-					}
-				} // idx loop
-			}
-		} else if instr.DataIdxSeqMode == DataIdxSeqModeDistinctIdxFirst {
-			// Assuming there is only one index def here, and it's unique
-			distinctIdxName, _, err := instr.TableCreator.GetSingleUniqueIndexDef()
-			if err != nil {
-				errorToReport = fmt.Errorf("unsupported configuration error: %s", err.Error())
-			} else {
+	for !instr.NoMoreRecordsInSignaled {
+		// For each record in instr.RecordsIn, we MUST produce one item in instr.RecordWrittenStatuses
+		for writeItem := range instr.RecordsIn {
+			handledRecordCount++
+			var errorToReport error
+			if instr.DataIdxSeqMode == DataIdxSeqModeDataFirst {
 				var newRowid int64
-				newRowid, errorToReport = instr.insertDistinctIdxAndDataRecords(logger, pCtx, distinctIdxName, &writeItem, &pdq, &piq, rowidRand)
+				newRowid, errorToReport = instr.insertDataRecord(logger, &writeItem, &pdq, rowidRand)
 				if errorToReport == nil {
-					// Create records for other indexes if any (they all must be non-unique)
+					// Index tables
 					for idxName, idxDef := range instr.TableCreator.Indexes {
-						if idxName == distinctIdxName {
-							continue
-						}
 						if err := instr.insertIdxRecordWithRowid(logger, idxName, idxDef.Uniqueness, writeItem.IndexKeyMap[idxName], newRowid, &piq); err != nil {
 							errorToReport = fmt.Errorf("cannot insert idx record: %s", err.Error())
 							break
 						}
 					} // idx loop
 				}
+			} else if instr.DataIdxSeqMode == DataIdxSeqModeDistinctIdxFirst {
+				// Assuming there is only one index def here, and it's unique
+				distinctIdxName, _, err := instr.TableCreator.GetSingleUniqueIndexDef()
+				if err != nil {
+					errorToReport = fmt.Errorf("unsupported configuration error: %s", err.Error())
+				} else {
+					var newRowid int64
+					newRowid, errorToReport = instr.insertDistinctIdxAndDataRecords(logger, pCtx, distinctIdxName, &writeItem, &pdq, &piq, rowidRand)
+					if errorToReport == nil {
+						// Create records for other indexes if any (they all must be non-unique)
+						for idxName, idxDef := range instr.TableCreator.Indexes {
+							if idxName == distinctIdxName {
+								continue
+							}
+							if err := instr.insertIdxRecordWithRowid(logger, idxName, idxDef.Uniqueness, writeItem.IndexKeyMap[idxName], newRowid, &piq); err != nil {
+								errorToReport = fmt.Errorf("cannot insert idx record: %s", err.Error())
+								break
+							}
+						} // idx loop
+					}
+				}
+			} else {
+				errorToReport = fmt.Errorf("unsupported instr.DataIdxSeqMode %d", instr.DataIdxSeqMode)
 			}
-		} else {
-			errorToReport = fmt.Errorf("unsupported instr.DataIdxSeqMode %d", instr.DataIdxSeqMode)
-		}
-		for len(instr.ErrorsOut) >= cap(instr.ErrorsOut) {
-			logger.ErrorCtx(pCtx, "errorsOut len/cap: %d / %d, recordsIn len/cap: %d / %d ", len(instr.ErrorsOut), cap(instr.ErrorsOut), len(instr.RecordsIn), cap(instr.RecordsIn))
-			time.Sleep(1000)
-		}
-		instr.ErrorsOut <- errorToReport
-	} // items loop
+			for len(instr.RecordWrittenStatuses) == cap(instr.RecordWrittenStatuses) {
+				logger.ErrorCtx(pCtx, "cannot write to RecordWrittenStatuses, waiting for letWorkersDrainRecordWrittenStatuses to be called, RecordWrittenStatuses len/cap: %d / %d, RecordsIn len/cap: %d / %d ", len(instr.RecordWrittenStatuses), cap(instr.RecordWrittenStatuses), len(instr.RecordsIn), cap(instr.RecordsIn))
+				time.Sleep(1000 * time.Millisecond)
+			}
+			instr.RecordWrittenStatuses <- errorToReport
+		} // items loop
+		// logger.DebugCtx(pCtx, "waiting for !instr.NoMoreRecordsInSignaled...")
+		time.Sleep(100 * time.Millisecond)
+	} // for !instr.NoMoreRecordsInSignaled
 
 	logger.DebugCtx(pCtx, "done reading from RecordsIn, this writer worker handled %d records from instr.RecordsIn", handledRecordCount)
 	// Decrease busy worker count
