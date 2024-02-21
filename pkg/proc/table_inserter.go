@@ -26,12 +26,12 @@ const (
 )
 
 type TableInserter struct {
-	PCtx            *ctx.MessageProcessingContext
-	TableCreator    *sc.TableCreatorDef
-	BatchSize       int
-	RecordsIn       chan WriteChannelItem // Channel to pass records from the main function like RunCreateTableForBatch, usig add(), to TableInserter
-	ErrorsOut       chan error
-	RowidRand       *rand.Rand
+	PCtx         *ctx.MessageProcessingContext
+	TableCreator *sc.TableCreatorDef
+	// BatchSize    int
+	RecordsIn chan WriteChannelItem // Channel to pass records from the main function like RunCreateTableForBatch, usig add(), to TableInserter
+	ErrorsOut chan error
+	// RowidRand       *rand.Rand
 	MachineHash     int64
 	RandMutex       sync.Mutex
 	NumWorkers      int
@@ -55,21 +55,23 @@ type WriteChannelItem struct {
 var seedCounter = int64(0)
 
 func newSeed(hash int64) int64 {
-	return (time.Now().Unix() << 32) + time.Now().UnixMilli() + hash + atomic.AddInt64(&seedCounter, 1000)
+	// return (time.Now().Unix() << 32) + time.Now().UnixMilli() + hash + atomic.AddInt64(&seedCounter, 1)
+	return hash + atomic.AddInt64(&seedCounter, 1)
 }
 
 func newTableInserter(envConfig *env.EnvConfig, pCtx *ctx.MessageProcessingContext, tableCreator *sc.TableCreatorDef, batchSize int, dataIdxSeqMode DataIdxSeqModeType, stringForHash string) *TableInserter {
 	stringHash := fnv.New64a()
 	stringHash.Write([]byte(stringForHash))
-	hash := int64(stringHash.Sum64())
+	// hash := int64(stringHash.Sum64())
 
 	return &TableInserter{
-		PCtx:                   pCtx,
-		TableCreator:           tableCreator,
-		BatchSize:              batchSize,
-		ErrorsOut:              make(chan error, batchSize*envConfig.Cassandra.WriterWorkers), // Important to be able to host max possible errors, otherwise deadlock
-		RowidRand:              rand.New(rand.NewSource(newSeed(hash))),
-		MachineHash:            hash,
+		PCtx:         pCtx,
+		TableCreator: tableCreator,
+		// BatchSize:    batchSize,
+		// ErrorsOut:    make(chan error, batchSize*envConfig.Cassandra.WriterWorkers), // Important to be able to host max possible errors produced by all writers, otherwise deadlock
+		ErrorsOut: make(chan error, batchSize), // Important to be able to host max possible errors produced by all writers, otherwise deadlock
+		// RowidRand:              rand.New(rand.NewSource(newSeed(hash))),
+		MachineHash:            int64(stringHash.Sum64()),
 		NumWorkers:             envConfig.Cassandra.WriterWorkers,
 		MinInserterRate:        envConfig.Cassandra.MinInserterRate,
 		RecordsInOpen:          false,
@@ -111,7 +113,8 @@ func (instr *TableInserter) startWorkers(logger *l.CapiLogger, pCtx *ctx.Message
 
 	// Size of RecordsIn is extremely important. In the worst (unlikely) case, it should be capable of holding instr.BatchSize * number_of_writers records.
 	// If we fail to provide that space, we may end up in a deadlock
-	instr.RecordsIn = make(chan WriteChannelItem, instr.BatchSize*instr.NumWorkers)
+	// instr.RecordsIn = make(chan WriteChannelItem, instr.BatchSize*instr.NumWorkers)
+	instr.RecordsIn = make(chan WriteChannelItem, cap(instr.ErrorsOut))
 	logger.DebugCtx(pCtx, "startWorkers created RecordsIn,now launching %d writers...", instr.NumWorkers)
 	instr.RecordsInOpen = true
 
@@ -212,6 +215,9 @@ func (instr *TableInserter) buildIndexKeys(tableRecord TableRecord) (map[string]
 }
 
 func (instr *TableInserter) add(tableRecord TableRecord, indexKeyMap map[string]string) error {
+	if len(instr.RecordsIn) == cap(instr.RecordsIn) {
+		return fmt.Errorf("RecordsIn cap %d reached", cap(instr.RecordsIn))
+	}
 
 	instr.RecordsSent++
 	instr.RecordsIn <- WriteChannelItem{TableRecord: &tableRecord, IndexKeyMap: indexKeyMap}
@@ -394,14 +400,12 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, writ
 	return errorToReturn
 }
 
-func (instr *TableInserter) insertDataRecord(logger *l.CapiLogger, writeItem *WriteChannelItem, pq *PreparedQuery) (int64, error) {
+func (instr *TableInserter) insertDataRecord(logger *l.CapiLogger, writeItem *WriteChannelItem, pq *PreparedQuery, rowidRand *rand.Rand) (int64, error) {
 	logger.PushF("proc.insertDataRecord")
 	defer logger.PopF()
 
 	const maxRetries int = 5
-	instr.RandMutex.Lock()
-	curRowid := instr.RowidRand.Int63()
-	instr.RandMutex.Unlock()
+	curRowid := rowidRand.Int63()
 	for retryCount := 0; retryCount < maxRetries; retryCount++ {
 
 		err := instr.insertDataRecordWithRowid(logger, writeItem, curRowid, pq)
@@ -414,10 +418,8 @@ func (instr *TableInserter) insertDataRecord(logger *l.CapiLogger, writeItem *Wr
 			logger.ErrorCtx(instr.PCtx, errorToReturn.Error())
 			return curRowid, errorToReturn
 		} else if retryCount < maxRetries-1 {
-			instr.RandMutex.Lock()
-			instr.RowidRand = rand.New(rand.NewSource(newSeed(instr.MachineHash)))
-			curRowid = instr.RowidRand.Int63()
-			instr.RandMutex.Unlock()
+			rowidRand.Seed(newSeed(instr.MachineHash))
+			curRowid = rowidRand.Int63()
 		}
 		logger.WarnCtx(instr.PCtx, "duplicate rowid not written [%s], rowid retry count %d", pq.Query, retryCount)
 	}
@@ -582,14 +584,12 @@ func (instr *TableInserter) insertIdxRecordWithRowid(logger *l.CapiLogger, idxNa
 	return errorToReturn
 }
 
-func (instr *TableInserter) insertDistinctIdxAndDataRecords(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, idxName string, writeItem *WriteChannelItem, pdq *PreparedQuery, piq *PreparedQuery) (int64, error) {
+func (instr *TableInserter) insertDistinctIdxAndDataRecords(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, idxName string, writeItem *WriteChannelItem, pdq *PreparedQuery, piq *PreparedQuery, rowidRand *rand.Rand) (int64, error) {
 	logger.PushF("proc.insertDistinctIdxAndDataRecords")
 	defer logger.PopF()
 
-	const maxRetries int = 20
-	instr.RandMutex.Lock()
-	curRowid := instr.RowidRand.Int63()
-	instr.RandMutex.Unlock()
+	const maxRetries int = 5
+	curRowid := rowidRand.Int63()
 	for retryCount := 0; retryCount < maxRetries; retryCount++ {
 		errInsertIdx := instr.insertIdxRecordWithRowid(logger, idxName, sc.IdxUnique, writeItem.IndexKeyMap[idxName], curRowid, piq)
 		if errInsertIdx == nil {
@@ -612,10 +612,7 @@ func (instr *TableInserter) insertDistinctIdxAndDataRecords(logger *l.CapiLogger
 			logger.DebugCtx(pCtx, "already have a distinct record, nothing to do here: key %s, rowid %d", writeItem.IndexKeyMap[idxName], curRowid)
 			return curRowid, nil
 		} else if retryCount < maxRetries-1 {
-			instr.RandMutex.Lock()
-			instr.RowidRand = rand.New(rand.NewSource(newSeed(instr.MachineHash + logger.ZapThread.Integer)))
-			curRowid = instr.RowidRand.Int63()
-			instr.RandMutex.Unlock()
+			rowidRand.Seed(newSeed(instr.MachineHash))
 		} else {
 			// Some serious error
 			return curRowid, errInsertIdx
@@ -631,18 +628,23 @@ func (instr *TableInserter) tableInserterWorker(logger *l.CapiLogger, pCtx *ctx.
 	logger.PushF("proc.tableInserterWorker")
 	defer logger.PopF()
 
-	logger.DebugCtx(pCtx, "writer started reading from RecordsIn")
+	// Each writer thread has its own rand, so we do not have to critsec it.
+	// Asuming machine hashes are different for all daemon machines!
+	rowidRand := rand.New(rand.NewSource(newSeed(instr.MachineHash)))
+
+	logger.DebugCtx(pCtx, "writer started reading from RecordsIn, %d / %d items", len(instr.RecordsIn), cap(instr.RecordsIn))
 
 	pdq := PreparedQuery{}
 	piq := PreparedQuery{}
 
 	handledRecordCount := 0
+	// For each record in instr.RecordsIn, we MUST produce one item in instr.ErrorsOut
 	for writeItem := range instr.RecordsIn {
 		handledRecordCount++
 		var errorToReport error
 		if instr.DataIdxSeqMode == DataIdxSeqModeDataFirst {
 			var newRowid int64
-			newRowid, errorToReport = instr.insertDataRecord(logger, &writeItem, &pdq)
+			newRowid, errorToReport = instr.insertDataRecord(logger, &writeItem, &pdq, rowidRand)
 			if errorToReport == nil {
 				// Index tables
 				for idxName, idxDef := range instr.TableCreator.Indexes {
@@ -659,7 +661,7 @@ func (instr *TableInserter) tableInserterWorker(logger *l.CapiLogger, pCtx *ctx.
 				errorToReport = fmt.Errorf("unsupported configuration error: %s", err.Error())
 			} else {
 				var newRowid int64
-				newRowid, errorToReport = instr.insertDistinctIdxAndDataRecords(logger, pCtx, distinctIdxName, &writeItem, &pdq, &piq)
+				newRowid, errorToReport = instr.insertDistinctIdxAndDataRecords(logger, pCtx, distinctIdxName, &writeItem, &pdq, &piq, rowidRand)
 				if errorToReport == nil {
 					// Create records for other indexes if any (they all must be non-unique)
 					for idxName, idxDef := range instr.TableCreator.Indexes {
@@ -675,6 +677,10 @@ func (instr *TableInserter) tableInserterWorker(logger *l.CapiLogger, pCtx *ctx.
 			}
 		} else {
 			errorToReport = fmt.Errorf("unsupported instr.DataIdxSeqMode %d", instr.DataIdxSeqMode)
+		}
+		for len(instr.ErrorsOut) >= cap(instr.ErrorsOut) {
+			logger.ErrorCtx(pCtx, "errorsOut len/cap: %d / %d, recordsIn len/cap: %d / %d ", len(instr.ErrorsOut), cap(instr.ErrorsOut), len(instr.RecordsIn), cap(instr.RecordsIn))
+			time.Sleep(1000)
 		}
 		instr.ErrorsOut <- errorToReport
 	} // items loop

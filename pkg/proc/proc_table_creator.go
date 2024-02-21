@@ -217,11 +217,11 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 		sc.FieldRefs{sc.RowidTokenFieldRef()},
 		srcLeftFieldRefs)
 
-	inserterBatchSize := DefaultInserterBatchSize
-	if inserterBatchSize < node.TableReader.RowsetSize {
-		inserterBatchSize = node.TableReader.RowsetSize
-	}
-	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, inserterBatchSize, DataIdxSeqModeDataFirst, logger.ZapMachine.Key)
+	// inserterBatchSize := DefaultInserterBatchSize
+	// if inserterBatchSize < node.TableReader.RowsetSize {
+	//	inserterBatchSize = node.TableReader.RowsetSize
+	// }
+	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, leftBatchSize, DataIdxSeqModeDataFirst, logger.ZapMachine.String)
 	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}
@@ -345,11 +345,11 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 		sc.FieldRefs{sc.RowidTokenFieldRef()},
 		srcLeftFieldRefs)
 
-	inserterBatchSize := DefaultInserterBatchSize
-	if inserterBatchSize < node.TableReader.RowsetSize {
-		inserterBatchSize = node.TableReader.RowsetSize
-	}
-	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, inserterBatchSize, DataIdxSeqModeDataFirst, logger.ZapMachine.Key)
+	// inserterBatchSize := DefaultInserterBatchSize
+	// if inserterBatchSize < node.TableReader.RowsetSize {
+	//	inserterBatchSize = node.TableReader.RowsetSize
+	// }
+	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, leftBatchSize, DataIdxSeqModeDataFirst, logger.ZapMachine.String)
 	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}
@@ -472,11 +472,12 @@ func RunCreateDistinctTableForBatch(envConfig *env.EnvConfig,
 		sc.FieldRefs{sc.RowidTokenFieldRef()},
 		srcLeftFieldRefs)
 
-	inserterBatchSize := DefaultInserterBatchSize
-	if inserterBatchSize < node.TableReader.RowsetSize {
-		inserterBatchSize = node.TableReader.RowsetSize
-	}
-	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, inserterBatchSize, DataIdxSeqModeDistinctIdxFirst, logger.ZapMachine.Key)
+	// inserterBatchSize := DefaultInserterBatchSize
+	// if inserterBatchSize < node.TableReader.RowsetSize {
+	//	inserterBatchSize = node.TableReader.RowsetSize
+	// }
+	// inserterBatchSize := node.TableReader.RowsetSize
+	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, leftBatchSize, DataIdxSeqModeDistinctIdxFirst, logger.ZapMachine.String)
 	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}
@@ -770,7 +771,8 @@ func addRecordAndSaveBatchIfNeeded(pCtx *ctx.MessageProcessingContext, logger *l
 		return tableRecordBatchCount, batchStartTime, fmt.Errorf("cannot add record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
 	}
 	tableRecordBatchCount++
-	if tableRecordBatchCount == instr.BatchSize {
+	// if tableRecordBatchCount == instr.BatchSize {
+	if tableRecordBatchCount == cap(instr.RecordsIn) {
 		tableRecordBatchCount, batchStartTime, err := saveCompletedBatch(pCtx, logger, &node.TableCreator, tableRecordBatchCount, batchStartTime, instr)
 		if err != nil {
 			return tableRecordBatchCount, batchStartTime, err
@@ -865,11 +867,11 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 		sc.FieldRefs{sc.RowidTokenFieldRef()},
 		srcLeftFieldRefs)
 
-	inserterBatchSize := DefaultInserterBatchSize
-	if inserterBatchSize < node.TableReader.RowsetSize {
-		inserterBatchSize = node.TableReader.RowsetSize
-	}
-	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, inserterBatchSize, DataIdxSeqModeDataFirst, logger.ZapMachine.Key)
+	// inserterBatchSize := DefaultInserterBatchSize
+	// if inserterBatchSize < node.TableReader.RowsetSize {
+	//	inserterBatchSize = node.TableReader.RowsetSize
+	// }
+	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, leftBatchSize, DataIdxSeqModeDataFirst, logger.ZapMachine.String)
 	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}

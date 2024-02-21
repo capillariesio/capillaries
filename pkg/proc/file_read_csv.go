@@ -22,7 +22,8 @@ func addRecordAndWriteBatchIfNeeded(logger *l.CapiLogger, pCtx *ctx.MessageProce
 		return tableRecordBatchCount, batchStartTime, fmt.Errorf("cannot add record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
 	}
 	tableRecordBatchCount++
-	if tableRecordBatchCount == instr.BatchSize {
+	// if tableRecordBatchCount == instr.BatchSize {
+	if tableRecordBatchCount == cap(instr.RecordsIn) {
 		if err := instr.waitForWorkers(logger, pCtx); err != nil {
 			return tableRecordBatchCount, batchStartTime, fmt.Errorf("cannot save record to batch of size %d to %s: [%s]", tableRecordBatchCount, node.TableCreator.Name, err.Error())
 		}
@@ -49,7 +50,7 @@ func readCsv(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessagePr
 	var lineIdx int64
 	tableRecordBatchCount := 0
 
-	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, DefaultInserterBatchSize, DataIdxSeqModeDataFirst, logger.ZapMachine.Key)
+	instr := newTableInserter(envConfig, pCtx, &node.TableCreator, DefaultInserterBatchSize, DataIdxSeqModeDataFirst, logger.ZapMachine.String)
 	if err := instr.startWorkers(logger, pCtx); err != nil {
 		return bs, err
 	}

@@ -134,7 +134,10 @@ func (scriptDef *ScriptDef) Deserialize(jsonBytesScript []byte, customProcessorD
 
 	for idxName, creatorNodeDef := range scriptDef.IndexNodeMap {
 		if !scriptDef.isScriptUsesIdx(idxName) {
-			return fmt.Errorf("cannot find nodes that use index %s created by node %s, consider removing this index", idxName, creatorNodeDef.Name)
+			// TODO: this is a hack to allow indexes that are deliberately added to check uniqueness
+			if !strings.Contains(idxName, "just_to_check_uniqueness") {
+				return fmt.Errorf("cannot find nodes that use index %s created by node %s, consider removing this index", idxName, creatorNodeDef.Name)
+			}
 		}
 	}
 

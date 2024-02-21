@@ -311,9 +311,6 @@
                         "expression": "l.value",
                         "type": "decimal2"
                     }
-                },
-                "indexes": {
-                    "idx_order_item_date_inner_order_id_item_id": "unique(order_id(case_sensitive),order_item_id())"
                 }
             }
         },
@@ -424,9 +421,6 @@
                         "expression": "count()",
                         "type": "int"
                     }
-                },
-                "indexes": {
-                    "idx_order_date_value_grouped_inner_order_id": "unique(order_id(case_sensitive))"
                 }
             }
         },
@@ -483,9 +477,6 @@
                         "expression": "count()",
                         "type": "int"
                     }
-                },
-                "indexes": {
-                    "idx_order_date_value_grouped_left_outer_order_id": "unique(order_id(case_sensitive))"
                 }
             }
         },
