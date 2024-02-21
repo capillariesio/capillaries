@@ -43,10 +43,10 @@ type TableInserter struct {
 	// with "defer instr.waitForWorkersAndCloseErrorsOut(logger, pCtx)" - not the cleanest way, get rid of this bool thingy.
 	// That defer is convenient because there are so many early returns.
 	// RecordsInOpen          bool
-	DoesNotExistPause       float32
-	OperationTimedOutPause  float32
-	DataIdxSeqMode          DataIdxSeqModeType
-	NoMoreRecordsInSignaled bool
+	DoesNotExistPause      float32
+	OperationTimedOutPause float32
+	DataIdxSeqMode         DataIdxSeqModeType
+	// NoMoreRecordsInSignaled bool
 }
 
 type WriteChannelItem struct {
@@ -69,19 +69,19 @@ func createInserterAndStartWorkers(logger *l.CapiLogger, envConfig *env.EnvConfi
 	stringHash.Write([]byte(stringForHash))
 
 	instr := &TableInserter{
-		PCtx:                    pCtx,
-		TableCreator:            tableCreator,
-		RecordsIn:               make(chan WriteChannelItem, channelSize), // Capacity should match RecordWrittenStatuses
-		RecordWrittenStatuses:   make(chan error, channelSize),            // Capacity should match RecordsIn
-		MachineHash:             int64(stringHash.Sum64()),
-		NumWorkers:              envConfig.Cassandra.WriterWorkers,
-		MinInserterRate:         envConfig.Cassandra.MinInserterRate,
-		RecordsSent:             0,    // Total number of records added to RecordsIn
-		RecordsProcessed:        0,    // Total number of records read from RecordsOut
-		DoesNotExistPause:       5.0,  // sec
-		OperationTimedOutPause:  10.0, // sec
-		DataIdxSeqMode:          dataIdxSeqMode,
-		NoMoreRecordsInSignaled: false,
+		PCtx:                   pCtx,
+		TableCreator:           tableCreator,
+		RecordsIn:              make(chan WriteChannelItem, channelSize), // Capacity should match RecordWrittenStatuses
+		RecordWrittenStatuses:  make(chan error, channelSize),            // Capacity should match RecordsIn
+		MachineHash:            int64(stringHash.Sum64()),
+		NumWorkers:             envConfig.Cassandra.WriterWorkers,
+		MinInserterRate:        envConfig.Cassandra.MinInserterRate,
+		RecordsSent:            0,    // Total number of records added to RecordsIn
+		RecordsProcessed:       0,    // Total number of records read from RecordsOut
+		DoesNotExistPause:      5.0,  // sec
+		OperationTimedOutPause: 10.0, // sec
+		DataIdxSeqMode:         dataIdxSeqMode,
+		// NoMoreRecordsInSignaled: false,
 	}
 
 	logger.DebugCtx(pCtx, "launching %d writers...", instr.NumWorkers)
@@ -178,7 +178,7 @@ func (instr *TableInserter) letWorkersDrainRecordWrittenStatusesAndCloseInserter
 	}
 
 	// Tell workers they should not wait for items in RecordsIn and get out of the "for !instr.NoMoreRecordsInSignaled" loop
-	instr.NoMoreRecordsInSignaled = true
+	// instr.NoMoreRecordsInSignaled = true
 
 	// Close instr.RecordsIn, so workers can get out of the "for writeItem := range instr.RecordsIn" loop
 	logger.DebugCtx(pCtx, "closing RecordsIn")
@@ -634,56 +634,56 @@ func (instr *TableInserter) tableInserterWorker(logger *l.CapiLogger, pCtx *ctx.
 	logger.DebugCtx(pCtx, "started reading from RecordsIn")
 
 	handledRecordCount := 0
-	for !instr.NoMoreRecordsInSignaled {
-		// For each record in instr.RecordsIn, we MUST produce one item in instr.RecordWrittenStatuses
-		for writeItem := range instr.RecordsIn {
-			handledRecordCount++
-			var errorToReport error
-			if instr.DataIdxSeqMode == DataIdxSeqModeDataFirst {
+	//for !instr.NoMoreRecordsInSignaled {
+	// For each record in instr.RecordsIn, we MUST produce one item in instr.RecordWrittenStatuses
+	for writeItem := range instr.RecordsIn {
+		handledRecordCount++
+		var errorToReport error
+		if instr.DataIdxSeqMode == DataIdxSeqModeDataFirst {
+			var newRowid int64
+			newRowid, errorToReport = instr.insertDataRecord(logger, &writeItem, &pdq, rowidRand)
+			if errorToReport == nil {
+				// Index tables
+				for idxName, idxDef := range instr.TableCreator.Indexes {
+					if err := instr.insertIdxRecordWithRowid(logger, idxName, idxDef.Uniqueness, writeItem.IndexKeyMap[idxName], newRowid, &piq); err != nil {
+						errorToReport = fmt.Errorf("cannot insert idx record: %s", err.Error())
+						break
+					}
+				} // idx loop
+			}
+		} else if instr.DataIdxSeqMode == DataIdxSeqModeDistinctIdxFirst {
+			// Assuming there is only one index def here, and it's unique
+			distinctIdxName, _, err := instr.TableCreator.GetSingleUniqueIndexDef()
+			if err != nil {
+				errorToReport = fmt.Errorf("unsupported configuration error: %s", err.Error())
+			} else {
 				var newRowid int64
-				newRowid, errorToReport = instr.insertDataRecord(logger, &writeItem, &pdq, rowidRand)
+				newRowid, errorToReport = instr.insertDistinctIdxAndDataRecords(logger, pCtx, distinctIdxName, &writeItem, &pdq, &piq, rowidRand)
 				if errorToReport == nil {
-					// Index tables
+					// Create records for other indexes if any (they all must be non-unique)
 					for idxName, idxDef := range instr.TableCreator.Indexes {
+						if idxName == distinctIdxName {
+							continue
+						}
 						if err := instr.insertIdxRecordWithRowid(logger, idxName, idxDef.Uniqueness, writeItem.IndexKeyMap[idxName], newRowid, &piq); err != nil {
 							errorToReport = fmt.Errorf("cannot insert idx record: %s", err.Error())
 							break
 						}
 					} // idx loop
 				}
-			} else if instr.DataIdxSeqMode == DataIdxSeqModeDistinctIdxFirst {
-				// Assuming there is only one index def here, and it's unique
-				distinctIdxName, _, err := instr.TableCreator.GetSingleUniqueIndexDef()
-				if err != nil {
-					errorToReport = fmt.Errorf("unsupported configuration error: %s", err.Error())
-				} else {
-					var newRowid int64
-					newRowid, errorToReport = instr.insertDistinctIdxAndDataRecords(logger, pCtx, distinctIdxName, &writeItem, &pdq, &piq, rowidRand)
-					if errorToReport == nil {
-						// Create records for other indexes if any (they all must be non-unique)
-						for idxName, idxDef := range instr.TableCreator.Indexes {
-							if idxName == distinctIdxName {
-								continue
-							}
-							if err := instr.insertIdxRecordWithRowid(logger, idxName, idxDef.Uniqueness, writeItem.IndexKeyMap[idxName], newRowid, &piq); err != nil {
-								errorToReport = fmt.Errorf("cannot insert idx record: %s", err.Error())
-								break
-							}
-						} // idx loop
-					}
-				}
-			} else {
-				errorToReport = fmt.Errorf("unsupported instr.DataIdxSeqMode %d", instr.DataIdxSeqMode)
 			}
-			for len(instr.RecordWrittenStatuses) == cap(instr.RecordWrittenStatuses) {
-				logger.ErrorCtx(pCtx, "cannot write to RecordWrittenStatuses, waiting for letWorkersDrainRecordWrittenStatuses to be called, RecordWrittenStatuses len/cap: %d / %d, RecordsIn len/cap: %d / %d ", len(instr.RecordWrittenStatuses), cap(instr.RecordWrittenStatuses), len(instr.RecordsIn), cap(instr.RecordsIn))
-				time.Sleep(1000 * time.Millisecond)
-			}
-			instr.RecordWrittenStatuses <- errorToReport
-		} // items loop
-		// logger.DebugCtx(pCtx, "waiting for !instr.NoMoreRecordsInSignaled...")
-		time.Sleep(100 * time.Millisecond)
-	} // for !instr.NoMoreRecordsInSignaled
+		} else {
+			errorToReport = fmt.Errorf("unsupported instr.DataIdxSeqMode %d", instr.DataIdxSeqMode)
+		}
+		for len(instr.RecordWrittenStatuses) == cap(instr.RecordWrittenStatuses) {
+			logger.ErrorCtx(pCtx, "cannot write to RecordWrittenStatuses, waiting for letWorkersDrainRecordWrittenStatuses to be called, RecordWrittenStatuses len/cap: %d / %d, RecordsIn len/cap: %d / %d ", len(instr.RecordWrittenStatuses), cap(instr.RecordWrittenStatuses), len(instr.RecordsIn), cap(instr.RecordsIn))
+			time.Sleep(1000 * time.Millisecond)
+		}
+		instr.RecordWrittenStatuses <- errorToReport
+	} // items loop
+	// logger.DebugCtx(pCtx, "waiting for !instr.NoMoreRecordsInSignaled...")
+	//time.Sleep(100 * time.Millisecond)
+	//} // for !instr.NoMoreRecordsInSignaled
 
 	logger.DebugCtx(pCtx, "done reading from RecordsIn, this writer worker handled %d records from instr.RecordsIn", handledRecordCount)
 	// Decrease busy worker count
