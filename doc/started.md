@@ -97,7 +97,7 @@ Is there a way to develop and debug Capillaries server components in a dev envir
 
 1. Data directories `/tmp/capi_*` will not be available from Windows, so you will have to tweak all configuration files and shell scripts so they reference Windows paths. This is doable, but it's a tedious job.
 
-2. When [test_tag_and_denormalize](../test/code/tag_and_denormalize/README.md) integration test runs in WSL and uses Webapi executed from Windows dev environment, `curl` command will not be able to connect to Webapi's `http://localhost:6543` because of the known WSL limitation discussed at https://github.com/microsoft/WSL/issues/5211 and at https://superuser.com/questions/1679757/how-to-access-windows-localhost-from-wsl2 . You will need to use host IP address or use `$(localhost).local` instead of `localhost` in the shell script.
+2. When [test_tag_and_denormalize](../test/code/tag_and_denormalize/README.md) integration test runs in WSL and uses Webapi executed from Windows dev environment, `curl` command will not be able to connect to Webapi's `http://localhost:6543` because of the known WSL limitation discussed at https://github.com/microsoft/WSL/issues/5211 and at `https://superuser.com/questions/1679757/how-to-access-windows-localhost-from-wsl2` . You will need to use host IP address or use `$(localhost).local` instead of `localhost` in the shell script.
 
 ### Go development    
 
