@@ -201,6 +201,9 @@ func (instr *TableInserter) buildIndexKeys(tableRecord TableRecord) (map[string]
 }
 
 func (instr *TableInserter) add(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, tableRecord TableRecord, indexKeyMap map[string]string) error {
+
+	// No need a critsec here, there is only one thread that writes to instr.RecordsIn
+
 	for len(instr.RecordsIn) == cap(instr.RecordsIn) {
 		logger.DebugCtx(pCtx, "RecordsIn cap %d reached, waiting for workers to drain RecordsIn...", cap(instr.RecordsIn))
 		time.Sleep(100 * time.Millisecond)
@@ -667,6 +670,8 @@ func (instr *TableInserter) tableInserterWorker(logger *l.CapiLogger, pCtx *ctx.
 			errorToReport = fmt.Errorf("unsupported instr.DataIdxSeqMode %d", instr.DataIdxSeqMode)
 		}
 
+		// Without this capacity check, the code works fine (): instr.RecordWrittenStatuses <- ... just waits until there is room
+		// We just want to have some logging. So, lock/unlock and for ... can be removed if needed.
 		instr.RecordWrittenStatusesMutex.Lock()
 		for len(instr.RecordWrittenStatuses) == cap(instr.RecordWrittenStatuses) {
 			logger.ErrorCtx(pCtx, "cannot write to RecordWrittenStatuses, waiting for letWorkersDrainRecordWrittenStatuses to be called, RecordWrittenStatuses len/cap: %d / %d, RecordsIn len/cap: %d / %d ", len(instr.RecordWrittenStatuses), cap(instr.RecordWrittenStatuses), len(instr.RecordsIn), cap(instr.RecordsIn))

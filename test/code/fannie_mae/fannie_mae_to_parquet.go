@@ -493,7 +493,7 @@ func fannieMaeCsvToParquet(dealName string, files []string, colIdxMap map[string
 				return fmt.Errorf("cannot write %v: %s", valMap, err.Error())
 			}
 
-			if newElCounter == 500000 {
+			if newElCounter == 100000 {
 				if err := w.Close(); err != nil {
 					return fmt.Errorf("cannot close parquet writer '%s': %s", curFileName, err.Error())
 				}
