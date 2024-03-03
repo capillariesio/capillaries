@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestTimeFunctions(t *testing.T) {
+func TestGeneralTimeFunctions(t *testing.T) {
 	testTime := time.Date(2001, 1, 1, 1, 1, 1, 100000000, time.FixedZone("", -7200))
 	testTimeUtc := time.Date(2001, 1, 1, 0, 0, 0, 0, time.UTC)
 	varValuesMap := VarValuesMap{"t": map[string]any{"test_time": testTime}}

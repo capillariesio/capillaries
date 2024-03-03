@@ -6,7 +6,7 @@
       "username": "cassandra",
       "password": "cassandra",
       "keyspace_replication_config": "{ 'class' : 'NetworkTopologyStrategy', 'datacenter1' : 1 }",
-      "writer_workers": 20,
+      "writer_workers": 5,
       "min_inserter_rate": 10,
       "num_conns": 2,
       "timeout": 5000,
@@ -28,7 +28,7 @@
       },
       "tag_and_denormalize":{}
     },
-    "thread_pool_size": 5,
+    "thread_pool_size": 2,
     "dead_letter_ttl": 1000,
     "ca_path":"../../../test/ca",
     "zap_config":{

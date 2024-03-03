@@ -122,7 +122,7 @@ func AmqpFullReconnectCycle(envConfig *env.EnvConfig, logger *l.CapiLogger, osSi
 		daemonCmd = DaemonCmdReconnectQueue
 	} else {
 		daemonCmd = amqpConnectAndSelect(envConfig, logger, osSignalChannel, amqpChannel, chanErrors)
-		time.Sleep(1000)
+		time.Sleep(1000 * time.Millisecond)
 		logger.Info("consuming %d amqp errors to avoid close deadlock...", len(chanErrors))
 		for len(chanErrors) > 0 {
 			chanErr := <-chanErrors

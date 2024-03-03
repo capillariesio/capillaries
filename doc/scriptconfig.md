@@ -23,10 +23,13 @@ and not like this:
 "expected_batches_total": "10"
 ```
 
-Supported parameter types are "string" (default), "number", "bool".
+Supported parameter types are "string" (default), "number", "bool", "stringlist". 
 
-Also, there is a small set of built-in parameters used internally, but should be paid attention to:
-`{batch_idx|string}` and `{run_id|string}`. [Processors](glossary.md#processor) get values for these parameters from the execution context (execution context always has some specific run id and batch id) and write them as `fmt.Sprintf("%05d", runId)` and `fmt.Sprintf("%05d", batchIdx)`. As of this writing, this functionality is present in the [file writer](glossary.md#table_file) and covers the scenario when the user wants run id or batch id to be present in the result file name. For example, [py_calc integration test](../test/code/py_calc/README.md) script uses `batchIdx`.
+Also, there is a small set of built-in parameters used internally:
+- `{batch_idx|string}`
+- `{run_id|string}`
+
+[Processors](glossary.md#processor) get values for these parameters from the execution context (execution context always has some specific run id and batch id) and write them as `fmt.Sprintf("%05d", runId)` and `fmt.Sprintf("%05d", batchIdx)`. As of this writing, this functionality is present in the [file writer](glossary.md#table_file) and covers the scenario when the user wants run id or batch id to be present in the result file name. For example, [py_calc integration test](../test/code/py_calc/README.md) script uses `batchIdx`.
 
 ## nodes
 [Script node](glossary.md#script-node) map, in no particular order

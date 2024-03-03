@@ -53,6 +53,7 @@ const (
 	NodeTypeTableLookupTable    NodeType = "table_lookup_table"
 	NodeTypeTableFile           NodeType = "table_file"
 	NodeTypeTableCustomTfmTable NodeType = "table_custom_tfm_table"
+	NodeTypeDistinctTable       NodeType = "distinct_table"
 )
 
 func ValidateNodeType(nodeType NodeType) error {
@@ -60,6 +61,7 @@ func ValidateNodeType(nodeType NodeType) error {
 		nodeType == NodeTypeTableTable ||
 		nodeType == NodeTypeTableLookupTable ||
 		nodeType == NodeTypeTableFile ||
+		nodeType == NodeTypeDistinctTable ||
 		nodeType == NodeTypeTableCustomTfmTable {
 		return nil
 	}
@@ -131,6 +133,7 @@ func (node *ScriptNodeDef) HasTableReader() bool {
 	return node.Type == NodeTypeTableTable ||
 		node.Type == NodeTypeTableLookupTable ||
 		node.Type == NodeTypeTableFile ||
+		node.Type == NodeTypeDistinctTable ||
 		node.Type == NodeTypeTableCustomTfmTable
 }
 func (node *ScriptNodeDef) HasFileReader() bool {
@@ -148,6 +151,7 @@ func (node *ScriptNodeDef) HasCustomProcessor() bool {
 func (node *ScriptNodeDef) HasTableCreator() bool {
 	return node.Type == NodeTypeFileTable ||
 		node.Type == NodeTypeTableTable ||
+		node.Type == NodeTypeDistinctTable ||
 		node.Type == NodeTypeTableLookupTable ||
 		node.Type == NodeTypeTableCustomTfmTable
 }
@@ -271,6 +275,16 @@ func (node *ScriptNodeDef) Deserialize(customProcessorDefFactory CustomProcessor
 	// Custom processor
 	if err := node.initCustomProcessor(customProcessorDefFactory, customProcessorsSettings, caPath, privateKeys); err != nil {
 		errors = append(errors, err.Error())
+	}
+
+	// Distinct table
+	if node.Type == NodeTypeDistinctTable {
+		if node.RerunPolicy != NodeFail {
+			errors = append(errors, "distinct_table node must have fail policy, no reruns possible")
+		}
+		if _, _, err := node.TableCreator.GetSingleUniqueIndexDef(); err != nil {
+			errors = append(errors, err.Error())
+		}
 	}
 
 	if len(errors) > 0 {
@@ -414,4 +428,19 @@ func (node *ScriptNodeDef) GetTokenIntervalsByNumberOfBatches() ([][]int64, erro
 	}
 
 	return nil, fmt.Errorf("cannot find implementation for intervals for node %s", node.Name)
+}
+
+func (node *ScriptNodeDef) isNodeUsesIdx(idxName string) bool {
+	if node.HasLookup() && node.Lookup.IndexName == idxName {
+		return true
+	}
+
+	distinctIdxCandidate, ok := node.TableCreator.Indexes[idxName]
+	if ok {
+		if node.Type == NodeTypeDistinctTable && distinctIdxCandidate.Uniqueness == IdxUnique {
+			return true
+		}
+	}
+
+	return false
 }

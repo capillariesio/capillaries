@@ -196,3 +196,35 @@ func TestCheckTableRecordHavingCondition(t *testing.T) {
 	_, err = c.CheckTableRecordHavingCondition(map[string]any{"field_string": "aaa"})
 	assert.Nil(t, err)
 }
+
+func TestCreatorIndexes(t *testing.T) {
+	c := TableCreatorDef{}
+	assert.Nil(t, c.Deserialize([]byte(tableCreatorNodeJson)))
+
+	idxName, idxDef, err := c.GetSingleUniqueIndexDef()
+	assert.Nil(t, err)
+	assert.Equal(t, "idx_1", idxName)
+	assert.Equal(t, IdxUnique, idxDef.Uniqueness)
+
+	c = TableCreatorDef{}
+	confReplacer := strings.NewReplacer(`unique`, `non_unique`)
+	assert.Nil(t, c.Deserialize([]byte(confReplacer.Replace(tableCreatorNodeJson))))
+	_, _, err = c.GetSingleUniqueIndexDef()
+	assert.Contains(t, err.Error(), "with no unique indexes, expected exactly one unique idx definition")
+
+	c = TableCreatorDef{}
+	confReplacer = strings.NewReplacer(`"idx_1": "unique(field_string(case_sensitive))"`, ``)
+	assert.Nil(t, c.Deserialize([]byte(confReplacer.Replace(tableCreatorNodeJson))))
+	_, _, err = c.GetSingleUniqueIndexDef()
+	assert.Contains(t, err.Error(), "expected exactly one unique idx definition")
+
+	c = TableCreatorDef{}
+	confReplacer = strings.NewReplacer(`unique(field_string(case_sensitive))`, `non_unique(field_float)`)
+	assert.Nil(t, c.Deserialize([]byte(confReplacer.Replace(tableCreatorNodeJson))))
+
+	c = TableCreatorDef{}
+	confReplacer = strings.NewReplacer(`unique(field_string(case_sensitive))`, `bla(field_string(case_sensitive))`)
+	err = c.Deserialize([]byte(confReplacer.Replace(tableCreatorNodeJson)))
+	assert.Contains(t, err.Error(), "expected top level unique()) or non_unique() definition")
+
+}

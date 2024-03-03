@@ -129,6 +129,30 @@ const plainScriptJson string = `
 				}
 			}
 		},
+		"distinct_table1": {
+			"type": "distinct_table",
+			"rerun_policy": "fail",
+			"r": {
+				"table": "table1",
+				"expected_batches_total": 100
+			},
+			"w": {
+				"name": "distinct_table1",
+				"fields": {
+					"field_int1": {
+						"expression": "r.field_int1",
+						"type": "int"
+					},
+					"field_string1": {
+						"expression": "r.field_string1",
+						"type": "string"
+					}
+				},
+				"indexes": {
+					"idx_distinct_table1_field_int1": "unique(field_int1)"
+				}
+			}
+		},
 		"file_totals": {
 			"type": "table_file",
 			"r": {
@@ -137,7 +161,7 @@ const plainScriptJson string = `
 			"w": {
 				"top": {
 					"order": "field_int1(asc),item_count(asc)",
-					"limit": 500000
+					"limit": 5000000
 				},
 				"having": "w.total_value > 3",
 				"url_template": "file_totals.csv",
@@ -450,16 +474,16 @@ func TestTopLimit(t *testing.T) {
 	// Tweak limit beyond allowed maximum
 
 	err = newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"limit": 500000`, `"limit": 500001`, 1)),
+		[]byte(strings.Replace(plainScriptJson, `"limit": 5000000`, `"limit": 5000001`, 1)),
 		nil, nil, "", nil)
-	assert.Contains(t, err.Error(), "top.limit cannot exceed 500000")
+	assert.Contains(t, err.Error(), "top.limit cannot exceed 5000000")
 
 	// Remove limit altogether
 
 	assert.Nil(t, newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"limit": 500000`, `"some_bogus_setting": 500000`, 1)),
+		[]byte(strings.Replace(plainScriptJson, `"limit": 5000000`, `"some_bogus_setting": 5000000`, 1)),
 		nil, nil, "", nil))
-	assert.Equal(t, 500000, newScript.ScriptNodes["file_totals"].FileCreator.Top.Limit)
+	assert.Equal(t, 5000000, newScript.ScriptNodes["file_totals"].FileCreator.Top.Limit)
 }
 
 func TestBatchIntervalsCalculation(t *testing.T) {
@@ -519,13 +543,13 @@ func TestAffectedNodes(t *testing.T) {
 	assert.Nil(t, newScript.Deserialize([]byte(plainScriptJson), nil, nil, "", nil))
 
 	affectedNodes = newScript.GetAffectedNodes([]string{"read_table1"})
-	assert.Equal(t, 3, len(affectedNodes))
+	assert.Equal(t, 4, len(affectedNodes))
 	assert.Contains(t, affectedNodes, "read_table1")
 	assert.Contains(t, affectedNodes, "join_table1_table2")
 	assert.Contains(t, affectedNodes, "file_totals")
 
 	affectedNodes = newScript.GetAffectedNodes([]string{"read_table1", "read_table2"})
-	assert.Equal(t, 4, len(affectedNodes))
+	assert.Equal(t, 5, len(affectedNodes))
 	assert.Contains(t, affectedNodes, "read_table1")
 	assert.Contains(t, affectedNodes, "read_table2")
 	assert.Contains(t, affectedNodes, "join_table1_table2")
@@ -536,11 +560,40 @@ func TestAffectedNodes(t *testing.T) {
 	assert.Nil(t, newScript.Deserialize([]byte(strings.Replace(plainScriptJson, `"start_policy": "auto"`, `"start_policy": "manual"`, 1)), nil, nil, "", nil))
 
 	affectedNodes = newScript.GetAffectedNodes([]string{"read_table1"})
-	assert.Equal(t, 1, len(affectedNodes))
+	assert.Equal(t, 2, len(affectedNodes))
 	assert.Contains(t, affectedNodes, "read_table1")
 
 	affectedNodes = newScript.GetAffectedNodes([]string{"read_table1", "read_table2"})
-	assert.Equal(t, 2, len(affectedNodes))
+	assert.Equal(t, 3, len(affectedNodes))
 	assert.Contains(t, affectedNodes, "read_table1")
 	assert.Contains(t, affectedNodes, "read_table2")
+}
+
+func TestUnusedIndex(t *testing.T) {
+	newScript := &ScriptDef{}
+	err := newScript.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"idx_table2_string2": "unique(field_string2)"`, `"idx_table2_string2": "unique(field_string2)", "idx_bad_extra": "non_unique(field_int2)"`, 1)),
+		nil, nil, "", nil)
+	assert.Contains(t, err.Error(), "consider removing this index")
+}
+
+func TestDistinct(t *testing.T) {
+	newScript := &ScriptDef{}
+	err := newScript.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"rerun_policy": "fail"`, `"rerun_policy": "rerun"`, 1)),
+		nil, nil, "", nil)
+	assert.Contains(t, err.Error(), "distinct_table node must have fail policy")
+
+	newScript = &ScriptDef{}
+	err = newScript.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"idx_distinct_table1_field_int1": "unique(field_int1)"`, `"idx_bad_non_unique": "non_unique(field_int1)"`, 1)),
+		nil, nil, "", nil)
+	assert.Contains(t, err.Error(), "expected exactly one unique idx definition")
+
+	newScript = &ScriptDef{}
+	err = newScript.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"idx_distinct_table1_field_int1": "unique(field_int1)"`, `"idx_distinct_table1_field_int1": "unique(field_int1)", "idx_bad_extra_unique": "unique(field_string1)"`, 1)),
+		nil, nil, "", nil)
+	assert.Contains(t, err.Error(), "expected exactly one unique idx definition")
+
 }

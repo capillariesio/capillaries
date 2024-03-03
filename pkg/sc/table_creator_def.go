@@ -65,6 +65,24 @@ type TableCreatorDef struct {
 // 	return nil
 // }
 
+func (tcDef *TableCreatorDef) GetSingleUniqueIndexDef() (string, *IdxDef, error) {
+	var distinctIdxName string
+	var distinctIdxDef *IdxDef
+	for idxName, idxDef := range tcDef.Indexes {
+		if idxDef.Uniqueness == IdxUnique {
+			if len(distinctIdxName) > 0 {
+				return "", nil, fmt.Errorf("cannot process distinct_table node configuration %s with more than one unique index, expected exactly one unique idx definition", tcDef.Name)
+			}
+			distinctIdxName = idxName
+			distinctIdxDef = idxDef
+		}
+	}
+	if len(distinctIdxName) == 0 {
+		return "", nil, fmt.Errorf("cannot process distinct_table node configuration %s with no unique indexes, expected exactly one unique idx definition", tcDef.Name)
+	}
+	return distinctIdxName, distinctIdxDef, nil
+}
+
 func (tcDef *TableCreatorDef) GetFieldRefs() *FieldRefs {
 	return tcDef.GetFieldRefsWithAlias("")
 }

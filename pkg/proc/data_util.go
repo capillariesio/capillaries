@@ -300,12 +300,15 @@ func deleteDataRecordByRowid(pCtx *ctx.MessageProcessingContext, rowids []int64)
 	return nil
 }
 
-func deleteIdxRecordByKey(pCtx *ctx.MessageProcessingContext, idxName string, keys []string) error {
+func deleteIdxRecordByKey(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, idxName string, keys []string) error {
+	logger.PushF("proc.deleteIdxRecordByKey")
+	defer logger.PopF()
 	q := (&cql.QueryBuilder{}).
 		Keyspace(pCtx.BatchInfo.DataKeyspace).
 		CondInString("key", keys).
 		DeleteRun(idxName, pCtx.BatchInfo.RunId)
 	if err := pCtx.CqlSession.Query(q).Exec(); err != nil {
+		logger.ErrorCtx(pCtx, "cannot delete from idx table, %s: %s", q, err.Error())
 		return db.WrapDbErrorWithQuery("cannot delete from idx table", q, err)
 	}
 	return nil
@@ -403,7 +406,7 @@ func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.Messag
 				// Trim unused empty key slots
 				trimmedIdxKeysToDelete := idxKeysToDelete[:rowIdsToDeleteCount]
 				logger.DebugCtx(pCtx, "deleting %d idx %s records from %d/%s idx %s for batch_idx %d: '%s'", len(rowIdsToDelete), idxName, pCtx.BatchInfo.RunId, pCtx.BatchInfo.TargetNodeName, idxName, pCtx.BatchInfo.BatchIdx, strings.Join(trimmedIdxKeysToDelete, `','`))
-				if err := deleteIdxRecordByKey(pCtx, idxName, trimmedIdxKeysToDelete); err != nil {
+				if err := deleteIdxRecordByKey(logger, pCtx, idxName, trimmedIdxKeysToDelete); err != nil {
 					return err
 				}
 			}

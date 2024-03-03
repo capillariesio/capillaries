@@ -16,9 +16,7 @@ const parameterizedScriptJson string = `
 		"read_table1": {
 			"type": "file_table",
 			"r": {
-				"urls": [
-					"file1.csv"
-				],
+				"urls": "{file_urls|stringlist}",
 				"csv":{
 					"first_data_line_idx": 0
 				},
@@ -170,6 +168,7 @@ const parameterizedScriptJson string = `
 
 const paramsJson string = `
 {
+	"file_urls": ["file1.csv","file2.csv"],
 	"source_table_for_test_custom_processor": "table1",
 	"number_of_batches_for_test_custom_processor": 10,
     "constant_string_for_test_custom_processor": "\\\"aaa\\\n\\\"",

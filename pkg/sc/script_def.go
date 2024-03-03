@@ -132,6 +132,15 @@ func (scriptDef *ScriptDef) Deserialize(jsonBytesScript []byte, customProcessorD
 		}
 	}
 
+	for idxName, creatorNodeDef := range scriptDef.IndexNodeMap {
+		if !scriptDef.isScriptUsesIdx(idxName) {
+			// TODO: this is a hack to allow indexes that are deliberately added to check uniqueness
+			if !strings.Contains(idxName, "just_to_check_uniqueness") {
+				return fmt.Errorf("cannot find nodes that use index %s created by node %s, consider removing this index", idxName, creatorNodeDef.Name)
+			}
+		}
+	}
+
 	for _, node := range scriptDef.ScriptNodes {
 		if err := scriptDef.checkFieldUsageInCustomProcessorCreator(node); err != nil {
 			return fmt.Errorf("field usage error in custom processor creator, node %s: [%s]", node.Name, err.Error())
@@ -319,4 +328,13 @@ func (scriptDef *ScriptDef) GetAffectedNodes(startNodeNames []string) []string {
 		i++
 	}
 	return affectedList
+}
+
+func (scriptDef *ScriptDef) isScriptUsesIdx(idxName string) bool {
+	for _, node := range scriptDef.ScriptNodes {
+		if node.isNodeUsesIdx(idxName) {
+			return true
+		}
+	}
+	return false
 }

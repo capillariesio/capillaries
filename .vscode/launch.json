@@ -5,6 +5,15 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Fannie Mae to parquet",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/test/code/fannie_mae/bigtest",
+            "program": "${workspaceFolder}/test/code/fannie_mae/bigtest/fannie_mae_to_parquet.go",
+            "args": ["CAS 2023 R01 G1", "${workspaceFolder}/../capillaries-fanniemae/csv/CAS_2023_R01_G1", "${workspaceFolder}/../capillaries-fanniemae/parquet"]
+        },
+        {
             "name": "Validate script",
             "type": "go",
             "request": "launch",
@@ -14,13 +23,31 @@
             "args": ["validate_script","-script_file=/tmp/capi_cfg/proto_file_reader_creator_quicktest/script_csv.json"]
         },
         {
-            "name": "Proto CSV",
+            "name": "Proto CSV - olist",
             "type": "go",
             "request": "launch",
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/toolbelt",
             "program": "${workspaceFolder}/pkg/exe/toolbelt/capitoolbelt.go",
             "args": ["proto_file_reader_creator","-file_type=csv", "-csv_hdr_line_idx=0", "-csv_first_line_idx=1", "-file=../../../test/data/in/lookup_quicktest/olist_order_items_dataset.csv"]
+        },
+        {
+            "name": "Proto CSV - Fannie Mae",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/toolbelt",
+            "program": "${workspaceFolder}/pkg/exe/toolbelt/capitoolbelt.go",
+            "args": ["proto_file_reader_creator","-file_type=csv", "-csv_first_line_idx=0", "-csv_separator=|", "-file=../../../test/data/in/fannie_mae_quicktest/CAS_2023-R03_G2_022023-102023.csv"]
+        },
+        {
+            "name": "Proto Parquet - Fannie Mae",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/toolbelt",
+            "program": "${workspaceFolder}/pkg/exe/toolbelt/capitoolbelt.go",
+            "args": ["proto_file_reader_creator","-file_type=parquet", "-file=../../../../capillaries-fanniemae/parquet/CAS_2023_R07_G2_000.parquet"]
         },
         {
             "name": "Proto Parquet",
@@ -58,7 +85,7 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/toolbelt",
             "program": "${workspaceFolder}/pkg/exe/toolbelt/capitoolbelt.go",
-            "args": ["exec_node","-script_file=/tmp/capi_cfg/lookup_quicktest/script.json", "-params_file=/tmp/capi_cfg/lookup_quicktest/script_params_one_run.json",  "-keyspace=lookup_quicktest", "-node_id=read_orders"]
+            "args": ["exec_node","-script_file=/tmp/capi_cfg/fannie_mae_quicktest/script.json",  "-keyspace=fannie_mae_quicktest", "-node_id=write_file"]
         },
         {
             "name": "Webapi",

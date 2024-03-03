@@ -15,5 +15,5 @@ type BatchStats struct {
 
 func (bs *BatchStats) ToString() string {
 	s := bs.Elapsed.Seconds()
-	return fmt.Sprintf("{read: %d, written: %d, elapsed:%.3f, r/s: %.1f, w/s: %.1f, src: %s, dst: %s}", bs.RowsRead, bs.RowsWritten, s, float64(bs.RowsRead)/s, float64(bs.RowsWritten)/s, bs.Src, bs.Dst)
+	return fmt.Sprintf("{read: %d, write attempts: %d, elapsed:%.3f, r/s: %.1f, w/s: %.1f, src: %s, dst: %s}", bs.RowsRead, bs.RowsWritten, s, float64(bs.RowsRead)/s, float64(bs.RowsWritten)/s, bs.Src, bs.Dst)
 }

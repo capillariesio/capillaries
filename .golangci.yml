@@ -96,8 +96,16 @@ issues:
       text: "SA5001: should check returned error before deferring f.Close()"
       linters:
         - staticcheck
+    - path: pkg\/proc\/file_read_csv\.go
+      text: function readCsv has cognitive complexity
+      linters:
+        - revive
     - path: pkg\/proc\/proc_table_creator\.go
       text: function RunCreateTableRelForBatch has (cyclomatic|cognitive) complexity
+      linters:
+        - revive
+    - path: pkg\/eval\/eval_ctx\.go
+      text: EvalFunc has cyclomatic complexity
       linters:
         - revive
     - path: pkg\/wf\/amqp_client\.go

@@ -12,15 +12,15 @@ import (
 )
 
 type FileInserter struct {
-	PCtx          *ctx.MessageProcessingContext
-	FileCreator   *sc.FileCreatorDef
-	CurrentBatch  *WriteFileBatch
-	BatchCapacity int
-	BatchesIn     chan *WriteFileBatch
-	ErrorsOut     chan error
-	BatchesSent   int
-	FinalFileUrl  string
-	TempFilePath  string
+	PCtx                  *ctx.MessageProcessingContext
+	FileCreator           *sc.FileCreatorDef
+	CurrentBatch          *WriteFileBatch
+	BatchCapacity         int
+	BatchesIn             chan *WriteFileBatch
+	RecordWrittenStatuses chan error
+	BatchesSent           int
+	FinalFileUrl          string
+	TempFilePath          string
 }
 
 const DefaultFileInserterBatchCapacity int = 1000
@@ -39,13 +39,13 @@ func newWriteFileBatch(batchCapacity int) *WriteFileBatch {
 
 func newFileInserter(pCtx *ctx.MessageProcessingContext, fileCreator *sc.FileCreatorDef, runId int16, batchIdx int16) *FileInserter {
 	instr := FileInserter{
-		PCtx:          pCtx,
-		FileCreator:   fileCreator,
-		BatchCapacity: DefaultFileInserterBatchCapacity,
-		BatchesIn:     make(chan *WriteFileBatch, sc.MaxFileCreatorTopLimit/DefaultFileInserterBatchCapacity),
-		ErrorsOut:     make(chan error, 1),
-		BatchesSent:   0,
-		FinalFileUrl:  strings.ReplaceAll(strings.ReplaceAll(fileCreator.UrlTemplate, sc.ReservedParamRunId, fmt.Sprintf("%05d", runId)), sc.ReservedParamBatchIdx, fmt.Sprintf("%05d", batchIdx)),
+		PCtx:                  pCtx,
+		FileCreator:           fileCreator,
+		BatchCapacity:         DefaultFileInserterBatchCapacity,
+		BatchesIn:             make(chan *WriteFileBatch, sc.MaxFileCreatorTopLimit/DefaultFileInserterBatchCapacity),
+		RecordWrittenStatuses: make(chan error, 1),
+		BatchesSent:           0,
+		FinalFileUrl:          strings.ReplaceAll(strings.ReplaceAll(fileCreator.UrlTemplate, sc.ReservedParamRunId, fmt.Sprintf("%05d", runId)), sc.ReservedParamBatchIdx, fmt.Sprintf("%05d", batchIdx)),
 	}
 
 	return &instr
@@ -55,7 +55,7 @@ func (instr *FileInserter) checkWorkerOutputForErrors() error {
 	errors := make([]string, 0)
 	for {
 		select {
-		case err := <-instr.ErrorsOut:
+		case err := <-instr.RecordWrittenStatuses:
 			instr.BatchesSent--
 			if err != nil {
 				errors = append(errors, err.Error())
@@ -81,19 +81,19 @@ func (instr *FileInserter) waitForWorker(logger *l.CapiLogger, pCtx *ctx.Message
 		instr.CurrentBatch = nil
 	}
 
-	logger.DebugCtx(pCtx, "started reading BatchesSent=%d from instr.ErrorsOut", instr.BatchesSent)
+	logger.DebugCtx(pCtx, "started reading BatchesSent=%d from instr.RecordWrittenStatuses", instr.BatchesSent)
 	errors := make([]string, 0)
 	// It's crucial that the number of errors to receive eventually should match instr.BatchesSent
 	errCount := 0
 	for i := 0; i < instr.BatchesSent; i++ {
-		err := <-instr.ErrorsOut
+		err := <-instr.RecordWrittenStatuses
 		if err != nil {
 			errors = append(errors, err.Error())
 			errCount++
 		}
-		logger.DebugCtx(pCtx, "got result for sent record %d out of %d from instr.ErrorsOut, %d errors so far", i, instr.BatchesSent, errCount)
+		logger.DebugCtx(pCtx, "got result for sent record %d out of %d from instr.RecordWrittenStatuses, %d errors so far", i, instr.BatchesSent, errCount)
 	}
-	logger.DebugCtx(pCtx, "done reading BatchesSent=%d from instr.ErrorsOut, %d errors", instr.BatchesSent, errCount)
+	logger.DebugCtx(pCtx, "done reading BatchesSent=%d from instr.RecordWrittenStatuses, %d errors", instr.BatchesSent, errCount)
 
 	// Reset for the next cycle, if it ever happens
 	instr.BatchesSent = 0
@@ -115,9 +115,9 @@ func (instr *FileInserter) waitForWorkerAndCloseErrorsOut(logger *l.CapiLogger, 
 	defer logger.PopF()
 
 	err := instr.waitForWorker(logger, pCtx)
-	logger.DebugCtx(pCtx, "closing ErrorsOut")
-	close(instr.ErrorsOut)
-	logger.DebugCtx(pCtx, "closed ErrorsOut")
+	logger.DebugCtx(pCtx, "closing RecordWrittenStatuses")
+	close(instr.RecordWrittenStatuses)
+	logger.DebugCtx(pCtx, "closed RecordWrittenStatuses")
 	return err
 }
 

@@ -135,7 +135,6 @@ const scriptJson string = `
 					}
 				},
 				"indexes": {
-					"idx_tagged_products_tag": "non_unique(tag)"
 				}
 			}
 		}
