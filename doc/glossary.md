@@ -77,6 +77,9 @@ Reads data from the source [table](#table) and writes processed data to the targ
 ### table_lookup_table
 Reads data from the source [table](#table), finds matching rows in the lookup table, performs join operations, and writes processed data to a [table](#table)
 
+### distinct_table
+Reads records from the source [table](#table), makes sure the record is unique using the supplied unique index (only one unique index definition is allowed, and it is required), writes record to a [table](#table) if it's unique
+
 ### table_file
 Reads data from the source [table](#table) and writes processed data to the target file
 

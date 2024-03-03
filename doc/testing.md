@@ -32,6 +32,8 @@ There is a number of extensive integration tests that cover a big part of Capill
 - [tag_and_denormalize](../test/code/tag_and_denormalize/README.md): focuses on [custom processor](glossary.md#table_custom_tfm_table) implementation - [tag_and_denormalize](glossary.md#tag_and_denormalize-processor)
 - [portfolio](../test/code/portfolio/README.md): exercises [lookups](glossary.md#lookup), [py_calc](glossary.md#py_calc-processor), [tag_and_denormalize](glossary.md#tag_and_denormalize-processor)
 - [proto_file_reader_creator](../test/code/proto_file_reader_creator/README.md): exercises [toolbelt](./glossary.md#toolbelt) `proto_file_reader_creator` command and csv/parquet file read/write
+- [fannie_mae](../test/code/fannie_mae/README.md): [distinct_table](./glossary.md#distinct_table) test
+
 
 All tests require running Cassandra and (in most cases) RabbitMQ containers (see [Getting started](started.md) for details). All tests run [Toolbelt](glossary.md#toolbelt) to send work batches to the queue and to check Capillaries workflow status.
 
