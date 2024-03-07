@@ -173,8 +173,8 @@ func evalExpressionWithFieldRefsAndCheckType(exp ast.Expr, fieldRefs FieldRefs, 
 			}
 		}
 
-		aggFuncEnabled, aggFuncType, aggFuncArgs := eval.DetectRootAggFunc(exp)
-		eCtx, err := eval.NewPlainEvalCtxWithVarsAndInitializedAgg(aggFuncEnabled, &varValuesMap, aggFuncType, aggFuncArgs)
+		funcName, aggFuncEnabled, aggFuncType, aggFuncArgs := eval.DetectRootAggFunc(exp)
+		eCtx, err := eval.NewPlainEvalCtxWithVarsAndInitializedAgg(funcName, aggFuncEnabled, &varValuesMap, aggFuncType, aggFuncArgs)
 		if err != nil {
 			return err
 		}

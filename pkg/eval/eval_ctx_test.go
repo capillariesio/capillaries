@@ -276,20 +276,20 @@ func TestNewPlainEvalCtxAndInitializedAgg(t *testing.T) {
 	varValuesMap["t1"]["fieldStr"] = "a"
 
 	exp, _ := parser.ParseExpr(`string_agg(t1.fieldStr,",")`)
-	aggEnabledType, aggFuncType, aggFuncArgs := DetectRootAggFunc(exp)
-	eCtx, err := NewPlainEvalCtxAndInitializedAgg(aggEnabledType, aggFuncType, aggFuncArgs)
+	funcName, aggEnabledType, aggFuncType, aggFuncArgs := DetectRootAggFunc(exp)
+	eCtx, err := NewPlainEvalCtxAndInitializedAgg(funcName, aggEnabledType, aggFuncType, aggFuncArgs)
 	assert.Equal(t, AggTypeString, eCtx.AggType)
 	assert.Nil(t, err)
 
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr,1)`)
-	aggEnabledType, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
-	_, err = NewPlainEvalCtxAndInitializedAgg(aggEnabledType, aggFuncType, aggFuncArgs)
-	assert.Equal(t, "string_agg second parameter must be a constant string", err.Error())
+	funcName, aggEnabledType, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
+	_, err = NewPlainEvalCtxAndInitializedAgg(funcName, aggEnabledType, aggFuncType, aggFuncArgs)
+	assert.Equal(t, "string_agg/if second parameter must be a constant string", err.Error())
 
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr, a)`)
-	aggEnabledType, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
-	_, err = NewPlainEvalCtxAndInitializedAgg(aggEnabledType, aggFuncType, aggFuncArgs)
-	assert.Equal(t, "string_agg second parameter must be a basic literal", err.Error())
+	funcName, aggEnabledType, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
+	_, err = NewPlainEvalCtxAndInitializedAgg(funcName, aggEnabledType, aggFuncType, aggFuncArgs)
+	assert.Equal(t, "string_agg/if second parameter must be a basic literal", err.Error())
 }
 
 type EvalFunc int

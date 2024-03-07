@@ -605,16 +605,13 @@ func getRightRowidsToFind(rsIdx *Rowset) (map[int64]struct{}, map[int64]string) 
 
 func setupEvalCtxForGroup(node *sc.ScriptNodeDef, rsLeft *Rowset) (map[int64]map[string]*eval.EvalCtx, error) {
 	eCtxMap := map[int64]map[string]*eval.EvalCtx{}
-	if !node.Lookup.IsGroup {
-		return eCtxMap, nil
-	}
 	if node.Lookup.IsGroup {
 		for rowIdx := 0; rowIdx < rsLeft.RowCount; rowIdx++ {
 			rowid := *((*rsLeft.Rows[rowIdx])[rsLeft.FieldsByFieldName["rowid"]].(*int64))
 			eCtxMap[rowid] = map[string]*eval.EvalCtx{}
 			for fieldName, fieldDef := range node.TableCreator.Fields {
-				aggFuncEnabled, aggFuncType, aggFuncArgs := eval.DetectRootAggFunc(fieldDef.ParsedExpression)
-				newCtx, newCtxErr := eval.NewPlainEvalCtxAndInitializedAgg(aggFuncEnabled, aggFuncType, aggFuncArgs)
+				funcName, aggFuncEnabled, aggFuncType, aggFuncArgs := eval.DetectRootAggFunc(fieldDef.ParsedExpression)
+				newCtx, newCtxErr := eval.NewPlainEvalCtxAndInitializedAgg(funcName, aggFuncEnabled, aggFuncType, aggFuncArgs)
 				if newCtxErr != nil {
 					return nil, newCtxErr
 				}
@@ -690,7 +687,7 @@ func produceGroupedTableRecord(node *sc.ScriptNodeDef, rsLeft *Rowset, leftRowId
 
 		var err error
 		for fieldName, fieldDef := range node.TableCreator.Fields {
-			isAggEnabled, _, _ := eval.DetectRootAggFunc(fieldDef.ParsedExpression)
+			_, isAggEnabled, _, _ := eval.DetectRootAggFunc(fieldDef.ParsedExpression)
 			if isAggEnabled == eval.AggFuncEnabled {
 				// Aggregate func is used in field expression - ignore the expression and produce default
 				tableRecord[fieldName], err = node.TableCreator.GetFieldDefaultReadyForDb(fieldName)
