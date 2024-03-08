@@ -75,7 +75,7 @@ Reads data from the source data file and writes processed data to the target [ta
 Reads data from the source [table](#table) and writes processed data to the target [table](#table)
 
 ### table_lookup_table
-Reads data from the source [table](#table), finds matching rows in the lookup table, performs join operations, and writes processed data to a [table](#table)
+Reads data from the source [table](#table), finds matching rows in the lookup table, performs join operations, and writes processed data to a [table](#table). These nodes support SQL-like aggregate functions in [Go expressions](#go-expressions).
 
 ### distinct_table
 Reads records from the source [table](#table), makes sure the record is unique using the supplied unique index (only one unique index definition is allowed, and it is required), writes record to a [table](#table) if it's unique
@@ -132,6 +132,8 @@ At the moment, Capillaries supports only a very limited subset of the standard G
 - supports only primitive types (see [Capillaries data types](#supported-types))
 - does not support class member function calls
 - does not support statements or multi-line expressions
+- supports aggregate functions used in [table_lookup_table](#table_lookup_table) nodes
+For the list of supported functions, see EvalFunc [eval_ctx.go](../pkg/eval/eval_ctx.go)
 
 ## Processor queue
 RabbitMQ queue containing messages for a [processor](#processor). The name of the queue is given by the [handler_executable_type](binconfig.md#handler_executable_type) setting.

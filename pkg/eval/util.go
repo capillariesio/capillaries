@@ -7,21 +7,23 @@ import (
 	"strings"
 )
 
-func DetectRootAggFunc(exp ast.Expr) (AggEnabledType, AggFuncType, []ast.Expr) {
+func DetectRootAggFunc(exp ast.Expr) (string, AggEnabledType, AggFuncType, []ast.Expr) {
 	if callExp, ok := exp.(*ast.CallExpr); ok {
 		funExp := callExp.Fun
 		if funIdentExp, ok := funExp.(*ast.Ident); ok {
 			if StringToAggFunc(funIdentExp.Name) != AggUnknown {
-				return AggFuncEnabled, StringToAggFunc(funIdentExp.Name), callExp.Args
+				return funIdentExp.Name, AggFuncEnabled, StringToAggFunc(funIdentExp.Name), callExp.Args
 			}
 		}
 	}
-	return AggFuncDisabled, AggUnknown, nil
+	return "", AggFuncDisabled, AggUnknown, nil
 }
 
-func GetAggStringSeparator(aggFuncArgs []ast.Expr) (string, error) {
-	if len(aggFuncArgs) < 2 {
-		return "", fmt.Errorf("string_agg must have two parameters")
+func GetAggStringSeparator(funcName string, aggFuncArgs []ast.Expr) (string, error) {
+	if funcName == string(AggStringAgg) && len(aggFuncArgs) != 2 {
+		return "", fmt.Errorf("%s must have two parameters", funcName)
+	} else if funcName == string(AggStringAggIf) && len(aggFuncArgs) != 3 {
+		return "", fmt.Errorf("%s must have three parameters", funcName)
 	}
 	switch separatorExpTyped := aggFuncArgs[1].(type) {
 	case *ast.BasicLit:
@@ -29,9 +31,9 @@ func GetAggStringSeparator(aggFuncArgs []ast.Expr) (string, error) {
 		case token.STRING:
 			return strings.Trim(separatorExpTyped.Value, "\""), nil
 		default:
-			return "", fmt.Errorf("string_agg second parameter must be a constant string")
+			return "", fmt.Errorf("string_agg/if second parameter must be a constant string")
 		}
 	default:
-		return "", fmt.Errorf("string_agg second parameter must be a basic literal")
+		return "", fmt.Errorf("string_agg/if second parameter must be a basic literal")
 	}
 }

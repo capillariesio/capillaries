@@ -227,12 +227,12 @@ func (tcDef *TableCreatorDef) GetFieldDefaultReadyForDb(fieldName string) (any, 
 }
 
 func CalculateFieldValue(fieldName string, fieldDef *WriteTableFieldDef, srcVars eval.VarValuesMap, canUseAggFunc bool) (any, error) {
-	calcWithAggFunc, aggFuncType, aggFuncArgs := eval.DetectRootAggFunc(fieldDef.ParsedExpression)
+	funcName, calcWithAggFunc, aggFuncType, aggFuncArgs := eval.DetectRootAggFunc(fieldDef.ParsedExpression)
 	if !canUseAggFunc {
 		calcWithAggFunc = eval.AggFuncDisabled
 	}
 
-	eCtx, err := eval.NewPlainEvalCtxWithVarsAndInitializedAgg(calcWithAggFunc, &srcVars, aggFuncType, aggFuncArgs)
+	eCtx, err := eval.NewPlainEvalCtxWithVarsAndInitializedAgg(funcName, calcWithAggFunc, &srcVars, aggFuncType, aggFuncArgs)
 	if err != nil {
 		return nil, err
 	}

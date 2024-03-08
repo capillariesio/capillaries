@@ -143,6 +143,7 @@
 				}
 			}
 		},
+
 		"02_loan_ids": {
 			"type": "distinct_table",
 			"desc": "Select distinct loan ids",
@@ -192,11 +193,99 @@
 					}
 				},
 				"indexes": {
-					"idx_loan_ids_loan_id": "unique(loan_id)"
+					"idx_loan_ids_loan_id": "unique(loan_id)",
+					"idx_loan_ids_deal_name": "non_unique(deal_name)"
 				}
 			}
 		},
-		"03_loan_summaries": {
+		"02_deal_names": {
+			"type": "distinct_table",
+			"desc": "Select distinct deal names",
+			"rerun_policy": "fail",
+			"r": {
+				"table": "loan_ids",
+				"expected_batches_total": "{expected_batches|number}"
+			},
+			"w": {
+				"name": "deal_names",
+				"fields": {
+					"deal_name": {
+						"expression": "r.deal_name",
+						"type": "string"
+					}
+				},
+				"indexes": {
+					"idx_deal_names_deal_name": "unique(deal_name)"
+				}
+			}
+		},
+		"02_deal_sellers": {
+			"type": "distinct_table",
+			"desc": "Select distinct sellers",
+			"rerun_policy": "fail",
+			"r": {
+				"table": "loan_ids",
+				"expected_batches_total": "{expected_batches|number}"
+			},
+			"w": {
+				"name": "deal_sellers",
+				"fields": {
+					"deal_name": {
+						"expression": "r.deal_name",
+						"type": "string"
+					},
+					"seller_name": {
+						"expression": "r.seller_name",
+						"type": "string"
+					}
+				},
+				"indexes": {
+					"idx_sellers_deal_name_seller_name": "unique(deal_name,seller_name)"
+				}
+			}
+		},
+
+		"03_deal_total_upbs": {
+			"type": "table_lookup_table",
+			"desc": "For each deal, calculate total UPBs",
+			"r": {
+				"table": "deal_names",
+				"expected_batches_total": "{expected_batches|number}"
+			},
+			"l": {
+				"index_name": "idx_loan_ids_deal_name",
+				"join_on": "r.deal_name",
+				"group": true,
+				"join_type": "left"
+			},
+			"w": {
+				"name": "deal_total_upbs",
+				"fields": {
+					"deal_name": {
+						"expression": "r.deal_name",
+						"type": "string"
+					},
+					"total_original_upb": {
+						"expression": "sum(l.original_upb)",
+						"type": "decimal2"
+					},
+					"total_upb_at_issuance": {
+						"expression": "sum(l.upb_at_issuance)",
+						"type": "decimal2"
+					},
+					"total_original_upb_for_nonzero_rates": {
+						"expression": "sum_if(l.original_upb, l.original_interest_rate > 0)",
+						"type": "decimal2"
+					},
+					"total_original_upb_for_nonzero_credit_scores": {
+						"expression": "sum_if(l.original_upb, l.borrower_credit_score_at_origination > 0)",
+						"type": "decimal2"
+					}
+				}
+			}
+		},
+
+		"04_loan_payment_summaries": {
 			"type": "table_lookup_table",
 			"desc": "For each loan, merge all payments into single json string",
 			"r": {
@@ -210,7 +299,7 @@
 				"join_type": "left"
 			},
 			"w": {
-				"name": "loan_summaries",
+				"name": "loan_payment_summaries",
 				"fields": {
 					"loan_id": {
 						"expression": "r.loan_id",
@@ -255,12 +344,13 @@
 				}
 			}
 		},
+
 		"04_loan_summaries_calculated": {
 			"type": "table_custom_tfm_table",
 			"custom_proc_type": "py_calc",
 			"desc": "Apply Python calculations to loan summaries",
 			"r": {
-				"table": "loan_summaries",
+				"table": "loan_payment_summaries",
 				"rowset_size": 1000,
 				"expected_batches_total": "{expected_batches|number}"
 			},
@@ -353,7 +443,7 @@
 				}
 			}
 		},
-		"06_write_file_loan_summaries_calculated": {
+		"04_write_file_loan_summaries_calculated": {
 			"type": "table_file",
 			"desc": "Write from table to file loan_summaries.parquet",
 			"r": {
@@ -440,58 +530,13 @@
 					{
 						"parquet": { "column_name": "paid_off_ratio" },
 						"name": "paid_off_ratio",
-						"expression": "r.paid_off_ratio",
+						"expression": "math.Round(r.paid_off_ratio*100000)/100000",
 						"type": "float"
 					}
 				]
 			}
 		},
-		"03_deal_names": {
-			"type": "distinct_table",
-			"desc": "Select distinct deal names",
-			"rerun_policy": "fail",
-			"r": {
-				"table": "loan_ids",
-				"expected_batches_total": "{expected_batches|number}"
-			},
-			"w": {
-				"name": "deal_names",
-				"fields": {
-					"deal_name": {
-						"expression": "r.deal_name",
-						"type": "string"
-					}
-				},
-				"indexes": {
-					"idx_deal_names_deal_name": "unique(deal_name)"
-				}
-			}
-		},
-		"03_deal_sellers": {
-			"type": "distinct_table",
-			"desc": "Select distinct sellers",
-			"rerun_policy": "fail",
-			"r": {
-				"table": "loan_ids",
-				"expected_batches_total": "{expected_batches|number}"
-			},
-			"w": {
-				"name": "deal_sellers",
-				"fields": {
-					"deal_name": {
-						"expression": "r.deal_name",
-						"type": "string"
-					},
-					"seller_name": {
-						"expression": "r.seller_name",
-						"type": "string"
-					}
-				},
-				"indexes": {
-					"idx_sellers_deal_name_seller_name": "unique(deal_name,seller_name)"
-				}
-			}
-		},
+
 		"05_deal_seller_summaries": {
 			"type": "table_lookup_table",
 			"desc": "For each deal/seller, calculate aggregates from calculated loan summaries",
@@ -572,7 +617,7 @@
 				}
 			}
 		},
-		"06_write_file_deal_seller_summaries": {
+		"05_write_file_deal_seller_summaries": {
 			"type": "table_file",
 			"desc": "Write from table to file deal_seller_summaries.parquet",
 			"r": {
@@ -599,7 +644,7 @@
 					{
 						"parquet": { "column_name": "avg_original_interest_rate" },
 						"name": "avg_original_interest_rate",
-						"expression": "r.avg_original_interest_rate",
+						"expression": "math.Round(r.avg_original_interest_rate*1000)/1000",
 						"type": "float"
 					},
 					{
@@ -617,7 +662,7 @@
 					{
 						"parquet": { "column_name": "avg_borrower_credit_score_at_origination" },
 						"name": "avg_borrower_credit_score_at_origination",
-						"expression": "r.avg_borrower_credit_score_at_origination",
+						"expression": "math.Round(r.avg_borrower_credit_score_at_origination*100)/100",
 						"type": "float"
 					},
 					{
@@ -641,7 +686,7 @@
 					{
 						"parquet": { "column_name": "total_original_upb_paid_off_ratio" },
 						"name": "total_original_upb_paid_off_ratio",
-						"expression": "float(r.total_paid_off_amount)/float(r.total_original_upb)",
+						"expression": "math.Round(float(r.total_paid_off_amount)/float(r.total_original_upb)*100000)/100000",
 						"type": "float"
 					},
 					{
@@ -665,7 +710,7 @@
 					{
 						"parquet": { "column_name": "avg_payments_behind_ratio" },
 						"name": "avg_payments_behind_ratio",
-						"expression": "r.avg_payments_behind_ratio",
+						"expression": "math.Round(r.avg_payments_behind_ratio*100000)/100000",
 						"type": "float"
 					},
 					{
@@ -677,17 +722,18 @@
 					{
 						"parquet": { "column_name": "avg_paid_off_ratio" },
 						"name": "avg_paid_off_ratio",
-						"expression": "r.avg_paid_off_ratio",
+						"expression": "math.Round(r.avg_paid_off_ratio*100000)/100000",
 						"type": "float"
 					}
 				]
 			}
 		},
+
 		"05_deal_summaries": {
 			"type": "table_lookup_table",
 			"desc": "For each deal, calculate aggregates from calculated loan summaries",
 			"r": {
-				"table": "deal_names",
+				"table": "deal_total_upbs",
 				"expected_batches_total": "{expected_batches|number}"
 			},
 			"l": {
@@ -703,24 +749,24 @@
 						"expression": "r.deal_name",
 						"type": "string"
 					},
-					"avg_original_interest_rate": {
-						"expression": "avg(l.original_interest_rate)",
+					"wa_original_interest_rate_by_original_upb": {
+						"expression": "sum(l.original_interest_rate * float(l.original_upb))",
 						"type": "float"
 					},
 					"min_original_interest_rate": {
-						"expression": "min(l.original_interest_rate)",
+						"expression": "min_if(l.original_interest_rate, l.original_interest_rate > 0)",
 						"type": "float"
 					},
 					"max_original_interest_rate": {
 						"expression": "max(l.original_interest_rate)",
 						"type": "float"
 					},
-					"avg_borrower_credit_score_at_origination": {
-						"expression": "avg(float(l.borrower_credit_score_at_origination))",
+					"wa_borrower_credit_score_at_origination_by_original_upb": {
+						"expression": "sum(float(l.borrower_credit_score_at_origination) * float(l.original_upb))",
 						"type": "float"
 					},
 					"min_borrower_credit_score_at_origination": {
-						"expression": "min(l.borrower_credit_score_at_origination)",
+						"expression": "min_if(l.borrower_credit_score_at_origination, l.borrower_credit_score_at_origination > 0)",
 						"type": "int"
 					},
 					"max_borrower_credit_score_at_origination": {
@@ -728,11 +774,19 @@
 						"type": "int"
 					},
 					"total_original_upb": {
-						"expression": "sum(l.original_upb)",
+						"expression": "r.total_original_upb",
 						"type": "decimal2"
 					},
 					"total_upb_at_issuance": {
-						"expression": "sum(l.upb_at_issuance)",
+						"expression": "r.total_upb_at_issuance",
+						"type": "decimal2"
+					},
+					"total_original_upb_for_nonzero_rates": {
+						"expression": "r.total_original_upb_for_nonzero_rates",
+						"type": "decimal2"
+					},
+					"total_original_upb_for_nonzero_credit_scores": {
+						"expression": "r.total_original_upb_for_nonzero_credit_scores",
 						"type": "decimal2"
 					},
 					"total_loans": {
@@ -758,7 +812,7 @@
 				}
 			}
 		},
-		"06_write_file_deal_summaries": {
+		"05_write_file_deal_summaries": {
 			"type": "table_file",
 			"desc": "Write from table to file deal_summaries.parquet",
 			"r": {
@@ -777,9 +831,9 @@
 						"type": "string"
 					},
 					{
-						"parquet": { "column_name": "avg_original_interest_rate" },
-						"name": "avg_original_interest_rate",
-						"expression": "r.avg_original_interest_rate",
+						"parquet": { "column_name": "wa_original_interest_rate_by_original_upb" },
+						"name": "wa_original_interest_rate_by_original_upb",
+						"expression": "math.Round(r.wa_original_interest_rate_by_original_upb/r.total_original_upb_for_nonzero_rates*1000)/1000",
 						"type": "float"
 					},
 					{
@@ -795,9 +849,9 @@
 						"type": "float"
 					},
 					{
-						"parquet": { "column_name": "avg_borrower_credit_score_at_origination" },
-						"name": "avg_borrower_credit_score_at_origination",
-						"expression": "r.avg_borrower_credit_score_at_origination",
+						"parquet": { "column_name": "wa_borrower_credit_score_at_origination_by_original_upb" },
+						"name": "wa_borrower_credit_score_at_origination_by_original_upb",
+						"expression": "math.Round(r.wa_borrower_credit_score_at_origination_by_original_upb/r.total_original_upb_for_nonzero_credit_scores*100)/100",
 						"type": "float"
 					},
 					{
@@ -819,9 +873,9 @@
 						"type": "decimal2"
 					},
 					{
-						"parquet": { "column_name": "total_original_upb_paid_off_ratio" },
+						"parquet": { "column_name": "total_original_`upb_paid_off_ratio" },
 						"name": "total_original_upb_paid_off_ratio",
-						"expression": "float(r.total_paid_off_amount)/float(r.total_original_upb)",
+						"expression": "math.Round(float(r.total_paid_off_amount)/float(r.total_original_upb)*100000)/100000",
 						"type": "float"
 					},
 					{
@@ -845,7 +899,7 @@
 					{
 						"parquet": { "column_name": "avg_payments_behind_ratio" },
 						"name": "avg_payments_behind_ratio",
-						"expression": "r.avg_payments_behind_ratio",
+						"expression": "math.Round(r.avg_payments_behind_ratio*100000)/100000",
 						"type": "float"
 					},
 					{
@@ -857,7 +911,7 @@
 					{
 						"parquet": { "column_name": "avg_paid_off_ratio" },
 						"name": "avg_paid_off_ratio",
-						"expression": "r.avg_paid_off_ratio",
+						"expression": "math.Round(r.avg_paid_off_ratio*100000)/100000",
 						"type": "float"
 					}
 				]

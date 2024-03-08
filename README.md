@@ -11,6 +11,7 @@ Capillaries is a data processing framework that:
 
 |             | BEFORE | AFTER |
 | ----------- | ------ |------ |
+| Cloud-friendly | depends | Can be deployed to the cloud within minutes, Docker-ready |
 | Data aggregation | SQL joins | Capillaries [lookups](doc/glossary.md#lookup) in Cassandra + [Go expressions](doc/glossary.md#go-expressions) (scalability, parallel execution) |
 | Data filtering | SQL queries, custom code | [Go expressions](doc/glossary.md#go-expressions) (scalability, maintainability) |
 | Data transform | SQL expressions, custom code | [Go expressions](doc/glossary.md#go-expressions), Python [formulas](doc/glossary.md#py_calc-processor) (parallel execution, maintainability) |
@@ -74,4 +75,4 @@ For more details about getting started, see [Getting started](doc/started.md). F
 ### [Capillaries blog](https://capillaries.io/blog/index.html)
 ### [MIT License](LICENSE)
 
-(C) 2023 kleines.hertz[at]protonmail.com
+(C) 2023-2024 KH (kleines.hertz[at]protonmail.com)

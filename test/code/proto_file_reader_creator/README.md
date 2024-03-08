@@ -16,8 +16,8 @@ and render it in https://dreampuf.github.io/GraphvizOnline :
 ## What's tested:
 
 - toolbelt `proto_file_reader_creator` command
-- file_table read from single file (csv and parquet) for all supported data types
-- table_file write to single file (csv and parquet) for all supported data types
+- [file_table](../../../doc/glossary.md#file_table) read from single file (csv and parquet) for all supported data types
+[table_file](../../../doc/glossary.md#table_file)table_file write to single file (csv and parquet) for all supported data types
 - single-run script execution
 
 ## How to test

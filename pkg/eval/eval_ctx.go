@@ -69,13 +69,13 @@ func NewPlainEvalCtx(aggEnabled AggEnabledType) EvalCtx {
 		Max:        MaxCollector{Int: minSupportedInt, Float: minSupportedFloat, Dec: minSupportedDecimal(), Str: ""}}
 }
 
-func NewPlainEvalCtxAndInitializedAgg(aggEnabled AggEnabledType, aggFuncType AggFuncType, aggFuncArgs []ast.Expr) (*EvalCtx, error) {
+func NewPlainEvalCtxAndInitializedAgg(funcName string, aggEnabled AggEnabledType, aggFuncType AggFuncType, aggFuncArgs []ast.Expr) (*EvalCtx, error) {
 	eCtx := NewPlainEvalCtx(aggEnabled)
 	// Special case: we need to provide eCtx.StringAgg with a separator and
 	// explicitly set its type to AggTypeString from the very beginning (instead of detecting it later, as we do for other agg functions)
 	if aggEnabled == AggFuncEnabled && aggFuncType == AggStringAgg {
 		var aggStringErr error
-		eCtx.StringAgg.Separator, aggStringErr = GetAggStringSeparator(aggFuncArgs)
+		eCtx.StringAgg.Separator, aggStringErr = GetAggStringSeparator(funcName, aggFuncArgs)
 		if aggStringErr != nil {
 			return nil, aggStringErr
 		}
@@ -97,13 +97,13 @@ func NewPlainEvalCtxWithVars(aggEnabled AggEnabledType, vars *VarValuesMap) Eval
 		Max:        MaxCollector{Int: minSupportedInt, Float: minSupportedFloat, Dec: minSupportedDecimal(), Str: ""}}
 }
 
-func NewPlainEvalCtxWithVarsAndInitializedAgg(aggEnabled AggEnabledType, vars *VarValuesMap, aggFuncType AggFuncType, aggFuncArgs []ast.Expr) (*EvalCtx, error) {
+func NewPlainEvalCtxWithVarsAndInitializedAgg(funcName string, aggEnabled AggEnabledType, vars *VarValuesMap, aggFuncType AggFuncType, aggFuncArgs []ast.Expr) (*EvalCtx, error) {
 	eCtx := NewPlainEvalCtxWithVars(aggEnabled, vars)
 	// Special case: we need to provide eCtx.StringAgg with a separator and
 	// explicitly set its type to AggTypeString from the very beginning (instead of detecting it later, as we do for other agg functions)
 	if aggEnabled == AggFuncEnabled && aggFuncType == AggStringAgg {
 		var aggStringErr error
-		eCtx.StringAgg.Separator, aggStringErr = GetAggStringSeparator(aggFuncArgs)
+		eCtx.StringAgg.Separator, aggStringErr = GetAggStringSeparator(funcName, aggFuncArgs)
 		if aggStringErr != nil {
 			return nil, aggStringErr
 		}
@@ -525,6 +525,18 @@ func (eCtx *EvalCtx) EvalFunc(callExp *ast.CallExpr, funcName string, args []any
 		eCtx.Value, err = eCtx.CallAggMin(callExp, args)
 	case "max":
 		eCtx.Value, err = eCtx.CallAggMax(callExp, args)
+	case "string_agg_if":
+		eCtx.Value, err = eCtx.CallAggStringAggIf(callExp, args)
+	case "sum_if":
+		eCtx.Value, err = eCtx.CallAggSumIf(callExp, args)
+	case "count_if":
+		eCtx.Value, err = eCtx.CallAggCountIf(callExp, args)
+	case "avg_if":
+		eCtx.Value, err = eCtx.CallAggAvgIf(callExp, args)
+	case "min_if":
+		eCtx.Value, err = eCtx.CallAggMinIf(callExp, args)
+	case "max_if":
+		eCtx.Value, err = eCtx.CallAggMaxIf(callExp, args)
 
 	default:
 		return nil, fmt.Errorf("cannot evaluate unsupported func '%s'", funcName)

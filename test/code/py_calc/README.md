@@ -19,9 +19,9 @@ and rendered in https://dreampuf.github.io/GraphvizOnline :
 ## What's tested:
 
 - table_custom_tfm_table custom processor (py_calc) with writer using values from both reader (for example, r.shipping_limit_date) and custom processor (for example, p.taxed_value); please note: p.* datatype, like decimal2 of p.taxed_value, is used by writer only, do not expect this datatype when using this field in your Python code
-- file_table reading from multiple files
-- table_file with top/limit/order
-- table_file using file-per-batch configuration (see {batch_idx} parameter)
+[file_table](../../../doc/glossary.md#file_table)file_table reading from multiple files
+- [table_file](../../../doc/glossary.md#table_file) with top/limit/order
+- [table_file](../../../doc/glossary.md#table_file) using file-per-batch configuration (see {batch_idx} parameter)
 - table_table processor that, using Capillaries Go funtions and arithmetic operations, implements a subset (no weekday math) of calculations provided by Python processor 
 
 ## How to test
