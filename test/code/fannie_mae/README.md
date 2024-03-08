@@ -26,8 +26,8 @@ and rendered in https://dreampuf.github.io/GraphvizOnline :
 
 - [distinct_table](../../../doc/glossary.md#distinct_table) node type
 - [file_table](../../../doc/glossary.md#file_table) read from multiple files file
-- [table_file](../../../doc/glossary.md#table_file) with top/limit/order
-- [py_calc](../../../doc/glossary.md#py_calc-processor) calculations taking JSON as input and producing JSON
+- [table_file](../../../doc/glossary.md#table_file) with [top/limit/order](../../../doc/scriptconfig.md#wtop)
+- [table_custom_tfm_table](../../../doc/glossary.md#table_custom_tfm_table) custom processor [py_calc](../../../doc/glossary.md#py_calc-processor) calculations taking JSON as input and producing JSON
 - [table_lookup_table](../../../doc/glossary.md#table_lookup_table) with parallelism, left outer grouped joins, string_agg() aggregate function
 - some *_if aggregate functions
 - single-run script execution
