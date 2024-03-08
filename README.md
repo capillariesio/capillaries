@@ -74,4 +74,4 @@ For more details about getting started, see [Getting started](doc/started.md). F
 ### [Capillaries blog](https://capillaries.io/blog/index.html)
 ### [MIT License](LICENSE)
 
-(C) 2023 kleines.hertz[at]protonmail.com
+(C) 2023-2024 KH (kleines.hertz[at]protonmail.com)
