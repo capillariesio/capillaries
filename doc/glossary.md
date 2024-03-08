@@ -126,16 +126,23 @@ Same as [tag_criteria](#tag_criteria), but in a separate JSON file. This is the 
 
 ## Go expressions
 
-One-line Go snippets used in [script](#script) settings: field expressions, writer "having" expressions, lookup "filter" expressions. For the list of supported operations, see `Eval(exp ast.Expr)` implementation in [eval_ctx.go](../pkg/eval/eval_ctx.go). For the list of supported Go functions, see `EvalFunc(callExp *ast.CallExpr, funcName string, args []interface{})` implementation in [eval_ctx.go](../pkg/eval/eval_ctx.go)
+One-line Go snippets used in [script](#script) settings:
+- field expressions
+- writer "having" expressions
+- lookup "filter" expressions
 
-At the moment, Capillaries supports only a very limited subset of the standard Go library. Additions are welcome. Keep in mind that Capillaries expression engine:
+For the list of supported operations, see `Eval(exp ast.Expr)` implementation in [eval_ctx.go](../pkg/eval/eval_ctx.go).
+
+For the list of supported Go functions, see `EvalFunc(callExp *ast.CallExpr, funcName string, args []interface{})` implementation in [eval_ctx.go](../pkg/eval/eval_ctx.go)
+
+At the moment, Capillaries supports only a limited subset of the standard Go library. Additions are welcome. Keep in mind that Capillaries expression engine:
 - supports only primitive types (see [Capillaries data types](#supported-types))
 - does not support class member function calls
 - does not support statements or multi-line expressions
 - supports aggregate functions used in [table_lookup_table](#table_lookup_table) nodes
-For the list of supported functions, see EvalFunc [eval_ctx.go](../pkg/eval/eval_ctx.go)
 
 ## Processor queue
+
 RabbitMQ queue containing messages for a [processor](#processor). The name of the queue is given by the [handler_executable_type](binconfig.md#handler_executable_type) setting.
 
 ## DOT diagrams
@@ -259,7 +266,7 @@ Defines how file writer saves values to the target file (CSV, Parquet).
 
 ### Generic file writer column properties
 
-`name`: column name to be used in [having](#w.having)
+`name`: column name to be used in [having](scriptconfig.md#whaving)
 
 `type`: one of the [supported types](#supported-types)
 
@@ -294,7 +301,7 @@ Parquet writer types:
 
 ## Index definition
 
-Used in [w.indexes](#w.indexes). Syntax:
+Used in [w.indexes](scriptconfig.md#windexes). Syntax:
 
 ```
 [unique|non_unique](order_expression)
@@ -304,7 +311,7 @@ where order_expression is an [order expression](#order-expression).
 A unique index enforces key uniqueness on the database level. Key uniqueness does not affect lookup behaviour.
 
 ## Order expression
-Used in [index definitions](#index-definition), [top.order](#w.top) and [dependency policy event_priority_order](#event_priority_order) settings. Syntax:
+Used in [index definitions](#index-definition), [top/order](scriptconfig.md#wtop) and [dependency policy event_priority_order](#event_priority_order) settings. Syntax:
 ```
 [<field_name>([case_modifier|sort_modifier,...]),...]
 ```

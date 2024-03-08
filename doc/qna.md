@@ -32,7 +32,7 @@ A. The number of nodes in the script and runs performed for a keyspace are virtu
 
 Q. I can't see any code/example that works with NULLs. Are they supported?
 
-A. There is no support for NULL values. To mitigate it, Capillaries offers support for custom default values. See `default_value` in [File reader column definition](glossary.md#file-reader-column-definition) and [Table reader column definition](glossary.md#table-reader-column-definition).
+A. There is no support for NULL values. To mitigate it, Capillaries offers support for custom default values. See `default_value` in [Table write field definition](glossary.md#table-writer-field-definition). Whever an empty value found in the source CSV or Parquet file, this default_value will be written to the [table](glossary.md#table).
 
 ## Re-processing granularity
 
@@ -71,7 +71,7 @@ A. Start a run that dumps the table into files via [file writer](glossary.md#tab
 
 Q. Is there a UI for Capillaries?
 
-A. Yes. See [Capillaries UI](../ui/README.md) project, which is a simple web single-page application that shows the status of every [run](glossary.md#run) in every [keyspace](glossary.md#keyspace). UI requirements tend to be very business-specific, it's not an easy task to come up with a cookie-cutter UI framework that would be flexible enough. Dedicated solution developers are encouraged to develop their own UI for Capillaries workflows, using [Capillaries Webapi](glossary.md#webapi) and [Capillaries UI](../ui/README.md) as an example.
+A. Yes. See [Capillaries UI](../ui/README.md) project, which is a simple web single-page application that shows the status of every [run](glossary.md#run) in every [keyspace](glossary.md#keyspace). UI requirements tend to be very business-specific, it's not an easy task to come up with a cookie-cutter UI framework that would be flexible enough. Dedicated solution developers are encouraged to develop their own UI for Capillaries workflows, using [Capillaries Webapi](glossary.md#webapi) as a back-end and [Capillaries UI](../ui/README.md) as an example.
 
 Also please note that [Toolbelt](glossary.md#toolbelt) can produce rudimentary visuals using [DOT diagram language](glossary.md#dot-diagrams) - see [Toolbelt](glossary.md#toolbelt) `validate_script`, `get_run_status_diagram` commands.
 
@@ -105,9 +105,9 @@ A. Here are some, in no particular order:
 
 1. Performance enhancements, espcecially those related to the efficient use of Cassandra.
 
-2. Read/write from/to other file formats, maybe databases. Update 2023: Apache Parquet support was added.
+2. Read/write from/to other file formats, maybe databases. Update 2023: Apache Parquet support was added, see [Parquet reader](glossary.md#parquet-reader-column-properties) and [Parquet writer](glossary.md#parquet-specific-writer-column-properties).
 
-3. Creating node configuration is a tedious job. Consider adding a toolbelt command that takes a CSV file as an input and generates JSON for a corresponding file_table/table_file node. Update 2023: done, see [proto_file_reader_creator test](../test/code/proto_file_reader_creator/README.md).
+3. Creating node configuration is a tedious job. Consider adding a toolbelt command that takes a CSV or Parquet file as an input and generates JSON for a corresponding file_table/table_file node. Update 2023: done, see [proto_file_reader_creator test](../test/code/proto_file_reader_creator/README.md).
 
 4. Is the lack of NULL vsalues support a deal-breaker? Update March 2024: support for *_if aggregate functions was added, it should help mitigate the lack of NULL support.
 

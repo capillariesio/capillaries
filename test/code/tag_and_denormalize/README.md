@@ -17,7 +17,7 @@ and rendered in https://dreampuf.github.io/GraphvizOnline :
 - [file_table](../../../doc/glossary.md#file_table) read from single file
 - [tag_and_denormalize](../../../doc/glossary.md#tag_and_denormalize-processor) custom processor: denormalizes products table by checking tag criteria and producing a new data row for each matching tag
 - [table_lookup_table](../../../doc/glossary.md#table_lookup_table) with parallelism (10 batches), left outer join with grouping
-- [table_file](../../../doc/glossary.md#table_file)table_file with top/limit/order
+- [table_file](../../../doc/glossary.md#table_file)table_file with [top/limit/order](../../../doc/scriptconfig.md#wtop)
 - single-run (test_one_run.sh) and multi-run (test_two_runs.sh) script execution
 
 Multi-run test simulates the scenario when an operator validates tagged products (see /data/out/tagged_products_for_operator_review.csv) before proceeding with calculating totals.
