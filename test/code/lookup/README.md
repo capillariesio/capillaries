@@ -25,9 +25,9 @@ and rendered in https://dreampuf.github.io/GraphvizOnline :
 
 ## What's tested:
 
-- table_lookup_table with parallelism (10 batches), all suported types of joins (inner and left outer, grouped and not)
-- file_table read from single file
-- table_file with top/limit/order
+- [table_lookup_table](../../../doc/glossary.md#table_lookup_table) with parallelism (10 batches), all suported types of joins (inner and left outer, grouped and not)
+- [file_table](../../../doc/glossary.md#file_table) read from single file
+- [table_file](../../../doc/glossary.md#table_file) with top/limit/order
 - single-run (test_one_run.sh) and multi-run (test_two_runs.sh) script execution
 
 Multi-run test simulates the scenario when an operator validates loaded order and order item data before proceeding with joining orders with order items.

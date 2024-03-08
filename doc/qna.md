@@ -107,7 +107,7 @@ A. Here are some, in no particular order:
 
 2. Read/write from/to other file formats, maybe databases.
 
-3. Creating node configuration is a tedious job. Consider adding a toolbelt command that takes a CSV file as an input and generates JSON for a corresponding file_table/table_file node.
+3. Creating node configuration is a tedious job. Consider adding a toolbelt command that takes a CSV file as an input and generates JSON for a corresponding file_table/table_file node. Update 2023: done, see [proto_file_reader_creator test](../test/code/proto_file_reader_creator/README.md).
 
 4. Is the lack of NULL support a deal-breaker?
 

@@ -159,7 +159,7 @@ File writer only: array of file writer [column definitions](glossary.md#file-wri
 
 #### w.having
 
-[Go expression](#glossary.mdgo-expression) used as a filter before the row/line is about to be written to the target table/file. Allows writer (`w.*`) fields (for table writer) and columns (for file writers) only (no `r.*` or `p.*` fields allowed).
+[Go expression](glossary.md#go-expression) used as a filter before the row/line is about to be written to the target table/file. Allows writer (`w.*`) fields (for table writer) and columns (for file writers) only (no `r.*` or `p.*` fields allowed).
 
 #### w.indexes
 

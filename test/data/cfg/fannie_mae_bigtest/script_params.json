@@ -1,7 +1,7 @@
 {
     "expected_batches": 772,
     "dir_cfg": "/tmp/capi_cfg/fannie_mae_bigtest",
-    "file_urls_2022_2023": [
+    "file_urls": [
         "https://capi-in.s3.us-east-1.amazonaws.com/fannie_mae_bigtest/CAS_2022_R01_G1_000.parquet",
         "https://capi-in.s3.us-east-1.amazonaws.com/fannie_mae_bigtest/CAS_2022_R01_G1_001.parquet",
         "https://capi-in.s3.us-east-1.amazonaws.com/fannie_mae_bigtest/CAS_2022_R01_G1_002.parquet",
@@ -290,7 +290,7 @@
         "https://capi-in.s3.us-east-1.amazonaws.com/fannie_mae_bigtest/CAS_2023_R08_G1_001.parquet",
         "https://capi-in.s3.us-east-1.amazonaws.com/fannie_mae_bigtest/CAS_2023_R08_G1_002.parquet"
     ],
-    "file_urls": [
+    "file_urls_2023": [
         "https://capi-in.s3.us-east-1.amazonaws.com/fannie_mae_bigtest/CAS_2023_R01_G1_000.parquet",
         "https://capi-in.s3.us-east-1.amazonaws.com/fannie_mae_bigtest/CAS_2023_R01_G1_001.parquet",
         "https://capi-in.s3.us-east-1.amazonaws.com/fannie_mae_bigtest/CAS_2023_R01_G1_002.parquet",
