@@ -12,7 +12,7 @@ export default defineConfig({
 	},
 	plugins: [
 		sveltekit(),
-		replace.default([
+		replace([
 			{
 				filter: /\.js$/,
 				replace: {
