@@ -518,7 +518,7 @@
 					{
 						"parquet": { "column_name": "payments_behind_ratio" },
 						"name": "payments_behind_ratio",
-						"expression": "r.payments_behind_ratio",
+						"expression": "math.Round(r.payments_behind_ratio*100000)/100000",
 						"type": "float"
 					},
 					{
