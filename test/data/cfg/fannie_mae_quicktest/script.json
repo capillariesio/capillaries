@@ -150,6 +150,7 @@
 			"rerun_policy": "fail",
 			"r": {
 				"table": "payments",
+				"rowset_size": 10000,
 				"expected_batches_total": "{expected_batches|number}"
 			},
 			"w": {
@@ -204,6 +205,7 @@
 			"rerun_policy": "fail",
 			"r": {
 				"table": "loan_ids",
+				"rowset_size": 10000,
 				"expected_batches_total": "{expected_batches|number}"
 			},
 			"w": {
@@ -225,6 +227,7 @@
 			"rerun_policy": "fail",
 			"r": {
 				"table": "loan_ids",
+				"rowset_size": 10000,
 				"expected_batches_total": "{expected_batches|number}"
 			},
 			"w": {
@@ -255,6 +258,8 @@
 			"l": {
 				"index_name": "idx_loan_ids_deal_name",
 				"join_on": "r.deal_name",
+				"idx_read_batch_size": 10000,
+				"right_lookup_read_batch_size": 10000,
 				"group": true,
 				"join_type": "left"
 			},

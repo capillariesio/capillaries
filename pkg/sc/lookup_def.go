@@ -32,9 +32,9 @@ type LookupDef struct {
 
 const (
 	defaultIdxBatchSize         int = 3000
-	maxIdxBatchSize             int = 5000
+	maxIdxBatchSize             int = 20000
 	defaultRightLookupBatchSize int = 3000
-	maxRightLookupReadBatchSize int = 5000
+	maxRightLookupReadBatchSize int = 20000
 )
 
 func (lkpDef *LookupDef) CheckPagedBatchSize() error {
