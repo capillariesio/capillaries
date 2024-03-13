@@ -2,8 +2,8 @@
 
 
 Capillaries is a data processing framework that:
-- takes care of the scalability issues and intermediate data store, allowing users to focus on data transforms and data quality control;
-- fills the gap between distributed, scalable data processing/integration solutions and the need to produce enriched, customer-ready, production-quality, human-curated data within SLA time limits.
+- addresses scalability issues and manages intermediate data storage, enabling users to concentrate on data transforms and quality control;
+- bridges the gap between distributed, scalable data processing/integration solutions and the necessity to produce enriched, customer-ready, production-quality, human-curated data within SLA time limits.
 
 ## Why Capillaries?
 ![Capillaries: before and after](doc/beforeafter.png)
@@ -11,14 +11,14 @@ Capillaries is a data processing framework that:
 
 |             | BEFORE | AFTER |
 | ----------- | ------ |------ |
-| Cloud-friendly | depends | Can be deployed to the cloud within minutes, Docker-ready |
+| Cloud-friendly | Depends | Can be deployed to the cloud within minutes; Docker-ready |
 | Data aggregation | SQL joins | Capillaries [lookups](doc/glossary.md#lookup) in Cassandra + [Go expressions](doc/glossary.md#go-expressions) (scalability, parallel execution) |
 | Data filtering | SQL queries, custom code | [Go expressions](doc/glossary.md#go-expressions) (scalability, maintainability) |
 | Data transform | SQL expressions, custom code | [Go expressions](doc/glossary.md#go-expressions), Python [formulas](doc/glossary.md#py_calc-processor) (parallel execution, maintainability) |
 | Intermediate data storage | Files, relational databases | on-the-fly-created Cassandra [keyspaces](doc/glossary.md#keyspace) and [tables](doc/glossary.md#table) (scalability, maintainability) |
 | Workflow execution | Shell scripts, custom code, workflow frameworks | RabbitMQ as scheduler, workflow status stored in Cassandra (parallel execution, fault tolerance, incremental computing) |
 | Workflow monitoring and interaction | Custom solutions | Capillaries [UI](ui/README.md), [Toolbelt](doc/glossary.md#toolbelt) utility, [API](doc/api.md), [Web API](doc/glossary.md#webapi) (transparency, operator validation support) |
-| Workflow management | Shell scripts, custom code | Capillaries [script file](doc/glossary.md#script) with [DAG](doc/glossary.md#dag) |
+| Workflow management | Shell scripts, custom code | Capillaries configuration: [script file](doc/glossary.md#script) with [DAG](doc/glossary.md#dag), Python [formulas](doc/glossary.md#py_calc-processor) |
 
 ## Getting started
 
@@ -75,4 +75,4 @@ For more details about getting started, see [Getting started](doc/started.md). F
 ### [Capillaries blog](https://capillaries.io/blog/index.html)
 ### [MIT License](LICENSE)
 
-(C) 2023-2024 KH (kleines.hertz[at]protonmail.com)
+(C) 2022-2024 KH (kleines.hertz[at]protonmail.com)
