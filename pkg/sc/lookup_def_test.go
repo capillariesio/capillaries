@@ -222,13 +222,13 @@ func TestLookupDef(t *testing.T) {
 
 	re := regexp.MustCompile(`"idx_read_batch_size": [\d]+`)
 	assert.Contains(t,
-		scriptDef.Deserialize([]byte(re.ReplaceAllString(scriptDefJson, `"idx_read_batch_size": 10000`)), nil, nil, "", nil).Error(),
-		"cannot use idx_read_batch_size 10000, expected <= 5000")
+		scriptDef.Deserialize([]byte(re.ReplaceAllString(scriptDefJson, `"idx_read_batch_size": 50000`)), nil, nil, "", nil).Error(),
+		"cannot use idx_read_batch_size 50000, expected <= 20000")
 
 	re = regexp.MustCompile(`"right_lookup_read_batch_size": [\d]+`)
 	assert.Contains(t,
-		scriptDef.Deserialize([]byte(re.ReplaceAllString(scriptDefJson, `"right_lookup_read_batch_size": 10000`)), nil, nil, "", nil).Error(),
-		"cannot use right_lookup_read_batch_size 10000, expected <= 5000")
+		scriptDef.Deserialize([]byte(re.ReplaceAllString(scriptDefJson, `"right_lookup_read_batch_size": 50000`)), nil, nil, "", nil).Error(),
+		"cannot use right_lookup_read_batch_size 50000, expected <= 20000")
 
 	re = regexp.MustCompile(`"filter": "[^"]+",`)
 	assert.Contains(t,
