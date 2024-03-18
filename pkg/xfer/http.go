@@ -15,6 +15,7 @@ const UriSchemeFile string = "file"
 const UriSchemeHttp string = "http"
 const UriSchemeHttps string = "https"
 const UriSchemeSftp string = "sftp"
+const UriSchemeS3 string = "s3"
 
 func GetHttpReadCloser(uri string, scheme string, certDir string) (io.ReadCloser, error) {
 	caCertPool := x509.NewCertPool()

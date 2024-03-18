@@ -2,13 +2,11 @@ package proc
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
-	"github.com/capillariesio/capillaries/pkg/xfer"
 )
 
 type FileInserter struct {
@@ -133,19 +131,4 @@ func (instr *FileInserter) add(row []any) {
 		instr.BatchesSent++
 		instr.CurrentBatch = nil
 	}
-}
-
-func (instr *FileInserter) sendFileToFinal(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, privateKeys map[string]string) error {
-	logger.PushF("proc.sendFileToFinal")
-	defer logger.PopF()
-
-	if instr.TempFilePath == "" {
-		// Nothing to do, the file is already at its destination
-		return nil
-	}
-	defer os.Remove(instr.TempFilePath)
-
-	logger.InfoCtx(pCtx, "uploading %s to %s...", instr.TempFilePath, instr.FinalFileUrl)
-
-	return xfer.UploadSftpFile(instr.TempFilePath, instr.FinalFileUrl, privateKeys)
 }

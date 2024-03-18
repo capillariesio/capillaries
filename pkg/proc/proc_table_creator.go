@@ -106,20 +106,29 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *c
 		defer localSrcFile.Close()
 		fileReader = bufio.NewReader(localSrcFile)
 		fileReadSeeker = localSrcFile
-	} else if u.Scheme == xfer.UriSchemeHttp || u.Scheme == xfer.UriSchemeHttps {
+	} else if u.Scheme == xfer.UriSchemeHttp || u.Scheme == xfer.UriSchemeHttps || u.Scheme == xfer.UriSchemeS3 {
+		var readCloser io.ReadCloser
+		if u.Scheme == xfer.UriSchemeHttp || u.Scheme == xfer.UriSchemeHttps {
+			readCloser, err = xfer.GetHttpReadCloser(filePath, u.Scheme, envConfig.CaPath)
+			if err != nil {
+				return bs, fmt.Errorf("cannot open http file %s: %s", filePath, err.Error())
+			}
+		} else if u.Scheme == xfer.UriSchemeS3 {
+			readCloser, err = xfer.GetS3ReadCloser(filePath)
+			if err != nil {
+				return bs, fmt.Errorf("cannot open http file %s: %s", filePath, err.Error())
+			}
+		} else {
+			return bs, fmt.Errorf("cannot open file %s: unknown uri scheme", filePath)
+		}
+		defer readCloser.Close()
+
 		// If this is a parquet file, download it and then open so we have fileReadSeeker
 		if node.FileReader.ReaderFileType == sc.ReaderFileTypeParquet {
 			dstFile, err := os.CreateTemp("", "capi")
 			if err != nil {
 				return bs, fmt.Errorf("cannot create temp file for %s: %s", filePath, err.Error())
 			}
-
-			readCloser, err := xfer.GetHttpReadCloser(filePath, u.Scheme, envConfig.CaPath)
-			if err != nil {
-				dstFile.Close()
-				return bs, fmt.Errorf("cannot open http file %s: %s", filePath, err.Error())
-			}
-			defer readCloser.Close()
 
 			if _, err := io.Copy(dstFile, readCloser); err != nil {
 				dstFile.Close()
@@ -138,10 +147,6 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *c
 			fileReadSeeker = localSrcFile
 		} else {
 			// Just read from the net
-			readCloser, err := xfer.GetHttpReadCloser(filePath, u.Scheme, envConfig.CaPath)
-			if err != nil {
-				return bs, err
-			}
 			fileReader = readCloser
 			defer readCloser.Close()
 		}
