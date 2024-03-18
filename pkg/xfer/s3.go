@@ -18,8 +18,8 @@ func GetS3ReadCloser(uri string) (io.ReadCloser, error) {
 
 	// Assuming ~/.aws/credentials:
 	// [default]
-	// aws_access_key_id=AKIA2TIMRSBWB77BEXWH
-	// aws_secret_access_key=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
+	// aws_access_key_id=AKIA...
+	// aws_secret_access_key=...
 	// ~/.aws/config
 	// [default]
 	// region=us-east-1
