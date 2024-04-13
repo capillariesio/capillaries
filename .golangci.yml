@@ -108,6 +108,10 @@ issues:
       text: function RunCreateTableRelForBatch has (cyclomatic|cognitive) complexity
       linters:
         - revive
+    - path: pkg\/proc\/proc_table_creator\.go
+      text: function RunReadFileForBatch has cognitive complexity
+      linters:
+        - revive
     - path: pkg\/eval\/eval_ctx\.go
       text: EvalFunc has cyclomatic complexity
       linters:
