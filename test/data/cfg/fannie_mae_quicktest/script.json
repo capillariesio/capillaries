@@ -878,7 +878,7 @@
 						"type": "decimal2"
 					},
 					{
-						"parquet": { "column_name": "total_original_`upb_paid_off_ratio" },
+						"parquet": { "column_name": "total_original_upb_paid_off_ratio" },
 						"name": "total_original_upb_paid_off_ratio",
 						"expression": "math.Round(float(r.total_paid_off_amount)/float(r.total_original_upb)*100000)/100000",
 						"type": "float"

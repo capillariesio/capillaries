@@ -12,17 +12,13 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-func (instr *FileInserter) createCsvFileAndStartWorker(logger *l.CapiLogger) error {
+func (instr *FileInserter) createCsvFileAndStartWorker(logger *l.CapiLogger, u *url.URL) error {
 	logger.PushF("proc.createCsvFileAndStartWorker")
 	defer logger.PopF()
 
-	u, err := url.Parse(instr.FinalFileUrl)
-	if err != nil {
-		return fmt.Errorf("cannot parse file uri %s: %s", instr.FinalFileUrl, err.Error())
-	}
-
+	var err error
 	var f *os.File
-	if u.Scheme == xfer.UriSchemeSftp {
+	if u.Scheme == xfer.UriSchemeSftp || u.Scheme == xfer.UriSchemeS3 {
 		f, err = os.CreateTemp("", "capi")
 		if err != nil {
 			return fmt.Errorf("cannot create temp file for %s: %s", instr.FinalFileUrl, err.Error())

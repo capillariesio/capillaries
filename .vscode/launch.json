@@ -85,7 +85,7 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/toolbelt",
             "program": "${workspaceFolder}/pkg/exe/toolbelt/capitoolbelt.go",
-            "args": ["exec_node","-script_file=/tmp/capi_cfg/fannie_mae_quicktest/script.json",  "-keyspace=fannie_mae_quicktest", "-node_id=write_file"]
+            "args": ["validate_script","-script_file=s3://capillaries-sampledeployment005/capi_cfg/lookup_quicktest/script.json", "-params_file=s3://capillaries-sampledeployment005/capi_cfg/lookup_quicktest/script_params_one_run.json", "-idx_dag=true"]
         },
         {
             "name": "Webapi",

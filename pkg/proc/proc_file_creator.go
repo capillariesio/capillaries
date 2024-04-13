@@ -3,6 +3,8 @@ package proc
 import (
 	"container/heap"
 	"fmt"
+	"net/url"
+	"os"
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
@@ -11,6 +13,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/eval"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
+	"github.com/capillariesio/capillaries/pkg/xfer"
 )
 
 type FileRecordHeapItem struct {
@@ -165,12 +168,17 @@ func RunCreateFile(envConfig *env.EnvConfig,
 
 	instr := newFileInserter(pCtx, &node.FileCreator, pCtx.BatchInfo.RunId, pCtx.BatchInfo.BatchIdx)
 
+	u, err := url.Parse(instr.FinalFileUrl)
+	if err != nil {
+		return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("cannot parse file uri %s: %s", instr.FinalFileUrl, err.Error())
+	}
+
 	if node.FileCreator.CreatorFileType == sc.CreatorFileTypeCsv {
-		if err := instr.createCsvFileAndStartWorker(logger); err != nil {
+		if err := instr.createCsvFileAndStartWorker(logger, u); err != nil {
 			return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("cannot start csv inserter worker: %s", err.Error())
 		}
 	} else if node.FileCreator.CreatorFileType == sc.CreatorFileTypeParquet {
-		if err := instr.createParquetFileAndStartWorker(logger, node.FileCreator.Parquet.Codec); err != nil {
+		if err := instr.createParquetFileAndStartWorker(logger, node.FileCreator.Parquet.Codec, u); err != nil {
 			return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("cannot start parquet inserter worker: %s", err.Error())
 		}
 	} else {
@@ -193,9 +201,19 @@ func RunCreateFile(envConfig *env.EnvConfig,
 	bs.Elapsed = time.Since(totalStartTime)
 	logger.InfoCtx(pCtx, "WriteFileComplete: read %d, wrote %d items in %.3fs (%.0f items/s)", bs.RowsRead, bs.RowsWritten, bs.Elapsed.Seconds(), float64(bs.RowsWritten)/bs.Elapsed.Seconds())
 
-	if err := instr.sendFileToFinal(logger, pCtx, envConfig.PrivateKeys); err != nil {
-		return bs, err
+	if instr.TempFilePath == "" {
+		// Nothing to do, the file is already at its destination
+		return bs, nil
+	}
+	defer os.Remove(instr.TempFilePath)
+
+	logger.InfoCtx(pCtx, "uploading %s to %s...", instr.TempFilePath, instr.FinalFileUrl)
+
+	if u.Scheme == xfer.UriSchemeSftp {
+		return bs, xfer.UploadSftpFile(instr.TempFilePath, instr.FinalFileUrl, envConfig.PrivateKeys)
+	} else if u.Scheme == xfer.UriSchemeS3 {
+		return bs, xfer.UploadS3File(instr.TempFilePath, u)
 	}
 
-	return bs, nil
+	return bs, fmt.Errorf("unexpected URI scheme %s in %s", u.Scheme, instr.FinalFileUrl)
 }

@@ -23,6 +23,11 @@ func GetFileBytes(uri string, certPath string, privateKeys map[string]string) ([
 		if err != nil {
 			return nil, err
 		}
+	} else if u.Scheme == UriSchemeS3 {
+		bytes, err = readS3File(uri)
+		if err != nil {
+			return nil, err
+		}
 	} else if u.Scheme == UriSchemeSftp {
 		// When dealing with sftp, we download the *whole* file, then we read all of it
 		dstFile, err := os.CreateTemp("", "capi")

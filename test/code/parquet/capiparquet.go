@@ -278,7 +278,11 @@ func cat(path string) error {
 				if err != nil {
 					return fmt.Errorf("cannot read string row %d, column %s: %s", rowIdx, fieldName, err.Error())
 				}
-				sb.WriteString(typedVal)
+				if strings.Contains(typedVal, `,`) {
+					sb.WriteString(fmt.Sprintf(`"%s"`, typedVal))
+				} else {
+					sb.WriteString(typedVal)
+				}
 
 			case sc.FieldTypeInt:
 				typedVal, err := storage.ParquetReadInt(volatile, se)
