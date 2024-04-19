@@ -80,8 +80,8 @@ func readParquetRowToValuesMap(d map[string]any,
 }
 
 func readParquet(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, totalStartTime time.Time, filePath string, fileReadSeeker io.ReadSeeker) (BatchStats, error) {
-	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: filePath}
 	node := pCtx.CurrentScriptNode
+	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: filePath, Dst: node.TableCreator.Name}
 
 	if fileReadSeeker == nil {
 		return bs, fmt.Errorf("cannot read parquet file without io.ReadSeeker: %s", filePath)

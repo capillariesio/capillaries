@@ -115,6 +115,7 @@ File reader only. List of files to read from. One file - one batch. Supported sc
 - local file path
 - http/https
 - [sftp](./glossary.md#sftp-uris)
+- [S3](./glossary.md#s3-uris)
 
 Most Capillaries integration tests use file URLs. [tag_and_denormalize test](../test/code/tag_and_denormalize/README.md) has an option to run against test data stored in GitHub, accessing it via https.
 
@@ -169,6 +170,7 @@ Table writer only. index_name->[index_definition](glossary.md#index-definition) 
 File writer only. Specifies  the URI of the target file(s). Supported schemes:
 - local file path
 - [sftp](./glossary.md#sftp-uris)
+- [S3](./glossary.md#s3-uris)
 
 #### w.csv.separator
 CSV writer only: field separator, default is comma

@@ -1,6 +1,9 @@
 #!/bin/bash
 
-outS3Url=s3://capillaries-sampledeployment005/capi_out/lookup_quicktest
+source ../../common/util.sh
+check_s3
+
+outS3Url=s3://$CAPILLARIES_AWS_TESTBUCKET/capi_out/lookup_quicktest
 outDir=/tmp/capi_out/lookup_quicktest
 
 aws s3 cp $outS3Url/order_item_date_inner.csv $outDir/

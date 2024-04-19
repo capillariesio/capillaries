@@ -3,6 +3,7 @@ package proc
 import (
 	"container/heap"
 	"fmt"
+	"io/fs"
 	"net/url"
 	"os"
 	"time"
@@ -207,7 +208,25 @@ func RunCreateFile(envConfig *env.EnvConfig,
 	}
 	defer os.Remove(instr.TempFilePath)
 
-	logger.InfoCtx(pCtx, "uploading %s to %s...", instr.TempFilePath, instr.FinalFileUrl)
+	// TODO: make it prettier
+	// Wait till inserter calls w.Close() to flush the file
+	var st fs.FileInfo
+	for i := 0; i < 30; i++ {
+		st, err = os.Stat(instr.TempFilePath)
+		if err != nil {
+			return bs, fmt.Errorf("cannot get size of result file %s: %s", instr.TempFilePath, err.Error())
+		}
+		if st.Size() > 0 {
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	if st.Size() == 0 {
+		return bs, fmt.Errorf("cannot obtain non-empty result file %s", instr.TempFilePath)
+	}
+
+	logger.InfoCtx(pCtx, "uploading %s of size %d to %s...", instr.TempFilePath, st.Size(), instr.FinalFileUrl)
 
 	if u.Scheme == xfer.UriSchemeSftp {
 		return bs, xfer.UploadSftpFile(instr.TempFilePath, instr.FinalFileUrl, envConfig.PrivateKeys)

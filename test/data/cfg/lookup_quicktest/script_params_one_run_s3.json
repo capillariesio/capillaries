@@ -6,6 +6,6 @@
     "default_order_item_value": "999.00",
     "lookup_node_batches_total": 10,
     "lookup_start_policy": "auto",
-    "dir_in": "s3://capillaries-sampledeployment005/capi_in/lookup_quicktest",
-    "dir_out": "s3://capillaries-sampledeployment005/capi_out/lookup_quicktest"
+    "dir_in": "s3://$CAPILLARIES_AWS_TESTBUCKET/capi_in/lookup_quicktest",
+    "dir_out": "s3://$CAPILLARIES_AWS_TESTBUCKET/capi_out/lookup_quicktest"
 }

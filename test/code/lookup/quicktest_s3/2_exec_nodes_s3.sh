@@ -1,15 +1,19 @@
 #!/bin/bash
 
-keyspace="lookup_quicktest"
-cfgDir=s3://capillaries-sampledeployment005/capi_cfg/lookup_quicktest
-outDir=/tmp/capi_out/lookup_quicktest
-scriptFile=$cfgDir/script.json
-paramsFile=$cfgDir/script_params_one_run_s3.json
+source ../../common/util.sh
+check_s3
+
+keyspace="lookup_quicktest_s3"
+cfgS3=s3://$CAPILLARIES_AWS_TESTBUCKET/capi_cfg/lookup_quicktest
+scriptFile=$cfgS3/script.json
+paramsFile=$cfgS3/script_params_one_run_s3.json
 
 SECONDS=0
 
 pushd ../../../../pkg/exe/toolbelt
 set -x
+
+go run capitoolbelt.go drop_keyspace -keyspace=$keyspace
 
 go run capitoolbelt.go exec_node -script_file=$scriptFile -params_file=$paramsFile -keyspace=$keyspace -node_id=read_orders
 go run capitoolbelt.go exec_node -script_file=$scriptFile -params_file=$paramsFile -keyspace=$keyspace -node_id=read_order_items
