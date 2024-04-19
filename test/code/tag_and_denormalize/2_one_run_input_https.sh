@@ -4,9 +4,9 @@ source ../common/util.sh
 
 keyspace="tag_and_denormalize_quicktest"
 
-rootUrl=https://github.com/capillariesio/capillaries/blob/main/test/data
-scriptFile=$rootUrl/cfg/tag_and_denormalize_quicktest/script.json?raw=1
-paramsFile=$rootUrl/cfg/tag_and_denormalize_quicktest/script_params_one_run_input_https.json?raw=1
+rootUrl=https://raw.githubusercontent.com/capillariesio/capillaries/main/test/data
+scriptFile=$rootUrl/cfg/tag_and_denormalize_quicktest/script.json
+paramsFile=$rootUrl/cfg/tag_and_denormalize_quicktest/script_params_one_run_input_https.json
 
 outDir=/tmp/capi_out/tag_and_denormalize_quicktest
 

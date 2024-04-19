@@ -9,10 +9,12 @@ A. At the moment, Capillaries can only read and write CSV and Parquet files. It 
 - file system
 - http/https
 - [sftp](./glossary.md#sftp-uris) URIs
+- [S3 buckets](./glossary.md#s3-uris)
 
 and write to:
 - file system
 - [sftp](./glossary.md#sftp-uris) URIs
+- [S3 buckets](./glossary.md#s3-uris)
 
 ## Getting started with Capillaries scripts
 

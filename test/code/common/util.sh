@@ -1,5 +1,57 @@
 #!/bin/bash
 
+# Verify s3 credentials and bucket are specified
+check_s3()
+{
+    if [ "$CAPILLARIES_AWS_TESTBUCKET" = "" ]; then
+        echo Error, missing: export CAPILLARIES_AWS_TESTBUCKET=capillaries-testbucket
+        echo 'expected permissions:'
+        echo '{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::728560144492:user/capillaries-testuser"
+            },
+            "Action": "s3:ListBucket",
+            "Resource": "arn:aws:s3:::capillaries-testbucket"
+        },
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::728560144492:user/capillaries-testuser"
+            },
+            "Action": [
+                "s3:DeleteObject",
+                "s3:GetObject",
+                "s3:PutObject"
+            ],
+            "Resource": "arn:aws:s3:::capillaries-testbucket/*"
+        }
+    ]
+}'
+        exit 1
+    fi
+
+    if [ ! -e ~/.aws/credentials ]; then
+        echo '~/.aws/credentials not found, expected:'
+        echo '[default]'
+        echo 'aws_access_key_id=AK...'
+        echo 'aws_secret_access_key=...'
+        exit 1
+    fi
+
+    if [ ! -e ~/.aws/config ]; then
+        echo '~/.aws/config not found, expected:'
+        echo '[default]'
+        echo 'region=us-east-1'
+        echo 'output=json'
+        exit 1
+    fi
+}
+
+
 # Makes toolbelt call get_run_history in a loop until run status is as requested
 wait()
 {
@@ -44,6 +96,8 @@ one_daemon_run()
     local outDir=$4
     local startNodes=$5
 
+    echo Starting $scriptFile with $paramsFile in $keyspace...
+
     SECONDS=0
 
     # A hack to support *_quicktest additional dir level
@@ -54,14 +108,16 @@ one_daemon_run()
     fi
 
     go run capitoolbelt.go drop_keyspace -keyspace=$keyspace
-    
-    go run capitoolbelt.go start_run -script_file=$scriptFile -params_file=$paramsFile -keyspace=$keyspace -start_nodes=$startNodes
-    echo "Waiting for run to start..."
-    wait $keyspace 1 1 $outDir
-    echo "Waiting for run to finish, make sure pkg/exe/daemon is running..."
-    wait $keyspace 1 2 $outDir
-    go run capitoolbelt.go get_node_history -keyspace=$keyspace -run_ids=1
-
+    if [ "$?" = "0" ]; then
+      go run capitoolbelt.go start_run -script_file=$scriptFile -params_file=$paramsFile -keyspace=$keyspace -start_nodes=$startNodes
+      if [ "$?" = "0" ]; then
+        echo "Waiting for run to start..."
+        wait $keyspace 1 1 $outDir
+        echo "Waiting for run to finish, make sure pkg/exe/daemon is running..."
+        wait $keyspace 1 2 $outDir
+        go run capitoolbelt.go get_node_history -keyspace=$keyspace -run_ids=1
+      fi
+    fi
     popd
     duration=$SECONDS
     echo "$(($duration / 60))m $(($duration % 60))s elapsed."    
@@ -74,6 +130,8 @@ one_daemon_run_no_params()
     local outDir=$3
     local startNodes=$4
 
+    echo Starting $scriptFile in $keyspace...
+
     SECONDS=0
 
     # A hack to support *_quicktest additional dir level
@@ -84,14 +142,16 @@ one_daemon_run_no_params()
     fi
 
     go run capitoolbelt.go drop_keyspace -keyspace=$keyspace
-    
-    go run capitoolbelt.go start_run -script_file=$scriptFile -keyspace=$keyspace -start_nodes=$startNodes
-    echo "Waiting for run to start..."
-    wait $keyspace 1 1 $outDir
-    echo "Waiting for run to finish, make sure pkg/exe/daemon is running..."
-    wait $keyspace 1 2 $outDir
-    go run capitoolbelt.go get_node_history -keyspace=$keyspace -run_ids=1
-
+    if [ "$?" = "0" ]; then
+      go run capitoolbelt.go start_run -script_file=$scriptFile -keyspace=$keyspace -start_nodes=$startNodes
+      if [ "$?" = "0" ]; then
+        echo "Waiting for run to start..."
+        wait $keyspace 1 1 $outDir
+        echo "Waiting for run to finish, make sure pkg/exe/daemon is running..."
+        wait $keyspace 1 2 $outDir
+        go run capitoolbelt.go get_node_history -keyspace=$keyspace -run_ids=1
+      fi  
+    fi
     popd
     duration=$SECONDS
     echo "$(($duration / 60))m $(($duration % 60))s elapsed."    
@@ -116,25 +176,27 @@ two_daemon_runs()
     fi
 
     go run capitoolbelt.go drop_keyspace -keyspace=$keyspace
+    if [ "$?" = "0" ]; then
+        # Operator starts run 1
 
-    # Operator starts run 1
+        go run capitoolbelt.go start_run -script_file=$scriptFile -params_file=$paramsFile -keyspace=$keyspace -start_nodes=$startNodesOne
+        if [ "$?" = "0" ]; then
+            echo "Waiting for run to start..."
+            wait $keyspace 1 1 $outDir
+            echo "Waiting for run to finish, make sure pkg/exe/daemon is running..."
+            wait $keyspace 1 2 $outDir
+            go run capitoolbelt.go get_node_history -keyspace=$keyspace -run_ids=1
 
-    go run capitoolbelt.go start_run -script_file=$scriptFile -params_file=$paramsFile -keyspace=$keyspace -start_nodes=$startNodesOne
-    echo "Waiting for run to start..."
-    wait $keyspace 1 1 $outDir
-    echo "Waiting for run to finish, make sure pkg/exe/daemon is running..."
-    wait $keyspace 1 2 $outDir
-    go run capitoolbelt.go get_node_history -keyspace=$keyspace -run_ids=1
+            # Operator approves intermediate results and starts run 2
 
-    # Operator approves intermediate results and starts run 2
-
-    go run capitoolbelt.go start_run -script_file=$scriptFile -params_file=$paramsFile -keyspace=$keyspace -start_nodes=$startNodesTwo
-    echo "Waiting for run to start..."
-    wait $keyspace 2 1 $outDir
-    echo "Waiting for run to finish, make sure pkg/exe/daemon is running..."
-    wait $keyspace 2 2 $outDir
-    go run capitoolbelt.go get_node_history -keyspace=$keyspace -run_ids=1,2
-    
+            go run capitoolbelt.go start_run -script_file=$scriptFile -params_file=$paramsFile -keyspace=$keyspace -start_nodes=$startNodesTwo
+            echo "Waiting for run to start..."
+            wait $keyspace 2 1 $outDir
+            echo "Waiting for run to finish, make sure pkg/exe/daemon is running..."
+            wait $keyspace 2 2 $outDir
+            go run capitoolbelt.go get_node_history -keyspace=$keyspace -run_ids=1,2
+        fi
+    fi    
     popd
     duration=$SECONDS
     echo "$(($duration / 60))m $(($duration % 60))s elapsed."

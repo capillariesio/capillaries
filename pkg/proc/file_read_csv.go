@@ -14,8 +14,8 @@ import (
 )
 
 func readCsv(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, totalStartTime time.Time, filePath string, fileReader io.Reader) (BatchStats, error) {
-	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: filePath}
 	node := pCtx.CurrentScriptNode
+	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: filePath, Dst: node.TableCreator.Name}
 
 	r := csv.NewReader(fileReader)
 	r.Comma = rune(node.FileReader.Csv.Separator[0])

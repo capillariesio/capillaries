@@ -368,3 +368,81 @@ Here is the full list of configuration settings where SFTP URIs can be used:
 - [file reader source URIs](./scriptconfig.md#rurls)
 - script_file and script_params URIs used in [Capillaries API](./api.md) and exposed via the [Toolbelt](./glossary.md#toolbelt) or the [Webapi](./glossary.md#webapi)
 - [file writer target URIs](./scriptconfig.md#wurl_template)
+
+## S3 URIs
+
+### URI format
+Capillaries supports reading source data and configuration files from S3 buckets, and writing result data files to S3 buckets. S3 URI format used is as follows:
+
+`https://<bucket_name>.s3.<aws_region>.amazonaws.com/<path_to_file>`
+
+### Authentication
+
+Assuming your AWS setup is based on the AWS account <aws_account_id> and it has an IAM user called `sampledeployment005-internaluser`.
+
+When accessing S3 buckets, Capillaries performs AWS authentication using credentials stored in ~/.aws/credentials file:
+
+```
+[default]
+aws_access_key_id=<AKIA...sampledeployment005-internaluser key>
+aws_secret_access_key=<...sampledeployment005-internaluser secret>
+```
+
+and configuration in ~/.aws/config file:
+
+```
+[default]
+region=us-east-1
+output=json
+```
+
+### Bucket permissions
+
+Example of bucket `capillaries-sampledeployment005` permissions setup:
+
+1. Block all public access.
+
+2. Bucket policy:
+
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::<aws_account_id>:user/sampledeployment005-internaluser"
+            },
+            "Action": "s3:ListBucket",
+            "Resource": "arn:aws:s3:::capillaries-sampledeployment005"
+        },
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::<aws_account_id>:user/sampledeployment005-internaluser"
+            },
+            "Action": [
+                "s3:DeleteObject",
+                "s3:GetObject",
+                "s3:PutObject"
+            ],
+            "Resource": "arn:aws:s3:::capillaries-sampledeployment005/*"
+        }
+    ]
+}
+```
+
+### IAM user permissions
+
+If you need to allow an IAM user to access bucket `some-external-bucket` that belongs to a different AWS account (not the <aws_account_id> of your IAM user), you may need to add a correspondent policy to sampledeployment005-internaluser. See `https://stackoverflow.com/questions/77637011/how-to-provide-access-to-s3-buckets-in-a-different-aws-account` .
+
+### Sample commands
+
+```
+aws s3 ls s3://capillaries-sampledeployment005 --recursive
+aws s3 cp test/data/in/lookup_quicktest/olist_orders_dataset.csv s3://capillaries-sampledeployment005/capi_in/lookup_quicktest/
+aws s3 cp s3://capillaries-sampledeployment005/capi_out/lookup_quicktest/order_item_date_left_outer.csv .
+aws s3 cp /tmp/capi_in/fannie_mae_bigtest/  s3://capillaries-sampledeployment005/capi_in/fannie_mae_bigtest --recursive --exclude "*" --include "CAS_2023_R08_G1_*.parquet"
+aws s3 cp /tmp/capi_cfg/fannie_mae_bigtest/ s3://capillaries-sampledeploymen t005/capi_cfg/fannie_mae_bigtest --recursive
+```
+
