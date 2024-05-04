@@ -26,8 +26,10 @@ else
   rm -fR $outDir/*
 fi
 
-echo "Copying config files to "$cfgS3
+echo "Patching cfg..."
 sed -e 's~$CAPILLARIES_AWS_TESTBUCKET~'$CAPILLARIES_AWS_TESTBUCKET'~g' $cfgSrcDir/script_params_s3.json > $cfgDir/script_params_s3.json
+
+echo "Copying config files to "$cfgS3
 aws s3 cp $cfgDir/script_params_s3.json $cfgS3/
 aws s3 cp $cfgSrcDir/py $cfgS3/py --recursive
 aws s3 cp $cfgSrcDir/script.json $cfgS3/
@@ -35,5 +37,5 @@ aws s3 cp $cfgSrcDir/script.json $cfgS3/
 echo "Copying in files to "$inS3
 aws s3 cp $inSrcDir $inS3/ --recursive --exclude "*" --include "CAS_2023_R08_G1_20231020_*.parquet"
 
-echo "Copying files to "$outDir
+echo "Copying out files to "$outDir
 cp -r $outSrcDir/* $outDir/

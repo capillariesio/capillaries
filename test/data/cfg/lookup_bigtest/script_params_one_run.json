@@ -6,6 +6,6 @@
     "default_order_item_value": "999.00",
     "lookup_node_batches_total": 100,
     "lookup_start_policy": "auto",
-    "dir_in": "/tmp/capi_in/lookup_bigtest",
-    "dir_out": "/tmp/capi_out/lookup_bigtest"
+    "dir_in": "s3://$CAPILLARIES_AWS_TESTBUCKET/capi_in/lookup_bigtest",
+    "dir_out": "s3://$CAPILLARIES_AWS_TESTBUCKET/capi_out/lookup_bigtest"
 }

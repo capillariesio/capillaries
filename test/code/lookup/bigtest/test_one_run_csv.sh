@@ -1,5 +1,8 @@
 #!/bin/bash
 
+source ../../common/util.sh
+check_s3
+
 echo "Make sure that pkg/exe/toolbelt has access to Cassandra and RabbitMQ"
 
 ./4_clean.sh

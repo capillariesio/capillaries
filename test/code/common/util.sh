@@ -1,11 +1,29 @@
 #!/bin/bash
 
+# Verify Capillaries are deployed somewhere at $BASTION_IP with SSH key $CAPIDEPLOY_SSH_PRIVATE_KEY_PATH
+check_cloud_deployment()
+{
+    if [ "$CAPIDEPLOY_SSH_PRIVATE_KEY_PATH" = "" ]; then
+        echo Error, missing: export CAPIDEPLOY_SSH_PRIVATE_KEY_PATH=~/.ssh/mydeployment005_rsa
+        echo This is the SSH private key used to access hosts in your Capilaries cloud deploymen
+        echo See capillaries-deploy repo for details
+        exit 1
+    fi
+    if [ "$BASTION_IP" = "" ]; then
+        echo Error, missing: export BASTION_IP=1.2.3.4
+        echo This is the ip address of the bastion host in your Capilaries cloud deployment
+        echo See capillaries-deploy repo for details
+        exit 1
+    fi
+}
+
 # Verify s3 credentials and bucket are specified
 check_s3()
 {
     if [ "$CAPILLARIES_AWS_TESTBUCKET" = "" ]; then
         echo Error, missing: export CAPILLARIES_AWS_TESTBUCKET=capillaries-testbucket
-        echo 'expected permissions:'
+        echo This is the name of the bucket the user creates to test S3 Capillaries scenarios.
+        echo 'Expected permissions:'
         echo '{
     "Version": "2012-10-17",
     "Statement": [
