@@ -82,7 +82,7 @@ wait()
         go run capitoolbelt.go get_run_history -keyspace=$keyspace > $outDir/runs.csv
         while IFS="," read -r ts run_id status comment
         do
-            if [ "$run_id" -eq "$runIdToCheck" ]; then
+            if [ $run_id -eq $runIdToCheck ]; then
                 if [ "$statusToCheck" -eq "1" ]; then # Wait for start
                     if [ "$status" -eq "1" ]; then  
                         echo Run started

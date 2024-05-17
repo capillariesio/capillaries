@@ -3,7 +3,6 @@
 source ../../common/util.sh
 check_s3
 
-
 outS3=s3://$CAPILLARIES_AWS_TESTBUCKET/capi_out/lookup_bigtest
 outDir=/tmp/capi_out/lookup_bigtest
 

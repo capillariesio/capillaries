@@ -396,6 +396,13 @@ region=us-east-1
 output=json
 ```
 
+Alternatively, you can use environment variables:
+
+```
+export AWS_ACCESS_KEY_ID=<AKIA...sampledeployment005-internaluser key>
+export AWS_SECRET_ACCESS_KEY=<...sampledeployment005-internaluser secret>
+export AWS_DEFAULT_REGION=us-east-1
+```
 ### Bucket permissions
 
 Example of bucket `capillaries-sampledeployment005` permissions setup:

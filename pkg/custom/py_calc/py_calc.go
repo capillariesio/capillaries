@@ -2,6 +2,7 @@ package py_calc
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"go/ast"
@@ -14,21 +15,24 @@ import (
 	"github.com/capillariesio/capillaries/pkg/proc"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/xfer"
+	"github.com/sethvargo/go-envconfig"
 	"github.com/shopspring/decimal"
 )
 
 const ProcessorPyCalcName string = "py_calc"
 
+// Separate struct to hold values from EnvConfig
 type PyCalcEnvSettings struct {
 	// Windows: `python` or `C:\Users\%USERNAME%\AppData\Local\Programs\Python\Python310\python.exe`
 	// WSL: `python` or `/mnt/c/Users/myusername/AppData/Local/Programs/Python/Python310/python.exe`
 	// Linux: `python`
-	InterpreterPath string `json:"python_interpreter_path"`
+	InterpreterPath string `json:"python_interpreter_path" env:"CAPI_PYCALC_INTERPRETER_PATH, overwrite"`
 	// Usually: ["-u", "-"]. -u is essential: without it, we will not see stdout/stderr in the timeout scenario
-	InterpreterParams []string `json:"python_interpreter_params"`
-	ExecutionTimeout  int      `json:"execution_timeout"` // Default 5000 milliseconds
+	InterpreterParams []string `json:"python_interpreter_params" env:"CAPI_PYCALC_INTERPRETER_PARAMS, overwrite"`
+	ExecutionTimeout  int      `json:"execution_timeout" env:"CAPI_PYCALC_EXECUTION_TIMEOUT, overwrite"` // Default 5000 milliseconds
 }
 
+// All processor settings, root values coming from node
 type PyCalcProcessorDef struct {
 	PythonUrls                    []string                          `json:"python_code_urls"`
 	CalculatedFields              map[string]*sc.WriteTableFieldDef `json:"calculated_fields"`
@@ -83,8 +87,12 @@ func (procDef *PyCalcProcessorDef) Deserialize(raw json.RawMessage, customProcSe
 		return fmt.Errorf("cannot unmarshal py_calc processor env settings: %s", err.Error())
 	}
 
+	if err := envconfig.Process(context.TODO(), &procDef.EnvSettings); err != nil {
+		return fmt.Errorf("cannot process pycalc env variables: %s", err.Error())
+	}
+
 	if len(procDef.EnvSettings.InterpreterPath) == 0 {
-		return fmt.Errorf("py_calc interpreter path canot be empty")
+		return fmt.Errorf("py_calc interpreter path cannot be empty")
 	}
 
 	if procDef.EnvSettings.ExecutionTimeout == 0 {

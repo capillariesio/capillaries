@@ -1,6 +1,7 @@
 package tag_and_denormalize
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"go/ast"
@@ -10,14 +11,16 @@ import (
 	"github.com/capillariesio/capillaries/pkg/proc"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/xfer"
+	"github.com/sethvargo/go-envconfig"
 )
 
 const ProcessorTagAndDenormalizeName string = "tag_and_denormalize"
 
+// All processor settings, root values coming from node
 type TagAndDenormalizeProcessorDef struct {
-	TagFieldName         string            `json:"tag_field_name"`
-	RawTagCriteria       map[string]string `json:"tag_criteria"`
-	RawTagCriteriaUri    string            `json:"tag_criteria_uri"`
+	TagFieldName         string            `json:"tag_field_name" env:"CAPI_TAGANDDENORMALIZE_TAG_FIELD_NAME, overwrite"`
+	RawTagCriteria       map[string]string `json:"tag_criteria" env:"CAPI_TAGANDDENORMALIZE_TAG_CRITERIA, overwrite"`
+	RawTagCriteriaUri    string            `json:"tag_criteria_uri" env:"CAPI_TAGANDDENORMALIZE_RAW_TAG_CRITERIA_URI, overwrite"`
 	ParsedTagCriteria    map[string]ast.Expr
 	UsedInCriteriaFields sc.FieldRefs
 }
@@ -38,6 +41,10 @@ func (procDef *TagAndDenormalizeProcessorDef) Deserialize(raw json.RawMessage, _
 	var err error
 	if err = json.Unmarshal(raw, procDef); err != nil {
 		return fmt.Errorf("cannot unmarshal tag_and_denormalize processor def: %s", err.Error())
+	}
+
+	if err := envconfig.Process(context.TODO(), procDef); err != nil {
+		return fmt.Errorf("cannot process tag_and_denormalize env variables: %s", err.Error())
 	}
 
 	errors := make([]string, 0)

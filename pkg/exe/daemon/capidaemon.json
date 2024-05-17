@@ -18,9 +18,6 @@
       "prefetch_count": 20,
       "prefetch_size": 0
     },
-    "private_keys": {
-      "sftpuser":"/home/ubuntu/.ssh/sftpuser"
-    },
     "custom_processors":{
       "py_calc":{
         "python_interpreter_path":"python",
@@ -31,17 +28,7 @@
     "thread_pool_size": 2,
     "dead_letter_ttl": 1000,
     "ca_path":"../../../test/ca",
-    "zap_config":{
-          "level": "debug",
-          "outputPaths": ["stdout"],
-          "errorOutputPaths": ["stderr"],
-          "encoding": "json",
-          "encoderConfig": {
-        "timeKey": "ts",
-        "timeEncoder":"iso8601",
-              "messageKey": "m",
-              "levelKey": "l",
-              "levelEncoder": "lowercase"
-          }
+    "log":{
+          "level": "debug"
       }
   }

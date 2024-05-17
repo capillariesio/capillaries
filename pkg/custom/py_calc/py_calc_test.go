@@ -384,7 +384,7 @@ func TestPyCalcDefBadScript(t *testing.T) {
 	err = scriptDef.Deserialize(
 		[]byte(scriptJson),
 		&PyCalcTestTestProcessorDefFactory{}, map[string]json.RawMessage{"py_calc": []byte(re.ReplaceAllString(envSettings, `"python_interpreter_path": ""`))}, "", nil)
-	assert.Contains(t, err.Error(), "py_calc interpreter path canot be empty")
+	assert.Contains(t, err.Error(), "py_calc interpreter path cannot be empty")
 
 }
 

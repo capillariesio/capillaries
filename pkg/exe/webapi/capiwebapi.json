@@ -18,32 +18,18 @@
       "prefetch_count": 20,
       "prefetch_size": 0
     },
-    "private_keys": {
-      "sftpuser":"/home/ubuntu/.ssh/sftpuser"
-    },
     "webapi": {
       "webapi_port": 6543,
       "access_control_allow_origin": "http://localhost:8080,http://127.0.0.1:8080"
     },
+    "ca_path":"../../../test/ca",
     "custom_processors":{
       "py_calc":{
-        "python_interpreter_path":"python",
-        "python_interpreter_params":["-u", "-"]
+        "python_interpreter_path":"some_non_empty_python_path"
       },
       "tag_and_denormalize":{}
     },
-    "ca_path":"../../../test/ca",
-    "zap_config":{
-          "level": "debug",
-          "outputPaths": ["stdout"],
-          "errorOutputPaths": ["stderr"],
-          "encoding": "json",
-          "encoderConfig": {
-        "timeKey": "ts",
-        "timeEncoder":"iso8601",
-              "messageKey": "m",
-              "levelKey": "l",
-              "levelEncoder": "lowercase"
-          }
-      }
-  }
+    "log":{
+      "level": "debug"
+    }
+}

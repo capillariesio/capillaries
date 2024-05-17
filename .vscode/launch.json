@@ -76,6 +76,7 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/daemon",
             "program": "${workspaceFolder}/pkg/exe/daemon/capidaemon.go",
+            "envFile": "${env:HOME}/awscredentials.rc",
             "args": []
         },
         {

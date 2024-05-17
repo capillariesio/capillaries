@@ -51,8 +51,26 @@ func NewLoggerFromEnvConfig(envConfig *env.EnvConfig) (*CapiLogger, error) {
 	// TODO: this solution writes everything to stdout. Potentially, there is a way to write Debug/Info/Warn to stdout and
 	// errors to std err: https://stackoverflow.com/questions/68472667/how-to-log-to-stdout-or-stderr-based-on-log-level-using-uber-go-zap
 	// Do some research to see if this can be added to our ZapConfig.Build() scenario.
-	l.SavedZapConfig = envConfig.ZapConfig
-	l.ZapLogger, err = envConfig.ZapConfig.Build()
+	atomicLevel, err := zap.ParseAtomicLevel(envConfig.Log.Level)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse zap atomic level %s from config: %s", envConfig.Log.Level, err.Error())
+	}
+
+	// Make it configurable via envConfig.Log if needed
+	l.SavedZapConfig = zap.Config{
+		Level:            atomicLevel,
+		OutputPaths:      []string{"stdout"},
+		ErrorOutputPaths: []string{"stderr"},
+		Encoding:         "json",
+		EncoderConfig: zapcore.EncoderConfig{
+			TimeKey:     "ts",
+			EncodeTime:  zapcore.ISO8601TimeEncoder,
+			MessageKey:  "m",
+			LevelKey:    "l",
+			EncodeLevel: zapcore.LowercaseLevelEncoder,
+		},
+	}
+	l.ZapLogger, err = l.SavedZapConfig.Build()
 	if err != nil {
 		return nil, fmt.Errorf("cannot build l from config: %s", err.Error())
 	}

@@ -40,8 +40,13 @@ services:
       - /tmp/capi_in:/tmp/capi_in:ro
       - /tmp/capi_out:/tmp/capi_out
     environment:
-      AMQP_URL: amqp://guest:guest@10.5.0.5/
-      CASSANDRA_HOSTS: '["10.5.0.11"]'
+      CAPI_AMQP_URL: amqp://guest:guest@10.5.0.5/
+      CAPI_CASSANDRA_HOSTS: 10.5.0.11
+      CAPI_CA_PATH: /usr/src/capillaries/test/ca
+      CAPI_PYCALC_INTERPRETER_PATH: python3
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
     networks:
       capinet:
         ipv4_address: 10.5.0.101
@@ -56,10 +61,15 @@ services:
       - /tmp/capi_in:/tmp/capi_in:ro
       - /tmp/capi_out:/tmp/capi_out
     environment:
-      AMQP_URL: amqp://guest:guest@10.5.0.5/
-      CASSANDRA_HOSTS: '["10.5.0.11"]'
-      WEBAPI_PORT: 6543
-      ACCESS_CONTROL_ACCESS_ORIGIN: 'http://localhost:8080,http://127.0.0.1:8080' # Adjust if needed
+      CAPI_AMQP_URL: amqp://guest:guest@10.5.0.5/
+      CAPI_CASSANDRA_HOSTS: 10.5.0.11
+      CAPI_WEBAPI_PORT: 6543
+      CAPI_WEBAPI_ACCESS_CONTROL_ALLOW_ORIGIN: http://localhost:8080,http://127.0.0.1:8080
+      CAPI_CA_PATH: /usr/src/capillaries/test/ca
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
+
     ports:
       - 6543:6543      
     networks:
@@ -74,7 +84,7 @@ services:
     volumes:
       - /tmp/capi_out:/tmp/capi_out
     environment:
-      CAPILLARIES_WEBAPI_URL: 'http://10.5.0.20:6543'
+      CAPI_WEBAPI_URL: http://10.5.0.20:6543
     ports:
       - 8080:8080    
     networks:

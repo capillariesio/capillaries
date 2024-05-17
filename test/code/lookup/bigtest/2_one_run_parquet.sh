@@ -1,6 +1,7 @@
 #!/bin/bash
 
 source ../../common/util.sh
+check_s3
 
 keyspace="lookup_bigtest"
 outDir=/tmp/capi_out/lookup_bigtest
