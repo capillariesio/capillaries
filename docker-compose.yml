@@ -1,5 +1,3 @@
-version: '3'
-
 networks:
 
   capinet:
@@ -14,24 +12,42 @@ services:
   rabbitmq:
     container_name: capillaries_rabbitmq
     image: rabbitmq:3-management
+    depends_on:
+      - fluentd
     networks:
       capinet:
         ipv4_address: 10.5.0.5
     ports:
       - 15672:15672
       - 5672:5672
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: 10.5.0.7:24224
+        fluentd-async: "true"
+        tag: rabbitmq
 
   cassandra:
     container_name: capillaries_cassandra
     image: cassandra
+    depends_on:
+      - fluentd
     networks:
       capinet:
         ipv4_address: 10.5.0.11
     ports:
       - 9042:9042
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: 10.5.0.7:24224
+        fluentd-async: "true"
+        tag: cassandra
 
   daemon:
     container_name: capillaries_daemon
+    depends_on:
+      - fluentd
     build:
       context: .
       dockerfile: ./pkg/exe/daemon/docker/Dockerfile
@@ -50,9 +66,17 @@ services:
     networks:
       capinet:
         ipv4_address: 10.5.0.101
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: 10.5.0.7:24224
+        fluentd-async: "true"
+        tag: daemon
 
   webapi:
     container_name: capillaries_webapi
+    depends_on:
+      - fluentd
     build:
       context: .
       dockerfile: ./pkg/exe/webapi/docker/Dockerfile
@@ -69,36 +93,49 @@ services:
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
-
     ports:
       - 6543:6543      
     networks:
       capinet:
         ipv4_address: 10.5.0.20
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: 10.5.0.7:24224
+        fluentd-async: "true"
+        tag: webapi
     
   ui:
     container_name: capillaries_ui
+    depends_on:
+      - fluentd
     build:
       context: .
       dockerfile: ./ui/docker/Dockerfile
-    volumes:
-      - /tmp/capi_out:/tmp/capi_out
     environment:
-      CAPI_WEBAPI_URL: http://10.5.0.20:6543
+      CAPI_WEBAPI_URL: http://localhost:6543 # The browser comes there from the outside, so use localhost, not 10.5.0.20
     ports:
-      - 8080:8080    
+      - 8080:8080
     networks:
       capinet:
         ipv4_address: 10.5.0.30
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: 10.5.0.7:24224
+        fluentd-async: "true"
+        tag: ui
 
-# mkdir /tmp/capi_cfg
-# mkdir /tmp/capi_in
-# mkdir /tmp/capi_out
-
-# cp -r ./test/data/cfg/* /tmp/capi_cfg
-# cp -r ./test/data/in/* /tmp/capi_in
-# cp -r ./test/data/out/* /tmp/capi_out
-
-# rm -fR /tmp/capi_cfg
-# rm -fR mkdir /tmp/capi_in
-# rm -fR mkdir /tmp/capi_out
+  fluentd:
+    container_name: capillaries_fluentd
+    build:
+      context: .
+      dockerfile: ./test/docker/fluentd/Dockerfile
+    volumes:
+      - /tmp/capi_log:/fluentd/log # Make sure everyone can write there
+    ports:
+      - 24224:24224
+      - 24224:24224/udp
+    networks:
+      capinet:
+        ipv4_address: 10.5.0.7

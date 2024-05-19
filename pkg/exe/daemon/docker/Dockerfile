@@ -21,6 +21,7 @@ COPY ./pkg/exe/daemon/capidaemon.json /usr/local/bin/
 # Build daemon binary
 RUN go build -v -o /usr/local/bin/capidaemon /usr/src/capillaries/pkg/exe/daemon
 
-ENTRYPOINT /usr/local/bin/capidaemon > /tmp/capi_out/capidaemon-$(date +"%Y%m%d%H%M").log 2>&1
+#ENTRYPOINT /usr/local/bin/capidaemon > /tmp/capi_out/capidaemon-$(date +"%Y%m%d%H%M").log 2>&1
+ENTRYPOINT /usr/local/bin/capidaemon
 
 

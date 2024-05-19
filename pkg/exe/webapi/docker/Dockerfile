@@ -21,4 +21,5 @@ RUN go build -v -o /usr/local/bin/capitoolbelt /usr/src/capillaries/pkg/exe/tool
 COPY ./pkg/exe/webapi/capiwebapi.json /usr/local/bin/
 COPY ./pkg/exe/toolbelt/capitoolbelt.json /usr/local/bin/
 
-ENTRYPOINT /usr/local/bin/capiwebapi > /tmp/capi_out/capiwebapi-$(date +"%Y%m%d%H%M").log 2>&1
+#ENTRYPOINT /usr/local/bin/capiwebapi > /tmp/capi_out/capiwebapi-$(date +"%Y%m%d%H%M").log 2>&1
+ENTRYPOINT /usr/local/bin/capiwebapi

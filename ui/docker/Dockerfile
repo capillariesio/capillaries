@@ -13,4 +13,4 @@ COPY ./ui/*.env ./
 RUN npm install
 
 # Run ui
-ENTRYPOINT npm run dev --host > /tmp/capi_out/ui-$(date +"%Y%m%d%H%M").log 2>&1
+ENTRYPOINT npm run dev
