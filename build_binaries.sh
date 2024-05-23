@@ -39,35 +39,35 @@ echo "Building "$DIR_BUILD_LINUX_AMD64
 
 GOOS=linux GOARCH=amd64 go build -o $DIR_BUILD_LINUX_AMD64/capidaemon -ldflags="-s -w" ./pkg/exe/daemon/capidaemon.go
 cp ./pkg/exe/daemon/capidaemon.json $DIR_BUILD_LINUX_AMD64
-gzip -f $DIR_BUILD_LINUX_AMD64/capidaemon
+gzip -f -k $DIR_BUILD_LINUX_AMD64/capidaemon
 
 GOOS=linux GOARCH=amd64 go build -o $DIR_BUILD_LINUX_AMD64/capiwebapi -ldflags="-s -w" "./pkg/exe/webapi/capiwebapi.go"
 cp ./pkg/exe/webapi/capiwebapi.json $DIR_BUILD_LINUX_AMD64
-gzip -f $DIR_BUILD_LINUX_AMD64/capiwebapi
+gzip -f -k $DIR_BUILD_LINUX_AMD64/capiwebapi
 
 GOOS=linux GOARCH=amd64 go build -o $DIR_BUILD_LINUX_AMD64/capitoolbelt -ldflags="-s -w" "./pkg/exe/toolbelt/capitoolbelt.go"
 cp ./pkg/exe/toolbelt/capitoolbelt.json $DIR_BUILD_LINUX_AMD64
-gzip -f $DIR_BUILD_LINUX_AMD64/capitoolbelt
+gzip -f -k $DIR_BUILD_LINUX_AMD64/capitoolbelt
 
 GOOS=linux GOARCH=amd64 go build -o $DIR_BUILD_LINUX_AMD64/capiparquet -ldflags="-s -w" ./test/code/parquet/capiparquet.go
-gzip -f $DIR_BUILD_LINUX_AMD64/capiparquet
+gzip -f -k $DIR_BUILD_LINUX_AMD64/capiparquet
 
 echo "Building "$DIR_BUILD_LINUX_ARM64
 
 GOOS=linux GOARCH=arm64 go build -o $DIR_BUILD_LINUX_ARM64/capidaemon -ldflags="-s -w" ./pkg/exe/daemon/capidaemon.go
 cp ./pkg/exe/daemon/capidaemon.json $DIR_BUILD_LINUX_ARM64
-gzip -f $DIR_BUILD_LINUX_ARM64/capidaemon
+gzip -f -k $DIR_BUILD_LINUX_ARM64/capidaemon
 
 GOOS=linux GOARCH=arm64 go build -o $DIR_BUILD_LINUX_ARM64/capiwebapi -ldflags="-s -w" ./pkg/exe/webapi/capiwebapi.go
 cp ./pkg/exe/webapi/capiwebapi.json $DIR_BUILD_LINUX_ARM64
-gzip -f $DIR_BUILD_LINUX_ARM64/capiwebapi
+gzip -f -k $DIR_BUILD_LINUX_ARM64/capiwebapi
 
 GOOS=linux GOARCH=arm64 go build -o $DIR_BUILD_LINUX_ARM64/capitoolbelt -ldflags="-s -w" ./pkg/exe/toolbelt/capitoolbelt.go
 cp ./pkg/exe/toolbelt/capitoolbelt.json $DIR_BUILD_LINUX_ARM64
-gzip -f $DIR_BUILD_LINUX_ARM64/capitoolbelt
+gzip -f -k $DIR_BUILD_LINUX_ARM64/capitoolbelt
 
 GOOS=linux GOARCH=arm64 go build -o $DIR_BUILD_LINUX_ARM64/capiparquet -ldflags="-s -w" ./test/code/parquet/capiparquet.go
-gzip -f $DIR_BUILD_LINUX_ARM64/capiparquet
+gzip -f -k $DIR_BUILD_LINUX_ARM64/capiparquet
 
 # Assuming the bucket $1 (s3://capillaries-release/latest) is publicly accessible for read (no write, and no directory listing)
 # {
