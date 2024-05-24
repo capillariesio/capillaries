@@ -317,7 +317,7 @@ func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, osSign
 			sem <- 1
 
 			// envConfig.ThreadPoolSize goroutenes run simultaneously
-			go func(threadLogger *l.CapiLogger, delivery amqp.Delivery, _channel *amqp.Channel) {
+			go func(threadLogger *l.CapiLogger, delivery amqp.Delivery, _ *amqp.Channel) {
 				var err error
 
 				// I have spotted cases when m.Body is empty and Aknowledger is nil. Handle them.

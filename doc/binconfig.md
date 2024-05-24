@@ -84,6 +84,8 @@ and copy the result PEM file to ca_path location. Do not pollute ca_path directo
 
 Proper `ca_path` setting is crucial for running [HTTPS version](../test/code/tag_and_denormalize/README.md#using-rabbitmq-workflow-single-run-https-inputs) of Capillaries [tag_and_denormalize integration test](../test/code/tag_and_denormalize/README.md), as it pulls configuration file and input data via HTTPS from github.com.
 
+If ca_path is empty, Go uses the host's root CA set (/usr/ssl/certs etc).
+
 ## dead_letter_ttl
 x-message-ttl setting passed to amqp.Channel.QueueDeclare(). After RabbitMQ detects a message that was consumed but not handled successfully (actively rejected or not acknowledged), it places the message in the dead letter queue, where it resides for dead_letter_ttl milliseconds and RabbitMQ makes another delivery attempt.
 

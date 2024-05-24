@@ -6,9 +6,10 @@ RUN go mod download && go mod verify
 RUN CGO_ENABLED=0 go build -o /usr/local/bin/capidaemon /usr/src/capillaries/pkg/exe/daemon
 
 FROM python:3.7-alpine
+# Portfolio test needs dateutil
+RUN pip install python-dateutil
 COPY --from=build /usr/local/bin/capidaemon /usr/local/bin/ 
 COPY ./pkg/exe/daemon/capidaemon.json /usr/local/bin/
-COPY ./test/ca /usr/local/capillaries/ca
 ENTRYPOINT ["/usr/local/bin/capidaemon"]
 
 

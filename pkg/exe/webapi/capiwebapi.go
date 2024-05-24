@@ -95,6 +95,7 @@ func WriteApiError(logger *l.CapiLogger, wc *env.WebapiConfig, r *http.Request, 
 }
 
 func WriteApiSuccess(logger *l.CapiLogger, wc *env.WebapiConfig, r *http.Request, w http.ResponseWriter, data any) {
+	logger.Debug("%s: OK", r.URL.Path)
 	w.Header().Set("Access-Control-Allow-Origin", pickAccessControlAllowOrigin(wc, r))
 	respJson, err := json.Marshal(ApiResponse{Data: data})
 	if err != nil {

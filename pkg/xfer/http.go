@@ -18,19 +18,23 @@ const UriSchemeSftp string = "sftp"
 const UriSchemeS3 string = "s3"
 
 func GetHttpReadCloser(uri string, scheme string, certDir string) (io.ReadCloser, error) {
-	caCertPool := x509.NewCertPool()
-	if scheme == UriSchemeHttps {
-		files, err := os.ReadDir(certDir)
-		if err != nil {
-			return nil, fmt.Errorf("cannot read ca dir with PEM certs %s: %s", certDir, err.Error())
-		}
-
-		for _, f := range files {
-			caCert, err := os.ReadFile(path.Join(certDir, f.Name()))
+	var caCertPool *x509.CertPool
+	// tls.Config doc: If RootCAs is nil, TLS uses the host's root CA set.
+	if certDir != "" {
+		caCertPool = x509.NewCertPool()
+		if scheme == UriSchemeHttps {
+			files, err := os.ReadDir(certDir)
 			if err != nil {
-				return nil, fmt.Errorf("cannot read PEM cert %s: %s", f.Name(), err.Error())
+				return nil, fmt.Errorf("cannot read ca dir with PEM certs %s: %s", certDir, err.Error())
 			}
-			caCertPool.AppendCertsFromPEM(caCert)
+
+			for _, f := range files {
+				caCert, err := os.ReadFile(path.Join(certDir, f.Name()))
+				if err != nil {
+					return nil, fmt.Errorf("cannot read PEM cert %s: %s", f.Name(), err.Error())
+				}
+				caCertPool.AppendCertsFromPEM(caCert)
+			}
 		}
 	}
 	t := &http.Transport{TLSClientConfig: &tls.Config{Certificates: []tls.Certificate{}, RootCAs: caCertPool}}

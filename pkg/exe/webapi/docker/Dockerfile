@@ -1,4 +1,4 @@
-FROM golang:1.22 as build
+FROM golang:1.22 as golang
 WORKDIR /usr/src/capillaries
 COPY go.mod go.sum ./
 COPY ./pkg ./pkg
@@ -10,9 +10,10 @@ RUN CGO_ENABLED=0 go build -o /usr/local/bin/capiwebapi /usr/src/capillaries/pkg
 RUN CGO_ENABLED=0 go build -o /usr/local/bin/capitoolbelt /usr/src/capillaries/pkg/exe/toolbelt
 
 FROM scratch
-COPY --from=build /usr/local/bin/capiwebapi /usr/local/bin/ 
-COPY --from=build /usr/local/bin/capitoolbelt /usr/local/bin/ 
+COPY --from=golang /usr/local/bin/capiwebapi /usr/local/bin/ 
+COPY --from=golang /usr/local/bin/capitoolbelt /usr/local/bin/ 
 COPY ./pkg/exe/webapi/capiwebapi.json /usr/local/bin/
 COPY ./pkg/exe/toolbelt/capitoolbelt.json /usr/local/bin/
-COPY ./test/ca /usr/local/capillaries/ca
+# Scratch doesn't even have CA store (required for HTTPS and S3 acess)
+COPY --from=golang /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 ENTRYPOINT ["/usr/local/bin/capiwebapi"]
