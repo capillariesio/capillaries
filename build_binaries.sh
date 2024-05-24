@@ -28,13 +28,6 @@ popd
 
 mv ./ui/build/webui.tgz $DIR_BUILD_WEBUI
 
-echo "Copying certificates to "$DIR_BUILD_CA
-
-cp ./test/ca/*.pem $DIR_BUILD_CA
-pushd $DIR_BUILD_CA
-tar cvzf ca.tgz *.pem --remove-files
-popd
-
 echo "Building "$DIR_BUILD_LINUX_AMD64
 
 GOOS=linux GOARCH=amd64 go build -o $DIR_BUILD_LINUX_AMD64/capidaemon -ldflags="-s -w" ./pkg/exe/daemon/capidaemon.go
