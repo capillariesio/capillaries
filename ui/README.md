@@ -30,6 +30,6 @@ npm run dev
 
 ## Settings
 
-### CAPILLARIES_WEBAPI_URL
+### CAPI_WEBAPI_URL
 
 Environment variable, specifies URL of [Webapi](../doc/glossary.md#webapi) to use. Default: `http:\\localhost:6543`.
