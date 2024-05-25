@@ -113,7 +113,7 @@ A. Here are some, in no particular order:
 
 4. Is the lack of NULL vsalues support a deal-breaker? Update March 2024: support for *_if aggregate functions was added, it should help mitigate the lack of NULL support.
 
-5. Need a strategy to mitigate potential security threats introduced by py_calc. SELinux/AppArmor?
+5. Python formulas. (a) Need a strategy to mitigate potential security threats introduced by py_calc. SELinux/AppArmor? (b) Consider generic lambda functions?
 
 6. Keep an eye on Azure/AWS/GCP progress with Cassandra-compatible databases (latency!) and RabbitMQ offerings.
 
