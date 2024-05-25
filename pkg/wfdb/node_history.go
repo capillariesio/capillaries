@@ -135,7 +135,7 @@ func SetNodeStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, sta
 		Keyspace(pCtx.BatchInfo.DataKeyspace).
 		WriteForceUnquote("ts", "toTimeStamp(now())").
 		Write("run_id", pCtx.BatchInfo.RunId).
-		Write("script_node", pCtx.CurrentScriptNode.Name).
+		Write("script_node", pCtx.BatchInfo.TargetNodeName).
 		Write("status", status).
 		Write("comment", comment).
 		InsertUnpreparedQuery(wfmodel.TableNameNodeHistory, cql.IgnoreIfExists) // If not exists. First one wins.
@@ -148,7 +148,7 @@ func SetNodeStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, sta
 		logger.ErrorCtx(pCtx, err.Error())
 		return false, err
 	}
-	logger.DebugCtx(pCtx, "%d/%s, %s, isApplied=%t", pCtx.BatchInfo.RunId, pCtx.CurrentScriptNode.Name, status.ToString(), isApplied)
+	logger.DebugCtx(pCtx, "%d/%s, %s, isApplied=%t", pCtx.BatchInfo.RunId, pCtx.BatchInfo.TargetNodeName, status.ToString(), isApplied)
 	return isApplied, nil
 }
 
