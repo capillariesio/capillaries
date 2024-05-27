@@ -228,11 +228,12 @@ two_daemon_runs()
 
 wait_run_webapi()
 {
-    local keyspace=$1
-    local runIdToCheck=$2
+    local webapiUrl=$1
+    local keyspace=$2
+    local runIdToCheck=$3
     while true
     do
-      runNodeHistoryCmd="curl -s -X GET ""http://localhost:6543/ks/$keyspace/run/$runIdToCheck/node_history"""
+      runNodeHistoryCmd="curl -s -X GET ""$webapiUrl/ks/$keyspace/run/$runIdToCheck/node_history"""
       runNodeHistory=$($runNodeHistoryCmd)
       string='My long string'
       if [[ $runNodeHistory == *"\"final_status\":1"* ]]; then
@@ -269,7 +270,7 @@ one_daemon_run_webapi()
       exit 1
     fi
 
-    wait_run_webapi $keyspace 1
+    wait_run_webapi $webapiUrl $keyspace 1
 
     duration=$SECONDS
     echo "$(($duration / 60))m $(($duration % 60))s elapsed."

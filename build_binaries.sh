@@ -98,6 +98,7 @@ gzip -f -k $DIR_BUILD_LINUX_ARM64/capiparquet
 if [ "$1" = "" ]; then
   echo No destination S3 url specified, not uploading the binaries
   echo To upload, specify s3 url, for example: s3://capillaries-release/latest
+  echo Also, make sure AWS credentials are in place : AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_DEFAULT_REGION
   exit 0
 fi
 
