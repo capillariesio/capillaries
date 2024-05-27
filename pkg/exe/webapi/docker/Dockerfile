@@ -1,30 +1,19 @@
-FROM golang:1.22
-
+FROM golang:1.22 as golang
 WORKDIR /usr/src/capillaries
-
-# Capillaries daemon sources
 COPY go.mod go.sum ./
 COPY ./pkg ./pkg
-
-# Certificate dir for tests that use github.com as cfg/in data source
-COPY ./test/ca ./test/ca
-
 RUN go mod download && go mod verify
+RUN CGO_ENABLED=0 go build -o /usr/local/bin/capiwebapi /usr/src/capillaries/pkg/exe/webapi
+# Capitoolbelt is optional, but useful:
+# it allows users to start processes from the command line without using UI, for example:
+# docker exec -it capillaries_webapi /usr/local/bin/capitoolbelt start_run -script_file=/tmp/capi_cfg/py_calc_quicktest/script.json -params_file=/tmp/capi_cfg/py_calc_quicktest/script_params.json -keyspace=py_calc_quicktest -start_nodes=read_order_items
+RUN CGO_ENABLED=0 go build -o /usr/local/bin/capitoolbelt /usr/src/capillaries/pkg/exe/toolbelt
 
-# Build webapi and capitoolbelt binaries
-# Capitoolbelt is optional, it allows users to start processes from the command line without using UI
-
-RUN go build -v -o /usr/local/bin/capiwebapi /usr/src/capillaries/pkg/exe/webapi
-RUN go build -v -o /usr/local/bin/capitoolbelt /usr/src/capillaries/pkg/exe/toolbelt
-
-# Copy config files for both binaries
+FROM scratch
+COPY --from=golang /usr/local/bin/capiwebapi /usr/local/bin/ 
+COPY --from=golang /usr/local/bin/capitoolbelt /usr/local/bin/ 
 COPY ./pkg/exe/webapi/capiwebapi.json /usr/local/bin/
 COPY ./pkg/exe/toolbelt/capitoolbelt.json /usr/local/bin/
-
-# We use startup script that replaces some capi*.json setting with supplied env variables
-COPY ./pkg/exe/webapi/docker/docker-startup.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-startup.sh
-
-# Start the startup script, it will tweak capi*.json and run webapi
-ENTRYPOINT ["/usr/local/bin/docker-startup.sh"]
-
+# Scratch doesn't even have CA store (required for HTTPS and S3 acess)
+COPY --from=golang /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+ENTRYPOINT ["/usr/local/bin/capiwebapi"]

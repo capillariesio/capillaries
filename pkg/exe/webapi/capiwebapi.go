@@ -23,6 +23,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
+	"github.com/capillariesio/capillaries/pkg/xfer"
 	"github.com/gocql/gocql"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -94,6 +95,7 @@ func WriteApiError(logger *l.CapiLogger, wc *env.WebapiConfig, r *http.Request, 
 }
 
 func WriteApiSuccess(logger *l.CapiLogger, wc *env.WebapiConfig, r *http.Request, w http.ResponseWriter, data any) {
+	logger.Debug("%s: OK", r.URL.Path)
 	w.Header().Set("Access-Control-Allow-Origin", pickAccessControlAllowOrigin(wc, r))
 	respJson, err := json.Marshal(ApiResponse{Data: data})
 	if err != nil {
@@ -646,7 +648,10 @@ func (h UrlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	envConfig, err := env.ReadEnvConfigFile("capiwebapi.json")
+	initCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	envConfig, err := env.ReadEnvConfigFile(initCtx, "capiwebapi.json")
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
@@ -658,6 +663,9 @@ func main() {
 		log.Fatalf(err.Error())
 	}
 	defer logger.Close()
+
+	logger.Info("env config: %s", envConfig.String())
+	logger.Info("S3 config status: %s", xfer.GetS3ConfigStatus(initCtx).String())
 
 	mux := http.NewServeMux()
 

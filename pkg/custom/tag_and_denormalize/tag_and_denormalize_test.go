@@ -195,7 +195,7 @@ func TestTagAndDenormalizeRunEmbeddedCriteria(t *testing.T) {
 
 	// Test flusher, doesn't write anywhere, just saves data in the local variable
 	var results []*eval.VarValuesMap
-	flushVarsArray := func(varsArray []*eval.VarValuesMap, varsArrayCount int) error {
+	flushVarsArray := func(varsArray []*eval.VarValuesMap, _ int) error {
 		results = varsArray
 		return nil
 	}

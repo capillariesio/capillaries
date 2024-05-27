@@ -18,7 +18,10 @@ require (
 	gopkg.in/inf.v0 v0.9.1
 )
 
-require github.com/jmespath/go-jmespath v0.4.0 // indirect
+require (
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
+	github.com/sethvargo/go-envconfig v1.0.1 // indirect
+)
 
 require (
 	github.com/apache/thrift v0.19.0 // indirect

@@ -134,12 +134,12 @@ func HarvestBatchStatusesForNode(logger *l.CapiLogger, pCtx *ctx.MessageProcessi
 		if failFound {
 			nodeStatus = wfmodel.NodeBatchFail
 		}
-		logger.InfoCtx(pCtx, "node %d/%s complete, status %s", pCtx.BatchInfo.RunId, pCtx.CurrentScriptNode.Name, nodeStatus.ToString())
+		logger.InfoCtx(pCtx, "node %d/%s complete, status %s", pCtx.BatchInfo.RunId, pCtx.BatchInfo.TargetNodeName, nodeStatus.ToString())
 		return nodeStatus, nil
 	}
 
 	// Some batches are still not complete, and no run stop/fail/success for the whole node was signaled
-	logger.DebugCtx(pCtx, "node %d/%s incomplete, still waiting for %d/%d batches", pCtx.BatchInfo.RunId, pCtx.CurrentScriptNode.Name, len(batchesInProgress), foundBatchesTotal)
+	logger.DebugCtx(pCtx, "node %d/%s incomplete, still waiting for %d/%d batches", pCtx.BatchInfo.RunId, pCtx.BatchInfo.TargetNodeName, len(batchesInProgress), foundBatchesTotal)
 	return wfmodel.NodeBatchStart, nil
 }
 
@@ -152,7 +152,7 @@ func SetBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, st
 		Keyspace(pCtx.BatchInfo.DataKeyspace).
 		WriteForceUnquote("ts", "toTimeStamp(now())").
 		Write("run_id", pCtx.BatchInfo.RunId).
-		Write("script_node", pCtx.CurrentScriptNode.Name).
+		Write("script_node", pCtx.BatchInfo.TargetNodeName).
 		Write("batch_idx", pCtx.BatchInfo.BatchIdx).
 		Write("batches_total", pCtx.BatchInfo.BatchesTotal).
 		Write("status", status).

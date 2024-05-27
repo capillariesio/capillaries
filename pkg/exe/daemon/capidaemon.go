@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 	"os/signal"
@@ -13,6 +14,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/wf"
+	"github.com/capillariesio/capillaries/pkg/xfer"
 )
 
 // https://stackoverflow.com/questions/25927660/how-to-get-the-current-function-name
@@ -42,8 +44,10 @@ func (f *StandardDaemonProcessorDefFactory) Create(processorType string) (sc.Cus
 }
 
 func main() {
+	initCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
 
-	envConfig, err := env.ReadEnvConfigFile("capidaemon.json")
+	envConfig, err := env.ReadEnvConfigFile(initCtx, "capidaemon.json")
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
@@ -57,6 +61,9 @@ func main() {
 
 	logger.PushF("daemon.main")
 	defer logger.PopF()
+
+	logger.Info("env config: %s", envConfig.String())
+	logger.Info("S3 config status: %s", xfer.GetS3ConfigStatus(initCtx).String())
 
 	osSignalChannel := make(chan os.Signal, 1)
 	signal.Notify(osSignalChannel, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)

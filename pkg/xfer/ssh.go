@@ -105,7 +105,7 @@ func NewSshClientConfig(user string, privateKeyPath string, privateKeyPassword s
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(signer),
 		},
-		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+		HostKeyCallback: func(_ string, _ net.Addr, _ ssh.PublicKey) error {
 			// use known_hosts file if you care about host validation
 			return nil
 		},

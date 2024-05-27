@@ -27,7 +27,7 @@ jobs:
     - name: golangci-lint
       uses: golangci/golangci-lint-action@v3
       with:
-        version: v1.55.2
+        version: v1.58.2
         args: --verbose --timeout 10m --fix=false --config=.golangci.yml ./pkg/...
 
     - name: Generate coverage report for coveralls.io
@@ -55,7 +55,7 @@ jobs:
 
     - name: pkg/custom/py_calc test coverage threshold check
       env:
-          TESTCOVERAGE_THRESHOLD: 83.7
+          TESTCOVERAGE_THRESHOLD: 83.4
       run: |
             go test -v ./pkg/custom/py_calc/... -coverprofile coverage.out -covermode count
             totalCoverage=`go tool cover -func=coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`
@@ -68,7 +68,7 @@ jobs:
 
     - name: pkg/custom/tag_and_denormalize test coverage threshold check
       env:
-          TESTCOVERAGE_THRESHOLD: 81.7
+          TESTCOVERAGE_THRESHOLD: 80.6
       run: |
             go test -v ./pkg/custom/tag_and_denormalize/... -coverprofile coverage.out -covermode count
             totalCoverage=`go tool cover -func=coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`

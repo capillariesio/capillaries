@@ -90,3 +90,37 @@ func UploadS3File(srcPath string, u *url.URL) error {
 
 	return nil
 }
+
+type S3ConfigStatus struct {
+	AccessKeyId     bool
+	SecretAccessKey bool
+	Region          string
+	Err             string
+}
+
+func (st *S3ConfigStatus) String() string {
+	return fmt.Sprintf("AccessKeyID:%t,SecretAccessKey:%t,Region:%s,Err:%s",
+		st.AccessKeyId, st.SecretAccessKey, st.Region, st.Err)
+}
+
+func GetS3ConfigStatus(ctx context.Context) *S3ConfigStatus {
+	st := S3ConfigStatus{}
+	cfg, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+		st.Err = fmt.Sprintf("cannot load s3 default config: %s", err.Error())
+		return &st
+	}
+
+	st.Region = cfg.Region
+
+	creds, err := cfg.Credentials.Retrieve(ctx)
+	if err != nil {
+		st.Err = fmt.Sprintf("cannot retrieve s3 credentials: %s", err.Error())
+		return &st
+	}
+
+	st.AccessKeyId = len(creds.AccessKeyID) > 0
+	st.SecretAccessKey = len(creds.SecretAccessKey) > 0
+
+	return &st
+}

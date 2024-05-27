@@ -1,32 +1,15 @@
-FROM golang:1.22
-
-# These image lacks pip and dateutil
-RUN apt-get update
-RUN apt-get install -y apt-transport-https
-RUN apt-get install -y python3-full python3-dateutil
-
+FROM golang:1.22 as build
 WORKDIR /usr/src/capillaries
-
-# Capillaries daemon sources
 COPY go.mod go.sum ./
 COPY ./pkg ./pkg
-
-# Certificate dir for tests that use github.com as cfg/in data source
-COPY ./test/ca ./test/ca
-
 RUN go mod download && go mod verify
+RUN CGO_ENABLED=0 go build -o /usr/local/bin/capidaemon /usr/src/capillaries/pkg/exe/daemon
 
-# This image has python3 pre-installed, use python3 command for Python interpreter
+FROM python:3.7-alpine
+# Portfolio test needs dateutil
+RUN pip install python-dateutil
+COPY --from=build /usr/local/bin/capidaemon /usr/local/bin/ 
 COPY ./pkg/exe/daemon/capidaemon.json /usr/local/bin/
-RUN sed -i -e 's~"python_interpreter_path":[ ]*"[a-zA-Z0-9@\.:\/\-_$ ]*"~"python_interpreter_path": "python3"~g' /usr/local/bin/capidaemon.json
+ENTRYPOINT ["/usr/local/bin/capidaemon"]
 
-# We use startup script that replaces some capidaemon.json setting with supplied env variables
-COPY ./pkg/exe/daemon/docker/docker-startup.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-startup.sh
-
-# Build daemon binary
-RUN go build -v -o /usr/local/bin/capidaemon /usr/src/capillaries/pkg/exe/daemon
-
-# Start the startup scrip, it will tweak capidaemon.json and run the daemon
-ENTRYPOINT ["/usr/local/bin/docker-startup.sh"]
 

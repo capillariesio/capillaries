@@ -53,11 +53,12 @@ func NewSession(envConfig *env.EnvConfig, keyspace string, createKeyspace Create
 	// When testing, we load Cassandra cluster at 100%. There will be "Operation timed out - received only 0 responses" errors.
 	// It's up to admins how to handle the load, but we should not give up quickly in any case. Make it 3 attempts.
 	dataCluster.RetryPolicy = &gocql.SimpleRetryPolicy{NumRetries: 3}
-	if envConfig.Cassandra.SslOpts != nil {
+	if envConfig.Cassandra.SslOpts != nil &&
+		(envConfig.Cassandra.SslOpts.EnableHostVerification || len(envConfig.Cassandra.SslOpts.CaPath) > 0 || len(envConfig.Cassandra.SslOpts.CertPath) > 0 || len(envConfig.Cassandra.SslOpts.KeyPath) > 0) {
 		dataCluster.SslOpts = &gocql.SslOptions{
 			EnableHostVerification: envConfig.Cassandra.SslOpts.EnableHostVerification,
 			CaPath:                 envConfig.Cassandra.SslOpts.CaPath,
-			CertPath:               envConfig.Cassandra.SslOpts.CaPath,
+			CertPath:               envConfig.Cassandra.SslOpts.CertPath,
 			KeyPath:                envConfig.Cassandra.SslOpts.KeyPath}
 	}
 	cqlSession, err := dataCluster.CreateSession()

@@ -60,7 +60,7 @@ func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 	dependencyRunIds := make([]int16, len(depNodeNames))
 	for nodeIdx, depNodeName := range depNodeNames {
 		if len(nodeEventListMap[depNodeName]) == 0 {
-			return sc.NodeNogo, 0, 0, fmt.Errorf("target node %s, dep node %s not started yet, whoever started this run, failed to specify %s (or at least one of its dependencies) as start node", pCtx.CurrentScriptNode.Name, depNodeName, depNodeName)
+			return sc.NodeNogo, 0, 0, fmt.Errorf("target node %s, dep node %s not started yet, whoever started this run, failed to specify %s (or at least one of its dependencies) as start node", pCtx.BatchInfo.TargetNodeName, depNodeName, depNodeName)
 		}
 		var checkerLogMsg string
 		dependencyNodeCmds[nodeIdx], dependencyRunIds[nodeIdx], checkerLogMsg, err = dpc.CheckDependencyPolicyAgainstNodeEventList(pCtx.CurrentScriptNode.DepPolDef, nodeEventListMap[depNodeName])
@@ -70,7 +70,7 @@ func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 		if err != nil {
 			return sc.NodeNone, 0, 0, err
 		}
-		logger.DebugCtx(pCtx, "target node %s, dep node %s returned %s", pCtx.CurrentScriptNode.Name, depNodeName, dependencyNodeCmds[nodeIdx])
+		logger.DebugCtx(pCtx, "target node %s, dep node %s returned %s", pCtx.BatchInfo.TargetNodeName, depNodeName, dependencyNodeCmds[nodeIdx])
 	}
 
 	finalCmd := dependencyNodeCmds[0]
@@ -88,9 +88,9 @@ func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 	}
 
 	if finalCmd == sc.NodeNogo || finalCmd == sc.NodeGo {
-		logger.InfoCtx(pCtx, "checked all dependency nodes for %s, commands are %v, run ids are %v, finalCmd is %s", pCtx.CurrentScriptNode.Name, dependencyNodeCmds, dependencyRunIds, finalCmd)
+		logger.InfoCtx(pCtx, "checked all dependency nodes for %s, commands are %v, run ids are %v, finalCmd is %s", pCtx.BatchInfo.TargetNodeName, dependencyNodeCmds, dependencyRunIds, finalCmd)
 	} else {
-		logger.DebugCtx(pCtx, "checked all dependency nodes for %s, commands are %v, run ids are %v, finalCmd is wait", pCtx.CurrentScriptNode.Name, dependencyNodeCmds, dependencyRunIds)
+		logger.DebugCtx(pCtx, "checked all dependency nodes for %s, commands are %v, run ids are %v, finalCmd is wait", pCtx.BatchInfo.TargetNodeName, dependencyNodeCmds, dependencyRunIds)
 	}
 
 	return finalCmd, finalRunIdReader, finalRunIdLookup, nil
@@ -131,12 +131,12 @@ func SafeProcessBatch(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.
 		bs, err = proc.RunCreateTableForCustomProcessorForBatch(envConfig, logger, pCtx, readerNodeRunId, pCtx.BatchInfo.FirstToken, pCtx.BatchInfo.LastToken)
 
 	default:
-		err = fmt.Errorf("unsupported node %s type %s", pCtx.CurrentScriptNode.Name, pCtx.CurrentScriptNode.Type)
+		err = fmt.Errorf("unsupported node %s type %s", pCtx.BatchInfo.TargetNodeName, pCtx.CurrentScriptNode.Type)
 	}
 
 	if err != nil {
 		logger.DebugCtx(pCtx, "batch processed, error: %s", err.Error())
-		return wfmodel.NodeBatchFail, bs, fmt.Errorf("error running node %s of type %s in the script [%s]: [%s]", pCtx.CurrentScriptNode.Name, pCtx.CurrentScriptNode.Type, pCtx.BatchInfo.ScriptURI, err.Error())
+		return wfmodel.NodeBatchFail, bs, fmt.Errorf("error running node %s of type %s in the script [%s]: [%s]", pCtx.BatchInfo.TargetNodeName, pCtx.CurrentScriptNode.Type, pCtx.BatchInfo.ScriptURI, err.Error())
 	}
 	logger.DebugCtx(pCtx, "batch processed ok")
 
@@ -374,24 +374,13 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msgTs i
 		ZapBatchIdx:     zap.Int16("bi", dataBatchInfo.BatchIdx),
 		ZapMsgAgeMillis: zap.Int64("age", time.Now().UnixMilli()-msgTs)}
 
-	if daemonCmd := initCtxScript(logger, pCtx, envConfig.CaPath, envConfig.PrivateKeys, dataBatchInfo, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings); daemonCmd != DaemonCmdNone {
-		return daemonCmd
-	}
-
-	var ok bool
-	pCtx.CurrentScriptNode, ok = pCtx.Script.ScriptNodes[dataBatchInfo.TargetNodeName]
-	if !ok {
-		logger.Error("cannot find node %s in the script [%s], giving up with %s, returning DaemonCmdAckWithError, will not let other workers handle it", pCtx.BatchInfo.TargetNodeName, pCtx.BatchInfo.ScriptURI, dataBatchInfo.ToString())
-		return DaemonCmdAckWithError
-	}
-
+	// Check run status first. If it's stopped, don't even bother getting the script etc. If we try to get the script first,
+	// and it's not available, we may end up handling this batch forever even after the run is stopped by the operator
 	if err := pCtx.DbConnect(envConfig); err != nil {
 		logger.Error("cannot connect to db: %s", err.Error())
 		return DaemonCmdReconnectDb
 	}
 	defer pCtx.DbClose()
-
-	logger.DebugCtx(pCtx, "started processing batch %s", dataBatchInfo.FullBatchId())
 
 	runStatus, err := wfdb.GetCurrentRunStatus(logger, pCtx)
 	if err != nil {
@@ -406,6 +395,19 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msgTs i
 	if daemonCmd := checkRunStatus(logger, pCtx, dataBatchInfo, runStatus); daemonCmd != DaemonCmdNone {
 		return daemonCmd
 	}
+
+	if daemonCmd := initCtxScript(logger, pCtx, envConfig.CaPath, envConfig.PrivateKeys, dataBatchInfo, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings); daemonCmd != DaemonCmdNone {
+		return daemonCmd
+	}
+
+	var ok bool
+	pCtx.CurrentScriptNode, ok = pCtx.Script.ScriptNodes[dataBatchInfo.TargetNodeName]
+	if !ok {
+		logger.Error("cannot find node %s in the script [%s], giving up with %s, returning DaemonCmdAckWithError, will not let other workers handle it", pCtx.BatchInfo.TargetNodeName, pCtx.BatchInfo.ScriptURI, dataBatchInfo.ToString())
+		return DaemonCmdAckWithError
+	}
+
+	logger.DebugCtx(pCtx, "started processing batch %s", dataBatchInfo.FullBatchId())
 
 	lastBatchStatus, err := wfdb.HarvestLastStatusForBatch(logger, pCtx)
 	if err != nil {

@@ -7,13 +7,10 @@ COPY ./ui/static ./static
 COPY ./ui/src ./src
 COPY ./ui/*.json ./
 COPY ./ui/*.js ./
+COPY ./ui/*.env ./
 
 # Build ui
 RUN npm install
-RUN npm run build
 
-RUN apk update
-RUN apk add nginx
-
-COPY ./ui/docker/nginx.conf /etc/nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Run ui
+ENTRYPOINT npm run dev

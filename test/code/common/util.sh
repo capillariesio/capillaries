@@ -1,11 +1,35 @@
 #!/bin/bash
 
+# Verify Capillaries are deployed somewhere at $BASTION_IP with SSH key $CAPIDEPLOY_SSH_PRIVATE_KEY_PATH
+check_cloud_deployment()
+{
+    if [ "$CAPIDEPLOY_SSH_PRIVATE_KEY_PATH" = "" ]; then
+        echo Error, missing: export CAPIDEPLOY_SSH_PRIVATE_KEY_PATH=~/.ssh/mydeployment005_rsa
+        echo This is the SSH private key used to access hosts in your Capilaries cloud deployment
+        echo See capillaries-deploy repo for details
+        exit 1
+    fi
+    if [ "$BASTION_IP" = "" ]; then
+        echo Error, missing: export BASTION_IP=1.2.3.4
+        echo This is the ip address of the bastion host in your Capilaries cloud deployment
+        echo See capillaries-deploy repo for details
+        exit 1
+    fi
+    if [ "$CAPIDEPLOY_EXTERNAL_WEBAPI_PORT" = "" ]; then
+        echo Error, missing: export CAPIDEPLOY_EXTERNAL_WEBAPI_PORT=6544
+        echo "This is the external (proxied) port of the webapi in your Capilaries cloud deployment"
+        echo See capillaries-deploy repo for details
+        exit 1
+    fi
+}
+
 # Verify s3 credentials and bucket are specified
 check_s3()
 {
     if [ "$CAPILLARIES_AWS_TESTBUCKET" = "" ]; then
         echo Error, missing: export CAPILLARIES_AWS_TESTBUCKET=capillaries-testbucket
-        echo 'expected permissions:'
+        echo This is the name of the bucket the user creates to test S3 Capillaries scenarios.
+        echo 'Expected permissions:'
         echo '{
     "Version": "2012-10-17",
     "Statement": [
@@ -64,7 +88,7 @@ wait()
         go run capitoolbelt.go get_run_history -keyspace=$keyspace > $outDir/runs.csv
         while IFS="," read -r ts run_id status comment
         do
-            if [ "$run_id" -eq "$runIdToCheck" ]; then
+            if [ $run_id -eq $runIdToCheck ]; then
                 if [ "$statusToCheck" -eq "1" ]; then # Wait for start
                     if [ "$status" -eq "1" ]; then  
                         echo Run started
@@ -202,51 +226,52 @@ two_daemon_runs()
     echo "$(($duration / 60))m $(($duration % 60))s elapsed."
 }
 
-# Same as above, but sends requests to capiwebapi instead of calling capitoolbelt
-two_daemon_runs_webapi()
+wait_run_webapi()
 {
-    local keyspace=$1
-    local scriptFile=$2
-    local paramsFile=$3
-    local outDir=$4
-    local startNodesOne=$5
-    local startNodesTwo=$6
+    local webapiUrl=$1
+    local keyspace=$2
+    local runIdToCheck=$3
+    while true
+    do
+      runNodeHistoryCmd="curl -s -X GET ""$webapiUrl/ks/$keyspace/run/$runIdToCheck/node_history"""
+      runNodeHistory=$($runNodeHistoryCmd)
+      string='My long string'
+      if [[ $runNodeHistory == *"\"final_status\":1"* ]]; then
+        echo "Run $runIdToCheck running, waiting..."
+      elif [[ $runNodeHistory == *"\"final_status\":2"* ]]; then
+        echo "Run $runIdToCheck completed"
+        return
+      elif [[ $runNodeHistory == *"\"final_status\":3"* ]]; then
+        echo "Run $runIdToCheck was stopped"
+        return
+      fi
+      sleep 2
+    done
+}
+
+one_daemon_run_webapi()
+{
+    local webapiUrl=$1
+    local keyspace=$2
+    local scriptFile=$3
+    local paramsFile=$4
+    local startNodes=$5
 
     SECONDS=0
-
-    # A hack to support *_quicktest additional dir level
-    # Still required for webapi test - wait() uses toolbelt
-    if [ -d "../../../../pkg/exe/toolbelt" ]; then
-        pushd ../../../../pkg/exe/toolbelt
-    else
-        pushd ../../../pkg/exe/toolbelt
+    echo Deleting keyspace $keyspace at $webapiUrl ...
+    curl -s -w "\n" -H "Content-Type: application/json" -X DELETE $webapiUrl"/ks/"$keyspace
+    if [ "$?" != "0" ]; then
+      exit 1
     fi
 
-    curl -H "Content-Type: application/json" -X DELETE "http://localhost:6543/ks/$keyspace"
+    echo Starting a run in $keyspace at $webapiUrl ...
+    curl -s -w "\n" -d '{"script_uri":"'$scriptFile'", "script_params_uri":"'$paramsFile'", "start_nodes":"'$startNodes'"}' -H "Content-Type: application/json" -X POST $webapiUrl"/ks/$keyspace/run"
+    if [ "$?" != "0" ]; then
+      exit 1
+    fi
 
-    # Operator starts run 1
+    wait_run_webapi $webapiUrl $keyspace 1
 
-    curl -d '{"script_uri":"'"$scriptFile"'", "script_params_uri":"'"$paramsFile"'", "start_nodes":"read_orders,read_order_items"}' -H "Content-Type: application/json" -X POST "http://localhost:6543/ks/$keyspace/run"
-
-    echo "Waiting for run to start..."
-    wait $keyspace 1 1 $outDir
-    echo "Waiting for run to finish, make sure pkg/exe/daemon is running..."
-    wait $keyspace 1 2 $outDir
-
-    # Operator approves intermediate results and starts run 2
-
-    curl -d '{"script_uri":"'"$scriptFile"'", "script_params_uri":"'"$paramsFile"'", "start_nodes":"order_item_date_inner,order_item_date_left_outer,order_date_value_grouped_inner,order_date_value_grouped_left_outer"}' -H "Content-Type: application/json" -X POST "http://localhost:6543/ks/$keyspace/run"
-
-    echo "Waiting for run to start..."
-    wait $keyspace 2 1 $outDir
-    echo "Waiting for run to finish, make sure pkg/exe/daemon is running..."
-    wait $keyspace 2 2 $outDir
-
-    echo "Run 2 finished"
-    curl "http://localhost:6543/ks/$keyspace"
-    echo "Done"
-
-    popd
     duration=$SECONDS
     echo "$(($duration / 60))m $(($duration % 60))s elapsed."
 }

@@ -9,14 +9,8 @@ linters:
     - goimports
     - revive
     - staticcheck
-    - vet
+    - govet
     - forbidigo
-run:
-  skip-dirs:
-    - ^ui
-    - ^build
-    - ^doc
-    - ^.git
 linters-settings:
   errcheck:
      severity: error
@@ -56,6 +50,9 @@ linters-settings:
          disabled: true
 
        # Rule tuning
+       - name: max-control-nesting
+         arguments:
+           - 8
        - name: cognitive-complexity
          arguments:
            - 50
@@ -75,6 +72,11 @@ linters-settings:
            - "zap.Logger.Sync"
            - "net.Conn.Close"
 issues:
+  exclude-dirs:
+    - ^ui
+    - ^build
+    - ^doc
+    - ^.git
   exclude-rules:
     - path: pkg\/eval\/agg\.go
       text: "function [^ ]+callAgg(Min|Max)Internal has cognitive complexity" # 58 > 50

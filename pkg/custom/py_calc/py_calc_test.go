@@ -265,7 +265,7 @@ func TestPyCalcDefCalculator(t *testing.T) {
 
 	// Test flusher, doesn't write anywhere, just saves data in the local variable
 	var results []*eval.VarValuesMap
-	flushVarsArray := func(varsArray []*eval.VarValuesMap, varsArrayCount int) error {
+	flushVarsArray := func(varsArray []*eval.VarValuesMap, _ int) error {
 		results = varsArray
 		return nil
 	}
@@ -384,7 +384,7 @@ func TestPyCalcDefBadScript(t *testing.T) {
 	err = scriptDef.Deserialize(
 		[]byte(scriptJson),
 		&PyCalcTestTestProcessorDefFactory{}, map[string]json.RawMessage{"py_calc": []byte(re.ReplaceAllString(envSettings, `"python_interpreter_path": ""`))}, "", nil)
-	assert.Contains(t, err.Error(), "py_calc interpreter path canot be empty")
+	assert.Contains(t, err.Error(), "py_calc interpreter path cannot be empty")
 
 }
 

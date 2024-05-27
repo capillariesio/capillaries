@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -773,7 +774,10 @@ func protoFileReaderCreator() int {
 func main() {
 	// defer profile.Start().Stop()
 
-	envConfig, err := env.ReadEnvConfigFile("capitoolbelt.json")
+	initCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	envConfig, err := env.ReadEnvConfigFile(initCtx, "capitoolbelt.json")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
