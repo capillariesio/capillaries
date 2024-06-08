@@ -25,7 +25,7 @@ from the root project directory to create those data directories and populate th
 No coding or compiling required, just run from the root project directory:
 
 ```
-docker-compose -p "test_capillaries_containers" up
+docker compose -p "test_capillaries_containers" up
 ```
 
 This command will create bridge network `capinet`, and will create and start the following containers:

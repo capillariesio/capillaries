@@ -27,16 +27,23 @@ services:
         fluentd-async: "true"
         tag: rabbitmq
 
-  cassandra:
-    container_name: capillaries_cassandra
-    image: cassandra
+  cassandra1:
+    container_name: capillaries_cassandra1
+    build:
+      context: .
+      dockerfile: ./test/docker/cassandra/Dockerfile
     depends_on:
       - fluentd
     networks:
       capinet:
         ipv4_address: 10.5.0.11
     ports:
-      - 9042:9042
+      - 17000:7000
+      - 17199:7199
+      - 19042:9042
+      - 17070:7070
+    environment:
+      CASSANDRA_SEEDS: 10.5.0.11
     logging:
       driver: fluentd
       options:
@@ -44,8 +51,51 @@ services:
         fluentd-async: "true"
         tag: cassandra
 
-  daemon:
-    container_name: capillaries_daemon
+  cassandra2:
+    container_name: capillaries_cassandra2
+    build:
+      context: .
+      dockerfile: ./test/docker/cassandra/Dockerfile
+    depends_on:
+      - fluentd
+    networks:
+      capinet:
+        ipv4_address: 10.5.0.12
+    ports:
+      - 27000:7000
+      - 27199:7199
+      - 29042:9042
+      - 27070:7070
+    environment:
+      CASSANDRA_SEEDS: 10.5.0.11
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: 10.5.0.7:24224
+        fluentd-async: "true"
+        tag: cassandra
+
+  prometheus:
+    container_name: capillaries_prometheus
+    image: prom/prometheus
+    depends_on:
+      - fluentd
+    networks:
+      capinet:
+        ipv4_address: 10.5.0.4
+    ports:
+      - 9090:9090
+    volumes:
+      - ./test/docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: 10.5.0.7:24224
+        fluentd-async: "true"
+        tag: prometheus
+
+  daemon1:
+    container_name: capillaries_daemon1
     depends_on:
       - fluentd
     build:
@@ -65,6 +115,34 @@ services:
     networks:
       capinet:
         ipv4_address: 10.5.0.101
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: 10.5.0.7:24224
+        fluentd-async: "true"
+        tag: daemon
+
+  daemon2:
+    container_name: capillaries_daemon2
+    depends_on:
+      - fluentd
+    build:
+      context: .
+      dockerfile: ./pkg/exe/daemon/docker/Dockerfile
+    volumes:
+      - /tmp/capi_cfg:/tmp/capi_cfg:ro
+      - /tmp/capi_in:/tmp/capi_in:ro
+      - /tmp/capi_out:/tmp/capi_out
+    environment:
+      CAPI_AMQP_URL: amqp://guest:guest@10.5.0.5/
+      CAPI_CASSANDRA_HOSTS: 10.5.0.11
+      CAPI_PYCALC_INTERPRETER_PATH: python3
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
+    networks:
+      capinet:
+        ipv4_address: 10.5.0.102
     logging:
       driver: "fluentd"
       options:
