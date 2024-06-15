@@ -78,11 +78,16 @@ docker exec -e JVM_OPTS= capillaries_cassandra1 nodetool status
 Cassandra read/write statistics collected by Prometheus available at:
 `http://localhost:9090/graph?g0.expr=sum(irate(cassandra_clientrequest_localrequests_count%7Bclientrequest%3D%22Write%22%7D%5B1m%5D))&g0.tab=0&g0.display_mode=lines&g0.show_exemplars=1&g0.range_input=15m&g1.expr=sum(irate(cassandra_clientrequest_localrequests_count%7Bclientrequest%3D%22Read%22%7D%5B1m%5D))&g1.tab=0&g1.display_mode=lines&g1.show_exemplars=0&g1.range_input=15m&g2.expr=sum(irate(cassandra_clientrequest_localrequests_count%7Binstance%3D%2210.5.0.11%3A7070%22%7D%5B1m%5D))&g2.tab=0&g2.display_mode=lines&g2.show_exemplars=0&g2.range_input=15m&g3.expr=sum(irate(cassandra_clientrequest_localrequests_count%7Binstance%3D%2210.5.0.12%3A7070%22%7D%5B1m%5D))&g3.tab=0&g3.display_mode=lines&g3.show_exemplars=0&g3.range_input=15m`
 
-## Next steps
+## Further steps
 
+### Kubernetes
 There is a [Kubernetes deployment POC](./test/k8s/README.md), but it may require some work: Minikube cluster setup, S3 buckets with proper permissions, S3-based Docker image repositories.
 
-For more details about getting started, see [Getting started](doc/started.md). For more details about this particular demo, see Capillaries blog: [Use Capillaries to calculate ARK portfolio performance](https://capillaries.io/blog/2023-04-08-portfolio/index.html). To learn how this demo runs on a bigger dataset with 14 million transactions, see [Capillaries: ARK portfolio performance calculation at scale](https://capillaries.io/blog/2023-11-15-portfolio-scale/index.html).
+### Blog at capillaries.io
+For more details about this particular demo, see Capillaries blog: [Use Capillaries to calculate ARK portfolio performance](https://capillaries.io/blog/2023-04-08-portfolio/index.html). To learn how this demo runs on a bigger dataset with 14 million transactions, see [Capillaries: ARK portfolio performance calculation at scale](https://capillaries.io/blog/2023-11-15-portfolio-scale/index.html).
+
+### More introduction
+For more details about getting started, see [Getting started](doc/started.md).
 
 ## Capillaries in depth
 
