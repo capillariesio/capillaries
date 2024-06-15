@@ -27,6 +27,10 @@ func (pCtx *MessageProcessingContext) DbConnect(envConfig *env.EnvConfig) error 
 	if pCtx.CqlSession, err = db.NewSession(envConfig, pCtx.BatchInfo.DataKeyspace, db.CreateKeyspaceOnConnect); err != nil {
 		return err
 	}
+	// rnd := rand.New(rand.NewSource(time.Now().UnixMilli()))
+	// if rnd.Float32() > 0.60 {
+	// 	return fmt.Errorf("random db error for test")
+	// }
 	return nil
 }
 

@@ -4,7 +4,7 @@ source ../../common/util.sh
 check_s3
 
 keyspace="lookup_quicktest_s3"
-scriptFile=s3://$CAPILLARIES_AWS_TESTBUCKET/capi_cfg/lookup_quicktest$cfgS3/script.json
+scriptFile=s3://$CAPILLARIES_AWS_TESTBUCKET/capi_cfg/lookup_quicktest/script.json
 paramsFile=s3://$CAPILLARIES_AWS_TESTBUCKET/capi_cfg/lookup_quicktest/script_params_one_run_s3.json
 startNodes="read_orders,read_order_items"
 

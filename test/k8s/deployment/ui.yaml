@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+ name: ui
+ labels:
+   app: ui
+   deployment: capitest
+spec:
+ replicas: 1
+ selector:
+   matchLabels:
+     app: ui
+ template:
+   metadata:
+     labels:
+       app: ui
+       deployment: capitest
+   spec:
+     imagePullSecrets:
+       - name: ecr-pull-secret
+     containers:
+     - name: ui
+       image: {AWS_ACCOUNT_ID}.dkr.ecr.{AWS_DEFAULT_REGION}.amazonaws.com/ui:latest
+       imagePullPolicy: Always
+       ports:
+         - containerPort: 8080
+       env:
+         - name: CAPI_WEBAPI_URL
+           value: http://localhost:6543 # The browser comes there from the outside, so use localhost
+       resources:
+         limits:
+           cpu: "500m"
+           memory: 1Gi
+         requests:
+           cpu: "500m"
+           memory: 1Gi

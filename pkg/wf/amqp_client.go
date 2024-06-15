@@ -283,20 +283,35 @@ func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, osSign
 			}
 
 			logger.Info("handling daemon cmd %d(%s), waiting for all workers to complete (%d items)...", finalDaemonCmd, finalDaemonCmd.ToString(), len(sem))
+			cmdsDrained := 0
 			for len(sem) > 0 {
-				logger.Info("still waiting for all workers to complete (%d items left)...", len(sem))
+				logger.Info("handling daemon cmd %d(%s), still waiting for all workers to complete (%d items left)...", finalDaemonCmd, finalDaemonCmd.ToString(), len(sem))
 				time.Sleep(1000 * time.Millisecond)
+				// We may receive thread completion commands while waiting, swallow them (except for the Quit cmd, which is important)
+				for len(daemonCommands) > 0 {
+					daemonCmdToSwallow := <-daemonCommands
+					cmdsDrained++
+					// Do not ignore quit command, make sure it makes it to the finals
+					if daemonCmdToSwallow == DaemonCmdQuit {
+						logger.Info("handling daemon cmd %d(%s), received daemon cmd %d(%s) while waiting for all workers to complete (%d items left), signaling exit ...", finalDaemonCmd, finalDaemonCmd.ToString(), daemonCmdToSwallow, daemonCmdToSwallow.ToString(), len(sem))
+						finalDaemonCmd = DaemonCmdQuit
+					} else {
+						logger.Info("handling daemon cmd %d(%s), received daemon cmd %d(%s) while waiting for all workers to complete (%d items left), safely ignoring it...", finalDaemonCmd, finalDaemonCmd.ToString(), daemonCmdToSwallow, daemonCmdToSwallow.ToString(), len(sem))
+					}
+				}
 			}
 
 			logger.Info("handling daemon cmd %d(%s), all workers completed, draining cmd channel (%d items)...", finalDaemonCmd, finalDaemonCmd.ToString(), len(daemonCommands))
 			for len(daemonCommands) > 0 {
 				daemonCmd := <-daemonCommands
+				cmdsDrained++
 				// Do not ignore quit command, make sure it makes it to the finals
 				if daemonCmd == DaemonCmdQuit {
+					logger.Info("handling daemon cmd %d(%s), received daemon cmd %d(%s) while draining daemon commands (%d items left), signaling exit ...", finalDaemonCmd, finalDaemonCmd.ToString(), DaemonCmdQuit, DaemonCmdQuit.ToString(), len(daemonCommands))
 					finalDaemonCmd = DaemonCmdQuit
 				}
 			}
-			logger.Info("final daemon cmd %d(%s), all workers complete, cmd channel drained", finalDaemonCmd, finalDaemonCmd.ToString())
+			logger.Info("final daemon cmd %d(%s), all workers complete, %d commands drained", finalDaemonCmd, finalDaemonCmd.ToString(), cmdsDrained)
 			return finalDaemonCmd
 
 		case amqpDelivery := <-chanDeliveries:

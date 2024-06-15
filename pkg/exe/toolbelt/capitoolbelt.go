@@ -236,11 +236,13 @@ const (
 	CmdDropKeyspace           string = "drop_keyspace"
 	CmdGetTableCql            string = "get_table_cql"
 	CmdProtoFileReaderCreator string = "proto_file_reader_creator"
+	CmdCheckDbConnectivity    string = "check_db_connectivity"
+	CmdCheckQueueConnectivity string = "check_queue_connectivity"
 )
 
 func usage(flagset *flag.FlagSet) {
 	fmt.Printf("Capillaries toolbelt\nUsage: capitoolbelt <command> <command parameters>\nCommands:\n")
-	fmt.Printf("  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n",
+	fmt.Printf("  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n",
 		CmdValidateScript,
 		CmdStartRun,
 		CmdStopRun,
@@ -251,7 +253,9 @@ func usage(flagset *flag.FlagSet) {
 		CmdGetRunStatusDiagram,
 		CmdDropKeyspace,
 		CmdGetTableCql,
-		CmdProtoFileReaderCreator)
+		CmdProtoFileReaderCreator,
+		CmdCheckDbConnectivity,
+		CmdCheckQueueConnectivity)
 	if flagset != nil {
 		fmt.Printf("\n%s parameters:\n", flagset.Name())
 		flagset.PrintDefaults()
@@ -547,6 +551,28 @@ func dropKeyspace(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 	return 0
 }
 
+func checkDbConnectivity(envConfig *env.EnvConfig) int {
+	cqlSession, err := db.NewSession(envConfig, "", db.CreateKeyspaceOnConnect)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		return 1
+	}
+	cqlSession.Close()
+	fmt.Fprintf(os.Stdout, "OK: %v\n", envConfig.Cassandra.Hosts)
+	return 0
+}
+
+func checkQueueConnectivity(envConfig *env.EnvConfig) int {
+	amqpConnection, err := amqp.Dial(envConfig.Amqp.URL)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "cannot dial RabbitMQ at %s: %s\n", envConfig.Amqp.URL, err.Error())
+		return 1
+	}
+	amqpConnection.Close()
+	fmt.Fprintf(os.Stdout, "OK: %s\n", envConfig.Amqp.URL)
+	return 0
+}
+
 func execNode(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 	execNodeCmd := flag.NewFlagSet(CmdExecNode, flag.ExitOnError)
 	keyspace := execNodeCmd.String("keyspace", "", "Keyspace (session id)")
@@ -829,6 +855,12 @@ func main() {
 
 	case CmdProtoFileReaderCreator:
 		os.Exit(protoFileReaderCreator())
+
+	case CmdCheckDbConnectivity:
+		os.Exit(checkDbConnectivity(envConfig))
+
+	case CmdCheckQueueConnectivity:
+		os.Exit(checkQueueConnectivity(envConfig))
 
 	default:
 		fmt.Printf("invalid command: %s\n", os.Args[1])

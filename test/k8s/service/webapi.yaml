@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: webapi
+    deployment: capitest
+  name: webapi
+spec:
+  clusterIP: None
+  ports:
+  - port: 6543
+    protocol: TCP
+  selector:
+    app: webapi
