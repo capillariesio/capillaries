@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+ name: webapi
+ labels:
+   app: webapi
+   deployment: capitest
+spec:
+ replicas: 1
+ selector:
+   matchLabels:
+     app: webapi
+ template:
+   metadata:
+     labels:
+       app: webapi
+       deployment: capitest
+   spec:
+     imagePullSecrets:
+       - name: ecr-pull-secret
+     containers:
+     - name: webapi
+       image: {AWS_ACCOUNT_ID}.dkr.ecr.{AWS_DEFAULT_REGION}.amazonaws.com/webapi:latest
+       imagePullPolicy: Always
+       ports:
+         - containerPort: 6543
+       env:
+         - name: CAPI_AMQP_URL
+           value: amqp://guest:guest@rabbitmq.default.svc.cluster.local
+         - name: CAPI_CASSANDRA_HOSTS
+           value: cassandra-0.cassandra.default.svc.cluster.local,cassandra-1.cassandra.default.svc.cluster.local
+         - name: CAPI_WEBAPI_PORT
+           value: "6543"
+         - name: CAPI_WEBAPI_ACCESS_CONTROL_ALLOW_ORIGIN
+           value: http://localhost:8080,http://127.0.0.1:8080
+         - name: AWS_ACCESS_KEY_ID
+           valueFrom:
+             secretKeyRef:
+               name: aws-credentials-secret
+               key: AWS_ACCESS_KEY_ID
+         - name: AWS_SECRET_ACCESS_KEY
+           valueFrom:
+             secretKeyRef:
+               name: aws-credentials-secret
+               key: AWS_SECRET_ACCESS_KEY
+         - name: AWS_DEFAULT_REGION
+           valueFrom:
+             secretKeyRef:
+               name: aws-credentials-secret
+               key: AWS_DEFAULT_REGION
+         - name: CAPI_LOG_LEVEL
+           value: debug
+       resources:
+         limits:
+           cpu: "500m"
+           memory: 1Gi
+         requests:
+           cpu: "500m"
+           memory: 1Gi

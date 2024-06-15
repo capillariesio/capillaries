@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: ui
+    deployment: capitest
+  name: ui
+spec:
+  clusterIP: None
+  ports:
+    - port: 8080
+  selector:
+    app: ui

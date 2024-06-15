@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Upload binaries to S3 bucket so they can be used by capillaries-deploy
+
 # Assuming the bucket $1 (s3://capillaries-release/latest) is publicly accessible for read (no write, and no directory listing)
 # {
 #     "Version": "2012-10-17",

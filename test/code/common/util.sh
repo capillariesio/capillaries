@@ -36,7 +36,7 @@ check_s3()
         {
             "Effect": "Allow",
             "Principal": {
-                "AWS": "arn:aws:iam::728560144492:user/capillaries-testuser"
+                "AWS": "arn:aws:iam::<aws_account_id>:user/capillaries-testuser"
             },
             "Action": "s3:ListBucket",
             "Resource": "arn:aws:s3:::capillaries-testbucket"
@@ -44,7 +44,7 @@ check_s3()
         {
             "Effect": "Allow",
             "Principal": {
-                "AWS": "arn:aws:iam::728560144492:user/capillaries-testuser"
+                "AWS": "arn:aws:iam::<aws_account_id>:user/capillaries-testuser"
             },
             "Action": [
                 "s3:DeleteObject",

@@ -84,6 +84,9 @@ func pickAccessControlAllowOrigin(wc *env.WebapiConfig, r *http.Request) string 
 }
 
 func WriteApiError(logger *l.CapiLogger, wc *env.WebapiConfig, r *http.Request, w http.ResponseWriter, urlPath string, err error, httpStatus int) {
+	logger.PushF("WriteApiError")
+	defer logger.PopF()
+
 	w.Header().Set("Access-Control-Allow-Origin", pickAccessControlAllowOrigin(wc, r))
 	logger.Error("cannot process %s: %s", urlPath, err.Error())
 	respJson, err := json.Marshal(ApiResponse{Error: ApiResponseError{Msg: err.Error()}})
@@ -95,7 +98,11 @@ func WriteApiError(logger *l.CapiLogger, wc *env.WebapiConfig, r *http.Request, 
 }
 
 func WriteApiSuccess(logger *l.CapiLogger, wc *env.WebapiConfig, r *http.Request, w http.ResponseWriter, data any) {
+	logger.PushF("WriteApiSuccess")
+	defer logger.PopF()
+
 	logger.Debug("%s: OK", r.URL.Path)
+
 	w.Header().Set("Access-Control-Allow-Origin", pickAccessControlAllowOrigin(wc, r))
 	respJson, err := json.Marshal(ApiResponse{Data: data})
 	if err != nil {

@@ -37,11 +37,11 @@ services:
     networks:
       capinet:
         ipv4_address: 10.5.0.11
-    ports:
-      - 17000:7000
-      - 17199:7199
-      - 19042:9042
-      - 17070:7070
+    ports: # Map to known host ports so webapi,toolbelt,daemon running on the host machine can use this Cassandra node
+      - 7000:7000
+      - 7199:7199
+      - 9042:9042
+      - 7070:7070
     environment:
       CASSANDRA_SEEDS: 10.5.0.11
     logging:
@@ -61,11 +61,11 @@ services:
     networks:
       capinet:
         ipv4_address: 10.5.0.12
-    ports:
-      - 27000:7000
-      - 27199:7199
-      - 29042:9042
-      - 27070:7070
+    ports: # Map to different host ports to avoid collision
+      - 17000:7000
+      - 17199:7199
+      - 19042:9042
+      - 17070:7070
     environment:
       CASSANDRA_SEEDS: 10.5.0.11
     logging:
@@ -216,3 +216,6 @@ services:
     networks:
       capinet:
         ipv4_address: 10.5.0.7
+
+# To delete images:
+# docker image rm -f  test_capillaries_containers-fluentd test_capillaries_containers-cassandra2 test_capillaries_containers-cassandra1 test_capillaries_containers-ui test_capillaries_containers-webapi test_capillaries_containers-daemon1 test_capillaries_containers-daemon2 prom/prometheus rabbitmq:3-management
