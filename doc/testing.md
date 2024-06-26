@@ -18,6 +18,8 @@ and open /var/tmp/capillaries.html in a web browser.
 
 ## Integration tests
 
+Some integration tests use data and config files stored in S3. Make sure you have the test bucket and IAM user credentials set up as described in [s3 data access](./s3.md).
+
 To run all integration tests, make sure you have RabbitMQ, Casandra and Capillaries Daemon running (either in Docker containers or as regular applications), test data is present (see ./copy_demo_data.sh) and run:
 
 ```
