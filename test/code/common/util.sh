@@ -29,48 +29,21 @@ check_s3()
     if [ "$CAPILLARIES_AWS_TESTBUCKET" = "" ]; then
         echo Error, missing: export CAPILLARIES_AWS_TESTBUCKET=capillaries-testbucket
         echo This is the name of the bucket the user creates to test S3 Capillaries scenarios.
-        echo 'Expected permissions:'
-        echo '{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Principal": {
-                "AWS": "arn:aws:iam::<aws_account_id>:user/capillaries-testuser"
-            },
-            "Action": "s3:ListBucket",
-            "Resource": "arn:aws:s3:::capillaries-testbucket"
-        },
-        {
-            "Effect": "Allow",
-            "Principal": {
-                "AWS": "arn:aws:iam::<aws_account_id>:user/capillaries-testuser"
-            },
-            "Action": [
-                "s3:DeleteObject",
-                "s3:GetObject",
-                "s3:PutObject"
-            ],
-            "Resource": "arn:aws:s3:::capillaries-testbucket/*"
-        }
-    ]
-}'
+        echo See s3.md for details on how to set up bucket permissions.
         exit 1
     fi
 
-    if [ ! -e ~/.aws/credentials ]; then
-        echo '~/.aws/credentials not found, expected:'
-        echo '[default]'
-        echo 'aws_access_key_id=AK...'
-        echo 'aws_secret_access_key=...'
+    if [ "$AWS_ACCESS_KEY_ID" == "" ]; then
+        echo Error, please specify export AWS_ACCESS_KEY_ID=...
+        exit 1
+    fi
+    if [ "$AWS_SECRET_ACCESS_KEY" == "" ]; then
+        echo Error, please specify export AWS_SECRET_ACCESS_KEY=...
         exit 1
     fi
 
-    if [ ! -e ~/.aws/config ]; then
-        echo '~/.aws/config not found, expected:'
-        echo '[default]'
-        echo 'region=us-east-1'
-        echo 'output=json'
+    if [ "$AWS_DEFAULT_REGION" == "" ]; then
+        echo Error, please specify export AWS_DEFAULT_REGION=...
         exit 1
     fi
 }
