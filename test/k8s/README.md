@@ -8,4 +8,4 @@ This is a POC demonstrating Capillaries running in a Kubernetes cluster.
 
 Just run scripts in order.
 
-Tests scripts use data and config files stored in S3. Make sure you have the test bucket and IAM user credentials set up as described in [s3 data access](./s3.md).
+Tests scripts use data and config files stored in S3. Make sure you have the test bucket and IAM user credentials set up as described in [s3 data access](../../doc/s3.md).
