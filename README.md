@@ -89,6 +89,16 @@ For more details about this particular demo, see Capillaries blog: [Use Capillar
 ### More introduction
 For more details about getting started, see [Getting started](doc/started.md).
 
+### Deploy Capillaries at scale
+
+#### Container-based deployments
+
+Capillaries binaries are intended to be container-friendly. Check out the `docker-compose.yml` and [Kubernetes deployment POC](./test/k8s/README.md), these test projects may be a good starting point for creating your full-scale container-based deployment.
+
+#### VM-based deployment
+
+There is Capideploy project at `https://github.com/capillariesio/capillaries-deploy` which is capable of deploying Capillaries in AWS. Its a work in progress and it's not a production-quality solution yet.
+
 ## Capillaries in depth
 
 ### [What it is and what it is not](doc/what.md) (use case discussion and diagrams)
