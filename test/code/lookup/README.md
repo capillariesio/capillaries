@@ -38,7 +38,7 @@ See [integration tests](../../../doc/testing.md#integration-tests) section for g
 
 ## Possible edits
 
-Play with number of total line items (see "-items=..." in [1_create_data.sh](./quicktest/1_create_data.sh)).
+Play with the number of total line items (see "-items=..." in [1_create_data.sh](./quicktest_local_fs/1_create_data.sh)).
   
 ## References:
 
