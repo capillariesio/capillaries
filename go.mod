@@ -8,8 +8,10 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.53.1
 	github.com/fraugster/parquet-go v0.12.0
 	github.com/gocql/gocql v1.6.0
+	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/pkg/sftp v1.13.6
 	github.com/rabbitmq/amqp091-go v1.9.0
+	github.com/sethvargo/go-envconfig v1.0.1
 	github.com/shopspring/decimal v1.3.1
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/zap v1.27.0
@@ -18,10 +20,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1
 )
 
-require (
-	github.com/jmespath/go-jmespath v0.4.0 // indirect
-	github.com/sethvargo/go-envconfig v1.0.1 // indirect
-)
+require github.com/jmespath/go-jmespath v0.4.0 // indirect
 
 require (
 	github.com/apache/thrift v0.19.0 // indirect

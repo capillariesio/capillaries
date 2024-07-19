@@ -8,6 +8,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
+	"github.com/hashicorp/golang-lru/v2/expirable"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -74,7 +75,7 @@ func amqpDeliveryToString(d amqp.Delivery) string {
 		len(d.Body))
 }
 
-func processDelivery(envConfig *env.EnvConfig, logger *l.CapiLogger, delivery *amqp.Delivery) DaemonCmdType {
+func processDelivery(envConfig *env.EnvConfig, logger *l.CapiLogger, scriptCache *expirable.LRU[string, string], delivery *amqp.Delivery) DaemonCmdType {
 	logger.PushF("wf.processDelivery")
 	defer logger.PopF()
 
@@ -93,7 +94,7 @@ func processDelivery(envConfig *env.EnvConfig, logger *l.CapiLogger, delivery *a
 			logger.Error("unexpected type of data batch payload: %T", msgIn.Payload)
 			return DaemonCmdAckWithError
 		}
-		return ProcessDataBatchMsg(envConfig, logger, msgIn.Ts, &dataBatchInfo)
+		return ProcessDataBatchMsg(envConfig, logger, scriptCache, msgIn.Ts, &dataBatchInfo)
 
 	// TODO: other commands like debug level or shutdown go here
 	default:
@@ -102,7 +103,7 @@ func processDelivery(envConfig *env.EnvConfig, logger *l.CapiLogger, delivery *a
 	}
 }
 
-func AmqpFullReconnectCycle(envConfig *env.EnvConfig, logger *l.CapiLogger, osSignalChannel chan os.Signal) DaemonCmdType {
+func AmqpFullReconnectCycle(envConfig *env.EnvConfig, logger *l.CapiLogger, scriptCache *expirable.LRU[string, string], osSignalChannel chan os.Signal) DaemonCmdType {
 	logger.PushF("wf.AmqpFullReconnectCycle")
 	defer logger.PopF()
 
@@ -121,7 +122,7 @@ func AmqpFullReconnectCycle(envConfig *env.EnvConfig, logger *l.CapiLogger, osSi
 		logger.Error("cannot create amqp channel, will reconnect: %s", err.Error())
 		daemonCmd = DaemonCmdReconnectQueue
 	} else {
-		daemonCmd = amqpConnectAndSelect(envConfig, logger, osSignalChannel, amqpChannel, chanErrors)
+		daemonCmd = amqpConnectAndSelect(envConfig, logger, scriptCache, osSignalChannel, amqpChannel, chanErrors)
 		time.Sleep(1000 * time.Millisecond)
 		logger.Info("consuming %d amqp errors to avoid close deadlock...", len(chanErrors))
 		for len(chanErrors) > 0 {
@@ -235,7 +236,7 @@ func initAmqpDeliveryChannel(envConfig *env.EnvConfig, logger *l.CapiLogger, amq
 	return chanDeliveries, DaemonCmdNone
 }
 
-func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, osSignalChannel chan os.Signal, amqpChannel *amqp.Channel, chanAmqpErrors chan *amqp.Error) DaemonCmdType {
+func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, scriptCache *expirable.LRU[string, string], osSignalChannel chan os.Signal, amqpChannel *amqp.Channel, chanAmqpErrors chan *amqp.Error) DaemonCmdType {
 	logger.PushF("wf.amqpConnectAndSelect")
 	defer logger.PopF()
 
@@ -341,7 +342,7 @@ func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, osSign
 					daemonCommands <- DaemonCmdReconnectQueue
 				} else {
 					// The main call
-					daemonCmd := processDelivery(envConfig, threadLogger, &delivery)
+					daemonCmd := processDelivery(envConfig, threadLogger, scriptCache, &delivery)
 
 					if daemonCmd == DaemonCmdAckSuccess || daemonCmd == DaemonCmdAckWithError {
 						err = delivery.Ack(false)
