@@ -1,22 +1,17 @@
 #!/bin/bash
 
-# Verify Capillaries are deployed somewhere at $BASTION_IP with SSH key $CAPIDEPLOY_SSH_PRIVATE_KEY_PATH
+# Verify Capillaries are deployed somewhere at $BASTION_IP
 check_cloud_deployment()
 {
-    if [ "$CAPIDEPLOY_SSH_PRIVATE_KEY_PATH" = "" ]; then
-        echo Error, missing: export CAPIDEPLOY_SSH_PRIVATE_KEY_PATH=~/.ssh/mydeployment005_rsa
-        echo This is the SSH private key used to access hosts in your Capilaries cloud deployment
-        echo See capillaries-deploy repo for details
-        exit 1
-    fi
+   
     if [ "$BASTION_IP" = "" ]; then
         echo Error, missing: export BASTION_IP=1.2.3.4
         echo This is the ip address of the bastion host in your Capilaries cloud deployment
         echo See capillaries-deploy repo for details
         exit 1
     fi
-    if [ "$CAPIDEPLOY_EXTERNAL_WEBAPI_PORT" = "" ]; then
-        echo Error, missing: export CAPIDEPLOY_EXTERNAL_WEBAPI_PORT=6544
+    if [ "$EXTERNAL_WEBAPI_PORT" = "" ]; then
+        echo Error, missing: export EXTERNAL_WEBAPI_PORT=6544
         echo "This is the external (proxied) port of the webapi in your Capilaries cloud deployment"
         echo See capillaries-deploy repo for details
         exit 1
@@ -34,7 +29,7 @@ check_s3()
     fi
 
     if [ "$AWS_ACCESS_KEY_ID" == "" ]; then
-        echo Error, please specify export AWS_ACCESS_KEY_ID=...
+        echo Error, please specify export AWS_ACCESS_KEY_ID=... for a user who has access to test S3 bucket, see UserAccessCapillariesTestbucket in the readme
         exit 1
     fi
     if [ "$AWS_SECRET_ACCESS_KEY" == "" ]; then
@@ -247,4 +242,16 @@ one_daemon_run_webapi()
 
     duration=$SECONDS
     echo "$(($duration / 60))m $(($duration % 60))s elapsed."
+}
+
+drop_keyspace_webapi()
+{
+    local webapiUrl=$1
+    local keyspace=$2
+
+    echo Deleting keyspace $keyspace at $webapiUrl ...
+    curl -s -w "\n" -H "Content-Type: application/json" -X DELETE $webapiUrl"/ks/"$keyspace
+    if [ "$?" != "0" ]; then
+      exit 1
+    fi
 }

@@ -8,6 +8,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hashicorp/golang-lru/v2/expirable"
+
 	"github.com/capillariesio/capillaries/pkg/custom/py_calc"
 	"github.com/capillariesio/capillaries/pkg/custom/tag_and_denormalize"
 	"github.com/capillariesio/capillaries/pkg/env"
@@ -68,8 +70,10 @@ func main() {
 	osSignalChannel := make(chan os.Signal, 1)
 	signal.Notify(osSignalChannel, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
+	scriptCache := expirable.NewLRU[string, string](100, nil, time.Minute*1)
+
 	for {
-		daemonCmd := wf.AmqpFullReconnectCycle(envConfig, logger, osSignalChannel)
+		daemonCmd := wf.AmqpFullReconnectCycle(envConfig, logger, scriptCache, osSignalChannel)
 		if daemonCmd == wf.DaemonCmdQuit {
 			logger.Info("got quit cmd, shut down is supposed to be complete by now")
 			os.Exit(0)

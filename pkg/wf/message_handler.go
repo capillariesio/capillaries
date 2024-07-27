@@ -15,6 +15,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/wfdb"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
+	"github.com/hashicorp/golang-lru/v2/expirable"
 	"go.uber.org/zap"
 )
 
@@ -222,11 +223,11 @@ func refreshNodeAndRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingCo
 	return nil
 }
 
-func initCtxScript(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, caPath string, privateKeys map[string]string, dataBatchInfo *wfmodel.MessagePayloadDataBatch, customProcFactory sc.CustomProcessorDefFactory, customProcSettings map[string]json.RawMessage) DaemonCmdType {
+func initCtxScript(logger *l.CapiLogger, scriptCache *expirable.LRU[string, string], pCtx *ctx.MessageProcessingContext, caPath string, privateKeys map[string]string, dataBatchInfo *wfmodel.MessagePayloadDataBatch, customProcFactory sc.CustomProcessorDefFactory, customProcSettings map[string]json.RawMessage) DaemonCmdType {
 	var initProblem sc.ScriptInitProblemType
 	var err error
 
-	pCtx.Script, initProblem, err = sc.NewScriptFromFiles(caPath, privateKeys, dataBatchInfo.ScriptURI, dataBatchInfo.ScriptParamsURI, customProcFactory, customProcSettings)
+	pCtx.Script, initProblem, err = sc.NewScriptFromFiles(scriptCache, caPath, privateKeys, dataBatchInfo.ScriptURI, dataBatchInfo.ScriptParamsURI, customProcFactory, customProcSettings)
 	if initProblem == sc.ScriptInitNoProblem {
 		return DaemonCmdNone
 	}
@@ -361,7 +362,7 @@ func checkDependencyNogoOrWait(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 	return DaemonCmdNone
 }
 
-func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msgTs int64, dataBatchInfo *wfmodel.MessagePayloadDataBatch) DaemonCmdType {
+func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, scriptCache *expirable.LRU[string, string], msgTs int64, dataBatchInfo *wfmodel.MessagePayloadDataBatch) DaemonCmdType {
 	logger.PushF("wf.ProcessDataBatchMsg")
 	defer logger.PopF()
 
@@ -396,7 +397,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msgTs i
 		return daemonCmd
 	}
 
-	if daemonCmd := initCtxScript(logger, pCtx, envConfig.CaPath, envConfig.PrivateKeys, dataBatchInfo, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings); daemonCmd != DaemonCmdNone {
+	if daemonCmd := initCtxScript(logger, scriptCache, pCtx, envConfig.CaPath, envConfig.PrivateKeys, dataBatchInfo, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings); daemonCmd != DaemonCmdNone {
 		return daemonCmd
 	}
 

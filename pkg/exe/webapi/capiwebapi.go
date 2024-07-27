@@ -25,6 +25,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/capillariesio/capillaries/pkg/xfer"
 	"github.com/gocql/gocql"
+	"github.com/hashicorp/golang-lru/v2/expirable"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -181,7 +182,7 @@ type WebapiNodeRunMatrix struct {
 var NodeDescCache = map[string]string{}
 var NodeDescCacheLock = sync.RWMutex{}
 
-func (h *UrlHandler) getNodeDesc(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16, nodeName string) (string, error) {
+func (h *UrlHandler) getNodeDesc(scriptCache *expirable.LRU[string, string], logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16, nodeName string) (string, error) {
 
 	nodeKey := keyspace + ":" + nodeName
 	NodeDescCacheLock.RLock()
@@ -200,7 +201,7 @@ func (h *UrlHandler) getNodeDesc(logger *l.CapiLogger, cqlSession *gocql.Session
 
 	// Now we have script URI, load it
 
-	script, _, err := sc.NewScriptFromFiles(h.Env.CaPath, h.Env.PrivateKeys, runProps.ScriptUri, runProps.ScriptParamsUri, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
+	script, _, err := sc.NewScriptFromFiles(scriptCache, h.Env.CaPath, h.Env.PrivateKeys, runProps.ScriptUri, runProps.ScriptParamsUri, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
 	if err != nil {
 		return "", err
 	}
@@ -279,7 +280,7 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 	mx.Nodes = make([]WebapiNodeRunMatrixRow, len(nodeRunStatusMap))
 	nodeCount := 0
 	for nodeName, runNodeStatusMap := range nodeRunStatusMap {
-		nodeDesc, err := h.getNodeDesc(h.L, cqlSession, keyspace, runLifespanMap[1].RunId, nodeName)
+		nodeDesc, err := h.getNodeDesc(h.ScriptCache, h.L, cqlSession, keyspace, runLifespanMap[1].RunId, nodeName)
 		if err != nil {
 			WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot get node description: %s", err.Error()), http.StatusInternalServerError)
 			return
@@ -611,8 +612,9 @@ func (h *UrlHandler) ksDrop(w http.ResponseWriter, r *http.Request) {
 }
 
 type UrlHandler struct {
-	Env *env.EnvConfig
-	L   *l.CapiLogger
+	Env         *env.EnvConfig
+	L           *l.CapiLogger
+	ScriptCache *expirable.LRU[string, string]
 }
 
 type ctxKey struct {
@@ -676,7 +678,7 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	h := UrlHandler{Env: envConfig, L: logger}
+	h := UrlHandler{Env: envConfig, L: logger, ScriptCache: expirable.NewLRU[string, string](100, nil, time.Minute*1)}
 
 	routes = []route{
 		newRoute("GET", "/ks[/]*", h.ks),

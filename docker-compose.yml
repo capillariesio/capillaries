@@ -217,5 +217,11 @@ services:
       capinet:
         ipv4_address: 10.5.0.7
 
-# To delete images:
-# docker image rm -f  test_capillaries_containers-fluentd test_capillaries_containers-cassandra2 test_capillaries_containers-cassandra1 test_capillaries_containers-ui test_capillaries_containers-webapi test_capillaries_containers-daemon1 test_capillaries_containers-daemon2 prom/prometheus rabbitmq:3-management
+# Delete Capillaries binaries containers
+# docker rm $(docker ps -a | grep -e daemon -e webapi | awk '{print $1}')
+# All containers
+# docker rm $(docker ps -qa)
+# Delete Capillaries binaries images
+# docker image rm $(docker images | grep -e daemon -e webapi | awk '{print $3}')
+# All images
+# docker image rm $(docker images | awk '{print $3}')

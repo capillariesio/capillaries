@@ -124,7 +124,7 @@ All settings in pkg/exe/daemon/capidaemon.json and pkg/exe/toolbelt/capitoolbelt
 Start with the test that executes [script nodes](glossary.md#script-node) directly, without involving RabbitMQ or Capillaries [Daemon](glossary.md#daemon):
 
 ```
-cd test/code/lookup/quicktest
+cd test/code/lookup/quicktest_local_fs
 ./test_exec_nodes.sh
 ```
 
@@ -142,14 +142,14 @@ Check out its stdout- make sure it successfully connected to RabbitMQ.
 In another command line session, run the test in a single run:
 
 ```
-cd test/code/lookup/quicktest
+cd test/code/lookup/quicktest_local_fs
 ./test_one_run.sh
 ```
 
 or, for two-runs scenario:
 
 ```
-cd test/code/lookup/quicktest
+cd test/code/lookup/quicktest_local_fs
 ./test_two_runs.sh
 ```
 
