@@ -11,7 +11,7 @@ portfolio_quicktest has all data ready, it just has to be copied to /tmp/capi_*,
 portfolio_bigtest is a variation of this test that uses:
 - large number of accounts
 - parquet files for input and output 
-and requires test data to be generated - see [1_create_test.data.sh](./bigtest/1_create_data.sh).
+and requires test data to be generated - see [1_create_data.sh](./bigtest_cloud/1_create_data.sh).
 
 ## Workflow
 
