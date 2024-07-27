@@ -43,7 +43,7 @@ func (ec *EnvConfig) Deserialize(ctx context.Context, jsonBytes []byte) error {
 	}
 
 	if ec.DeadLetterTtl < 100 || ec.DeadLetterTtl > 3600000 { // [100ms,1hr]
-		ec.DeadLetterTtl = 1000
+		ec.DeadLetterTtl = 10000
 	}
 
 	return nil

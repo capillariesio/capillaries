@@ -12,5 +12,5 @@ startNodes=01_read_payments
 # Run in the cloud (takes too long on 4 x c7gd.4xlarge Cassandra nodes, 16 cores each - consider a bigger setup)
 # 1530s on 4 x c7gd.16xlarge Cassandra nodes, 64 cores each
 check_cloud_deployment
-one_daemon_run_webapi 'http://'$BASTION_IP':'$CAPIDEPLOY_EXTERNAL_WEBAPI_PORT $keyspace $scriptFile $paramsFile $startNodes
+one_daemon_run_webapi 'http://'$BASTION_IP':'$EXTERNAL_WEBAPI_PORT $keyspace $scriptFile $paramsFile $startNodes
 

@@ -10,8 +10,8 @@ check_cloud_deployment()
         echo See capillaries-deploy repo for details
         exit 1
     fi
-    if [ "$CAPIDEPLOY_EXTERNAL_WEBAPI_PORT" = "" ]; then
-        echo Error, missing: export CAPIDEPLOY_EXTERNAL_WEBAPI_PORT=6544
+    if [ "$EXTERNAL_WEBAPI_PORT" = "" ]; then
+        echo Error, missing: export EXTERNAL_WEBAPI_PORT=6544
         echo "This is the external (proxied) port of the webapi in your Capilaries cloud deployment"
         echo See capillaries-deploy repo for details
         exit 1

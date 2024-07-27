@@ -89,7 +89,9 @@ If ca_path is empty, Go uses the host's root CA set (/usr/ssl/certs etc).
 ## dead_letter_ttl
 x-message-ttl setting passed to amqp.Channel.QueueDeclare(). After RabbitMQ detects a message that was consumed but not handled successfully (actively rejected or not acknowledged), it places the message in the dead letter queue, where it resides for dead_letter_ttl milliseconds and RabbitMQ makes another delivery attempt.
 
-Default: 1000 milliseconds
+1s is very aggressive, may work well for small and time-critical cases. 5-10s are more reasonable values.
+
+Default: 5000 milliseconds
 
 Read more about [Capillaries dead-letter-exchange](qna.md#dead-letter-exchange).
 
