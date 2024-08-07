@@ -22,7 +22,7 @@ and rendered in https://dreampuf.github.io/GraphvizOnline :
 
 ![drawing](../../../doc/dot-fanniemae.svg)
 
-Full transcript of what the result of each script node looks like in Cassandra - [transcript_fannie_mae.md](./transcript_fannie_mae.md).
+Full transcript of what the result of each script node looks like in Cassandra - [transcript_fannie_mae.md](../../../doc/transcript_fannie_mae.md).
 
 ## What's tested:
 
