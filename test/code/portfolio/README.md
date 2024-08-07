@@ -59,6 +59,8 @@ Technicaly speaking, we already have what we want. Next few steps make this JSON
 
 See results in /tmp/capi_out/portfolio_quicktest.
 
+Full transcript of what the result of each script node looks like in Cassandra - [transcript_portfolio.md](./transcript_portfolio.md).
+
 ## What's tested:
 
 - [file_table](../../../doc/glossary.md#file_table) read from file directly into JSON fields
