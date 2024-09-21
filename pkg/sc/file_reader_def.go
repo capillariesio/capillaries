@@ -32,7 +32,7 @@ type CsvReaderSettings struct {
 	SrcFileHdrLineIdx       int                    `json:"hdr_line_idx" yaml:"hdr_line_idx"`
 	SrcFileFirstDataLineIdx int                    `json:"first_data_line_idx,omitempty" yaml:"first_data_line_idx,omitempty"`
 	Separator               string                 `json:"separator,omitempty" yaml:"separator,omitempty"`
-	ColumnIndexingMode      FileColumnIndexingMode `json,yaml:"-"`
+	ColumnIndexingMode      FileColumnIndexingMode `json:"-"`
 }
 
 const (

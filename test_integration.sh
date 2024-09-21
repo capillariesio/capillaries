@@ -48,6 +48,7 @@ popd
 
 # These will require something like
 # export CAPILLARIES_AWS_TESTBUCKET=capillaries-testbucket
+# and correspondent permissions
 
 pushd ./test/code/lookup/quicktest_s3
 ./test_one_run_local.sh

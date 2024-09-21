@@ -7,15 +7,15 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func convertToStringMap(i interface{}) interface{} {
+func convertToStringMap(i any) any {
 	switch x := i.(type) {
-	case map[interface{}]interface{}:
-		m2 := map[string]interface{}{}
+	case map[any]any:
+		m2 := map[string]any{}
 		for k, v := range x {
 			m2[k.(string)] = convertToStringMap(v)
 		}
 		return m2
-	case []interface{}:
+	case []any:
 		for i, v := range x {
 			x[i] = convertToStringMap(v)
 		}
@@ -24,7 +24,7 @@ func convertToStringMap(i interface{}) interface{} {
 }
 
 func yamlUnmarshal(in []byte, out any) error {
-	var body interface{}
+	var body any
 	if err := yaml.Unmarshal(in, &body); err != nil {
 		return err
 	}
