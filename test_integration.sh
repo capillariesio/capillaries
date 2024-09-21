@@ -2,13 +2,8 @@
 
 pushd ./test/code/lookup/quicktest_local_fs
 ./test_one_run.sh
-popd
-
-pushd ./test/code/lookup/quicktest_local_fs
+./test_one_run_yaml.sh
 ./test_two_runs.sh
-popd
-
-pushd ./test/code/lookup/quicktest_local_fs
 ./test_one_run_webapi.sh
 popd
 
@@ -19,9 +14,6 @@ popd
 
 pushd ./test/code/tag_and_denormalize
 ./test_one_run.sh
-popd
-
-pushd ./test/code/tag_and_denormalize
 ./test_two_runs.sh
 popd
 
@@ -48,7 +40,7 @@ popd
 
 # These will require something like
 # export CAPILLARIES_AWS_TESTBUCKET=capillaries-testbucket
-# and correspondent permissions
+# and correspondent AWS permissions and region info for webapi and daemon
 
 pushd ./test/code/lookup/quicktest_s3
 ./test_one_run_local.sh

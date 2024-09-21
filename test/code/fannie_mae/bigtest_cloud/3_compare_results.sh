@@ -12,8 +12,8 @@ aws s3 cp $outS3/deal_summaries.parquet $outDir/
 
 if ! $cmdDiff diff $outDir/deal_seller_summaries_baseline.parquet $outDir/deal_seller_summaries.parquet ||
   ! $cmdDiff diff $outDir/deal_summaries_baseline.parquet $outDir/deal_summaries.parquet; then
-  echo -e "\033[0;31mdiff FAILED\e[0m"
+  echo -e "\033[0;31m fannie_mae_bigtest diff FAILED\e[0m"
   exit 1
 else
-  echo -e "\033[0;32mdiff OK\e[0m"
+  echo -e "\033[0;32m fannie_mae_bigtest diff OK\e[0m"
 fi

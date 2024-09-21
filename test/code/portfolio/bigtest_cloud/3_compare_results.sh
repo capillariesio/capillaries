@@ -10,8 +10,8 @@ aws s3 cp $outS3/account_period_sector_perf.parquet $outDir/
 cmdDiff="go run ../../parquet/capiparquet.go"
 if ! $cmdDiff diff $outDir/account_year_perf.parquet $outDir/account_year_perf_baseline.parquet ||
   ! $cmdDiff diff $outDir/account_period_sector_perf.parquet $outDir/account_period_sector_perf_baseline.parquet; then
-  echo -e "\033[0;31mdiff FAILED\e[0m"
+  echo -e "\033[0;31m portfolio_bigtest diff FAILED\e[0m"
   exit 1
 else
-  echo -e "\033[0;32mdiff OK\e[0m"
+  echo -e "\033[0;32m portfolio_bigtest diff OK\e[0m"
 fi

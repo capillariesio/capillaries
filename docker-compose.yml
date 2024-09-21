@@ -219,6 +219,8 @@ services:
 
 # Stop all containers
 # docker stop $(docker ps -a -q)
+# Stop Capillaries binaries containers
+# docker stop $(docker ps -a | grep -e daemon -e webapi | awk '{print $1}')
 # Delete Capillaries binaries containers
 # docker rm $(docker ps -a | grep -e daemon -e webapi | awk '{print $1}')
 # Delete all containers
