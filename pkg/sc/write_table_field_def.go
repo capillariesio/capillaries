@@ -6,9 +6,9 @@ import (
 )
 
 type WriteTableFieldDef struct {
-	RawExpression    string         `json:"expression"`
-	Type             TableFieldType `json:"type"`
-	DefaultValue     string         `json:"default_value,omitempty"` // Optional. If omitted, default zero value is used
+	RawExpression    string         `json:"expression" yaml:"expression"`
+	Type             TableFieldType `json:"type" yaml:"type"`
+	DefaultValue     string         `json:"default_value,omitempty" yaml:"default_value,omitempty"` // Optional. If omitted, default zero value is used
 	ParsedExpression ast.Expr       `json:"-"`
 	UsedFields       FieldRefs      `json:"-"`
 }

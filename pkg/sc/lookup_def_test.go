@@ -211,40 +211,40 @@ const scriptDefJson string = `
         }
 	},
 	"dependency_policies": {
-		"current_active_first_stopped_nogo":` + DefaultPolicyCheckerConf +
+		"current_active_first_stopped_nogo":` + DefaultPolicyCheckerConfJson +
 	`		
 	}
 }`
 
 func TestLookupDef(t *testing.T) {
 	scriptDef := ScriptDef{}
-	assert.Nil(t, scriptDef.Deserialize([]byte(scriptDefJson), nil, nil, "", nil))
+	assert.Nil(t, scriptDef.Deserialize([]byte(scriptDefJson), ScriptJson, nil, nil, "", nil))
 
 	re := regexp.MustCompile(`"idx_read_batch_size": [\d]+`)
 	assert.Contains(t,
-		scriptDef.Deserialize([]byte(re.ReplaceAllString(scriptDefJson, `"idx_read_batch_size": 50000`)), nil, nil, "", nil).Error(),
+		scriptDef.Deserialize([]byte(re.ReplaceAllString(scriptDefJson, `"idx_read_batch_size": 50000`)), ScriptJson, nil, nil, "", nil).Error(),
 		"cannot use idx_read_batch_size 50000, expected <= 20000")
 
 	re = regexp.MustCompile(`"right_lookup_read_batch_size": [\d]+`)
 	assert.Contains(t,
-		scriptDef.Deserialize([]byte(re.ReplaceAllString(scriptDefJson, `"right_lookup_read_batch_size": 50000`)), nil, nil, "", nil).Error(),
+		scriptDef.Deserialize([]byte(re.ReplaceAllString(scriptDefJson, `"right_lookup_read_batch_size": 50000`)), ScriptJson, nil, nil, "", nil).Error(),
 		"cannot use right_lookup_read_batch_size 50000, expected <= 20000")
 
 	re = regexp.MustCompile(`"filter": "[^"]+",`)
 	assert.Contains(t,
-		scriptDef.Deserialize([]byte(re.ReplaceAllString(scriptDefJson, `"filter": "aaa",`)), nil, nil, "", nil).Error(),
+		scriptDef.Deserialize([]byte(re.ReplaceAllString(scriptDefJson, `"filter": "aaa",`)), ScriptJson, nil, nil, "", nil).Error(),
 		"cannot parse lookup filter condition")
 	assert.Contains(t,
-		scriptDef.Deserialize([]byte(re.ReplaceAllString(scriptDefJson, `"filter": "123",`)), nil, nil, "", nil).Error(),
+		scriptDef.Deserialize([]byte(re.ReplaceAllString(scriptDefJson, `"filter": "123",`)), ScriptJson, nil, nil, "", nil).Error(),
 		"cannot evaluate lookup filter expression [123]: [expected type bool, but got int64 (123)]")
 	assert.Nil(t,
-		scriptDef.Deserialize([]byte(re.ReplaceAllString(scriptDefJson, ``)), nil, nil, "", nil))
+		scriptDef.Deserialize([]byte(re.ReplaceAllString(scriptDefJson, ``)), ScriptJson, nil, nil, "", nil))
 
 	re = regexp.MustCompile(`"join_on": "[^"]+",`)
 	assert.Contains(t,
-		scriptDef.Deserialize([]byte(re.ReplaceAllString(scriptDefJson, `"join_on": "r.order_id,r.order_status",`)), nil, nil, "", nil).Error(),
+		scriptDef.Deserialize([]byte(re.ReplaceAllString(scriptDefJson, `"join_on": "r.order_id,r.order_status",`)), ScriptJson, nil, nil, "", nil).Error(),
 		"lookup joins on 2 fields, while referenced index idx_order_items_order_id uses 1 fields, these lengths need to be the same")
 	assert.Contains(t,
-		scriptDef.Deserialize([]byte(re.ReplaceAllString(scriptDefJson, `"join_on": "",`)), nil, nil, "", nil).Error(),
+		scriptDef.Deserialize([]byte(re.ReplaceAllString(scriptDefJson, `"join_on": "",`)), ScriptJson, nil, nil, "", nil).Error(),
 		"failed to resolve lookup for node order_item_date_inner: [expected a comma-separated list of <table_name>.<field_name>, got []]")
 }

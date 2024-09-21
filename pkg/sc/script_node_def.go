@@ -105,24 +105,24 @@ func ValidateStartPolicy(startPolicy NodeStartPolicy) error {
 
 type ScriptNodeDef struct {
 	Name                string          // Get it from the key
-	Type                NodeType        `json:"type"`
-	Desc                string          `json:"desc"`
-	StartPolicy         NodeStartPolicy `json:"start_policy"`
-	RerunPolicy         NodeRerunPolicy `json:"rerun_policy,omitempty"`
-	CustomProcessorType string          `json:"custom_proc_type,omitempty"`
-	HandlerExeType      string          `json:"handler_exe_type,omitempty"`
+	Type                NodeType        `json:"type" yaml:"type"`
+	Desc                string          `json:"desc" yaml:"desc"`
+	StartPolicy         NodeStartPolicy `json:"start_policy" yaml:"start_policy"`
+	RerunPolicy         NodeRerunPolicy `json:"rerun_policy,omitempty" yaml:"rerun_policy,omitempty"`
+	CustomProcessorType string          `json:"custom_proc_type,omitempty" yaml:"custom_proc_type,omitempty"`
+	HandlerExeType      string          `json:"handler_exe_type,omitempty" yaml:"handler_exe_type,omitempty"`
 
-	RawReader   json.RawMessage `json:"r"` // This depends on tfm type
+	RawReader   json.RawMessage `json:"r" yaml:"r"` // This depends on tfm type
 	TableReader TableReaderDef
 	FileReader  FileReaderDef
 
-	Lookup LookupDef `json:"l"`
+	Lookup LookupDef `json:"l" yaml:"l"`
 
-	RawProcessorDef json.RawMessage    `json:"p"` // This depends on tfm type
+	RawProcessorDef json.RawMessage    `json:"p" yaml:"p"` // This depends on tfm type
 	CustomProcessor CustomProcessorDef // Also should implement CustomProcessorRunner
 
-	RawWriter            json.RawMessage `json:"w"` // This depends on tfm type
-	DependencyPolicyName string          `json:"dependency_policy"`
+	RawWriter            json.RawMessage `json:"w" yaml:"w"` // This depends on tfm type
+	DependencyPolicyName string          `json:"dependency_policy" yaml:"dependency_policy"`
 	TableCreator         TableCreatorDef
 	TableUpdater         TableUpdaterDef
 	FileCreator          FileCreatorDef
@@ -212,7 +212,7 @@ func (node *ScriptNodeDef) initCreator() error {
 	return nil
 }
 
-func (node *ScriptNodeDef) initCustomProcessor(customProcessorDefFactory CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage, caPath string, privateKeys map[string]string) error {
+func (node *ScriptNodeDef) initCustomProcessor(customProcessorDefFactory CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage, scriptType ScriptType, caPath string, privateKeys map[string]string) error {
 	if node.HasCustomProcessor() {
 		if customProcessorDefFactory == nil {
 			return fmt.Errorf("undefined custom processor factory")
@@ -229,7 +229,7 @@ func (node *ScriptNodeDef) initCustomProcessor(customProcessorDefFactory CustomP
 		if !ok {
 			return fmt.Errorf("cannot find custom processing settings for [%s] in the environment config file", node.CustomProcessorType)
 		}
-		if err := node.CustomProcessor.Deserialize(node.RawProcessorDef, customProcSettings, caPath, privateKeys); err != nil {
+		if err := node.CustomProcessor.Deserialize(node.RawProcessorDef, customProcSettings, scriptType, caPath, privateKeys); err != nil {
 			re := regexp.MustCompile("[ \r\n]+")
 			return fmt.Errorf("cannot deserialize custom processor [%s]: [%s]", re.ReplaceAllString(string(node.RawProcessorDef), ""), err.Error())
 		}
@@ -237,7 +237,7 @@ func (node *ScriptNodeDef) initCustomProcessor(customProcessorDefFactory CustomP
 	return nil
 }
 
-func (node *ScriptNodeDef) Deserialize(customProcessorDefFactory CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage, caPath string, privateKeys map[string]string) error {
+func (node *ScriptNodeDef) Deserialize(customProcessorDefFactory CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage, scriptType ScriptType, caPath string, privateKeys map[string]string) error {
 	errors := make([]string, 0)
 
 	if err := ValidateNodeType(node.Type); err != nil {
@@ -273,7 +273,7 @@ func (node *ScriptNodeDef) Deserialize(customProcessorDefFactory CustomProcessor
 	}
 
 	// Custom processor
-	if err := node.initCustomProcessor(customProcessorDefFactory, customProcessorsSettings, caPath, privateKeys); err != nil {
+	if err := node.initCustomProcessor(customProcessorDefFactory, customProcessorsSettings, scriptType, caPath, privateKeys); err != nil {
 		errors = append(errors, err.Error())
 	}
 

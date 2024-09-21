@@ -6,7 +6,7 @@
 
 source ../common/util.sh
 
-keyspace="py_calc_quicktest"
+keyspace="py_calc_quicktest_json"
 cfgDir=/tmp/capi_cfg/py_calc_quicktest
 outDir=/tmp/capi_out/py_calc_quicktest
 scriptFile=$cfgDir/script.json

@@ -217,11 +217,13 @@ services:
       capinet:
         ipv4_address: 10.5.0.7
 
+# Stop all containers
+# docker stop $(docker ps -a -q)
 # Delete Capillaries binaries containers
 # docker rm $(docker ps -a | grep -e daemon -e webapi | awk '{print $1}')
-# All containers
+# Delete all containers
 # docker rm $(docker ps -qa)
 # Delete Capillaries binaries images
 # docker image rm $(docker images | grep -e daemon -e webapi | awk '{print $3}')
-# All images
+# Delete all images
 # docker image rm $(docker images | awk '{print $3}')

@@ -14,7 +14,7 @@ const ScriptInitUrlProblem ScriptInitProblemType = 1
 const ScriptInitContentProblem ScriptInitProblemType = 2
 const ScriptInitConnectivityProblem ScriptInitProblemType = 3
 
-func NewScriptFromFileBytes(caPath string, privateKeys map[string]string, scriptUri string, jsonBytesScript []byte, scriptParamsUri string, jsonBytesParams []byte, customProcessorDefFactoryInstance CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage) (*ScriptDef, ScriptInitProblemType, error) {
+func NewScriptFromFileBytes(caPath string, privateKeys map[string]string, scriptUri string, jsonBytesScript []byte, scriptParamsUri string, jsonOrYamlBytesParams []byte, customProcessorDefFactoryInstance CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage) (*ScriptDef, ScriptInitProblemType, error) {
 	// Make sure parameters are in canonical format: {param_name|param_type}
 	scriptString := string(jsonBytesScript)
 
@@ -39,9 +39,17 @@ func NewScriptFromFileBytes(caPath string, privateKeys map[string]string, script
 	// Apply template params here, script def should know nothing about them: they may tweak some 3d-party tfm config
 
 	paramsMap := map[string]any{}
-	if jsonBytesParams != nil {
-		if err := json.Unmarshal(jsonBytesParams, &paramsMap); err != nil {
-			return nil, ScriptInitContentProblem, fmt.Errorf("cannot unmarshal script params json from [%s]: [%s]", scriptParamsUri, err.Error())
+	if jsonOrYamlBytesParams != nil {
+		scriptParamsType := ScriptUnknown
+		if strings.HasSuffix(scriptParamsUri, ".json") {
+			scriptParamsType = ScriptJson
+		} else if strings.HasSuffix(scriptParamsUri, ".yaml") {
+			scriptParamsType = ScriptYaml
+		} else {
+			return nil, ScriptInitContentProblem, fmt.Errorf("cannot unmarshal script params from [%s]: json or yaml extension expected", scriptParamsUri)
+		}
+		if err := JsonOrYamlUnmarshal(scriptParamsType, jsonOrYamlBytesParams, &paramsMap); err != nil {
+			return nil, ScriptInitContentProblem, fmt.Errorf("cannot unmarshal script params from [%s]: [%s]", scriptParamsUri, err.Error())
 		}
 	}
 
@@ -113,7 +121,16 @@ func NewScriptFromFileBytes(caPath string, privateKeys map[string]string, script
 	}
 
 	newScript := &ScriptDef{}
-	if err := newScript.Deserialize([]byte(scriptString), customProcessorDefFactoryInstance, customProcessorsSettings, caPath, privateKeys); err != nil {
+	scriptType := ScriptUnknown
+	if strings.HasSuffix(scriptUri, ".json") {
+		scriptType = ScriptJson
+	} else if strings.HasSuffix(scriptUri, ".yaml") {
+		scriptType = ScriptYaml
+	} else {
+		return nil, ScriptInitContentProblem, fmt.Errorf("cannot unmarshal script from [%s]: json or yaml extension expected", scriptUri)
+	}
+
+	if err := newScript.Deserialize([]byte(scriptString), scriptType, customProcessorDefFactoryInstance, customProcessorsSettings, caPath, privateKeys); err != nil {
 		return nil, ScriptInitContentProblem, fmt.Errorf("cannot deserialize script %s(%s): %s", scriptUri, scriptParamsUri, err.Error())
 	}
 

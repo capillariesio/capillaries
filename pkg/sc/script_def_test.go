@@ -1,12 +1,14 @@
 package sc
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
 	"github.com/capillariesio/capillaries/pkg/eval"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 )
 
 const plainScriptJson string = `
@@ -207,24 +209,34 @@ const plainScriptJson string = `
 		}
 	},
 	"dependency_policies": {
-		"current_active_first_stopped_nogo":` + DefaultPolicyCheckerConf +
+		"current_active_first_stopped_nogo":` + DefaultPolicyCheckerConfJson +
 	`		
 	}
 }`
 
-func TestCreatorFieldRefs(t *testing.T) {
-	var err error
+func jsonToYamlToScriptDef(t *testing.T) *ScriptDef {
+	var jsonDeserializedAsMap map[string]any
+	err := json.Unmarshal([]byte(plainScriptJson), &jsonDeserializedAsMap)
+	assert.Nil(t, err)
 
-	newScript := &ScriptDef{}
-	assert.Nil(t, newScript.Deserialize([]byte(plainScriptJson), nil, nil, "", nil))
+	scriptYamlBytes, err := yaml.Marshal(jsonDeserializedAsMap)
+	assert.Nil(t, err)
 
-	tableFieldRefs := newScript.ScriptNodes["read_table2"].TableCreator.GetFieldRefsWithAlias(CreatorAlias)
+	scriptDef := &ScriptDef{}
+	err = scriptDef.Deserialize(scriptYamlBytes, ScriptYaml, nil, nil, "", nil)
+	assert.Nil(t, err)
+
+	return scriptDef
+}
+
+func testCreatorFieldRefs(t *testing.T, scriptDef *ScriptDef) {
+	tableFieldRefs := scriptDef.ScriptNodes["read_table2"].TableCreator.GetFieldRefsWithAlias(CreatorAlias)
 	var tableFieldRef *FieldRef
 	tableFieldRef, _ = tableFieldRefs.FindByFieldName("field_int2")
 	assert.Equal(t, CreatorAlias, tableFieldRef.TableName)
 	assert.Equal(t, FieldTypeInt, tableFieldRef.FieldType)
 
-	fileFieldRefs := newScript.ScriptNodes["file_totals"].FileCreator.getFieldRefs()
+	fileFieldRefs := scriptDef.ScriptNodes["file_totals"].FileCreator.getFieldRefs()
 	var fileFieldRef *FieldRef
 	fileFieldRef, _ = fileFieldRefs.FindByFieldName("total_value")
 	assert.Equal(t, CreatorAlias, fileFieldRef.TableName)
@@ -232,28 +244,36 @@ func TestCreatorFieldRefs(t *testing.T) {
 
 	// Duplicate creator
 
-	err = newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"name": "table2"`, `"name": "table1"`, 1)),
+	err := scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"name": "table2"`, `"name": "table1"`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "duplicate table name: table1")
 
 	// Bad readertable name
 
-	err = newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"table": "table1"`, `"table": "bad_table_name"`, 1)),
+	err = scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"table": "table1"`, `"table": "bad_table_name"`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "cannot find the node that creates table [bad_table_name]")
 }
 
-func TestCreatorCalculateHaving(t *testing.T) {
+func TestCreatorFieldRefsJson(t *testing.T) {
+	scriptDef := &ScriptDef{}
+	assert.Nil(t, scriptDef.Deserialize([]byte(plainScriptJson), ScriptJson, nil, nil, "", nil))
+
+	testCreatorFieldRefs(t, scriptDef)
+}
+
+func TestCreatorFieldRefsYaml(t *testing.T) {
+	scriptDef := jsonToYamlToScriptDef(t)
+	testCreatorFieldRefs(t, scriptDef)
+}
+
+func testCreatorCalculateHaving(t *testing.T, scriptDef *ScriptDef) {
 	var isHaving bool
-
-	newScript := &ScriptDef{}
-	assert.Nil(t, newScript.Deserialize([]byte(plainScriptJson), nil, nil, "", nil))
-
 	// Table writer: calculate having
 	var tableRecord map[string]any
-	tableCreator := newScript.ScriptNodes["join_table1_table2"].TableCreator
+	tableCreator := scriptDef.ScriptNodes["join_table1_table2"].TableCreator
 
 	tableRecord = map[string]any{"total_value": 3}
 	isHaving, _ = tableCreator.CheckTableRecordHavingCondition(tableRecord)
@@ -265,7 +285,7 @@ func TestCreatorCalculateHaving(t *testing.T) {
 
 	// File writer: calculate having
 	var colVals []any
-	fileCreator := newScript.ScriptNodes["file_totals"].FileCreator
+	fileCreator := scriptDef.ScriptNodes["file_totals"].FileCreator
 
 	colVals = make([]any, 0)
 	colVals = append(colVals, 0, "a", 4, 0)
@@ -278,18 +298,26 @@ func TestCreatorCalculateHaving(t *testing.T) {
 	assert.False(t, isHaving)
 }
 
-func TestCreatorCalculateOutput(t *testing.T) {
+func TestCreatorCalculateHavingJson(t *testing.T) {
+	scriptDef := &ScriptDef{}
+	assert.Nil(t, scriptDef.Deserialize([]byte(plainScriptJson), ScriptJson, nil, nil, "", nil))
+	testCreatorCalculateHaving(t, scriptDef)
+}
+
+func TestCreatorCalculateHavingYaml(t *testing.T) {
+	scriptDef := jsonToYamlToScriptDef(t)
+	testCreatorCalculateHaving(t, scriptDef)
+}
+
+func testCreatorCalculateOutput(t *testing.T, scriptDef *ScriptDef) {
 	var err error
 	var vars eval.VarValuesMap
-
-	newScript := &ScriptDef{}
-	assert.Nil(t, newScript.Deserialize([]byte(plainScriptJson), nil, nil, "", nil))
 
 	// Table creator: calculate fields
 
 	var fields map[string]any
 	vars = eval.VarValuesMap{"r": {"field_int1": int64(1), "field_string1": "a"}}
-	fields, _ = newScript.ScriptNodes["join_table1_table2"].TableCreator.CalculateTableRecordFromSrcVars(true, vars)
+	fields, _ = scriptDef.ScriptNodes["join_table1_table2"].TableCreator.CalculateTableRecordFromSrcVars(true, vars)
 	if len(fields) == 4 {
 		assert.Equal(t, int64(1), fields["field_int1"])
 		assert.Equal(t, "a", fields["field_string1"])
@@ -299,8 +327,8 @@ func TestCreatorCalculateOutput(t *testing.T) {
 
 	// Table creator: bad field expression, tweak sum
 
-	err = newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `sum(l.field_int2)`, `sum(l.field_int2`, 1)),
+	err = scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `sum(l.field_int2)`, `sum(l.field_int2`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "cannot parse field expression [sum(l.field_int2]")
 
@@ -308,7 +336,7 @@ func TestCreatorCalculateOutput(t *testing.T) {
 
 	var cols []any
 	vars = eval.VarValuesMap{"r": {"field_int1": int64(1), "field_string1": "a", "total_value": decimal.NewFromInt(1), "item_count": int64(1)}}
-	cols, _ = newScript.ScriptNodes["file_totals"].FileCreator.CalculateFileRecordFromSrcVars(vars)
+	cols, _ = scriptDef.ScriptNodes["file_totals"].FileCreator.CalculateFileRecordFromSrcVars(vars)
 	assert.Equal(t, 4, len(cols))
 	if len(cols) == 4 {
 		assert.Equal(t, int64(1), cols[0])
@@ -319,180 +347,206 @@ func TestCreatorCalculateOutput(t *testing.T) {
 
 	// File creator: bad column expression, tweak decimal2()
 
-	err = newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `decimal2(r.total_value)`, `decimal2(r.total_value`, 1)),
+	err = scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `decimal2(r.total_value)`, `decimal2(r.total_value`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "[cannot parse column expression [decimal2(r.total_value]")
-
 }
 
-func TestLookup(t *testing.T) {
+func TestCreatorCalculateOutputJson(t *testing.T) {
+	scriptDef := &ScriptDef{}
+	assert.Nil(t, scriptDef.Deserialize([]byte(plainScriptJson), ScriptJson, nil, nil, "", nil))
+	testCreatorCalculateOutput(t, scriptDef)
+}
+
+func TestCreatorCalculateOutputYaml(t *testing.T) {
+	scriptDef := jsonToYamlToScriptDef(t)
+	testCreatorCalculateOutput(t, scriptDef)
+}
+
+func testLookup(t *testing.T, scriptDef *ScriptDef) {
 	var err error
 	var vars eval.VarValuesMap
 	var isMatch bool
 
-	newScript := &ScriptDef{}
-	assert.Nil(t, newScript.Deserialize([]byte(plainScriptJson), nil, nil, "", nil))
-
 	// Invalid (writer) field in aggregate, tweak sum() arg
 
-	err = newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"expression": "sum(l.field_int2)"`, `"expression": "sum(w.field_int1)"`, 1)),
+	err = scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"expression": "sum(l.field_int2)"`, `"expression": "sum(w.field_int1)"`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "invalid field(s) in target table field expression: [prohibited field w.field_int1]")
 
 	// Filter calculation
 
 	vars = eval.VarValuesMap{"l": {"field_int2": 101}}
-	isMatch, _ = newScript.ScriptNodes["join_table1_table2"].Lookup.CheckFilterCondition(vars)
+	isMatch, _ = scriptDef.ScriptNodes["join_table1_table2"].Lookup.CheckFilterCondition(vars)
 	assert.True(t, isMatch)
 
 	vars = eval.VarValuesMap{"l": {"field_int2": 100}}
-	isMatch, _ = newScript.ScriptNodes["join_table1_table2"].Lookup.CheckFilterCondition(vars)
+	isMatch, _ = scriptDef.ScriptNodes["join_table1_table2"].Lookup.CheckFilterCondition(vars)
 	assert.False(t, isMatch)
 
 	// bad index_name, tweak it
 
-	err = newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"index_name": "idx_table2_string2"`, `"index_name": "idx_table2_string2_bad"`, 1)),
+	err = scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"index_name": "idx_table2_string2"`, `"index_name": "idx_table2_string2_bad"`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "cannot find the node that creates index [idx_table2_string2_bad]")
 
 	// bad join_on, tweak it
 
-	err = newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"join_on": "r.field_string1"`, `"join_on": ""`, 1)),
+	err = scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"join_on": "r.field_string1"`, `"join_on": ""`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "expected a comma-separated list of <table_name>.<field_name>, got []")
 
-	err = newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"join_on": "r.field_string1"`, `"join_on": "bla"`, 1)),
+	err = scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"join_on": "r.field_string1"`, `"join_on": "bla"`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "expected a comma-separated list of <table_name>.<field_name>, got [bla]")
 
-	err = newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"join_on": "r.field_string1"`, `"join_on": "bla.bla"`, 1)),
+	err = scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"join_on": "r.field_string1"`, `"join_on": "bla.bla"`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "source table name [bla] unknown, expected [r]")
 
-	err = newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"join_on": "r.field_string1"`, `"join_on": "r.field_string1_bad"`, 1)),
+	err = scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"join_on": "r.field_string1"`, `"join_on": "r.field_string1_bad"`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "source [r] does not produce field [field_string1_bad]")
 
-	err = newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"join_on": "r.field_string1"`, `"join_on": "r.field_int1"`, 1)),
+	err = scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"join_on": "r.field_string1"`, `"join_on": "r.field_int1"`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "left-side field field_int1 has type int, while index field field_string2 has type string")
 
 	// bad filter, tweak it
 
-	err = newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"filter": "l.field_int2 > 100"`, `"filter": "r.field_int2 > 100"`, 1)),
+	err = scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"filter": "l.field_int2 > 100"`, `"filter": "r.field_int2 > 100"`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "invalid field in lookup filter [r.field_int2 > 100], only fields from the lookup table [table2](alias l) are allowed: [unknown field r.field_int2]")
 
 	// bad join_type, tweak it
 
-	err = newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"join_type": "left"`, `"join_type": "left_bad"`, 1)),
+	err = scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"join_type": "left"`, `"join_type": "left_bad"`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "invalid join type, expected inner or left, left_bad is not supported")
 }
 
-func TestBadCreatorHaving(t *testing.T) {
-	var err error
+func TestLookupJson(t *testing.T) {
+	scriptDef := &ScriptDef{}
+	assert.Nil(t, scriptDef.Deserialize([]byte(plainScriptJson), ScriptJson, nil, nil, "", nil))
+	testLookup(t, scriptDef)
+}
 
-	newScript := &ScriptDef{}
-	assert.Nil(t, newScript.Deserialize([]byte(plainScriptJson), nil, nil, "", nil))
+func TestLookupYaml(t *testing.T) {
+	scriptDef := jsonToYamlToScriptDef(t)
+	testLookup(t, scriptDef)
+}
 
+func testBadCreatorHaving(t *testing.T, scriptDef *ScriptDef) {
 	// Bad expression, tweak having expression
 
-	err = newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"having": "w.total_value > 2"`, `"having": "w.total_value &> 2"`, 1)),
+	err := scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"having": "w.total_value > 2"`, `"having": "w.total_value &> 2"`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "cannot parse table creator 'having' condition [w.total_value &> 2]")
 
-	err = newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"having": "w.total_value > 3"`, `"having": "w.bad_field &> 3"`, 1)),
+	err = scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"having": "w.total_value > 3"`, `"having": "w.bad_field &> 3"`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "cannot parse file creator 'having' condition [w.bad_field &> 3]")
 
 	// Unknown field in having
 
-	err = newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"having": "w.total_value > 2"`, `"having": "w.bad_field > 2"`, 1)),
+	err = scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"having": "w.total_value > 2"`, `"having": "w.bad_field > 2"`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "invalid field in table creator 'having' condition: [unknown field w.bad_field]")
 
-	err = newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"having": "w.total_value > 3"`, `"having": "w.bad_field > 3"`, 1)),
+	err = scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"having": "w.total_value > 3"`, `"having": "w.bad_field > 3"`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "invalid field in file creator 'having' condition: [unknown field w.bad_field]]")
 
 	// Prohibited reader field in having
 
-	err = newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"having": "w.total_value > 2"`, `"having": "r.field_int1 > 2"`, 1)),
+	err = scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"having": "w.total_value > 2"`, `"having": "r.field_int1 > 2"`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "invalid field in table creator 'having' condition: [prohibited field r.field_int1]")
 
-	err = newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"having": "w.total_value > 3"`, `"having": "r.field_int1 > 3"`, 1)),
+	err = scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"having": "w.total_value > 3"`, `"having": "r.field_int1 > 3"`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "invalid field in file creator 'having' condition: [prohibited field r.field_int1]")
 
 	// Prohibited lookup field in table creator having
 
-	err = newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"having": "w.total_value > 2"`, `"having": "l.field_int2 > 2"`, 1)),
+	err = scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"having": "w.total_value > 2"`, `"having": "l.field_int2 > 2"`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "invalid field in table creator 'having' condition: [prohibited field l.field_int2]")
 
 	// Type mismatch in having
 
-	err = newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"having": "w.total_value > 2"`, `"having": "w.total_value == true"`, 1)),
+	err = scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"having": "w.total_value > 2"`, `"having": "w.total_value == true"`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "cannot evaluate table creator 'having' expression [w.total_value == true]: [cannot perform binary comp op, incompatible arg types '0(int64)' == 'true(bool)' ]")
 
-	err = newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"having": "w.total_value > 3"`, `"having": "w.total_value == true"`, 1)),
+	err = scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"having": "w.total_value > 3"`, `"having": "w.total_value == true"`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "cannot evaluate file creator 'having' expression [w.total_value == true]: [cannot perform binary comp op, incompatible arg types '0(decimal.Decimal)' == 'true(bool)' ]")
-
 }
 
-func TestTopLimit(t *testing.T) {
-	var err error
+func TestBadCreatorHavingJson(t *testing.T) {
+	scriptDef := &ScriptDef{}
+	assert.Nil(t, scriptDef.Deserialize([]byte(plainScriptJson), ScriptJson, nil, nil, "", nil))
+	testBadCreatorHaving(t, scriptDef)
+}
 
-	newScript := &ScriptDef{}
-	assert.Nil(t, newScript.Deserialize([]byte(plainScriptJson), nil, nil, "", nil))
+func TestBadCreatorHavingYaml(t *testing.T) {
+	scriptDef := jsonToYamlToScriptDef(t)
+	testBadCreatorHaving(t, scriptDef)
+}
 
-	assert.Equal(t, "w", newScript.ScriptNodes["file_totals"].GetTargetName())
+func testTopLimit(t *testing.T, scriptDef *ScriptDef) {
+	assert.Equal(t, "w", scriptDef.ScriptNodes["file_totals"].GetTargetName())
 
 	// Tweak limit beyond allowed maximum
 
-	err = newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"limit": 5000000`, `"limit": 5000001`, 1)),
+	err := scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"limit": 5000000`, `"limit": 5000001`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "top.limit cannot exceed 5000000")
 
 	// Remove limit altogether
 
-	assert.Nil(t, newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"limit": 5000000`, `"some_bogus_setting": 5000000`, 1)),
+	assert.Nil(t, scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"limit": 5000000`, `"some_bogus_setting": 5000000`, 1)), ScriptJson,
 		nil, nil, "", nil))
-	assert.Equal(t, 5000000, newScript.ScriptNodes["file_totals"].FileCreator.Top.Limit)
+	assert.Equal(t, 5000000, scriptDef.ScriptNodes["file_totals"].FileCreator.Top.Limit)
 }
 
-func TestBatchIntervalsCalculation(t *testing.T) {
-	newScript := &ScriptDef{}
-	assert.Nil(t, newScript.Deserialize([]byte(plainScriptJson), nil, nil, "", nil))
+func TestTopLimitJson(t *testing.T) {
+	scriptDef := &ScriptDef{}
+	assert.Nil(t, scriptDef.Deserialize([]byte(plainScriptJson), ScriptJson, nil, nil, "", nil))
+	testTopLimit(t, scriptDef)
+}
 
+func TestTopLimitYaml(t *testing.T) {
+	scriptDef := jsonToYamlToScriptDef(t)
+	testTopLimit(t, scriptDef)
+}
+
+func testBatchIntervalsCalculation(t *testing.T, scriptDef *ScriptDef) {
 	var intervals [][]int64
 
-	tableReaderNodeDef := newScript.ScriptNodes["join_table1_table2"]
+	tableReaderNodeDef := scriptDef.ScriptNodes["join_table1_table2"]
 	intervals, _ = tableReaderNodeDef.GetTokenIntervalsByNumberOfBatches()
 
 	assert.Equal(t, 2, len(intervals))
@@ -503,7 +557,7 @@ func TestBatchIntervalsCalculation(t *testing.T) {
 		assert.Equal(t, int64(9223372036854775807), intervals[1][1])
 	}
 
-	fileReaderNodeDef := newScript.ScriptNodes["read_table1"]
+	fileReaderNodeDef := scriptDef.ScriptNodes["read_table1"]
 	intervals, _ = fileReaderNodeDef.GetTokenIntervalsByNumberOfBatches()
 
 	assert.Equal(t, 1, len(intervals))
@@ -512,7 +566,7 @@ func TestBatchIntervalsCalculation(t *testing.T) {
 		assert.Equal(t, int64(0), intervals[0][1])
 	}
 
-	fileCreatorNodeDef := newScript.ScriptNodes["file_totals"]
+	fileCreatorNodeDef := scriptDef.ScriptNodes["file_totals"]
 	intervals, _ = fileCreatorNodeDef.GetTokenIntervalsByNumberOfBatches()
 
 	assert.Equal(t, 1, len(intervals))
@@ -522,11 +576,19 @@ func TestBatchIntervalsCalculation(t *testing.T) {
 	}
 }
 
-func TestUniqueIndexesFieldRefs(t *testing.T) {
-	newScript := &ScriptDef{}
-	assert.Nil(t, newScript.Deserialize([]byte(plainScriptJson), nil, nil, "", nil))
+func TestBatchIntervalsCalculationJson(t *testing.T) {
+	scriptDef := &ScriptDef{}
+	assert.Nil(t, scriptDef.Deserialize([]byte(plainScriptJson), ScriptJson, nil, nil, "", nil))
+	testBatchIntervalsCalculation(t, scriptDef)
+}
 
-	fileReaderNodeDef := newScript.ScriptNodes["read_table2"]
+func TestBatchIntervalsCalculationYaml(t *testing.T) {
+	scriptDef := jsonToYamlToScriptDef(t)
+	testBatchIntervalsCalculation(t, scriptDef)
+}
+
+func testUniqueIndexesFieldRefs(t *testing.T, scriptDef *ScriptDef) {
+	fileReaderNodeDef := scriptDef.ScriptNodes["read_table2"]
 	fieldRefs := fileReaderNodeDef.GetUniqueIndexesFieldRefs()
 	assert.Equal(t, 1, len(*fieldRefs))
 	if len(*fieldRefs) == 1 {
@@ -536,19 +598,25 @@ func TestUniqueIndexesFieldRefs(t *testing.T) {
 	}
 }
 
-func TestAffectedNodes(t *testing.T) {
-	var affectedNodes []string
+func TestUniqueIndexesFieldRefsJson(t *testing.T) {
+	scriptDef := &ScriptDef{}
+	assert.Nil(t, scriptDef.Deserialize([]byte(plainScriptJson), ScriptJson, nil, nil, "", nil))
+	testUniqueIndexesFieldRefs(t, scriptDef)
+}
 
-	newScript := &ScriptDef{}
-	assert.Nil(t, newScript.Deserialize([]byte(plainScriptJson), nil, nil, "", nil))
+func TestUniqueIndexesFieldRefsYaml(t *testing.T) {
+	scriptDef := jsonToYamlToScriptDef(t)
+	testUniqueIndexesFieldRefs(t, scriptDef)
+}
 
-	affectedNodes = newScript.GetAffectedNodes([]string{"read_table1"})
+func testAffectedNodes(t *testing.T, scriptDef *ScriptDef) {
+	affectedNodes := scriptDef.GetAffectedNodes([]string{"read_table1"})
 	assert.Equal(t, 4, len(affectedNodes))
 	assert.Contains(t, affectedNodes, "read_table1")
 	assert.Contains(t, affectedNodes, "join_table1_table2")
 	assert.Contains(t, affectedNodes, "file_totals")
 
-	affectedNodes = newScript.GetAffectedNodes([]string{"read_table1", "read_table2"})
+	affectedNodes = scriptDef.GetAffectedNodes([]string{"read_table1", "read_table2"})
 	assert.Equal(t, 5, len(affectedNodes))
 	assert.Contains(t, affectedNodes, "read_table1")
 	assert.Contains(t, affectedNodes, "read_table2")
@@ -557,43 +625,53 @@ func TestAffectedNodes(t *testing.T) {
 
 	// Make join manual and see the list of affected nodes shrinking
 
-	assert.Nil(t, newScript.Deserialize([]byte(strings.Replace(plainScriptJson, `"start_policy": "auto"`, `"start_policy": "manual"`, 1)), nil, nil, "", nil))
+	assert.Nil(t, scriptDef.Deserialize([]byte(strings.Replace(plainScriptJson, `"start_policy": "auto"`, `"start_policy": "manual"`, 1)), ScriptJson, nil, nil, "", nil))
 
-	affectedNodes = newScript.GetAffectedNodes([]string{"read_table1"})
+	affectedNodes = scriptDef.GetAffectedNodes([]string{"read_table1"})
 	assert.Equal(t, 2, len(affectedNodes))
 	assert.Contains(t, affectedNodes, "read_table1")
 
-	affectedNodes = newScript.GetAffectedNodes([]string{"read_table1", "read_table2"})
+	affectedNodes = scriptDef.GetAffectedNodes([]string{"read_table1", "read_table2"})
 	assert.Equal(t, 3, len(affectedNodes))
 	assert.Contains(t, affectedNodes, "read_table1")
 	assert.Contains(t, affectedNodes, "read_table2")
 }
 
+func TestAffectedNodesJson(t *testing.T) {
+	scriptDef := &ScriptDef{}
+	assert.Nil(t, scriptDef.Deserialize([]byte(plainScriptJson), ScriptJson, nil, nil, "", nil))
+	testAffectedNodes(t, scriptDef)
+}
+
+func TestAffectedNodesYaml(t *testing.T) {
+	scriptDef := jsonToYamlToScriptDef(t)
+	testAffectedNodes(t, scriptDef)
+}
+
 func TestUnusedIndex(t *testing.T) {
-	newScript := &ScriptDef{}
-	err := newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"idx_table2_string2": "unique(field_string2)"`, `"idx_table2_string2": "unique(field_string2)", "idx_bad_extra": "non_unique(field_int2)"`, 1)),
+	scriptDef := &ScriptDef{}
+	err := scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"idx_table2_string2": "unique(field_string2)"`, `"idx_table2_string2": "unique(field_string2)", "idx_bad_extra": "non_unique(field_int2)"`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "consider removing this index")
 }
 
 func TestDistinct(t *testing.T) {
-	newScript := &ScriptDef{}
-	err := newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"rerun_policy": "fail"`, `"rerun_policy": "rerun"`, 1)),
+	scriptDef := &ScriptDef{}
+	err := scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"rerun_policy": "fail"`, `"rerun_policy": "rerun"`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "distinct_table node must have fail policy")
 
-	newScript = &ScriptDef{}
-	err = newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"idx_distinct_table1_field_int1": "unique(field_int1)"`, `"idx_bad_non_unique": "non_unique(field_int1)"`, 1)),
+	scriptDef = &ScriptDef{}
+	err = scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"idx_distinct_table1_field_int1": "unique(field_int1)"`, `"idx_bad_non_unique": "non_unique(field_int1)"`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "expected exactly one unique idx definition")
 
-	newScript = &ScriptDef{}
-	err = newScript.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"idx_distinct_table1_field_int1": "unique(field_int1)"`, `"idx_distinct_table1_field_int1": "unique(field_int1)", "idx_bad_extra_unique": "unique(field_string1)"`, 1)),
+	scriptDef = &ScriptDef{}
+	err = scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `"idx_distinct_table1_field_int1": "unique(field_int1)"`, `"idx_distinct_table1_field_int1": "unique(field_int1)", "idx_bad_extra_unique": "unique(field_string1)"`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "expected exactly one unique idx definition")
-
 }

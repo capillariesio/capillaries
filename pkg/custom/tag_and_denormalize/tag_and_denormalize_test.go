@@ -140,7 +140,7 @@ const scriptJson string = `
 		}
 	},
 	"dependency_policies": {
-		"current_active_first_stopped_nogo":` + sc.DefaultPolicyCheckerConf +
+		"current_active_first_stopped_nogo":` + sc.DefaultPolicyCheckerConfJson +
 	`		
 	}
 }`
@@ -150,7 +150,7 @@ func TestTagAndDenormalizeDeserializeFileCriteria(t *testing.T) {
 
 	re := regexp.MustCompile(`"tag_criteria": \{[^\}]+\}`)
 	err := scriptDef.Deserialize(
-		[]byte(re.ReplaceAllString(scriptJson, `"tag_criteria_uri": "../../../test/data/cfg/tag_and_denormalize_quicktest/tag_criteria.json"`)),
+		[]byte(re.ReplaceAllString(scriptJson, `"tag_criteria_uri": "../../../test/data/cfg/tag_and_denormalize_quicktest/tag_criteria.json"`)), sc.ScriptJson,
 		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil)
 	assert.Nil(t, err)
 
@@ -162,7 +162,7 @@ func TestTagAndDenormalizeDeserializeFileCriteria(t *testing.T) {
 func TestTagAndDenormalizeRunEmbeddedCriteria(t *testing.T) {
 	scriptDef := &sc.ScriptDef{}
 
-	err := scriptDef.Deserialize([]byte(scriptJson), &TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil)
+	err := scriptDef.Deserialize([]byte(scriptJson), sc.ScriptJson, &TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil)
 	assert.Nil(t, err)
 
 	tndProcessor, ok := scriptDef.ScriptNodes["tag_products"].CustomProcessor.(*TagAndDenormalizeProcessorDef)
@@ -237,7 +237,7 @@ func TestTagAndDenormalizeRunEmbeddedCriteria(t *testing.T) {
 
 	// Bad function used
 	assert.Nil(t, scriptDef.Deserialize(
-		[]byte(re.ReplaceAllString(scriptJson, `"tag_criteria": {"boys":"re.BadGoMethod(\"aaa\")"}`)),
+		[]byte(re.ReplaceAllString(scriptJson, `"tag_criteria": {"boys":"re.BadGoMethod(\"aaa\")"}`)), sc.ScriptJson,
 		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil))
 
 	tndProcessor, ok = scriptDef.ScriptNodes["tag_products"].CustomProcessor.(*TagAndDenormalizeProcessorDef)
@@ -249,7 +249,7 @@ func TestTagAndDenormalizeRunEmbeddedCriteria(t *testing.T) {
 
 	// Bad type
 	assert.Nil(t, scriptDef.Deserialize(
-		[]byte(re.ReplaceAllString(scriptJson, `"tag_criteria": {"boys":"math.Round(1.1)"}`)),
+		[]byte(re.ReplaceAllString(scriptJson, `"tag_criteria": {"boys":"math.Round(1.1)"}`)), sc.ScriptJson,
 		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil))
 	tndProcessor, ok = scriptDef.ScriptNodes["tag_products"].CustomProcessor.(*TagAndDenormalizeProcessorDef)
 	assert.True(t, ok)
@@ -264,40 +264,40 @@ func TestTagAndDenormalizeDeserializeFailures(t *testing.T) {
 
 	// Exercise checkFieldUsageInCustomProcessor() error code path
 	err := scriptDef.Deserialize(
-		[]byte(strings.ReplaceAll(scriptJson, `r.product_spec`, `w.product_spec`)),
+		[]byte(strings.ReplaceAll(scriptJson, `r.product_spec`, `w.product_spec`)), sc.ScriptJson,
 		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil)
 	assert.Contains(t, err.Error(), "unknown field w.product_spec")
 
 	// Prohibited field
 	err = scriptDef.Deserialize(
-		[]byte(strings.Replace(scriptJson, `"having": "len(w.tag) > 0"`, `"having": "len(p.tag) > 0"`, 1)),
+		[]byte(strings.Replace(scriptJson, `"having": "len(w.tag) > 0"`, `"having": "len(p.tag) > 0"`, 1)), sc.ScriptJson,
 		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil)
 	assert.Contains(t, err.Error(), "prohibited field p.tag")
 
 	// Bad criteria
 	re := regexp.MustCompile(`"tag_criteria": \{[^\}]+\}`)
 	err = scriptDef.Deserialize(
-		[]byte(re.ReplaceAllString(scriptJson, `"some_bogus_key": 123`)),
+		[]byte(re.ReplaceAllString(scriptJson, `"some_bogus_key": 123`)), sc.ScriptJson,
 		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil)
 	assert.Contains(t, err.Error(), "cannot unmarshal with tag_criteria and tag_criteria_url missing")
 
 	err = scriptDef.Deserialize(
-		[]byte(re.ReplaceAllString(scriptJson, `"tag_criteria":{"a":"b"},"tag_criteria_uri":"aaa"`)),
+		[]byte(re.ReplaceAllString(scriptJson, `"tag_criteria":{"a":"b"},"tag_criteria_uri":"aaa"`)), sc.ScriptJson,
 		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil)
 	assert.Contains(t, err.Error(), "cannot unmarshal both tag_criteria and tag_criteria_url - pick one")
 
 	err = scriptDef.Deserialize(
-		[]byte(re.ReplaceAllString(scriptJson, `"tag_criteria_uri":"aaa"`)),
+		[]byte(re.ReplaceAllString(scriptJson, `"tag_criteria_uri":"aaa"`)), sc.ScriptJson,
 		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil)
 	assert.Contains(t, err.Error(), "cannot get criteria file")
 
 	err = scriptDef.Deserialize(
-		[]byte(re.ReplaceAllString(scriptJson, `"tag_criteria": ["boys"]`)),
+		[]byte(re.ReplaceAllString(scriptJson, `"tag_criteria": ["boys"]`)), sc.ScriptJson,
 		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil)
 	assert.Contains(t, err.Error(), "cannot unmarshal array into Go struct")
 
 	err = scriptDef.Deserialize(
-		[]byte(re.ReplaceAllString(scriptJson, `"tag_criteria": {"boys":"["}`)),
+		[]byte(re.ReplaceAllString(scriptJson, `"tag_criteria": {"boys":"["}`)), sc.ScriptJson,
 		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil)
 	assert.Contains(t, err.Error(), "cannot parse tag criteria expression")
 }

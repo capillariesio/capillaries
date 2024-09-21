@@ -1,0 +1,382 @@
+---
+  nodes: 
+    read_order_items: 
+      type: "file_table"
+      desc: "Load order item data from CSV files to a table, one input file - one batch"
+      explicit_run_only: true
+      r: 
+        urls: 
+          - "{dir_in}/olist_order_items_dataset00.csv"
+          - "{dir_in}/olist_order_items_dataset01.csv"
+          - "{dir_in}/olist_order_items_dataset02.csv"
+          - "{dir_in}/olist_order_items_dataset03.csv"
+          - "{dir_in}/olist_order_items_dataset04.csv"
+        csv: 
+          hdr_line_idx: 0
+          first_data_line_idx: 1
+        columns: 
+          col_order_id: 
+            csv: 
+              col_idx: 0
+              col_hdr: null
+            col_type: "string"
+          col_order_item_id: 
+            csv: 
+              col_idx: 1
+              col_hdr: null
+              col_format: "%d"
+            col_type: "int"
+          col_shipping_limit_date: 
+            csv: 
+              col_idx: 4
+              col_hdr: null
+              col_format: "2006-01-02 15:04:05"
+            col_type: "datetime"
+          col_price: 
+            csv: 
+              col_idx: 5
+              col_hdr: null
+              col_format: "%f"
+            col_type: "decimal2"
+          col_freight_value: 
+            csv: 
+              col_idx: 6
+              col_hdr: null
+              col_format: "%f"
+            col_type: "decimal2"
+      w: 
+        name: "order_items"
+        having: null
+        fields: 
+          order_id: 
+            expression: "r.col_order_id"
+            type: "string"
+          order_item_id: 
+            expression: "r.col_order_item_id"
+            type: "int"
+          shipping_limit_date: 
+            expression: "r.col_shipping_limit_date"
+            type: "datetime"
+          price: 
+            expression: "r.col_price"
+            type: "decimal2"
+          freight_value: 
+            expression: "r.col_freight_value"
+            type: "decimal2"
+          value: 
+            expression: "r.col_price+r.col_freight_value"
+            type: "decimal2"
+    taxed_order_items_go: 
+      type: "table_table"
+      custom_proc_type: "py_calc"
+      desc: "Apply Go-based calculations to order items"
+      r: 
+        table: "order_items"
+        rowset_size: 1000
+        expected_batches_total: 10
+      w: 
+        name: "taxed_order_items_go"
+        fields: 
+          order_id: 
+            expression: "r.order_id"
+            type: "string"
+          order_item_id: 
+            expression: "r.order_item_id"
+            type: "int"
+          shipping_limit_date: 
+            expression: "r.shipping_limit_date"
+            type: "datetime"
+          price: 
+            expression: "r.price"
+            type: "decimal2"
+          freight_value: 
+            expression: "r.freight_value"
+            type: "decimal2"
+          value: 
+            expression: "r.value"
+            type: "decimal2"
+          taxed_value: 
+            expression: "r.value*decimal2(1.1)"
+            type: "decimal2"
+          taxed_value_divided_by_nine_float: 
+            expression: "float(r.value*decimal2(1.1))/9.0"
+            type: "float"
+          taxed_value_divided_by_nine_decimal: 
+            expression: "decimal2(float(r.value*decimal2(1.1)/9.0))"
+            type: "decimal2"
+    file_taxed_order_items_go: 
+      type: "table_file"
+      desc: "Write Go-based calculations to CSV file, batch by batch"
+      r: 
+        table: "taxed_order_items_go"
+        expected_batches_total: 2
+      w: 
+        top: 
+          order: "order_id(asc),order_item_id(asc)"
+        url_template: "{dir_out}/taxed_order_items_go_{batch_idx}.csv"
+        columns: 
+          - 
+            csv: 
+              header: "order_id"
+              format: "%s"
+            name: "order_id"
+            expression: "r.order_id"
+            type: "string"
+          - 
+            csv: 
+              header: "order_item_id"
+              format: "%05d"
+            name: "order_item_id"
+            expression: "r.order_item_id"
+            type: "int"
+          - 
+            csv: 
+              header: "shipping_limit_date"
+              format: "2006-01-02 15:04:05"
+            name: "shipping_limit_date"
+            expression: "r.shipping_limit_date"
+            type: "datetime"
+          - 
+            csv: 
+              header: "price"
+              format: "%s"
+            name: "price"
+            expression: "r.price"
+            type: "decimal2"
+          - 
+            csv: 
+              header: "freight_value"
+              format: "%s"
+            name: "freigh_value"
+            expression: "r.freight_value"
+            type: "decimal2"
+          - 
+            csv: 
+              header: "value"
+              format: "%s"
+            name: "value"
+            expression: "r.value"
+            type: "decimal2"
+          - 
+            csv: 
+              header: "taxed_value"
+              format: "%s"
+            name: "taxed_value"
+            expression: "r.taxed_value"
+            type: "decimal2"
+          - 
+            csv: 
+              header: "taxed_value_divided_by_nine_float"
+              format: "%f"
+            name: "taxed_value_divided_by_nine_float"
+            expression: "r.taxed_value_divided_by_nine_float"
+            type: "float"
+          - 
+            csv: 
+              header: "taxed_value_divided_by_nine_decimal"
+              format: "%s"
+            name: "taxed_value_divided_by_nine_decimal"
+            expression: "r.taxed_value_divided_by_nine_decimal"
+            type: "decimal2"
+    taxed_order_items_py: 
+      type: "table_custom_tfm_table"
+      custom_proc_type: "py_calc"
+      desc: "Apply Python-based calculations to order items"
+      r: 
+        table: "order_items"
+        rowset_size: 1000
+        expected_batches_total: 10
+      p: 
+        python_code_urls: 
+          - "{dir_py}/calc_order_items_code.py"
+        calculated_fields: 
+          order_id: 
+            expression: "r.order_id"
+            type: "string"
+          order_item_id: 
+            expression: "r.order_item_id"
+            type: "int"
+          taxed_value: 
+            expression: "increase_by_ten_percent(r.value)"
+            type: "decimal2"
+          taxed_value_divided_by_nine_float: 
+            expression: "divide_by_three(divide_by_three(p.taxed_value))"
+            type: "float"
+          taxed_value_divided_by_nine_decimal: 
+            expression: "divide_by_three(divide_by_three(p.taxed_value))"
+            type: "decimal2"
+          shipping_limit_date_monday: 
+            expression: "next_local_monday(r.shipping_limit_date)"
+            type: "datetime"
+          shipping_limit_day_of_week: 
+            expression: "day_of_week(r.shipping_limit_date)"
+            type: "string"
+          shipping_limit_is_weekend: 
+            expression: "is_weekend(r.shipping_limit_date)"
+            type: "bool"
+      w: 
+        name: "taxed_order_items_py"
+        fields: 
+          order_id: 
+            expression: "r.order_id"
+            type: "string"
+          order_item_id: 
+            expression: "r.order_item_id"
+            type: "int"
+          shipping_limit_date: 
+            expression: "r.shipping_limit_date"
+            type: "datetime"
+          price: 
+            expression: "r.price"
+            type: "decimal2"
+          freight_value: 
+            expression: "r.freight_value"
+            type: "decimal2"
+          value: 
+            expression: "r.value"
+            type: "decimal2"
+          taxed_value: 
+            expression: "p.taxed_value"
+            type: "decimal2"
+          taxed_value_divided_by_nine_float: 
+            expression: "p.taxed_value_divided_by_nine_float"
+            type: "float"
+          taxed_value_divided_by_nine_decimal: 
+            expression: "p.taxed_value_divided_by_nine_decimal"
+            type: "decimal2"
+          shipping_limit_date_monday: 
+            expression: "p.shipping_limit_date_monday"
+            type: "datetime"
+          shipping_limit_day_of_week: 
+            expression: "p.shipping_limit_day_of_week"
+            type: "string"
+          shipping_limit_is_weekend: 
+            expression: "p.shipping_limit_is_weekend"
+            type: "bool"
+    file_taxed_order_items_py: 
+      type: "table_file"
+      desc: "Write Python-based calculations to CSV file, batch by batch"
+      r: 
+        table: "taxed_order_items_py"
+        expected_batches_total: 2
+      w: 
+        top: 
+          order: "order_id(asc),order_item_id(asc)"
+        url_template: "{dir_out}/taxed_order_items_py_{batch_idx}.csv"
+        columns: 
+          - 
+            csv: 
+              header: "order_id"
+              format: "%s"
+            name: "order_id"
+            expression: "r.order_id"
+            type: "string"
+          - 
+            csv: 
+              header: "order_item_id"
+              format: "%05d"
+            name: "order_item_id"
+            expression: "r.order_item_id"
+            type: "int"
+          - 
+            csv: 
+              header: "shipping_limit_date"
+              format: "2006-01-02 15:04:05"
+            name: "shipping_limit_date"
+            expression: "r.shipping_limit_date"
+            type: "datetime"
+          - 
+            csv: 
+              header: "price"
+              format: "%s"
+            name: "price"
+            expression: "r.price"
+            type: "decimal2"
+          - 
+            csv: 
+              header: "freight_value"
+              format: "%s"
+            name: "freigh_value"
+            expression: "r.freight_value"
+            type: "decimal2"
+          - 
+            csv: 
+              header: "value"
+              format: "%s"
+            name: "value"
+            expression: "r.value"
+            type: "decimal2"
+          - 
+            csv: 
+              header: "taxed_value"
+              format: "%s"
+            name: "taxed_value"
+            expression: "r.taxed_value"
+            type: "decimal2"
+          - 
+            csv: 
+              header: "taxed_value_divided_by_nine_float"
+              format: "%f"
+            name: "taxed_value_divided_by_nine_float"
+            expression: "r.taxed_value_divided_by_nine_float"
+            type: "float"
+          - 
+            csv: 
+              header: "taxed_value_divided_by_nine_decimal"
+              format: "%s"
+            name: "taxed_value_divided_by_nine_decimal"
+            expression: "r.taxed_value_divided_by_nine_decimal"
+            type: "decimal2"
+          - 
+            csv: 
+              header: "shipping_limit_date_monday"
+              format: "2006-01-02 15:04:05"
+            name: "shipping_limit_date_monday"
+            expression: "r.shipping_limit_date_monday"
+            type: "datetime"
+          - 
+            csv: 
+              header: "shipping_limit_day_of_week"
+              format: "%s"
+            name: "shipping_limit_day_of_week"
+            expression: "r.shipping_limit_day_of_week"
+            type: "string"
+          - 
+            csv: 
+              header: "shipping_limit_is_weekend"
+              format: "%t"
+            name: "shipping_limit_is_weekend"
+            expression: "r.shipping_limit_is_weekend"
+            type: "bool"
+  dependency_policies: 
+    current_active_first_stopped_nogo: 
+      is_default: true
+      event_priority_order: "run_is_current(desc), node_start_ts(desc)"
+      rules: 
+        - 
+          cmd: "go"
+          expression: "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchSuccess"
+        - 
+          cmd: "wait"
+          expression: "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchNone"
+        - 
+          cmd: "wait"
+          expression: "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchStart"
+        - 
+          cmd: "nogo"
+          expression: "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchFail"
+        - 
+          cmd: "go"
+          expression: "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchSuccess"
+        - 
+          cmd: "wait"
+          expression: "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchNone"
+        - 
+          cmd: "wait"
+          expression: "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchStart"
+        - 
+          cmd: "go"
+          expression: "e.run_is_current == false && e.run_final_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchSuccess"
+        - 
+          cmd: "nogo"
+          expression: "e.run_is_current == false && e.run_final_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchFail"

@@ -24,16 +24,16 @@ const (
 )
 
 type WriteCsvColumnSettings struct {
-	Format string `json:"format"`
-	Header string `json:"header"`
+	Format string `json:"format" yaml:"format"`
+	Header string `json:"header" yaml:"header"`
 }
 
 type WriteParquetColumnSettings struct {
-	ColumnName string `json:"column_name"`
+	ColumnName string `json:"column_name" yaml:"column_name"`
 }
 
 type WriteFileColumnDef struct {
-	RawExpression    string                     `json:"expression"`
+	RawExpression    string                     `json:"expression" yaml:"expression"`
 	Name             string                     `json:"name"` // To be used in Having
 	Type             TableFieldType             `json:"type"` // To be checked when checking expressions and to be used in Having
 	Csv              WriteCsvColumnSettings     `json:"csv,omitempty"`
@@ -43,26 +43,26 @@ type WriteFileColumnDef struct {
 }
 
 type TopDef struct {
-	Limit       int    `json:"limit"`
-	RawOrder    string `json:"order"`
+	Limit       int    `json:"limit" yaml:"limit"`
+	RawOrder    string `json:"order" yaml:"order"`
 	OrderIdxDef IdxDef // Not an index really, we just re-use IdxDef infrastructure
 }
 
 type CsvCreatorSettings struct {
-	Separator string `json:"separator"`
+	Separator string `json:"separator" yaml:"separator"`
 }
 
 type ParquetCreatorSettings struct {
-	Codec ParquetCodecType `json:"codec"`
+	Codec ParquetCodecType `json:"codec" yaml:"codec"`
 }
 
 type FileCreatorDef struct {
-	UrlTemplate                   string                 `json:"url_template"`
+	UrlTemplate                   string                 `json:"url_template" yaml:"url_template"`
 	RawHaving                     string                 `json:"having,omitempty"`
 	Top                           TopDef                 `json:"top,omitempty"`
 	Csv                           CsvCreatorSettings     `json:"csv,omitempty"`
 	Parquet                       ParquetCreatorSettings `json:"parquet,omitempty"`
-	Columns                       []WriteFileColumnDef   `json:"columns"`
+	Columns                       []WriteFileColumnDef   `json:"columns" yaml:"columns"`
 	Having                        ast.Expr               `json:"-"`
 	UsedInHavingFields            FieldRefs              `json:"-"`
 	UsedInTargetExpressionsFields FieldRefs              `json:"-"`

@@ -13,7 +13,8 @@ pushd ./test/code/lookup/quicktest_local_fs
 popd
 
 pushd ./test/code/py_calc
-./test_one_run.sh
+./test_one_run_json.sh
+./test_one_run_yaml.sh
 popd
 
 pushd ./test/code/tag_and_denormalize
@@ -44,6 +45,9 @@ pushd ./test/code/tag_and_denormalize
 popd
 
 # s3
+
+# These will require something like
+# export CAPILLARIES_AWS_TESTBUCKET=capillaries-testbucket
 
 pushd ./test/code/lookup/quicktest_s3
 ./test_one_run_local.sh
