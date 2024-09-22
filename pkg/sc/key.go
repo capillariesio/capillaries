@@ -154,7 +154,7 @@ func BuildKey(fieldMap map[string]any, idxDef *IdxDef) (string, error) {
 			}
 
 		default:
-			return "", fmt.Errorf(fmt.Sprintf("cannot build key, unsupported field data type %s", comp.FieldType))
+			return "", fmt.Errorf("cannot build key, unsupported field data type %s", comp.FieldType)
 		}
 
 		// Used by file creator top. Not used by actual indexes - Cassandra cannot do proper ORDER BY anyways

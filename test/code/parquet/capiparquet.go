@@ -224,6 +224,9 @@ func cat(path string) error {
 	if err != nil {
 		return err
 	}
+	if f == nil {
+		return fmt.Errorf("cannot open parquet file %s: unknown error", path)
+	}
 	defer f.Close()
 
 	reader, err := gp.NewFileReader(f)
@@ -338,6 +341,9 @@ func sortFile(path string, idxDef *sc.IdxDef) error {
 	if err != nil {
 		return err
 	}
+	if f == nil {
+		return fmt.Errorf("cannot open parquet file %s: unknown error", path)
+	}
 	defer f.Close()
 
 	reader, err := gp.NewFileReader(f)
@@ -355,7 +361,10 @@ func sortFile(path string, idxDef *sc.IdxDef) error {
 
 	types := make([]sc.TableFieldType, len(fields))
 	for fieldIdx, fieldName := range fields {
-		se, _ := schemaElementMap[fieldName]
+		se, ok := schemaElementMap[fieldName]
+		if !ok {
+			return fmt.Errorf("unexpected missing key %s", fieldName)
+		}
 		types[fieldIdx], err = storage.ParquetGuessCapiType(se)
 		if err != nil {
 			return fmt.Errorf("cannot guess column type %s: %s", fieldName, err.Error())
@@ -389,7 +398,10 @@ func sortFile(path string, idxDef *sc.IdxDef) error {
 		typedData := map[string]any{}
 
 		for colIdx, fieldName := range fields {
-			se, _ := schemaElementMap[fieldName]
+			se, ok := schemaElementMap[fieldName]
+			if !ok {
+				return fmt.Errorf("unexpected missing key %s, col %d", fieldName, colIdx)
+			}
 			volatile, present := d[fieldName]
 			if !present {
 				return fmt.Errorf("cannot handle nil %s, sorry", fieldName)
@@ -499,7 +511,7 @@ func main() {
 		}
 
 		if err := diff(leftPath, rightPath, *isIdenticalSchemas); err != nil {
-			log.Fatalf(err.Error())
+			log.Fatalf("%s", err.Error())
 			os.Exit(1)
 		}
 	case CmdCat:
@@ -513,7 +525,7 @@ func main() {
 		}
 
 		if err := cat(path); err != nil {
-			log.Fatalf(err.Error())
+			log.Fatalf("%s", err.Error())
 			os.Exit(1)
 		}
 	case CmdSort:
@@ -549,7 +561,7 @@ func main() {
 		}
 
 		if err := sortFile(path, &idxDef); err != nil {
-			log.Fatalf(err.Error())
+			log.Fatalf("%s", err.Error())
 			os.Exit(1)
 		}
 	}

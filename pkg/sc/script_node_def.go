@@ -188,7 +188,7 @@ func (node *ScriptNodeDef) initReader() error {
 			node.TableReader.RowsetSize = DefaultRowsetSize
 		}
 		if len(errors) > 0 {
-			return fmt.Errorf(strings.Join(errors, "; "))
+			return fmt.Errorf("%s", strings.Join(errors, "; "))
 		}
 	} else if node.HasFileReader() {
 		if err := node.FileReader.Deserialize(node.RawReader); err != nil {
@@ -288,7 +288,7 @@ func (node *ScriptNodeDef) Deserialize(customProcessorDefFactory CustomProcessor
 	}
 
 	if len(errors) > 0 {
-		return fmt.Errorf(strings.Join(errors, "; "))
+		return fmt.Errorf("%s", strings.Join(errors, "; "))
 	}
 
 	return nil
@@ -351,7 +351,7 @@ func (node *ScriptNodeDef) evalCreatorAndLookupExpressionsAndCheckType() error {
 	// they may contain custom stuff and are pretty much guaranteed to fail
 
 	if len(errors) > 0 {
-		return fmt.Errorf(strings.Join(errors, "; "))
+		return fmt.Errorf("%s", strings.Join(errors, "; "))
 	}
 
 	return nil

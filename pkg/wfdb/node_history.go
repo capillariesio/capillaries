@@ -145,7 +145,7 @@ func SetNodeStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, sta
 
 	if err != nil {
 		err = db.WrapDbErrorWithQuery(fmt.Sprintf("cannot update node %d/%s status to %d", pCtx.BatchInfo.RunId, pCtx.BatchInfo.TargetNodeName, status), q, err)
-		logger.ErrorCtx(pCtx, err.Error())
+		logger.ErrorCtx(pCtx, "%s", err.Error())
 		return false, err
 	}
 	logger.DebugCtx(pCtx, "%d/%s, %s, isApplied=%t", pCtx.BatchInfo.RunId, pCtx.BatchInfo.TargetNodeName, status.ToString(), isApplied)

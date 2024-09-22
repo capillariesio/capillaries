@@ -66,7 +66,10 @@ func readS3File(uri string) ([]byte, error) {
 func UploadS3File(srcPath string, u *url.URL) error {
 	f, err := os.Open(srcPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot open s3 file to upload %s: %s", srcPath, err.Error())
+	}
+	if f == nil {
+		return fmt.Errorf("cannot open s3 file to upload %s: unknown error", srcPath)
 	}
 	defer f.Close()
 

@@ -342,11 +342,13 @@ func ParquetGuessFields(filePath string) ([]*GuessedField, error) {
 	var guessedFields []*GuessedField
 
 	f, err := os.Open(filePath)
-	defer f.Close()
-
-	if f == nil {
+	if err != nil {
 		return guessedFields, fmt.Errorf("cannot open parquet file %s: %s", filePath, err.Error())
 	}
+	if f == nil {
+		return guessedFields, fmt.Errorf("cannot open parquet file %s: unknown error", filePath)
+	}
+	defer f.Close()
 
 	reader, err := gp.NewFileReader(f)
 	if err != nil {

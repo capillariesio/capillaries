@@ -175,7 +175,7 @@ func (procDef *PyCalcProcessorDef) Deserialize(raw json.RawMessage, customProcSe
 	// TODO: deserialize other stuff from raw here if needed
 
 	if len(errors) > 0 {
-		return fmt.Errorf(strings.Join(errors, "; "))
+		return fmt.Errorf("%s", strings.Join(errors, "; "))
 	}
 
 	return nil
@@ -527,7 +527,7 @@ func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput
 
 	if errors.Len() > 0 {
 		// fmt.Println(fmt.Sprintf("%s\nRaw output below:\n%s\nFull codebase below (may be big):\n%s", logText.String(), rawOutput, codeBase.String()))
-		return fmt.Errorf(errors.String())
+		return fmt.Errorf("%s", errors.String())
 	}
 
 	// fmt.Println(fmt.Sprintf("%s\nRaw output below:\n%s", logText.String(), rawOutput))

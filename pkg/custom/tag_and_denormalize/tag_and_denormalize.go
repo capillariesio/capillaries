@@ -90,7 +90,7 @@ func (procDef *TagAndDenormalizeProcessorDef) Deserialize(raw json.RawMessage, _
 	// Later on, checkFieldUsageInCustomProcessor() will verify all fields from procDef.UsedInCriteriaFields are valid reader fields
 
 	if len(errors) > 0 {
-		return fmt.Errorf(strings.Join(errors, "; "))
+		return fmt.Errorf("%s", strings.Join(errors, "; "))
 	}
 	return nil
 }

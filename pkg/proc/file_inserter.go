@@ -60,7 +60,7 @@ func (instr *FileInserter) checkWorkerOutputForErrors() error {
 			}
 		default:
 			if len(errors) > 0 {
-				return fmt.Errorf(strings.Join(errors, "; "))
+				return fmt.Errorf("%s", strings.Join(errors, "; "))
 			} else {
 				return nil
 			}
@@ -102,7 +102,7 @@ func (instr *FileInserter) waitForWorker(logger *l.CapiLogger, pCtx *ctx.Message
 	logger.DebugCtx(pCtx, "closed BatchesIn")
 
 	if len(errors) > 0 {
-		return fmt.Errorf(strings.Join(errors, "; "))
+		return fmt.Errorf("%s", strings.Join(errors, "; "))
 	}
 
 	return nil

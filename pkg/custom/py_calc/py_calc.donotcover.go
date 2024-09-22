@@ -59,13 +59,13 @@ func (procDef *PyCalcProcessorDef) Run(logger *l.CapiLogger, pCtx *ctx.MessagePr
 	if err != nil {
 		fullErrorInfo, err := procDef.analyseExecError(codeBase, rawOutput, rawErrors, err)
 		if len(fullErrorInfo) > 0 {
-			logger.ErrorCtx(pCtx, fullErrorInfo)
+			logger.ErrorCtx(pCtx, "%s", fullErrorInfo)
 		}
-		return fmt.Errorf("Python interpreter returned an error: %s", err)
+		return fmt.Errorf("python interpreter returned an error: %s", err)
 	}
 	if cmdCtx.Err() == context.DeadlineExceeded {
 		// Timeout occurred, err.Error() is probably: 'signal: killed'
-		return fmt.Errorf("Python calculation timeout %d s expired;", timeout)
+		return fmt.Errorf("python calculation timeout %d s expired;", timeout)
 	}
 	return procDef.analyseExecSuccess(codeBase, rawOutput, rawErrors, procDef.GetFieldRefs(), rsIn, flushVarsArray)
 }
