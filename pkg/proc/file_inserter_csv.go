@@ -77,9 +77,11 @@ func (instr *FileInserter) csvFileInserterWorker(logger *l.CapiLogger) {
 	var errOpen error
 	f, err := os.OpenFile(localFilePath, os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
-		errOpen = fmt.Errorf("cannot open %s(temp %s) for appending: [%s]", instr.FinalFileUrl, instr.TempFilePath, err.Error())
+		errOpen = fmt.Errorf("cannot open csv %s(temp %s) for appending: [%s]", instr.FinalFileUrl, instr.TempFilePath, err.Error())
 	}
-	if f != nil {
+	if f == nil {
+		errOpen = fmt.Errorf("cannot open csv %s(temp %s) for appending: unknown error", instr.FinalFileUrl, instr.TempFilePath)
+	} else {
 		defer f.Close()
 	}
 

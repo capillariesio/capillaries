@@ -224,9 +224,10 @@ func cat(path string) error {
 	if err != nil {
 		return err
 	}
-	if f != nil {
-		defer f.Close()
+	if f == nil {
+		return fmt.Errorf("cannot open parquet file %s: unknown error", path)
 	}
+	defer f.Close()
 
 	reader, err := gp.NewFileReader(f)
 	if err != nil {
@@ -340,9 +341,10 @@ func sortFile(path string, idxDef *sc.IdxDef) error {
 	if err != nil {
 		return err
 	}
-	if f != nil {
-		defer f.Close()
+	if f == nil {
+		return fmt.Errorf("cannot open parquet file %s: unknown error", path)
 	}
+	defer f.Close()
 
 	reader, err := gp.NewFileReader(f)
 	if err != nil {

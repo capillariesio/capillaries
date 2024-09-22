@@ -80,11 +80,12 @@ func CsvGuessFields(filePath string, csvHeaderLineIdx int, csvFirstDataLineIdx i
 	var guessedFields []*GuessedField
 	f, err := os.Open(filePath)
 	if err != nil {
-		return guessedFields, fmt.Errorf("cannot open file %s: %s", filePath, err.Error())
+		return guessedFields, fmt.Errorf("cannot open csv file %s: %s", filePath, err.Error())
 	}
-	if f != nil {
-		defer f.Close()
+	if f == nil {
+		return guessedFields, fmt.Errorf("cannot open csv file %s: unknown error", filePath)
 	}
+	defer f.Close()
 
 	fileReader := bufio.NewReader(f)
 	r := csv.NewReader(fileReader)
