@@ -109,7 +109,9 @@ func (instr *FileInserter) parquetFileInserterWorker(logger *l.CapiLogger, codec
 	if err != nil {
 		errOpen = fmt.Errorf("cannot open %s(temp %s) for appending: [%s]", instr.FinalFileUrl, instr.TempFilePath, err.Error())
 	} else {
-		defer f.Close()
+		if f != nil {
+			defer f.Close()
+		}
 
 		w, err = storage.NewParquetWriter(f, codec)
 		if err != nil {

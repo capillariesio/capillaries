@@ -66,7 +66,7 @@ func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 		var checkerLogMsg string
 		dependencyNodeCmds[nodeIdx], dependencyRunIds[nodeIdx], checkerLogMsg, err = dpc.CheckDependencyPolicyAgainstNodeEventList(pCtx.CurrentScriptNode.DepPolDef, nodeEventListMap[depNodeName])
 		if len(checkerLogMsg) > 0 {
-			logger.Debug(checkerLogMsg)
+			logger.Debug("%s", checkerLogMsg)
 		}
 		if err != nil {
 			return sc.NodeNone, 0, 0, err
@@ -251,7 +251,7 @@ func initCtxScript(logger *l.CapiLogger, scriptCache *expirable.LRU[string, stri
 func checkRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, dataBatchInfo *wfmodel.MessagePayloadDataBatch, runStatus wfmodel.RunStatusType) DaemonCmdType {
 	if runStatus == wfmodel.RunNone {
 		comment := fmt.Sprintf("run history status for batch %s is empty, looks like this run %d was never started", dataBatchInfo.FullBatchId(), pCtx.BatchInfo.RunId)
-		logger.ErrorCtx(pCtx, comment)
+		logger.ErrorCtx(pCtx, "%s", comment)
 		if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeBatchRunStopReceived, comment); err != nil {
 			if db.IsDbConnError(err) {
 				return DaemonCmdReconnectDb
@@ -271,7 +271,7 @@ func checkRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, da
 	if runStatus == wfmodel.RunStop {
 		comment := fmt.Sprintf("run stopped, batch %s marked %s", dataBatchInfo.FullBatchId(), wfmodel.NodeBatchRunStopReceived.ToString())
 		if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeBatchRunStopReceived, comment); err != nil {
-			logger.ErrorCtx(pCtx, fmt.Sprintf("%s, cannot set batch status: %s", comment, err.Error()))
+			logger.ErrorCtx(pCtx, "%s, cannot set batch status: %s", comment, err.Error())
 			if db.IsDbConnError(err) {
 				return DaemonCmdReconnectDb
 			}
@@ -279,14 +279,14 @@ func checkRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, da
 		}
 
 		if err := refreshNodeAndRunStatus(logger, pCtx); err != nil {
-			logger.ErrorCtx(pCtx, fmt.Sprintf("%s, cannot refresh status: %s", comment, err.Error()))
+			logger.ErrorCtx(pCtx, "%s, cannot refresh status: %s", comment, err.Error())
 			if db.IsDbConnError(err) {
 				return DaemonCmdReconnectDb
 			}
 			return DaemonCmdAckWithError
 		}
 
-		logger.DebugCtx(pCtx, fmt.Sprintf("%s, status successfully refreshed", comment))
+		logger.DebugCtx(pCtx, "%s, status successfully refreshed", comment)
 		return DaemonCmdAckSuccess
 	} else if runStatus != wfmodel.RunStart {
 		logger.ErrorCtx(pCtx, "cannot process batch %s, run already has unexpected status %d", dataBatchInfo.FullBatchId(), runStatus)
@@ -311,11 +311,11 @@ func checkLastBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingConte
 		if pCtx.CurrentScriptNode.RerunPolicy == sc.NodeRerun {
 			if deleteErr := proc.DeleteDataAndUniqueIndexesByBatchIdx(logger, pCtx); deleteErr != nil {
 				comment := fmt.Sprintf("cannot clean up leftovers of the previous processing of batch %s: %s", pCtx.BatchInfo.FullBatchId(), deleteErr.Error())
-				logger.ErrorCtx(pCtx, comment)
+				logger.ErrorCtx(pCtx, "%s", comment)
 				setBatchStatusErr := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeFail, comment)
 				if setBatchStatusErr != nil {
 					comment += fmt.Sprintf("; cannot set batch status: %s", setBatchStatusErr.Error())
-					logger.ErrorCtx(pCtx, comment)
+					logger.ErrorCtx(pCtx, "%s", comment)
 				}
 				if db.IsDbConnError(deleteErr) {
 					return DaemonCmdReconnectDb
@@ -340,7 +340,7 @@ func checkLastBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingConte
 func checkDependencyNogoOrWait(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, nodeReady sc.ReadyToRunNodeCmdType) DaemonCmdType {
 	if nodeReady == sc.NodeNogo {
 		comment := fmt.Sprintf("some dependency nodes for %s are in bad state, or runs executing dependency nodes were stopped/invalidated, will not run this node; for details, check rules in dependency_policies and previous runs history", pCtx.BatchInfo.FullBatchId())
-		logger.InfoCtx(pCtx, comment)
+		logger.InfoCtx(pCtx, "%s", comment)
 		if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeFail, comment); err != nil {
 			if db.IsDbConnError(err) {
 				return DaemonCmdReconnectDb

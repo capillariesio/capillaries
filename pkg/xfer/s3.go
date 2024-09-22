@@ -68,7 +68,9 @@ func UploadS3File(srcPath string, u *url.URL) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	if f != nil {
+		defer f.Close()
+	}
 
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {

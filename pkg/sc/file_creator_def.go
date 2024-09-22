@@ -184,7 +184,7 @@ func (creatorDef *FileCreatorDef) CalculateFileRecordFromSrcVars(srcVars eval.Va
 	}
 
 	if len(errors) > 0 {
-		return nil, fmt.Errorf(strings.Join(errors, "; "))
+		return nil, fmt.Errorf("%s", strings.Join(errors, "; "))
 	}
 	return fileRecord, nil
 }

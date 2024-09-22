@@ -144,7 +144,7 @@ func selectBatchPagedAllRowids(logger *l.CapiLogger,
 
 	dbWarnings := iter.Warnings()
 	if len(dbWarnings) > 0 {
-		logger.WarnCtx(pCtx, strings.Join(dbWarnings, ";"))
+		logger.WarnCtx(pCtx, "%s", strings.Join(dbWarnings, ";"))
 	}
 
 	rs.RowCount = 0
@@ -196,7 +196,7 @@ func selectBatchFromIdxTablePaged(logger *l.CapiLogger,
 
 	dbWarnings := iter.Warnings()
 	if len(dbWarnings) > 0 {
-		logger.WarnCtx(pCtx, strings.Join(dbWarnings, ";"))
+		logger.WarnCtx(pCtx, "%s", strings.Join(dbWarnings, ";"))
 	}
 
 	rs.RowCount = 0
@@ -247,7 +247,7 @@ func selectBatchFromTableByToken(logger *l.CapiLogger,
 
 	dbWarnings := iter.Warnings()
 	if len(dbWarnings) > 0 {
-		logger.WarnCtx(pCtx, strings.Join(dbWarnings, ";"))
+		logger.WarnCtx(pCtx, "%s", strings.Join(dbWarnings, ";"))
 	}
 	rs.RowCount = 0
 	var lastRetrievedToken int64

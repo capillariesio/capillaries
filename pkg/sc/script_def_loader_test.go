@@ -212,7 +212,7 @@ func (procDef *SomeTestCustomProcessorDef) Deserialize(raw json.RawMessage, _ js
 	}
 
 	if len(errors) > 0 {
-		return fmt.Errorf(strings.Join(errors, ";"))
+		return fmt.Errorf("%s", strings.Join(errors, ";"))
 	}
 
 	procDef.UsedInTargetExpressionsFields = GetFieldRefsUsedInAllTargetExpressions(procDef.ProducedFields)

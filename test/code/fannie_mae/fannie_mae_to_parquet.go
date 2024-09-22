@@ -134,7 +134,9 @@ func getColIdxMap(filePath string) (map[string]int, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot open file %s: %s", filePath, err.Error())
 	}
-	defer f.Close()
+	if f != nil {
+		defer f.Close()
+	}
 
 	//fileReader := bufio.NewReader(f)
 	//r := csv.NewReader(fileReader)

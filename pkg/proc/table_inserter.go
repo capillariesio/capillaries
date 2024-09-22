@@ -154,7 +154,7 @@ func (instr *TableInserter) letWorkersDrainRecordWrittenStatuses(logger *l.CapiL
 	logger.DebugCtx(pCtx, "done draining %d records at RecordsSent=%d from instr.RecordWrittenStatuses, %d errors", drainedRecordCount, instr.RecordsSent, errCount)
 
 	if len(errorsFound) > 0 {
-		return fmt.Errorf(strings.Join(errorsFound, "; "))
+		return fmt.Errorf("%s", strings.Join(errorsFound, "; "))
 	}
 
 	return nil
@@ -167,7 +167,7 @@ func (instr *TableInserter) letWorkersDrainRecordWrittenStatusesAndCloseInserter
 	// If anything was sent at all - drain
 	if instr.RecordsSent > 0 {
 		if err := instr.letWorkersDrainRecordWrittenStatuses(logger, pCtx); err != nil {
-			logger.ErrorCtx(pCtx, fmt.Sprintf("error(s) while waiting for workers to drain RecordsIn: %s", err.Error()))
+			logger.ErrorCtx(pCtx, "error(s) while waiting for workers to drain RecordsIn: %s", err.Error())
 		}
 	}
 
@@ -405,7 +405,7 @@ func (instr *TableInserter) insertDataRecord(logger *l.CapiLogger, writeItem *Wr
 
 		if !errors.Is(err, ErrDuplicateRowid) {
 			errorToReturn := fmt.Errorf("cannot insert data record [%s]: %s", pq.Query, err.Error())
-			logger.ErrorCtx(instr.PCtx, errorToReturn.Error())
+			logger.ErrorCtx(instr.PCtx, "%s", errorToReturn.Error())
 			return curRowid, errorToReturn
 		} else if retryCount < maxRetries-1 {
 			rowidRand.Seed(newSeed(instr.MachineHash))
@@ -415,7 +415,7 @@ func (instr *TableInserter) insertDataRecord(logger *l.CapiLogger, writeItem *Wr
 	}
 
 	errorToReturn := fmt.Errorf("duplicate rowid not written [%s], giving up after %d rowid retries", pq.Query, maxRetries)
-	logger.ErrorCtx(instr.PCtx, errorToReturn.Error())
+	logger.ErrorCtx(instr.PCtx, "%s", errorToReturn.Error())
 	return curRowid, errorToReturn
 }
 
@@ -610,7 +610,7 @@ func (instr *TableInserter) insertDistinctIdxAndDataRecords(logger *l.CapiLogger
 	} // retry loop
 
 	errorToReport := fmt.Errorf("cannot insert distinct idx/data records after %d attempts", maxRetries)
-	logger.ErrorCtx(pCtx, errorToReport.Error())
+	logger.ErrorCtx(pCtx, "%s", errorToReport.Error())
 	return curRowid, errorToReport
 }
 

@@ -662,14 +662,14 @@ func main() {
 
 	envConfig, err := env.ReadEnvConfigFile(initCtx, "capiwebapi.json")
 	if err != nil {
-		log.Fatalf(err.Error())
+		log.Fatalf("%s", err.Error())
 	}
 
 	// Webapi (like toolbelt and daemon) requires custom proc def factory, otherwise it will not be able to start runs
 	envConfig.CustomProcessorDefFactoryInstance = &StandardWebapiProcessorDefFactory{}
 	logger, err := l.NewLoggerFromEnvConfig(envConfig)
 	if err != nil {
-		log.Fatalf(err.Error())
+		log.Fatalf("%s", err.Error())
 	}
 	defer logger.Close()
 
@@ -697,6 +697,6 @@ func main() {
 
 	logger.Info("listening on %d...", h.Env.Webapi.Port)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", h.Env.Webapi.Port), mux); err != nil {
-		log.Fatalf(err.Error())
+		log.Fatalf("%s", err.Error())
 	}
 }

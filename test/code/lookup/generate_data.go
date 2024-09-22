@@ -140,35 +140,35 @@ func shuffleAndSaveInOrders(inOrders []*Order, totalChunks int, basePath string,
 				}
 				parquetWriter, err = storage.NewParquetWriter(fParquet, sc.ParquetCodecGzip)
 				if err != nil {
-					log.Fatalf(err.Error())
+					log.Fatalf("%s", err.Error())
 				}
 				if err := parquetWriter.AddColumn("order_id", sc.FieldTypeString); err != nil {
-					log.Fatalf(err.Error())
+					log.Fatalf("%s", err.Error())
 				}
 				if err := parquetWriter.AddColumn("customer_id", sc.FieldTypeString); err != nil {
-					log.Fatalf(err.Error())
+					log.Fatalf("%s", err.Error())
 				}
 				if err := parquetWriter.AddColumn("order_status", sc.FieldTypeString); err != nil {
-					log.Fatalf(err.Error())
+					log.Fatalf("%s", err.Error())
 				}
 				if err := parquetWriter.AddColumn("order_purchase_timestamp", sc.FieldTypeDateTime); err != nil {
-					log.Fatalf(err.Error())
+					log.Fatalf("%s", err.Error())
 				}
 				if err := parquetWriter.AddColumn("order_approved_at", sc.FieldTypeDateTime); err != nil {
-					log.Fatalf(err.Error())
+					log.Fatalf("%s", err.Error())
 				}
 				if err := parquetWriter.AddColumn("order_delivered_carrier_date", sc.FieldTypeDateTime); err != nil {
-					log.Fatalf(err.Error())
+					log.Fatalf("%s", err.Error())
 				}
 				if err := parquetWriter.AddColumn("order_delivered_customer_date", sc.FieldTypeDateTime); err != nil {
-					log.Fatalf(err.Error())
+					log.Fatalf("%s", err.Error())
 				}
 				if err := parquetWriter.AddColumn("order_estimated_delivery_date", sc.FieldTypeDateTime); err != nil {
-					log.Fatalf(err.Error())
+					log.Fatalf("%s", err.Error())
 				}
 				// Test only
 				// if err := w.AddColumn("is_sent", sc.FieldTypeBool); err != nil {
-				// 	log.Fatalf(err.Error())
+				// 	log.Fatalf("%s", err.Error())
 				// }
 			}
 		}
@@ -197,7 +197,7 @@ func shuffleAndSaveInOrders(inOrders []*Order, totalChunks int, basePath string,
 				"order_estimated_delivery_date": storage.ParquetWriterMilliTs(item.OrderEstimateDeliveryTs),
 				// "is_sent":                  !item.OrderDeliveredCarrierTs.Equal(sc.DefaultDateTime()),
 			}); err != nil {
-				log.Fatalf(err.Error())
+				log.Fatalf("%s", err.Error())
 			}
 		}
 		chunkLineCount++
@@ -264,28 +264,28 @@ func shuffleAndSaveInOrderItems(inOrderItems []*OrderItem, totalChunks int, base
 				}
 				parquetWriter, err = storage.NewParquetWriter(fParquet, sc.ParquetCodecGzip)
 				if err != nil {
-					log.Fatalf(err.Error())
+					log.Fatalf("%s", err.Error())
 				}
 				if err := parquetWriter.AddColumn("order_id", sc.FieldTypeString); err != nil {
-					log.Fatalf(err.Error())
+					log.Fatalf("%s", err.Error())
 				}
 				if err := parquetWriter.AddColumn("order_item_id", sc.FieldTypeInt); err != nil {
-					log.Fatalf(err.Error())
+					log.Fatalf("%s", err.Error())
 				}
 				if err := parquetWriter.AddColumn("product_id", sc.FieldTypeString); err != nil {
-					log.Fatalf(err.Error())
+					log.Fatalf("%s", err.Error())
 				}
 				if err := parquetWriter.AddColumn("seller_id", sc.FieldTypeString); err != nil {
-					log.Fatalf(err.Error())
+					log.Fatalf("%s", err.Error())
 				}
 				if err := parquetWriter.AddColumn("shipping_limit_date", sc.FieldTypeDateTime); err != nil {
-					log.Fatalf(err.Error())
+					log.Fatalf("%s", err.Error())
 				}
 				if err := parquetWriter.AddColumn("price", sc.FieldTypeDecimal2); err != nil {
-					log.Fatalf(err.Error())
+					log.Fatalf("%s", err.Error())
 				}
 				if err := parquetWriter.AddColumn("freight_value", sc.FieldTypeDecimal2); err != nil {
-					log.Fatalf(err.Error())
+					log.Fatalf("%s", err.Error())
 				}
 			}
 		}
@@ -309,7 +309,7 @@ func shuffleAndSaveInOrderItems(inOrderItems []*OrderItem, totalChunks int, base
 				"price":               storage.ParquetWriterDecimal2(item.Price),
 				"freight_value":       storage.ParquetWriterDecimal2(item.FreightValue),
 			}); err != nil {
-				log.Fatalf(err.Error())
+				log.Fatalf("%s", err.Error())
 			}
 		}
 
@@ -376,26 +376,26 @@ func sortAndSaveNoGroup(items []*NoGroupItem, fileBase string, formats string) {
 
 		w, err := storage.NewParquetWriter(fParquet, sc.ParquetCodecGzip)
 		if err != nil {
-			log.Fatalf(err.Error())
+			log.Fatalf("%s", err.Error())
 		}
 
 		if err := w.AddColumn("order_id", sc.FieldTypeString); err != nil {
-			log.Fatalf(err.Error())
+			log.Fatalf("%s", err.Error())
 		}
 		if err := w.AddColumn("order_item_id", sc.FieldTypeInt); err != nil {
-			log.Fatalf(err.Error())
+			log.Fatalf("%s", err.Error())
 		}
 		if err := w.AddColumn("product_id", sc.FieldTypeString); err != nil {
-			log.Fatalf(err.Error())
+			log.Fatalf("%s", err.Error())
 		}
 		if err := w.AddColumn("seller_id", sc.FieldTypeString); err != nil {
-			log.Fatalf(err.Error())
+			log.Fatalf("%s", err.Error())
 		}
 		if err := w.AddColumn("shipping_limit_date", sc.FieldTypeDateTime); err != nil {
-			log.Fatalf(err.Error())
+			log.Fatalf("%s", err.Error())
 		}
 		if err := w.AddColumn("value", sc.FieldTypeDecimal2); err != nil {
-			log.Fatalf(err.Error())
+			log.Fatalf("%s", err.Error())
 		}
 
 		for _, item := range items {
@@ -407,7 +407,7 @@ func sortAndSaveNoGroup(items []*NoGroupItem, fileBase string, formats string) {
 				"shipping_limit_date": storage.ParquetWriterMilliTs(item.ShippingLimitDate),
 				"value":               storage.ParquetWriterDecimal2(item.OrderItemValue),
 			}); err != nil {
-				log.Fatalf(err.Error())
+				log.Fatalf("%s", err.Error())
 			}
 		}
 
@@ -470,35 +470,35 @@ func sortAndSaveGroup(items []*GroupItem, fileBase string, formats string) {
 
 		w, err := storage.NewParquetWriter(fParquet, sc.ParquetCodecGzip)
 		if err != nil {
-			log.Fatalf(err.Error())
+			log.Fatalf("%s", err.Error())
 		}
 
 		if err := w.AddColumn("total_value", sc.FieldTypeDecimal2); err != nil {
-			log.Fatalf(err.Error())
+			log.Fatalf("%s", err.Error())
 		}
 		if err := w.AddColumn("order_purchase_timestamp", sc.FieldTypeDateTime); err != nil {
-			log.Fatalf(err.Error())
+			log.Fatalf("%s", err.Error())
 		}
 		if err := w.AddColumn("order_id", sc.FieldTypeString); err != nil {
-			log.Fatalf(err.Error())
+			log.Fatalf("%s", err.Error())
 		}
 		if err := w.AddColumn("avg_value", sc.FieldTypeDecimal2); err != nil {
-			log.Fatalf(err.Error())
+			log.Fatalf("%s", err.Error())
 		}
 		if err := w.AddColumn("min_value", sc.FieldTypeDecimal2); err != nil {
-			log.Fatalf(err.Error())
+			log.Fatalf("%s", err.Error())
 		}
 		if err := w.AddColumn("max_value", sc.FieldTypeDecimal2); err != nil {
-			log.Fatalf(err.Error())
+			log.Fatalf("%s", err.Error())
 		}
 		if err := w.AddColumn("min_product_id", sc.FieldTypeString); err != nil {
-			log.Fatalf(err.Error())
+			log.Fatalf("%s", err.Error())
 		}
 		if err := w.AddColumn("max_product_id", sc.FieldTypeString); err != nil {
-			log.Fatalf(err.Error())
+			log.Fatalf("%s", err.Error())
 		}
 		if err := w.AddColumn("item_count", sc.FieldTypeInt); err != nil {
-			log.Fatalf(err.Error())
+			log.Fatalf("%s", err.Error())
 		}
 
 		for _, item := range items {
@@ -513,7 +513,7 @@ func sortAndSaveGroup(items []*GroupItem, fileBase string, formats string) {
 				"max_product_id":           item.MaxProductId,
 				"item_count":               item.ActualItemsInOrder,
 			}); err != nil {
-				log.Fatalf(err.Error())
+				log.Fatalf("%s", err.Error())
 			}
 		}
 

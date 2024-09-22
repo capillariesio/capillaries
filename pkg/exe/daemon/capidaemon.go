@@ -51,13 +51,13 @@ func main() {
 
 	envConfig, err := env.ReadEnvConfigFile(initCtx, "capidaemon.json")
 	if err != nil {
-		log.Fatalf(err.Error())
+		log.Fatalf("%s", err.Error())
 	}
 	envConfig.CustomProcessorDefFactoryInstance = &StandardDaemonProcessorDefFactory{}
 
 	logger, err := l.NewLoggerFromEnvConfig(envConfig)
 	if err != nil {
-		log.Fatalf(err.Error())
+		log.Fatalf("%s", err.Error())
 	}
 	defer logger.Close()
 

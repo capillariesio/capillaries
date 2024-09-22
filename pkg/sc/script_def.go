@@ -115,7 +115,7 @@ func (scriptDef *ScriptDef) Deserialize(jsonOrYamlBytesScript []byte, scriptType
 	}
 
 	if len(errors) > 0 {
-		return fmt.Errorf(strings.Join(errors, "; "))
+		return fmt.Errorf("%s", strings.Join(errors, "; "))
 	}
 
 	// Table -> node map, to look for ord and lkp indexes, for those nodes that create tables

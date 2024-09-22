@@ -168,7 +168,7 @@ func SetBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, st
 	err := pCtx.CqlSession.Query(q).Exec()
 	if err != nil {
 		err := db.WrapDbErrorWithQuery(fmt.Sprintf("cannot write batch %s status %d", pCtx.BatchInfo.FullBatchId(), status), q, err)
-		logger.ErrorCtx(pCtx, err.Error())
+		logger.ErrorCtx(pCtx, "%s", err.Error())
 		return err
 	}
 
