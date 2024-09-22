@@ -1,4 +1,4 @@
-# <img src="doc/logo.svg" alt="logo" width="60"/> Capillaries <div style="float:right;"> [![coveralls](https://coveralls.io/repos/github/capillariesio/capillaries/badge.svg?branch=main)](https://coveralls.io/github/capillariesio/capillaries?branch=main) [![goreport](https://goreportcard.com/badge/github.com/capillariesio/capillaries)](https://goreportcard.com/report/github.com/capillariesio/capillaries) [![Go Reference](https://pkg.go.dev/badge/github.com/capillariesio/capillaries.svg)](https://pkg.go.dev/github.com/capillariesio/capillaries)</div>
+# <img src="doc/logo.svg" alt="logo" width="60"/> <a href="capillaries.io">Capillaries</a> <div style="float:right;"> [![coveralls](https://coveralls.io/repos/github/capillariesio/capillaries/badge.svg?branch=main)](https://coveralls.io/github/capillariesio/capillaries?branch=main) [![goreport](https://goreportcard.com/badge/github.com/capillariesio/capillaries)](https://goreportcard.com/report/github.com/capillariesio/capillaries) [![Go Reference](https://pkg.go.dev/badge/github.com/capillariesio/capillaries.svg)](https://pkg.go.dev/github.com/capillariesio/capillaries)</div>
 
 
 Capillaries is a data processing framework that:
@@ -83,10 +83,10 @@ Cassandra read/write statistics collected by Prometheus available at:
 ### Kubernetes
 There is a [Kubernetes deployment POC](./test/k8s/README.md), but it may require some work: Minikube cluster setup, S3 buckets with proper permissions, S3-based Docker image repositories.
 
-### Blog at capillaries.io
+### Blog at <a href="capillaries.io/blog">capillaries.io</a>
 For more details about this particular demo, see Capillaries blog: [Use Capillaries to calculate ARK portfolio performance](https://capillaries.io/blog/2023-04-08-portfolio/index.html). To learn how this demo runs on a bigger dataset with 14 million transactions, see [Capillaries: ARK portfolio performance calculation at scale](https://capillaries.io/blog/2023-11-15-portfolio-scale/index.html).
 
-### More introduction
+### Further introduction
 For more details about getting started, see [Getting started](doc/started.md).
 
 ### Deploy Capillaries at scale
