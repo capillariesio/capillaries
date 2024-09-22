@@ -37,10 +37,18 @@ func (procDef *TagAndDenormalizeProcessorDef) GetUsedInTargetExpressionsFields()
 	return &procDef.UsedInCriteriaFields
 }
 
-func (procDef *TagAndDenormalizeProcessorDef) Deserialize(raw json.RawMessage, _ json.RawMessage, caPath string, privateKeys map[string]string) error {
+func (procDef *TagAndDenormalizeProcessorDef) Deserialize(raw json.RawMessage, _ json.RawMessage, scriptType sc.ScriptType, caPath string, privateKeys map[string]string) error {
 	var err error
-	if err = json.Unmarshal(raw, procDef); err != nil {
-		return fmt.Errorf("cannot unmarshal tag_and_denormalize processor def: %s", err.Error())
+	if scriptType == sc.ScriptJson {
+		if err = json.Unmarshal(raw, procDef); err != nil {
+			return fmt.Errorf("cannot unmarshal tag_and_denormalize processor def json: %s", err.Error())
+		}
+	} else if scriptType == sc.ScriptYaml {
+		if err = json.Unmarshal(raw, procDef); err != nil {
+			return fmt.Errorf("cannot unmarshal tag_and_denormalize processor def yaml: %s", err.Error())
+		}
+	} else {
+		return fmt.Errorf("cannot unmarshal tag_and_denormalize processor def: json or yaml expected")
 	}
 
 	if err := envconfig.Process(context.TODO(), procDef); err != nil {

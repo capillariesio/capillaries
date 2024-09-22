@@ -9,7 +9,7 @@ type CustomProcessorDefFactory interface {
 }
 
 type CustomProcessorDef interface {
-	Deserialize(raw json.RawMessage, customProcSettings json.RawMessage, caPath string, privateKeys map[string]string) error
+	Deserialize(raw json.RawMessage, customProcSettings json.RawMessage, scriptType ScriptType, caPath string, privateKeys map[string]string) error
 	GetFieldRefs() *FieldRefs
 	GetUsedInTargetExpressionsFields() *FieldRefs
 }

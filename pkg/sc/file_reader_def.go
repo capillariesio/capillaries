@@ -22,16 +22,16 @@ type ParquetReaderColumnSettings struct {
 }
 
 type FileReaderColumnDef struct {
-	DefaultValue string                      `json:"col_default_value,omitempty"` // Optional. If omitted, zero value is used
-	Type         TableFieldType              `json:"col_type"`
-	Csv          CsvReaderColumnSettings     `json:"csv,omitempty"`
-	Parquet      ParquetReaderColumnSettings `json:"parquet,omitempty"`
+	DefaultValue string                      `json:"col_default_value,omitempty" yaml:"col_default_value,omitempty"` // Optional. If omitted, zero value is used
+	Type         TableFieldType              `json:"col_type" yaml:"col_type"`
+	Csv          CsvReaderColumnSettings     `json:"csv,omitempty" yaml:"csv,omitempty"`
+	Parquet      ParquetReaderColumnSettings `json:"parquet,omitempty" yaml:"parquet,omitempty"`
 }
 
 type CsvReaderSettings struct {
-	SrcFileHdrLineIdx       int                    `json:"hdr_line_idx"`
-	SrcFileFirstDataLineIdx int                    `json:"first_data_line_idx,omitempty"`
-	Separator               string                 `json:"separator,omitempty"`
+	SrcFileHdrLineIdx       int                    `json:"hdr_line_idx" yaml:"hdr_line_idx"`
+	SrcFileFirstDataLineIdx int                    `json:"first_data_line_idx,omitempty" yaml:"first_data_line_idx,omitempty"`
+	Separator               string                 `json:"separator,omitempty" yaml:"separator,omitempty"`
 	ColumnIndexingMode      FileColumnIndexingMode `json:"-"`
 }
 
@@ -42,9 +42,9 @@ const (
 )
 
 type FileReaderDef struct {
-	SrcFileUrls    []string                        `json:"urls"`
-	Csv            CsvReaderSettings               `json:"csv,omitempty"`
-	Columns        map[string]*FileReaderColumnDef `json:"columns"` // Keys are names used in table writer
+	SrcFileUrls    []string                        `json:"urls" yaml:"urls"`
+	Csv            CsvReaderSettings               `json:"csv,omitempty" yaml:"csv,omitempty"`
+	Columns        map[string]*FileReaderColumnDef `json:"columns" yaml:"columns"` // Keys are names used in table writer
 	ReaderFileType int                             `json:"-"`
 }
 

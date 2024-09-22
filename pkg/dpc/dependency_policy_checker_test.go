@@ -25,7 +25,7 @@ func TestDefaultDependencyPolicyChecker(t *testing.T) {
 			NodeStatusTs:   time.Date(2000, 1, 1, 0, 0, 2, 0, time.UTC)}}
 
 	polDef := sc.DependencyPolicyDef{}
-	if err := polDef.Deserialize([]byte(sc.DefaultPolicyCheckerConf)); err != nil {
+	if err := polDef.Deserialize([]byte(sc.DefaultPolicyCheckerConfJson), sc.ScriptJson); err != nil {
 		t.Error(err)
 		return
 	}
@@ -113,7 +113,7 @@ func TestDefaultDependencyPolicyChecker(t *testing.T) {
 	// Failures
 
 	re := regexp.MustCompile(`"expression": "e\.run[^"]+"`)
-	err = polDef.Deserialize([]byte(re.ReplaceAllString(sc.DefaultPolicyCheckerConf, `"expression": "1"`)))
+	err = polDef.Deserialize([]byte(re.ReplaceAllString(sc.DefaultPolicyCheckerConfJson, `"expression": "1"`)), sc.ScriptJson)
 	assert.Nil(t, err)
 	_, _, _, err = CheckDependencyPolicyAgainstNodeEventList(&polDef, events)
 	assert.Contains(t, err.Error(), "expected result type was bool, got int64")

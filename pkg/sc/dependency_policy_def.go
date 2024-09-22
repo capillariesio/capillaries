@@ -10,7 +10,7 @@ import (
 )
 
 // This conf should be never referenced in prod code. It's always in the the config.json. Or in the unit tests. Or in helper tools.
-const DefaultPolicyCheckerConf string = `
+const DefaultPolicyCheckerConfJson string = `
 {
 	"is_default": true,
 	"event_priority_order": "run_is_current(desc),node_start_ts(desc)",
@@ -39,15 +39,15 @@ const (
 )
 
 type DependencyRule struct {
-	Cmd              ReadyToRunNodeCmdType `json:"cmd"`
-	RawExpression    string                `json:"expression"`
+	Cmd              ReadyToRunNodeCmdType `json:"cmd" yaml:"cmd"`
+	RawExpression    string                `json:"expression" yaml:"expression"`
 	ParsedExpression ast.Expr
 }
 
 type DependencyPolicyDef struct {
-	EventPriorityOrderString string           `json:"event_priority_order"`
-	IsDefault                bool             `json:"is_default"`
-	Rules                    []DependencyRule `json:"rules"`
+	EventPriorityOrderString string           `json:"event_priority_order" yaml:"event_priority_order"`
+	IsDefault                bool             `json:"is_default" yaml:"is_default"`
+	Rules                    []DependencyRule `json:"rules" yaml:"rules"`
 	OrderIdxDef              IdxDef
 }
 
@@ -65,19 +65,19 @@ func NewFieldRefsFromNodeEvent() *FieldRefs {
 		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "node_status_ts", FieldType: FieldTypeDateTime}}
 }
 
-func (polDef *DependencyPolicyDef) Deserialize(rawPol json.RawMessage) error {
-	var err error
-	if err = json.Unmarshal(rawPol, polDef); err != nil {
+func (polDef *DependencyPolicyDef) Deserialize(rawPol json.RawMessage, scriptType ScriptType) error {
+	if err := JsonOrYamlUnmarshal(scriptType, rawPol, polDef); err != nil {
 		return fmt.Errorf("cannot unmarshal dependency policy: [%s]", err.Error())
 	}
 
-	if err = polDef.parseEventPriorityOrderString(); err != nil {
+	if err := polDef.parseEventPriorityOrderString(); err != nil {
 		return err
 	}
 
 	vars := wfmodel.NewVarsFromDepCtx(wfmodel.DependencyNodeEvent{})
 	for ruleIdx := 0; ruleIdx < len(polDef.Rules); ruleIdx++ {
 		usedFieldRefs := FieldRefs{}
+		var err error
 		polDef.Rules[ruleIdx].ParsedExpression, err = ParseRawGolangExpressionStringAndHarvestFieldRefs(polDef.Rules[ruleIdx].RawExpression, &usedFieldRefs)
 		if err != nil {
 			return fmt.Errorf("cannot parse rule expression '%s': %s", polDef.Rules[ruleIdx].RawExpression, err.Error())

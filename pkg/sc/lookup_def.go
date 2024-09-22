@@ -16,18 +16,18 @@ const (
 )
 
 type LookupDef struct {
-	IndexName                string         `json:"index_name"`
-	RawJoinOn                string         `json:"join_on"`
-	IsGroup                  bool           `json:"group"`
-	RawFilter                string         `json:"filter"`
-	LookupJoin               LookupJoinType `json:"join_type"`
-	IdxReadBatchSize         int            `json:"idx_read_batch_size"`
-	RightLookupReadBatchSize int            `json:"right_lookup_read_batch_size"`
+	IndexName                string         `json:"index_name" yaml:"index_name"`
+	RawJoinOn                string         `json:"join_on" yaml:"join_on"`
+	IsGroup                  bool           `json:"group" yaml:"group"`
+	RawFilter                string         `json:"filter" yaml:"filter"`
+	LookupJoin               LookupJoinType `json:"join_type" yaml:"join_type"`
+	IdxReadBatchSize         int            `json:"idx_read_batch_size" yaml:"idx_read_batch_size"`
+	RightLookupReadBatchSize int            `json:"right_lookup_read_batch_size" yaml:"right_lookup_read_batch_size"`
 
 	LeftTableFields    FieldRefs        // In the same order as lookup idx - important
 	TableCreator       *TableCreatorDef // Populated when walking through al nodes
 	UsedInFilterFields FieldRefs
-	Filter             ast.Expr
+	Filter             ast.Expr `yaml:"-"`
 }
 
 const (

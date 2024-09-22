@@ -1,6 +1,6 @@
 #!/bin/bash
 
-keyspace="lookup_quicktest"
+keyspace="lookup_quicktest_exec_nodes"
 cfgDir=/tmp/capi_cfg/lookup_quicktest
 outDir=/tmp/capi_out/lookup_quicktest
 scriptFile=$cfgDir/script.json

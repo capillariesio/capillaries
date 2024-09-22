@@ -19,17 +19,17 @@ const AllowedTableNameRegex = "[A-Za-z0-9_]+"
 const AllowedIdxNameRegex = "^idx[A-Za-z0-9_]+"
 
 type TableUpdaterDef struct {
-	Fields map[string]*WriteTableFieldDef `json:"fields"`
+	Fields map[string]*WriteTableFieldDef `json:"fields" yaml:"fields"`
 }
 
 type TableCreatorDef struct {
-	Name                          string                         `json:"name"`
-	RawHaving                     string                         `json:"having,omitempty"`
+	Name                          string                         `json:"name" yaml:"name"`
+	RawHaving                     string                         `json:"having,omitempty" yaml:"having,omitempty"`
 	Having                        ast.Expr                       `json:"-"`
 	UsedInHavingFields            FieldRefs                      `json:"-"`
 	UsedInTargetExpressionsFields FieldRefs                      `json:"-"`
-	Fields                        map[string]*WriteTableFieldDef `json:"fields,omitempty"`
-	RawIndexes                    map[string]string              `json:"indexes,omitempty"`
+	Fields                        map[string]*WriteTableFieldDef `json:"fields,omitempty" yaml:"fields,omitempty"`
+	RawIndexes                    map[string]string              `json:"indexes,omitempty" yaml:"indexes,omitempty"`
 	Indexes                       IdxDefMap                      `json:"-"`
 }
 

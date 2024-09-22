@@ -778,7 +778,7 @@ func protoFileReaderCreator() int {
 		tgtFileFinalPath,
 		string(tableReaderBytes),
 		topRemover.ReplaceAllString(fieldSettingsRemover.ReplaceAllString(string(fileCreatorBytes), ""), ""),
-		sc.DefaultPolicyCheckerConf)
+		sc.DefaultPolicyCheckerConfJson)
 
 	finalJsonBytes := bytes.Buffer{}
 	errMarshal = json.Indent(&finalJsonBytes, []byte(finalJson), "", " ")

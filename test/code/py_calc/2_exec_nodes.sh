@@ -4,7 +4,7 @@
 # - this script is run from test/code/py_calc
 # - python interpreter is available by name 'python' (see environment config files capidaemon.json and capitoolbelt.json)
 
-keyspace="py_calc_quicktest"
+keyspace="py_calc_quicktest_json"
 cfgDir=/tmp/capi_cfg/py_calc_quicktest
 outDir=/tmp/capi_out/py_calc_quicktest
 scriptFile=$cfgDir/script.json

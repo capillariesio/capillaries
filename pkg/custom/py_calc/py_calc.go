@@ -77,13 +77,12 @@ func harvestCallExp(callExp *ast.CallExpr, sigMap map[string]struct{}) error {
 	return nil
 }
 
-func (procDef *PyCalcProcessorDef) Deserialize(raw json.RawMessage, customProcSettings json.RawMessage, caPath string, privateKeys map[string]string) error {
-	var err error
-	if err = json.Unmarshal(raw, procDef); err != nil {
+func (procDef *PyCalcProcessorDef) Deserialize(raw json.RawMessage, customProcSettings json.RawMessage, scriptType sc.ScriptType, caPath string, privateKeys map[string]string) error {
+	if err := sc.JsonOrYamlUnmarshal(scriptType, raw, procDef); err != nil {
 		return fmt.Errorf("cannot unmarshal py_calc processor def: %s", err.Error())
 	}
 
-	if err = json.Unmarshal(customProcSettings, &procDef.EnvSettings); err != nil {
+	if err := sc.JsonOrYamlUnmarshal(scriptType, customProcSettings, &procDef.EnvSettings); err != nil {
 		return fmt.Errorf("cannot unmarshal py_calc processor env settings: %s", err.Error())
 	}
 
@@ -104,7 +103,7 @@ func (procDef *PyCalcProcessorDef) Deserialize(raw json.RawMessage, customProcSe
 
 	// Calculated fields
 	for _, fieldDef := range procDef.CalculatedFields {
-
+		var err error
 		// Use relaxed Go parser for Python - we are lucky that Go designers liked Python, so we do not have to implement a separate Python partser (for now)
 		if fieldDef.ParsedExpression, err = sc.ParseRawRelaxedGolangExpressionStringAndHarvestFieldRefs(fieldDef.RawExpression, &fieldDef.UsedFields, sc.FieldRefAllowUnknownIdents); err != nil {
 			errors = append(errors, fmt.Sprintf("cannot parse field expression [%s]: [%s]", fieldDef.RawExpression, err.Error()))
@@ -168,6 +167,7 @@ func (procDef *PyCalcProcessorDef) Deserialize(raw json.RawMessage, customProcSe
 	}
 
 	// Check DAG and return calc fields in the order they should be calculated
+	var err error
 	if procDef.CalculationOrder, err = kahn(dag); err != nil {
 		errors = append(errors, fmt.Sprintf("%s. Calc dependency map:\n%v", err, dag))
 	}

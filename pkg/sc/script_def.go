@@ -11,9 +11,17 @@ const (
 	ReservedParamRunId    string = "{run_id|string}"
 )
 
+type ScriptType string
+
+const (
+	ScriptJson    ScriptType = "json"
+	ScriptYaml    ScriptType = "yaml"
+	ScriptUnknown ScriptType = "unknown"
+)
+
 type ScriptDef struct {
-	ScriptNodes           map[string]*ScriptNodeDef  `json:"nodes"`
-	RawDependencyPolicies map[string]json.RawMessage `json:"dependency_policies"`
+	ScriptNodes           map[string]*ScriptNodeDef  `json:"nodes" yaml:"nodes"`
+	RawDependencyPolicies map[string]json.RawMessage `json:"dependency_policies" yaml:"dependency_policies"`
 	TableCreatorNodeMap   map[string](*ScriptNodeDef)
 	IndexNodeMap          map[string](*ScriptNodeDef)
 }
@@ -49,13 +57,13 @@ func (scriptDef *ScriptDef) buildTableCreatorNodeMap() error {
 	return nil
 }
 
-func (scriptDef *ScriptDef) checkDependencyPolicyUsage() error {
+func (scriptDef *ScriptDef) checkDependencyPolicyUsage(scriptType ScriptType) error {
 	depPolMap := map[string](*DependencyPolicyDef){}
 	defaultDepPolCount := 0
 	var defaultDepPol *DependencyPolicyDef
 	for polName, rawPolDef := range scriptDef.RawDependencyPolicies {
 		pol := DependencyPolicyDef{}
-		if err := pol.Deserialize(rawPolDef); err != nil {
+		if err := pol.Deserialize(rawPolDef, scriptType); err != nil {
 			return fmt.Errorf("failed to deserialize dependency policy %s: %s", polName, err.Error())
 		}
 		depPolMap[polName] = &pol
@@ -90,10 +98,10 @@ func (scriptDef *ScriptDef) checkDependencyPolicyUsage() error {
 	return nil
 }
 
-func (scriptDef *ScriptDef) Deserialize(jsonBytesScript []byte, customProcessorDefFactory CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage, caPath string, privateKeys map[string]string) error {
+func (scriptDef *ScriptDef) Deserialize(jsonOrYamlBytesScript []byte, scriptType ScriptType, customProcessorDefFactory CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage, caPath string, privateKeys map[string]string) error {
 
-	if err := json.Unmarshal(jsonBytesScript, &scriptDef); err != nil {
-		return fmt.Errorf("cannot unmarshal script json: [%s]", err.Error())
+	if err := JsonOrYamlUnmarshal(scriptType, jsonOrYamlBytesScript, &scriptDef); err != nil {
+		return fmt.Errorf("cannot unmarshal script: [%s]", err.Error())
 	}
 
 	errors := make([]string, 0, 2)
@@ -101,7 +109,7 @@ func (scriptDef *ScriptDef) Deserialize(jsonBytesScript []byte, customProcessorD
 	// Deserialize node by node
 	for nodeName, node := range scriptDef.ScriptNodes {
 		node.Name = nodeName
-		if err := node.Deserialize(customProcessorDefFactory, customProcessorsSettings, caPath, privateKeys); err != nil {
+		if err := node.Deserialize(customProcessorDefFactory, customProcessorsSettings, scriptType, caPath, privateKeys); err != nil {
 			errors = append(errors, fmt.Sprintf("cannot deserialize node %s: [%s]", nodeName, err.Error()))
 		}
 	}
@@ -159,7 +167,7 @@ func (scriptDef *ScriptDef) Deserialize(jsonBytesScript []byte, customProcessorD
 		}
 	}
 
-	return scriptDef.checkDependencyPolicyUsage()
+	return scriptDef.checkDependencyPolicyUsage(scriptType)
 }
 
 func (scriptDef *ScriptDef) resolveReader(node *ScriptNodeDef) error {
