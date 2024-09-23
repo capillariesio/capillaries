@@ -8,24 +8,34 @@
 	export let batch_history = [];
 
 	let nodeElapsed = 0;
-	let nonStartedBatches = '';
-	let startedBatches = '';
-	let runningBatches = '';
-	let finishedBatches = '';
-	let svgSummary = '';
-	let executionDetailsVisible = false;
 	let elapsedAverage = 0;
 	let elapsedMedian = 0;
 
-	function findMedian(arr) {
- 	   arr.sort((a, b) => a - b);
-	    const middleIndex = Math.floor(arr.length / 2);
+	let nonStartedBatchesPercent = 100;
+	let nonStartedBatchesRatio = '';
+	let nonStartedBatches = '';
+	let startedBatchesPercent = 0;
+	let startedBatchesRatio = '';
+	let startedBatches = '';
+	let runningBatchesPercent = 0;
+	let runningBatchesRatio = '';
+	let runningBatches = '';
+	let finishedBatchesPercent = 0;
+	let finishedBatchesRatio = '';
+	let finishedBatches = '';
 
-    	if (arr.length % 2 === 0) {
-        	return (arr[middleIndex - 1] + arr[middleIndex]) / 2;
-    	} else {
-        	return arr[middleIndex];
-	    }
+	let svgSummary = '';
+	let executionDetailsVisible = false;
+
+	function findMedian(arr) {
+		arr.sort((a, b) => a - b);
+		const middleIndex = Math.floor(arr.length / 2);
+
+		if (arr.length % 2 === 0) {
+			return (arr[middleIndex - 1] + arr[middleIndex]) / 2;
+		} else {
+			return arr[middleIndex];
+		}
 	}
 
 	function arrayToReadable(arr) {
@@ -93,16 +103,37 @@
 			}
 		}
 
-		nonStartedBatches = arrayToReadable(
-			[...Array(batch_history[0].batches_total).keys()].filter((i) => !(i in batchStartMap))
+		let nonStartedBatchesArray = [...Array(batch_history[0].batches_total).keys()].filter(
+			(i) => !(i in batchStartMap)
 		);
-		startedBatches = arrayToReadable(Array.from(Object.keys(batchStartMap)));
-		runningBatches = arrayToReadable(
-			Array.from(runningBatchSet).sort(function (a, b) {
-				return a - b;
-			})
-		);
-		finishedBatches = arrayToReadable(Array.from(Object.keys(batchEndMap)));
+		nonStartedBatchesPercent =
+			(nonStartedBatchesArray.length.toString() / batch_history[0].batches_total.toString()) * 100;
+		nonStartedBatchesRatio =
+			nonStartedBatchesArray.length.toString() + '/' + batch_history[0].batches_total.toString();
+		nonStartedBatches = arrayToReadable(nonStartedBatchesArray);
+
+		let startedBatchesArray = Array.from(Object.keys(batchStartMap));
+		startedBatchesPercent =
+			(startedBatchesArray.length.toString() / batch_history[0].batches_total.toString()) * 100;
+		startedBatchesRatio =
+			startedBatchesArray.length.toString() + '/' + batch_history[0].batches_total.toString();
+		startedBatches = arrayToReadable(startedBatchesArray);
+
+		let runningBatchesArray = Array.from(runningBatchSet).sort(function (a, b) {
+			return a - b;
+		});
+		runningBatchesPercent =
+			(runningBatchesArray.length.toString() / batch_history[0].batches_total.toString()) * 100;
+		runningBatchesRatio =
+			runningBatchesArray.length.toString() + '/' + batch_history[0].batches_total.toString();
+		runningBatches = arrayToReadable(runningBatchesArray);
+
+		let finishedBatchesArray = Array.from(Object.keys(batchEndMap));
+		finishedBatchesPercent =
+			(finishedBatchesArray.length.toString() / batch_history[0].batches_total.toString()) * 100;
+		finishedBatchesRatio =
+			finishedBatchesArray.length.toString() + '/' + batch_history[0].batches_total.toString();
+		finishedBatches = arrayToReadable(finishedBatchesArray);
 
 		if (earliestTs != null && latestTs != null && batch_history[0].batches_total > 1) {
 			executionDetailsVisible = true;
@@ -127,7 +158,8 @@
 					svgSummary += `<path d="M${startX},${topY} L${endX},${topY} L${endX},${bottomY} L${startX},${bottomY} Z" fill="${nodeStatusToColor(
 						batchStatusMap[batchIdx]
 					)}" ><title>Batch ${batchIdx} ${(
-						(batchEndMap[batchIdx] - batchStartMap[batchIdx]) / 1000
+						(batchEndMap[batchIdx] - batchStartMap[batchIdx]) /
+						1000
 					).toFixed(1)}s</title></path>`;
 				}
 			}
@@ -139,7 +171,7 @@
 			svgSummary += '</svg>';
 		}
 
-		var elapsed = []
+		var elapsed = [];
 		var elapsedSum = 0;
 		for (let i = 0; i < batch_history.length; i++) {
 			let e = batch_history[i];
@@ -174,38 +206,47 @@
 			</td>
 			<td>
 				{#if executionDetailsVisible}
-				<table>
-					<tbody>
-						<tr>
-							<td>Elapsed:</td>
-							<td>{nodeElapsed}s</td>
-						</tr>
-						<tr>
-							<td>Elapsed average:</td>
-							<td>{elapsedAverage}s</td>
-						</tr>
-						<tr>
-							<td>Elapsed median:</td>
-							<td>{elapsedMedian}s</td>
-						</tr>
-						<tr>
-							<td>Batches not started:</td>
-							<td>{nonStartedBatches}</td>
-						</tr>
-						<tr>
-							<td>Batches started:</td>
-							<td>{startedBatches}</td>
-						</tr>
-						<tr>
-							<td>Batches running:</td>
-							<td>{runningBatches}</td>
-						</tr>
-						<tr>
-							<td>Batches finished:</td>
-							<td>{finishedBatches}</td>
-						</tr>
-					</tbody>
-				</table>
+					<table>
+						<tbody>
+							<tr>
+								<td>Elapsed:</td>
+								<td>{nodeElapsed}s</td>
+								<td colspan="2">(not very useful, skewed by other nodes)</td>
+							</tr>
+							<tr>
+								<td>Elapsed average:</td>
+								<td colspan="3">{elapsedAverage}s</td>
+							</tr>
+							<tr>
+								<td>Elapsed median:</td>
+								<td colspan="3">{elapsedMedian}s</td>
+							</tr>
+							<tr>
+								<td>Batches not started:</td>
+								<td style="text-align: right; width:1%;">{nonStartedBatchesPercent.toFixed(0)}%</td>
+								<td style="text-align: right; width:1%;">{nonStartedBatchesRatio}</td>
+								<td>{nonStartedBatches}</td>
+							</tr>
+							<tr>
+								<td>Batches started:</td>
+								<td style="text-align: right; width:1%;">{startedBatchesPercent.toFixed(0)}%</td>
+								<td style="text-align: right; width:1%;">{startedBatchesRatio}</td>
+								<td>{startedBatches}</td>
+							</tr>
+							<tr>
+								<td>Batches running:</td>
+								<td style="text-align: right; width:1%;">{runningBatchesPercent.toFixed(0)}%</td>
+								<td style="text-align: right; width:1%;">{runningBatchesRatio}</td>
+								<td>{runningBatches}</td>
+							</tr>
+							<tr>
+								<td>Batches finished:</td>
+								<td style="text-align: right; width:1%;">{finishedBatchesPercent.toFixed(0)}%</td>
+								<td style="text-align: right; width:1%;">{finishedBatchesRatio}</td>
+								<td>{finishedBatches}</td>
+							</tr>
+						</tbody>
+					</table>
 				{/if}
 			</td>
 		</tr>

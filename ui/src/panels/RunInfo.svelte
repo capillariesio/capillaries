@@ -43,7 +43,7 @@
 				<td style="white-space: nowrap;"
 					>{dayjs(run_lifespan.start_ts).format('MMM D, YYYY HH:mm:ss.SSS Z')}</td
 				>
-				<td>{run_lifespan.start_comment}</td>
+				<td style="max-width: 1000px; overflow-wrap: break-word;">{run_lifespan.start_comment}</td>
 			</tr>
 			<tr>
 				<td>Completed</td>
@@ -52,7 +52,9 @@
 						? dayjs(run_lifespan.completed_ts).format('MMM D, YYYY HH:mm:ss.SSS Z')
 						: 'never'}</td
 				>
-				<td>{run_lifespan.completed_comment}</td>
+				<td style="max-width: 1000px; overflow-wrap: break-word;"
+					>{run_lifespan.completed_comment}</td
+				>
 			</tr>
 			<tr>
 				<td>Stopped/Invalidated</td>
@@ -61,7 +63,8 @@
 						? dayjs(run_lifespan.stopped_ts).format('MMM D, YYYY HH:mm:ss.SSS Z')
 						: 'never'}</td
 				>
-				<td>{run_lifespan.stopped_comment}</td>
+				<td style="max-width: 1000px; overflow-wrap: break-word;">{run_lifespan.stopped_comment}</td
+				>
 			</tr>
 			<tr>
 				<td>Elapsed</td>
@@ -106,11 +109,11 @@
 			</tr>
 			<tr>
 				<td>Start nodes:</td>
-				<td>{run_props.start_nodes}</td>
+				<td style="max-width: 1000px; overflow-wrap: break-word;">{run_props.start_nodes}</td>
 			</tr>
 			<tr>
 				<td>Affected nodes:</td>
-				<td>{run_props.affected_nodes}</td>
+				<td style="max-width: 1000px; overflow-wrap: break-word;">{run_props.affected_nodes}</td>
 			</tr>
 		</tbody>
 	</table>

@@ -2,7 +2,7 @@
 	export function webapiUrl() {
 		// If no Webapi url supplied, assume it's a dev environment and use our best guess
 		const webapiUrlEnvVar = import.meta.env.VITE_WEBAPI_URL;
-		return (!!webapiUrlEnvVar ? webapiUrlEnvVar : 'http://localhost:6543');
+		return !!webapiUrlEnvVar ? webapiUrlEnvVar : 'http://localhost:6543';
 	}
 	export function handleResponse(responseJson, setWebapiDataFunc) {
 		if (!!responseJson.error.msg) {
