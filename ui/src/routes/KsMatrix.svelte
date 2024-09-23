@@ -21,7 +21,8 @@
 	function setWebapiData(dataFromJson, errorFromJson) {
 		webapiData = !!dataFromJson ? dataFromJson : { run_lifespans: [], nodes: [] };
 		if (!!errorFromJson) {
-			responseError = "cannot retrieve keyspace matrix, Capillaries webapi returned an error: " + errorFromJson;
+			responseError =
+				'cannot retrieve keyspace matrix, Capillaries webapi returned an error: ' + errorFromJson;
 		} else {
 			responseError = '';
 		}
@@ -34,8 +35,8 @@
 				(tsCompleted > 0
 					? tsCompleted - tsStart
 					: tsStopped > 0
-					  ? tsStopped - tsStart
-					  : Date.now() - tsStart) / 1000
+						? tsStopped - tsStart
+						: Date.now() - tsStart) / 1000
 			).toString();
 		}
 	}
@@ -52,7 +53,13 @@
 				if (!isDestroyed) timer = setTimeout(fetchData, 500);
 			})
 			.catch((error) => {
-				responseError = "cannot fetch keyspace matrix data from Capillaries webapi at " + method + ' ' + url + ', error:' + error;
+				responseError =
+					'cannot fetch keyspace matrix data from Capillaries webapi at ' +
+					method +
+					' ' +
+					url +
+					', error:' +
+					error;
 				console.log(error);
 				if (!isDestroyed) timer = setTimeout(fetchData, 3000);
 			});

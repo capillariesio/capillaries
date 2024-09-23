@@ -16,7 +16,8 @@
 	function setWebapiData(dataFromJson, errorFromJson) {
 		webapiWaiting = false;
 		if (!!errorFromJson) {
-			responseError = "cannot start this run, Capillaries webapi returned an error: " + errorFromJson;
+			responseError =
+				'cannot start this run, Capillaries webapi returned an error: ' + errorFromJson;
 		} else {
 			console.log(dataFromJson);
 			responseError = '';
@@ -75,9 +76,7 @@
 	function newAndCloseModal() {
 		//console.log("Sending:",JSON.stringify({"script_uri": scriptUri, "script_params_uri": paramsUri, "start_nodes": startNodes}));
 		responseError =
-			validateKeyspace(keyspace) +
-			validateUri(scriptUri) +
-			validateStartNodes(startNodes);
+			validateKeyspace(keyspace) + validateUri(scriptUri) + validateStartNodes(startNodes);
 		if (responseError.length == 0) {
 			// For this ks, cache last used run parameters
 			$ksRunMap[keyspace] = { scriptUri: scriptUri, paramsUri: paramsUri };

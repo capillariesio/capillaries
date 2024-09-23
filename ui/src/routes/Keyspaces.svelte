@@ -19,7 +19,8 @@
 	function setWebapiData(dataFromJson, errorFromJson) {
 		webapiData = !!dataFromJson ? dataFromJson : [];
 		if (!!errorFromJson) {
-			responseError = "cannot retrieve keyspaces, Capillaries webapi returned an error: " + errorFromJson;
+			responseError =
+				'cannot retrieve keyspaces, Capillaries webapi returned an error: ' + errorFromJson;
 		} else {
 			responseError = '';
 		}
@@ -37,7 +38,13 @@
 				if (!isDestroyed) timer = setTimeout(fetchData, 500);
 			})
 			.catch((error) => {
-				responseError = "cannot fetch keyspaces data from Capillaries webapi at " + method + ' ' + url + ', error:' + error;
+				responseError =
+					'cannot fetch keyspaces data from Capillaries webapi at ' +
+					method +
+					' ' +
+					url +
+					', error:' +
+					error;
 				console.log(error);
 				if (!isDestroyed) timer = setTimeout(fetchData, 3000);
 			});
