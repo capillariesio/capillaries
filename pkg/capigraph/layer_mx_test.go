@@ -222,3 +222,8 @@ func TestParentless(t *testing.T) {
 	}
 	assert.False(t, mx.isMonotonous(priParentMap, len(nodeDefs)))
 }
+
+func TestSignature(t *testing.T) {
+	mx := LayerMx{{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 32, 64, 128, 256, 512, 1024, 1025}}
+	assert.Equal(t, "0000000100020003000400050006000700080009000A000B000C000D000E000F00100020004000800100020004000401", mx.signature())
+}

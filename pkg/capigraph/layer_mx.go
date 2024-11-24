@@ -70,6 +70,28 @@ func (mx LayerMx) clone() LayerMx {
 	return newMx
 }
 
+func halfByteToChar(b int8) rune {
+	if b < 10 {
+		return rune(int('0') + int(b))
+	} else {
+		return rune(int('A') + int(b) - 10)
+	}
+}
+
+func (mx LayerMx) signature() string {
+	sb := strings.Builder{}
+	for _, row := range mx {
+		rowRunes := make([]rune, len(row)*4)
+		for i, id := range row {
+			rowRunes[i*4] = halfByteToChar(int8(id >> 12))
+			rowRunes[i*4+1] = halfByteToChar(int8((id >> 8) & 0x0F))
+			rowRunes[i*4+2] = halfByteToChar(int8((id >> 4) & 0x0F))
+			rowRunes[i*4+3] = halfByteToChar(int8(id & 0x0F))
+		}
+		sb.WriteString(string(rowRunes))
+	}
+	return sb.String()
+}
 func (mx LayerMx) addNodeRecursively(curNodeId int16, nodeLayerMap []int, priChildrenMap [][]int16) {
 	curLayerIdx := nodeLayerMap[curNodeId]
 	mx[curLayerIdx] = append(mx[curLayerIdx], curNodeId)

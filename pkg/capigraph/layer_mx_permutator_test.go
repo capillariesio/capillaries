@@ -34,8 +34,6 @@ func Test0(t *testing.T) {
 		sb.WriteString(fmt.Sprintf("%d: %s\n", i, mxPerm.String()))
 	})
 
-	// WRONG
-
 	mxPerms := `0: 0 [3 1], 1 [4 2]
 1: 0 [1 3], 1 [2 4]
 `
@@ -141,13 +139,51 @@ func Test2(t *testing.T) {
 }
 
 // 0:    1
+// -     |    \
+// 1:    2  6  3
+// -     | /  \|
+// 2:    4     5
+func TestPotentialOneLevelEnclosure(t *testing.T) {
+	nodeDefs := []NodeDef{
+		{0, "top node", EdgeDef{}, []EdgeDef{}, ""},
+		{1, "1", EdgeDef{}, []EdgeDef{}, ""},
+		{2, "2", EdgeDef{1, ""}, []EdgeDef{}, ""},
+		{3, "3", EdgeDef{1, ""}, []EdgeDef{}, ""},
+		{4, "4", EdgeDef{2, ""}, []EdgeDef{{6, ""}}, ""},
+		{5, "5", EdgeDef{3, ""}, []EdgeDef{{6, ""}}, ""},
+		{6, "6", EdgeDef{}, []EdgeDef{}, ""},
+	}
+	layerMap := buildLayerMap(nodeDefs, buildPriParentMap(nodeDefs))
+	assert.Equal(t, "[-4 0 1 1 2 2 1]", fmt.Sprintf("%v", layerMap))
+
+	rootNodes := buildRootNodeList(buildPriParentMap(nodeDefs))
+	mx, _ := NewLayerMx(nodeDefs, layerMap, rootNodes)
+	assert.Equal(t, "0 [1], 1 [2 3 6], 2 [4 5]", mx.String())
+
+	mxi, _ := NewLayerMxPermIterator(nodeDefs, mx)
+	sb := strings.Builder{}
+	mxi.MxIterator(func(i int, mxPerm LayerMx) {
+		sb.WriteString(fmt.Sprintf("%d: %s\n", i, mxPerm.String()))
+	})
+	mxPerms := `0: 0 [1], 1 [6 3 2], 2 [5 4]
+1: 0 [1], 1 [3 6 2], 2 [5 4]
+2: 0 [1], 1 [3 2 6], 2 [5 4]
+3: 0 [1], 1 [6 2 3], 2 [4 5]
+4: 0 [1], 1 [2 6 3], 2 [4 5]
+5: 0 [1], 1 [2 3 6], 2 [4 5]
+`
+	assert.Equal(t, mxPerms, sb.String())
+	assert.Equal(t, int64(6), mxi.MxIteratorCount())
+}
+
+// 0:    1
 // -     |  \
 // 1:    2     5
 // -     |     |
 // 2:    3  8  6
 // -     | / \ |
 // 3:    4     7
-func TestPotentialEnclosure(t *testing.T) {
+func TestPotentialTwoLevelEnclosure(t *testing.T) {
 	nodeDefs := []NodeDef{
 		{0, "top node", EdgeDef{}, []EdgeDef{}, ""},
 		{1, "1", EdgeDef{}, []EdgeDef{}, ""},
