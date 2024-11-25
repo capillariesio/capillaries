@@ -30,58 +30,13 @@ func NewLayerPermutator() *LayerPermutator {
 	return &lp
 }
 
-// Move item located at itemToInsertSrcIdx to permIdx, shifting [permIdx, itemToInsertSrcIdx-1] to the right
-/*
-func (lp *LayerPermutator) insertPermutationByIdx(in []int16, out []int16, itemToInsertSrcIdx int, permIdx int) {
-	if permIdx == itemToInsertSrcIdx {
-		return
-	}
-	if permIdx > itemToInsertSrcIdx {
-		panic(fmt.Sprintf("insertPermutationByIdx(): cannot move item from % d to %d", itemToInsertSrcIdx, permIdx))
-	}
-	// Shift
-	copy(out[permIdx+1:], in[permIdx:itemToInsertSrcIdx])
-	// Set the item to be inserted
-	out[permIdx] = in[itemToInsertSrcIdx]
-}
-*/
-
-/*
-func (lp *LayerPermutator) insertPermIteratorRecursiveWithAlloc(insertSrcStart int, insertSrcLen int, curInsertSrc int, in []int16, totalCnt int) func(yield func(int, []int16) bool) {
-	if insertSrcLen > MaxNodesToInsert {
-		panic("too many to insert")
-	}
-	return func(yield func(int, []int16) bool) {
-		o := make([]int16, len(in)) // On stack!
-
-		for permIdx := range curInsertSrc + 1 {
-			copy(o, in) // Well, that's a lot of copying...
-			lp.insertPermutationByIdx(in, o, curInsertSrc, permIdx)
-			if curInsertSrc == insertSrcStart+insertSrcLen-1 {
-				if !yield(totalCnt, o) {
-					return
-				}
-				totalCnt++
-			} else {
-				for _, newo := range lp.insertPermIteratorRecursive(insertSrcStart, insertSrcLen, curInsertSrc+1, o, totalCnt) {
-					if !yield(totalCnt, newo) {
-						return
-					}
-					totalCnt++
-				}
-			}
-		}
-	}
-}
-*/
-
 func (lp *LayerPermutator) insertPermutationByIdx(perm []int16, itemToInsertSrcIdx int, permIdx int) {
 	if permIdx == itemToInsertSrcIdx {
 		// Identity permutation, totally valid
 		return
 	}
 	if permIdx > itemToInsertSrcIdx {
-		panic(fmt.Sprintf("insertPermutationByIdx(): cannot move item from % d to %d", itemToInsertSrcIdx, permIdx))
+		panic(fmt.Sprintf("insertPermutationByIdx(): cannot move item %d from % d to %d", perm[itemToInsertSrcIdx], itemToInsertSrcIdx, permIdx))
 	}
 	idToInsert := perm[itemToInsertSrcIdx]
 	// Shift
@@ -90,55 +45,11 @@ func (lp *LayerPermutator) insertPermutationByIdx(perm []int16, itemToInsertSrcI
 	perm[permIdx] = idToInsert
 }
 
-/*
-func (lp *LayerPermutator) insertPermIteratorRecursive(insertSrcStart int, insertSrcLen int, curInsertSrc int, totalCnt int) func(yield func(int, []int16) bool) {
-	if insertSrcLen > MaxNodesToInsert {
-		panic("too many to insert")
-	}
-	return func(yield func(int, []int16) bool) {
-		backupBetweenInserts := []int16{10: int16(0)}[:len(lp.WorkPerm)] //make([]int16, len(lp.WorkPerm)) // On stack!
-		for permIdx := range curInsertSrc + 1 {
-			copy(backupBetweenInserts, lp.WorkPerm)
-			// Shift-insert in-place
-			lp.insertPermutationByIdx(lp.WorkPerm, curInsertSrc, permIdx)
-			if curInsertSrc == insertSrcStart+insertSrcLen-1 {
-				if !yield(totalCnt, lp.WorkPerm) {
-					return
-				}
-				totalCnt++
-			} else {
-				for range lp.insertPermIteratorRecursive(insertSrcStart, insertSrcLen, curInsertSrc+1, totalCnt) {
-					if !yield(totalCnt, lp.WorkPerm) {
-						return
-					}
-					totalCnt++
-				}
-			}
-			copy(lp.WorkPerm, backupBetweenInserts)
-		}
-	}
-}
-*/
-
-/*
-func (lp *LayerPermutator) InsertPermIterator(insertSrcStart int, insertSrcLen int) func(yield func(int, []int16) bool) {
-	//lp.initSrcAndWorkPerm(in)
-
-	return func(yield func(int, []int16) bool) {
-		for i, _ := range lp.insertPermIteratorRecursive(insertSrcStart, insertSrcLen, insertSrcStart, 0) {
-			if !yield(i, lp.WorkPerm) {
-				return
-			}
-		}
-	}
-}
-*/
-
 // Execute swap perm strategy for a specific intervalLen and permIdx
 
 func (lp *LayerPermutator) swapPermutationByIdx(perm []int16, firstIdx int, intervalLen int, permIdx int) {
 	if intervalLen > MaxSupportedFact {
-		panic(fmt.Sprintf("permutationByIdx(): factorial value not supported %d", intervalLen))
+		panic(fmt.Sprintf("permutationByIdx(): factorial value not supported %d, max supported %d", intervalLen, MaxSupportedFact))
 	}
 	if intervalLen == 2 {
 		if intervalLen-1 > lp.P[2][permIdx][0] {
@@ -192,200 +103,6 @@ func (lp *LayerPermutator) swapPermutationByIdx(perm []int16, firstIdx int, inte
 		}
 	}
 }
-
-/*
-	func (lp *LayerPermutator) swapPermutationByIdx(in []int16, firstIdx int, intervalLen int, out []int16, permIdx int) {
-		if intervalLen > MaxSupportedFact {
-			panic(fmt.Sprintf("permutationByIdx(): factorial value not supported %d", intervalLen))
-		}
-		copy(out[firstIdx:firstIdx+intervalLen], in[firstIdx:firstIdx+intervalLen])
-		if intervalLen == 2 {
-			if intervalLen-1 > lp.P[2][permIdx][0] {
-				swap(out, firstIdx+intervalLen-1, firstIdx+lp.P[2][permIdx][0])
-			}
-		} else if intervalLen == 3 {
-			if intervalLen-2 > lp.P[3][permIdx][0] {
-				swap(out, firstIdx+intervalLen-2, firstIdx+lp.P[3][permIdx][0])
-			}
-			if intervalLen-1 > lp.P[3][permIdx][1] {
-				swap(out, firstIdx+intervalLen-1, firstIdx+lp.P[3][permIdx][1])
-			}
-		} else if intervalLen == 4 {
-			if intervalLen-3 > lp.P[4][permIdx][0] {
-				swap(out, firstIdx+intervalLen-3, firstIdx+lp.P[4][permIdx][0])
-			}
-			if intervalLen-2 > lp.P[4][permIdx][1] {
-				swap(out, firstIdx+intervalLen-2, firstIdx+lp.P[4][permIdx][1])
-			}
-			if intervalLen-1 > lp.P[4][permIdx][2] {
-				swap(out, firstIdx+intervalLen-1, firstIdx+lp.P[4][permIdx][2])
-			}
-		} else if intervalLen == 5 {
-			if intervalLen-4 > lp.P[5][permIdx][0] {
-				swap(out, firstIdx+intervalLen-4, firstIdx+lp.P[5][permIdx][0])
-			}
-			if intervalLen-3 > lp.P[5][permIdx][1] {
-				swap(out, firstIdx+intervalLen-3, firstIdx+lp.P[5][permIdx][1])
-			}
-			if intervalLen-2 > lp.P[5][permIdx][2] {
-				swap(out, firstIdx+intervalLen-2, firstIdx+lp.P[5][permIdx][2])
-			}
-			if intervalLen-1 > lp.P[5][permIdx][3] {
-				swap(out, firstIdx+intervalLen-1, firstIdx+lp.P[5][permIdx][3])
-			}
-		} else if intervalLen == 6 {
-			if intervalLen-5 > lp.P[6][permIdx][0] {
-				swap(out, firstIdx+intervalLen-5, firstIdx+lp.P[6][permIdx][0])
-			}
-			if intervalLen-4 > lp.P[6][permIdx][1] {
-				swap(out, firstIdx+intervalLen-4, firstIdx+lp.P[6][permIdx][1])
-			}
-			if intervalLen-3 > lp.P[6][permIdx][2] {
-				swap(out, firstIdx+intervalLen-3, firstIdx+lp.P[6][permIdx][2])
-			}
-			if intervalLen-2 > lp.P[6][permIdx][3] {
-				swap(out, firstIdx+intervalLen-2, firstIdx+lp.P[6][permIdx][3])
-			}
-			if intervalLen-1 > lp.P[6][permIdx][4] {
-				swap(out, firstIdx+intervalLen-1, firstIdx+lp.P[6][permIdx][4])
-			}
-		}
-	}
-
-	func (lp *LayerPermutator) swapPermIteratorRecursiveWithAlloc(permIntervalStarts []int, permIntervalLengths []int, intervalIdx int, in []int16, totalCnt int) func(yield func(int, []int16) bool) {
-		return func(yield func(int, []int16) bool) {
-			intStart := permIntervalStarts[intervalIdx]
-			intLen := permIntervalLengths[intervalIdx]
-			if intLen > MaxSupportedFact {
-				panic("interval too big, 6 max")
-			}
-			o := make([]int16, len(in)) // On stack!
-			copy(o, in)
-			for i := range lp.Fact[intLen] {
-				lp.swapPermutationByIdx(in, intStart, intLen, o, i)
-				if intervalIdx == len(permIntervalStarts)-1 {
-					if !yield(totalCnt, o) {
-						return
-					}
-					totalCnt++
-				} else {
-					for _, newo := range lp.swapPermIteratorRecursiveWithAlloc(permIntervalStarts, permIntervalLengths, intervalIdx+1, o, totalCnt) {
-						if !yield(totalCnt, newo) {
-							return
-						}
-						totalCnt++
-
-					}
-				}
-			}
-		}
-	}
-
-func (lp *LayerPermutator) swapPermIteratorRecursive(intervalIdx int, totalCnt int) func(yield func(int, []int16) bool) {
-	return func(yield func(int, []int16) bool) {
-		intStart := lp.IntervalStarts[intervalIdx]
-		intLen := lp.IntervalLengths[intervalIdx]
-		if intLen > MaxSupportedFact {
-			panic("interval too big, 6 max")
-		}
-		for i := range lp.Fact[intLen] {
-			// Re-initialize slice interval we work with
-			copy(lp.WorkPerm[intStart:], lp.SrcPerm[intStart:intStart+intLen])
-			// Swap in-place
-			lp.swapPermutationByIdx(lp.WorkPerm, intStart, intLen, i)
-			if intervalIdx == len(lp.IntervalStarts)-1 {
-				if !yield(totalCnt, lp.WorkPerm) {
-					return
-				}
-				totalCnt++
-			} else {
-				for range lp.swapPermIteratorRecursive(intervalIdx+1, totalCnt) { // No allocations here!
-					if !yield(totalCnt, lp.WorkPerm) {
-						return
-					}
-					totalCnt++
-
-				}
-			}
-		}
-	}
-}
-
-
-	func (lp *LayerPermutator) SwapPermIteratorWithAlloc(permIntervalStarts []int, permIntervalLengths []int, in []int16) func(yield func(int, []int16) bool) {
-		return func(yield func(int, []int16) bool) {
-			for i, perm := range lp.swapPermIteratorRecursiveWithAlloc(permIntervalStarts, permIntervalLengths, 0, in, 0) {
-				if !yield(i, perm) {
-					return
-				}
-			}
-		}
-	}
-
-
-func (lp *LayerPermutator) SwapPermIterator() func(yield func(int, []int16) bool) {
-	// lp.initSrcAndWorkPerm(in)
-	// lp.IntervalStarts = lp.IntervalStarts[:totalIntervals]
-	// copy(lp.IntervalStarts, permIntervalStarts[:totalIntervals])
-	// lp.IntervalLengths = lp.IntervalLengths[:totalIntervals]
-	// copy(lp.IntervalLengths, permIntervalLengths[:totalIntervals])
-
-	return func(yield func(int, []int16) bool) {
-		for i, _ := range lp.swapPermIteratorRecursive(0, 0) {
-			if !yield(i, lp.WorkPerm) {
-				return
-			}
-		}
-	}
-}
-
-
-func (lp *LayerPermutator) SwapAndInsertPermIterator(permIntervalStarts []int, permIntervalLengths []int, insertSrcStart int, insertSrcLen int, in []int16) func(yield func(int, []int16) bool) {
-	lp.SwapSrcPerm = in
-	lp.SwapWorkPerm = make([]int16, len(in))
-	copy(lp.SwapWorkPerm, lp.SwapSrcPerm)
-
-	return func(yield func(int, []int16) bool) {
-		i := 0
-		//for _, swapPerm := range lp.swapPermIteratorRecursive(permIntervalStarts, permIntervalLengths, 0, lp.WorkPerm, 0) {
-		//for _, finalPerm := range lp.insertPermIteratorRecursive(insertSrcStart, insertSrcLen, insertSrcStart, swapPerm, 0) {
-		//	if !yield(i, finalPerm) {
-		for range lp.swapPermIteratorRecursive(permIntervalStarts, permIntervalLengths, 0, lp.SwapWorkPerm, 0) {
-			lp.InsertSrcPerm = lp.SwapWorkPerm
-			lp.InsertWorkPerm = make([]int16, len(lp.InsertSrcPerm))
-			copy(lp.InsertWorkPerm, lp.InsertSrcPerm)
-			for range lp.insertPermIteratorRecursive(insertSrcStart, insertSrcLen, insertSrcStart, lp.InsertWorkPerm, 0) {
-				if !yield(i, lp.InsertWorkPerm) {
-					return
-				}
-				i++
-			}
-		}
-	}
-}
-
-
-
-func (lp *LayerPermutator) SwapAndInsertPermIterator(insertSrcStart int, insertSrcLen int) func(yield func(int, []int16) bool) {
-	// lp.initSrcAndWorkPerm(in)
-	// lp.IntervalStarts = lp.IntervalStarts[:totalIntervals]
-	// copy(lp.IntervalStarts, permIntervalStarts[:totalIntervals])
-	// lp.IntervalLengths = lp.IntervalLengths[:totalIntervals]
-	// copy(lp.IntervalLengths, permIntervalLengths[:totalIntervals])
-
-	return func(yield func(int, []int16) bool) {
-		i := 0
-		for range lp.swapPermIteratorRecursive(0, 0) { // No alloc here!
-			for range lp.insertPermIteratorRecursive(insertSrcStart, insertSrcLen, insertSrcStart, 0) { // No alloc here!
-				if !yield(i, lp.WorkPerm) {
-					return
-				}
-				i++
-			}
-		}
-	}
-}
-*/
 
 func (lp *LayerPermutator) init() {
 	lp.Fact = make([]int, MaxSupportedFact+1)
@@ -461,7 +178,7 @@ func swapFuncIteratorRecursive(lp *LayerPermutator, intervalIdx int, totalCnt in
 	intStart := lp.IntervalStarts[intervalIdx]
 	intLen := lp.IntervalLengths[intervalIdx]
 	if intLen > MaxSupportedFact {
-		panic("interval too big, 6 max")
+		panic(fmt.Sprintf("swapFuncIteratorRecursive: swap interval too big: %d, max supported %d", intLen, MaxSupportedFact))
 	}
 	for i := range lp.Fact[intLen] {
 		// Re-initialize slice interval we work with
@@ -484,7 +201,7 @@ func (lp *LayerPermutator) InsertIterator(insertSrcStart int, insertSrcLen int, 
 
 func insertFuncIteratorRecursive(lp *LayerPermutator, insertSrcStart int, insertSrcLen int, curInsertSrc int, totalCnt int, f func(int, []int16)) {
 	if insertSrcLen > MaxNodesToInsert {
-		panic("too many to insert")
+		panic(fmt.Sprintf("insertFuncIteratorRecursive: too many ids to insert: %d, max supported %d", insertSrcLen, MaxNodesToInsert))
 	}
 	cb := func(int, []int16) {
 		f(totalCnt, lp.WorkPerm)

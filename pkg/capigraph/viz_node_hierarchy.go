@@ -1,6 +1,7 @@
 package capigraph
 
 import (
+	"fmt"
 	"math"
 	"slices"
 )
@@ -15,8 +16,8 @@ type VizNodeHierarchy struct {
 	NodeDefs           []NodeDef
 	PriParentMap       []int16
 	RootMap            []int16
-	NodeFo             *FontOptions
-	EdgeFo             *FontOptions
+	NodeFo             FontOptions
+	EdgeFo             FontOptions
 	NodeDimensionMap   []RectDimension
 	PriEdgeLabelDimMap []RectDimension
 	SecEdgeLabelDimMap [][]RectDimension
@@ -24,7 +25,7 @@ type VizNodeHierarchy struct {
 	UpperLayerGapMap   []float64
 }
 
-func NewVizNodeHierarchy(nodeDefs []NodeDef, nodeFo *FontOptions, edgeFo *FontOptions) *VizNodeHierarchy {
+func NewVizNodeHierarchy(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions) *VizNodeHierarchy {
 	vnh := VizNodeHierarchy{}
 	vnh.NodeDefs = nodeDefs
 	vnh.PriParentMap = buildPriParentMap(nodeDefs)
@@ -68,6 +69,8 @@ func NewVizNodeHierarchy(nodeDefs []NodeDef, nodeFo *FontOptions, edgeFo *FontOp
 
 func (vnh *VizNodeHierarchy) insertRootToNearestParent(rootVizNode *VizNode, leftId int16, rightId int16) {
 	leftParentVisitedMap := make([]*VizNode, len(vnh.VizNodeMap))
+
+	// Left branch: walk up and harvest ids
 	leftChildId := leftId
 	for {
 		leftParentId := vnh.PriParentMap[leftChildId]
@@ -78,20 +81,21 @@ func (vnh *VizNodeHierarchy) insertRootToNearestParent(rootVizNode *VizNode, lef
 		leftChildId = leftParentId
 	}
 
+	// Right branch: go up, identify first common parent, insert
 	var rightParentId int16
 	rightChildId := rightId
 	for {
 		rightParentId = vnh.PriParentMap[rightChildId]
 		commonParentVizNode := leftParentVisitedMap[rightParentId]
 		if commonParentVizNode != nil {
-			// Now rightChildId and commonParentItem contain the place to insert
+			// Now rightChildId and commonParentVizNode contain the place to insert
 			for childIdx, childVizNode := range commonParentVizNode.PriChildrenAndEnclosedRoots {
 				if childVizNode.Def.Id == rightChildId {
 					commonParentVizNode.PriChildrenAndEnclosedRoots = slices.Insert(commonParentVizNode.PriChildrenAndEnclosedRoots, childIdx, rootVizNode)
 					return
 				}
 			}
-			panic("ddd")
+			panic(fmt.Sprintf("insertRootToNearestParent for root id %d cannot find parent for left %d and right %d", rootVizNode.Def.Id, leftId, rightId))
 		}
 		rightChildId = rightParentId
 	}
@@ -99,13 +103,19 @@ func (vnh *VizNodeHierarchy) insertRootToNearestParent(rootVizNode *VizNode, lef
 
 func (vnh *VizNodeHierarchy) insertRoot(rootVizNode *VizNode, perm []int16, idx int) {
 	thisRootId := perm[idx]
+	// Start at the left neighbour, move left
 	i := idx - 1
 	for i >= 0 {
 		leftRootId := vnh.RootMap[perm[i]]
 		if leftRootId != thisRootId {
+			// Left neighbour belongs to another AND the closest root subtree, now find the nearest common parent for enclosure.
+			// Start with the nearest right neighbour and move right.
 			j := idx + 1
 			for j < len(perm) {
 				if leftRootId == vnh.RootMap[perm[j]] {
+					// Same root as the left neighbour. Now:
+					// - go up and find the nearst common parent.
+					// - insert rootVizNode between first-generation children of the nearst common parent
 					vnh.insertRootToNearestParent(rootVizNode, perm[i], perm[j])
 					return
 				}
@@ -141,6 +151,9 @@ func (vnh *VizNodeHierarchy) buildNewRootSubtreeHierarchy(mx LayerMx) {
 			vizNode.Def = &(vnh.NodeDefs[nodeId])
 			vizNode.RootId = vnh.RootMap[nodeId]
 			vizNode.Layer = layer
+			r := vnh.NodeDimensionMap[vizNode.Def.Id]
+			vizNode.NodeW = r.W
+			vizNode.NodeH = r.H
 			incomingEdgesLen := len(vizNode.Def.SecIn)
 			if vizNode.Def.PriIn.SrcId != 0 {
 				incomingEdgesLen++
@@ -182,25 +195,18 @@ func (vnh *VizNodeHierarchy) buildNewRootSubtreeHierarchy(mx LayerMx) {
 }
 
 func (vnh *VizNodeHierarchy) reuseRootSubtreeHierarchy(mx LayerMx) {
-	vnh.VizNodeMap[0].clean()
+	vnh.VizNodeMap[0].cleanPropertiesSubjectToPermutation()
 	vnh.VizNodeMap[0].Layer = -1
 
+	// Re-init non-static properties and Add pri children to PriChildrenAndEnclosedRoots
 	for layer, row := range mx {
 		for _, nodeId := range row {
 			if nodeId > FakeNodeBase {
 				continue
 			}
 			vn := &(vnh.VizNodeMap[nodeId])
-			vn.clean()
+			vn.cleanPropertiesSubjectToPermutation()
 			vn.Layer = layer
-		}
-	}
-
-	for _, row := range mx {
-		for _, nodeId := range row {
-			if nodeId > FakeNodeBase {
-				continue
-			}
 			rootId := vnh.RootMap[nodeId]
 			if rootId != nodeId {
 				// This is a non-root node, just append it
@@ -212,7 +218,7 @@ func (vnh *VizNodeHierarchy) reuseRootSubtreeHierarchy(mx LayerMx) {
 		}
 	}
 
-	// Same for root nodes
+	// Add roots to PriChildrenAndEnclosedRoots
 	for _, row := range mx {
 		for j, nodeId := range row {
 			if nodeId > FakeNodeBase {
@@ -227,15 +233,7 @@ func (vnh *VizNodeHierarchy) reuseRootSubtreeHierarchy(mx LayerMx) {
 	}
 }
 
-func (vnh *VizNodeHierarchy) PopulateSubtreeHierarchy(mx LayerMx) {
-	if vnh.VizNodeMap == nil {
-		vnh.buildNewRootSubtreeHierarchy(mx)
-	} else {
-		vnh.reuseRootSubtreeHierarchy(mx)
-	}
-}
-
-func getNodeDimensions(nodeDef *NodeDef, fo *FontOptions) RectDimension {
+func getNodeDimensions(nodeDef *NodeDef, fo FontOptions) RectDimension {
 	w, h := getTextDimensions(nodeDef.Text, fo.Typeface, fo.Weight, fo.SizeInPixels)
 	w += float64(fo.SizeInPixels)
 	if nodeDef.IconId != "" {
@@ -252,30 +250,33 @@ const (
 	gapBetweenSecAndPrimeEdgeLabelsInPixels float64 = 10.0
 	NodeHorizontalGapInPixels               float64 = 20.0
 	SecEdgeStartXRatio                      float64 = 0.45
-	SecEdgeEndXRatio                        float64 = 0.55
+	SecEdgeEndXRatio                        float64 = 0.60
 )
 
-func (vnh *VizNodeHierarchy) populateNodeDimensionsRecursive(vizNode *VizNode) {
+func (vnh *VizNodeHierarchy) populateNodeTotalWidthRecursive(vizNode *VizNode) {
+	// Recursively visit children and add their TotalW to this TotalW
 	for i, childItem := range vizNode.PriChildrenAndEnclosedRoots {
-		vnh.populateNodeDimensionsRecursive(childItem)
+		vnh.populateNodeTotalWidthRecursive(childItem)
 		if i != 0 {
 			vizNode.TotalW += NodeHorizontalGapInPixels
 		}
 		vizNode.TotalW += childItem.TotalW
 	}
-	// Check it's not the top ubernode and add NodeDef width
+
+	// If this node has really wide text, it may be even wider than
+	// children subtree. Pay attention to this case.
 	if vizNode.Def != nil {
-		r := vnh.NodeDimensionMap[vizNode.Def.Id]
-		vizNode.NodeW = r.W
-		vizNode.NodeH = r.H
+		// r := vnh.NodeDimensionMap[vizNode.Def.Id]
+		// vizNode.NodeW = r.W
+		// vizNode.NodeH = r.H
 		if vizNode.TotalW < vizNode.NodeW {
 			vizNode.TotalW = vizNode.NodeW
 		}
 	}
 }
 
-func (vnh *VizNodeHierarchy) PopulateNodeDimensions() {
-	vnh.populateNodeDimensionsRecursive(&vnh.VizNodeMap[0])
+func (vnh *VizNodeHierarchy) PopulateNodeTotalWidth() {
+	vnh.populateNodeTotalWidthRecursive(&vnh.VizNodeMap[0])
 }
 func populateNodeXCoordRecursive(vizNode *VizNode) {
 	// Decide where to start drawing child items: their cumulative width may be well smaller than parent's
@@ -365,7 +366,7 @@ func (vnh *VizNodeHierarchy) PopulateUpperLayerGapMap(edgeFontSizeInPixels float
 					maxSecEdgeLabelHightMap[layer] = edge.H
 				}
 			} else {
-				panic("aaa")
+				panic(fmt.Sprintf("PopulateUpperLayerGapMap: unknown hierarchy type %d", edge.HierarchyType))
 			}
 		}
 

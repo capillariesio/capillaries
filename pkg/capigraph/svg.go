@@ -5,6 +5,18 @@ import (
 	"strings"
 )
 
+func DefaultNodeFontOptions() FontOptions {
+	return FontOptions{FontTypefaceCourier, FontWeightNormal, 20}
+}
+
+func DefaultEdgeLabelFontOptions() FontOptions {
+	return FontOptions{FontTypefaceArial, FontWeightNormal, 18}
+}
+
+func DefaultEdgeOptions() EdgeOptions {
+	return EdgeOptions{2.0}
+}
+
 func drawEdgeLines(vizNodeMap []VizNode, curItem *VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeOptions) string {
 	sb := strings.Builder{}
 	if curItem.Def != nil {
@@ -13,8 +25,12 @@ func drawEdgeLines(vizNodeMap []VizNode, curItem *VizNode, nodeFo FontOptions, e
 			// Outgoing sec edges go from somewhere in the first half, so they are not confused with pri
 			startX := parentItem.X + parentItem.TotalW/2 - parentItem.NodeW*(0.5-SecEdgeStartXRatio)
 			startY := parentItem.Y + parentItem.NodeH + eo.StrokeWidth*2.0
-			// Outgoing sec edges go to somewhere in the second half, so they are look secondary
-			endX := curItem.X + curItem.TotalW/2 - curItem.NodeW*(0.5-SecEdgeEndXRatio)
+			// Outgoing sec edges go to somewhere close to center, but not exactly, so they look secondary
+			secDelta := curItem.NodeW * (0.5 - SecEdgeEndXRatio) // Enter child on the right (60%)
+			if startX < curItem.X+curItem.TotalW/2+0.1 {         // This stands for startX <= curItem.X+curItem.TotalW/2, but for float
+				secDelta = -secDelta // Enter child on the left (40%)
+			}
+			endX := curItem.X + curItem.TotalW/2 - secDelta
 			// endX += arrowEndDeltaX(startX, endX, eo.StrokeWidth)
 			endY := curItem.Y - eo.StrokeWidth*3
 			deltaX := endX - startX
@@ -107,7 +123,7 @@ type EdgeOptions struct {
 	StrokeWidth float64
 }
 
-func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeOptions, defsXml string) string {
+func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeOptions, defsXml string, css string) string {
 	topItem := &vizNodeMap[0]
 	minLeft := 0.0
 	maxRight := topItem.TotalW
@@ -140,6 +156,7 @@ func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeO
 		`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="%d %d %d %d">`+"\n", vbLeft, vbTop, vbRight, vbBottom))
 	sb.WriteString("<defs>\n")
 	sb.WriteString(`<marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" /></marker>` + "\n")
+	// Caller-provided defs (icons etc)
 	sb.WriteString(defsXml)
 	sb.WriteString("</defs>\n")
 	sb.WriteString("<style>\n")
@@ -152,6 +169,8 @@ func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeO
 	sb.WriteString(fmt.Sprintf(".text-edge-label {font-family:%s; font-weight:%s; font-size:%dpx; text-anchor:start; alignment-baseline:hanging; fill:#606060;}\n", FontTypefaceToString(edgeFo.Typeface), FontWeightToString(edgeFo.Weight), int(edgeFo.SizeInPixels)))
 	sb.WriteString(fmt.Sprintf(`.path-edge-pri {marker-end:url(#arrow); stroke:black; stroke-width:%.2f;}`+"\n", eo.StrokeWidth))
 	sb.WriteString(fmt.Sprintf(`.path-edge-sec {marker-end:url(#arrow); stroke:black; stroke-width:%.2f;stroke-dasharray:5;fill:none;}`+"\n", eo.StrokeWidth))
+	// Caller-provided CSS overrides
+	sb.WriteString(css)
 	sb.WriteString("</style>\n")
 	sb.WriteString(fmt.Sprintf(`<rect fill="white" x="%d" y="%d" width="%d" height="%d"/>`+"\n", vbLeft, vbTop, vbRight-vbLeft, vbBottom-vbTop))
 
@@ -162,4 +181,8 @@ func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeO
 
 	sb.WriteString("</svg>\n")
 	return sb.String()
+}
+
+func drawStatistics(totalPermutations int64, elapsedSeconds float64, bestDist float64) string {
+	return fmt.Sprintf(`<text style="font-family:arial; font-weight:normal; font-size:10px; text-anchor:start; alignment-baseline:hanging; fill:black;" x="0" y="0">Perms %d, elapsed %.3fs, dist %.1f</text>`, totalPermutations, elapsedSeconds, bestDist)
 }

@@ -10,7 +10,7 @@ func pullDownRootSubtreeIfNeeded(rootNodeId int16, tallestSubtreeRootIds *Int16S
 	delta := 0
 	for tallRootId := range *tallestSubtreeRootIds {
 		if rootNodeId == tallRootId {
-			panic(fmt.Sprintf("pullDownRootSubtreeIfNeeded(): comparing root %d against the %d subtree", rootNodeId, tallRootId))
+			panic(fmt.Sprintf("pullDownRootSubtreeIfNeeded(): comparing root %d against the %d subtree, and they have the same root", rootNodeId, tallRootId))
 		}
 		for i, thisNodeDist := range rootToNodeDistanceMap[rootNodeId][1:] {
 			thisNodeId := int16(i + 1)

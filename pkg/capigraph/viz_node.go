@@ -20,14 +20,13 @@ type VizNode struct {
 	PriChildrenAndEnclosedRoots []*VizNode
 }
 
-func (vn *VizNode) clean() {
+func (vn *VizNode) cleanPropertiesSubjectToPermutation() {
+	// Do not clean up static properties like Def, NodeW, NodeH etc
 	vn.Layer = 0
 	vn.PriChildrenAndEnclosedRoots = vn.PriChildrenAndEnclosedRoots[:0] // Reset size, not capacity
 	vn.TotalW = 0.0
 	vn.X = 0.0
 	vn.Y = 0.0
-	vn.NodeW = 0.0
-	vn.NodeH = 0.0
 }
 
 type VizEdge struct {

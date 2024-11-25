@@ -3,38 +3,43 @@ package capigraph
 import (
 	"fmt"
 	"math"
+	"time"
 )
 
 type VizNodeHierarchyAnalyzer struct {
 }
 
-func GetBestHierarchy(nodeDefs []NodeDef, nodeFo *FontOptions, edgeFo *FontOptions) ([]VizNode, error) {
+func GetBestHierarchy(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions) ([]VizNode, int64, float64, float64, error) {
 	priParentMap := buildPriParentMap(nodeDefs)
 	layerMap := buildLayerMap(nodeDefs, priParentMap)
 	rootNodes := buildRootNodeList(priParentMap)
 	mx, err := NewLayerMx(nodeDefs, layerMap, rootNodes)
 	if err != nil {
-		return nil, err
+		return nil, int64(0), 0.0, 0.0, err
 	}
 
 	mxi, err := NewLayerMxPermIterator(nodeDefs, mx)
 	if err != nil {
-		return nil, err
+		return nil, int64(0), 0.0, 0.0, err
 	}
 
 	vnh := NewVizNodeHierarchy(nodeDefs, nodeFo, edgeFo)
 
 	vnh.buildNewRootSubtreeHierarchy(mx)
-	vnh.PopulateEdgeLabelDimensions()
 
 	bestDistSec := math.MaxFloat64
 	bestSignature := "z"
 	var bestMx LayerMx
 	mxPermCnt := 0
+	tStart := time.Now()
 	mxi.MxIterator(func(i int, mxPerm LayerMx) {
+
+		// Hierarchy
 		vnh.reuseRootSubtreeHierarchy(mxPerm)
-		vnh.PopulateNodeDimensions()
+		// X coord
+		vnh.PopulateNodeTotalWidth()
 		vnh.PopulateNodesXCoords()
+
 		distSec := vnh.CalculateTotalHorizontalShift()
 		//fmt.Printf("%d %.2f %s\n", mxPermCnt, distSec, mxPerm.String())
 		if distSec <= bestDistSec {
@@ -48,17 +53,26 @@ func GetBestHierarchy(nodeDefs []NodeDef, nodeFo *FontOptions, edgeFo *FontOptio
 		}
 		mxPermCnt++
 	})
+	tElapsed := time.Since(tStart).Seconds()
 
 	if bestMx == nil {
-		return nil, fmt.Errorf("no best")
+		return nil, int64(mxPermCnt), tElapsed, 0.0, fmt.Errorf("no best")
 	}
 
+	// Hierarchy
 	vnh.reuseRootSubtreeHierarchy(bestMx)
-	vnh.PopulateNodeDimensions()
+
+	// X coord
+	vnh.PopulateNodeTotalWidth()
 	vnh.PopulateNodesXCoords()
-	vnh.PopulateUpperLayerGapMap(edgeFo.SizeInPixels, vnh.VizNodeMap[0].TotalW/12.0)
+
+	// Y coord
+	vnh.PopulateEdgeLabelDimensions()
+	vnh.PopulateUpperLayerGapMap(edgeFo.SizeInPixels, math.Max(vnh.VizNodeMap[0].TotalW/20.0, nodeFo.SizeInPixels*3)) // Purely empiric
 	vnh.PopulateNodesYCoords()
+
+	// Edge label X and Y
 	vnh.PopulateEdgeLabelCoords()
 
-	return vnh.VizNodeMap, nil
+	return vnh.VizNodeMap, int64(mxPermCnt), tElapsed, bestDistSec, nil
 }
