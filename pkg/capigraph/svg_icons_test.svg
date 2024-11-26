@@ -1,6 +1,6 @@
-package capigraph
-
-const CapillariesIcons100x100 = `
+<svg xmlns="http://www.w3.org/2000/svg"
+	xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 400 400">
+	<defs>
 		<g id="icon-database-table-distinct">
 			<g transform="scale(0.56) translate(2,61)">
 				<path fill-rule="evenodd"
@@ -106,4 +106,31 @@ const CapillariesIcons100x100 = `
 				<path class="b"
 					d="M37.8,9.9c-.9-.5-1.6-1.1-1.6-1.3,0-.3,4.4-3.2,5.1-3.4,.3,0,3.3,1.5,3.5,1.8,0,.1,0,.4-.3,.6-.9,.8-4.5,3.2-4.8,3.2-.2,0-1-.4-1.9-1h0Z" />
 			</g>
-		</g>`
+		</g>
+	</defs>
+	<rect fill="red" width="400" height="400" />
+
+	<rect fill="white" x="10" y="10" width="100" height="100" />
+	<use x="10" y="10" xlink:href="#icon-csv" />
+
+	<rect fill="white" x="120" y="10" width="100" height="100" />
+	<use x="120" y="10" xlink:href="#icon-parquet" />
+
+	<rect fill="white" x="230" y="10" width="100" height="100" />
+	<use x="230" y="10" xlink:href="#icon-database-table-tag" />
+
+	<rect fill="white" x="10" y="120" width="100" height="100" />
+	<use x="10" y="120" xlink:href="#icon-database-table-py" />
+
+	<rect fill="white" x="120" y="120" width="100" height="100" />
+	<use x="120" y="120" xlink:href="#icon-database-table-join" />
+
+	<rect fill="white" x="230" y="120" width="100" height="100" />
+	<use x="230" y="120" xlink:href="#icon-database-table-read" />
+
+	<rect fill="white" x="10" y="230" width="100" height="100" />
+	<use x="10" y="230" xlink:href="#icon-database-table-copy" />
+
+	<rect fill="white" x="120" y="230" width="100" height="100" />
+	<use x="120" y="230" xlink:href="#icon-database-table-distinct" />
+</svg>

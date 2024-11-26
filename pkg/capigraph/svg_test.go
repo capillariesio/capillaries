@@ -534,10 +534,132 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-parquet",
 		},
+
+		{
+			37,
+			"01_read_payments\n" +
+				"Read from files into a table\n" +
+				"Files: /tmp/capi_in/.../CAS_2023_R08_G1_20231020_000.parquet\n" +
+				"Table created: payments",
+			EdgeDef{},
+			[]EdgeDef{},
+			"icon-database-table-read",
+		},
+		{
+			38,
+			"02_loan_ids\n" +
+				"Select distinct rows\n" +
+				"Index used: unique(loan_id)\n" +
+				"Table created: loan_ids",
+			EdgeDef{37, "payments\n(10 batches)"},
+			[]EdgeDef{},
+			"icon-database-table-distinct",
+		},
+		{
+			39,
+			"02_deal_names\n" +
+				"Select distinct rows\n" +
+				"Index used: unique(deal_name)\n" +
+				"Table created: deal_names",
+			EdgeDef{38, "loan_ids\n(10 batches)"},
+			[]EdgeDef{},
+			"icon-database-table-distinct",
+		},
+		{
+			40,
+			"02_deal_sellers\n" +
+				"Select distinct rows\n" +
+				"Index used: unique(deal_name, seller_name)\n" +
+				"Table created: deal_sellers",
+			EdgeDef{38, "loan_ids\n(10 batches)"},
+			[]EdgeDef{},
+			"icon-database-table-distinct",
+		},
+		{
+			41,
+			"03_deal_total_upbs\n" +
+				"Join with lookup table\n" +
+				"Group: true, join: left\n" +
+				"Table created: deal_total_upbs",
+			EdgeDef{39, "deal_names\n(10 batches)"},
+			[]EdgeDef{{38, "idx_loan_ids_deal_name\n(lookup)"}},
+			"icon-database-table-join",
+		},
+		{
+			42,
+			"04_loan_payment_summaries\n" +
+				"Join with lookup table\n" +
+				"Group: true, join: left\n" +
+				"Table created: loan_payment_summaries",
+			EdgeDef{38, "loan_ids\n(10 batches)"},
+			[]EdgeDef{{37, "idx_payments_by_loan_id\n(lookup)"}},
+			"icon-database-table-join",
+		},
+		{
+			43,
+			"04_loan_summaries_calculated\n" +
+				"Apply Python calculations\n" +
+				"Group: true, join: left\n" +
+				"Table created: loan_summaries_calculated",
+			EdgeDef{42, "loan_payment_summaries\n(10 batches)"},
+			[]EdgeDef{},
+			"icon-database-table-py",
+		},
+		{
+			44,
+			"05_deal_summaries\n" +
+				"Join with lookup table\n" +
+				"Group: true, join: left\n" +
+				"Table created: deal_summaries",
+			EdgeDef{41, "deal_total_upbs\n(10 batches)"},
+			[]EdgeDef{{43, "idx_loan_summaries_calculated_deal_name\n(lookup)"}},
+			"icon-database-table-join",
+		},
+		{
+			45,
+			"05_deal_seller_summaries\n" +
+				"Join with lookup table\n" +
+				"Group: true, join: left\n" +
+				"Table created: deal_seller_summaries",
+			EdgeDef{40, "deal_sellers\n(10 batches)"},
+			[]EdgeDef{},
+			"icon-database-table-join",
+		},
+		{
+			46,
+			"04_write_file_loan_summaries_calculated\n" +
+				"Write from table to files\n" +
+				"Table: loan_summaries_calculated\n" +
+				"Files: /tmp/.../.../loan_summaries_calculated.parquet",
+			EdgeDef{43, "loan_summaries_calculated\n(no parallelism)"},
+			[]EdgeDef{},
+			"icon-parquet",
+		},
+		{
+			47,
+			"05_write_file_deal_summaries\n" +
+				"Write from table to files\n" +
+				"Table: deal_summaries\n" +
+				"Files: /tmp/.../.../deal_summaries.parquet",
+			EdgeDef{44, "deal_summaries\n(no parallelism)"},
+			[]EdgeDef{},
+			"icon-parquet",
+		},
+		{
+			48,
+			"05_write_file_deal_seller_summaries\n" +
+				"Write from table to files\n" +
+				"Table: deal_seller_summaries\n" +
+				"Files: /tmp/.../.../deal_seller_summaries.parquet",
+			EdgeDef{45, "deal_seller_summaries\n(no parallelism)"},
+			[]EdgeDef{},
+			"icon-parquet",
+		},
 	}
-	vizNodeMap, totalPermutations, elapsed, bestDist, _ := GetBestHierarchy(nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions())
-	assert.Equal(t, int64(1296), totalPermutations)
-	assert.Equal(t, 4114.2, bestDist)
-	svg := strings.ReplaceAll(draw(vizNodeMap, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), CapillariesIcons100x100, ""), "</svg>", drawStatistics(totalPermutations, elapsed, bestDist)+"\n</svg>")
+	nodeFo := FontOptions{FontTypefaceVerdana, FontWeightNormal, 20}
+	vizNodeMap, totalPermutations, elapsed, bestDist, _ := GetBestHierarchy(nodeDefs, nodeFo, DefaultEdgeLabelFontOptions())
+	assert.Equal(t, int64(31104), totalPermutations)
+	assert.Equal(t, 4843.80, math.Round(bestDist*100.0)/100.0)
+	svg := strings.ReplaceAll(draw(vizNodeMap, nodeFo, DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), CapillariesIcons100x100, ".rect-node-background {rx:20; ry:20; opacity:0.9} .rect-node {rx:20; ry:20;stroke-width:2;}"), "</svg>", drawStatistics(totalPermutations, elapsed, bestDist)+"\n</svg>")
 	fmt.Printf("%s\n", svg)
 }

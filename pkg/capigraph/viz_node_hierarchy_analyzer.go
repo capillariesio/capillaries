@@ -10,6 +10,16 @@ type VizNodeHierarchyAnalyzer struct {
 }
 
 func GetBestHierarchy(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions) ([]VizNode, int64, float64, float64, error) {
+	if err := checkNodeIds(nodeDefs); err != nil {
+		return nil, int64(0), 0.0, 0.0, err
+	}
+
+	for i := range len(nodeDefs) - 1 {
+		if err := checkNodeDef(int16(i+1), nodeDefs); err != nil {
+			return nil, int64(0), 0.0, 0.0, err
+		}
+	}
+
 	priParentMap := buildPriParentMap(nodeDefs)
 	layerMap := buildLayerMap(nodeDefs, priParentMap)
 	rootNodes := buildRootNodeList(priParentMap)

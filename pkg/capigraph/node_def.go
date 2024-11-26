@@ -1,6 +1,9 @@
 package capigraph
 
-import "slices"
+import (
+	"fmt"
+	"slices"
+)
 
 const MissingNodeId int16 = -1
 const MissingDistanceFromRootToNode int = -2
@@ -136,4 +139,42 @@ func buildRootSubtreeHeightsMap(totalNodes int, rootNodes []int16, rootToNodeDis
 		}
 	}
 	return rootSubtreeHeights, maxSubtreeHeight
+}
+
+func checkForLoopsRecursive(nodeId int16, nodeDefs []NodeDef, startNode int16) error {
+	if nodeDefs[nodeId].PriIn.SrcId != 0 {
+		if nodeDefs[nodeId].PriIn.SrcId == startNode {
+			return fmt.Errorf("%d<=%d", nodeId, nodeDefs[nodeId].PriIn.SrcId)
+		}
+		if err := checkForLoopsRecursive(nodeDefs[nodeId].PriIn.SrcId, nodeDefs, startNode); err != nil {
+			return fmt.Errorf("%d<=%s", nodeId, err.Error())
+		}
+	}
+	for i := range nodeDefs[nodeId].SecIn {
+		edge := &(nodeDefs[nodeId].SecIn[i])
+		if edge.SrcId == startNode {
+			return fmt.Errorf("%d<-%d", nodeId, edge.SrcId)
+		}
+		if err := checkForLoopsRecursive(edge.SrcId, nodeDefs, startNode); err != nil {
+			return fmt.Errorf("%d<-%s", nodeId, err.Error())
+		}
+	}
+	return nil
+}
+
+func checkNodeDef(nodeId int16, nodeDefs []NodeDef) error {
+	if nodeDefs[nodeId].PriIn.SrcId == 0 && len(nodeDefs[nodeId].SecIn) > 0 {
+		return fmt.Errorf("cannot process node def %d: it has no primary parent, but has secondary prents", nodeId)
+	}
+	return checkForLoopsRecursive(nodeId, nodeDefs, nodeId)
+
+}
+
+func checkNodeIds(nodeDefs []NodeDef) error {
+	for i, _ := range nodeDefs {
+		if nodeDefs[i].Id != int16(i) {
+			return fmt.Errorf("cannot process node at index %d, it has id %d", i, nodeDefs[i].Id)
+		}
+	}
+	return nil
 }
