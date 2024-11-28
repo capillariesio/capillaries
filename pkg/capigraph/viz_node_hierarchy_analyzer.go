@@ -84,6 +84,7 @@ func GetBestHierarchy(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions
 
 	// Edge label X and Y
 	vnh.PopulateEdgeLabelCoords()
+	vnh.RemoveDuplicateSecEdgeLabels()
 
 	return vnh.VizNodeMap, int64(mxPermCnt), tElapsed, bestDistSec, nil
 }

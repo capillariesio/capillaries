@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"sort"
 	"strings"
 )
 
@@ -53,27 +54,14 @@ func NewVizNodeHierarchy(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOpti
 
 	vnh.PriEdgeLabelDimMap = make([]RectDimension, len(nodeDefs))
 	vnh.SecEdgeLabelDimMap = make([][]RectDimension, len(nodeDefs))
-	secLabelsFromItemMap := map[int16]map[string]any{} // Fight srcid->secText duplicates
 	for _, nodeDef := range nodeDefs {
 		if nodeDef.PriIn.SrcId != 0 {
 			w, h := getTextDimensions(nodeDef.PriIn.Text, edgeFo.Typeface, edgeFo.Weight, edgeFo.SizeInPixels, edgeFo.Interval)
-			labelWidth, labelHeight := getLabelDimensionsFromTextDimensions(w, h, edgeFo.SizeInPixels, edgeFo.SizeInPixels)
-			vnh.PriEdgeLabelDimMap[nodeDef.Id] = RectDimension{labelWidth, labelHeight}
+			vnh.PriEdgeLabelDimMap[nodeDef.Id].W, vnh.PriEdgeLabelDimMap[nodeDef.Id].H = getLabelDimensionsFromTextDimensions(w, h, edgeFo.SizeInPixels, edgeFo.SizeInPixels)
 		}
 		vnh.SecEdgeLabelDimMap[nodeDef.Id] = make([]RectDimension, len(nodeDef.SecIn))
 		for edgeIdx, edgeDef := range nodeDef.SecIn {
-			edgeTextMap, ok := secLabelsFromItemMap[edgeDef.SrcId]
-			if !ok {
-				edgeTextMap = map[string]any{}
-				secLabelsFromItemMap[edgeDef.SrcId] = edgeTextMap
-			}
-			w := 0.0
-			h := 0.0
-			_, ok = edgeTextMap[edgeDef.Text]
-			if !ok {
-				w, h = getTextDimensions(edgeDef.Text, edgeFo.Typeface, edgeFo.Weight, edgeFo.SizeInPixels, edgeFo.Interval)
-				edgeTextMap[edgeDef.Text] = struct{}{}
-			}
+			w, h := getTextDimensions(edgeDef.Text, edgeFo.Typeface, edgeFo.Weight, edgeFo.SizeInPixels, edgeFo.Interval)
 			vnh.SecEdgeLabelDimMap[nodeDef.Id][edgeIdx].W, vnh.SecEdgeLabelDimMap[nodeDef.Id][edgeIdx].H = getLabelDimensionsFromTextDimensions(w, h, edgeFo.SizeInPixels, edgeFo.SizeInPixels)
 		}
 	}
@@ -487,4 +475,52 @@ func (vnh *VizNodeHierarchy) PopulateEdgeLabelCoords() {
 			}
 		}
 	}
+}
+
+func (vnh *VizNodeHierarchy) RemoveDuplicateSecEdgeLabels() {
+	secLabelsFromItemMap := map[int16]map[string][]*VizEdge{} // Fight srcid->secText duplicates
+	for i := range len(vnh.VizNodeMap) - 1 {
+		vizNode := vnh.VizNodeMap[i+1]
+		for j := range vizNode.IncomingVizEdges {
+			e := &vizNode.IncomingVizEdges[j]
+			if e.HierarchyType != HierarchySec {
+				continue
+			}
+			edgeTextMap, ok := secLabelsFromItemMap[e.Edge.SrcId]
+			if !ok {
+				edgeTextMap = map[string][]*VizEdge{}
+				secLabelsFromItemMap[e.Edge.SrcId] = edgeTextMap
+			}
+			_, ok = edgeTextMap[e.Edge.Text]
+			if !ok {
+				edgeTextMap[e.Edge.Text] = make([]*VizEdge, 0, 10)
+			}
+			edgeTextMap[e.Edge.Text] = append(edgeTextMap[e.Edge.Text], e)
+		}
+	}
+
+	for _, edgeTextMap := range secLabelsFromItemMap {
+		for _, edges := range edgeTextMap {
+			sort.Slice(edges, func(i int, j int) bool {
+				return edges[i].X < edges[j].X
+			})
+			i := 0
+			j := 1
+			for i < len(edges) {
+				for i < j && j < len(edges) {
+					if edges[i].X+edges[i].W > edges[j].X {
+						// We have an intersection, remove j
+						edges[j].W = 0.0
+						edges[j].H = 0.0
+						edges = slices.Delete(edges, j, j+1)
+					} else {
+						j++
+					}
+				}
+				i++
+				j = i + 1
+			}
+		}
+	}
+
 }
