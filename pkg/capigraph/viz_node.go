@@ -1,5 +1,10 @@
 package capigraph
 
+import (
+	"fmt"
+	"strings"
+)
+
 type HierarchyType int
 
 const (
@@ -20,9 +25,21 @@ type VizNode struct {
 	PriChildrenAndEnclosedRoots []*VizNode
 }
 
+func (vn *VizNode) String() string {
+	sb := strings.Builder{}
+	sb.WriteString(fmt.Sprintf("Id:%d RootId:%d Layer:%d [", vn.Def.Id, vn.RootId, vn.Layer))
+	for i, c := range vn.PriChildrenAndEnclosedRoots {
+		if i > 0 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString(fmt.Sprintf("%d", c.Def.Id))
+	}
+	sb.WriteString(fmt.Sprintf("] X:%.2f Y:%.2f TotalW:%.2f NodeW:%.2f NodeH:%.2f", vn.X, vn.Y, vn.TotalW, vn.NodeW, vn.NodeH))
+	return sb.String()
+}
+
 func (vn *VizNode) cleanPropertiesSubjectToPermutation() {
 	// Do not clean up static properties like Def, NodeW, NodeH etc
-	vn.Layer = 0
 	vn.PriChildrenAndEnclosedRoots = vn.PriChildrenAndEnclosedRoots[:0] // Reset size, not capacity
 	vn.TotalW = 0.0
 	vn.X = 0.0

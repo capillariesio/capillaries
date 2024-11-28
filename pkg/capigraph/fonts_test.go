@@ -8,16 +8,16 @@ import (
 
 func TestTextDimension(t *testing.T) {
 	var w, h float64
-	w, h = getTextDimensions("", FontTypefaceArial, FontWeightNormal, 20)
+	w, h = getTextDimensions("", FontTypefaceArial, FontWeightNormal, 20, 0.0)
 	assert.Equal(t, 0.0, w)
 	assert.Equal(t, 0.0, h)
-	w, h = getTextDimensions("A", FontTypefaceArial, FontWeightNormal, 20)
+	w, h = getTextDimensions("A", FontTypefaceArial, FontWeightNormal, 20, 0.0)
 	assert.Equal(t, 13.4, w)
 	assert.Equal(t, 20.0, h)
-	w, h = getTextDimensions("\nA", FontTypefaceArial, FontWeightNormal, 20)
+	w, h = getTextDimensions("\nA", FontTypefaceArial, FontWeightNormal, 20, 0.0)
 	assert.Equal(t, 13.4, w)
 	assert.Equal(t, 40.0, h)
-	w, h = getTextDimensions("\n", FontTypefaceArial, FontWeightNormal, 20)
+	w, h = getTextDimensions("\n", FontTypefaceArial, FontWeightNormal, 20, 0.0)
 	assert.Equal(t, 0.0, w)
 	assert.Equal(t, 0.0, h)
 }

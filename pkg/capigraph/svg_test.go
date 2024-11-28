@@ -14,7 +14,7 @@ import (
 func TestBasicSvg(t *testing.T) {
 	vizNodeMap, totalPermutations, elapsed, bestDist, _ := GetBestHierarchy(testNodeDefsBasic, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions())
 	assert.Equal(t, int64(2), totalPermutations)
-	assert.Equal(t, 47.2, bestDist)
+	assert.Equal(t, 52.0, bestDist)
 	svg := strings.ReplaceAll(draw(vizNodeMap, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", ""), "</svg>", drawStatistics(totalPermutations, elapsed, bestDist)+"\n</svg>")
 	fmt.Printf("%s\n", svg)
 }
@@ -63,7 +63,7 @@ func TestTwoEnclosingTwoLevelsNodeSizeMattersSvg(t *testing.T) {
 	// Only one of 8, 9 is enclosed
 	vizNodeMap, totalPermutations, elapsed, bestDist, _ := GetBestHierarchy(testNodeDefsTwoEnclosedNodeSizeMatters, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions())
 	assert.Equal(t, int64(24), totalPermutations)
-	assert.Equal(t, 302.4, bestDist)
+	assert.Equal(t, 312.0, bestDist)
 	svg := strings.ReplaceAll(draw(vizNodeMap, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", ""), "</svg>", drawStatistics(totalPermutations, elapsed, bestDist)+"\n</svg>")
 	fmt.Printf("%s\n", svg)
 
@@ -80,7 +80,7 @@ func TestTwoEnclosingTwoLevelsNodeSizeMattersSvg(t *testing.T) {
 func TestOneSecondarySvg(t *testing.T) {
 	vizNodeMap, totalPermutations, elapsed, bestDist, _ := GetBestHierarchy(testNodeDefsOneSecondary, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions())
 	assert.Equal(t, int64(6), totalPermutations)
-	assert.Equal(t, 47.2, bestDist)
+	assert.Equal(t, 52.0, bestDist)
 	svg := strings.ReplaceAll(draw(vizNodeMap, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", ""), "</svg>", drawStatistics(totalPermutations, elapsed, bestDist)+"\n</svg>")
 	fmt.Printf("%s\n", svg)
 }
@@ -89,6 +89,21 @@ func TestDiamonSvg(t *testing.T) {
 	vizNodeMap, totalPermutations, elapsed, bestDist, _ := GetBestHierarchy(testNodeDefsDiamond, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions())
 	assert.Equal(t, int64(24), totalPermutations)
 	assert.Equal(t, 104.0, bestDist)
+	svg := strings.ReplaceAll(draw(vizNodeMap, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", ""), "</svg>", drawStatistics(totalPermutations, elapsed, bestDist)+"\n</svg>")
+	fmt.Printf("%s\n", svg)
+}
+
+func TestTwoLevelsFromOneParentSameRootSvg(t *testing.T) {
+	vizNodeMap, totalPermutations, elapsed, bestDist, _ := GetBestHierarchy(testNodeDefsTwoLevelsFromOneParentSameRoot, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions())
+	assert.Equal(t, int64(2), totalPermutations)
+	assert.Equal(t, 52.0, bestDist)
+	svg := strings.ReplaceAll(draw(vizNodeMap, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", ""), "</svg>", drawStatistics(totalPermutations, elapsed, bestDist)+"\n</svg>")
+	fmt.Printf("%s\n", svg)
+}
+func TestTwoLevelsFromOneParentSameRootTwoFakesSvg(t *testing.T) {
+	vizNodeMap, totalPermutations, elapsed, bestDist, _ := GetBestHierarchy(testNodeDefsTwoLevelsFromOneParentSameRootTwoFakes, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions())
+	assert.Equal(t, int64(2), totalPermutations)
+	assert.Equal(t, 52.0, bestDist)
 	svg := strings.ReplaceAll(draw(vizNodeMap, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", ""), "</svg>", drawStatistics(totalPermutations, elapsed, bestDist)+"\n</svg>")
 	fmt.Printf("%s\n", svg)
 }
@@ -249,7 +264,7 @@ func TestCapillariesIcons(t *testing.T) {
 				"Group: true, join: left\n" +
 				"Table created: deal_summaries",
 			EdgeDef{5, "deal_total_upbs\n(10 batches)"},
-			[]EdgeDef{{7, "idx_loan_summaries_calculated_deal_name\n(lookup)"}},
+			[]EdgeDef{{7, "idx_loan_summaries_calculated_deal_name\n(lookup)\ndeal_name"}},
 			"icon-database-table-join",
 		},
 		{
@@ -259,7 +274,7 @@ func TestCapillariesIcons(t *testing.T) {
 				"Group: true, join: left\n" +
 				"Table created: deal_seller_summaries",
 			EdgeDef{4, "deal_sellers\n(10 batches)"},
-			[]EdgeDef{},
+			[]EdgeDef{{7, "idx_loan_summaries_calculated_deal_name\n(lookup)\ndeal_name\nseller_name"}},
 			"icon-database-table-join",
 		},
 		{
@@ -656,10 +671,10 @@ func TestCapillariesIcons(t *testing.T) {
 			"icon-parquet",
 		},
 	}
-	nodeFo := FontOptions{FontTypefaceVerdana, FontWeightNormal, 20}
+	nodeFo := FontOptions{FontTypefaceVerdana, FontWeightNormal, 20, 0.3}
 	vizNodeMap, totalPermutations, elapsed, bestDist, _ := GetBestHierarchy(nodeDefs, nodeFo, DefaultEdgeLabelFontOptions())
 	assert.Equal(t, int64(31104), totalPermutations)
-	assert.Equal(t, 4843.80, math.Round(bestDist*100.0)/100.0)
-	svg := strings.ReplaceAll(draw(vizNodeMap, nodeFo, DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), CapillariesIcons100x100, ".rect-node-background {rx:20; ry:20; opacity:0.9} .rect-node {rx:20; ry:20;stroke-width:2;}"), "</svg>", drawStatistics(totalPermutations, elapsed, bestDist)+"\n</svg>")
+	assert.Equal(t, 5679.0, math.Round(bestDist*100.0)/100.0)
+	svg := strings.ReplaceAll(draw(vizNodeMap, nodeFo, DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), CapillariesIcons100x100, ".rect-node-background {rx:20; ry:20;} .rect-node {rx:20; ry:20;stroke-width:2;}"), "</svg>", drawStatistics(totalPermutations, elapsed, bestDist)+"\n</svg>")
 	fmt.Printf("%s\n", svg)
 }

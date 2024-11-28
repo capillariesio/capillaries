@@ -376,26 +376,59 @@ func mxIterRecursive(mxi *LayerMxPermIterator, layerIdx int, totalCnt int, f fun
 		return
 	}
 
+	// Original implementation
+	// newNodeIdx := 0
+	// if layerIdx > 0 {
+	// 	for _, nodeId := range mxi.WorkMx[layerIdx-1] {
+	// 		if nodeId > FakeNodeBase {
+	// 			mxi.WorkMx[layerIdx][newNodeIdx] = nodeId
+	// 			newNodeIdx++
+	// 		} else {
+	// 			children := mxi.PriChildrenMap[nodeId]
+	// 			for _, childId := range children {
+	// 				childIdToAdd := childId
+	// 				childLayerIdx := mxi.NodeLayerMap[childId]
+	// 				if childLayerIdx > layerIdx+1 {
+	// 					childIdToAdd = childId + FakeNodeBase
+	// 				}
+	// 				mxi.WorkMx[layerIdx][newNodeIdx] = childIdToAdd
+	// 				newNodeIdx++
+	// 			}
+	// 		}
+	// 	}
+	// }
+
+	// New impl 1
 	newNodeIdx := 0
 	if layerIdx > 0 {
 		for _, nodeId := range mxi.WorkMx[layerIdx-1] {
 			if nodeId > FakeNodeBase {
-				mxi.WorkMx[layerIdx][newNodeIdx] = nodeId
+				// Fake parent node, has only one child. Decide either this (layerIdx) child is fake or not.
+				childLayer := mxi.NodeLayerMap[nodeId-FakeNodeBase]
+				if childLayer == layerIdx {
+					mxi.WorkMx[layerIdx][newNodeIdx] = nodeId - FakeNodeBase // This is the true node
+				} else {
+					mxi.WorkMx[layerIdx][newNodeIdx] = nodeId // Keep faking, keep in mind that nodeId will have children that reference same Def.NodeId
+				}
 				newNodeIdx++
 			} else {
+				// Normal (non-fake) parent
 				children := mxi.PriChildrenMap[nodeId]
 				for _, childId := range children {
-					childIdToAdd := childId
-					childLayerIdx := mxi.NodeLayerMap[childId]
-					if childLayerIdx > layerIdx+1 {
-						childIdToAdd = childId + FakeNodeBase
+					childLayer := mxi.NodeLayerMap[childId]
+					if childLayer > layerIdx {
+						// Add another fake node until childLayer == layerIdx
+						mxi.WorkMx[layerIdx][newNodeIdx] = childId + FakeNodeBase
+					} else {
+						// Add the real node, childLayer == layerIdx
+						mxi.WorkMx[layerIdx][newNodeIdx] = childId
 					}
-					mxi.WorkMx[layerIdx][newNodeIdx] = childIdToAdd
 					newNodeIdx++
 				}
 			}
 		}
 	}
+
 	// Add new roots
 	for _, rootId := range mxi.RootNodes {
 		if mxi.NodeLayerMap[rootId] == layerIdx {

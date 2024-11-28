@@ -196,3 +196,59 @@ var testNodeDefs300bilPerms = []NodeDef{
 	{24, "24", EdgeDef{}, []EdgeDef{}, ""},
 	{25, "25", EdgeDef{}, []EdgeDef{}, ""},
 }
+
+// 0:    1  2
+// -     | /|
+// 1:    3  |
+// -     | /
+// 2:    4
+var testNodeDefsTwoLevelsFromOneParent = []NodeDef{
+	{0, "top node", EdgeDef{}, []EdgeDef{}, ""},
+	{1, "1", EdgeDef{}, []EdgeDef{}, ""},
+	{2, "2", EdgeDef{}, []EdgeDef{}, ""},
+	{3, "3", EdgeDef{1, ""}, []EdgeDef{{2, ""}}, ""},
+	{4, "4", EdgeDef{3, ""}, []EdgeDef{{2, ""}}, ""},
+}
+
+// 0:    1
+// -     | \
+// 1:    2   5
+// -     |   |
+// 2:    3   F
+// -     | \ |
+// 3:    4   6
+// -         |
+// 4:        7
+var testNodeDefsTwoLevelsFromOneParentSameRoot = []NodeDef{
+	{0, "top node", EdgeDef{}, []EdgeDef{}, ""},
+	{1, "1", EdgeDef{}, []EdgeDef{}, ""},
+	{2, "2", EdgeDef{1, ""}, []EdgeDef{}, ""},
+	{3, "3", EdgeDef{2, ""}, []EdgeDef{}, ""},
+	{4, "4", EdgeDef{3, ""}, []EdgeDef{}, ""},
+	{5, "5", EdgeDef{1, ""}, []EdgeDef{}, ""},
+	{6, "6", EdgeDef{5, ""}, []EdgeDef{{3, ""}}, ""},
+	{7, "7", EdgeDef{6, ""}, []EdgeDef{}, ""},
+}
+
+// 0:    1
+// -     | \
+// 1:    2   6
+// -     |   |
+// 2:    3   F
+// -     |   |
+// 3:    4   F
+// -     | \ |
+// 4:    5   7
+// -         |
+// 5:        8
+var testNodeDefsTwoLevelsFromOneParentSameRootTwoFakes = []NodeDef{
+	{0, "top node", EdgeDef{}, []EdgeDef{}, ""},
+	{1, "1", EdgeDef{}, []EdgeDef{}, ""},
+	{2, "2", EdgeDef{1, ""}, []EdgeDef{}, ""},
+	{3, "3", EdgeDef{2, ""}, []EdgeDef{}, ""},
+	{4, "4", EdgeDef{3, ""}, []EdgeDef{}, ""},
+	{5, "5", EdgeDef{4, ""}, []EdgeDef{}, ""},
+	{6, "6", EdgeDef{1, ""}, []EdgeDef{}, ""},
+	{7, "7", EdgeDef{6, ""}, []EdgeDef{{4, ""}}, ""},
+	{8, "8", EdgeDef{7, ""}, []EdgeDef{}, ""},
+}

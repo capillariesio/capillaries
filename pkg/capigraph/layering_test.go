@@ -7,25 +7,24 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// 0:    1  2
-// -     | /|
-// 1:    3  |
-// -     | /
-// 2:    4
-func TestTwoLevelsFromOneParent(t *testing.T) {
-	nodeDefs := []NodeDef{
-		{0, "top node", EdgeDef{}, []EdgeDef{}, ""},
-		{1, "1", EdgeDef{}, []EdgeDef{}, ""},
-		{2, "2", EdgeDef{}, []EdgeDef{}, ""},
-		{3, "3", EdgeDef{1, ""}, []EdgeDef{{2, ""}}, ""},
-		{4, "4", EdgeDef{3, ""}, []EdgeDef{{2, ""}}, ""},
-	}
+func TestTwoLevelsFromOneParentLayering(t *testing.T) {
+	nodeDefs := testNodeDefsTwoLevelsFromOneParent
 	layerMap := buildLayerMap(nodeDefs, buildPriParentMap(nodeDefs))
 	assert.Equal(t, "[-4 0 0 1 2]", fmt.Sprintf("%v", layerMap))
 
 	rootNodes := buildRootNodeList(buildPriParentMap(nodeDefs))
 	mx, _ := NewLayerMx(nodeDefs, layerMap, rootNodes)
 	assert.Equal(t, "0 [1 2], 1 [3], 2 [4]", mx.String())
+}
+
+func TestTwoLevelsFromOneParentSameRootLayering(t *testing.T) {
+	nodeDefs := testNodeDefsTwoLevelsFromOneParentSameRoot
+	layerMap := buildLayerMap(nodeDefs, buildPriParentMap(nodeDefs))
+	assert.Equal(t, "[-4 0 1 2 3 1 3 4]", fmt.Sprintf("%v", layerMap))
+
+	rootNodes := buildRootNodeList(buildPriParentMap(nodeDefs))
+	mx, _ := NewLayerMx(nodeDefs, layerMap, rootNodes)
+	assert.Equal(t, "0 [1], 1 [2 5], 2 [3 10006], 3 [4 6], 4 [7]", mx.String())
 }
 
 // 0:    1

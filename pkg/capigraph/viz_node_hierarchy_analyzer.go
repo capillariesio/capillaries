@@ -46,6 +46,7 @@ func GetBestHierarchy(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions
 
 		// Hierarchy
 		vnh.reuseRootSubtreeHierarchy(mxPerm)
+		//fmt.Printf("%s\n", vnh.String())
 		// X coord
 		vnh.PopulateNodeTotalWidth()
 		vnh.PopulateNodesXCoords()
@@ -55,7 +56,7 @@ func GetBestHierarchy(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions
 		if distSec <= bestDistSec {
 			// This: 1. Adds determinism 2. helps user choose ids that go first (to some extent)
 			signature := mxPerm.signature()
-			if math.Abs(bestDistSec-distSec) > 0.01 || signature < bestSignature {
+			if math.Abs(bestDistSec-distSec) > 0.1 || signature < bestSignature {
 				bestDistSec = distSec
 				bestMx = mxPerm.clone()
 				bestSignature = signature
@@ -78,7 +79,7 @@ func GetBestHierarchy(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions
 
 	// Y coord
 	vnh.PopulateEdgeLabelDimensions()
-	vnh.PopulateUpperLayerGapMap(edgeFo.SizeInPixels, math.Max(vnh.VizNodeMap[0].TotalW/20.0, nodeFo.SizeInPixels*3)) // Purely empiric
+	vnh.PopulateUpperLayerGapMap(edgeFo.SizeInPixels)
 	vnh.PopulateNodesYCoords()
 
 	// Edge label X and Y
