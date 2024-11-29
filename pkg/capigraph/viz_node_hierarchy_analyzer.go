@@ -53,10 +53,10 @@ func GetBestHierarchy(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions
 
 		distSec := vnh.CalculateTotalHorizontalShift()
 		//fmt.Printf("%d %.2f %s\n", mxPermCnt, distSec, mxPerm.String())
-		if distSec <= bestDistSec {
+		if distSec < bestDistSec {
 			// This: 1. Adds determinism 2. helps user choose ids that go first (to some extent)
 			signature := mxPerm.signature()
-			if math.Abs(bestDistSec-distSec) > 0.1 || signature < bestSignature {
+			if distSec < bestDistSec-0.1 || signature < bestSignature {
 				bestDistSec = distSec
 				bestMx = mxPerm.clone()
 				bestSignature = signature

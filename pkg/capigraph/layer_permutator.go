@@ -180,7 +180,11 @@ func swapFuncIteratorRecursive(lp *LayerPermutator, intervalIdx int, totalCnt in
 	if intLen > MaxSupportedFact {
 		panic(fmt.Sprintf("swapFuncIteratorRecursive: swap interval too big: %d, max supported %d", intLen, MaxSupportedFact))
 	}
-	for i := range lp.Fact[intLen] {
+	// Apply permutation backwards. The only reason for this is:
+	// the "original, untouched" permutation is the last one in the permutation table,
+	// and that is the one we want to to win all other factors equal. So it goes first.
+	i := lp.Fact[intLen] - 1
+	for i >= 0 {
 		// Re-initialize slice interval we work with
 		copy(lp.WorkPerm[intStart:], lp.SrcPerm[intStart:intStart+intLen])
 		// Swap in-place
@@ -191,6 +195,7 @@ func swapFuncIteratorRecursive(lp *LayerPermutator, intervalIdx int, totalCnt in
 		} else {
 			swapFuncIteratorRecursive(lp, intervalIdx+1, totalCnt, cb)
 		}
+		i--
 	}
 }
 
@@ -208,7 +213,11 @@ func insertFuncIteratorRecursive(lp *LayerPermutator, insertSrcStart int, insert
 		totalCnt++
 	}
 	backupBetweenInserts := []int16{10: int16(0)}[:len(lp.WorkPerm)] //make([]int16, len(lp.WorkPerm)) // On stack!
-	for permIdx := range curInsertSrc + 1 {
+	// Apply permutation backwards. The only reason for this is:
+	// the "original, untouched" permutation is the last one ("insert nothing"),
+	// and that is the one we want to to win all other factors equal. So it goes first.
+	permIdx := curInsertSrc
+	for permIdx >= 0 {
 		copy(backupBetweenInserts, lp.WorkPerm)
 		// Shift-insert in-place
 		lp.insertPermutationByIdx(lp.WorkPerm, curInsertSrc, permIdx)
@@ -219,6 +228,7 @@ func insertFuncIteratorRecursive(lp *LayerPermutator, insertSrcStart int, insert
 			insertFuncIteratorRecursive(lp, insertSrcStart, insertSrcLen, curInsertSrc+1, totalCnt, cb)
 		}
 		copy(lp.WorkPerm, backupBetweenInserts)
+		permIdx--
 	}
 }
 

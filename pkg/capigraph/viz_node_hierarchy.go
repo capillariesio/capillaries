@@ -33,8 +33,10 @@ func (vnh *VizNodeHierarchy) String() string {
 		if i == 0 {
 			continue
 		}
+		if i > 1 {
+			sb.WriteString(", ")
+		}
 		sb.WriteString(vn.String())
-		sb.WriteString("\n")
 	}
 	return sb.String()
 }

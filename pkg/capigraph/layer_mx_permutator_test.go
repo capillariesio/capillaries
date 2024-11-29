@@ -16,7 +16,8 @@ func helperAll(t *testing.T,
 	expectedStartMx string,
 	expectedIterCount int64,
 	expectedPermMxs string,
-	expectedHierarchies string) {
+	expectedHierarchyFirst string,
+	expectedHierarchyLast string) {
 	priParentMap := buildPriParentMap(nodeDefs)
 	layerMap := buildLayerMap(nodeDefs, priParentMap)
 	assert.Equal(t, expectedLayerMap, fmt.Sprintf("%v", layerMap))
@@ -31,21 +32,29 @@ func helperAll(t *testing.T,
 	vnh.buildNewRootSubtreeHierarchy(mx)
 
 	sbPerms := strings.Builder{}
-	sbHierarchies := strings.Builder{}
+	var hierarchyFirst, hierarchyLast string
 	mxi.MxIterator(func(i int, mxPerm LayerMx) {
-		sbPerms.WriteString(fmt.Sprintf("%d: %s\n", i, mxPerm.String()))
+		if sbPerms.Len() != 0 {
+			sbPerms.WriteString(", ")
+		}
+		sbPerms.WriteString(fmt.Sprintf("{p%d: {%s}}", i, mxPerm.String()))
 		vnh.reuseRootSubtreeHierarchy(mxPerm)
 		vnh.PopulateNodeTotalWidth()
 		vnh.PopulateNodesXCoords()
 		vnh.PopulateEdgeLabelDimensions()
 		vnh.PopulateUpperLayerGapMap(DefaultEdgeLabelFontOptions().SizeInPixels)
 		vnh.PopulateNodesYCoords()
-		sbHierarchies.WriteString(fmt.Sprintf("Hierarchy %d\n%s", i, vnh.String()))
+		hierarchyString := vnh.String()
+		if hierarchyFirst == "" {
+			hierarchyFirst = hierarchyString
+		}
+		hierarchyLast = hierarchyString
 	})
 
 	assert.Equal(t, expectedIterCount, mxi.MxIteratorCount())
 	assert.Equal(t, expectedPermMxs, sbPerms.String())
-	assert.Equal(t, expectedHierarchies, sbHierarchies.String())
+	assert.Equal(t, expectedHierarchyFirst, hierarchyFirst)
+	assert.Equal(t, expectedHierarchyLast, hierarchyLast)
 }
 
 func helperIteratorAndIncrementalCount(t *testing.T,
@@ -77,200 +86,63 @@ func TestBasicMxPermutator(t *testing.T) {
 	helperAll(t,
 		testNodeDefsBasic,
 		"[-4 0 1 0]",
-		"0 [1 3], 1 [2]",
+		"0:[1 3], 1:[2]",
 		int64(2),
-		`0: 0 [3 1], 1 [2]
-1: 0 [1 3], 1 [2]
-`,
-		`Hierarchy 0
-Id:1 RootId:1 Layer:0 [2] X:52.00 Y:0.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:52.00 Y:256.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:3 Layer:0 [] X:0.00 Y:0.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 1
-Id:1 RootId:1 Layer:0 [2] X:0.00 Y:0.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:0.00 Y:256.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:3 Layer:0 [] X:52.00 Y:0.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-`)
+		"{p0: {0:[1 3], 1:[2]}}, {p1: {0:[3 1], 1:[2]}}",
+		"{Id:1 RootId:1 Layer:0 X:0.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[2]}, {Id:2 RootId:1 Layer:1 X:0.00 Y:256.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:3 X:0.00 Y:0.00 W:69.12 H:36.00}] PriRootOut:[]}, {Id:3 RootId:3 Layer:0 X:52.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[]}",
+		"{Id:1 RootId:1 Layer:0 X:52.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[2]}, {Id:2 RootId:1 Layer:1 X:52.00 Y:256.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:3 X:0.00 Y:0.00 W:69.12 H:36.00}] PriRootOut:[]}, {Id:3 RootId:3 Layer:0 X:0.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[]}",
+	)
 }
 
 func TestTrivialParallelMxPermutator(t *testing.T) {
 	helperAll(t,
 		testNodeDefsTrivialParallel,
 		"[-4 0 1 0 1]",
-		"0 [1 3], 1 [2 4]",
+		"0:[1 3], 1:[2 4]",
 		int64(2),
-		`0: 0 [3 1], 1 [4 2]
-1: 0 [1 3], 1 [2 4]
-`,
-		`Hierarchy 0
-Id:1 RootId:1 Layer:0 [2] X:52.00 Y:0.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:3 Layer:0 [4] X:0.00 Y:0.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:3 Layer:1 [] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 1
-Id:1 RootId:1 Layer:0 [2] X:0.00 Y:0.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:3 Layer:0 [4] X:52.00 Y:0.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:3 Layer:1 [] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-`)
+		"{p0: {0:[1 3], 1:[2 4]}}, {p1: {0:[3 1], 1:[4 2]}}",
+		"{Id:1 RootId:1 Layer:0 X:0.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[2]}, {Id:2 RootId:1 Layer:1 X:0.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:3 RootId:3 Layer:0 X:52.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[4]}, {Id:4 RootId:3 Layer:1 X:52.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:3 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}",
+		"{Id:1 RootId:1 Layer:0 X:52.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[2]}, {Id:2 RootId:1 Layer:1 X:52.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:3 RootId:3 Layer:0 X:0.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[4]}, {Id:4 RootId:3 Layer:1 X:0.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:3 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}")
 }
 
 func TestOneEnclosingOneLevelMxPermutator(t *testing.T) {
 	helperAll(t,
 		testNodeDefsOneEnclosedOneLevel,
 		"[-4 0 1 1 2 2 1]",
-		"0 [1], 1 [2 3 6], 2 [4 5]",
+		"0:[1], 1:[2 3 6], 2:[4 5]",
 		int64(6),
-		`0: 0 [1], 1 [6 3 2], 2 [5 4]
-1: 0 [1], 1 [3 6 2], 2 [5 4]
-2: 0 [1], 1 [3 2 6], 2 [5 4]
-3: 0 [1], 1 [6 2 3], 2 [4 5]
-4: 0 [1], 1 [2 6 3], 2 [4 5]
-5: 0 [1], 1 [2 3 6], 2 [4 5]
-`,
-		`Hierarchy 0
-Id:1 RootId:1 Layer:0 [3 2] X:0.00 Y:0.00 TotalW:84.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 1
-Id:1 RootId:1 Layer:0 [3 6 2] X:0.00 Y:0.00 TotalW:136.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 2
-Id:1 RootId:1 Layer:0 [3 2] X:0.00 Y:0.00 TotalW:84.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 3
-Id:1 RootId:1 Layer:0 [2 3] X:0.00 Y:0.00 TotalW:84.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 4
-Id:1 RootId:1 Layer:0 [2 6 3] X:0.00 Y:0.00 TotalW:136.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 5
-Id:1 RootId:1 Layer:0 [2 3] X:0.00 Y:0.00 TotalW:84.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-`)
+		"{p0: {0:[1], 1:[2 3 6], 2:[4 5]}}, {p1: {0:[1], 1:[2 6 3], 2:[4 5]}}, {p2: {0:[1], 1:[6 2 3], 2:[4 5]}}, {p3: {0:[1], 1:[3 2 6], 2:[5 4]}}, {p4: {0:[1], 1:[3 6 2], 2:[5 4]}}, {p5: {0:[1], 1:[6 3 2], 2:[5 4]}}",
+		"{Id:1 RootId:1 Layer:0 X:0.00 Y:0.00 TotalW:84.00 W:32.00 H:40.00 In:[] PriRootOut:[2 3]}, {Id:2 RootId:1 Layer:1 X:0.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[4]}, {Id:3 RootId:1 Layer:1 X:52.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[5]}, {Id:4 RootId:1 Layer:2 X:0.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:2 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:6 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:5 RootId:1 Layer:2 X:52.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:3 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:6 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:6 RootId:6 Layer:1 X:104.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[]}",
+		"{Id:1 RootId:1 Layer:0 X:0.00 Y:0.00 TotalW:84.00 W:32.00 H:40.00 In:[] PriRootOut:[3 2]}, {Id:2 RootId:1 Layer:1 X:52.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[4]}, {Id:3 RootId:1 Layer:1 X:0.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[5]}, {Id:4 RootId:1 Layer:2 X:52.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:2 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:6 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:5 RootId:1 Layer:2 X:0.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:3 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:6 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:6 RootId:6 Layer:1 X:104.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[]}")
 }
 
 func TestOneEnclosedTwoLevelsMxPermutator(t *testing.T) {
 	helperAll(t,
 		testNodeDefsOneEnclosedTwoLevels,
 		"[-4 0 1 2 3 1 2 3 2]",
-		"0 [1], 1 [2 5], 2 [3 6 8], 3 [4 7]",
+		"0:[1], 1:[2 5], 2:[3 6 8], 3:[4 7]",
 		int64(6),
-		`0: 0 [1], 1 [5 2], 2 [8 6 3], 3 [7 4]
-1: 0 [1], 1 [5 2], 2 [6 8 3], 3 [7 4]
-2: 0 [1], 1 [5 2], 2 [6 3 8], 3 [7 4]
-3: 0 [1], 1 [2 5], 2 [8 3 6], 3 [4 7]
-4: 0 [1], 1 [2 5], 2 [3 8 6], 3 [4 7]
-5: 0 [1], 1 [2 5], 2 [3 6 8], 3 [4 7]
-`,
-		`Hierarchy 0
-Id:1 RootId:1 Layer:0 [5 2] X:0.00 Y:0.00 TotalW:84.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [3] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:2 [4] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:3 [] X:52.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:1 [6] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:2 [7] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 1
-Id:1 RootId:1 Layer:0 [5 8 2] X:0.00 Y:0.00 TotalW:136.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [3] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:2 [4] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:3 [] X:104.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:1 [6] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:2 [7] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 2
-Id:1 RootId:1 Layer:0 [5 2] X:0.00 Y:0.00 TotalW:84.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [3] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:2 [4] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:3 [] X:52.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:1 [6] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:2 [7] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 3
-Id:1 RootId:1 Layer:0 [2 5] X:0.00 Y:0.00 TotalW:84.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [3] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:2 [4] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:1 [6] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:2 [7] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:52.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 4
-Id:1 RootId:1 Layer:0 [2 8 5] X:0.00 Y:0.00 TotalW:136.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [3] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:2 [4] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:1 [6] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:2 [7] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:104.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 5
-Id:1 RootId:1 Layer:0 [2 5] X:0.00 Y:0.00 TotalW:84.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [3] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:2 [4] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:1 [6] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:2 [7] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:52.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-`)
+		"{p0: {0:[1], 1:[2 5], 2:[3 6 8], 3:[4 7]}}, {p1: {0:[1], 1:[2 5], 2:[3 8 6], 3:[4 7]}}, {p2: {0:[1], 1:[2 5], 2:[8 3 6], 3:[4 7]}}, {p3: {0:[1], 1:[5 2], 2:[6 3 8], 3:[7 4]}}, {p4: {0:[1], 1:[5 2], 2:[6 8 3], 3:[7 4]}}, {p5: {0:[1], 1:[5 2], 2:[8 6 3], 3:[7 4]}}",
+		"{Id:1 RootId:1 Layer:0 X:0.00 Y:0.00 TotalW:84.00 W:32.00 H:40.00 In:[] PriRootOut:[2 5]}, {Id:2 RootId:1 Layer:1 X:0.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[3]}, {Id:3 RootId:1 Layer:2 X:0.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:2 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[4]}, {Id:4 RootId:1 Layer:3 X:0.00 Y:300.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:3 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:8 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:5 RootId:1 Layer:1 X:52.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[6]}, {Id:6 RootId:1 Layer:2 X:52.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:5 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[7]}, {Id:7 RootId:1 Layer:3 X:52.00 Y:300.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:6 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:8 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:8 RootId:8 Layer:2 X:104.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[]}",
+		"{Id:1 RootId:1 Layer:0 X:0.00 Y:0.00 TotalW:84.00 W:32.00 H:40.00 In:[] PriRootOut:[5 2]}, {Id:2 RootId:1 Layer:1 X:52.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[3]}, {Id:3 RootId:1 Layer:2 X:52.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:2 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[4]}, {Id:4 RootId:1 Layer:3 X:52.00 Y:300.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:3 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:8 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:5 RootId:1 Layer:1 X:0.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[6]}, {Id:6 RootId:1 Layer:2 X:0.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:5 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[7]}, {Id:7 RootId:1 Layer:3 X:0.00 Y:300.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:6 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:8 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:8 RootId:8 Layer:2 X:104.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[]}")
 }
 
 func TestNoIntervalsMxPermutator(t *testing.T) {
 	helperAll(t,
 		testNodeDefsNoIntervals,
 		"[-4 0 1 2 1 2]",
-		"0 [1], 1 [2 4], 2 [3 5]",
+		"0:[1], 1:[2 4], 2:[3 5]",
 		int64(2),
-		`0: 0 [1], 1 [4 2], 2 [5 3]
-1: 0 [1], 1 [2 4], 2 [3 5]
-`, `Hierarchy 0
-Id:1 RootId:1 Layer:0 [4 2] X:0.00 Y:0.00 TotalW:84.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [3] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:1 [5] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 1
-Id:1 RootId:1 Layer:0 [2 4] X:0.00 Y:0.00 TotalW:84.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [3] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:2 [] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:1 [5] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-`)
+		"{p0: {0:[1], 1:[2 4], 2:[3 5]}}, {p1: {0:[1], 1:[4 2], 2:[5 3]}}",
+		"{Id:1 RootId:1 Layer:0 X:0.00 Y:0.00 TotalW:84.00 W:32.00 H:40.00 In:[] PriRootOut:[2 4]}, {Id:2 RootId:1 Layer:1 X:0.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[3]}, {Id:3 RootId:1 Layer:2 X:0.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:2 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:4 RootId:1 Layer:1 X:52.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[5]}, {Id:5 RootId:1 Layer:2 X:52.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:4 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}",
+		"{Id:1 RootId:1 Layer:0 X:0.00 Y:0.00 TotalW:84.00 W:32.00 H:40.00 In:[] PriRootOut:[4 2]}, {Id:2 RootId:1 Layer:1 X:52.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[3]}, {Id:3 RootId:1 Layer:2 X:52.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:2 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:4 RootId:1 Layer:1 X:0.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[5]}, {Id:5 RootId:1 Layer:2 X:0.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:4 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}")
 }
 
 func TestFlat10MxPermutator(t *testing.T) {
 	helperIteratorAndIncrementalCount(t,
 		testNodeDefsFlat10,
 		"[-4 0 0 0 0 0 0 0 0 0 0]",
-		"0 [1 2 3 4 5 6 7 8 9 10]",
+		"0:[1 2 3 4 5 6 7 8 9 10]",
 		int64(3628800),
 		int64(3628800))
 }
@@ -279,592 +151,121 @@ func TestTwoEnclosingTwoLevelsNodeSizeMattersMxPermutator(t *testing.T) {
 	helperAll(t,
 		testNodeDefsTwoEnclosedNodeSizeMatters,
 		"[-4 0 1 1 2 2 3 3 2 2]",
-		"0 [1], 1 [2 3], 2 [4 5 8 9], 3 [6 7]",
+		"0:[1], 1:[2 3], 2:[4 5 8 9], 3:[6 7]",
 		int64(24),
-		`0: 0 [1], 1 [3 2], 2 [9 8 5 4], 3 [7 6]
-1: 0 [1], 1 [3 2], 2 [8 9 5 4], 3 [7 6]
-2: 0 [1], 1 [3 2], 2 [8 5 9 4], 3 [7 6]
-3: 0 [1], 1 [3 2], 2 [8 5 4 9], 3 [7 6]
-4: 0 [1], 1 [3 2], 2 [9 5 8 4], 3 [7 6]
-5: 0 [1], 1 [3 2], 2 [5 9 8 4], 3 [7 6]
-6: 0 [1], 1 [3 2], 2 [5 8 9 4], 3 [7 6]
-7: 0 [1], 1 [3 2], 2 [5 8 4 9], 3 [7 6]
-8: 0 [1], 1 [3 2], 2 [9 5 4 8], 3 [7 6]
-9: 0 [1], 1 [3 2], 2 [5 9 4 8], 3 [7 6]
-10: 0 [1], 1 [3 2], 2 [5 4 9 8], 3 [7 6]
-11: 0 [1], 1 [3 2], 2 [5 4 8 9], 3 [7 6]
-12: 0 [1], 1 [2 3], 2 [9 8 4 5], 3 [6 7]
-13: 0 [1], 1 [2 3], 2 [8 9 4 5], 3 [6 7]
-14: 0 [1], 1 [2 3], 2 [8 4 9 5], 3 [6 7]
-15: 0 [1], 1 [2 3], 2 [8 4 5 9], 3 [6 7]
-16: 0 [1], 1 [2 3], 2 [9 4 8 5], 3 [6 7]
-17: 0 [1], 1 [2 3], 2 [4 9 8 5], 3 [6 7]
-18: 0 [1], 1 [2 3], 2 [4 8 9 5], 3 [6 7]
-19: 0 [1], 1 [2 3], 2 [4 8 5 9], 3 [6 7]
-20: 0 [1], 1 [2 3], 2 [9 4 5 8], 3 [6 7]
-21: 0 [1], 1 [2 3], 2 [4 9 5 8], 3 [6 7]
-22: 0 [1], 1 [2 3], 2 [4 5 9 8], 3 [6 7]
-23: 0 [1], 1 [2 3], 2 [4 5 8 9], 3 [6 7]
-`,
-		`Hierarchy 0
-Id:1 RootId:1 Layer:0 [3 2] X:0.00 Y:0.00 TotalW:84.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [6] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [7] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:3 [] X:52.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:156.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:9 RootId:9 Layer:2 [] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 1
-Id:1 RootId:1 Layer:0 [3 2] X:0.00 Y:0.00 TotalW:84.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [6] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [7] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:3 [] X:52.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:9 RootId:9 Layer:2 [] X:156.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 2
-Id:1 RootId:1 Layer:0 [3 9 2] X:0.00 Y:0.00 TotalW:136.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [6] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [7] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:3 [] X:104.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:156.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:9 RootId:9 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 3
-Id:1 RootId:1 Layer:0 [3 2] X:0.00 Y:0.00 TotalW:84.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [6] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [7] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:3 [] X:52.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:9 RootId:9 Layer:2 [] X:156.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 4
-Id:1 RootId:1 Layer:0 [3 8 2] X:0.00 Y:0.00 TotalW:136.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [6] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [7] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:3 [] X:104.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:9 RootId:9 Layer:2 [] X:156.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 5
-Id:1 RootId:1 Layer:0 [3 9 8 2] X:0.00 Y:0.00 TotalW:188.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:156.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [6] X:156.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [7] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:3 [] X:156.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:9 RootId:9 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 6
-Id:1 RootId:1 Layer:0 [3 8 9 2] X:0.00 Y:0.00 TotalW:188.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:156.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [6] X:156.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [7] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:3 [] X:156.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:9 RootId:9 Layer:2 [] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 7
-Id:1 RootId:1 Layer:0 [3 8 2] X:0.00 Y:0.00 TotalW:136.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [6] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [7] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:3 [] X:104.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:9 RootId:9 Layer:2 [] X:156.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 8
-Id:1 RootId:1 Layer:0 [3 2] X:0.00 Y:0.00 TotalW:84.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [6] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [7] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:3 [] X:52.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:156.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:9 RootId:9 Layer:2 [] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 9
-Id:1 RootId:1 Layer:0 [3 9 2] X:0.00 Y:0.00 TotalW:136.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [6] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [7] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:3 [] X:104.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:156.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:9 RootId:9 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 10
-Id:1 RootId:1 Layer:0 [3 2] X:0.00 Y:0.00 TotalW:84.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [6] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [7] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:3 [] X:52.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:156.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:9 RootId:9 Layer:2 [] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 11
-Id:1 RootId:1 Layer:0 [3 2] X:0.00 Y:0.00 TotalW:84.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [6] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [7] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:3 [] X:52.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:9 RootId:9 Layer:2 [] X:156.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 12
-Id:1 RootId:1 Layer:0 [2 3] X:0.00 Y:0.00 TotalW:84.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [6] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [7] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:52.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:156.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:9 RootId:9 Layer:2 [] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 13
-Id:1 RootId:1 Layer:0 [2 3] X:0.00 Y:0.00 TotalW:84.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [6] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [7] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:52.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:9 RootId:9 Layer:2 [] X:156.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 14
-Id:1 RootId:1 Layer:0 [2 9 3] X:0.00 Y:0.00 TotalW:136.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [6] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [7] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:104.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:156.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:9 RootId:9 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 15
-Id:1 RootId:1 Layer:0 [2 3] X:0.00 Y:0.00 TotalW:84.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [6] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [7] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:52.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:9 RootId:9 Layer:2 [] X:156.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 16
-Id:1 RootId:1 Layer:0 [2 8 3] X:0.00 Y:0.00 TotalW:136.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [6] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [7] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:104.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:9 RootId:9 Layer:2 [] X:156.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 17
-Id:1 RootId:1 Layer:0 [2 9 8 3] X:0.00 Y:0.00 TotalW:188.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:156.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [6] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [7] X:156.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:156.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:9 RootId:9 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 18
-Id:1 RootId:1 Layer:0 [2 8 9 3] X:0.00 Y:0.00 TotalW:188.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:156.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [6] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [7] X:156.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:156.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:9 RootId:9 Layer:2 [] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 19
-Id:1 RootId:1 Layer:0 [2 8 3] X:0.00 Y:0.00 TotalW:136.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [6] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [7] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:104.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:9 RootId:9 Layer:2 [] X:156.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 20
-Id:1 RootId:1 Layer:0 [2 3] X:0.00 Y:0.00 TotalW:84.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [6] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [7] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:52.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:156.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:9 RootId:9 Layer:2 [] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 21
-Id:1 RootId:1 Layer:0 [2 9 3] X:0.00 Y:0.00 TotalW:136.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [6] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [7] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:104.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:156.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:9 RootId:9 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 22
-Id:1 RootId:1 Layer:0 [2 3] X:0.00 Y:0.00 TotalW:84.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [6] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [7] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:52.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:156.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:9 RootId:9 Layer:2 [] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 23
-Id:1 RootId:1 Layer:0 [2 3] X:0.00 Y:0.00 TotalW:84.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [4] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:2 [6] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [7] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:3 [] X:52.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:8 Layer:2 [] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:9 RootId:9 Layer:2 [] X:156.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-`)
+		"{p0: {0:[1], 1:[2 3], 2:[4 5 8 9], 3:[6 7]}}, {p1: {0:[1], 1:[2 3], 2:[4 5 9 8], 3:[6 7]}}, {p2: {0:[1], 1:[2 3], 2:[4 9 5 8], 3:[6 7]}}, {p3: {0:[1], 1:[2 3], 2:[9 4 5 8], 3:[6 7]}}, {p4: {0:[1], 1:[2 3], 2:[4 8 5 9], 3:[6 7]}}, {p5: {0:[1], 1:[2 3], 2:[4 8 9 5], 3:[6 7]}}, {p6: {0:[1], 1:[2 3], 2:[4 9 8 5], 3:[6 7]}}, {p7: {0:[1], 1:[2 3], 2:[9 4 8 5], 3:[6 7]}}, {p8: {0:[1], 1:[2 3], 2:[8 4 5 9], 3:[6 7]}}, {p9: {0:[1], 1:[2 3], 2:[8 4 9 5], 3:[6 7]}}, {p10: {0:[1], 1:[2 3], 2:[8 9 4 5], 3:[6 7]}}, {p11: {0:[1], 1:[2 3], 2:[9 8 4 5], 3:[6 7]}}, {p12: {0:[1], 1:[3 2], 2:[5 4 8 9], 3:[7 6]}}, {p13: {0:[1], 1:[3 2], 2:[5 4 9 8], 3:[7 6]}}, {p14: {0:[1], 1:[3 2], 2:[5 9 4 8], 3:[7 6]}}, {p15: {0:[1], 1:[3 2], 2:[9 5 4 8], 3:[7 6]}}, {p16: {0:[1], 1:[3 2], 2:[5 8 4 9], 3:[7 6]}}, {p17: {0:[1], 1:[3 2], 2:[5 8 9 4], 3:[7 6]}}, {p18: {0:[1], 1:[3 2], 2:[5 9 8 4], 3:[7 6]}}, {p19: {0:[1], 1:[3 2], 2:[9 5 8 4], 3:[7 6]}}, {p20: {0:[1], 1:[3 2], 2:[8 5 4 9], 3:[7 6]}}, {p21: {0:[1], 1:[3 2], 2:[8 5 9 4], 3:[7 6]}}, {p22: {0:[1], 1:[3 2], 2:[8 9 5 4], 3:[7 6]}}, {p23: {0:[1], 1:[3 2], 2:[9 8 5 4], 3:[7 6]}}",
+		"{Id:1 RootId:1 Layer:0 X:0.00 Y:0.00 TotalW:84.00 W:32.00 H:40.00 In:[] PriRootOut:[2 3]}, {Id:2 RootId:1 Layer:1 X:0.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[4]}, {Id:3 RootId:1 Layer:1 X:52.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[5]}, {Id:4 RootId:1 Layer:2 X:0.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:2 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[6]}, {Id:5 RootId:1 Layer:2 X:52.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:3 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[7]}, {Id:6 RootId:1 Layer:3 X:0.00 Y:300.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:4 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:8 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:9 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:7 RootId:1 Layer:3 X:52.00 Y:300.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:5 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:8 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:9 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:8 RootId:8 Layer:2 X:104.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[]}, {Id:9 RootId:9 Layer:2 X:156.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[]}",
+		"{Id:1 RootId:1 Layer:0 X:0.00 Y:0.00 TotalW:84.00 W:32.00 H:40.00 In:[] PriRootOut:[3 2]}, {Id:2 RootId:1 Layer:1 X:52.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[4]}, {Id:3 RootId:1 Layer:1 X:0.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[5]}, {Id:4 RootId:1 Layer:2 X:52.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:2 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[6]}, {Id:5 RootId:1 Layer:2 X:0.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:3 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[7]}, {Id:6 RootId:1 Layer:3 X:52.00 Y:300.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:4 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:8 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:9 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:7 RootId:1 Layer:3 X:0.00 Y:300.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:5 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:8 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:9 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:8 RootId:8 Layer:2 X:156.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[]}, {Id:9 RootId:9 Layer:2 X:104.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[]}")
 }
 
 func TestOneSecondaryMxPermutator(t *testing.T) {
 	helperAll(t,
 		testNodeDefsOneSecondary,
 		"[-4 0 1 0 1 2 1]",
-		"0 [1 3], 1 [2 4 6], 2 [5]",
+		"0:[1 3], 1:[2 4 6], 2:[5]",
 		int64(6),
-		`0: 0 [3 1], 1 [6 4 2], 2 [5]
-1: 0 [3 1], 1 [4 6 2], 2 [5]
-2: 0 [3 1], 1 [4 2 6], 2 [5]
-3: 0 [1 3], 1 [6 2 4], 2 [5]
-4: 0 [1 3], 1 [2 6 4], 2 [5]
-5: 0 [1 3], 1 [2 4 6], 2 [5]
-`,
-		`Hierarchy 0
-Id:1 RootId:1 Layer:0 [2] X:52.00 Y:0.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:3 Layer:0 [4] X:0.00 Y:0.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:3 Layer:1 [5] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:3 Layer:2 [] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 1
-Id:1 RootId:1 Layer:0 [2] X:52.00 Y:0.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:3 Layer:0 [4] X:0.00 Y:0.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:3 Layer:1 [5] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:3 Layer:2 [] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 2
-Id:1 RootId:1 Layer:0 [2] X:52.00 Y:0.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:3 Layer:0 [4] X:0.00 Y:0.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:3 Layer:1 [5] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:3 Layer:2 [] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 3
-Id:1 RootId:1 Layer:0 [2] X:0.00 Y:0.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:3 Layer:0 [4] X:52.00 Y:0.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:3 Layer:1 [5] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:3 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 4
-Id:1 RootId:1 Layer:0 [2] X:0.00 Y:0.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:3 Layer:0 [4] X:52.00 Y:0.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:3 Layer:1 [5] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:3 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 5
-Id:1 RootId:1 Layer:0 [2] X:0.00 Y:0.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:3 Layer:0 [4] X:52.00 Y:0.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:3 Layer:1 [5] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:3 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-`)
+		"{p0: {0:[1 3], 1:[2 4 6], 2:[5]}}, {p1: {0:[1 3], 1:[2 6 4], 2:[5]}}, {p2: {0:[1 3], 1:[6 2 4], 2:[5]}}, {p3: {0:[3 1], 1:[4 2 6], 2:[5]}}, {p4: {0:[3 1], 1:[4 6 2], 2:[5]}}, {p5: {0:[3 1], 1:[6 4 2], 2:[5]}}",
+		"{Id:1 RootId:1 Layer:0 X:0.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[2]}, {Id:2 RootId:1 Layer:1 X:0.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:3 RootId:3 Layer:0 X:52.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[4]}, {Id:4 RootId:3 Layer:1 X:52.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:3 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[5]}, {Id:5 RootId:3 Layer:2 X:52.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:4 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:6 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:6 RootId:6 Layer:1 X:104.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[]}",
+		"{Id:1 RootId:1 Layer:0 X:52.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[2]}, {Id:2 RootId:1 Layer:1 X:52.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:3 RootId:3 Layer:0 X:0.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[4]}, {Id:4 RootId:3 Layer:1 X:0.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:3 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[5]}, {Id:5 RootId:3 Layer:2 X:0.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:4 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:6 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:6 RootId:6 Layer:1 X:104.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[]}")
 }
 
 func TestDiamonMxPermutator(t *testing.T) {
 	helperAll(t,
 		testNodeDefsDiamond,
 		"[-4 0 1 1 1 2 1]",
-		"0 [1], 1 [2 3 4 6], 2 [5]",
+		"0:[1], 1:[2 3 4 6], 2:[5]",
 		int64(24),
-		`0: 0 [1], 1 [6 4 2 3], 2 [5]
-1: 0 [1], 1 [4 6 2 3], 2 [5]
-2: 0 [1], 1 [4 2 6 3], 2 [5]
-3: 0 [1], 1 [4 2 3 6], 2 [5]
-4: 0 [1], 1 [6 3 4 2], 2 [5]
-5: 0 [1], 1 [3 6 4 2], 2 [5]
-6: 0 [1], 1 [3 4 6 2], 2 [5]
-7: 0 [1], 1 [3 4 2 6], 2 [5]
-8: 0 [1], 1 [6 3 2 4], 2 [5]
-9: 0 [1], 1 [3 6 2 4], 2 [5]
-10: 0 [1], 1 [3 2 6 4], 2 [5]
-11: 0 [1], 1 [3 2 4 6], 2 [5]
-12: 0 [1], 1 [6 4 3 2], 2 [5]
-13: 0 [1], 1 [4 6 3 2], 2 [5]
-14: 0 [1], 1 [4 3 6 2], 2 [5]
-15: 0 [1], 1 [4 3 2 6], 2 [5]
-16: 0 [1], 1 [6 2 4 3], 2 [5]
-17: 0 [1], 1 [2 6 4 3], 2 [5]
-18: 0 [1], 1 [2 4 6 3], 2 [5]
-19: 0 [1], 1 [2 4 3 6], 2 [5]
-20: 0 [1], 1 [6 2 3 4], 2 [5]
-21: 0 [1], 1 [2 6 3 4], 2 [5]
-22: 0 [1], 1 [2 3 6 4], 2 [5]
-23: 0 [1], 1 [2 3 4 6], 2 [5]
-`,
-		`Hierarchy 0
-Id:1 RootId:1 Layer:0 [4 2 3] X:0.00 Y:0.00 TotalW:136.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:1 [] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:156.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 1
-Id:1 RootId:1 Layer:0 [4 6 2 3] X:0.00 Y:0.00 TotalW:188.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:156.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:1 [] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:156.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 2
-Id:1 RootId:1 Layer:0 [4 2 6 3] X:0.00 Y:0.00 TotalW:188.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:156.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:1 [] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:156.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 3
-Id:1 RootId:1 Layer:0 [4 2 3] X:0.00 Y:0.00 TotalW:136.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:1 [] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:156.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 4
-Id:1 RootId:1 Layer:0 [3 4 2] X:0.00 Y:0.00 TotalW:136.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:1 [] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:156.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 5
-Id:1 RootId:1 Layer:0 [3 6 4 2] X:0.00 Y:0.00 TotalW:188.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:156.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:1 [] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 6
-Id:1 RootId:1 Layer:0 [3 4 6 2] X:0.00 Y:0.00 TotalW:188.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:156.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:1 [] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 7
-Id:1 RootId:1 Layer:0 [3 4 2] X:0.00 Y:0.00 TotalW:136.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:1 [] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:156.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 8
-Id:1 RootId:1 Layer:0 [3 2 4] X:0.00 Y:0.00 TotalW:136.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:1 [] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:156.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 9
-Id:1 RootId:1 Layer:0 [3 6 2 4] X:0.00 Y:0.00 TotalW:188.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:1 [] X:156.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 10
-Id:1 RootId:1 Layer:0 [3 2 6 4] X:0.00 Y:0.00 TotalW:188.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:1 [] X:156.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 11
-Id:1 RootId:1 Layer:0 [3 2 4] X:0.00 Y:0.00 TotalW:136.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:1 [] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:156.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 12
-Id:1 RootId:1 Layer:0 [4 3 2] X:0.00 Y:0.00 TotalW:136.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:1 [] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:156.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 13
-Id:1 RootId:1 Layer:0 [4 6 3 2] X:0.00 Y:0.00 TotalW:188.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:156.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:1 [] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 14
-Id:1 RootId:1 Layer:0 [4 3 6 2] X:0.00 Y:0.00 TotalW:188.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:156.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:1 [] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 15
-Id:1 RootId:1 Layer:0 [4 3 2] X:0.00 Y:0.00 TotalW:136.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:1 [] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:156.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 16
-Id:1 RootId:1 Layer:0 [2 4 3] X:0.00 Y:0.00 TotalW:136.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:1 [] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:156.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 17
-Id:1 RootId:1 Layer:0 [2 6 4 3] X:0.00 Y:0.00 TotalW:188.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:156.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:1 [] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:156.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 18
-Id:1 RootId:1 Layer:0 [2 4 6 3] X:0.00 Y:0.00 TotalW:188.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:156.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:1 [] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:156.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 19
-Id:1 RootId:1 Layer:0 [2 4 3] X:0.00 Y:0.00 TotalW:136.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:1 [] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:156.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 20
-Id:1 RootId:1 Layer:0 [2 3 4] X:0.00 Y:0.00 TotalW:136.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:1 [] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:156.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 21
-Id:1 RootId:1 Layer:0 [2 6 3 4] X:0.00 Y:0.00 TotalW:188.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:1 [] X:156.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:104.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 22
-Id:1 RootId:1 Layer:0 [2 3 6 4] X:0.00 Y:0.00 TotalW:188.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:1 [] X:156.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 23
-Id:1 RootId:1 Layer:0 [2 3 4] X:0.00 Y:0.00 TotalW:136.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:1 [5] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:1 [] X:104.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:2 [] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:6 Layer:1 [] X:156.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-`)
+		"{p0: {0:[1], 1:[2 3 4 6], 2:[5]}}, {p1: {0:[1], 1:[2 3 6 4], 2:[5]}}, {p2: {0:[1], 1:[2 6 3 4], 2:[5]}}, {p3: {0:[1], 1:[6 2 3 4], 2:[5]}}, {p4: {0:[1], 1:[2 4 3 6], 2:[5]}}, {p5: {0:[1], 1:[2 4 6 3], 2:[5]}}, {p6: {0:[1], 1:[2 6 4 3], 2:[5]}}, {p7: {0:[1], 1:[6 2 4 3], 2:[5]}}, {p8: {0:[1], 1:[4 3 2 6], 2:[5]}}, {p9: {0:[1], 1:[4 3 6 2], 2:[5]}}, {p10: {0:[1], 1:[4 6 3 2], 2:[5]}}, {p11: {0:[1], 1:[6 4 3 2], 2:[5]}}, {p12: {0:[1], 1:[3 2 4 6], 2:[5]}}, {p13: {0:[1], 1:[3 2 6 4], 2:[5]}}, {p14: {0:[1], 1:[3 6 2 4], 2:[5]}}, {p15: {0:[1], 1:[6 3 2 4], 2:[5]}}, {p16: {0:[1], 1:[3 4 2 6], 2:[5]}}, {p17: {0:[1], 1:[3 4 6 2], 2:[5]}}, {p18: {0:[1], 1:[3 6 4 2], 2:[5]}}, {p19: {0:[1], 1:[6 3 4 2], 2:[5]}}, {p20: {0:[1], 1:[4 2 3 6], 2:[5]}}, {p21: {0:[1], 1:[4 2 6 3], 2:[5]}}, {p22: {0:[1], 1:[4 6 2 3], 2:[5]}}, {p23: {0:[1], 1:[6 4 2 3], 2:[5]}}",
+		"{Id:1 RootId:1 Layer:0 X:0.00 Y:0.00 TotalW:136.00 W:32.00 H:40.00 In:[] PriRootOut:[2 3 4]}, {Id:2 RootId:1 Layer:1 X:0.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:3 RootId:1 Layer:1 X:52.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[5]}, {Id:4 RootId:1 Layer:1 X:104.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:5 RootId:1 Layer:2 X:52.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:3 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:4 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:6 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:6 RootId:6 Layer:1 X:156.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[]}",
+		"{Id:1 RootId:1 Layer:0 X:0.00 Y:0.00 TotalW:136.00 W:32.00 H:40.00 In:[] PriRootOut:[4 2 3]}, {Id:2 RootId:1 Layer:1 X:52.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:3 RootId:1 Layer:1 X:104.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[5]}, {Id:4 RootId:1 Layer:1 X:0.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:5 RootId:1 Layer:2 X:104.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:3 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:4 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:6 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:6 RootId:6 Layer:1 X:156.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[]}")
+}
+
+func TestSubtreeBelowLongMxPermutator(t *testing.T) {
+	helperAll(t,
+		testNodeDefsSubtreeBelowLong,
+		"[-4 0 1 2 3 2 3 4]",
+		"0:[1], 1:[2], 2:[3 5], 3:[4 6], 4:[7]",
+		int64(2),
+		"{p0: {0:[1], 1:[2], 2:[3 5], 3:[4 6], 4:[7]}}, {p1: {0:[1], 1:[2], 2:[5 3], 3:[6 4], 4:[7]}}",
+		"{Id:1 RootId:1 Layer:0 X:0.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[2]}, {Id:2 RootId:1 Layer:1 X:0.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[3]}, {Id:3 RootId:1 Layer:2 X:0.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:2 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[4]}, {Id:4 RootId:1 Layer:3 X:0.00 Y:300.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:3 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:5 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:5 RootId:5 Layer:2 X:52.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[6]}, {Id:6 RootId:5 Layer:3 X:52.00 Y:300.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:5 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[7]}, {Id:7 RootId:5 Layer:4 X:52.00 Y:400.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:6 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}",
+		"{Id:1 RootId:1 Layer:0 X:0.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[2]}, {Id:2 RootId:1 Layer:1 X:0.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[3]}, {Id:3 RootId:1 Layer:2 X:0.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:2 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[4]}, {Id:4 RootId:1 Layer:3 X:0.00 Y:300.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:3 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:5 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:5 RootId:5 Layer:2 X:52.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[6]}, {Id:6 RootId:5 Layer:3 X:52.00 Y:300.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:5 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[7]}, {Id:7 RootId:5 Layer:4 X:52.00 Y:400.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:6 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}")
+}
+
+func TestOneNotTwoLevelsDownMxPermutator(t *testing.T) {
+	helperAll(t,
+		testNodeDefsOneNotTwoLevelsDown,
+		"[-4 0 1 2 3 4 1 2 3]",
+		"0:[1], 1:[2 6], 2:[3 7], 3:[4 8], 4:[5]",
+		int64(2),
+		"{p0: {0:[1], 1:[2 6], 2:[3 7], 3:[4 8], 4:[5]}}, {p1: {0:[1], 1:[6 2], 2:[7 3], 3:[8 4], 4:[5]}}",
+		"{Id:1 RootId:1 Layer:0 X:0.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[2]}, {Id:2 RootId:1 Layer:1 X:0.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[3]}, {Id:3 RootId:1 Layer:2 X:0.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:2 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[4]}, {Id:4 RootId:1 Layer:3 X:0.00 Y:300.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:3 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:6 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[5]}, {Id:5 RootId:1 Layer:4 X:0.00 Y:400.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:4 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:8 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:6 RootId:6 Layer:1 X:52.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[7]}, {Id:7 RootId:6 Layer:2 X:52.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:6 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[8]}, {Id:8 RootId:6 Layer:3 X:52.00 Y:300.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:7 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}",
+		"{Id:1 RootId:1 Layer:0 X:0.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[2]}, {Id:2 RootId:1 Layer:1 X:0.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[3]}, {Id:3 RootId:1 Layer:2 X:0.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:2 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[4]}, {Id:4 RootId:1 Layer:3 X:0.00 Y:300.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:3 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:6 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[5]}, {Id:5 RootId:1 Layer:4 X:0.00 Y:400.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:4 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:8 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:6 RootId:6 Layer:1 X:52.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[7]}, {Id:7 RootId:6 Layer:2 X:52.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:6 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[8]}, {Id:8 RootId:6 Layer:3 X:52.00 Y:300.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:7 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}")
+}
+
+func TestMultiSecParentPullDownMxPermutator(t *testing.T) {
+	helperAll(t,
+		testNodeDefsMultiSecParentPullDown,
+		"[-4 0 1 2 3 1 2]",
+		"0:[1], 1:[2 5], 2:[3 6], 3:[4]",
+		int64(2),
+		"{p0: {0:[1], 1:[2 5], 2:[3 6], 3:[4]}}, {p1: {0:[1], 1:[5 2], 2:[6 3], 3:[4]}}",
+		"{Id:1 RootId:1 Layer:0 X:0.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[2]}, {Id:2 RootId:1 Layer:1 X:0.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[3]}, {Id:3 RootId:1 Layer:2 X:0.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:2 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[4]}, {Id:4 RootId:1 Layer:3 X:0.00 Y:300.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:3 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:5 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:6 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:5 RootId:5 Layer:1 X:52.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[6]}, {Id:6 RootId:5 Layer:2 X:52.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:5 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}",
+		"{Id:1 RootId:1 Layer:0 X:0.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[2]}, {Id:2 RootId:1 Layer:1 X:0.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[3]}, {Id:3 RootId:1 Layer:2 X:0.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:2 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[4]}, {Id:4 RootId:1 Layer:3 X:0.00 Y:300.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:3 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:5 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:6 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:5 RootId:5 Layer:1 X:52.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[6]}, {Id:6 RootId:5 Layer:2 X:52.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:5 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}")
+}
+
+func TestMultiSecParentNoPullDownMxPermutator(t *testing.T) {
+	helperAll(t,
+		testNodeDefsMultiSecParentNoPullDown,
+		"[-4 0 1 2 0 1]",
+		"0:[1 4], 1:[2 5], 2:[3]",
+		int64(2),
+		"{p0: {0:[1 4], 1:[2 5], 2:[3]}}, {p1: {0:[4 1], 1:[5 2], 2:[3]}}",
+		"{Id:1 RootId:1 Layer:0 X:0.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[2]}, {Id:2 RootId:1 Layer:1 X:0.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[3]}, {Id:3 RootId:1 Layer:2 X:0.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:2 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:4 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:5 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:4 RootId:4 Layer:0 X:52.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[5]}, {Id:5 RootId:4 Layer:1 X:52.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:4 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}",
+		"{Id:1 RootId:1 Layer:0 X:52.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[2]}, {Id:2 RootId:1 Layer:1 X:52.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[3]}, {Id:3 RootId:1 Layer:2 X:52.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:2 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:4 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:5 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:4 RootId:4 Layer:0 X:0.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[5]}, {Id:5 RootId:4 Layer:1 X:0.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:4 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}")
+}
+
+func TestTwoLevelsFromOneParentMxPermutator(t *testing.T) {
+	helperAll(t,
+		testNodeDefsTwoLevelsFromOneParent,
+		"[-4 0 0 1 2]",
+		"0:[1 2], 1:[3], 2:[4]",
+		int64(2),
+		"{p0: {0:[1 2], 1:[3], 2:[4]}}, {p1: {0:[2 1], 1:[3], 2:[4]}}",
+		"{Id:1 RootId:1 Layer:0 X:0.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[3]}, {Id:2 RootId:2 Layer:0 X:52.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[]}, {Id:3 RootId:1 Layer:1 X:0.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:2 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[4]}, {Id:4 RootId:1 Layer:2 X:0.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:3 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:2 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}",
+		"{Id:1 RootId:1 Layer:0 X:52.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[3]}, {Id:2 RootId:2 Layer:0 X:0.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[]}, {Id:3 RootId:1 Layer:1 X:52.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:2 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[4]}, {Id:4 RootId:1 Layer:2 X:52.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:3 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:2 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}")
 }
 
 func TestTwoLevelsFromOneParentSameRootMxPermutator(t *testing.T) {
 	helperAll(t,
 		testNodeDefsTwoLevelsFromOneParentSameRoot,
 		"[-4 0 1 2 3 1 3 4]",
-		"0 [1], 1 [2 5], 2 [3 10006], 3 [4 6], 4 [7]",
+		"0:[1], 1:[2 5], 2:[3 10006], 3:[4 6], 4:[7]",
 		int64(2),
-		`0: 0 [1], 1 [5 2], 2 [10006 3], 3 [6 4], 4 [7]
-1: 0 [1], 1 [2 5], 2 [3 10006], 3 [4 6], 4 [7]
-`,
-		`Hierarchy 0
-Id:1 RootId:1 Layer:0 [5 2] X:0.00 Y:0.00 TotalW:84.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [3] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:2 [4] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:3 [] X:52.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:1 [6] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:3 [7] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:4 [] X:0.00 Y:400.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 1
-Id:1 RootId:1 Layer:0 [2 5] X:0.00 Y:0.00 TotalW:84.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [3] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:2 [4] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:3 [] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:1 [6] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:3 [7] X:52.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:4 [] X:52.00 Y:400.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-`)
+		"{p0: {0:[1], 1:[2 5], 2:[3 10006], 3:[4 6], 4:[7]}}, {p1: {0:[1], 1:[5 2], 2:[10006 3], 3:[6 4], 4:[7]}}",
+		"{Id:1 RootId:1 Layer:0 X:0.00 Y:0.00 TotalW:84.00 W:32.00 H:40.00 In:[] PriRootOut:[2 5]}, {Id:2 RootId:1 Layer:1 X:0.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[3]}, {Id:3 RootId:1 Layer:2 X:0.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:2 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[4]}, {Id:4 RootId:1 Layer:3 X:0.00 Y:300.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:3 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:5 RootId:1 Layer:1 X:52.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[6]}, {Id:6 RootId:1 Layer:3 X:52.00 Y:300.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:5 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:3 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[7]}, {Id:7 RootId:1 Layer:4 X:52.00 Y:400.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:6 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}",
+		"{Id:1 RootId:1 Layer:0 X:0.00 Y:0.00 TotalW:84.00 W:32.00 H:40.00 In:[] PriRootOut:[5 2]}, {Id:2 RootId:1 Layer:1 X:52.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[3]}, {Id:3 RootId:1 Layer:2 X:52.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:2 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[4]}, {Id:4 RootId:1 Layer:3 X:52.00 Y:300.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:3 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:5 RootId:1 Layer:1 X:0.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[6]}, {Id:6 RootId:1 Layer:3 X:0.00 Y:300.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:5 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:3 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[7]}, {Id:7 RootId:1 Layer:4 X:0.00 Y:400.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:6 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}")
 }
 
 func TestTwoLevelsFromOneParentSameRootTwoFakesMxPermutator(t *testing.T) {
 	helperAll(t,
 		testNodeDefsTwoLevelsFromOneParentSameRootTwoFakes,
 		"[-4 0 1 2 3 4 1 4 5]",
-		"0 [1], 1 [2 6], 2 [3 10007], 3 [4 10007], 4 [5 7], 5 [8]",
+		"0:[1], 1:[2 6], 2:[3 10007], 3:[4 10007], 4:[5 7], 5:[8]",
 		int64(2),
-		`0: 0 [1], 1 [6 2], 2 [10007 3], 3 [10007 4], 4 [7 5], 5 [8]
-1: 0 [1], 1 [2 6], 2 [3 10007], 3 [4 10007], 4 [5 7], 5 [8]
-`,
-		`Hierarchy 0
-Id:1 RootId:1 Layer:0 [6 2] X:0.00 Y:0.00 TotalW:84.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [3] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:2 [4] X:52.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:3 [5] X:52.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:4 [] X:52.00 Y:400.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:1 [7] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:4 [8] X:0.00 Y:400.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:1 Layer:5 [] X:0.00 Y:500.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Hierarchy 1
-Id:1 RootId:1 Layer:0 [2 6] X:0.00 Y:0.00 TotalW:84.00 NodeW:32.00 NodeH:40.00
-Id:2 RootId:1 Layer:1 [3] X:0.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:3 RootId:1 Layer:2 [4] X:0.00 Y:200.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:4 RootId:1 Layer:3 [5] X:0.00 Y:300.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:5 RootId:1 Layer:4 [] X:0.00 Y:400.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:6 RootId:1 Layer:1 [7] X:52.00 Y:100.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:7 RootId:1 Layer:4 [8] X:52.00 Y:400.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-Id:8 RootId:1 Layer:5 [] X:52.00 Y:500.00 TotalW:32.00 NodeW:32.00 NodeH:40.00
-`)
+		"{p0: {0:[1], 1:[2 6], 2:[3 10007], 3:[4 10007], 4:[5 7], 5:[8]}}, {p1: {0:[1], 1:[6 2], 2:[10007 3], 3:[10007 4], 4:[7 5], 5:[8]}}",
+		"{Id:1 RootId:1 Layer:0 X:0.00 Y:0.00 TotalW:84.00 W:32.00 H:40.00 In:[] PriRootOut:[2 6]}, {Id:2 RootId:1 Layer:1 X:0.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[3]}, {Id:3 RootId:1 Layer:2 X:0.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:2 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[4]}, {Id:4 RootId:1 Layer:3 X:0.00 Y:300.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:3 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[5]}, {Id:5 RootId:1 Layer:4 X:0.00 Y:400.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:4 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:6 RootId:1 Layer:1 X:52.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[7]}, {Id:7 RootId:1 Layer:4 X:52.00 Y:400.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:6 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:4 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[8]}, {Id:8 RootId:1 Layer:5 X:52.00 Y:500.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:7 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}",
+		"{Id:1 RootId:1 Layer:0 X:0.00 Y:0.00 TotalW:84.00 W:32.00 H:40.00 In:[] PriRootOut:[6 2]}, {Id:2 RootId:1 Layer:1 X:52.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[3]}, {Id:3 RootId:1 Layer:2 X:52.00 Y:200.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:2 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[4]}, {Id:4 RootId:1 Layer:3 X:52.00 Y:300.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:3 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[5]}, {Id:5 RootId:1 Layer:4 X:52.00 Y:400.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:4 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}, {Id:6 RootId:1 Layer:1 X:0.00 Y:100.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:1 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[7]}, {Id:7 RootId:1 Layer:4 X:0.00 Y:400.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:6 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:4 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[8]}, {Id:8 RootId:1 Layer:5 X:0.00 Y:500.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:7 X:0.00 Y:0.00 W:0.00 H:0.00}] PriRootOut:[]}")
+}
+
+func TestDuplicateSecLabelsMxPermutator(t *testing.T) {
+	helperAll(t,
+		testNodeDefsDuplicateSecLabels,
+		"[-4 0 0 0 0 0 0 1 1 1 1 1]",
+		"0:[1 2 3 4 5 6], 1:[7 8 9 10 11]",
+		int64(720),
+		"{p0: {0:[1 2 3 4 5 6], 1:[7 8 9 10 11]}}, {p1: {0:[1 2 3 4 6 5], 1:[7 8 9 11 10]}}, {p2: {0:[1 2 3 6 4 5], 1:[7 8 11 9 10]}}, {p3: {0:[1 2 6 3 4 5], 1:[7 11 8 9 10]}}, {p4: {0:[1 6 2 3 4 5], 1:[11 7 8 9 10]}}, {p5: {0:[6 1 2 3 4 5], 1:[11 7 8 9 10]}}, {p6: {0:[1 2 3 5 4 6], 1:[7 8 10 9 11]}}, {p7: {0:[1 2 3 5 6 4], 1:[7 8 10 11 9]}}, {p8: {0:[1 2 3 6 5 4], 1:[7 8 11 10 9]}}, {p9: {0:[1 2 6 3 5 4], 1:[7 11 8 10 9]}}, {p10: {0:[1 6 2 3 5 4], 1:[11 7 8 10 9]}}, {p11: {0:[6 1 2 3 5 4], 1:[11 7 8 10 9]}}, {p12: {0:[1 2 5 3 4 6], 1:[7 10 8 9 11]}}, {p13: {0:[1 2 5 3 6 4], 1:[7 10 8 11 9]}}, {p14: {0:[1 2 5 6 3 4], 1:[7 10 11 8 9]}}, {p15: {0:[1 2 6 5 3 4], 1:[7 11 10 8 9]}}, {p16: {0:[1 6 2 5 3 4], 1:[11 7 10 8 9]}}, {p17: {0:[6 1 2 5 3 4], 1:[11 7 10 8 9]}}, {p18: {0:[1 5 2 3 4 6], 1:[10 7 8 9 11]}}, {p19: {0:[1 5 2 3 6 4], 1:[10 7 8 11 9]}}, {p20: {0:[1 5 2 6 3 4], 1:[10 7 11 8 9]}}, {p21: {0:[1 5 6 2 3 4], 1:[10 11 7 8 9]}}, {p22: {0:[1 6 5 2 3 4], 1:[11 10 7 8 9]}}, {p23: {0:[6 1 5 2 3 4], 1:[11 10 7 8 9]}}, {p24: {0:[5 1 2 3 4 6], 1:[10 7 8 9 11]}}, {p25: {0:[5 1 2 3 6 4], 1:[10 7 8 11 9]}}, {p26: {0:[5 1 2 6 3 4], 1:[10 7 11 8 9]}}, {p27: {0:[5 1 6 2 3 4], 1:[10 11 7 8 9]}}, {p28: {0:[5 6 1 2 3 4], 1:[10 11 7 8 9]}}, {p29: {0:[6 5 1 2 3 4], 1:[11 10 7 8 9]}}, {p30: {0:[1 2 4 3 5 6], 1:[7 9 8 10 11]}}, {p31: {0:[1 2 4 3 6 5], 1:[7 9 8 11 10]}}, {p32: {0:[1 2 4 6 3 5], 1:[7 9 11 8 10]}}, {p33: {0:[1 2 6 4 3 5], 1:[7 11 9 8 10]}}, {p34: {0:[1 6 2 4 3 5], 1:[11 7 9 8 10]}}, {p35: {0:[6 1 2 4 3 5], 1:[11 7 9 8 10]}}, {p36: {0:[1 2 4 5 3 6], 1:[7 9 10 8 11]}}, {p37: {0:[1 2 4 5 6 3], 1:[7 9 10 11 8]}}, {p38: {0:[1 2 4 6 5 3], 1:[7 9 11 10 8]}}, {p39: {0:[1 2 6 4 5 3], 1:[7 11 9 10 8]}}, {p40: {0:[1 6 2 4 5 3], 1:[11 7 9 10 8]}}, {p41: {0:[6 1 2 4 5 3], 1:[11 7 9 10 8]}}, {p42: {0:[1 2 5 4 3 6], 1:[7 10 9 8 11]}}, {p43: {0:[1 2 5 4 6 3], 1:[7 10 9 11 8]}}, {p44: {0:[1 2 5 6 4 3], 1:[7 10 11 9 8]}}, {p45: {0:[1 2 6 5 4 3], 1:[7 11 10 9 8]}}, {p46: {0:[1 6 2 5 4 3], 1:[11 7 10 9 8]}}, {p47: {0:[6 1 2 5 4 3], 1:[11 7 10 9 8]}}, {p48: {0:[1 5 2 4 3 6], 1:[10 7 9 8 11]}}, {p49: {0:[1 5 2 4 6 3], 1:[10 7 9 11 8]}}, {p50: {0:[1 5 2 6 4 3], 1:[10 7 11 9 8]}}, {p51: {0:[1 5 6 2 4 3], 1:[10 11 7 9 8]}}, {p52: {0:[1 6 5 2 4 3], 1:[11 10 7 9 8]}}, {p53: {0:[6 1 5 2 4 3], 1:[11 10 7 9 8]}}, {p54: {0:[5 1 2 4 3 6], 1:[10 7 9 8 11]}}, {p55: {0:[5 1 2 4 6 3], 1:[10 7 9 11 8]}}, {p56: {0:[5 1 2 6 4 3], 1:[10 7 11 9 8]}}, {p57: {0:[5 1 6 2 4 3], 1:[10 11 7 9 8]}}, {p58: {0:[5 6 1 2 4 3], 1:[10 11 7 9 8]}}, {p59: {0:[6 5 1 2 4 3], 1:[11 10 7 9 8]}}, {p60: {0:[1 4 2 3 5 6], 1:[9 7 8 10 11]}}, {p61: {0:[1 4 2 3 6 5], 1:[9 7 8 11 10]}}, {p62: {0:[1 4 2 6 3 5], 1:[9 7 11 8 10]}}, {p63: {0:[1 4 6 2 3 5], 1:[9 11 7 8 10]}}, {p64: {0:[1 6 4 2 3 5], 1:[11 9 7 8 10]}}, {p65: {0:[6 1 4 2 3 5], 1:[11 9 7 8 10]}}, {p66: {0:[1 4 2 5 3 6], 1:[9 7 10 8 11]}}, {p67: {0:[1 4 2 5 6 3], 1:[9 7 10 11 8]}}, {p68: {0:[1 4 2 6 5 3], 1:[9 7 11 10 8]}}, {p69: {0:[1 4 6 2 5 3], 1:[9 11 7 10 8]}}, {p70: {0:[1 6 4 2 5 3], 1:[11 9 7 10 8]}}, {p71: {0:[6 1 4 2 5 3], 1:[11 9 7 10 8]}}, {p72: {0:[1 4 5 2 3 6], 1:[9 10 7 8 11]}}, {p73: {0:[1 4 5 2 6 3], 1:[9 10 7 11 8]}}, {p74: {0:[1 4 5 6 2 3], 1:[9 10 11 7 8]}}, {p75: {0:[1 4 6 5 2 3], 1:[9 11 10 7 8]}}, {p76: {0:[1 6 4 5 2 3], 1:[11 9 10 7 8]}}, {p77: {0:[6 1 4 5 2 3], 1:[11 9 10 7 8]}}, {p78: {0:[1 5 4 2 3 6], 1:[10 9 7 8 11]}}, {p79: {0:[1 5 4 2 6 3], 1:[10 9 7 11 8]}}, {p80: {0:[1 5 4 6 2 3], 1:[10 9 11 7 8]}}, {p81: {0:[1 5 6 4 2 3], 1:[10 11 9 7 8]}}, {p82: {0:[1 6 5 4 2 3], 1:[11 10 9 7 8]}}, {p83: {0:[6 1 5 4 2 3], 1:[11 10 9 7 8]}}, {p84: {0:[5 1 4 2 3 6], 1:[10 9 7 8 11]}}, {p85: {0:[5 1 4 2 6 3], 1:[10 9 7 11 8]}}, {p86: {0:[5 1 4 6 2 3], 1:[10 9 11 7 8]}}, {p87: {0:[5 1 6 4 2 3], 1:[10 11 9 7 8]}}, {p88: {0:[5 6 1 4 2 3], 1:[10 11 9 7 8]}}, {p89: {0:[6 5 1 4 2 3], 1:[11 10 9 7 8]}}, {p90: {0:[4 1 2 3 5 6], 1:[9 7 8 10 11]}}, {p91: {0:[4 1 2 3 6 5], 1:[9 7 8 11 10]}}, {p92: {0:[4 1 2 6 3 5], 1:[9 7 11 8 10]}}, {p93: {0:[4 1 6 2 3 5], 1:[9 11 7 8 10]}}, {p94: {0:[4 6 1 2 3 5], 1:[9 11 7 8 10]}}, {p95: {0:[6 4 1 2 3 5], 1:[11 9 7 8 10]}}, {p96: {0:[4 1 2 5 3 6], 1:[9 7 10 8 11]}}, {p97: {0:[4 1 2 5 6 3], 1:[9 7 10 11 8]}}, {p98: {0:[4 1 2 6 5 3], 1:[9 7 11 10 8]}}, {p99: {0:[4 1 6 2 5 3], 1:[9 11 7 10 8]}}, {p100: {0:[4 6 1 2 5 3], 1:[9 11 7 10 8]}}, {p101: {0:[6 4 1 2 5 3], 1:[11 9 7 10 8]}}, {p102: {0:[4 1 5 2 3 6], 1:[9 10 7 8 11]}}, {p103: {0:[4 1 5 2 6 3], 1:[9 10 7 11 8]}}, {p104: {0:[4 1 5 6 2 3], 1:[9 10 11 7 8]}}, {p105: {0:[4 1 6 5 2 3], 1:[9 11 10 7 8]}}, {p106: {0:[4 6 1 5 2 3], 1:[9 11 10 7 8]}}, {p107: {0:[6 4 1 5 2 3], 1:[11 9 10 7 8]}}, {p108: {0:[4 5 1 2 3 6], 1:[9 10 7 8 11]}}, {p109: {0:[4 5 1 2 6 3], 1:[9 10 7 11 8]}}, {p110: {0:[4 5 1 6 2 3], 1:[9 10 11 7 8]}}, {p111: {0:[4 5 6 1 2 3], 1:[9 10 11 7 8]}}, {p112: {0:[4 6 5 1 2 3], 1:[9 11 10 7 8]}}, {p113: {0:[6 4 5 1 2 3], 1:[11 9 10 7 8]}}, {p114: {0:[5 4 1 2 3 6], 1:[10 9 7 8 11]}}, {p115: {0:[5 4 1 2 6 3], 1:[10 9 7 11 8]}}, {p116: {0:[5 4 1 6 2 3], 1:[10 9 11 7 8]}}, {p117: {0:[5 4 6 1 2 3], 1:[10 9 11 7 8]}}, {p118: {0:[5 6 4 1 2 3], 1:[10 11 9 7 8]}}, {p119: {0:[6 5 4 1 2 3], 1:[11 10 9 7 8]}}, {p120: {0:[1 3 2 4 5 6], 1:[8 7 9 10 11]}}, {p121: {0:[1 3 2 4 6 5], 1:[8 7 9 11 10]}}, {p122: {0:[1 3 2 6 4 5], 1:[8 7 11 9 10]}}, {p123: {0:[1 3 6 2 4 5], 1:[8 11 7 9 10]}}, {p124: {0:[1 6 3 2 4 5], 1:[11 8 7 9 10]}}, {p125: {0:[6 1 3 2 4 5], 1:[11 8 7 9 10]}}, {p126: {0:[1 3 2 5 4 6], 1:[8 7 10 9 11]}}, {p127: {0:[1 3 2 5 6 4], 1:[8 7 10 11 9]}}, {p128: {0:[1 3 2 6 5 4], 1:[8 7 11 10 9]}}, {p129: {0:[1 3 6 2 5 4], 1:[8 11 7 10 9]}}, {p130: {0:[1 6 3 2 5 4], 1:[11 8 7 10 9]}}, {p131: {0:[6 1 3 2 5 4], 1:[11 8 7 10 9]}}, {p132: {0:[1 3 5 2 4 6], 1:[8 10 7 9 11]}}, {p133: {0:[1 3 5 2 6 4], 1:[8 10 7 11 9]}}, {p134: {0:[1 3 5 6 2 4], 1:[8 10 11 7 9]}}, {p135: {0:[1 3 6 5 2 4], 1:[8 11 10 7 9]}}, {p136: {0:[1 6 3 5 2 4], 1:[11 8 10 7 9]}}, {p137: {0:[6 1 3 5 2 4], 1:[11 8 10 7 9]}}, {p138: {0:[1 5 3 2 4 6], 1:[10 8 7 9 11]}}, {p139: {0:[1 5 3 2 6 4], 1:[10 8 7 11 9]}}, {p140: {0:[1 5 3 6 2 4], 1:[10 8 11 7 9]}}, {p141: {0:[1 5 6 3 2 4], 1:[10 11 8 7 9]}}, {p142: {0:[1 6 5 3 2 4], 1:[11 10 8 7 9]}}, {p143: {0:[6 1 5 3 2 4], 1:[11 10 8 7 9]}}, {p144: {0:[5 1 3 2 4 6], 1:[10 8 7 9 11]}}, {p145: {0:[5 1 3 2 6 4], 1:[10 8 7 11 9]}}, {p146: {0:[5 1 3 6 2 4], 1:[10 8 11 7 9]}}, {p147: {0:[5 1 6 3 2 4], 1:[10 11 8 7 9]}}, {p148: {0:[5 6 1 3 2 4], 1:[10 11 8 7 9]}}, {p149: {0:[6 5 1 3 2 4], 1:[11 10 8 7 9]}}, {p150: {0:[1 3 4 2 5 6], 1:[8 9 7 10 11]}}, {p151: {0:[1 3 4 2 6 5], 1:[8 9 7 11 10]}}, {p152: {0:[1 3 4 6 2 5], 1:[8 9 11 7 10]}}, {p153: {0:[1 3 6 4 2 5], 1:[8 11 9 7 10]}}, {p154: {0:[1 6 3 4 2 5], 1:[11 8 9 7 10]}}, {p155: {0:[6 1 3 4 2 5], 1:[11 8 9 7 10]}}, {p156: {0:[1 3 4 5 2 6], 1:[8 9 10 7 11]}}, {p157: {0:[1 3 4 5 6 2], 1:[8 9 10 11 7]}}, {p158: {0:[1 3 4 6 5 2], 1:[8 9 11 10 7]}}, {p159: {0:[1 3 6 4 5 2], 1:[8 11 9 10 7]}}, {p160: {0:[1 6 3 4 5 2], 1:[11 8 9 10 7]}}, {p161: {0:[6 1 3 4 5 2], 1:[11 8 9 10 7]}}, {p162: {0:[1 3 5 4 2 6], 1:[8 10 9 7 11]}}, {p163: {0:[1 3 5 4 6 2], 1:[8 10 9 11 7]}}, {p164: {0:[1 3 5 6 4 2], 1:[8 10 11 9 7]}}, {p165: {0:[1 3 6 5 4 2], 1:[8 11 10 9 7]}}, {p166: {0:[1 6 3 5 4 2], 1:[11 8 10 9 7]}}, {p167: {0:[6 1 3 5 4 2], 1:[11 8 10 9 7]}}, {p168: {0:[1 5 3 4 2 6], 1:[10 8 9 7 11]}}, {p169: {0:[1 5 3 4 6 2], 1:[10 8 9 11 7]}}, {p170: {0:[1 5 3 6 4 2], 1:[10 8 11 9 7]}}, {p171: {0:[1 5 6 3 4 2], 1:[10 11 8 9 7]}}, {p172: {0:[1 6 5 3 4 2], 1:[11 10 8 9 7]}}, {p173: {0:[6 1 5 3 4 2], 1:[11 10 8 9 7]}}, {p174: {0:[5 1 3 4 2 6], 1:[10 8 9 7 11]}}, {p175: {0:[5 1 3 4 6 2], 1:[10 8 9 11 7]}}, {p176: {0:[5 1 3 6 4 2], 1:[10 8 11 9 7]}}, {p177: {0:[5 1 6 3 4 2], 1:[10 11 8 9 7]}}, {p178: {0:[5 6 1 3 4 2], 1:[10 11 8 9 7]}}, {p179: {0:[6 5 1 3 4 2], 1:[11 10 8 9 7]}}, {p180: {0:[1 4 3 2 5 6], 1:[9 8 7 10 11]}}, {p181: {0:[1 4 3 2 6 5], 1:[9 8 7 11 10]}}, {p182: {0:[1 4 3 6 2 5], 1:[9 8 11 7 10]}}, {p183: {0:[1 4 6 3 2 5], 1:[9 11 8 7 10]}}, {p184: {0:[1 6 4 3 2 5], 1:[11 9 8 7 10]}}, {p185: {0:[6 1 4 3 2 5], 1:[11 9 8 7 10]}}, {p186: {0:[1 4 3 5 2 6], 1:[9 8 10 7 11]}}, {p187: {0:[1 4 3 5 6 2], 1:[9 8 10 11 7]}}, {p188: {0:[1 4 3 6 5 2], 1:[9 8 11 10 7]}}, {p189: {0:[1 4 6 3 5 2], 1:[9 11 8 10 7]}}, {p190: {0:[1 6 4 3 5 2], 1:[11 9 8 10 7]}}, {p191: {0:[6 1 4 3 5 2], 1:[11 9 8 10 7]}}, {p192: {0:[1 4 5 3 2 6], 1:[9 10 8 7 11]}}, {p193: {0:[1 4 5 3 6 2], 1:[9 10 8 11 7]}}, {p194: {0:[1 4 5 6 3 2], 1:[9 10 11 8 7]}}, {p195: {0:[1 4 6 5 3 2], 1:[9 11 10 8 7]}}, {p196: {0:[1 6 4 5 3 2], 1:[11 9 10 8 7]}}, {p197: {0:[6 1 4 5 3 2], 1:[11 9 10 8 7]}}, {p198: {0:[1 5 4 3 2 6], 1:[10 9 8 7 11]}}, {p199: {0:[1 5 4 3 6 2], 1:[10 9 8 11 7]}}, {p200: {0:[1 5 4 6 3 2], 1:[10 9 11 8 7]}}, {p201: {0:[1 5 6 4 3 2], 1:[10 11 9 8 7]}}, {p202: {0:[1 6 5 4 3 2], 1:[11 10 9 8 7]}}, {p203: {0:[6 1 5 4 3 2], 1:[11 10 9 8 7]}}, {p204: {0:[5 1 4 3 2 6], 1:[10 9 8 7 11]}}, {p205: {0:[5 1 4 3 6 2], 1:[10 9 8 11 7]}}, {p206: {0:[5 1 4 6 3 2], 1:[10 9 11 8 7]}}, {p207: {0:[5 1 6 4 3 2], 1:[10 11 9 8 7]}}, {p208: {0:[5 6 1 4 3 2], 1:[10 11 9 8 7]}}, {p209: {0:[6 5 1 4 3 2], 1:[11 10 9 8 7]}}, {p210: {0:[4 1 3 2 5 6], 1:[9 8 7 10 11]}}, {p211: {0:[4 1 3 2 6 5], 1:[9 8 7 11 10]}}, {p212: {0:[4 1 3 6 2 5], 1:[9 8 11 7 10]}}, {p213: {0:[4 1 6 3 2 5], 1:[9 11 8 7 10]}}, {p214: {0:[4 6 1 3 2 5], 1:[9 11 8 7 10]}}, {p215: {0:[6 4 1 3 2 5], 1:[11 9 8 7 10]}}, {p216: {0:[4 1 3 5 2 6], 1:[9 8 10 7 11]}}, {p217: {0:[4 1 3 5 6 2], 1:[9 8 10 11 7]}}, {p218: {0:[4 1 3 6 5 2], 1:[9 8 11 10 7]}}, {p219: {0:[4 1 6 3 5 2], 1:[9 11 8 10 7]}}, {p220: {0:[4 6 1 3 5 2], 1:[9 11 8 10 7]}}, {p221: {0:[6 4 1 3 5 2], 1:[11 9 8 10 7]}}, {p222: {0:[4 1 5 3 2 6], 1:[9 10 8 7 11]}}, {p223: {0:[4 1 5 3 6 2], 1:[9 10 8 11 7]}}, {p224: {0:[4 1 5 6 3 2], 1:[9 10 11 8 7]}}, {p225: {0:[4 1 6 5 3 2], 1:[9 11 10 8 7]}}, {p226: {0:[4 6 1 5 3 2], 1:[9 11 10 8 7]}}, {p227: {0:[6 4 1 5 3 2], 1:[11 9 10 8 7]}}, {p228: {0:[4 5 1 3 2 6], 1:[9 10 8 7 11]}}, {p229: {0:[4 5 1 3 6 2], 1:[9 10 8 11 7]}}, {p230: {0:[4 5 1 6 3 2], 1:[9 10 11 8 7]}}, {p231: {0:[4 5 6 1 3 2], 1:[9 10 11 8 7]}}, {p232: {0:[4 6 5 1 3 2], 1:[9 11 10 8 7]}}, {p233: {0:[6 4 5 1 3 2], 1:[11 9 10 8 7]}}, {p234: {0:[5 4 1 3 2 6], 1:[10 9 8 7 11]}}, {p235: {0:[5 4 1 3 6 2], 1:[10 9 8 11 7]}}, {p236: {0:[5 4 1 6 3 2], 1:[10 9 11 8 7]}}, {p237: {0:[5 4 6 1 3 2], 1:[10 9 11 8 7]}}, {p238: {0:[5 6 4 1 3 2], 1:[10 11 9 8 7]}}, {p239: {0:[6 5 4 1 3 2], 1:[11 10 9 8 7]}}, {p240: {0:[3 1 2 4 5 6], 1:[8 7 9 10 11]}}, {p241: {0:[3 1 2 4 6 5], 1:[8 7 9 11 10]}}, {p242: {0:[3 1 2 6 4 5], 1:[8 7 11 9 10]}}, {p243: {0:[3 1 6 2 4 5], 1:[8 11 7 9 10]}}, {p244: {0:[3 6 1 2 4 5], 1:[8 11 7 9 10]}}, {p245: {0:[6 3 1 2 4 5], 1:[11 8 7 9 10]}}, {p246: {0:[3 1 2 5 4 6], 1:[8 7 10 9 11]}}, {p247: {0:[3 1 2 5 6 4], 1:[8 7 10 11 9]}}, {p248: {0:[3 1 2 6 5 4], 1:[8 7 11 10 9]}}, {p249: {0:[3 1 6 2 5 4], 1:[8 11 7 10 9]}}, {p250: {0:[3 6 1 2 5 4], 1:[8 11 7 10 9]}}, {p251: {0:[6 3 1 2 5 4], 1:[11 8 7 10 9]}}, {p252: {0:[3 1 5 2 4 6], 1:[8 10 7 9 11]}}, {p253: {0:[3 1 5 2 6 4], 1:[8 10 7 11 9]}}, {p254: {0:[3 1 5 6 2 4], 1:[8 10 11 7 9]}}, {p255: {0:[3 1 6 5 2 4], 1:[8 11 10 7 9]}}, {p256: {0:[3 6 1 5 2 4], 1:[8 11 10 7 9]}}, {p257: {0:[6 3 1 5 2 4], 1:[11 8 10 7 9]}}, {p258: {0:[3 5 1 2 4 6], 1:[8 10 7 9 11]}}, {p259: {0:[3 5 1 2 6 4], 1:[8 10 7 11 9]}}, {p260: {0:[3 5 1 6 2 4], 1:[8 10 11 7 9]}}, {p261: {0:[3 5 6 1 2 4], 1:[8 10 11 7 9]}}, {p262: {0:[3 6 5 1 2 4], 1:[8 11 10 7 9]}}, {p263: {0:[6 3 5 1 2 4], 1:[11 8 10 7 9]}}, {p264: {0:[5 3 1 2 4 6], 1:[10 8 7 9 11]}}, {p265: {0:[5 3 1 2 6 4], 1:[10 8 7 11 9]}}, {p266: {0:[5 3 1 6 2 4], 1:[10 8 11 7 9]}}, {p267: {0:[5 3 6 1 2 4], 1:[10 8 11 7 9]}}, {p268: {0:[5 6 3 1 2 4], 1:[10 11 8 7 9]}}, {p269: {0:[6 5 3 1 2 4], 1:[11 10 8 7 9]}}, {p270: {0:[3 1 4 2 5 6], 1:[8 9 7 10 11]}}, {p271: {0:[3 1 4 2 6 5], 1:[8 9 7 11 10]}}, {p272: {0:[3 1 4 6 2 5], 1:[8 9 11 7 10]}}, {p273: {0:[3 1 6 4 2 5], 1:[8 11 9 7 10]}}, {p274: {0:[3 6 1 4 2 5], 1:[8 11 9 7 10]}}, {p275: {0:[6 3 1 4 2 5], 1:[11 8 9 7 10]}}, {p276: {0:[3 1 4 5 2 6], 1:[8 9 10 7 11]}}, {p277: {0:[3 1 4 5 6 2], 1:[8 9 10 11 7]}}, {p278: {0:[3 1 4 6 5 2], 1:[8 9 11 10 7]}}, {p279: {0:[3 1 6 4 5 2], 1:[8 11 9 10 7]}}, {p280: {0:[3 6 1 4 5 2], 1:[8 11 9 10 7]}}, {p281: {0:[6 3 1 4 5 2], 1:[11 8 9 10 7]}}, {p282: {0:[3 1 5 4 2 6], 1:[8 10 9 7 11]}}, {p283: {0:[3 1 5 4 6 2], 1:[8 10 9 11 7]}}, {p284: {0:[3 1 5 6 4 2], 1:[8 10 11 9 7]}}, {p285: {0:[3 1 6 5 4 2], 1:[8 11 10 9 7]}}, {p286: {0:[3 6 1 5 4 2], 1:[8 11 10 9 7]}}, {p287: {0:[6 3 1 5 4 2], 1:[11 8 10 9 7]}}, {p288: {0:[3 5 1 4 2 6], 1:[8 10 9 7 11]}}, {p289: {0:[3 5 1 4 6 2], 1:[8 10 9 11 7]}}, {p290: {0:[3 5 1 6 4 2], 1:[8 10 11 9 7]}}, {p291: {0:[3 5 6 1 4 2], 1:[8 10 11 9 7]}}, {p292: {0:[3 6 5 1 4 2], 1:[8 11 10 9 7]}}, {p293: {0:[6 3 5 1 4 2], 1:[11 8 10 9 7]}}, {p294: {0:[5 3 1 4 2 6], 1:[10 8 9 7 11]}}, {p295: {0:[5 3 1 4 6 2], 1:[10 8 9 11 7]}}, {p296: {0:[5 3 1 6 4 2], 1:[10 8 11 9 7]}}, {p297: {0:[5 3 6 1 4 2], 1:[10 8 11 9 7]}}, {p298: {0:[5 6 3 1 4 2], 1:[10 11 8 9 7]}}, {p299: {0:[6 5 3 1 4 2], 1:[11 10 8 9 7]}}, {p300: {0:[3 4 1 2 5 6], 1:[8 9 7 10 11]}}, {p301: {0:[3 4 1 2 6 5], 1:[8 9 7 11 10]}}, {p302: {0:[3 4 1 6 2 5], 1:[8 9 11 7 10]}}, {p303: {0:[3 4 6 1 2 5], 1:[8 9 11 7 10]}}, {p304: {0:[3 6 4 1 2 5], 1:[8 11 9 7 10]}}, {p305: {0:[6 3 4 1 2 5], 1:[11 8 9 7 10]}}, {p306: {0:[3 4 1 5 2 6], 1:[8 9 10 7 11]}}, {p307: {0:[3 4 1 5 6 2], 1:[8 9 10 11 7]}}, {p308: {0:[3 4 1 6 5 2], 1:[8 9 11 10 7]}}, {p309: {0:[3 4 6 1 5 2], 1:[8 9 11 10 7]}}, {p310: {0:[3 6 4 1 5 2], 1:[8 11 9 10 7]}}, {p311: {0:[6 3 4 1 5 2], 1:[11 8 9 10 7]}}, {p312: {0:[3 4 5 1 2 6], 1:[8 9 10 7 11]}}, {p313: {0:[3 4 5 1 6 2], 1:[8 9 10 11 7]}}, {p314: {0:[3 4 5 6 1 2], 1:[8 9 10 11 7]}}, {p315: {0:[3 4 6 5 1 2], 1:[8 9 11 10 7]}}, {p316: {0:[3 6 4 5 1 2], 1:[8 11 9 10 7]}}, {p317: {0:[6 3 4 5 1 2], 1:[11 8 9 10 7]}}, {p318: {0:[3 5 4 1 2 6], 1:[8 10 9 7 11]}}, {p319: {0:[3 5 4 1 6 2], 1:[8 10 9 11 7]}}, {p320: {0:[3 5 4 6 1 2], 1:[8 10 9 11 7]}}, {p321: {0:[3 5 6 4 1 2], 1:[8 10 11 9 7]}}, {p322: {0:[3 6 5 4 1 2], 1:[8 11 10 9 7]}}, {p323: {0:[6 3 5 4 1 2], 1:[11 8 10 9 7]}}, {p324: {0:[5 3 4 1 2 6], 1:[10 8 9 7 11]}}, {p325: {0:[5 3 4 1 6 2], 1:[10 8 9 11 7]}}, {p326: {0:[5 3 4 6 1 2], 1:[10 8 9 11 7]}}, {p327: {0:[5 3 6 4 1 2], 1:[10 8 11 9 7]}}, {p328: {0:[5 6 3 4 1 2], 1:[10 11 8 9 7]}}, {p329: {0:[6 5 3 4 1 2], 1:[11 10 8 9 7]}}, {p330: {0:[4 3 1 2 5 6], 1:[9 8 7 10 11]}}, {p331: {0:[4 3 1 2 6 5], 1:[9 8 7 11 10]}}, {p332: {0:[4 3 1 6 2 5], 1:[9 8 11 7 10]}}, {p333: {0:[4 3 6 1 2 5], 1:[9 8 11 7 10]}}, {p334: {0:[4 6 3 1 2 5], 1:[9 11 8 7 10]}}, {p335: {0:[6 4 3 1 2 5], 1:[11 9 8 7 10]}}, {p336: {0:[4 3 1 5 2 6], 1:[9 8 10 7 11]}}, {p337: {0:[4 3 1 5 6 2], 1:[9 8 10 11 7]}}, {p338: {0:[4 3 1 6 5 2], 1:[9 8 11 10 7]}}, {p339: {0:[4 3 6 1 5 2], 1:[9 8 11 10 7]}}, {p340: {0:[4 6 3 1 5 2], 1:[9 11 8 10 7]}}, {p341: {0:[6 4 3 1 5 2], 1:[11 9 8 10 7]}}, {p342: {0:[4 3 5 1 2 6], 1:[9 8 10 7 11]}}, {p343: {0:[4 3 5 1 6 2], 1:[9 8 10 11 7]}}, {p344: {0:[4 3 5 6 1 2], 1:[9 8 10 11 7]}}, {p345: {0:[4 3 6 5 1 2], 1:[9 8 11 10 7]}}, {p346: {0:[4 6 3 5 1 2], 1:[9 11 8 10 7]}}, {p347: {0:[6 4 3 5 1 2], 1:[11 9 8 10 7]}}, {p348: {0:[4 5 3 1 2 6], 1:[9 10 8 7 11]}}, {p349: {0:[4 5 3 1 6 2], 1:[9 10 8 11 7]}}, {p350: {0:[4 5 3 6 1 2], 1:[9 10 8 11 7]}}, {p351: {0:[4 5 6 3 1 2], 1:[9 10 11 8 7]}}, {p352: {0:[4 6 5 3 1 2], 1:[9 11 10 8 7]}}, {p353: {0:[6 4 5 3 1 2], 1:[11 9 10 8 7]}}, {p354: {0:[5 4 3 1 2 6], 1:[10 9 8 7 11]}}, {p355: {0:[5 4 3 1 6 2], 1:[10 9 8 11 7]}}, {p356: {0:[5 4 3 6 1 2], 1:[10 9 8 11 7]}}, {p357: {0:[5 4 6 3 1 2], 1:[10 9 11 8 7]}}, {p358: {0:[5 6 4 3 1 2], 1:[10 11 9 8 7]}}, {p359: {0:[6 5 4 3 1 2], 1:[11 10 9 8 7]}}, {p360: {0:[2 1 3 4 5 6], 1:[7 8 9 10 11]}}, {p361: {0:[2 1 3 4 6 5], 1:[7 8 9 11 10]}}, {p362: {0:[2 1 3 6 4 5], 1:[7 8 11 9 10]}}, {p363: {0:[2 1 6 3 4 5], 1:[7 11 8 9 10]}}, {p364: {0:[2 6 1 3 4 5], 1:[7 11 8 9 10]}}, {p365: {0:[6 2 1 3 4 5], 1:[11 7 8 9 10]}}, {p366: {0:[2 1 3 5 4 6], 1:[7 8 10 9 11]}}, {p367: {0:[2 1 3 5 6 4], 1:[7 8 10 11 9]}}, {p368: {0:[2 1 3 6 5 4], 1:[7 8 11 10 9]}}, {p369: {0:[2 1 6 3 5 4], 1:[7 11 8 10 9]}}, {p370: {0:[2 6 1 3 5 4], 1:[7 11 8 10 9]}}, {p371: {0:[6 2 1 3 5 4], 1:[11 7 8 10 9]}}, {p372: {0:[2 1 5 3 4 6], 1:[7 10 8 9 11]}}, {p373: {0:[2 1 5 3 6 4], 1:[7 10 8 11 9]}}, {p374: {0:[2 1 5 6 3 4], 1:[7 10 11 8 9]}}, {p375: {0:[2 1 6 5 3 4], 1:[7 11 10 8 9]}}, {p376: {0:[2 6 1 5 3 4], 1:[7 11 10 8 9]}}, {p377: {0:[6 2 1 5 3 4], 1:[11 7 10 8 9]}}, {p378: {0:[2 5 1 3 4 6], 1:[7 10 8 9 11]}}, {p379: {0:[2 5 1 3 6 4], 1:[7 10 8 11 9]}}, {p380: {0:[2 5 1 6 3 4], 1:[7 10 11 8 9]}}, {p381: {0:[2 5 6 1 3 4], 1:[7 10 11 8 9]}}, {p382: {0:[2 6 5 1 3 4], 1:[7 11 10 8 9]}}, {p383: {0:[6 2 5 1 3 4], 1:[11 7 10 8 9]}}, {p384: {0:[5 2 1 3 4 6], 1:[10 7 8 9 11]}}, {p385: {0:[5 2 1 3 6 4], 1:[10 7 8 11 9]}}, {p386: {0:[5 2 1 6 3 4], 1:[10 7 11 8 9]}}, {p387: {0:[5 2 6 1 3 4], 1:[10 7 11 8 9]}}, {p388: {0:[5 6 2 1 3 4], 1:[10 11 7 8 9]}}, {p389: {0:[6 5 2 1 3 4], 1:[11 10 7 8 9]}}, {p390: {0:[2 1 4 3 5 6], 1:[7 9 8 10 11]}}, {p391: {0:[2 1 4 3 6 5], 1:[7 9 8 11 10]}}, {p392: {0:[2 1 4 6 3 5], 1:[7 9 11 8 10]}}, {p393: {0:[2 1 6 4 3 5], 1:[7 11 9 8 10]}}, {p394: {0:[2 6 1 4 3 5], 1:[7 11 9 8 10]}}, {p395: {0:[6 2 1 4 3 5], 1:[11 7 9 8 10]}}, {p396: {0:[2 1 4 5 3 6], 1:[7 9 10 8 11]}}, {p397: {0:[2 1 4 5 6 3], 1:[7 9 10 11 8]}}, {p398: {0:[2 1 4 6 5 3], 1:[7 9 11 10 8]}}, {p399: {0:[2 1 6 4 5 3], 1:[7 11 9 10 8]}}, {p400: {0:[2 6 1 4 5 3], 1:[7 11 9 10 8]}}, {p401: {0:[6 2 1 4 5 3], 1:[11 7 9 10 8]}}, {p402: {0:[2 1 5 4 3 6], 1:[7 10 9 8 11]}}, {p403: {0:[2 1 5 4 6 3], 1:[7 10 9 11 8]}}, {p404: {0:[2 1 5 6 4 3], 1:[7 10 11 9 8]}}, {p405: {0:[2 1 6 5 4 3], 1:[7 11 10 9 8]}}, {p406: {0:[2 6 1 5 4 3], 1:[7 11 10 9 8]}}, {p407: {0:[6 2 1 5 4 3], 1:[11 7 10 9 8]}}, {p408: {0:[2 5 1 4 3 6], 1:[7 10 9 8 11]}}, {p409: {0:[2 5 1 4 6 3], 1:[7 10 9 11 8]}}, {p410: {0:[2 5 1 6 4 3], 1:[7 10 11 9 8]}}, {p411: {0:[2 5 6 1 4 3], 1:[7 10 11 9 8]}}, {p412: {0:[2 6 5 1 4 3], 1:[7 11 10 9 8]}}, {p413: {0:[6 2 5 1 4 3], 1:[11 7 10 9 8]}}, {p414: {0:[5 2 1 4 3 6], 1:[10 7 9 8 11]}}, {p415: {0:[5 2 1 4 6 3], 1:[10 7 9 11 8]}}, {p416: {0:[5 2 1 6 4 3], 1:[10 7 11 9 8]}}, {p417: {0:[5 2 6 1 4 3], 1:[10 7 11 9 8]}}, {p418: {0:[5 6 2 1 4 3], 1:[10 11 7 9 8]}}, {p419: {0:[6 5 2 1 4 3], 1:[11 10 7 9 8]}}, {p420: {0:[2 4 1 3 5 6], 1:[7 9 8 10 11]}}, {p421: {0:[2 4 1 3 6 5], 1:[7 9 8 11 10]}}, {p422: {0:[2 4 1 6 3 5], 1:[7 9 11 8 10]}}, {p423: {0:[2 4 6 1 3 5], 1:[7 9 11 8 10]}}, {p424: {0:[2 6 4 1 3 5], 1:[7 11 9 8 10]}}, {p425: {0:[6 2 4 1 3 5], 1:[11 7 9 8 10]}}, {p426: {0:[2 4 1 5 3 6], 1:[7 9 10 8 11]}}, {p427: {0:[2 4 1 5 6 3], 1:[7 9 10 11 8]}}, {p428: {0:[2 4 1 6 5 3], 1:[7 9 11 10 8]}}, {p429: {0:[2 4 6 1 5 3], 1:[7 9 11 10 8]}}, {p430: {0:[2 6 4 1 5 3], 1:[7 11 9 10 8]}}, {p431: {0:[6 2 4 1 5 3], 1:[11 7 9 10 8]}}, {p432: {0:[2 4 5 1 3 6], 1:[7 9 10 8 11]}}, {p433: {0:[2 4 5 1 6 3], 1:[7 9 10 11 8]}}, {p434: {0:[2 4 5 6 1 3], 1:[7 9 10 11 8]}}, {p435: {0:[2 4 6 5 1 3], 1:[7 9 11 10 8]}}, {p436: {0:[2 6 4 5 1 3], 1:[7 11 9 10 8]}}, {p437: {0:[6 2 4 5 1 3], 1:[11 7 9 10 8]}}, {p438: {0:[2 5 4 1 3 6], 1:[7 10 9 8 11]}}, {p439: {0:[2 5 4 1 6 3], 1:[7 10 9 11 8]}}, {p440: {0:[2 5 4 6 1 3], 1:[7 10 9 11 8]}}, {p441: {0:[2 5 6 4 1 3], 1:[7 10 11 9 8]}}, {p442: {0:[2 6 5 4 1 3], 1:[7 11 10 9 8]}}, {p443: {0:[6 2 5 4 1 3], 1:[11 7 10 9 8]}}, {p444: {0:[5 2 4 1 3 6], 1:[10 7 9 8 11]}}, {p445: {0:[5 2 4 1 6 3], 1:[10 7 9 11 8]}}, {p446: {0:[5 2 4 6 1 3], 1:[10 7 9 11 8]}}, {p447: {0:[5 2 6 4 1 3], 1:[10 7 11 9 8]}}, {p448: {0:[5 6 2 4 1 3], 1:[10 11 7 9 8]}}, {p449: {0:[6 5 2 4 1 3], 1:[11 10 7 9 8]}}, {p450: {0:[4 2 1 3 5 6], 1:[9 7 8 10 11]}}, {p451: {0:[4 2 1 3 6 5], 1:[9 7 8 11 10]}}, {p452: {0:[4 2 1 6 3 5], 1:[9 7 11 8 10]}}, {p453: {0:[4 2 6 1 3 5], 1:[9 7 11 8 10]}}, {p454: {0:[4 6 2 1 3 5], 1:[9 11 7 8 10]}}, {p455: {0:[6 4 2 1 3 5], 1:[11 9 7 8 10]}}, {p456: {0:[4 2 1 5 3 6], 1:[9 7 10 8 11]}}, {p457: {0:[4 2 1 5 6 3], 1:[9 7 10 11 8]}}, {p458: {0:[4 2 1 6 5 3], 1:[9 7 11 10 8]}}, {p459: {0:[4 2 6 1 5 3], 1:[9 7 11 10 8]}}, {p460: {0:[4 6 2 1 5 3], 1:[9 11 7 10 8]}}, {p461: {0:[6 4 2 1 5 3], 1:[11 9 7 10 8]}}, {p462: {0:[4 2 5 1 3 6], 1:[9 7 10 8 11]}}, {p463: {0:[4 2 5 1 6 3], 1:[9 7 10 11 8]}}, {p464: {0:[4 2 5 6 1 3], 1:[9 7 10 11 8]}}, {p465: {0:[4 2 6 5 1 3], 1:[9 7 11 10 8]}}, {p466: {0:[4 6 2 5 1 3], 1:[9 11 7 10 8]}}, {p467: {0:[6 4 2 5 1 3], 1:[11 9 7 10 8]}}, {p468: {0:[4 5 2 1 3 6], 1:[9 10 7 8 11]}}, {p469: {0:[4 5 2 1 6 3], 1:[9 10 7 11 8]}}, {p470: {0:[4 5 2 6 1 3], 1:[9 10 7 11 8]}}, {p471: {0:[4 5 6 2 1 3], 1:[9 10 11 7 8]}}, {p472: {0:[4 6 5 2 1 3], 1:[9 11 10 7 8]}}, {p473: {0:[6 4 5 2 1 3], 1:[11 9 10 7 8]}}, {p474: {0:[5 4 2 1 3 6], 1:[10 9 7 8 11]}}, {p475: {0:[5 4 2 1 6 3], 1:[10 9 7 11 8]}}, {p476: {0:[5 4 2 6 1 3], 1:[10 9 7 11 8]}}, {p477: {0:[5 4 6 2 1 3], 1:[10 9 11 7 8]}}, {p478: {0:[5 6 4 2 1 3], 1:[10 11 9 7 8]}}, {p479: {0:[6 5 4 2 1 3], 1:[11 10 9 7 8]}}, {p480: {0:[2 3 1 4 5 6], 1:[7 8 9 10 11]}}, {p481: {0:[2 3 1 4 6 5], 1:[7 8 9 11 10]}}, {p482: {0:[2 3 1 6 4 5], 1:[7 8 11 9 10]}}, {p483: {0:[2 3 6 1 4 5], 1:[7 8 11 9 10]}}, {p484: {0:[2 6 3 1 4 5], 1:[7 11 8 9 10]}}, {p485: {0:[6 2 3 1 4 5], 1:[11 7 8 9 10]}}, {p486: {0:[2 3 1 5 4 6], 1:[7 8 10 9 11]}}, {p487: {0:[2 3 1 5 6 4], 1:[7 8 10 11 9]}}, {p488: {0:[2 3 1 6 5 4], 1:[7 8 11 10 9]}}, {p489: {0:[2 3 6 1 5 4], 1:[7 8 11 10 9]}}, {p490: {0:[2 6 3 1 5 4], 1:[7 11 8 10 9]}}, {p491: {0:[6 2 3 1 5 4], 1:[11 7 8 10 9]}}, {p492: {0:[2 3 5 1 4 6], 1:[7 8 10 9 11]}}, {p493: {0:[2 3 5 1 6 4], 1:[7 8 10 11 9]}}, {p494: {0:[2 3 5 6 1 4], 1:[7 8 10 11 9]}}, {p495: {0:[2 3 6 5 1 4], 1:[7 8 11 10 9]}}, {p496: {0:[2 6 3 5 1 4], 1:[7 11 8 10 9]}}, {p497: {0:[6 2 3 5 1 4], 1:[11 7 8 10 9]}}, {p498: {0:[2 5 3 1 4 6], 1:[7 10 8 9 11]}}, {p499: {0:[2 5 3 1 6 4], 1:[7 10 8 11 9]}}, {p500: {0:[2 5 3 6 1 4], 1:[7 10 8 11 9]}}, {p501: {0:[2 5 6 3 1 4], 1:[7 10 11 8 9]}}, {p502: {0:[2 6 5 3 1 4], 1:[7 11 10 8 9]}}, {p503: {0:[6 2 5 3 1 4], 1:[11 7 10 8 9]}}, {p504: {0:[5 2 3 1 4 6], 1:[10 7 8 9 11]}}, {p505: {0:[5 2 3 1 6 4], 1:[10 7 8 11 9]}}, {p506: {0:[5 2 3 6 1 4], 1:[10 7 8 11 9]}}, {p507: {0:[5 2 6 3 1 4], 1:[10 7 11 8 9]}}, {p508: {0:[5 6 2 3 1 4], 1:[10 11 7 8 9]}}, {p509: {0:[6 5 2 3 1 4], 1:[11 10 7 8 9]}}, {p510: {0:[2 3 4 1 5 6], 1:[7 8 9 10 11]}}, {p511: {0:[2 3 4 1 6 5], 1:[7 8 9 11 10]}}, {p512: {0:[2 3 4 6 1 5], 1:[7 8 9 11 10]}}, {p513: {0:[2 3 6 4 1 5], 1:[7 8 11 9 10]}}, {p514: {0:[2 6 3 4 1 5], 1:[7 11 8 9 10]}}, {p515: {0:[6 2 3 4 1 5], 1:[11 7 8 9 10]}}, {p516: {0:[2 3 4 5 1 6], 1:[7 8 9 10 11]}}, {p517: {0:[2 3 4 5 6 1], 1:[7 8 9 10 11]}}, {p518: {0:[2 3 4 6 5 1], 1:[7 8 9 11 10]}}, {p519: {0:[2 3 6 4 5 1], 1:[7 8 11 9 10]}}, {p520: {0:[2 6 3 4 5 1], 1:[7 11 8 9 10]}}, {p521: {0:[6 2 3 4 5 1], 1:[11 7 8 9 10]}}, {p522: {0:[2 3 5 4 1 6], 1:[7 8 10 9 11]}}, {p523: {0:[2 3 5 4 6 1], 1:[7 8 10 9 11]}}, {p524: {0:[2 3 5 6 4 1], 1:[7 8 10 11 9]}}, {p525: {0:[2 3 6 5 4 1], 1:[7 8 11 10 9]}}, {p526: {0:[2 6 3 5 4 1], 1:[7 11 8 10 9]}}, {p527: {0:[6 2 3 5 4 1], 1:[11 7 8 10 9]}}, {p528: {0:[2 5 3 4 1 6], 1:[7 10 8 9 11]}}, {p529: {0:[2 5 3 4 6 1], 1:[7 10 8 9 11]}}, {p530: {0:[2 5 3 6 4 1], 1:[7 10 8 11 9]}}, {p531: {0:[2 5 6 3 4 1], 1:[7 10 11 8 9]}}, {p532: {0:[2 6 5 3 4 1], 1:[7 11 10 8 9]}}, {p533: {0:[6 2 5 3 4 1], 1:[11 7 10 8 9]}}, {p534: {0:[5 2 3 4 1 6], 1:[10 7 8 9 11]}}, {p535: {0:[5 2 3 4 6 1], 1:[10 7 8 9 11]}}, {p536: {0:[5 2 3 6 4 1], 1:[10 7 8 11 9]}}, {p537: {0:[5 2 6 3 4 1], 1:[10 7 11 8 9]}}, {p538: {0:[5 6 2 3 4 1], 1:[10 11 7 8 9]}}, {p539: {0:[6 5 2 3 4 1], 1:[11 10 7 8 9]}}, {p540: {0:[2 4 3 1 5 6], 1:[7 9 8 10 11]}}, {p541: {0:[2 4 3 1 6 5], 1:[7 9 8 11 10]}}, {p542: {0:[2 4 3 6 1 5], 1:[7 9 8 11 10]}}, {p543: {0:[2 4 6 3 1 5], 1:[7 9 11 8 10]}}, {p544: {0:[2 6 4 3 1 5], 1:[7 11 9 8 10]}}, {p545: {0:[6 2 4 3 1 5], 1:[11 7 9 8 10]}}, {p546: {0:[2 4 3 5 1 6], 1:[7 9 8 10 11]}}, {p547: {0:[2 4 3 5 6 1], 1:[7 9 8 10 11]}}, {p548: {0:[2 4 3 6 5 1], 1:[7 9 8 11 10]}}, {p549: {0:[2 4 6 3 5 1], 1:[7 9 11 8 10]}}, {p550: {0:[2 6 4 3 5 1], 1:[7 11 9 8 10]}}, {p551: {0:[6 2 4 3 5 1], 1:[11 7 9 8 10]}}, {p552: {0:[2 4 5 3 1 6], 1:[7 9 10 8 11]}}, {p553: {0:[2 4 5 3 6 1], 1:[7 9 10 8 11]}}, {p554: {0:[2 4 5 6 3 1], 1:[7 9 10 11 8]}}, {p555: {0:[2 4 6 5 3 1], 1:[7 9 11 10 8]}}, {p556: {0:[2 6 4 5 3 1], 1:[7 11 9 10 8]}}, {p557: {0:[6 2 4 5 3 1], 1:[11 7 9 10 8]}}, {p558: {0:[2 5 4 3 1 6], 1:[7 10 9 8 11]}}, {p559: {0:[2 5 4 3 6 1], 1:[7 10 9 8 11]}}, {p560: {0:[2 5 4 6 3 1], 1:[7 10 9 11 8]}}, {p561: {0:[2 5 6 4 3 1], 1:[7 10 11 9 8]}}, {p562: {0:[2 6 5 4 3 1], 1:[7 11 10 9 8]}}, {p563: {0:[6 2 5 4 3 1], 1:[11 7 10 9 8]}}, {p564: {0:[5 2 4 3 1 6], 1:[10 7 9 8 11]}}, {p565: {0:[5 2 4 3 6 1], 1:[10 7 9 8 11]}}, {p566: {0:[5 2 4 6 3 1], 1:[10 7 9 11 8]}}, {p567: {0:[5 2 6 4 3 1], 1:[10 7 11 9 8]}}, {p568: {0:[5 6 2 4 3 1], 1:[10 11 7 9 8]}}, {p569: {0:[6 5 2 4 3 1], 1:[11 10 7 9 8]}}, {p570: {0:[4 2 3 1 5 6], 1:[9 7 8 10 11]}}, {p571: {0:[4 2 3 1 6 5], 1:[9 7 8 11 10]}}, {p572: {0:[4 2 3 6 1 5], 1:[9 7 8 11 10]}}, {p573: {0:[4 2 6 3 1 5], 1:[9 7 11 8 10]}}, {p574: {0:[4 6 2 3 1 5], 1:[9 11 7 8 10]}}, {p575: {0:[6 4 2 3 1 5], 1:[11 9 7 8 10]}}, {p576: {0:[4 2 3 5 1 6], 1:[9 7 8 10 11]}}, {p577: {0:[4 2 3 5 6 1], 1:[9 7 8 10 11]}}, {p578: {0:[4 2 3 6 5 1], 1:[9 7 8 11 10]}}, {p579: {0:[4 2 6 3 5 1], 1:[9 7 11 8 10]}}, {p580: {0:[4 6 2 3 5 1], 1:[9 11 7 8 10]}}, {p581: {0:[6 4 2 3 5 1], 1:[11 9 7 8 10]}}, {p582: {0:[4 2 5 3 1 6], 1:[9 7 10 8 11]}}, {p583: {0:[4 2 5 3 6 1], 1:[9 7 10 8 11]}}, {p584: {0:[4 2 5 6 3 1], 1:[9 7 10 11 8]}}, {p585: {0:[4 2 6 5 3 1], 1:[9 7 11 10 8]}}, {p586: {0:[4 6 2 5 3 1], 1:[9 11 7 10 8]}}, {p587: {0:[6 4 2 5 3 1], 1:[11 9 7 10 8]}}, {p588: {0:[4 5 2 3 1 6], 1:[9 10 7 8 11]}}, {p589: {0:[4 5 2 3 6 1], 1:[9 10 7 8 11]}}, {p590: {0:[4 5 2 6 3 1], 1:[9 10 7 11 8]}}, {p591: {0:[4 5 6 2 3 1], 1:[9 10 11 7 8]}}, {p592: {0:[4 6 5 2 3 1], 1:[9 11 10 7 8]}}, {p593: {0:[6 4 5 2 3 1], 1:[11 9 10 7 8]}}, {p594: {0:[5 4 2 3 1 6], 1:[10 9 7 8 11]}}, {p595: {0:[5 4 2 3 6 1], 1:[10 9 7 8 11]}}, {p596: {0:[5 4 2 6 3 1], 1:[10 9 7 11 8]}}, {p597: {0:[5 4 6 2 3 1], 1:[10 9 11 7 8]}}, {p598: {0:[5 6 4 2 3 1], 1:[10 11 9 7 8]}}, {p599: {0:[6 5 4 2 3 1], 1:[11 10 9 7 8]}}, {p600: {0:[3 2 1 4 5 6], 1:[8 7 9 10 11]}}, {p601: {0:[3 2 1 4 6 5], 1:[8 7 9 11 10]}}, {p602: {0:[3 2 1 6 4 5], 1:[8 7 11 9 10]}}, {p603: {0:[3 2 6 1 4 5], 1:[8 7 11 9 10]}}, {p604: {0:[3 6 2 1 4 5], 1:[8 11 7 9 10]}}, {p605: {0:[6 3 2 1 4 5], 1:[11 8 7 9 10]}}, {p606: {0:[3 2 1 5 4 6], 1:[8 7 10 9 11]}}, {p607: {0:[3 2 1 5 6 4], 1:[8 7 10 11 9]}}, {p608: {0:[3 2 1 6 5 4], 1:[8 7 11 10 9]}}, {p609: {0:[3 2 6 1 5 4], 1:[8 7 11 10 9]}}, {p610: {0:[3 6 2 1 5 4], 1:[8 11 7 10 9]}}, {p611: {0:[6 3 2 1 5 4], 1:[11 8 7 10 9]}}, {p612: {0:[3 2 5 1 4 6], 1:[8 7 10 9 11]}}, {p613: {0:[3 2 5 1 6 4], 1:[8 7 10 11 9]}}, {p614: {0:[3 2 5 6 1 4], 1:[8 7 10 11 9]}}, {p615: {0:[3 2 6 5 1 4], 1:[8 7 11 10 9]}}, {p616: {0:[3 6 2 5 1 4], 1:[8 11 7 10 9]}}, {p617: {0:[6 3 2 5 1 4], 1:[11 8 7 10 9]}}, {p618: {0:[3 5 2 1 4 6], 1:[8 10 7 9 11]}}, {p619: {0:[3 5 2 1 6 4], 1:[8 10 7 11 9]}}, {p620: {0:[3 5 2 6 1 4], 1:[8 10 7 11 9]}}, {p621: {0:[3 5 6 2 1 4], 1:[8 10 11 7 9]}}, {p622: {0:[3 6 5 2 1 4], 1:[8 11 10 7 9]}}, {p623: {0:[6 3 5 2 1 4], 1:[11 8 10 7 9]}}, {p624: {0:[5 3 2 1 4 6], 1:[10 8 7 9 11]}}, {p625: {0:[5 3 2 1 6 4], 1:[10 8 7 11 9]}}, {p626: {0:[5 3 2 6 1 4], 1:[10 8 7 11 9]}}, {p627: {0:[5 3 6 2 1 4], 1:[10 8 11 7 9]}}, {p628: {0:[5 6 3 2 1 4], 1:[10 11 8 7 9]}}, {p629: {0:[6 5 3 2 1 4], 1:[11 10 8 7 9]}}, {p630: {0:[3 2 4 1 5 6], 1:[8 7 9 10 11]}}, {p631: {0:[3 2 4 1 6 5], 1:[8 7 9 11 10]}}, {p632: {0:[3 2 4 6 1 5], 1:[8 7 9 11 10]}}, {p633: {0:[3 2 6 4 1 5], 1:[8 7 11 9 10]}}, {p634: {0:[3 6 2 4 1 5], 1:[8 11 7 9 10]}}, {p635: {0:[6 3 2 4 1 5], 1:[11 8 7 9 10]}}, {p636: {0:[3 2 4 5 1 6], 1:[8 7 9 10 11]}}, {p637: {0:[3 2 4 5 6 1], 1:[8 7 9 10 11]}}, {p638: {0:[3 2 4 6 5 1], 1:[8 7 9 11 10]}}, {p639: {0:[3 2 6 4 5 1], 1:[8 7 11 9 10]}}, {p640: {0:[3 6 2 4 5 1], 1:[8 11 7 9 10]}}, {p641: {0:[6 3 2 4 5 1], 1:[11 8 7 9 10]}}, {p642: {0:[3 2 5 4 1 6], 1:[8 7 10 9 11]}}, {p643: {0:[3 2 5 4 6 1], 1:[8 7 10 9 11]}}, {p644: {0:[3 2 5 6 4 1], 1:[8 7 10 11 9]}}, {p645: {0:[3 2 6 5 4 1], 1:[8 7 11 10 9]}}, {p646: {0:[3 6 2 5 4 1], 1:[8 11 7 10 9]}}, {p647: {0:[6 3 2 5 4 1], 1:[11 8 7 10 9]}}, {p648: {0:[3 5 2 4 1 6], 1:[8 10 7 9 11]}}, {p649: {0:[3 5 2 4 6 1], 1:[8 10 7 9 11]}}, {p650: {0:[3 5 2 6 4 1], 1:[8 10 7 11 9]}}, {p651: {0:[3 5 6 2 4 1], 1:[8 10 11 7 9]}}, {p652: {0:[3 6 5 2 4 1], 1:[8 11 10 7 9]}}, {p653: {0:[6 3 5 2 4 1], 1:[11 8 10 7 9]}}, {p654: {0:[5 3 2 4 1 6], 1:[10 8 7 9 11]}}, {p655: {0:[5 3 2 4 6 1], 1:[10 8 7 9 11]}}, {p656: {0:[5 3 2 6 4 1], 1:[10 8 7 11 9]}}, {p657: {0:[5 3 6 2 4 1], 1:[10 8 11 7 9]}}, {p658: {0:[5 6 3 2 4 1], 1:[10 11 8 7 9]}}, {p659: {0:[6 5 3 2 4 1], 1:[11 10 8 7 9]}}, {p660: {0:[3 4 2 1 5 6], 1:[8 9 7 10 11]}}, {p661: {0:[3 4 2 1 6 5], 1:[8 9 7 11 10]}}, {p662: {0:[3 4 2 6 1 5], 1:[8 9 7 11 10]}}, {p663: {0:[3 4 6 2 1 5], 1:[8 9 11 7 10]}}, {p664: {0:[3 6 4 2 1 5], 1:[8 11 9 7 10]}}, {p665: {0:[6 3 4 2 1 5], 1:[11 8 9 7 10]}}, {p666: {0:[3 4 2 5 1 6], 1:[8 9 7 10 11]}}, {p667: {0:[3 4 2 5 6 1], 1:[8 9 7 10 11]}}, {p668: {0:[3 4 2 6 5 1], 1:[8 9 7 11 10]}}, {p669: {0:[3 4 6 2 5 1], 1:[8 9 11 7 10]}}, {p670: {0:[3 6 4 2 5 1], 1:[8 11 9 7 10]}}, {p671: {0:[6 3 4 2 5 1], 1:[11 8 9 7 10]}}, {p672: {0:[3 4 5 2 1 6], 1:[8 9 10 7 11]}}, {p673: {0:[3 4 5 2 6 1], 1:[8 9 10 7 11]}}, {p674: {0:[3 4 5 6 2 1], 1:[8 9 10 11 7]}}, {p675: {0:[3 4 6 5 2 1], 1:[8 9 11 10 7]}}, {p676: {0:[3 6 4 5 2 1], 1:[8 11 9 10 7]}}, {p677: {0:[6 3 4 5 2 1], 1:[11 8 9 10 7]}}, {p678: {0:[3 5 4 2 1 6], 1:[8 10 9 7 11]}}, {p679: {0:[3 5 4 2 6 1], 1:[8 10 9 7 11]}}, {p680: {0:[3 5 4 6 2 1], 1:[8 10 9 11 7]}}, {p681: {0:[3 5 6 4 2 1], 1:[8 10 11 9 7]}}, {p682: {0:[3 6 5 4 2 1], 1:[8 11 10 9 7]}}, {p683: {0:[6 3 5 4 2 1], 1:[11 8 10 9 7]}}, {p684: {0:[5 3 4 2 1 6], 1:[10 8 9 7 11]}}, {p685: {0:[5 3 4 2 6 1], 1:[10 8 9 7 11]}}, {p686: {0:[5 3 4 6 2 1], 1:[10 8 9 11 7]}}, {p687: {0:[5 3 6 4 2 1], 1:[10 8 11 9 7]}}, {p688: {0:[5 6 3 4 2 1], 1:[10 11 8 9 7]}}, {p689: {0:[6 5 3 4 2 1], 1:[11 10 8 9 7]}}, {p690: {0:[4 3 2 1 5 6], 1:[9 8 7 10 11]}}, {p691: {0:[4 3 2 1 6 5], 1:[9 8 7 11 10]}}, {p692: {0:[4 3 2 6 1 5], 1:[9 8 7 11 10]}}, {p693: {0:[4 3 6 2 1 5], 1:[9 8 11 7 10]}}, {p694: {0:[4 6 3 2 1 5], 1:[9 11 8 7 10]}}, {p695: {0:[6 4 3 2 1 5], 1:[11 9 8 7 10]}}, {p696: {0:[4 3 2 5 1 6], 1:[9 8 7 10 11]}}, {p697: {0:[4 3 2 5 6 1], 1:[9 8 7 10 11]}}, {p698: {0:[4 3 2 6 5 1], 1:[9 8 7 11 10]}}, {p699: {0:[4 3 6 2 5 1], 1:[9 8 11 7 10]}}, {p700: {0:[4 6 3 2 5 1], 1:[9 11 8 7 10]}}, {p701: {0:[6 4 3 2 5 1], 1:[11 9 8 7 10]}}, {p702: {0:[4 3 5 2 1 6], 1:[9 8 10 7 11]}}, {p703: {0:[4 3 5 2 6 1], 1:[9 8 10 7 11]}}, {p704: {0:[4 3 5 6 2 1], 1:[9 8 10 11 7]}}, {p705: {0:[4 3 6 5 2 1], 1:[9 8 11 10 7]}}, {p706: {0:[4 6 3 5 2 1], 1:[9 11 8 10 7]}}, {p707: {0:[6 4 3 5 2 1], 1:[11 9 8 10 7]}}, {p708: {0:[4 5 3 2 1 6], 1:[9 10 8 7 11]}}, {p709: {0:[4 5 3 2 6 1], 1:[9 10 8 7 11]}}, {p710: {0:[4 5 3 6 2 1], 1:[9 10 8 11 7]}}, {p711: {0:[4 5 6 3 2 1], 1:[9 10 11 8 7]}}, {p712: {0:[4 6 5 3 2 1], 1:[9 11 10 8 7]}}, {p713: {0:[6 4 5 3 2 1], 1:[11 9 10 8 7]}}, {p714: {0:[5 4 3 2 1 6], 1:[10 9 8 7 11]}}, {p715: {0:[5 4 3 2 6 1], 1:[10 9 8 7 11]}}, {p716: {0:[5 4 3 6 2 1], 1:[10 9 8 11 7]}}, {p717: {0:[5 4 6 3 2 1], 1:[10 9 11 8 7]}}, {p718: {0:[5 6 4 3 2 1], 1:[10 11 9 8 7]}}, {p719: {0:[6 5 4 3 2 1], 1:[11 10 9 8 7]}}",
+		"{Id:1 RootId:1 Layer:0 X:0.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[]}, {Id:2 RootId:2 Layer:0 X:52.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[7]}, {Id:3 RootId:3 Layer:0 X:104.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[8]}, {Id:4 RootId:4 Layer:0 X:156.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[9]}, {Id:5 RootId:5 Layer:0 X:208.00 Y:0.00 TotalW:44.00 W:32.00 H:40.00 In:[] PriRootOut:[10]}, {Id:6 RootId:6 Layer:0 X:272.00 Y:0.00 TotalW:44.00 W:32.00 H:40.00 In:[] PriRootOut:[11]}, {Id:7 RootId:2 Layer:1 X:52.00 Y:256.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:2 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:1 X:0.00 Y:0.00 W:37.08 H:36.00}] PriRootOut:[]}, {Id:8 RootId:3 Layer:1 X:104.00 Y:256.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:3 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:1 X:0.00 Y:0.00 W:37.08 H:36.00}] PriRootOut:[]}, {Id:9 RootId:4 Layer:1 X:156.00 Y:256.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:4 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:1 X:0.00 Y:0.00 W:37.08 H:36.00}] PriRootOut:[]}, {Id:10 RootId:5 Layer:1 X:208.00 Y:256.00 TotalW:44.00 W:44.00 H:40.00 In:[{HT:pri SrcId:5 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:1 X:0.00 Y:0.00 W:37.08 H:36.00}] PriRootOut:[]}, {Id:11 RootId:6 Layer:1 X:272.00 Y:256.00 TotalW:44.00 W:44.00 H:40.00 In:[{HT:pri SrcId:6 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:1 X:0.00 Y:0.00 W:37.08 H:36.00}] PriRootOut:[]}",
+		"{Id:1 RootId:1 Layer:0 X:284.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[]}, {Id:2 RootId:2 Layer:0 X:232.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[7]}, {Id:3 RootId:3 Layer:0 X:180.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[8]}, {Id:4 RootId:4 Layer:0 X:128.00 Y:0.00 TotalW:32.00 W:32.00 H:40.00 In:[] PriRootOut:[9]}, {Id:5 RootId:5 Layer:0 X:64.00 Y:0.00 TotalW:44.00 W:32.00 H:40.00 In:[] PriRootOut:[10]}, {Id:6 RootId:6 Layer:0 X:0.00 Y:0.00 TotalW:44.00 W:32.00 H:40.00 In:[] PriRootOut:[11]}, {Id:7 RootId:2 Layer:1 X:232.00 Y:256.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:2 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:1 X:0.00 Y:0.00 W:37.08 H:36.00}] PriRootOut:[]}, {Id:8 RootId:3 Layer:1 X:180.00 Y:256.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:3 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:1 X:0.00 Y:0.00 W:37.08 H:36.00}] PriRootOut:[]}, {Id:9 RootId:4 Layer:1 X:128.00 Y:256.00 TotalW:32.00 W:32.00 H:40.00 In:[{HT:pri SrcId:4 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:1 X:0.00 Y:0.00 W:37.08 H:36.00}] PriRootOut:[]}, {Id:10 RootId:5 Layer:1 X:64.00 Y:256.00 TotalW:44.00 W:44.00 H:40.00 In:[{HT:pri SrcId:5 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:1 X:0.00 Y:0.00 W:37.08 H:36.00}] PriRootOut:[]}, {Id:11 RootId:6 Layer:1 X:0.00 Y:256.00 TotalW:44.00 W:44.00 H:40.00 In:[{HT:pri SrcId:6 X:0.00 Y:0.00 W:0.00 H:0.00} {HT:sec SrcId:1 X:0.00 Y:0.00 W:37.08 H:36.00}] PriRootOut:[]}")
 }
 
 func Test40milPermsMxPermutator(t *testing.T) {
@@ -872,7 +273,7 @@ func Test40milPermsMxPermutator(t *testing.T) {
 	helperIteratorAndIncrementalCount(t,
 		testNodeDefs40milPerms,
 		"[-4 0 1 1 1 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 1]",
-		"0 [1], 1 [2 3 4 20], 2 [5 6 7 8 9 10 11 12 13 14 15 16 17 18 19]",
+		"0:[1], 1:[2 3 4 20], 2:[5 6 7 8 9 10 11 12 13 14 15 16 17 18 19]",
 		int64(41472000),
 		int64(41472000))
 }
@@ -883,7 +284,7 @@ func Test300bilPermsMxPermutator(t *testing.T) {
 
 	rootNodes := buildRootNodeList(buildPriParentMap(testNodeDefs300bilPerms))
 	mx, _ := NewLayerMx(testNodeDefs300bilPerms, layerMap, rootNodes)
-	assert.Equal(t, "0 [1], 1 [2 3 4 22 23 24 25], 2 [5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21]", mx.String())
+	assert.Equal(t, "0:[1], 1:[2 3 4 22 23 24 25], 2:[5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21]", mx.String())
 
 	_, err := NewLayerMxPermIterator(testNodeDefs300bilPerms, mx)
 	assert.Contains(t, err.Error(), "313528320000")

@@ -252,3 +252,95 @@ var testNodeDefsTwoLevelsFromOneParentSameRootTwoFakes = []NodeDef{
 	{7, "7", EdgeDef{6, ""}, []EdgeDef{{4, ""}}, ""},
 	{8, "8", EdgeDef{7, ""}, []EdgeDef{}, ""},
 }
+
+// 0:    1
+// - 	 |
+// 1:    2
+// -     |
+// 2:    3     5
+// -     |  /  |
+// 3:    4     6
+// -           |
+// 4:          7
+var testNodeDefsSubtreeBelowLong = []NodeDef{
+	{0, "top node", EdgeDef{}, []EdgeDef{}, ""},
+	{1, "1", EdgeDef{}, []EdgeDef{}, ""},
+	{2, "2", EdgeDef{1, ""}, []EdgeDef{}, ""},
+	{3, "3", EdgeDef{2, ""}, []EdgeDef{}, ""},
+	{4, "4", EdgeDef{3, ""}, []EdgeDef{{5, ""}}, ""},
+	{5, "5", EdgeDef{}, []EdgeDef{}, ""},
+	{6, "6", EdgeDef{5, ""}, []EdgeDef{}, ""},
+	{7, "7", EdgeDef{6, ""}, []EdgeDef{}, ""},
+}
+
+// 0:    1
+// - 	 |
+// 1:    2      6
+// -     |    / |
+// 2:    3   /  7
+// -     |  /   |
+// 3:    4      8
+// -     |   /
+// 4:    5
+var testNodeDefsOneNotTwoLevelsDown = []NodeDef{
+	{0, "top node", EdgeDef{}, []EdgeDef{}, ""},
+	{1, "1", EdgeDef{}, []EdgeDef{}, ""},
+	{2, "2", EdgeDef{1, ""}, []EdgeDef{}, ""},
+	{3, "3", EdgeDef{2, ""}, []EdgeDef{}, ""},
+	{4, "4", EdgeDef{3, ""}, []EdgeDef{{6, ""}}, ""},
+	{5, "5", EdgeDef{4, ""}, []EdgeDef{{8, ""}}, ""},
+	{6, "6", EdgeDef{}, []EdgeDef{}, ""},
+	{7, "7", EdgeDef{6, ""}, []EdgeDef{}, ""},
+	{8, "8", EdgeDef{7, ""}, []EdgeDef{}, ""},
+}
+
+// 0:    1
+// - 	 |
+// 1:    2    5
+// -     |   /|
+// 2:    3  / 6
+// -     | //
+// 3:    4
+var testNodeDefsMultiSecParentPullDown = []NodeDef{
+	{0, "top node", EdgeDef{}, []EdgeDef{}, ""},
+	{1, "1", EdgeDef{}, []EdgeDef{}, ""},
+	{2, "2", EdgeDef{1, ""}, []EdgeDef{}, ""},
+	{3, "3", EdgeDef{2, ""}, []EdgeDef{}, ""},
+	{4, "4", EdgeDef{3, ""}, []EdgeDef{{5, ""}, {6, ""}}, ""},
+	{5, "5", EdgeDef{}, []EdgeDef{}, ""},
+	{6, "6", EdgeDef{5, ""}, []EdgeDef{}, ""},
+}
+
+// 0:    1   4
+// - 	 |  /|
+// 1:    2 / 5
+// -     |//
+// 2:    3
+var testNodeDefsMultiSecParentNoPullDown = []NodeDef{
+	{0, "top node", EdgeDef{}, []EdgeDef{}, ""},
+	{1, "1", EdgeDef{}, []EdgeDef{}, ""},
+	{2, "2", EdgeDef{1, ""}, []EdgeDef{}, ""},
+	{3, "3", EdgeDef{2, ""}, []EdgeDef{{4, ""}, {5, ""}}, ""},
+	{4, "4", EdgeDef{}, []EdgeDef{}, ""},
+	{5, "5", EdgeDef{4, ""}, []EdgeDef{}, ""},
+}
+
+// 0:    1
+// - 	  \\\\\\
+// 1:      2 3 4 5 6
+var testNodeDefsDuplicateSecLabels = []NodeDef{
+	{0, "top node", EdgeDef{}, []EdgeDef{}, ""},
+	{1, "1", EdgeDef{}, []EdgeDef{}, ""},
+
+	{2, "2", EdgeDef{}, []EdgeDef{}, ""},
+	{3, "3", EdgeDef{}, []EdgeDef{}, ""},
+	{4, "4", EdgeDef{}, []EdgeDef{}, ""},
+	{5, "5", EdgeDef{}, []EdgeDef{}, ""},
+	{6, "6", EdgeDef{}, []EdgeDef{}, ""},
+
+	{7, "7", EdgeDef{2, ""}, []EdgeDef{{1, "txt"}}, ""},
+	{8, "8", EdgeDef{3, ""}, []EdgeDef{{1, "txt"}}, ""},
+	{9, "9", EdgeDef{4, ""}, []EdgeDef{{1, "txt"}}, ""},
+	{10, "10", EdgeDef{5, ""}, []EdgeDef{{1, "txt"}}, ""},
+	{11, "11", EdgeDef{6, ""}, []EdgeDef{{1, "txt"}}, ""},
+}

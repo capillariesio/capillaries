@@ -56,7 +56,7 @@ func (mx LayerMx) String() string {
 		if i != 0 {
 			sb.WriteString(", ")
 		}
-		sb.WriteString(fmt.Sprintf("%d %v", i, row))
+		sb.WriteString(fmt.Sprintf("%d:%v", i, row))
 	}
 	return sb.String()
 }

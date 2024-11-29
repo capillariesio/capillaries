@@ -2,6 +2,7 @@ package capigraph
 
 import (
 	"fmt"
+	"math"
 	"slices"
 	"sort"
 	"strings"
@@ -61,9 +62,15 @@ func drawEdgeLines(vizNodeMap []VizNode, curItem *VizNode, nodeFo FontOptions, e
 
 			deltaX := endX - startX
 			deltaY := endY - startY
+
+			// For nearly-vertical sec connector, add a twist - so it has a better chance not to interfere with some pri connector
+			curveDeltaForSimilarX := 0.0
+			if math.Abs(startY-endY)/math.Abs(startX-endX) > 8 {
+				curveDeltaForSimilarX = deltaX * math.Abs(startY-endY) / math.Abs(startX-endX) / 4
+			}
 			sb.WriteString(fmt.Sprintf(`<path class="path-edge-sec path-edge-sec-%d" d="m%.2f,%.2f C%.2f,%.2f %.2f,%.2f %.2f,%.2f"/>`+"\n",
 				parentItem.RootId,
-				startX, startY, startX+deltaX*0.2, startY+deltaY*0.5, startX+deltaX*0.8, startY+deltaY*0.5, endX, endY))
+				startX, startY, startX+deltaX*0.2, startY+deltaY*0.5, startX+deltaX*0.8+curveDeltaForSimilarX, startY+deltaY*0.5, endX, endY))
 		}
 	}
 
@@ -86,19 +93,21 @@ func drawEdgeLines(vizNodeMap []VizNode, curItem *VizNode, nodeFo FontOptions, e
 }
 
 func drawNodesAndEdgeLabels(vizNodeMap []VizNode, curItem *VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeOptions, rootColorMap []int32) string {
+	xmlReplacer := strings.NewReplacer("\"", "&quot;", "'", "&apos;", "<", "&lt;", ">", "&gt;", "&", "&amp;")
 	sb := strings.Builder{}
 	if curItem.Def != nil {
-		sb.WriteString(fmt.Sprintf(`<a xlink:title="%d %s">`+"\n", curItem.Def.Id, curItem.Def.IconId))
-		sb.WriteString(fmt.Sprintf(`<rect class="rect-node-background rect-node-background-%d" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
+		title := strings.TrimSpace(xmlReplacer.Replace(fmt.Sprintf("%d %s", curItem.Def.Id, curItem.Def.IconId)))
+		sb.WriteString(fmt.Sprintf(`<a xlink:title="%s">`+"\n", title))
+		sb.WriteString(fmt.Sprintf(`  <rect class="rect-node-background rect-node-background-%d" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
 			curItem.RootId,
 			curItem.X+curItem.TotalW/2-curItem.NodeW/2, curItem.Y, curItem.NodeW, curItem.NodeH))
-		sb.WriteString(fmt.Sprintf(`<rect class="rect-node rect-node-%d" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
+		sb.WriteString(fmt.Sprintf(`  <rect class="rect-node rect-node-%d" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
 			curItem.RootId,
 			curItem.X+curItem.TotalW/2-curItem.NodeW/2, curItem.Y, curItem.NodeW, curItem.NodeH))
 		actualIconSize := 0.0
 		if curItem.Def.IconId != "" {
 			actualIconSize = curItem.NodeH - nodeFo.SizeInPixels
-			sb.WriteString(fmt.Sprintf(`<g transform="translate(%.2f,%.2f)"><g transform="scale(%2f)"><use xlink:href="#%s" %s/></g></g>`+"\n",
+			sb.WriteString(fmt.Sprintf(`  <g transform="translate(%.2f,%.2f)"><g transform="scale(%2f)">`+"\n    "+`<use xlink:href="#%s" %s/>`+"\n  </g></g>\n",
 				curItem.X+curItem.TotalW/2-curItem.NodeW/2+nodeFo.SizeInPixels/2,
 				curItem.Y+nodeFo.SizeInPixels/2,
 				actualIconSize/100.0,
@@ -111,39 +120,39 @@ func drawNodesAndEdgeLabels(vizNodeMap []VizNode, curItem *VizNode, nodeFo FontO
 			if actualIconSize > 0.0 {
 				textX += actualIconSize + nodeFo.SizeInPixels
 			}
-			sb.WriteString(fmt.Sprintf(`<text class="text-node" x="%.2f" y="%.2f"><![CDATA[%s]]></text>`+"\n",
-				textX, curItem.Y+nodeFo.SizeInPixels/2+float64(i)*nodeFo.SizeInPixels*(1.0+nodeFo.Interval), r))
+			sb.WriteString(fmt.Sprintf(`  <text class="text-node" x="%.2f" y="%.2f">%s</text>`+"\n",
+				textX, curItem.Y+nodeFo.SizeInPixels/2+float64(i)*nodeFo.SizeInPixels*(1.0+nodeFo.Interval), xmlReplacer.Replace(r)))
 		}
 		sb.WriteString("</a>\n")
 
 		eolReplacer := strings.NewReplacer("\r", "", "\n", " ")
 		// Incoming edge labels
 		for _, edgeItem := range curItem.IncomingVizEdges {
-			// Do not draw zero-dimension label, it's a duplicate
-			if edgeItem.HierarchyType == HierarchySec && edgeItem.W == 0.0 {
+			// Do not draw zero-dimension label, it's a sec duplicate or just empty (pri or sec)
+			if edgeItem.W == 0.0 {
 				continue
 			}
-			sb.WriteString(fmt.Sprintf(`<a xlink:title="%s">`+"\n", eolReplacer.Replace(edgeItem.Edge.Text)))
+			sb.WriteString(fmt.Sprintf(`<a xlink:title="%s">`+"\n", strings.TrimSpace(xmlReplacer.Replace(eolReplacer.Replace(edgeItem.Edge.Text)))))
 			parentItem := &(vizNodeMap[edgeItem.Edge.SrcId])
 			if edgeItem.HierarchyType == HierarchySec {
-				sb.WriteString(fmt.Sprintf(`<rect class="rect-edge-label-background" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
+				sb.WriteString(fmt.Sprintf(`  <rect class="rect-edge-label-background" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
 					edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H))
-				sb.WriteString(fmt.Sprintf(`<rect class="rect-edge-label-sec rect-edge-label-sec-%d" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
+				sb.WriteString(fmt.Sprintf(`  <rect class="rect-edge-label-sec rect-edge-label-sec-%d" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
 					parentItem.RootId,
 					edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H))
 				for i, r := range strings.Split(edgeItem.Edge.Text, "\n") {
-					sb.WriteString(fmt.Sprintf(`<text class="text-edge-label" x="%.2f" y="%.2f"><![CDATA[%s]]></text>`+"\n",
-						edgeItem.X+edgeFo.SizeInPixels/2, edgeItem.Y+edgeFo.SizeInPixels/2+float64(i)*edgeFo.SizeInPixels*(1+edgeFo.Interval), r))
+					sb.WriteString(fmt.Sprintf(`  <text class="text-edge-label" x="%.2f" y="%.2f">%s</text>`+"\n",
+						edgeItem.X+edgeFo.SizeInPixels/2, edgeItem.Y+edgeFo.SizeInPixels/2+float64(i)*edgeFo.SizeInPixels*(1+edgeFo.Interval), xmlReplacer.Replace(r)))
 				}
 			} else if edgeItem.HierarchyType == HierarchyPri {
-				sb.WriteString(fmt.Sprintf(`<rect class="rect-edge-label-background" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
+				sb.WriteString(fmt.Sprintf(`  <rect class="rect-edge-label-background" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
 					edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H))
-				sb.WriteString(fmt.Sprintf(`<rect class="rect-edge-label-pri rect-edge-label-pri-%d" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
+				sb.WriteString(fmt.Sprintf(`  <rect class="rect-edge-label-pri rect-edge-label-pri-%d" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
 					parentItem.RootId,
 					edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H))
 				for i, r := range strings.Split(edgeItem.Edge.Text, "\n") {
-					sb.WriteString(fmt.Sprintf(`<text class="text-edge-label" x="%.2f" y="%.2f"><![CDATA[%s]]></text>`+"\n",
-						edgeItem.X+edgeFo.SizeInPixels/2, edgeItem.Y+edgeFo.SizeInPixels/2+float64(i)*edgeFo.SizeInPixels*(1+edgeFo.Interval), r))
+					sb.WriteString(fmt.Sprintf(`  <text class="text-edge-label" x="%.2f" y="%.2f">%s</text>`+"\n",
+						edgeItem.X+edgeFo.SizeInPixels/2, edgeItem.Y+edgeFo.SizeInPixels/2+float64(i)*edgeFo.SizeInPixels*(1+edgeFo.Interval), xmlReplacer.Replace(r)))
 				}
 			}
 			sb.WriteString("</a>\n")
@@ -203,26 +212,18 @@ func buildRootColorMap(vizNodeMap []VizNode, palette []int32) []int32 {
 		return rootCountMap[rootIds[i]] > rootCountMap[rootIds[j]]
 	})
 
-	//rootBackgroundColorMap := slices.Repeat([]int32{-1}, len(vizNodeMap))
-	//rootStrokeColorMap := slices.Repeat([]int32{-1}, len(vizNodeMap))
-	//rootTextColorMap := slices.Repeat([]int32{-1}, len(vizNodeMap))
 	rootColorMap := slices.Repeat([]int32{-1}, len(vizNodeMap))
 	if len(palette) > 0 {
 		colorCounter := 0
 		for _, rootId := range rootIds {
-			// paletteColor := palette[colorCounter%len(palette)]
-			// rootBackgroundColorMap[rootId] = paletteColor
-			// rootStrokeColorMap[rootId] = paletteColor
-			// rootTextColorMap[rootId] = getTextColorForBackground(paletteColor)
 			rootColorMap[rootId] = palette[colorCounter%len(palette)]
 			colorCounter++
 		}
 	}
-	//return rootBackgroundColorMap, rootStrokeColorMap, rootTextColorMap
 	return rootColorMap
 }
 
-func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeOptions, defsXml string, css string) string {
+func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeOptions, defsXml string, css string, totalPermutations int64, elapsed float64, bestDist float64) string {
 	topItem := &vizNodeMap[0]
 	minLeft := 0.0
 	maxRight := topItem.TotalW
@@ -298,6 +299,9 @@ func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeO
 		sb.WriteString(fmt.Sprintf(`.rect-node-background-%d {fill:#%s}`+"\n", rootId, getColorOverride(int16(rootId), rootColorMap)))
 		sb.WriteString(fmt.Sprintf(`.rect-node-%d {stroke:#%s}`+"\n", rootId, getColorOverride(int16(rootId), rootColorMap)))
 	}
+	// Renderingstats
+	sb.WriteString(`.capigraph-rendering-stats {font-family:arial; font-weight:normal; font-size:10px; text-anchor:start; alignment-baseline:hanging; fill:transparent;}`)
+
 	// Caller-provided CSS overrides
 	sb.WriteString(css)
 	sb.WriteString("</style>\n")
@@ -308,10 +312,17 @@ func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeO
 	// Nodes and labels
 	sb.WriteString(drawNodesAndEdgeLabels(vizNodeMap, topItem, nodeFo, edgeFo, eo, rootColorMap))
 
+	sb.WriteString(fmt.Sprintf(`<text class="capigraph-rendering-stats" x="0" y="0">Perms %d, elapsed %.3fs, dist %.1f</text>`+"\n", totalPermutations, elapsed, bestDist))
+
 	sb.WriteString("</svg>\n")
 	return sb.String()
 }
 
-func drawStatistics(totalPermutations int64, elapsedSeconds float64, bestDist float64) string {
-	return fmt.Sprintf(`<text style="font-family:arial; font-weight:normal; font-size:10px; text-anchor:start; alignment-baseline:hanging; fill:black;" x="0" y="0">Perms %d, elapsed %.3fs, dist %.1f</text>`, totalPermutations, elapsedSeconds, bestDist)
+func Draw(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions, edgeOptions EdgeOptions, defsOverride string, cssOverride string) (string, []VizNode, int64, float64, float64, error) {
+	vizNodeMap, totalPermutations, elapsed, bestDist, err := GetBestHierarchy(nodeDefs, nodeFo, edgeFo)
+	if err != nil {
+		return "", nil, int64(0), 0.0, 0.0, err
+	}
+	svgString := draw(vizNodeMap, nodeFo, edgeFo, edgeOptions, defsOverride, cssOverride, totalPermutations, elapsed, bestDist)
+	return svgString, vizNodeMap, totalPermutations, elapsed, bestDist, nil
 }
