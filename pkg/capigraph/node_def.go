@@ -21,6 +21,7 @@ type NodeDef struct {
 	PriIn  EdgeDef
 	SecIn  []EdgeDef
 	IconId string
+	Color  int32
 }
 
 func buildPriParentMap(nodeDefs []NodeDef) []int16 {

@@ -38,11 +38,24 @@ func getColorOverride(rootId int16, rootColorMap []int32) string {
 	return intToCssColor(rootColorMap[rootId])
 }
 
-func getStyleColorOverride(attrName string, rootId int16, rootColorMap []int32) string {
+func getStyleColorOverrideForRoot(attrName string, rootId int16, rootColorMap []int32) string {
 	if rootColorMap[rootId] == -1 {
 		return ""
 	}
 	return fmt.Sprintf(`style="%s:#%s;"`, attrName, intToCssColor(rootColorMap[rootId]))
+}
+func getStyleColorOverrideForNode(attrName string, color int32) string {
+	if color == int32(0) {
+		return ""
+	}
+	return fmt.Sprintf(`style="%s:#%s;"`, attrName, intToCssColor(color))
+}
+
+func getStyleColorOverrideForNodeWithOpacity2(attrName string, color int32) string {
+	if color == int32(0) {
+		return ""
+	}
+	return fmt.Sprintf(`style="%s:#%s;opacity:0.3;"`, attrName, intToCssColor(color))
 }
 
 func drawNodeSelections(vizNodeMap []VizNode, nodeFo FontOptions, selectedNodeMap []int16) string {
@@ -112,21 +125,27 @@ func drawNodesAndEdgeLabels(vizNodeMap []VizNode, curItem *VizNode, nodeFo FontO
 		title := strings.TrimSpace(xmlReplacer.Replace(fmt.Sprintf("%d %s", curItem.Def.Id, curItem.Def.IconId)))
 		sb.WriteString(fmt.Sprintf(`<a xlink:title="%s">`+"\n", title))
 		nodeX := curItem.X + curItem.TotalW/2 - curItem.NodeW/2
-		sb.WriteString(fmt.Sprintf(`  <rect class="rect-node-background rect-node-background-%d" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
+		sb.WriteString(fmt.Sprintf(`  <rect class="rect-node-background rect-node-background-%d" %s x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
 			curItem.RootId,
+			getStyleColorOverrideForNodeWithOpacity2("fill", curItem.Def.Color),
 			nodeX, curItem.Y, curItem.NodeW, curItem.NodeH))
-		sb.WriteString(fmt.Sprintf(`  <rect class="rect-node rect-node-%d" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
+		sb.WriteString(fmt.Sprintf(`  <rect class="rect-node rect-node-%d" %s x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
 			curItem.RootId,
+			getStyleColorOverrideForNode("stroke", curItem.Def.Color),
 			nodeX, curItem.Y, curItem.NodeW, curItem.NodeH))
 		actualIconSize := 0.0
 		if curItem.Def.IconId != "" {
 			actualIconSize = curItem.NodeH - nodeFo.SizeInPixels
+			iconColorCssOverride := getStyleColorOverrideForRoot("fill", curItem.RootId, rootColorMap)
+			if curItem.Def.Color != 0 {
+				iconColorCssOverride = getStyleColorOverrideForNode("fill", curItem.Def.Color)
+			}
 			sb.WriteString(fmt.Sprintf(`  <g transform="translate(%.2f,%.2f)"><g transform="scale(%2f)">`+"\n    "+`<use xlink:href="#%s" %s/>`+"\n  </g></g>\n",
 				nodeX+nodeFo.SizeInPixels/2,
 				curItem.Y+nodeFo.SizeInPixels/2,
 				actualIconSize/100.0,
 				curItem.Def.IconId,
-				getStyleColorOverride("fill", curItem.RootId, rootColorMap),
+				iconColorCssOverride,
 			))
 		}
 		for i, r := range strings.Split(curItem.Def.Text, "\n") {
@@ -283,16 +302,16 @@ func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeO
 		}
 	}
 
-	vbLeft := int(minLeft - 5.0)
-	vbRight := int(maxRight + 10.0)
-	vbTop := -5
-	vbBottom := int(bottomCoord + 10.0)
+	vbLeft := int(minLeft - 10.0)
+	vbRight := int(maxRight + 20.0)
+	vbTop := int(topCoord - 10.0)
+	vbBottom := int(bottomCoord + 20.0)
 
 	rootColorMap := buildRootColorMap(vizNodeMap, palette)
 
 	sb := strings.Builder{}
 	sb.WriteString(fmt.Sprintf(
-		`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="%d %d %d %d">`+"\n", vbLeft, vbTop, vbRight, vbBottom))
+		`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="%d %d %d %d">`+"\n", vbLeft, vbTop, vbRight-vbLeft, vbBottom-vbTop))
 	sb.WriteString("<defs>\n")
 
 	for rootId := range len(rootColorMap) {
@@ -312,7 +331,7 @@ func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeO
 	sb.WriteString(".viz-background {fill:white;opacity:1.0}\n")
 	sb.WriteString(".rect-node-background {fill:white; rx:5; ry:5; stroke-width:0;opacity:0.7}\n")
 	sb.WriteString(".rect-node {fill:none; rx:5; ry:5; stroke:black; stroke-width:1;}\n")
-	sb.WriteString(".rect-selected-node {fill:lightgray; rx:5; ry:5; stroke-width:0;opacity:0.8}\n")
+	sb.WriteString(".rect-selected-node {fill:transparent; rx:5; ry:5; stroke-width:10; stroke:black; opacity:0.8}\n")
 	sb.WriteString(".rect-edge-label-background {fill:white; rx:10; ry:10; stroke-width:0; opacity:0.7;}\n")
 	sb.WriteString(".rect-edge-label-pri {fill:none; rx:10; ry:10; stroke:#606060; stroke-width:1;}\n")
 	sb.WriteString(".rect-edge-label-sec {fill:none; rx:10; ry:10; stroke:#606060; stroke-width:1; stroke-dasharray:5;}\n")

@@ -163,13 +163,13 @@ func Test300bilPermsSvg(t *testing.T) {
 
 func TestEnclosingOneLevelWideNodes(t *testing.T) {
 	nodeDefs := []NodeDef{
-		{0, "", EdgeDef{}, []EdgeDef{}, ""},
-		{1, "A1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, ""},
-		{2, "A21\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{1, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A1 to A21"}, []EdgeDef{}, ""},
-		{3, "A22\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{1, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A1 to A22"}, []EdgeDef{}, ""},
-		{4, "A31\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{2, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A21 to A31"}, []EdgeDef{{6, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B1 to A31"}}, ""},
-		{5, "A32\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{3, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A22 to A32"}, []EdgeDef{{6, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B1 to A32"}}, ""},
-		{6, "B1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, ""},
+		{0, "", EdgeDef{}, []EdgeDef{}, "", 0},
+		{1, "A1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0},
+		{2, "A21\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{1, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A1 to A21"}, []EdgeDef{}, "", 0},
+		{3, "A22\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{1, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A1 to A22"}, []EdgeDef{}, "", 0},
+		{4, "A31\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{2, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A21 to A31"}, []EdgeDef{{6, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B1 to A31"}}, "", 0},
+		{5, "A32\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{3, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A22 to A32"}, []EdgeDef{{6, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B1 to A32"}}, "", 0},
+		{6, "B1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0},
 	}
 	svg, _, totalPermutations, _, bestDist, _ := Draw(nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), []int16{})
 	assert.Equal(t, int64(6), totalPermutations)
@@ -179,22 +179,22 @@ func TestEnclosingOneLevelWideNodes(t *testing.T) {
 
 func TestHalfComplexWithEnclosed(t *testing.T) {
 	nodeDefs := []NodeDef{
-		{0, "", EdgeDef{}, []EdgeDef{}, ""},
-		{1, "A1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, ""},
-		{2, "A2\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{1, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A1 to A2"}, []EdgeDef{}, ""},
-		{3, "A31\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{2, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A2 to A31"}, []EdgeDef{{10, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B2 to A31"}}, ""},
-		{4, "A32\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{2, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A2 to A32"}, []EdgeDef{{14, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C3 to A32"}}, ""},
-		{5, "A41\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{4, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A32 to A41"}, []EdgeDef{{11, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B3 to A41"}}, ""},
-		{6, "A42\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{4, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A32 to A42"}, []EdgeDef{{14, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C3 to A42"}}, ""},
-		{7, "A51\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{5, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A41 to A51"}, []EdgeDef{{15, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom D1 to A51"}}, ""},
-		{8, "A52\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{6, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A42 to A52"}, []EdgeDef{{15, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom D1 to A52"}}, ""},
-		{9, "B1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, ""},
-		{10, "B2\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{9, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B1 to B2"}, []EdgeDef{}, ""},
-		{11, "B3\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{10, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B2 to B3"}, []EdgeDef{}, ""},
-		{12, "C1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, ""},
-		{13, "C2\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{12, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C1 to C2"}, []EdgeDef{}, ""},
-		{14, "C3\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{13, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C2 to C3"}, []EdgeDef{}, ""},
-		{15, "D1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, ""},
+		{0, "", EdgeDef{}, []EdgeDef{}, "", 0},
+		{1, "A1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0},
+		{2, "A2\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{1, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A1 to A2"}, []EdgeDef{}, "", 0},
+		{3, "A31\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{2, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A2 to A31"}, []EdgeDef{{10, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B2 to A31"}}, "", 0},
+		{4, "A32\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{2, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A2 to A32"}, []EdgeDef{{14, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C3 to A32"}}, "", 0},
+		{5, "A41\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{4, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A32 to A41"}, []EdgeDef{{11, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B3 to A41"}}, "", 0},
+		{6, "A42\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{4, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A32 to A42"}, []EdgeDef{{14, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C3 to A42"}}, "", 0},
+		{7, "A51\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{5, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A41 to A51"}, []EdgeDef{{15, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom D1 to A51"}}, "", 0},
+		{8, "A52\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{6, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A42 to A52"}, []EdgeDef{{15, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom D1 to A52"}}, "", 0},
+		{9, "B1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0},
+		{10, "B2\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{9, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B1 to B2"}, []EdgeDef{}, "", 0},
+		{11, "B3\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{10, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B2 to B3"}, []EdgeDef{}, "", 0},
+		{12, "C1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0},
+		{13, "C2\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{12, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C1 to C2"}, []EdgeDef{}, "", 0},
+		{14, "C3\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{13, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C2 to C3"}, []EdgeDef{}, "", 0},
+		{15, "D1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0},
 	}
 	svg, _, totalPermutations, _, bestDist, _ := Draw(nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), []int16{})
 	assert.Equal(t, int64(54), totalPermutations)
@@ -204,11 +204,11 @@ func TestHalfComplexWithEnclosed(t *testing.T) {
 
 func TestConflictingSecAndTotalViewboxWidthAdjustedToLabel(t *testing.T) {
 	nodeDefs := []NodeDef{
-		{0, "", EdgeDef{}, []EdgeDef{}, ""},
-		{1, "A", EdgeDef{}, []EdgeDef{}, ""},
-		{2, "B", EdgeDef{}, []EdgeDef{}, ""},
-		{3, "C", EdgeDef{1, "A to C"}, []EdgeDef{{2, "B to ? duplicate going really wide"}}, ""},
-		{4, "D", EdgeDef{3, "C to D"}, []EdgeDef{{2, "B to ? duplicate going really wide"}}, ""},
+		{0, "", EdgeDef{}, []EdgeDef{}, "", 0},
+		{1, "A", EdgeDef{}, []EdgeDef{}, "", 0},
+		{2, "B", EdgeDef{}, []EdgeDef{}, "", 0},
+		{3, "C", EdgeDef{1, "A to C"}, []EdgeDef{{2, "B to ? duplicate going really wide"}}, "", 0},
+		{4, "D", EdgeDef{3, "C to D"}, []EdgeDef{{2, "B to ? duplicate going really wide"}}, "", 0},
 	}
 	svg, _, totalPermutations, _, bestDist, _ := Draw(nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), []int16{})
 	assert.Equal(t, int64(2), totalPermutations)
@@ -218,7 +218,7 @@ func TestConflictingSecAndTotalViewboxWidthAdjustedToLabel(t *testing.T) {
 
 func TestCapillariesIcons(t *testing.T) {
 	nodeDefs := []NodeDef{
-		{0, "top node", EdgeDef{}, []EdgeDef{}, ""},
+		{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0},
 		{
 			1,
 			"01_read_payments\n" +
@@ -228,6 +228,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{},
 			[]EdgeDef{},
 			"icon-database-table-read",
+			0,
 		},
 		{
 			2,
@@ -238,6 +239,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{1, "payments\n(10 batches)"},
 			[]EdgeDef{},
 			"icon-database-table-distinct",
+			0,
 		},
 		{
 			3,
@@ -248,6 +250,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{2, "loan_ids\n(10 batches)"},
 			[]EdgeDef{},
 			"icon-database-table-distinct",
+			0,
 		},
 		{
 			4,
@@ -258,6 +261,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{2, "loan_ids\n(10 batches)"},
 			[]EdgeDef{},
 			"icon-database-table-distinct",
+			0,
 		},
 		{
 			5,
@@ -268,6 +272,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{3, "deal_names\n(10 batches)"},
 			[]EdgeDef{{2, "idx_loan_ids_deal_name\n(lookup)"}},
 			"icon-database-table-join",
+			0,
 		},
 		{
 			6,
@@ -278,6 +283,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{2, "loan_ids\n(10 batches)"},
 			[]EdgeDef{{1, "idx_payments_by_loan_id\n(lookup)"}},
 			"icon-database-table-join",
+			0,
 		},
 		{
 			7,
@@ -288,6 +294,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{6, "loan_payment_summaries\n(10 batches)"},
 			[]EdgeDef{},
 			"icon-database-table-py",
+			0,
 		},
 		{
 			8,
@@ -298,6 +305,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{5, "deal_total_upbs\n(10 batches)"},
 			[]EdgeDef{{7, "idx_loan_summaries_calculated_deal_name\n(lookup)\ndeal_name"}},
 			"icon-database-table-join",
+			0,
 		},
 		{
 			9,
@@ -308,6 +316,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{4, "deal_sellers\n(10 batches)"},
 			[]EdgeDef{{7, "idx_loan_summaries_calculated_deal_name\n(lookup)\ndeal_name\nseller_name"}},
 			"icon-database-table-join",
+			0,
 		},
 		{
 			10,
@@ -318,6 +327,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{7, "loan_summaries_calculated\n(no parallelism)"},
 			[]EdgeDef{},
 			"icon-parquet",
+			0,
 		},
 		{
 			11,
@@ -328,6 +338,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{8, "deal_summaries\n(no parallelism)"},
 			[]EdgeDef{},
 			"icon-parquet",
+			0,
 		},
 		{
 			12,
@@ -338,6 +349,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{9, "deal_seller_summaries\n(no parallelism)"},
 			[]EdgeDef{},
 			"icon-parquet",
+			0,
 		},
 
 		{
@@ -349,6 +361,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{},
 			[]EdgeDef{},
 			"icon-database-table-read",
+			0,
 		},
 		{
 			14,
@@ -359,6 +372,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{13, "payments\n(10 batches)"},
 			[]EdgeDef{},
 			"icon-database-table-distinct",
+			0,
 		},
 		{
 			15,
@@ -369,6 +383,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{14, "loan_ids\n(10 batches)"},
 			[]EdgeDef{},
 			"icon-database-table-distinct",
+			0,
 		},
 		{
 			16,
@@ -379,6 +394,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{14, "loan_ids\n(10 batches)"},
 			[]EdgeDef{},
 			"icon-database-table-distinct",
+			0,
 		},
 		{
 			17,
@@ -389,6 +405,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{15, "deal_names\n(10 batches)"},
 			[]EdgeDef{{14, "idx_loan_ids_deal_name\n(lookup)"}},
 			"icon-database-table-join",
+			0,
 		},
 		{
 			18,
@@ -399,6 +416,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{14, "loan_ids\n(10 batches)"},
 			[]EdgeDef{{13, "idx_payments_by_loan_id\n(lookup)"}},
 			"icon-database-table-join",
+			0,
 		},
 		{
 			19,
@@ -409,6 +427,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{18, "loan_payment_summaries\n(10 batches)"},
 			[]EdgeDef{},
 			"icon-database-table-py",
+			0,
 		},
 		{
 			20,
@@ -419,6 +438,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{17, "deal_total_upbs\n(10 batches)"},
 			[]EdgeDef{{19, "idx_loan_summaries_calculated_deal_name\n(lookup)"}},
 			"icon-database-table-join",
+			0,
 		},
 		{
 			21,
@@ -429,6 +449,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{16, "deal_sellers\n(10 batches)"},
 			[]EdgeDef{},
 			"icon-database-table-join",
+			0,
 		},
 		{
 			22,
@@ -439,6 +460,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{19, "loan_summaries_calculated\n(no parallelism)"},
 			[]EdgeDef{},
 			"icon-parquet",
+			0,
 		},
 		{
 			23,
@@ -449,6 +471,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{20, "deal_summaries\n(no parallelism)"},
 			[]EdgeDef{},
 			"icon-parquet",
+			0,
 		},
 		{
 			24,
@@ -459,6 +482,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{21, "deal_seller_summaries\n(no parallelism)"},
 			[]EdgeDef{},
 			"icon-parquet",
+			0,
 		},
 
 		{
@@ -470,6 +494,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{},
 			[]EdgeDef{},
 			"icon-database-table-read",
+			0,
 		},
 		{
 			26,
@@ -480,6 +505,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{25, "payments\n(10 batches)"},
 			[]EdgeDef{},
 			"icon-database-table-distinct",
+			0,
 		},
 		{
 			27,
@@ -490,6 +516,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{26, "loan_ids\n(10 batches)"},
 			[]EdgeDef{},
 			"icon-database-table-distinct",
+			0,
 		},
 		{
 			28,
@@ -500,6 +527,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{26, "loan_ids\n(10 batches)"},
 			[]EdgeDef{},
 			"icon-database-table-distinct",
+			0,
 		},
 		{
 			29,
@@ -510,6 +538,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{27, "deal_names\n(10 batches)"},
 			[]EdgeDef{{26, "idx_loan_ids_deal_name\n(lookup)"}},
 			"icon-database-table-join",
+			0,
 		},
 		{
 			30,
@@ -520,6 +549,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{26, "loan_ids\n(10 batches)"},
 			[]EdgeDef{{25, "idx_payments_by_loan_id\n(lookup)"}},
 			"icon-database-table-join",
+			0,
 		},
 		{
 			31,
@@ -530,6 +560,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{30, "loan_payment_summaries\n(10 batches)"},
 			[]EdgeDef{},
 			"icon-database-table-py",
+			0,
 		},
 		{
 			32,
@@ -540,6 +571,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{29, "deal_total_upbs\n(10 batches)"},
 			[]EdgeDef{{31, "idx_loan_summaries_calculated_deal_name\n(lookup)"}},
 			"icon-database-table-join",
+			0,
 		},
 		{
 			33,
@@ -550,6 +582,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{28, "deal_sellers\n(10 batches)"},
 			[]EdgeDef{},
 			"icon-database-table-join",
+			0,
 		},
 		{
 			34,
@@ -560,6 +593,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{31, "loan_summaries_calculated\n(no parallelism)"},
 			[]EdgeDef{},
 			"icon-parquet",
+			0,
 		},
 		{
 			35,
@@ -570,6 +604,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{32, "deal_summaries\n(no parallelism)"},
 			[]EdgeDef{},
 			"icon-parquet",
+			0,
 		},
 		{
 			36,
@@ -580,6 +615,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{33, "deal_seller_summaries\n(no parallelism)"},
 			[]EdgeDef{},
 			"icon-parquet",
+			0,
 		},
 
 		{
@@ -591,6 +627,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{},
 			[]EdgeDef{},
 			"icon-database-table-read",
+			0,
 		},
 		{
 			38,
@@ -601,6 +638,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{37, "payments\n(10 batches)"},
 			[]EdgeDef{},
 			"icon-database-table-distinct",
+			0,
 		},
 		{
 			39,
@@ -611,6 +649,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{38, "loan_ids\n(10 batches)"},
 			[]EdgeDef{},
 			"icon-database-table-distinct",
+			0,
 		},
 		{
 			40,
@@ -621,6 +660,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{38, "loan_ids\n(10 batches)"},
 			[]EdgeDef{},
 			"icon-database-table-distinct",
+			0,
 		},
 		{
 			41,
@@ -631,6 +671,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{39, "deal_names\n(10 batches)"},
 			[]EdgeDef{{38, "idx_loan_ids_deal_name\n(lookup)"}},
 			"icon-database-table-join",
+			0,
 		},
 		{
 			42,
@@ -641,6 +682,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{38, "loan_ids\n(10 batches)"},
 			[]EdgeDef{{37, "idx_payments_by_loan_id\n(lookup)"}},
 			"icon-database-table-join",
+			0,
 		},
 		{
 			43,
@@ -651,6 +693,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{42, "loan_payment_summaries\n(10 batches)"},
 			[]EdgeDef{},
 			"icon-database-table-py",
+			0,
 		},
 		{
 			44,
@@ -661,6 +704,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{41, "deal_total_upbs\n(10 batches)"},
 			[]EdgeDef{{43, "idx_loan_summaries_calculated_deal_name\n(lookup)"}},
 			"icon-database-table-join",
+			0,
 		},
 		{
 			45,
@@ -671,6 +715,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{40, "deal_sellers\n(10 batches)"},
 			[]EdgeDef{},
 			"icon-database-table-join",
+			0,
 		},
 		{
 			46,
@@ -681,6 +726,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{43, "loan_summaries_calculated\n(no parallelism)"},
 			[]EdgeDef{},
 			"icon-parquet",
+			0,
 		},
 		{
 			47,
@@ -691,6 +737,7 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{44, "deal_summaries\n(no parallelism)"},
 			[]EdgeDef{},
 			"icon-parquet",
+			0,
 		},
 		{
 			48,
@@ -701,10 +748,15 @@ func TestCapillariesIcons(t *testing.T) {
 			EdgeDef{45, "deal_seller_summaries\n(no parallelism)"},
 			[]EdgeDef{},
 			"icon-parquet",
+			0,
 		},
 	}
 	overrideCss := ".rect-node-background {rx:20; ry:20;} .rect-node {rx:20; ry:20;} .capigraph-rendering-stats {fill:black;}"
-	svg, _, totalPermutations, _, bestDist, _ := Draw(nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), CapillariesIcons100x100, overrideCss, nil, []int16{1, 13, 25, 37})
+	nodeColorMap := []int32{0, 0x0000FF, 0x008000, 0xFF0000, 0xFF8C00, 0x2F4F4F} //none, blue, darkgreen, red, darkorange, darkslategray (none, start, success, fail, stopreceived, unknown)
+	for nodeIdx := range nodeDefs {
+		nodeDefs[nodeIdx].Color = nodeColorMap[nodeIdx%len(nodeColorMap)]
+	}
+	svg, _, totalPermutations, _, bestDist, _ := Draw(nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), CapillariesIcons100x100, overrideCss, nil /*DefaultPalette()*/, []int16{1, 13, 25, 37})
 	assert.Equal(t, int64(31104), totalPermutations)
 	assert.Equal(t, 6438.0, math.Round(bestDist*100.0)/100.0)
 	fmt.Printf("%s\n", svg)

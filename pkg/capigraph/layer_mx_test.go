@@ -13,12 +13,12 @@ import (
 // 2:    3     5
 func TestTrivial(t *testing.T) {
 	nodeDefs := []NodeDef{
-		{0, "top node", EdgeDef{}, []EdgeDef{}, ""},
-		{1, "1", EdgeDef{}, []EdgeDef{}, ""},
-		{2, "2", EdgeDef{1, ""}, []EdgeDef{}, ""},
-		{3, "3", EdgeDef{2, ""}, []EdgeDef{}, ""},
-		{4, "4", EdgeDef{1, ""}, []EdgeDef{}, ""},
-		{5, "5", EdgeDef{4, ""}, []EdgeDef{}, ""},
+		{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0},
+		{1, "1", EdgeDef{}, []EdgeDef{}, "", 0},
+		{2, "2", EdgeDef{1, ""}, []EdgeDef{}, "", 0},
+		{3, "3", EdgeDef{2, ""}, []EdgeDef{}, "", 0},
+		{4, "4", EdgeDef{1, ""}, []EdgeDef{}, "", 0},
+		{5, "5", EdgeDef{4, ""}, []EdgeDef{}, "", 0},
 	}
 	priParentMap := buildPriParentMap(nodeDefs)
 
@@ -46,12 +46,12 @@ func TestTrivial(t *testing.T) {
 // 3:    3
 func TestOneFake(t *testing.T) {
 	nodeDefs := []NodeDef{
-		{0, "top node", EdgeDef{}, []EdgeDef{}, ""},
-		{1, "1", EdgeDef{}, []EdgeDef{}, ""},
-		{2, "2", EdgeDef{1, ""}, []EdgeDef{}, ""},
-		{3, "3", EdgeDef{2, ""}, []EdgeDef{{5, ""}}, ""},
-		{4, "4", EdgeDef{1, ""}, []EdgeDef{}, ""},
-		{5, "5", EdgeDef{4, ""}, []EdgeDef{}, ""},
+		{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0},
+		{1, "1", EdgeDef{}, []EdgeDef{}, "", 0},
+		{2, "2", EdgeDef{1, ""}, []EdgeDef{}, "", 0},
+		{3, "3", EdgeDef{2, ""}, []EdgeDef{{5, ""}}, "", 0},
+		{4, "4", EdgeDef{1, ""}, []EdgeDef{}, "", 0},
+		{5, "5", EdgeDef{4, ""}, []EdgeDef{}, "", 0},
 	}
 	priParentMap := buildPriParentMap(nodeDefs)
 
@@ -83,13 +83,13 @@ func TestOneFake(t *testing.T) {
 // 4:    3
 func TestTwoFake(t *testing.T) {
 	nodeDefs := []NodeDef{
-		{0, "top node", EdgeDef{}, []EdgeDef{}, ""},
-		{1, "1", EdgeDef{}, []EdgeDef{}, ""},
-		{2, "2", EdgeDef{1, ""}, []EdgeDef{}, ""},
-		{3, "3", EdgeDef{2, ""}, []EdgeDef{{6, ""}}, ""},
-		{4, "4", EdgeDef{1, ""}, []EdgeDef{}, ""},
-		{5, "5", EdgeDef{4, ""}, []EdgeDef{}, ""},
-		{6, "6", EdgeDef{5, ""}, []EdgeDef{}, ""},
+		{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0},
+		{1, "1", EdgeDef{}, []EdgeDef{}, "", 0},
+		{2, "2", EdgeDef{1, ""}, []EdgeDef{}, "", 0},
+		{3, "3", EdgeDef{2, ""}, []EdgeDef{{6, ""}}, "", 0},
+		{4, "4", EdgeDef{1, ""}, []EdgeDef{}, "", 0},
+		{5, "5", EdgeDef{4, ""}, []EdgeDef{}, "", 0},
+		{6, "6", EdgeDef{5, ""}, []EdgeDef{}, "", 0},
 	}
 	priParentMap := buildPriParentMap(nodeDefs)
 	mx := LayerMx{
@@ -127,13 +127,13 @@ func TestTwoFake(t *testing.T) {
 // 2:       5
 func TestParentless(t *testing.T) {
 	nodeDefs := []NodeDef{
-		{0, "top node", EdgeDef{}, []EdgeDef{}, ""},
-		{1, "1", EdgeDef{}, []EdgeDef{}, ""},
-		{2, "2", EdgeDef{1, ""}, []EdgeDef{}, ""},
-		{3, "3", EdgeDef{}, []EdgeDef{}, ""},
-		{4, "4", EdgeDef{3, ""}, []EdgeDef{}, ""},
-		{5, "5", EdgeDef{4, ""}, []EdgeDef{{6, ""}}, ""},
-		{6, "6", EdgeDef{}, []EdgeDef{}, ""},
+		{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0},
+		{1, "1", EdgeDef{}, []EdgeDef{}, "", 0},
+		{2, "2", EdgeDef{1, ""}, []EdgeDef{}, "", 0},
+		{3, "3", EdgeDef{}, []EdgeDef{}, "", 0},
+		{4, "4", EdgeDef{3, ""}, []EdgeDef{}, "", 0},
+		{5, "5", EdgeDef{4, ""}, []EdgeDef{{6, ""}}, "", 0},
+		{6, "6", EdgeDef{}, []EdgeDef{}, "", 0},
 	}
 	priParentMap := buildPriParentMap(nodeDefs)
 	var mx LayerMx
