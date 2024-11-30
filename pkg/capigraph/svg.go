@@ -58,12 +58,12 @@ func getStyleColorOverrideForNodeWithOpacity2(attrName string, color int32) stri
 	return fmt.Sprintf(`style="%s:#%s;opacity:0.3;"`, attrName, intToCssColor(color))
 }
 
-func drawNodeSelections(vizNodeMap []VizNode, nodeFo FontOptions, selectedNodeMap []int16) string {
+func drawNodeSelections(vizNodeMap []VizNode, nodeFo FontOptions) string {
 	sb := strings.Builder{}
 	for i := range len(vizNodeMap) - 1 {
 		curItem := vizNodeMap[i+1]
 		nodeX := curItem.X + curItem.TotalW/2 - curItem.NodeW/2
-		if selectedNodeMap[curItem.Def.Id] > 0 {
+		if curItem.Def.Selected {
 			sb.WriteString(fmt.Sprintf(`  <rect class="rect-selected-node" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
 				nodeX-SelectedNodeMargin*nodeFo.SizeInPixels, curItem.Y-SelectedNodeMargin*nodeFo.SizeInPixels, curItem.NodeW+SelectedNodeMargin*nodeFo.SizeInPixels*2, curItem.NodeH+SelectedNodeMargin*nodeFo.SizeInPixels*2))
 		}
@@ -258,12 +258,7 @@ func buildRootColorMap(vizNodeMap []VizNode, palette []int32) []int32 {
 
 const SelectedNodeMargin float64 = 2.0
 
-func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeOptions, defsXml string, css string, palette []int32, selectedNodes []int16, totalPermutations int64, elapsed float64, bestDist float64) string {
-	selectedNodeMap := make([]int16, len(vizNodeMap))
-	for _, selNodeId := range selectedNodes {
-		selectedNodeMap[selNodeId] = 1
-	}
-
+func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeOptions, defsXml string, css string, palette []int32, totalPermutations int64, elapsed float64, bestDist float64) string {
 	topCoord := math.MaxFloat64
 	bottomCoord := -math.MaxFloat64
 	minLeft := math.MaxFloat64
@@ -282,7 +277,7 @@ func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeO
 		nodeRight := hi.X + hi.NodeW
 		nodeTop := hi.Y
 		nodeBottom := hi.Y + hi.NodeH
-		if selectedNodeMap[hi.Def.Id] > 0 {
+		if hi.Def.Selected {
 			nodeLeft -= SelectedNodeMargin * nodeFo.SizeInPixels
 			nodeRight += SelectedNodeMargin * nodeFo.SizeInPixels
 			nodeTop -= SelectedNodeMargin * nodeFo.SizeInPixels
@@ -364,7 +359,7 @@ func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeO
 	sb.WriteString(fmt.Sprintf(`<rect class="viz-background" x="%d" y="%d" width="%d" height="%d"/>`+"\n", vbLeft, vbTop, vbRight-vbLeft, vbBottom-vbTop))
 
 	// Node selections at the z-bottom
-	sb.WriteString(drawNodeSelections(vizNodeMap, nodeFo, selectedNodeMap))
+	sb.WriteString(drawNodeSelections(vizNodeMap, nodeFo))
 
 	// Edge lines first, nodes and labels can overlap with them
 	topItem := &vizNodeMap[0]
@@ -378,11 +373,11 @@ func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeO
 	return sb.String()
 }
 
-func Draw(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions, edgeOptions EdgeOptions, defsOverride string, cssOverride string, palette []int32, selectedNodes []int16) (string, []VizNode, int64, float64, float64, error) {
+func Draw(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions, edgeOptions EdgeOptions, defsOverride string, cssOverride string, palette []int32) (string, []VizNode, int64, float64, float64, error) {
 	vizNodeMap, totalPermutations, elapsed, bestDist, err := GetBestHierarchy(nodeDefs, nodeFo, edgeFo)
 	if err != nil {
 		return "", nil, int64(0), 0.0, 0.0, err
 	}
-	svgString := draw(vizNodeMap, nodeFo, edgeFo, edgeOptions, defsOverride, cssOverride, palette, selectedNodes, totalPermutations, elapsed, bestDist)
+	svgString := draw(vizNodeMap, nodeFo, edgeFo, edgeOptions, defsOverride, cssOverride, palette, totalPermutations, elapsed, bestDist)
 	return svgString, vizNodeMap, totalPermutations, elapsed, bestDist, nil
 }

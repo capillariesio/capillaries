@@ -16,12 +16,13 @@ type EdgeDef struct {
 }
 
 type NodeDef struct {
-	Id     int16
-	Text   string
-	PriIn  EdgeDef
-	SecIn  []EdgeDef
-	IconId string
-	Color  int32
+	Id       int16
+	Text     string
+	PriIn    EdgeDef
+	SecIn    []EdgeDef
+	IconId   string
+	Color    int32
+	Selected bool
 }
 
 func buildPriParentMap(nodeDefs []NodeDef) []int16 {

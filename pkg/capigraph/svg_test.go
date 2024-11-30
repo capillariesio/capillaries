@@ -11,42 +11,42 @@ import (
 // Common MxPermutator and SVG tests
 
 func TestBasicSvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsBasic, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), []int16{})
+	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsBasic, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
 	assert.Equal(t, int64(2), totalPermutations)
 	assert.Equal(t, 52.0, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TrivialParallelSvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsTrivialParallel, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), []int16{})
+	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsTrivialParallel, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
 	assert.Equal(t, int64(2), totalPermutations)
 	assert.Equal(t, 47.2, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestOneEnclosingOneLevelSvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsOneEnclosedOneLevel, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), []int16{})
+	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsOneEnclosedOneLevel, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
 	assert.Equal(t, int64(6), totalPermutations)
 	assert.Equal(t, 104.0, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestOneEnclosedTwoLevelsSvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsOneEnclosedTwoLevels, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), []int16{})
+	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsOneEnclosedTwoLevels, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
 	assert.Equal(t, int64(6), totalPermutations)
 	assert.Equal(t, 104.0, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestNoIntervalsSvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsNoIntervals, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), []int16{})
+	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsNoIntervals, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
 	assert.Equal(t, int64(2), totalPermutations)
 	assert.Equal(t, 0.0, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestFlat10Svg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsFlat10, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), []int16{})
+	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsFlat10, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
 	assert.Equal(t, int64(3628800), totalPermutations)
 	assert.Equal(t, 0.0, bestDist)
 	fmt.Printf("%s\n", svg)
@@ -54,7 +54,7 @@ func TestFlat10Svg(t *testing.T) {
 
 func TestTwoEnclosingTwoLevelsNodeSizeMattersSvg(t *testing.T) {
 	// Only one of 8, 9 is enclosed
-	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsTwoEnclosedNodeSizeMatters, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), []int16{})
+	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsTwoEnclosedNodeSizeMatters, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
 	assert.Equal(t, int64(24), totalPermutations)
 	assert.Equal(t, 312.0, bestDist)
 	fmt.Printf("%s\n", svg)
@@ -63,76 +63,76 @@ func TestTwoEnclosingTwoLevelsNodeSizeMattersSvg(t *testing.T) {
 	testNodeDefsTwoEnclosedNodeSizeMatters[4].Text += " wider"
 	testNodeDefsTwoEnclosedNodeSizeMatters[5].Text += " wider"
 
-	svg, _, totalPermutations, _, bestDist, _ = Draw(testNodeDefsTwoEnclosedNodeSizeMatters, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), []int16{})
+	svg, _, totalPermutations, _, bestDist, _ = Draw(testNodeDefsTwoEnclosedNodeSizeMatters, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
 	assert.Equal(t, 456.0, math.Round(bestDist*100.0)/100.0)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestOneSecondarySvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsOneSecondary, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), []int16{})
+	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsOneSecondary, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
 	assert.Equal(t, int64(6), totalPermutations)
 	assert.Equal(t, 52.0, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestDiamonSvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsDiamond, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), []int16{})
+	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsDiamond, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
 	assert.Equal(t, int64(24), totalPermutations)
 	assert.Equal(t, 104.0, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestSubtreeBelowLongSvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsSubtreeBelowLong, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), []int16{})
+	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsSubtreeBelowLong, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
 	assert.Equal(t, int64(2), totalPermutations)
 	assert.Equal(t, 52.0, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestOneNotTwoLevelsDownSvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsOneNotTwoLevelsDown, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), []int16{})
+	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsOneNotTwoLevelsDown, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
 	assert.Equal(t, int64(2), totalPermutations)
 	assert.Equal(t, 104.0, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestMultiSecParentPullDownSvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsMultiSecParentPullDown, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), []int16{})
+	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsMultiSecParentPullDown, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
 	assert.Equal(t, int64(2), totalPermutations)
 	assert.Equal(t, 104.0, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestMultiSecParentNoPullDownSvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsMultiSecParentNoPullDown, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), []int16{})
+	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsMultiSecParentNoPullDown, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
 	assert.Equal(t, int64(2), totalPermutations)
 	assert.Equal(t, 104.0, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestTwoLevelsFromOneParentSvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsTwoLevelsFromOneParent, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), []int16{})
+	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsTwoLevelsFromOneParent, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
 	assert.Equal(t, int64(2), totalPermutations)
 	assert.Equal(t, 104.0, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestTwoLevelsFromOneParentSameRootSvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsTwoLevelsFromOneParentSameRoot, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), []int16{})
+	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsTwoLevelsFromOneParentSameRoot, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
 	assert.Equal(t, int64(2), totalPermutations)
 	assert.Equal(t, 52.0, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestTwoLevelsFromOneParentSameRootTwoFakesSvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsTwoLevelsFromOneParentSameRootTwoFakes, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), []int16{})
+	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefsTwoLevelsFromOneParentSameRootTwoFakes, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
 	assert.Equal(t, int64(2), totalPermutations)
 	assert.Equal(t, 52.0, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestDuplicateSecLabelsSvg(t *testing.T) {
-	svg, vizNodeMap, totalPermutations, _, bestDist, _ := Draw(testNodeDefsDuplicateSecLabels, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), []int16{})
+	svg, vizNodeMap, totalPermutations, _, bestDist, _ := Draw(testNodeDefsDuplicateSecLabels, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
 	assert.Equal(t, int64(720), totalPermutations)
 	assert.Equal(t, 480.0, bestDist)
 	// Zero-width sec labels to avoid interlapped
@@ -148,14 +148,14 @@ func TestDuplicateSecLabelsSvg(t *testing.T) {
 // Takes 15 seconds, disable for quick testing
 // func Test40milPermsSvg(t *testing.T) {
 // 	defer profile.Start(profile.CPUProfile).Stop()
-// 	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefs40milPerms, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), []int16{})
+// 	svg, _, totalPermutations, _, bestDist, _ := Draw(testNodeDefs40milPerms, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
 // 	assert.Equal(t, int64(41472000), totalPermutations)
 // 	assert.Equal(t, 64.0, math.Round(bestDist*100.0)/100.0)
 // 	fmt.Printf("%s\n", svg)
 // }
 
 func Test300bilPermsSvg(t *testing.T) {
-	_, _, _, _, _, err := Draw(testNodeDefs300bilPerms, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), []int16{})
+	_, _, _, _, _, err := Draw(testNodeDefs300bilPerms, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
 	assert.Contains(t, err.Error(), "313528320000")
 }
 
@@ -163,15 +163,15 @@ func Test300bilPermsSvg(t *testing.T) {
 
 func TestEnclosingOneLevelWideNodes(t *testing.T) {
 	nodeDefs := []NodeDef{
-		{0, "", EdgeDef{}, []EdgeDef{}, "", 0},
-		{1, "A1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0},
-		{2, "A21\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{1, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A1 to A21"}, []EdgeDef{}, "", 0},
-		{3, "A22\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{1, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A1 to A22"}, []EdgeDef{}, "", 0},
-		{4, "A31\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{2, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A21 to A31"}, []EdgeDef{{6, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B1 to A31"}}, "", 0},
-		{5, "A32\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{3, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A22 to A32"}, []EdgeDef{{6, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B1 to A32"}}, "", 0},
-		{6, "B1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0},
+		{0, "", EdgeDef{}, []EdgeDef{}, "", 0, false},
+		{1, "A1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0, false},
+		{2, "A21\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{1, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A1 to A21"}, []EdgeDef{}, "", 0, false},
+		{3, "A22\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{1, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A1 to A22"}, []EdgeDef{}, "", 0, false},
+		{4, "A31\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{2, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A21 to A31"}, []EdgeDef{{6, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B1 to A31"}}, "", 0, false},
+		{5, "A32\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{3, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A22 to A32"}, []EdgeDef{{6, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B1 to A32"}}, "", 0, false},
+		{6, "B1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0, false},
 	}
-	svg, _, totalPermutations, _, bestDist, _ := Draw(nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), []int16{})
+	svg, _, totalPermutations, _, bestDist, _ := Draw(nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
 	assert.Equal(t, int64(6), totalPermutations)
 	assert.Equal(t, 728.0, bestDist)
 	fmt.Printf("%s\n", svg)
@@ -179,24 +179,24 @@ func TestEnclosingOneLevelWideNodes(t *testing.T) {
 
 func TestHalfComplexWithEnclosed(t *testing.T) {
 	nodeDefs := []NodeDef{
-		{0, "", EdgeDef{}, []EdgeDef{}, "", 0},
-		{1, "A1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0},
-		{2, "A2\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{1, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A1 to A2"}, []EdgeDef{}, "", 0},
-		{3, "A31\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{2, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A2 to A31"}, []EdgeDef{{10, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B2 to A31"}}, "", 0},
-		{4, "A32\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{2, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A2 to A32"}, []EdgeDef{{14, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C3 to A32"}}, "", 0},
-		{5, "A41\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{4, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A32 to A41"}, []EdgeDef{{11, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B3 to A41"}}, "", 0},
-		{6, "A42\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{4, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A32 to A42"}, []EdgeDef{{14, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C3 to A42"}}, "", 0},
-		{7, "A51\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{5, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A41 to A51"}, []EdgeDef{{15, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom D1 to A51"}}, "", 0},
-		{8, "A52\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{6, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A42 to A52"}, []EdgeDef{{15, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom D1 to A52"}}, "", 0},
-		{9, "B1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0},
-		{10, "B2\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{9, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B1 to B2"}, []EdgeDef{}, "", 0},
-		{11, "B3\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{10, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B2 to B3"}, []EdgeDef{}, "", 0},
-		{12, "C1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0},
-		{13, "C2\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{12, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C1 to C2"}, []EdgeDef{}, "", 0},
-		{14, "C3\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{13, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C2 to C3"}, []EdgeDef{}, "", 0},
-		{15, "D1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0},
+		{0, "", EdgeDef{}, []EdgeDef{}, "", 0, false},
+		{1, "A1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0, false},
+		{2, "A2\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{1, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A1 to A2"}, []EdgeDef{}, "", 0, false},
+		{3, "A31\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{2, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A2 to A31"}, []EdgeDef{{10, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B2 to A31"}}, "", 0, false},
+		{4, "A32\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{2, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A2 to A32"}, []EdgeDef{{14, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C3 to A32"}}, "", 0, false},
+		{5, "A41\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{4, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A32 to A41"}, []EdgeDef{{11, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B3 to A41"}}, "", 0, false},
+		{6, "A42\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{4, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A32 to A42"}, []EdgeDef{{14, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C3 to A42"}}, "", 0, false},
+		{7, "A51\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{5, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A41 to A51"}, []EdgeDef{{15, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom D1 to A51"}}, "", 0, false},
+		{8, "A52\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{6, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A42 to A52"}, []EdgeDef{{15, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom D1 to A52"}}, "", 0, false},
+		{9, "B1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0, false},
+		{10, "B2\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{9, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B1 to B2"}, []EdgeDef{}, "", 0, false},
+		{11, "B3\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{10, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B2 to B3"}, []EdgeDef{}, "", 0, false},
+		{12, "C1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0, false},
+		{13, "C2\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{12, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C1 to C2"}, []EdgeDef{}, "", 0, false},
+		{14, "C3\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{13, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C2 to C3"}, []EdgeDef{}, "", 0, false},
+		{15, "D1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0, false},
 	}
-	svg, _, totalPermutations, _, bestDist, _ := Draw(nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), []int16{})
+	svg, _, totalPermutations, _, bestDist, _ := Draw(nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
 	assert.Equal(t, int64(54), totalPermutations)
 	assert.Equal(t, 4368.0, math.Round(bestDist))
 	fmt.Printf("%s\n", svg)
@@ -204,13 +204,13 @@ func TestHalfComplexWithEnclosed(t *testing.T) {
 
 func TestConflictingSecAndTotalViewboxWidthAdjustedToLabel(t *testing.T) {
 	nodeDefs := []NodeDef{
-		{0, "", EdgeDef{}, []EdgeDef{}, "", 0},
-		{1, "A", EdgeDef{}, []EdgeDef{}, "", 0},
-		{2, "B", EdgeDef{}, []EdgeDef{}, "", 0},
-		{3, "C", EdgeDef{1, "A to C"}, []EdgeDef{{2, "B to ? duplicate going really wide"}}, "", 0},
-		{4, "D", EdgeDef{3, "C to D"}, []EdgeDef{{2, "B to ? duplicate going really wide"}}, "", 0},
+		{0, "", EdgeDef{}, []EdgeDef{}, "", 0, false},
+		{1, "A", EdgeDef{}, []EdgeDef{}, "", 0, false},
+		{2, "B", EdgeDef{}, []EdgeDef{}, "", 0, false},
+		{3, "C", EdgeDef{1, "A to C"}, []EdgeDef{{2, "B to ? duplicate going really wide"}}, "", 0, false},
+		{4, "D", EdgeDef{3, "C to D"}, []EdgeDef{{2, "B to ? duplicate going really wide"}}, "", 0, false},
 	}
-	svg, _, totalPermutations, _, bestDist, _ := Draw(nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), []int16{})
+	svg, _, totalPermutations, _, bestDist, _ := Draw(nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
 	assert.Equal(t, int64(2), totalPermutations)
 	assert.Equal(t, 104.0, math.Round(bestDist*100.0)/100.0)
 	fmt.Printf("%s\n", svg)
@@ -218,7 +218,7 @@ func TestConflictingSecAndTotalViewboxWidthAdjustedToLabel(t *testing.T) {
 
 func TestCapillariesIcons(t *testing.T) {
 	nodeDefs := []NodeDef{
-		{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0},
+		{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, false},
 		{
 			1,
 			"01_read_payments\n" +
@@ -229,6 +229,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-read",
 			0,
+			true,
 		},
 		{
 			2,
@@ -240,6 +241,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-distinct",
 			0,
+			true,
 		},
 		{
 			3,
@@ -251,6 +253,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-distinct",
 			0,
+			true,
 		},
 		{
 			4,
@@ -262,6 +265,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-distinct",
 			0,
+			true,
 		},
 		{
 			5,
@@ -273,6 +277,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{2, "idx_loan_ids_deal_name\n(lookup)"}},
 			"icon-database-table-join",
 			0,
+			true,
 		},
 		{
 			6,
@@ -284,6 +289,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{1, "idx_payments_by_loan_id\n(lookup)"}},
 			"icon-database-table-join",
 			0,
+			true,
 		},
 		{
 			7,
@@ -295,6 +301,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-py",
 			0,
+			true,
 		},
 		{
 			8,
@@ -306,6 +313,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{7, "idx_loan_summaries_calculated_deal_name\n(lookup)\ndeal_name"}},
 			"icon-database-table-join",
 			0,
+			true,
 		},
 		{
 			9,
@@ -317,6 +325,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{7, "idx_loan_summaries_calculated_deal_name\n(lookup)\ndeal_name\nseller_name"}},
 			"icon-database-table-join",
 			0,
+			true,
 		},
 		{
 			10,
@@ -328,6 +337,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-parquet",
 			0,
+			true,
 		},
 		{
 			11,
@@ -339,6 +349,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-parquet",
 			0,
+			true,
 		},
 		{
 			12,
@@ -350,6 +361,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-parquet",
 			0,
+			true,
 		},
 
 		{
@@ -362,6 +374,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-read",
 			0,
+			false,
 		},
 		{
 			14,
@@ -373,6 +386,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-distinct",
 			0,
+			false,
 		},
 		{
 			15,
@@ -384,6 +398,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-distinct",
 			0,
+			false,
 		},
 		{
 			16,
@@ -395,6 +410,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-distinct",
 			0,
+			false,
 		},
 		{
 			17,
@@ -406,6 +422,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{14, "idx_loan_ids_deal_name\n(lookup)"}},
 			"icon-database-table-join",
 			0,
+			false,
 		},
 		{
 			18,
@@ -417,6 +434,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{13, "idx_payments_by_loan_id\n(lookup)"}},
 			"icon-database-table-join",
 			0,
+			false,
 		},
 		{
 			19,
@@ -428,6 +446,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-py",
 			0,
+			false,
 		},
 		{
 			20,
@@ -439,6 +458,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{19, "idx_loan_summaries_calculated_deal_name\n(lookup)"}},
 			"icon-database-table-join",
 			0,
+			false,
 		},
 		{
 			21,
@@ -450,6 +470,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-join",
 			0,
+			false,
 		},
 		{
 			22,
@@ -461,6 +482,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-parquet",
 			0,
+			false,
 		},
 		{
 			23,
@@ -472,6 +494,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-parquet",
 			0,
+			false,
 		},
 		{
 			24,
@@ -483,6 +506,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-parquet",
 			0,
+			false,
 		},
 
 		{
@@ -495,6 +519,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-read",
 			0,
+			false,
 		},
 		{
 			26,
@@ -506,6 +531,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-distinct",
 			0,
+			false,
 		},
 		{
 			27,
@@ -517,6 +543,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-distinct",
 			0,
+			false,
 		},
 		{
 			28,
@@ -528,6 +555,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-distinct",
 			0,
+			false,
 		},
 		{
 			29,
@@ -539,6 +567,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{26, "idx_loan_ids_deal_name\n(lookup)"}},
 			"icon-database-table-join",
 			0,
+			false,
 		},
 		{
 			30,
@@ -550,6 +579,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{25, "idx_payments_by_loan_id\n(lookup)"}},
 			"icon-database-table-join",
 			0,
+			false,
 		},
 		{
 			31,
@@ -561,6 +591,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-py",
 			0,
+			false,
 		},
 		{
 			32,
@@ -572,6 +603,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{31, "idx_loan_summaries_calculated_deal_name\n(lookup)"}},
 			"icon-database-table-join",
 			0,
+			false,
 		},
 		{
 			33,
@@ -583,6 +615,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-join",
 			0,
+			false,
 		},
 		{
 			34,
@@ -594,6 +627,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-parquet",
 			0,
+			false,
 		},
 		{
 			35,
@@ -605,6 +639,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-parquet",
 			0,
+			false,
 		},
 		{
 			36,
@@ -616,6 +651,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-parquet",
 			0,
+			false,
 		},
 
 		{
@@ -628,6 +664,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-read",
 			0,
+			false,
 		},
 		{
 			38,
@@ -639,6 +676,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-distinct",
 			0,
+			false,
 		},
 		{
 			39,
@@ -650,6 +688,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-distinct",
 			0,
+			false,
 		},
 		{
 			40,
@@ -661,6 +700,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-distinct",
 			0,
+			false,
 		},
 		{
 			41,
@@ -672,6 +712,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{38, "idx_loan_ids_deal_name\n(lookup)"}},
 			"icon-database-table-join",
 			0,
+			false,
 		},
 		{
 			42,
@@ -683,6 +724,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{37, "idx_payments_by_loan_id\n(lookup)"}},
 			"icon-database-table-join",
 			0,
+			false,
 		},
 		{
 			43,
@@ -694,6 +736,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-py",
 			0,
+			false,
 		},
 		{
 			44,
@@ -705,6 +748,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{43, "idx_loan_summaries_calculated_deal_name\n(lookup)"}},
 			"icon-database-table-join",
 			0,
+			false,
 		},
 		{
 			45,
@@ -716,6 +760,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-join",
 			0,
+			false,
 		},
 		{
 			46,
@@ -727,6 +772,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-parquet",
 			0,
+			false,
 		},
 		{
 			47,
@@ -738,6 +784,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-parquet",
 			0,
+			false,
 		},
 		{
 			48,
@@ -749,14 +796,15 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-parquet",
 			0,
+			false,
 		},
 	}
-	overrideCss := ".rect-node-background {rx:20; ry:20;} .rect-node {rx:20; ry:20;} .capigraph-rendering-stats {fill:black;}"
-	nodeColorMap := []int32{0, 0x0000FF, 0x008000, 0xFF0000, 0xFF8C00, 0x2F4F4F} //none, blue, darkgreen, red, darkorange, darkslategray (none, start, success, fail, stopreceived, unknown)
-	for nodeIdx := range nodeDefs {
-		nodeDefs[nodeIdx].Color = nodeColorMap[nodeIdx%len(nodeColorMap)]
-	}
-	svg, _, totalPermutations, _, bestDist, _ := Draw(nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), CapillariesIcons100x100, overrideCss, nil /*DefaultPalette()*/, []int16{1, 13, 25, 37})
+	// overrideCss := ".rect-node-background {rx:20; ry:20;} .rect-node {rx:20; ry:20;} .capigraph-rendering-stats {fill:black;}"
+	// nodeColorMap := []int32{0x010101, 0x0000FF, 0x008000, 0xFF0000, 0xFF8C00, 0x2F4F4F} //none, blue, darkgreen, red, darkorange, darkslategray (none, start, success, fail, stopreceived, unknown)
+	// for nodeIdx := range nodeDefs {
+	// 	nodeDefs[nodeIdx].Color = nodeColorMap[nodeIdx%len(nodeColorMap)]
+	// }
+	svg, _, totalPermutations, _, bestDist, _ := Draw(nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), CapillariesIcons100x100, "" /* overrideCss*/, DefaultPalette())
 	assert.Equal(t, int64(31104), totalPermutations)
 	assert.Equal(t, 6438.0, math.Round(bestDist*100.0)/100.0)
 	fmt.Printf("%s\n", svg)
