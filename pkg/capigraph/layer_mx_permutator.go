@@ -2,6 +2,8 @@ package capigraph
 
 import "fmt"
 
+const MaxAllowedLayerPermutations int64 = 100000000
+
 type LayerMxPermIterator struct {
 	Lps             []*LayerPermutator // We need separate permutator for each layer to preserve state when we do recursion between layers
 	IntervalStarts  [][]int
@@ -15,7 +17,6 @@ type LayerMxPermIterator struct {
 }
 
 func NewLayerMxPermIterator(nodeDefs []NodeDef, srcMx LayerMx) (*LayerMxPermIterator, error) {
-	// TODO: check node defs ids, DAG and limits
 	mxi := LayerMxPermIterator{}
 	mxi.Lps = make([]*LayerPermutator, len(srcMx))
 	mxi.IntervalStarts = make([][]int, len(srcMx))
@@ -30,12 +31,13 @@ func NewLayerMxPermIterator(nodeDefs []NodeDef, srcMx LayerMx) (*LayerMxPermIter
 	mxi.WorkMx = srcMx.clone()
 	mxi.PriParentMap = buildPriParentMap(nodeDefs)
 	mxi.PriChildrenMap = buildPriChildrenMap(nodeDefs)
-	mxi.NodeLayerMap = buildLayerMap(nodeDefs, mxi.PriParentMap)
+	//mxi.NodeLayerMap = buildLayerMap(nodeDefs, mxi.PriParentMap)
+	mxi.NodeLayerMap = buildLayerMap(nodeDefs)
 	mxi.RootNodes = buildRootNodeList(mxi.PriParentMap)
 
 	permutations := mxi.MxIteratorCount()
-	if permutations > 100000000 {
-		return nil, fmt.Errorf("cannot create LayerMxPermIterator, too many permutations: %d", permutations)
+	if permutations > MaxAllowedLayerPermutations {
+		return nil, fmt.Errorf("cannot create LayerMxPermIterator, too many permutations, only %d : %d", MaxAllowedLayerPermutations, permutations)
 	}
 	return &mxi, nil
 }

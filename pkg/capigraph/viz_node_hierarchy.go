@@ -109,13 +109,13 @@ func (vnh *VizNodeHierarchy) insertRoot(rootVizNode *VizNode, perm []int16, idx 
 	// Start at the left neighbour, move left
 	i := idx - 1
 	for i >= 0 {
-		leftRootId := vnh.RootMap[perm[i]]
+		leftRootId := vnh.RootMap[sanitizeFakeNodeId(perm[i])]
 		if leftRootId != thisRootId {
 			// Left neighbour belongs to another AND the closest root subtree, now find the nearest common parent for enclosure.
 			// Start with the nearest right neighbour and move right.
 			j := idx + 1
 			for j < len(perm) {
-				if leftRootId == vnh.RootMap[perm[j]] {
+				if leftRootId == vnh.RootMap[sanitizeFakeNodeId(perm[j])] {
 					// Same root as the left neighbour. Now:
 					// - go up and find the nearst common parent.
 					// - insert rootVizNode between first-generation children of the nearst common parent

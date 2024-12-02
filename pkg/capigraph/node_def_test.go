@@ -22,7 +22,7 @@ func TestCheckBadParents(t *testing.T) {
 		{1, "1", EdgeDef{}, []EdgeDef{{2, ""}}, "", 0, false},
 		{2, "2", EdgeDef{}, []EdgeDef{}, "", 0, false},
 	}
-	assert.Equal(t, "cannot process node def 1: it has no primary parent, but has secondary prents", checkNodeDef(1, nodeDefs).Error())
+	assert.Equal(t, "cannot process node def 1: it has no primary parent, but has secondary parents like 2", checkNodeDef(1, nodeDefs).Error())
 }
 
 func TestCheckNodeIds(t *testing.T) {

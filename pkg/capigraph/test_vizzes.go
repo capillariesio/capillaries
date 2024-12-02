@@ -344,3 +344,32 @@ var testNodeDefsDuplicateSecLabels = []NodeDef{
 	{10, "10", EdgeDef{5, ""}, []EdgeDef{{1, "txt"}}, "", 0, false},
 	{11, "11", EdgeDef{6, ""}, []EdgeDef{{1, "txt"}}, "", 0, false},
 }
+
+// 0:    5
+// - 	 |
+// 1:    6 - -
+// -     |     \
+// 2:    7   1  |
+// -     |   |  |
+// 3:    8   2  | 9
+// -       \ |  | |
+// 4:        3  | 10
+// -         | /  |
+// 5:        4    11
+// -           \  |
+// 6:             12
+var testNodeDefsLayerLongRoots = []NodeDef{
+	{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, false},
+	{1, "1", EdgeDef{}, []EdgeDef{}, "", 0, false},
+	{2, "2", EdgeDef{1, ""}, []EdgeDef{}, "", 0, false},
+	{3, "3", EdgeDef{2, ""}, []EdgeDef{{8, ""}}, "", 0, false},
+	{4, "4", EdgeDef{3, ""}, []EdgeDef{{6, ""}}, "", 0, false},
+	{5, "5", EdgeDef{}, []EdgeDef{}, "", 0, false},
+	{6, "6", EdgeDef{5, ""}, []EdgeDef{}, "", 0, false},
+	{7, "7", EdgeDef{6, ""}, []EdgeDef{}, "", 0, false},
+	{8, "8", EdgeDef{7, ""}, []EdgeDef{}, "", 0, false},
+	{9, "9", EdgeDef{}, []EdgeDef{}, "", 0, false},
+	{10, "10", EdgeDef{9, ""}, []EdgeDef{}, "", 0, false},
+	{11, "11", EdgeDef{10, ""}, []EdgeDef{}, "", 0, false},
+	{12, "12", EdgeDef{11, ""}, []EdgeDef{{4, ""}}, "", 0, false},
+}

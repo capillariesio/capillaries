@@ -75,6 +75,20 @@ func buildAllChildrenMap(nodeDefs []NodeDef) [][]int16 {
 	return acMap
 }
 
+func buildSecChildrenMap(nodeDefs []NodeDef) [][]int16 {
+	scMap := make([][]int16, len(nodeDefs))
+	for i, nodeDef := range nodeDefs[1:] {
+		nodeId := int16(i + 1)
+		for _, edge := range nodeDef.SecIn {
+			if scMap[edge.SrcId] == nil {
+				scMap[edge.SrcId] = make([]int16, 0, 32)
+			}
+			scMap[edge.SrcId] = append(scMap[edge.SrcId], int16(nodeId))
+		}
+	}
+	return scMap
+}
+
 func buildPriChildrenMap(nodeDefs []NodeDef) [][]int16 {
 	pcMap := make([][]int16, len(nodeDefs))
 	for i, nodeDef := range nodeDefs[1:] {
@@ -166,7 +180,7 @@ func checkForLoopsRecursive(nodeId int16, nodeDefs []NodeDef, startNode int16) e
 
 func checkNodeDef(nodeId int16, nodeDefs []NodeDef) error {
 	if nodeDefs[nodeId].PriIn.SrcId == 0 && len(nodeDefs[nodeId].SecIn) > 0 {
-		return fmt.Errorf("cannot process node def %d: it has no primary parent, but has secondary prents", nodeId)
+		return fmt.Errorf("cannot process node def %d: it has no primary parent, but has secondary parents like %d", nodeId, nodeDefs[nodeId].SecIn[0].SrcId)
 	}
 	return checkForLoopsRecursive(nodeId, nodeDefs, nodeId)
 

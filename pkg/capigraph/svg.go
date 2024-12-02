@@ -373,11 +373,39 @@ func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeO
 	return sb.String()
 }
 
-func Draw(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions, edgeOptions EdgeOptions, defsOverride string, cssOverride string, palette []int32) (string, []VizNode, int64, float64, float64, error) {
-	vizNodeMap, totalPermutations, elapsed, bestDist, err := GetBestHierarchy(nodeDefs, nodeFo, edgeFo)
+func DrawOptimized(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions, edgeOptions EdgeOptions, defsOverride string, cssOverride string, palette []int32) (string, []VizNode, int64, float64, float64, error) {
+	if err := checkNodeIds(nodeDefs); err != nil {
+		return "", nil, int64(0), 0.0, 0.0, err
+	}
+
+	for i := range len(nodeDefs) - 1 {
+		if err := checkNodeDef(int16(i+1), nodeDefs); err != nil {
+			return "", nil, int64(0), 0.0, 0.0, err
+		}
+	}
+	vizNodeMap, totalPermutations, elapsed, bestDist, err := getBestHierarchy(nodeDefs, nodeFo, edgeFo, true)
 	if err != nil {
 		return "", nil, int64(0), 0.0, 0.0, err
 	}
 	svgString := draw(vizNodeMap, nodeFo, edgeFo, edgeOptions, defsOverride, cssOverride, palette, totalPermutations, elapsed, bestDist)
 	return svgString, vizNodeMap, totalPermutations, elapsed, bestDist, nil
+}
+
+func DrawUnoptimized(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions, edgeOptions EdgeOptions, defsOverride string, cssOverride string, palette []int32) (string, []VizNode, error) {
+	if err := checkNodeIds(nodeDefs); err != nil {
+		return "", nil, err
+	}
+
+	for i := range len(nodeDefs) - 1 {
+		if err := checkNodeDef(int16(i+1), nodeDefs); err != nil {
+			return "", nil, err
+		}
+	}
+
+	vizNodeMap, totalPermutations, elapsed, bestDist, err := getBestHierarchy(nodeDefs, nodeFo, edgeFo, false)
+	if err != nil {
+		return "", nil, err
+	}
+	svgString := draw(vizNodeMap, nodeFo, edgeFo, edgeOptions, defsOverride, cssOverride, palette, totalPermutations, elapsed, bestDist)
+	return svgString, vizNodeMap, nil
 }
