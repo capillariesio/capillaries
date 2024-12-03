@@ -212,7 +212,7 @@ func insertFuncIteratorRecursive(lp *LayerPermutator, insertSrcStart int, insert
 		f(totalCnt, lp.WorkPerm)
 		totalCnt++
 	}
-	backupBetweenInserts := []int16{10: int16(0)}[:len(lp.WorkPerm)]
+	backupBetweenInserts := []int16{MaxLayerLen: int16(0)}[:len(lp.WorkPerm)]
 	// Apply permutation backwards. The only reason for this is:
 	// the "original, untouched" permutation ("insert nothing") is the last one,
 	// and that is the one we want to to win all other factors equal. So it goes first.

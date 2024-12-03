@@ -76,7 +76,7 @@ func (vnh *VizNodeHierarchy) insertRootToNearestParent(rootVizNode *VizNode, lef
 	// Left branch: walk up and harvest ids
 	leftChildId := leftId
 	for {
-		leftParentId := vnh.PriParentMap[leftChildId]
+		leftParentId := vnh.PriParentMap[sanitizeFakeNodeId(leftChildId)]
 		if leftParentId == MissingNodeId {
 			break
 		}
@@ -86,7 +86,7 @@ func (vnh *VizNodeHierarchy) insertRootToNearestParent(rootVizNode *VizNode, lef
 
 	// Right branch: go up, identify first common parent, insert
 	var rightParentId int16
-	rightChildId := rightId
+	rightChildId := sanitizeFakeNodeId(rightId)
 	for {
 		rightParentId = vnh.PriParentMap[rightChildId]
 		commonParentVizNode := leftParentVisitedMap[rightParentId]

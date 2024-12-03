@@ -373,3 +373,22 @@ var testNodeDefsLayerLongRoots = []NodeDef{
 	{11, "11", EdgeDef{10, ""}, []EdgeDef{}, "", 0, false},
 	{12, "12", EdgeDef{11, ""}, []EdgeDef{{4, ""}}, "", 0, false},
 }
+
+// 0:    1
+// - 	 |
+// 1:    2 ------\
+// -     |  \     |
+// 2:    3    6   |
+// -     |\   |\//
+// 3:    4 5  7 8
+var testNodeDefsPriAndSecInfinitePulldown = []NodeDef{
+	{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, false},
+	{1, "1", EdgeDef{}, []EdgeDef{}, "", 0, false},
+	{2, "2", EdgeDef{1, ""}, []EdgeDef{}, "", 0, false},
+	{3, "3", EdgeDef{2, ""}, []EdgeDef{}, "", 0, false},
+	{4, "4", EdgeDef{3, ""}, []EdgeDef{}, "", 0, false},
+	{5, "5", EdgeDef{3, ""}, []EdgeDef{}, "", 0, false},
+	{6, "6", EdgeDef{2, ""}, []EdgeDef{}, "", 0, false},
+	{7, "7", EdgeDef{6, ""}, []EdgeDef{{2, ""}}, "", 0, false},
+	{8, "8", EdgeDef{6, ""}, []EdgeDef{{2, ""}}, "", 0, false},
+}

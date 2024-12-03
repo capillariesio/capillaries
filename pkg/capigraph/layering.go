@@ -5,9 +5,15 @@ import (
 	"slices"
 )
 
-func maxDistToPullSubtreeDownRecursive(subtreeRoot int16, nodeLayerMap []int, priChildrenMap [][]int16, secChildrenMap [][]int16) int {
+func maxDistToPullSubtreeDownRecursive(subtreeRoot int16, nodeLayerMap []int, nodeToRootMap []int16, priChildrenMap [][]int16, secChildrenMap [][]int16) int {
 	allowedDist := math.MaxInt
 	for _, secChild := range secChildrenMap[subtreeRoot] {
+		// If this sec child has the same root as subtreeRoot - ignore it,
+		// we can safely push it down later, so no distance restrictions added.
+		// If we don't do this, we may end up in an infinite pull/push loop, see testNodeDefsPriAndSecInfinitePulldown
+		if nodeToRootMap[subtreeRoot] == nodeToRootMap[secChild] {
+			continue
+		}
 		thisLayer := nodeLayerMap[subtreeRoot]
 		secDependantLayer := nodeLayerMap[secChild]
 		maxAllowedDistCandidate := secDependantLayer - thisLayer - 1
@@ -24,7 +30,7 @@ func maxDistToPullSubtreeDownRecursive(subtreeRoot int16, nodeLayerMap []int, pr
 
 	// Use primary children for recursion - we are checking a subtree of this root.
 	for _, priChild := range priChildrenMap[subtreeRoot] {
-		priChildAllowedDist := maxDistToPullSubtreeDownRecursive(priChild, nodeLayerMap, priChildrenMap, secChildrenMap)
+		priChildAllowedDist := maxDistToPullSubtreeDownRecursive(priChild, nodeLayerMap, nodeToRootMap, priChildrenMap, secChildrenMap)
 		// Do not allow pulling down more than this child allows
 		if priChildAllowedDist < allowedDist {
 			allowedDist = priChildAllowedDist
@@ -37,6 +43,7 @@ func buildLayerMap(nodeDefs []NodeDef) []int {
 	allChildrenMap := buildAllChildrenMap(nodeDefs)
 	secChildrenMap := buildSecChildrenMap(nodeDefs)
 	priChildrenMap := buildPriChildrenMap(nodeDefs)
+	nodeToRootMap := buildNodeToRootMap(buildPriParentMap(nodeDefs))
 	nodeLayerMap := slices.Repeat([]int{MissingLayer}, len(nodeDefs))
 	// Initialize layers for root nodes
 	for i := range len(nodeDefs) - 1 {
@@ -89,7 +96,7 @@ func buildLayerMap(nodeDefs []NodeDef) []int {
 				} else {
 					// Ok, no room between this nodeIdx and its immediate children (pri or sec).
 					// Can we pull the whole nodeIdx subtree down?
-					subtreeAllowedDist := maxDistToPullSubtreeDownRecursive(nodeIdx, nodeLayerMap, priChildrenMap, secChildrenMap)
+					subtreeAllowedDist := maxDistToPullSubtreeDownRecursive(nodeIdx, nodeLayerMap, nodeToRootMap, priChildrenMap, secChildrenMap)
 					// It can return math.MaxInt which means we can pull down this subtree to infinity. But it does not make sense, so leave it where it is.
 					if subtreeAllowedDist < math.MaxInt && subtreeAllowedDist > 0 {
 						//fmt.Printf("pull %d from %d to %d (subtree)\n", nodeIdx, nodeLayerMap[nodeIdx], nodeLayerMap[nodeIdx]+subtreeAllowedDist)
