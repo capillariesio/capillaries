@@ -181,7 +181,7 @@
         "tag_totals": {
             "type": "table_lookup_table",
             "start_policy": "{totals_start_policy|string}",
-            "desc": "For each tag, look up produts and perform left outer join with grouping and aggregation",
+            "desc": "For each tag, look up products and perform left outer join with grouping and aggregation",
             "r": {
                 "table": "tags",
                 "expected_batches_total": 10
