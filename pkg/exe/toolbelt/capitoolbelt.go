@@ -26,169 +26,6 @@ import (
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
-type DotDiagramType string
-
-const (
-	DotDiagramIndexes   DotDiagramType = "indexes"
-	DotDiagramFields    DotDiagramType = "fields"
-	DotDiagramRunStatus DotDiagramType = "run_status"
-)
-
-func nodeBatchStatusToColor(status wfmodel.NodeBatchStatusType) string {
-	switch status {
-	case wfmodel.NodeBatchNone:
-		return "white"
-	case wfmodel.NodeBatchStart:
-		return "lightblue"
-	case wfmodel.NodeBatchSuccess:
-		return "green"
-	case wfmodel.NodeBatchFail:
-		return "red"
-	case wfmodel.NodeBatchRunStopReceived:
-		return "orangered"
-	default:
-		return "cyan"
-	}
-}
-
-func drawFileReader(node *sc.ScriptNodeDef, dotDiagramType DotDiagramType, arrowFontSize int, recordFontSize int) string {
-	var b strings.Builder
-	arrowLabelBuilder := strings.Builder{}
-	if dotDiagramType == DotDiagramType(DotDiagramFields) {
-		for colName := range node.FileReader.Columns {
-			arrowLabelBuilder.WriteString(colName)
-			arrowLabelBuilder.WriteString("\\l")
-		}
-	}
-	fileNames := make([]string, len(node.FileReader.SrcFileUrls))
-	copy(fileNames, node.FileReader.SrcFileUrls)
-
-	b.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [style=dotted, fontsize=\"%d\", label=\"%s\"];\n", node.FileReader.SrcFileUrls[0], node.GetTargetName(), arrowFontSize, arrowLabelBuilder.String()))
-	b.WriteString(fmt.Sprintf("\"%s\" [shape=folder, fontsize=\"%d\", label=\"%s\", tooltip=\"Source data file(s)\"];\n", node.FileReader.SrcFileUrls[0], recordFontSize, strings.Join(fileNames, "\\n")))
-	return b.String()
-}
-
-func drawFileCreator(node *sc.ScriptNodeDef, dotDiagramType DotDiagramType, arrowFontSize int, recordFontSize int, allUsedFields sc.FieldRefs, penWidth string, fillColor string, urlEscaper *strings.Replacer, inSrcArrowLabel string) string {
-	var b strings.Builder
-	b.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [style=solid, fontsize=\"%d\", label=\"%s\"];\n", node.TableReader.TableName, node.Name, arrowFontSize, inSrcArrowLabel))
-
-	// Node (file)
-	b.WriteString(fmt.Sprintf("\"%s\" [shape=record, penwidth=\"%s\", fontsize=\"%d\", fillcolor=\"%s\", style=\"filled\", label=\"{%s|creates file:\\n%s}\", tooltip=\"%s\"];\n", node.Name, penWidth, recordFontSize, fillColor, node.Name, urlEscaper.Replace(node.FileCreator.UrlTemplate), node.Desc))
-
-	// Out (file)
-	arrowLabelBuilder := strings.Builder{}
-	if dotDiagramType == DotDiagramType(DotDiagramFields) {
-		for i := 0; i < len(allUsedFields); i++ {
-			arrowLabelBuilder.WriteString(allUsedFields[i].FieldName)
-			arrowLabelBuilder.WriteString("\\l")
-		}
-	}
-
-	b.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [style=dotted, fontsize=\"%d\", label=\"%s\"];\n", node.Name, node.FileCreator.UrlTemplate, arrowFontSize, arrowLabelBuilder.String()))
-	b.WriteString(fmt.Sprintf("\"%s\" [shape=note, fontsize=\"%d\", label=\"%s\", tooltip=\"Target data file(s)\"];\n", node.FileCreator.UrlTemplate, recordFontSize, node.FileCreator.UrlTemplate))
-	return b.String()
-}
-
-func drawTableReader(node *sc.ScriptNodeDef, dotDiagramType DotDiagramType, arrowFontSize int, recordFontSize int, allUsedFields sc.FieldRefs, penWidth string, fillColor string, urlEscaper *strings.Replacer) string {
-	var b strings.Builder
-	var inSrcArrowLabel string
-	if dotDiagramType == DotDiagramType(DotDiagramIndexes) || dotDiagramType == DotDiagramType(DotDiagramRunStatus) {
-		if node.TableReader.ExpectedBatchesTotal > 1 {
-			inSrcArrowLabel = fmt.Sprintf("%s (%d batches)", node.TableReader.TableName, node.TableReader.ExpectedBatchesTotal)
-		} else {
-			inSrcArrowLabel = fmt.Sprintf("%s (no parallelism)", node.TableReader.TableName)
-		}
-	} else if dotDiagramType == DotDiagramType(DotDiagramFields) {
-		inSrcArrowLabelBuilder := strings.Builder{}
-		for i := 0; i < len(allUsedFields); i++ {
-			if allUsedFields[i].TableName == sc.ReaderAlias {
-				inSrcArrowLabelBuilder.WriteString(allUsedFields[i].FieldName)
-				inSrcArrowLabelBuilder.WriteString("\\l")
-			}
-		}
-		inSrcArrowLabel = inSrcArrowLabelBuilder.String()
-	}
-	if node.HasFileCreator() {
-		b.WriteString(drawFileCreator(node, dotDiagramType, arrowFontSize, recordFontSize, allUsedFields, penWidth, fillColor, urlEscaper, inSrcArrowLabel))
-	} else {
-		b.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [style=solid, fontsize=\"%d\", label=\"%s\"];\n", node.TableReader.TableName, node.GetTargetName(), arrowFontSize, inSrcArrowLabel))
-	}
-
-	if node.HasLookup() {
-		inLkpArrowLabel := fmt.Sprintf("%s (lookup)", node.Lookup.IndexName)
-		if dotDiagramType == DotDiagramType(DotDiagramFields) {
-			inLkpArrowLabelBuilder := strings.Builder{}
-			for i := 0; i < len(allUsedFields); i++ {
-				if allUsedFields[i].TableName == sc.LookupAlias {
-					inLkpArrowLabelBuilder.WriteString(allUsedFields[i].FieldName)
-					inLkpArrowLabelBuilder.WriteString("\\l")
-				}
-			}
-			inLkpArrowLabel = inLkpArrowLabelBuilder.String()
-		}
-		// In (lookup)
-		b.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [style=dashed, fontsize=\"%d\", label=\"%s\"];\n", node.Lookup.TableCreator.Name, node.GetTargetName(), arrowFontSize, inLkpArrowLabel))
-	}
-	return b.String()
-}
-
-func drawTableCreator(node *sc.ScriptNodeDef, recordFontSize int, penWidth string, fillColor string) string {
-	if node.HasLookup() {
-		return fmt.Sprintf("\"%s\" [shape=record, penwidth=\"%s\", fontsize=\"%d\", fillcolor=\"%s\", style=\"filled\", label=\"{%s|creates table:\\n%s|group:%t, join:%s}\", tooltip=\"%s\"];\n",
-			node.TableCreator.Name, penWidth, recordFontSize, fillColor, node.Name, node.TableCreator.Name, node.Lookup.IsGroup, node.Lookup.LookupJoin, node.Desc)
-	}
-	return fmt.Sprintf("\"%s\" [shape=record, penwidth=\"%s\", fontsize=\"%d\", fillcolor=\"%s\", style=\"filled\", label=\"{%s|creates table:\\n%s}\", tooltip=\"%s\"];\n",
-		node.TableCreator.Name, penWidth, recordFontSize, fillColor, node.Name, node.TableCreator.Name, node.Desc)
-}
-
-func getDotDiagram(scriptDef *sc.ScriptDef, dotDiagramType DotDiagramType, nodeColorMap map[string]string) string {
-	var b strings.Builder
-
-	const recordFontSize int = 20
-	const arrowFontSize int = 18
-
-	urlEscaper := strings.NewReplacer(`{`, `\{`, `}`, `\}`, `|`, `\|`)
-	b.WriteString(fmt.Sprintf("\ndigraph %s {\nrankdir=\"TD\";\n node [fontname=\"Helvetica\"];\nedge [fontname=\"Helvetica\"];\ngraph [splines=true, pad=\"0.5\", ranksep=\"0.5\", nodesep=\"0.5\"];\n", dotDiagramType))
-	for _, node := range scriptDef.ScriptNodes {
-		penWidth := "1"
-		if node.StartPolicy == sc.NodeStartManual {
-			penWidth = "6"
-		}
-		fillColor := "white"
-		var ok bool
-		if nodeColorMap != nil {
-			if fillColor, ok = nodeColorMap[node.Name]; !ok {
-				fillColor = "white" // This run does not affect this node, or the node was not started
-			}
-		}
-
-		if node.HasFileReader() {
-			b.WriteString(drawFileReader(node, dotDiagramType, arrowFontSize, recordFontSize))
-		}
-
-		allUsedFields := sc.FieldRefs{}
-
-		if node.HasFileCreator() {
-			usedInAllTargetFileExpressions := node.FileCreator.GetFieldRefsUsedInAllTargetFileExpressions()
-			allUsedFields.Append(usedInAllTargetFileExpressions)
-		} else if node.HasTableCreator() {
-			usedInAllTargetTableExpressions := sc.GetFieldRefsUsedInAllTargetExpressions(node.TableCreator.Fields)
-			allUsedFields.Append(usedInAllTargetTableExpressions)
-		}
-
-		if node.HasTableReader() {
-			b.WriteString(drawTableReader(node, dotDiagramType, arrowFontSize, recordFontSize, allUsedFields, penWidth, fillColor, urlEscaper))
-		}
-
-		if node.HasTableCreator() {
-			b.WriteString(drawTableCreator(node, recordFontSize, penWidth, fillColor))
-		}
-	}
-	b.WriteString("}\n")
-
-	return b.String()
-}
-
 const LogTsFormatUnquoted = `2006-01-02T15:04:05.000-0700`
 
 type StandardToolbeltProcessorDefFactory struct {
@@ -232,7 +69,7 @@ const (
 	CmdGetRunHistory          string = "get_run_history"
 	CmdGetNodeHistory         string = "get_node_history"
 	CmdGetBatchHistory        string = "get_batch_history"
-	CmdGetRunStatusDiagram    string = "drop_run_status_diagram"
+	CmdGetRunStatusDiagram    string = "get_run_status_diagram"
 	CmdDropKeyspace           string = "drop_keyspace"
 	CmdGetTableCql            string = "get_table_cql"
 	CmdProtoFileReaderCreator string = "proto_file_reader_creator"
@@ -266,8 +103,8 @@ func validateScript(envConfig *env.EnvConfig) int {
 	validateScriptCmd := flag.NewFlagSet(CmdValidateScript, flag.ExitOnError)
 	scriptFilePath := validateScriptCmd.String("script_file", "", "Path to script file")
 	paramsFilePath := validateScriptCmd.String("params_file", "", "Path to script parameters map file")
-	isIdxDag := validateScriptCmd.Bool("idx_dag", false, "Print index DAG")
-	isFieldDag := validateScriptCmd.Bool("field_dag", false, "Print field DAG")
+	paramsFormat := validateScriptCmd.String("format", "capigraph", "capigraph (default) or dot")
+	paramsDetail := validateScriptCmd.String("detail", "idx", "idx (default) or field")
 	if err := validateScriptCmd.Parse(os.Args[2:]); err != nil || *scriptFilePath == "" {
 		usage(validateScriptCmd)
 		return 0
@@ -279,11 +116,15 @@ func validateScript(envConfig *env.EnvConfig) int {
 		return 1
 	}
 
-	if *isIdxDag {
-		fmt.Println(getDotDiagram(script, DotDiagramIndexes, nil))
+	diagramDetail := api.DiagramIndexes
+	if *paramsDetail == "field" {
+		diagramDetail = api.DiagramFields
 	}
-	if *isFieldDag {
-		fmt.Println(getDotDiagram(script, DotDiagramFields, nil))
+
+	if *paramsFormat == "capigraph" {
+		fmt.Println(api.GetCapigraphDiagram(script, diagramDetail, nil))
+	} else {
+		fmt.Println(api.GetDotDiagram(script, diagramDetail, nil))
 	}
 	return 0
 }
@@ -491,6 +332,7 @@ func getRunStatusDiagram(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 	paramsFilePath := getRunStatusDiagramCmd.String("params_file", "", "Path to script parameters map file")
 	keyspace := getRunStatusDiagramCmd.String("keyspace", "", "Keyspace (session id)")
 	runIdString := getRunStatusDiagramCmd.String("run_id", "", "Run id")
+	paramsFormat := getRunStatusDiagramCmd.String("format", "capigraph", "capigraph (default) or dot")
 	if err := getRunStatusDiagramCmd.Parse(os.Args[2:]); err != nil {
 		usage(getRunStatusDiagramCmd)
 		return 0
@@ -520,12 +362,20 @@ func getRunStatusDiagram(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 		return 1
 	}
 
-	nodeColorMap := map[string]string{}
-	for _, node := range nodes {
-		nodeColorMap[node.ScriptNode] = nodeBatchStatusToColor(node.Status)
+	if *paramsFormat == "capigraph" {
+		nodeColorMap := map[string]int32{}
+		for _, node := range nodes {
+			nodeColorMap[node.ScriptNode] = api.NodeBatchStatusToCapigraphColor(node.Status)
+		}
+		fmt.Println(api.GetCapigraphDiagram(script, api.DiagramRunStatus, nodeColorMap))
+	} else {
+		nodeColorMap := map[string]string{}
+		for _, node := range nodes {
+			nodeColorMap[node.ScriptNode] = api.NodeBatchStatusToDotColor(node.Status)
+		}
+		fmt.Println(api.GetDotDiagram(script, api.DiagramRunStatus, nodeColorMap))
 	}
 
-	fmt.Println(getDotDiagram(script, DotDiagramRunStatus, nodeColorMap))
 	return 0
 }
 

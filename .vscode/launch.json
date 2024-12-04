@@ -86,7 +86,7 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/toolbelt",
             "program": "${workspaceFolder}/pkg/exe/toolbelt/capitoolbelt.go",
-            "args": ["start_run", "-script_file=/tmp/capi_cfg/portfolio_quicktest/script.json", "-params_file=/tmp/capi_cfg/portfolio_quicktest/script_params.json", "-keyspace=portfolio_quicktest", "-start_nodes=1_read_accounts,1_read_txns,1_read_period_holdings"]
+            "args": ["validate_script", "-script_file=/tmp/capi_cfg/fannie_mae_quicktest/script.json", "-params_file=/tmp/capi_cfg/fannie_mae_quicktest/script_params.json", "-format=capigraph", "-detail=field"]
         },
         {
             "name": "Webapi",

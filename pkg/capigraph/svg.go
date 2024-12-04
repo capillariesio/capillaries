@@ -64,7 +64,7 @@ func drawNodeSelections(vizNodeMap []VizNode, nodeFo FontOptions) string {
 		curItem := vizNodeMap[i+1]
 		nodeX := curItem.X + curItem.TotalW/2 - curItem.NodeW/2
 		if curItem.Def.Selected {
-			sb.WriteString(fmt.Sprintf(`  <rect class="rect-selected-node" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
+			sb.WriteString(fmt.Sprintf(`<rect class="rect-selected-node" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
 				nodeX-SelectedNodeMargin*nodeFo.SizeInPixels, curItem.Y-SelectedNodeMargin*nodeFo.SizeInPixels, curItem.NodeW+SelectedNodeMargin*nodeFo.SizeInPixels*2, curItem.NodeH+SelectedNodeMargin*nodeFo.SizeInPixels*2))
 		}
 	}
@@ -256,7 +256,7 @@ func buildRootColorMap(vizNodeMap []VizNode, palette []int32) []int32 {
 	return rootColorMap
 }
 
-const SelectedNodeMargin float64 = 2.0
+const SelectedNodeMargin float64 = 0.0
 
 func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeOptions, defsXml string, css string, palette []int32, totalPermutations int64, elapsed float64, bestDist float64) string {
 	topCoord := math.MaxFloat64
@@ -324,9 +324,9 @@ func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeO
 	sb.WriteString("</defs>\n")
 	sb.WriteString("<style>\n")
 	sb.WriteString(".viz-background {fill:white;opacity:1.0}\n")
-	sb.WriteString(".rect-node-background {fill:white; rx:5; ry:5; stroke-width:0;opacity:0.7}\n")
-	sb.WriteString(".rect-node {fill:none; rx:5; ry:5; stroke:black; stroke-width:1;}\n")
-	sb.WriteString(".rect-selected-node {fill:transparent; rx:5; ry:5; stroke-width:10; stroke:black; opacity:0.8}\n")
+	sb.WriteString(fmt.Sprintf(".rect-node-background {fill:white; rx:%d; ry:%d; stroke-width:0;opacity:0.7}\n", int(nodeFo.SizeInPixels/2), int(nodeFo.SizeInPixels/2)))
+	sb.WriteString(fmt.Sprintf(".rect-node {fill:none; rx:%d; ry:%d; stroke:black; stroke-width:1;}\n", int(nodeFo.SizeInPixels/2), int(nodeFo.SizeInPixels/2)))
+	sb.WriteString(fmt.Sprintf(".rect-selected-node {fill:transparent; rx:%d; ry:%d; stroke-width:%d; stroke:black; opacity:1.0}\n", int(nodeFo.SizeInPixels/2), int(nodeFo.SizeInPixels/2), int(nodeFo.SizeInPixels/4)))
 	sb.WriteString(".rect-edge-label-background {fill:white; rx:10; ry:10; stroke-width:0; opacity:0.7;}\n")
 	sb.WriteString(".rect-edge-label-pri {fill:none; rx:10; ry:10; stroke:#606060; stroke-width:1;}\n")
 	sb.WriteString(".rect-edge-label-sec {fill:none; rx:10; ry:10; stroke:#606060; stroke-width:1; stroke-dasharray:5;}\n")
