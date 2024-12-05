@@ -255,7 +255,7 @@ func nodeTypeIcon(node *sc.ScriptNodeDef) string {
 	}
 }
 
-func GetCapigraphDiagram(scriptDef *sc.ScriptDef, dotDiagramType DiagramType, nodeStringColorMap map[string]int32) string {
+func GetCapigraphDiagram(scriptDef *sc.ScriptDef, showIdx bool, showFields bool, nodeStringColorMap map[string]int32) string {
 	nodeDefs := make([]capigraph.NodeDef, len(scriptDef.ScriptNodes)+1)
 	nodeDefs[0] = capigraph.NodeDef{0, "", capigraph.EdgeDef{}, []capigraph.EdgeDef{}, "", 0, false}
 	nodeNameMap := map[string]int16{}
@@ -295,14 +295,18 @@ func GetCapigraphDiagram(scriptDef *sc.ScriptDef, dotDiagramType DiagramType, no
 			parentNode := scriptDef.TableCreatorNodeMap[node.TableReader.TableName]
 			parentNodeIdx := nodeNameMap[parentNode.Name]
 			nodeDefs[nodeIdx].PriIn.SrcId = parentNodeIdx
-			if dotDiagramType == DiagramType(DiagramIndexes) || dotDiagramType == DiagramType(DiagramRunStatus) {
+			sb := strings.Builder{}
+			if showIdx {
 				if node.TableReader.ExpectedBatchesTotal > 1 {
-					nodeDefs[nodeIdx].PriIn.Text = fmt.Sprintf("%s\n(%d batches)", node.TableReader.TableName, node.TableReader.ExpectedBatchesTotal)
+					sb.WriteString(fmt.Sprintf("%s\n(%d batches)", node.TableReader.TableName, node.TableReader.ExpectedBatchesTotal))
 				} else {
-					nodeDefs[nodeIdx].PriIn.Text = fmt.Sprintf("%s\n(no parallelism)", node.TableReader.TableName)
+					sb.WriteString(fmt.Sprintf("%s\n(no parallelism)", node.TableReader.TableName))
 				}
-			} else if dotDiagramType == DiagramType(DiagramFields) {
-				sb := strings.Builder{}
+			}
+			if showFields {
+				if showIdx {
+					sb.WriteString("\n")
+				}
 				for i := 0; i < len(allUsedFields); i++ {
 					if allUsedFields[i].TableName == sc.ReaderAlias {
 						if sb.Len() > 0 {
@@ -311,38 +315,46 @@ func GetCapigraphDiagram(scriptDef *sc.ScriptDef, dotDiagramType DiagramType, no
 						sb.WriteString(allUsedFields[i].FieldName)
 					}
 				}
-				nodeDefs[nodeIdx].PriIn.Text = sb.String()
 			}
+			nodeDefs[nodeIdx].PriIn.Text = sb.String()
 		}
 		if node.HasLookup() {
 			lkpParentNode := scriptDef.IndexNodeMap[node.Lookup.IndexName]
 			lkpParentNodeIdx := nodeNameMap[lkpParentNode.Name]
 
-			inLkpArrowLabel := fmt.Sprintf("%s (lookup)", node.Lookup.IndexName)
-			if dotDiagramType == DiagramType(DiagramFields) {
-				inLkpArrowLabelBuilder := strings.Builder{}
+			sb := strings.Builder{}
+			if showIdx {
+				sb.WriteString(fmt.Sprintf("%s\n(lookup)", node.Lookup.IndexName))
+			}
+			if showFields {
+				if showIdx {
+					sb.WriteString("\n")
+				}
 				for i := 0; i < len(allUsedFields); i++ {
 					if allUsedFields[i].TableName == sc.LookupAlias {
-						if inLkpArrowLabelBuilder.Len() > 0 {
-							inLkpArrowLabelBuilder.WriteString("\n")
+						if sb.Len() > 0 {
+							sb.WriteString("\n")
 						}
-						inLkpArrowLabelBuilder.WriteString(allUsedFields[i].FieldName)
+						sb.WriteString(allUsedFields[i].FieldName)
 
 					}
 				}
-				inLkpArrowLabel = inLkpArrowLabelBuilder.String()
 			}
-			nodeDefs[nodeIdx].SecIn = append(nodeDefs[nodeIdx].SecIn, capigraph.EdgeDef{lkpParentNodeIdx, inLkpArrowLabel})
+			nodeDefs[nodeIdx].SecIn = append(nodeDefs[nodeIdx].SecIn, capigraph.EdgeDef{lkpParentNodeIdx, sb.String()})
 		}
 	}
 
 	nodeFo := capigraph.FontOptions{capigraph.FontTypefaceVerdana, capigraph.FontWeightNormal, 20, 0.3}
 	edgeFo := capigraph.FontOptions{capigraph.FontTypefaceArial, capigraph.FontWeightNormal, 18, 0.3}
 	edgeOptions := capigraph.EdgeOptions{2.0}
-	svg, _, _, _, _, errOpt := capigraph.DrawOptimized(nodeDefs, nodeFo, edgeFo, edgeOptions, CapillariesIcons100x100, "", capigraph.DefaultPalette())
+	palette := capigraph.DefaultPalette()
+	if nodeStringColorMap != nil {
+		palette = nil
+	}
+	svg, _, _, _, _, errOpt := capigraph.DrawOptimized(nodeDefs, nodeFo, edgeFo, edgeOptions, CapillariesIcons100x100, "", palette)
 	if errOpt != nil {
 		var errUnopt error
-		svg, _, errUnopt = capigraph.DrawUnoptimized(nodeDefs, nodeFo, edgeFo, edgeOptions, CapillariesIcons100x100, "", capigraph.DefaultPalette())
+		svg, _, errUnopt = capigraph.DrawUnoptimized(nodeDefs, nodeFo, edgeFo, edgeOptions, CapillariesIcons100x100, "", palette)
 		if errUnopt != nil {
 			svg = fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 500 200">
 <style>{font-family:arial; font-weight:normal; font-size:10px; text-anchor:start; alignment-baseline:hanging; fill:black;}</style>

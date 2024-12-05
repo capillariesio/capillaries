@@ -33,10 +33,10 @@ func NodeBatchStatusToDotColor(status wfmodel.NodeBatchStatusType) string {
 	}
 }
 
-func drawFileReader(node *sc.ScriptNodeDef, dotDiagramType DiagramType, arrowFontSize int, recordFontSize int) string {
+func drawFileReader(node *sc.ScriptNodeDef, showFields bool, arrowFontSize int, recordFontSize int) string {
 	var b strings.Builder
 	arrowLabelBuilder := strings.Builder{}
-	if dotDiagramType == DiagramType(DiagramFields) {
+	if showFields {
 		for colName := range node.FileReader.Columns {
 			arrowLabelBuilder.WriteString(colName)
 			arrowLabelBuilder.WriteString("\\l")
@@ -50,7 +50,7 @@ func drawFileReader(node *sc.ScriptNodeDef, dotDiagramType DiagramType, arrowFon
 	return b.String()
 }
 
-func drawFileCreator(node *sc.ScriptNodeDef, dotDiagramType DiagramType, arrowFontSize int, recordFontSize int, allUsedFields sc.FieldRefs, penWidth string, fillColor string, urlEscaper *strings.Replacer, inSrcArrowLabel string) string {
+func drawFileCreator(node *sc.ScriptNodeDef, showFields bool, arrowFontSize int, recordFontSize int, allUsedFields sc.FieldRefs, penWidth string, fillColor string, urlEscaper *strings.Replacer, inSrcArrowLabel string) string {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [style=solid, fontsize=\"%d\", label=\"%s\"];\n", node.TableReader.TableName, node.Name, arrowFontSize, inSrcArrowLabel))
 
@@ -59,7 +59,7 @@ func drawFileCreator(node *sc.ScriptNodeDef, dotDiagramType DiagramType, arrowFo
 
 	// Out (file)
 	arrowLabelBuilder := strings.Builder{}
-	if dotDiagramType == DiagramType(DiagramFields) {
+	if showFields {
 		for i := 0; i < len(allUsedFields); i++ {
 			arrowLabelBuilder.WriteString(allUsedFields[i].FieldName)
 			arrowLabelBuilder.WriteString("\\l")
@@ -71,34 +71,37 @@ func drawFileCreator(node *sc.ScriptNodeDef, dotDiagramType DiagramType, arrowFo
 	return b.String()
 }
 
-func drawTableReader(node *sc.ScriptNodeDef, dotDiagramType DiagramType, arrowFontSize int, recordFontSize int, allUsedFields sc.FieldRefs, penWidth string, fillColor string, urlEscaper *strings.Replacer) string {
+func drawTableReader(node *sc.ScriptNodeDef, showIdx bool, showFields bool, arrowFontSize int, recordFontSize int, allUsedFields sc.FieldRefs, penWidth string, fillColor string, urlEscaper *strings.Replacer) string {
 	var b strings.Builder
-	var inSrcArrowLabel string
-	if dotDiagramType == DiagramType(DiagramIndexes) || dotDiagramType == DiagramType(DiagramRunStatus) {
+	sb := strings.Builder{}
+	if showIdx {
 		if node.TableReader.ExpectedBatchesTotal > 1 {
-			inSrcArrowLabel = fmt.Sprintf("%s (%d batches)", node.TableReader.TableName, node.TableReader.ExpectedBatchesTotal)
+			sb.WriteString(fmt.Sprintf("%s (%d batches)", node.TableReader.TableName, node.TableReader.ExpectedBatchesTotal))
 		} else {
-			inSrcArrowLabel = fmt.Sprintf("%s (no parallelism)", node.TableReader.TableName)
+			sb.WriteString(fmt.Sprintf("%s (no parallelism)", node.TableReader.TableName))
 		}
-	} else if dotDiagramType == DiagramType(DiagramFields) {
-		inSrcArrowLabelBuilder := strings.Builder{}
+	}
+	if showFields {
+		if showIdx {
+			sb.WriteString("\\l")
+		}
 		for i := 0; i < len(allUsedFields); i++ {
 			if allUsedFields[i].TableName == sc.ReaderAlias {
-				inSrcArrowLabelBuilder.WriteString(allUsedFields[i].FieldName)
-				inSrcArrowLabelBuilder.WriteString("\\l")
+				sb.WriteString(allUsedFields[i].FieldName)
+				sb.WriteString("\\l")
 			}
 		}
-		inSrcArrowLabel = inSrcArrowLabelBuilder.String()
 	}
+
 	if node.HasFileCreator() {
-		b.WriteString(drawFileCreator(node, dotDiagramType, arrowFontSize, recordFontSize, allUsedFields, penWidth, fillColor, urlEscaper, inSrcArrowLabel))
+		b.WriteString(drawFileCreator(node, showFields, arrowFontSize, recordFontSize, allUsedFields, penWidth, fillColor, urlEscaper, sb.String()))
 	} else {
-		b.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [style=solid, fontsize=\"%d\", label=\"%s\"];\n", node.TableReader.TableName, node.GetTargetName(), arrowFontSize, inSrcArrowLabel))
+		b.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [style=solid, fontsize=\"%d\", label=\"%s\"];\n", node.TableReader.TableName, node.GetTargetName(), arrowFontSize, sb.String()))
 	}
 
 	if node.HasLookup() {
 		inLkpArrowLabel := fmt.Sprintf("%s (lookup)", node.Lookup.IndexName)
-		if dotDiagramType == DiagramType(DiagramFields) {
+		if showFields {
 			inLkpArrowLabelBuilder := strings.Builder{}
 			for i := 0; i < len(allUsedFields); i++ {
 				if allUsedFields[i].TableName == sc.LookupAlias {
@@ -124,14 +127,14 @@ func drawTableCreator(node *sc.ScriptNodeDef, recordFontSize int, penWidth strin
 }
 
 // Used by Toolbelt and Webapi
-func GetDotDiagram(scriptDef *sc.ScriptDef, diagramType DiagramType, nodeColorMap map[string]string) string {
+func GetDotDiagram(scriptDef *sc.ScriptDef, showIdx bool, showFields bool, nodeColorMap map[string]string) string {
 	var b strings.Builder
 
 	const recordFontSize int = 20
 	const arrowFontSize int = 18
 
 	urlEscaper := strings.NewReplacer(`{`, `\{`, `}`, `\}`, `|`, `\|`)
-	b.WriteString(fmt.Sprintf("\ndigraph %s {\nrankdir=\"TD\";\n node [fontname=\"Helvetica\"];\nedge [fontname=\"Helvetica\"];\ngraph [splines=true, pad=\"0.5\", ranksep=\"0.5\", nodesep=\"0.5\"];\n", diagramType))
+	b.WriteString("\ndigraph idx_fields {\nrankdir=\"TD\";\n node [fontname=\"Helvetica\"];\nedge [fontname=\"Helvetica\"];\ngraph [splines=true, pad=\"0.5\", ranksep=\"0.5\", nodesep=\"0.5\"];\n")
 	for _, node := range scriptDef.ScriptNodes {
 		penWidth := "1"
 		if node.StartPolicy == sc.NodeStartManual {
@@ -146,7 +149,7 @@ func GetDotDiagram(scriptDef *sc.ScriptDef, diagramType DiagramType, nodeColorMa
 		}
 
 		if node.HasFileReader() {
-			b.WriteString(drawFileReader(node, diagramType, arrowFontSize, recordFontSize))
+			b.WriteString(drawFileReader(node, showFields, arrowFontSize, recordFontSize))
 		}
 
 		allUsedFields := sc.FieldRefs{}
@@ -160,7 +163,7 @@ func GetDotDiagram(scriptDef *sc.ScriptDef, diagramType DiagramType, nodeColorMa
 		}
 
 		if node.HasTableReader() {
-			b.WriteString(drawTableReader(node, diagramType, arrowFontSize, recordFontSize, allUsedFields, penWidth, fillColor, urlEscaper))
+			b.WriteString(drawTableReader(node, showIdx, showFields, arrowFontSize, recordFontSize, allUsedFields, penWidth, fillColor, urlEscaper))
 		}
 
 		if node.HasTableCreator() {

@@ -80,13 +80,22 @@
             "args": []
         },
         {
-            "name": "Toolbelt",
+            "name": "Toolbelt validate_script",
             "type": "go",
             "request": "launch",
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/toolbelt",
             "program": "${workspaceFolder}/pkg/exe/toolbelt/capitoolbelt.go",
-            "args": ["validate_script", "-script_file=/tmp/capi_cfg/fannie_mae_quicktest/script.json", "-params_file=/tmp/capi_cfg/fannie_mae_quicktest/script_params.json", "-format=capigraph", "-detail=field"]
+            "args": ["validate_script", "-script_file=/tmp/capi_cfg/fannie_mae_quicktest/script.json", "-params_file=/tmp/capi_cfg/fannie_mae_quicktest/script_params.json", "-format=capigraph", "-detail="]
+        },
+        {
+            "name": "Toolbelt get_run_status_diagram",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd":"${workspaceFolder}/pkg/exe/toolbelt",
+            "program": "${workspaceFolder}/pkg/exe/toolbelt/capitoolbelt.go",
+            "args": ["get_run_status_diagram", "-script_file=/tmp/capi_cfg/fannie_mae_quicktest/script.json", "-params_file=/tmp/capi_cfg/fannie_mae_quicktest/script_params.json", "-keyspace=fannie_mae_quicktest", "-run_id=1", "-format=capigraph"]
         },
         {
             "name": "Webapi",

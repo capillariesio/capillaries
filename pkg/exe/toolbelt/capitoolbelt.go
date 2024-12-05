@@ -104,7 +104,7 @@ func validateScript(envConfig *env.EnvConfig) int {
 	scriptFilePath := validateScriptCmd.String("script_file", "", "Path to script file")
 	paramsFilePath := validateScriptCmd.String("params_file", "", "Path to script parameters map file")
 	paramsFormat := validateScriptCmd.String("format", "capigraph", "capigraph (default) or dot")
-	paramsDetail := validateScriptCmd.String("detail", "idx", "idx (default) or field")
+	paramsDetail := validateScriptCmd.String("detail", "idx,field", "idx or field or both (default)")
 	if err := validateScriptCmd.Parse(os.Args[2:]); err != nil || *scriptFilePath == "" {
 		usage(validateScriptCmd)
 		return 0
@@ -116,15 +116,10 @@ func validateScript(envConfig *env.EnvConfig) int {
 		return 1
 	}
 
-	diagramDetail := api.DiagramIndexes
-	if *paramsDetail == "field" {
-		diagramDetail = api.DiagramFields
-	}
-
 	if *paramsFormat == "capigraph" {
-		fmt.Println(api.GetCapigraphDiagram(script, diagramDetail, nil))
+		fmt.Println(api.GetCapigraphDiagram(script, strings.Contains(*paramsDetail, "idx"), strings.Contains(*paramsDetail, "field"), nil))
 	} else {
-		fmt.Println(api.GetDotDiagram(script, diagramDetail, nil))
+		fmt.Println(api.GetDotDiagram(script, strings.Contains(*paramsDetail, "idx"), strings.Contains(*paramsDetail, "field"), nil))
 	}
 	return 0
 }
@@ -367,13 +362,13 @@ func getRunStatusDiagram(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 		for _, node := range nodes {
 			nodeColorMap[node.ScriptNode] = api.NodeBatchStatusToCapigraphColor(node.Status)
 		}
-		fmt.Println(api.GetCapigraphDiagram(script, api.DiagramRunStatus, nodeColorMap))
+		fmt.Println(api.GetCapigraphDiagram(script, false, false, nodeColorMap))
 	} else {
 		nodeColorMap := map[string]string{}
 		for _, node := range nodes {
 			nodeColorMap[node.ScriptNode] = api.NodeBatchStatusToDotColor(node.Status)
 		}
-		fmt.Println(api.GetDotDiagram(script, api.DiagramRunStatus, nodeColorMap))
+		fmt.Println(api.GetDotDiagram(script, true, false, nodeColorMap))
 	}
 
 	return 0
