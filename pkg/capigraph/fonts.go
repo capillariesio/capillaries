@@ -190,14 +190,14 @@ func getTextDimensions(s string, typeface FontTypeface, weight FontWeight, fontS
 	return w, h
 }
 
-func getLabelDimensionsFromTextDimensions(w float64, h float64, widthExtra float64, heightExtra float64) (float64, float64) {
+func getLabelDimensionsFromTextDimensions(w float64, h float64, textMargin float64) (float64, float64) {
 	labelWidth := 0.0
 	if w > 0.0 {
-		labelWidth = w + widthExtra
+		labelWidth = w + textMargin*2 // left + right
 	}
 	labelHeight := h
 	if labelHeight > 0.0 {
-		labelHeight = h + heightExtra
+		labelHeight = h + textMargin*2 // top + bottom
 	}
 	return labelWidth, labelHeight
 }

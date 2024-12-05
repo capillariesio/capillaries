@@ -16,31 +16,31 @@ func TestBasicMx(t *testing.T) {
 	vnh.reuseRootSubtreeHierarchy(mx)
 	vnh.PopulateNodeTotalWidth()
 
-	assert.Equal(t, 84.0, vnh.VizNodeMap[0].TotalW)
+	assert.Equal(t, 124.0, vnh.VizNodeMap[0].TotalW)
 	assert.Equal(t, 0.0, vnh.VizNodeMap[0].NodeW)
 	assert.Equal(t, 0.0, vnh.VizNodeMap[0].NodeH)
 
-	assert.Equal(t, 32.0, vnh.VizNodeMap[1].TotalW)
-	assert.Equal(t, 32.0, vnh.VizNodeMap[1].NodeW)
-	assert.Equal(t, 40.0, vnh.VizNodeMap[1].NodeH)
+	assert.Equal(t, 52.0, vnh.VizNodeMap[1].TotalW)
+	assert.Equal(t, 52.0, vnh.VizNodeMap[1].NodeW)
+	assert.Equal(t, 60.0, vnh.VizNodeMap[1].NodeH)
 
-	assert.Equal(t, 32.0, vnh.VizNodeMap[2].TotalW)
-	assert.Equal(t, 32.0, vnh.VizNodeMap[2].NodeW)
-	assert.Equal(t, 40.0, vnh.VizNodeMap[2].NodeH)
+	assert.Equal(t, 52.0, vnh.VizNodeMap[2].TotalW)
+	assert.Equal(t, 52.0, vnh.VizNodeMap[2].NodeW)
+	assert.Equal(t, 60.0, vnh.VizNodeMap[2].NodeH)
 
-	assert.Equal(t, 32.0, vnh.VizNodeMap[3].TotalW)
-	assert.Equal(t, 32.0, vnh.VizNodeMap[3].NodeW)
-	assert.Equal(t, 40.0, vnh.VizNodeMap[3].NodeH)
+	assert.Equal(t, 52.0, vnh.VizNodeMap[3].TotalW)
+	assert.Equal(t, 52.0, vnh.VizNodeMap[3].NodeW)
+	assert.Equal(t, 60.0, vnh.VizNodeMap[3].NodeH)
 
 	vnh.PopulateNodesXCoords()
 
 	assert.Equal(t, 0.0, vnh.VizNodeMap[0].X)
 	assert.Equal(t, 0.0, vnh.VizNodeMap[1].X)
 	assert.Equal(t, 0.0, vnh.VizNodeMap[2].X)
-	assert.Equal(t, 52.0, vnh.VizNodeMap[3].X)
+	assert.Equal(t, 72.0, vnh.VizNodeMap[3].X)
 
 	horShift := vnh.CalculateTotalHorizontalShift()
-	assert.Equal(t, 52.0, math.Round(horShift*100)/100.0)
+	assert.Equal(t, 72.0, math.Round(horShift*100)/100.0)
 
 	vnh.PopulateEdgeLabelDimensions()
 
@@ -63,14 +63,14 @@ func TestBasicMx(t *testing.T) {
 
 	assert.Equal(t, 0.0, vnh.VizNodeMap[0].Y)
 	assert.Equal(t, 0.0, vnh.VizNodeMap[1].Y)
-	assert.Equal(t, 256.0, vnh.VizNodeMap[2].Y)
+	assert.Equal(t, 276.0, vnh.VizNodeMap[2].Y)
 	assert.Equal(t, 0.0, vnh.VizNodeMap[3].Y)
 
 	vnh.PopulateEdgeLabelCoords()
 
-	assert.Equal(t, 16.0, vnh.VizNodeMap[2].IncomingVizEdges[0].X)
-	assert.Equal(t, 220.0, vnh.VizNodeMap[2].IncomingVizEdges[0].Y)
+	assert.Equal(t, 26.0, vnh.VizNodeMap[2].IncomingVizEdges[0].X)
+	assert.Equal(t, 240.0, vnh.VizNodeMap[2].IncomingVizEdges[0].Y)
 
-	assert.Equal(t, 7.44, math.Round(vnh.VizNodeMap[2].IncomingVizEdges[1].X*100.0)/100.0)
-	assert.Equal(t, 130.0, vnh.VizNodeMap[2].IncomingVizEdges[1].Y)
+	assert.Equal(t, 27.44, math.Round(vnh.VizNodeMap[2].IncomingVizEdges[1].X*100.0)/100.0)
+	assert.Equal(t, 150.0, vnh.VizNodeMap[2].IncomingVizEdges[1].Y)
 }

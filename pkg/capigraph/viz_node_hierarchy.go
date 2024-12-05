@@ -60,12 +60,12 @@ func NewVizNodeHierarchy(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOpti
 	for _, nodeDef := range nodeDefs {
 		if nodeDef.PriIn.SrcId != 0 {
 			w, h := getTextDimensions(nodeDef.PriIn.Text, edgeFo.Typeface, edgeFo.Weight, edgeFo.SizeInPixels, edgeFo.Interval)
-			vnh.PriEdgeLabelDimMap[nodeDef.Id].W, vnh.PriEdgeLabelDimMap[nodeDef.Id].H = getLabelDimensionsFromTextDimensions(w, h, edgeFo.SizeInPixels, edgeFo.SizeInPixels)
+			vnh.PriEdgeLabelDimMap[nodeDef.Id].W, vnh.PriEdgeLabelDimMap[nodeDef.Id].H = getLabelDimensionsFromTextDimensions(w, h, edgeFo.SizeInPixels*LabelTextDimensionMargin)
 		}
 		vnh.SecEdgeLabelDimMap[nodeDef.Id] = make([]RectDimension, len(nodeDef.SecIn))
 		for edgeIdx, edgeDef := range nodeDef.SecIn {
 			w, h := getTextDimensions(edgeDef.Text, edgeFo.Typeface, edgeFo.Weight, edgeFo.SizeInPixels, edgeFo.Interval)
-			vnh.SecEdgeLabelDimMap[nodeDef.Id][edgeIdx].W, vnh.SecEdgeLabelDimMap[nodeDef.Id][edgeIdx].H = getLabelDimensionsFromTextDimensions(w, h, edgeFo.SizeInPixels, edgeFo.SizeInPixels)
+			vnh.SecEdgeLabelDimMap[nodeDef.Id][edgeIdx].W, vnh.SecEdgeLabelDimMap[nodeDef.Id][edgeIdx].H = getLabelDimensionsFromTextDimensions(w, h, edgeFo.SizeInPixels*LabelTextDimensionMargin)
 		}
 	}
 	return &vnh
@@ -210,14 +210,18 @@ func (vnh *VizNodeHierarchy) reuseRootSubtreeHierarchy(mx LayerMx) {
 	}
 }
 
+const NodeTextDimensionMargin float64 = 1.0
+const NodeTextIconInterval float64 = 1.0
+const LabelTextDimensionMargin float64 = 0.5
+
 func getNodeDimensions(nodeDef *NodeDef, fo FontOptions) RectDimension {
 	w, h := getTextDimensions(nodeDef.Text, fo.Typeface, fo.Weight, fo.SizeInPixels, fo.Interval)
-	w += float64(fo.SizeInPixels)
+	w += float64(fo.SizeInPixels) * NodeTextDimensionMargin * 2 // left+right
 	if nodeDef.IconId != "" {
-		// Add space for the HxH icon plus font-size
-		w += h + fo.SizeInPixels
+		// Add space for the HxH icon plus font-size*some coefficient
+		w += h + fo.SizeInPixels*NodeTextIconInterval
 	}
-	h += float64(fo.SizeInPixels)
+	h += float64(fo.SizeInPixels) * NodeTextDimensionMargin * 2 // top+bottom
 	return RectDimension{w, h}
 }
 

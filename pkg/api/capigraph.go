@@ -336,10 +336,13 @@ func GetCapigraphDiagram(scriptDef *sc.ScriptDef, dotDiagramType DiagramType, no
 		}
 	}
 
-	svg, _, _, _, _, errOpt := capigraph.DrawOptimized(nodeDefs, capigraph.DefaultNodeFontOptions(), capigraph.DefaultEdgeLabelFontOptions(), capigraph.DefaultEdgeOptions(), CapillariesIcons100x100, "", capigraph.DefaultPalette())
+	nodeFo := capigraph.FontOptions{capigraph.FontTypefaceVerdana, capigraph.FontWeightNormal, 20, 0.3}
+	edgeFo := capigraph.FontOptions{capigraph.FontTypefaceArial, capigraph.FontWeightNormal, 18, 0.3}
+	edgeOptions := capigraph.EdgeOptions{2.0}
+	svg, _, _, _, _, errOpt := capigraph.DrawOptimized(nodeDefs, nodeFo, edgeFo, edgeOptions, CapillariesIcons100x100, "", capigraph.DefaultPalette())
 	if errOpt != nil {
 		var errUnopt error
-		svg, _, errUnopt = capigraph.DrawUnoptimized(nodeDefs, capigraph.DefaultNodeFontOptions(), capigraph.DefaultEdgeLabelFontOptions(), capigraph.DefaultEdgeOptions(), CapillariesIcons100x100, "", capigraph.DefaultPalette())
+		svg, _, errUnopt = capigraph.DrawUnoptimized(nodeDefs, nodeFo, edgeFo, edgeOptions, CapillariesIcons100x100, "", capigraph.DefaultPalette())
 		if errUnopt != nil {
 			svg = fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 500 200">
 <style>{font-family:arial; font-weight:normal; font-size:10px; text-anchor:start; alignment-baseline:hanging; fill:black;}</style>

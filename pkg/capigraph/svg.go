@@ -135,26 +135,28 @@ func drawNodesAndEdgeLabels(vizNodeMap []VizNode, curItem *VizNode, nodeFo FontO
 			nodeX, curItem.Y, curItem.NodeW, curItem.NodeH))
 		actualIconSize := 0.0
 		if curItem.Def.IconId != "" {
-			actualIconSize = curItem.NodeH - nodeFo.SizeInPixels
+			actualIconSize = curItem.NodeH - nodeFo.SizeInPixels*NodeTextDimensionMargin*2
 			iconColorCssOverride := getStyleColorOverrideForRoot("fill", curItem.RootId, rootColorMap)
 			if curItem.Def.Color != 0 {
 				iconColorCssOverride = getStyleColorOverrideForNode("fill", curItem.Def.Color)
 			}
 			sb.WriteString(fmt.Sprintf(`  <g transform="translate(%.2f,%.2f)"><g transform="scale(%2f)">`+"\n    "+`<use xlink:href="#%s" %s/>`+"\n  </g></g>\n",
-				nodeX+nodeFo.SizeInPixels/2,
-				curItem.Y+nodeFo.SizeInPixels/2,
+				nodeX+nodeFo.SizeInPixels*NodeTextDimensionMargin,
+				curItem.Y+nodeFo.SizeInPixels*NodeTextDimensionMargin,
 				actualIconSize/100.0,
 				curItem.Def.IconId,
 				iconColorCssOverride,
 			))
 		}
 		for i, r := range strings.Split(curItem.Def.Text, "\n") {
-			textX := curItem.X + curItem.TotalW/2 - curItem.NodeW/2 + nodeFo.SizeInPixels/2
+			textX := curItem.X + curItem.TotalW/2 - curItem.NodeW/2 + nodeFo.SizeInPixels*NodeTextDimensionMargin
 			if actualIconSize > 0.0 {
-				textX += actualIconSize + nodeFo.SizeInPixels
+				textX += actualIconSize + nodeFo.SizeInPixels*NodeTextIconInterval
 			}
 			sb.WriteString(fmt.Sprintf(`  <text class="text-node" x="%.2f" y="%.2f">%s</text>`+"\n",
-				textX, curItem.Y+nodeFo.SizeInPixels/2+float64(i)*nodeFo.SizeInPixels*(1.0+nodeFo.Interval), xmlReplacer.Replace(r)))
+				textX,
+				curItem.Y+nodeFo.SizeInPixels*NodeTextDimensionMargin+float64(i)*nodeFo.SizeInPixels*(1.0+nodeFo.Interval),
+				xmlReplacer.Replace(r)))
 		}
 		sb.WriteString("</a>\n")
 
@@ -175,7 +177,9 @@ func drawNodesAndEdgeLabels(vizNodeMap []VizNode, curItem *VizNode, nodeFo FontO
 					edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H))
 				for i, r := range strings.Split(edgeItem.Edge.Text, "\n") {
 					sb.WriteString(fmt.Sprintf(`  <text class="text-edge-label" x="%.2f" y="%.2f">%s</text>`+"\n",
-						edgeItem.X+edgeFo.SizeInPixels/2, edgeItem.Y+edgeFo.SizeInPixels/2+float64(i)*edgeFo.SizeInPixels*(1+edgeFo.Interval), xmlReplacer.Replace(r)))
+						edgeItem.X+edgeFo.SizeInPixels*LabelTextDimensionMargin,
+						edgeItem.Y+edgeFo.SizeInPixels*LabelTextDimensionMargin+float64(i)*edgeFo.SizeInPixels*(1+edgeFo.Interval),
+						xmlReplacer.Replace(r)))
 				}
 			} else if edgeItem.HierarchyType == HierarchyPri {
 				sb.WriteString(fmt.Sprintf(`  <rect class="rect-edge-label-background" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
@@ -185,7 +189,9 @@ func drawNodesAndEdgeLabels(vizNodeMap []VizNode, curItem *VizNode, nodeFo FontO
 					edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H))
 				for i, r := range strings.Split(edgeItem.Edge.Text, "\n") {
 					sb.WriteString(fmt.Sprintf(`  <text class="text-edge-label" x="%.2f" y="%.2f">%s</text>`+"\n",
-						edgeItem.X+edgeFo.SizeInPixels/2, edgeItem.Y+edgeFo.SizeInPixels/2+float64(i)*edgeFo.SizeInPixels*(1+edgeFo.Interval), xmlReplacer.Replace(r)))
+						edgeItem.X+edgeFo.SizeInPixels*LabelTextDimensionMargin,
+						edgeItem.Y+edgeFo.SizeInPixels*LabelTextDimensionMargin+float64(i)*edgeFo.SizeInPixels*(1+edgeFo.Interval),
+						xmlReplacer.Replace(r)))
 				}
 			}
 			sb.WriteString("</a>\n")
