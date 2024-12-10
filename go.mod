@@ -21,12 +21,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-require (
-	github.com/felixge/fgprof v0.9.3 // indirect
-	github.com/google/pprof v0.0.0-20211214055906-6f57359322fd // indirect
-	github.com/kr/pretty v0.3.1 // indirect
-	github.com/pkg/profile v1.7.0 // indirect
-)
+require github.com/kr/pretty v0.3.1 // indirect
 
 require (
 	github.com/apache/thrift v0.19.0 // indirect

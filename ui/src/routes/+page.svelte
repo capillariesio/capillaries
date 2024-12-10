@@ -4,11 +4,10 @@
 	import Keyspaces from './Keyspaces.svelte';
 	import KsRunNodeHistory from './KsRunNodeHistory.svelte';
 	import KsRunNodeBatchHistory from './KsRunNodeBatchHistory.svelte';
-	import { Modals, closeModal } from 'svelte-modals';
+	import { Modals, modals } from 'svelte-modals';
 	import { URLPattern } from 'urlpattern-polyfill';
 
-	let params;
-	let routed_page;
+	let routed_page, hg;
 	const patternKeyspaces = new URLPattern({ hash: '#/' });
 	const patternKsMatrix = new URLPattern({ hash: '#/ks/:ks_name/matrix' });
 	const patternKsRunNodeBatchHistory = new URLPattern({
@@ -24,20 +23,16 @@
 
 	function reload() {
 		if (patternKsMatrix.test($page.url)) {
-			let hg = patternKsMatrix.exec($page.url).hash.groups;
-			params = { ks_name: hg.ks_name };
+			hg = patternKsMatrix.exec($page.url).hash.groups;
 			routed_page = KsMatrix;
 		} else if (patternKsRunNodeHistory.test($page.url)) {
-			let hg = patternKsRunNodeHistory.exec($page.url).hash.groups;
-			params = { ks_name: hg.ks_name, run_id: hg.run_id };
+			hg = patternKsRunNodeHistory.exec($page.url).hash.groups;
 			routed_page = KsRunNodeHistory;
 		} else if (patternKsRunNodeBatchHistory.test($page.url)) {
-			let hg = patternKsRunNodeBatchHistory.exec($page.url).hash.groups;
-			params = { ks_name: hg.ks_name, run_id: hg.run_id, node_name: hg.node_name };
+			hg = patternKsRunNodeBatchHistory.exec($page.url).hash.groups;
 			routed_page = KsRunNodeBatchHistory;
 		} else if (patternKeyspaces.test($page.url)) {
 			routed_page = Keyspaces;
-			params = {};
 		} else {
 			let url = new URL($page.url);
 			// Navigate to Keyspaces
@@ -48,16 +43,24 @@
 	reload();
 </script>
 
-<svelte:component this={routed_page} {params} />
+<svelte:component
+	this={routed_page}
+	ks_name={hg.ks_name}
+	run_id={hg.run_id}
+	node_name={hg.node_name}
+/>
 
 <Modals>
-	<div
-		slot="backdrop"
-		class="backdrop"
-		on:click={closeModal}
-		on:keypress={() => false}
-		aria-hidden="true"
-	/>
+	<!-- eslint-disable-next-line -->
+	{#snippet backdrop()}
+		<div
+			slot="backdrop"
+			class="backdrop"
+			onclick={() => modals.close()}
+			onkeypress={() => false}
+			aria-hidden="true"
+		></div>
+	{/snippet}
 </Modals>
 
 <style>

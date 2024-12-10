@@ -35,7 +35,7 @@ func BuildDependencyNodeEventLists(logger *l.CapiLogger, pCtx *ctx.MessageProces
 		for _, affectingRunId := range nodeAffectingRunIdsMap[nodeName] {
 			runLifespan, ok := runLifespanMap[affectingRunId]
 			if !ok {
-				return nil, fmt.Errorf("unexpectedly, cannot find run lifespan map for run %d: %s", affectingRunId, runLifespanMap.ToString())
+				return nil, fmt.Errorf("unexpectedly, cannot find run lifespan map for run %d, was it ever started?", affectingRunId)
 			}
 			if runLifespan.StartTs == time.Unix(0, 0) || runLifespan.FinalStatus == wfmodel.RunNone {
 				return nil, fmt.Errorf("unexpectedly, run lifespan %d looks like the run never started: %s", affectingRunId, runLifespanMap.ToString())

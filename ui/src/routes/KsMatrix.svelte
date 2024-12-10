@@ -1,26 +1,36 @@
 <script>
 	import { onDestroy, onMount } from 'svelte';
-	import { openModal } from 'svelte-modals';
+	import { modals } from 'svelte-modals';
 	import dayjs from 'dayjs';
 	import Breadcrumbs from '../panels/Breadcrumbs.svelte';
 	import ModalStopRun from '../modals/ModalStopRun.svelte';
 	import ModalStartRun from '../modals/ModalStartRun.svelte';
-	import Util, { webapiUrl, handleResponse } from '../Util.svelte';
-	let util;
+	import {
+		webapiUrl,
+		handleResponse,
+		ksRunNodeHistoryLink,
+		runStatusToIconLink,
+		runStatusToText,
+		ksRunNodeBatchHistoryLink,
+		nodeStatusToIconLink,
+		nodeStatusToText,
+		rootLink,
+		scriptVizUrl
+	} from '../Util.svelte';
 
-	// Route params
-	export let params;
+	const { ks_name } = $props();
 
-	// Breadcrumbs
-	let breadcrumbsPathElements = [];
+	let breadcrumbsPathElements = $state([]);
 
-	// Webapi data
-	let webapiData = { run_lifespans: [], nodes: [] };
-	let responseError = '';
+	let svgScriptViz = $state('');
+	let webapiData = $state({ run_lifespans: [], nodes: [] });
+	let responseError = $state('');
+	var timer;
+	let isDestroyed = false;
 
 	function setWebapiData(dataFromJson, errorFromJson) {
-		webapiData = !!dataFromJson ? dataFromJson : { run_lifespans: [], nodes: [] };
-		if (!!errorFromJson) {
+		webapiData = dataFromJson ? dataFromJson : { run_lifespans: [], nodes: [] };
+		if (errorFromJson) {
 			responseError =
 				'cannot retrieve keyspace matrix, Capillaries webapi returned an error: ' + errorFromJson;
 		} else {
@@ -41,15 +51,16 @@
 		}
 	}
 
-	var timer;
-	let isDestroyed = false;
 	function fetchData() {
-		let url = webapiUrl() + '/ks/' + params.ks_name;
+		let url = webapiUrl() + '/ks/' + ks_name;
 		let method = 'GET';
 		fetch(new Request(url, { method: method }))
 			.then((response) => response.json())
 			.then((responseJson) => {
 				handleResponse(responseJson, setWebapiData);
+				if (svgScriptViz == '' && webapiData.run_lifespans.length > 0) {
+					fetchScriptViz();
+				}
 				if (!isDestroyed) timer = setTimeout(fetchData, 500);
 			})
 			.catch((error) => {
@@ -65,51 +76,71 @@
 			});
 	}
 
-	onMount(async () => {
-		breadcrumbsPathElements = [
-			{ title: 'Keyspaces', link: util.rootLink() },
-			{ title: params.ks_name }
-		];
+	function fetchScriptViz() {
+		let url = scriptVizUrl(ks_name, webapiData.run_lifespans[0].run_id, false); // Get B&W viz
+		let method = 'GET';
+		fetch(new Request(url, { method: method }))
+			.then((response) => response.text())
+			.then((responseText) => {
+				svgScriptViz = responseText;
+			})
+			.catch((error) => {
+				responseError =
+					'cannot fetch SVG viz from Capillaries webapi at ' +
+					method +
+					' ' +
+					url +
+					', error:' +
+					error;
+				console.log(error);
+			});
+	}
+
+	onMount(() => {
+		breadcrumbsPathElements = [{ title: 'Keyspaces', link: rootLink() }, { title: ks_name }];
 		fetchData();
 	});
-	onDestroy(async () => {
+	onDestroy(() => {
 		isDestroyed = true;
 		if (timer) clearTimeout(timer);
 	});
 
 	function onStop(runId) {
-		openModal(ModalStopRun, { keyspace: params.ks_name, run_id: runId });
+		modals.open(ModalStopRun, { ks_name: ks_name, run_id: runId });
 	}
 
 	function onNew() {
-		openModal(ModalStartRun, { keyspace: params.ks_name });
+		modals.open(ModalStartRun, { ks_name: ks_name });
 	}
 </script>
 
-<Util bind:this={util} />
-<Breadcrumbs bind:pathElements={breadcrumbsPathElements} />
+<Breadcrumbs path_elements={breadcrumbsPathElements} />
 <p style="color:red;">{responseError}</p>
 <table>
 	<thead>
-		<th>Nodes ({webapiData.nodes.length}) \ Runs ({webapiData.run_lifespans.length})</th>
-		{#each webapiData.run_lifespans as ls}
-			<th>
-				<a href={util.ksRunNodeHistoryLink(params.ks_name, ls.run_id)} title="Run {ls.run_id}">
-					{ls.run_id}<img
-						src={util.runStatusToIconLink(ls.final_status)}
-						title={util.runStatusToText(ls.final_status)}
-						alt=""
-						style="margin-left:3px;"
-					/>
-				</a>
+		<tr>
+			<th>Nodes ({webapiData.nodes.length}) \ Runs ({webapiData.run_lifespans.length})</th>
+			{#each webapiData.run_lifespans as ls}
+				<th>
+					<a href={ksRunNodeHistoryLink(ks_name, ls.run_id)} title="Run {ls.run_id}">
+						{ls.run_id}
+						<br />
+						<img
+							src={runStatusToIconLink(ls.final_status)}
+							title={runStatusToText(ls.final_status)}
+							alt=""
+							style="margin-left:0px;"
+						/>
+					</a>
+				</th>
+			{/each}
+			<th
+				><button
+					title="Opens a popup to specify parameters (keyspace, script URL etc) for a new run"
+					onclick={onNew}>New</button
+				>
 			</th>
-		{/each}
-		<th
-			><button
-				title="Opens a popup to specify parameters (keyspace, script URI etc) for a new run"
-				on:click={onNew}>New</button
-			></th
-		>
+		</tr>
 	</thead>
 	<tbody>
 		<tr>
@@ -124,7 +155,9 @@
 			{#each webapiData.run_lifespans as ls}
 				<td
 					>{#if ls.final_status != 3}<button
-							on:click={onStop(ls.run_id)}
+							onclick={() => {
+								onStop(ls.run_id);
+							}}
 							title={ls.final_status === 1
 								? 'Stop run'
 								: 'Invalidate the results of a complete run so they cannot be used in depending runs'}
@@ -140,10 +173,10 @@
 				{#each node.node_statuses as ns}
 					<td>
 						{#if ns.status > 0}
-							<a href={util.ksRunNodeBatchHistoryLink(params.ks_name, ns.run_id, node.node_name)}>
+							<a href={ksRunNodeBatchHistoryLink(ks_name, ns.run_id, node.node_name)}>
 								<img
-									src={util.nodeStatusToIconLink(ns.status)}
-									title={util.nodeStatusToText(ns.status) + ' - ' + dayjs(ns.ts).format()}
+									src={nodeStatusToIconLink(ns.status)}
+									title={nodeStatusToText(ns.status) + ' - ' + dayjs(ns.ts).format()}
 									alt=""
 								/>
 							</a>
@@ -155,6 +188,23 @@
 		{/each}
 	</tbody>
 </table>
+{#if webapiData.run_lifespans.length > 0}
+	<p>
+		Script diagram. It's static and does not depend on the status of any run. To see it in a
+		separate window, click <a
+			target="_blank"
+			href={scriptVizUrl(ks_name, webapiData.run_lifespans[0].run_id, false)}>here</a
+		>
+		for B&W, click
+		<a target="_blank" href={scriptVizUrl(ks_name, webapiData.run_lifespans[0].run_id, true)}
+			>here</a
+		> for colored by root node.
+	</p>
+{/if}
+<div style="width:100%">
+	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+	{@html svgScriptViz}
+</div>
 
 <style>
 	img {

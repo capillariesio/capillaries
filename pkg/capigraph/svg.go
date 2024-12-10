@@ -31,9 +31,9 @@ func intToCssColor(c int32) string {
 	return string(colorRunes)
 }
 
-func getColorOverride(rootId int16, rootColorMap []int32) string {
+func getColorOverride(defaultColor string, rootId int16, rootColorMap []int32) string {
 	if rootColorMap[rootId] == -1 {
-		return ""
+		return defaultColor
 	}
 	return intToCssColor(rootColorMap[rootId])
 }
@@ -316,13 +316,9 @@ func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeO
 	sb.WriteString("<defs>\n")
 
 	for rootId := range len(rootColorMap) {
-		if rootColorMap[rootId] == -1 {
-			continue
-		}
-		// Separate marker to honor edge color
 		sb.WriteString(fmt.Sprintf(`<marker id="arrow-%d" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse" fill="#%s"><path d="M 0 0 L 10 5 L 0 10 z" /></marker>`+"\n",
 			rootId,
-			getColorOverride(int16(rootId), rootColorMap)))
+			getColorOverride("000000", int16(rootId), rootColorMap)))
 	}
 
 	// Caller-provided defs (icons etc)
@@ -343,18 +339,18 @@ func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeO
 
 	// For each root, create a set of classes with proper color
 	for rootId := range len(rootColorMap) {
-		if rootColorMap[rootId] == -1 {
-			continue
-		}
+		// if rootColorMap[rootId] == -1 {
+		// 	continue
+		// }
 		// Edge coor: stroke (label border and connectors). Also, proper arrow marker color.
-		sb.WriteString(fmt.Sprintf(`.path-edge-pri-%d {marker-end:url(#arrow-%d);stroke:#%s}`+"\n", rootId, rootId, getColorOverride(int16(rootId), rootColorMap)))
-		sb.WriteString(fmt.Sprintf(`.path-edge-sec-%d {marker-end:url(#arrow-%d);stroke:#%s}`+"\n", rootId, rootId, getColorOverride(int16(rootId), rootColorMap)))
-		sb.WriteString(fmt.Sprintf(`.rect-edge-label-pri-%d {stroke:#%s}`+"\n", rootId, getColorOverride(int16(rootId), rootColorMap)))
-		sb.WriteString(fmt.Sprintf(`.rect-edge-label-sec-%d {stroke:#%s}`+"\n", rootId, getColorOverride(int16(rootId), rootColorMap)))
+		sb.WriteString(fmt.Sprintf(`.path-edge-pri-%d {marker-end:url(#arrow-%d);stroke:#%s}`+"\n", rootId, rootId, getColorOverride("000000", int16(rootId), rootColorMap)))
+		sb.WriteString(fmt.Sprintf(`.path-edge-sec-%d {marker-end:url(#arrow-%d);stroke:#%s}`+"\n", rootId, rootId, getColorOverride("000000", int16(rootId), rootColorMap)))
+		sb.WriteString(fmt.Sprintf(`.rect-edge-label-pri-%d {stroke:#%s}`+"\n", rootId, getColorOverride("000000", int16(rootId), rootColorMap)))
+		sb.WriteString(fmt.Sprintf(`.rect-edge-label-sec-%d {stroke:#%s}`+"\n", rootId, getColorOverride("000000", int16(rootId), rootColorMap)))
 
 		// Node color: background, stroke
-		sb.WriteString(fmt.Sprintf(`.rect-node-background-%d {fill:#%s;opacity:0.2}`+"\n", rootId, getColorOverride(int16(rootId), rootColorMap)))
-		sb.WriteString(fmt.Sprintf(`.rect-node-%d {stroke:#%s}`+"\n", rootId, getColorOverride(int16(rootId), rootColorMap)))
+		sb.WriteString(fmt.Sprintf(`.rect-node-background-%d {fill:#%s;opacity:0.2}`+"\n", rootId, getColorOverride("FFFFFF", int16(rootId), rootColorMap)))
+		sb.WriteString(fmt.Sprintf(`.rect-node-%d {stroke:#%s}`+"\n", rootId, getColorOverride("000000", int16(rootId), rootColorMap)))
 	}
 	// Renderingstats
 	sb.WriteString(`.capigraph-rendering-stats {font-family:arial; font-weight:normal; font-size:10px; text-anchor:start; alignment-baseline:hanging; fill:transparent;}`)

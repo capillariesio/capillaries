@@ -117,7 +117,7 @@ func validateScript(envConfig *env.EnvConfig) int {
 	}
 
 	if *paramsFormat == "capigraph" {
-		fmt.Println(api.GetCapigraphDiagram(script, strings.Contains(*paramsDetail, "idx"), strings.Contains(*paramsDetail, "field"), nil))
+		fmt.Println(api.GetCapigraphDiagram(script, strings.Contains(*paramsDetail, "idx"), strings.Contains(*paramsDetail, "field"), true, nil))
 	} else {
 		fmt.Println(api.GetDotDiagram(script, strings.Contains(*paramsDetail, "idx"), strings.Contains(*paramsDetail, "field"), nil))
 	}
@@ -362,7 +362,7 @@ func getRunStatusDiagram(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 		for _, node := range nodes {
 			nodeColorMap[node.ScriptNode] = api.NodeBatchStatusToCapigraphColor(node.Status)
 		}
-		fmt.Println(api.GetCapigraphDiagram(script, false, false, nodeColorMap))
+		fmt.Println(api.GetCapigraphDiagram(script, false, false, false, nodeColorMap))
 	} else {
 		nodeColorMap := map[string]string{}
 		for _, node := range nodes {

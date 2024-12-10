@@ -1,11 +1,17 @@
 <script context="module">
+	export function rootLink() {
+		return '/#/';
+	}
+	export function ksMatrixLink(ksName) {
+		return '/#/ks/' + ksName + '/matrix';
+	}
 	export function webapiUrl() {
 		// If no Webapi url supplied, assume it's a dev environment and use our best guess
 		const webapiUrlEnvVar = import.meta.env.VITE_WEBAPI_URL;
-		return !!webapiUrlEnvVar ? webapiUrlEnvVar : 'http://localhost:6543';
+		return webapiUrlEnvVar ? webapiUrlEnvVar : 'http://localhost:6543';
 	}
 	export function handleResponse(responseJson, setWebapiDataFunc) {
-		if (!!responseJson.error.msg) {
+		if (responseJson.error.msg) {
 			console.log(responseJson.error.msg);
 			setWebapiDataFunc(null, responseJson.error.msg);
 		} else {
@@ -26,20 +32,17 @@
 				return 'Black'; //"Unknown"
 		}
 	}
-</script>
-
-<script>
-	export function rootLink() {
-		return '/#/';
-	}
-	export function ksMatrixLink(ksName) {
-		return '/#/ks/' + ksName + '/matrix';
-	}
-	export function ksRunNodeBatchHistoryLink(ksName, runId, nodeName) {
-		return '/#/ks/' + ksName + '/run/' + runId + '/node/' + nodeName + '/batch_history';
-	}
-	export function ksRunNodeHistoryLink(ksName, runId) {
-		return '/#/ks/' + ksName + '/run/' + runId + '/node_history';
+	export function runStatusToIconLink(runStatus) {
+		switch (runStatus) {
+			case 1:
+				return 'i/blue-run.svg';
+			case 2:
+				return 'i/blue-finish.svg';
+			case 3:
+				return 'i/blue-stop.svg';
+			default:
+				return 'i/blue-question.svg';
+		}
 	}
 	export function runStatusToIconStatic(runStatus) {
 		switch (runStatus) {
@@ -53,19 +56,6 @@
 				return 'i/black-question.svg';
 		}
 	}
-	export function runStatusToIconLink(runStatus) {
-		switch (runStatus) {
-			case 1:
-				return 'i/blue-run.svg';
-			case 2:
-				return 'i/blue-finish.svg';
-			case 3:
-				return 'i/blue-stop.svg';
-			default:
-				return 'i/blue-question.svg';
-		}
-	}
-
 	export function runStatusToText(runStatus) {
 		switch (runStatus) {
 			case 1:
@@ -78,22 +68,12 @@
 				return 'Unknown';
 		}
 	}
-
-	export function nodeStatusToIconStatic(nodeStatus) {
-		switch (nodeStatus) {
-			case 1:
-				return 'i/black-run.svg';
-			case 2:
-				return 'i/black-check.svg';
-			case 3:
-				return 'i/black-triangle.svg';
-			case 104:
-				return 'i/black-stop.svg';
-			default:
-				return 'i/black-question.svg';
-		}
+	export function ksRunNodeHistoryLink(ksName, runId) {
+		return '/#/ks/' + ksName + '/run/' + runId + '/node_history';
 	}
-
+	export function ksRunNodeBatchHistoryLink(ksName, runId, nodeName) {
+		return '/#/ks/' + ksName + '/run/' + runId + '/node/' + nodeName + '/batch_history';
+	}
 	export function nodeStatusToIconLink(nodeStatus) {
 		switch (nodeStatus) {
 			case 1:
@@ -108,7 +88,6 @@
 				return 'i/blue-question.svg';
 		}
 	}
-
 	export function nodeStatusToText(nodeStatus) {
 		switch (nodeStatus) {
 			case 1:
@@ -122,5 +101,34 @@
 			default:
 				return 'Unknown';
 		}
+	}
+	export function nodeStatusToIconStatic(nodeStatus) {
+		switch (nodeStatus) {
+			case 1:
+				return 'i/black-run.svg';
+			case 2:
+				return 'i/black-check.svg';
+			case 3:
+				return 'i/black-triangle.svg';
+			case 104:
+				return 'i/black-stop.svg';
+			default:
+				return 'i/black-question.svg';
+		}
+	}
+	export function statusVizUrl(ks_name, run_id) {
+		return webapiUrl() + '/ks/' + ks_name + '/run/' + run_id + '/viz?is_status=true';
+	}
+
+	export function scriptVizUrl(ks_name, run_id, use_root_palette) {
+		return (
+			webapiUrl() +
+			'/ks/' +
+			ks_name +
+			'/run/' +
+			run_id +
+			'/viz?use_root_palette=' +
+			String(use_root_palette)
+		);
 	}
 </script>

@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/capillariesio/capillaries/pkg/capigraph"
@@ -255,20 +256,35 @@ func nodeTypeIcon(node *sc.ScriptNodeDef) string {
 	}
 }
 
-func GetCapigraphDiagram(scriptDef *sc.ScriptDef, showIdx bool, showFields bool, nodeStringColorMap map[string]int32) string {
+func GetCapigraphDiagram(scriptDef *sc.ScriptDef, showIdx bool, showFields bool, useRootPalette bool, nodeStringColorMap map[string]int32) string {
 	nodeDefs := make([]capigraph.NodeDef, len(scriptDef.ScriptNodes)+1)
 	nodeDefs[0] = capigraph.NodeDef{0, "", capigraph.EdgeDef{}, []capigraph.EdgeDef{}, "", 0, false}
 	nodeNameMap := map[string]int16{}
 
-	// Populate nodes
-	nodeIdx := int16(1)
-	for _, node := range scriptDef.ScriptNodes {
-		nodeNameMap[node.Name] = nodeIdx
+	// Populate nodes. Before that, sort node names, otherwise they may appear on the diagram in random order (when best distances are close)
+	nodeNames := make([]string, len(scriptDef.ScriptNodes))
+	nodeIdx := int16(0)
+	for nodeName := range scriptDef.ScriptNodes {
+		nodeNames[nodeIdx] = nodeName
+		nodeIdx++
+	}
+	sort.Slice(nodeNames, func(i, j int) bool { return nodeNames[i] < nodeNames[j] })
+
+	nodeIdx = int16(1)
+	for _, nodeName := range nodeNames {
+		node := scriptDef.ScriptNodes[nodeName]
+		nodeNameMap[nodeName] = nodeIdx
 		color := int32(0)
 		if nodeStringColorMap != nil {
 			color = nodeStringColorMap[node.Name]
 		}
-		nodeDefs[nodeIdx] = capigraph.NodeDef{nodeIdx, fmt.Sprintf("%s\n%s\n%s", node.Name, node.Desc, nodeTypeDescription(node)), capigraph.EdgeDef{}, []capigraph.EdgeDef{}, nodeTypeIcon(node), color, node.StartPolicy == sc.NodeStartManual}
+		if nodeStringColorMap != nil {
+			// Short desc
+			nodeDefs[nodeIdx] = capigraph.NodeDef{nodeIdx, fmt.Sprintf("\n%s\n", nodeName), capigraph.EdgeDef{}, []capigraph.EdgeDef{}, nodeTypeIcon(node), color, node.StartPolicy == sc.NodeStartManual}
+		} else {
+			// Full desc
+			nodeDefs[nodeIdx] = capigraph.NodeDef{nodeIdx, fmt.Sprintf("%s\n%s\n%s", nodeName, node.Desc, nodeTypeDescription(node)), capigraph.EdgeDef{}, []capigraph.EdgeDef{}, nodeTypeIcon(node), color, node.StartPolicy == sc.NodeStartManual}
+		}
 		nodeIdx++
 	}
 
@@ -307,6 +323,7 @@ func GetCapigraphDiagram(scriptDef *sc.ScriptDef, showIdx bool, showFields bool,
 				if showIdx {
 					sb.WriteString("\n")
 				}
+				sort.Slice(allUsedFields, func(i, j int) bool { return allUsedFields[i].FieldName < allUsedFields[j].FieldName })
 				for i := 0; i < len(allUsedFields); i++ {
 					if allUsedFields[i].TableName == sc.ReaderAlias {
 						if sb.Len() > 0 {
@@ -348,7 +365,7 @@ func GetCapigraphDiagram(scriptDef *sc.ScriptDef, showIdx bool, showFields bool,
 	edgeFo := capigraph.FontOptions{capigraph.FontTypefaceArial, capigraph.FontWeightNormal, 18, 0.3}
 	edgeOptions := capigraph.EdgeOptions{2.0}
 	palette := capigraph.DefaultPalette()
-	if nodeStringColorMap != nil {
+	if nodeStringColorMap != nil || !useRootPalette {
 		palette = nil
 	}
 	svg, _, _, _, _, errOpt := capigraph.DrawOptimized(nodeDefs, nodeFo, edgeFo, edgeOptions, CapillariesIcons100x100, "", palette)

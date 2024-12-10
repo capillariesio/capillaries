@@ -1,17 +1,13 @@
 <script>
-	import { openModal } from 'svelte-modals';
+	import { modals } from 'svelte-modals';
 	import dayjs from 'dayjs';
 	import ModalStopRun from '../modals/ModalStopRun.svelte';
-	import Util from '../Util.svelte';
-	let util;
+	import { runStatusToIconStatic, runStatusToText } from '../Util.svelte';
 
-	// Component parameters
-	export let run_lifespan = {};
-	export let run_props = {};
-	export let ks_name = '';
+	const { run_lifespan = {}, run_props = {}, ks_name = '' } = $props();
 
 	function onStop() {
-		openModal(ModalStopRun, { keyspace: ks_name, run_id: run_lifespan.run_id });
+		modals.open(ModalStopRun, { ks_name: ks_name, run_id: run_lifespan.run_id });
 	}
 
 	function calculateElapsed(ls) {
@@ -25,12 +21,12 @@
 	}
 </script>
 
-<Util bind:this={util} />
-
 {#if Object.keys(run_lifespan).length > 0}
 	<table>
 		<thead>
-			<th colspan="3">Run summary</th>
+			<tr>
+				<th colspan="3">Run summary</th>
+			</tr>
 		</thead>
 		<tbody>
 			<tr>
@@ -74,13 +70,13 @@
 				<td>Status</td>
 				<td colspan="2" style="white-space: nowrap;">
 					<img
-						src={util.runStatusToIconStatic(run_lifespan.final_status)}
-						title={util.runStatusToText(run_lifespan.final_status)}
+						src={runStatusToIconStatic(run_lifespan.final_status)}
+						title={runStatusToText(run_lifespan.final_status)}
 						alt=""
 					/>&nbsp;
-					{util.runStatusToText(run_lifespan.final_status)}&nbsp;
+					{runStatusToText(run_lifespan.final_status)}&nbsp;
 					{#if run_lifespan.final_status != 3}<button
-							on:click={onStop}
+							onclick={onStop}
 							title={run_lifespan.final_status === 1
 								? 'Stop run'
 								: 'Invalidate the results of a complete run so they cannot be used in depending runs'}
@@ -100,11 +96,11 @@
 				<td>{run_props.run_description}</td>
 			</tr>
 			<tr>
-				<td>Script URI:</td>
+				<td>Script URL:</td>
 				<td>{run_props.script_uri}</td>
 			</tr>
 			<tr>
-				<td>Script parameters URI:</td>
+				<td>Script parameters URL:</td>
 				<td>{run_props.script_params_uri}</td>
 			</tr>
 			<tr>

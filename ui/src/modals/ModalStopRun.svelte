@@ -1,36 +1,30 @@
 <script>
-	import { closeModal } from 'svelte-modals';
 	import dayjs from 'dayjs';
 	import { webapiUrl, handleResponse } from '../Util.svelte';
 
-	// provided by Modals
-	export let isOpen;
+	const { isOpen, close, ks_name, run_id } = $props();
 
-	// Component parameters
-	export let run_id;
-	export let keyspace;
+	let responseError = $state('');
+	let webapiWaiting = $state(false);
+	let stopComment = $state(
+		'Manually stopped/invalidated from Capillaries-UI at ' +
+			dayjs().format('MMM D, YYYY HH:mm:ss.SSS Z')
+	);
 
-	let responseError = '';
-	let webapiWaiting = false;
 	function setWebapiData(dataFromJson, errorFromJson) {
 		webapiWaiting = false;
-		if (!!errorFromJson) {
+		if (errorFromJson) {
 			responseError =
 				'cannot stop this run, Capillaries webapi returned an error: ' + errorFromJson;
 		} else {
 			responseError = '';
-			closeModal();
+			close();
 		}
 	}
 
-	// Local variables
-	let stopComment =
-		'Manually stopped/invalidated from Capillaries-UI at ' +
-		dayjs().format('MMM D, YYYY HH:mm:ss.SSS Z');
-
 	function stopAndCloseModal() {
 		webapiWaiting = true;
-		let url = webapiUrl() + '/ks/' + keyspace + '/run/' + run_id;
+		let url = webapiUrl() + '/ks/' + ks_name + '/run/' + run_id;
 		let method = 'DELETE';
 		fetch(new Request(url, { method: method, body: '{"comment": "' + stopComment + '"}' }))
 			.then((response) => response.json())
@@ -47,9 +41,9 @@
 {#if isOpen}
 	<div role="dialog" class="modal">
 		<div class="contents">
-			<p>You are about to stop/invalidate run {run_id} in {keyspace}</p>
+			<p>You are about to stop/invalidate run {run_id} in {ks_name}</p>
 			Comment (will be stored in run history):
-			<input bind:value={stopComment} disabled={webapiWaiting} />
+			<input value={stopComment} disabled={webapiWaiting} />
 			<p style="color:red;">{responseError}</p>
 
 			<div class="actions">
@@ -58,8 +52,8 @@
 						style="height: 30px;padding-right: 10px;padding-top: 5px;"
 						alt=""
 					/>{/if}
-				<button on:click={closeModal} disabled={webapiWaiting}>Cancel</button>
-				<button on:click={stopAndCloseModal} disabled={webapiWaiting}>OK</button>
+				<button onclick={close} disabled={webapiWaiting}>Cancel</button>
+				<button onclick={stopAndCloseModal} disabled={webapiWaiting}>OK</button>
 			</div>
 		</div>
 	</div>
