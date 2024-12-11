@@ -97,11 +97,11 @@
 			</tr>
 			<tr>
 				<td>Script URL:</td>
-				<td>{run_props.script_uri}</td>
+				<td>{run_props.script_url}</td>
 			</tr>
 			<tr>
 				<td>Script parameters URL:</td>
-				<td>{run_props.script_params_uri}</td>
+				<td>{run_props.script_params_url}</td>
 			</tr>
 			<tr>
 				<td>Start nodes:</td>

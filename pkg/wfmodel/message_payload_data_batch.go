@@ -6,8 +6,8 @@ import (
 )
 
 type MessagePayloadDataBatch struct {
-	ScriptURI       string `json:"script_uri"`
-	ScriptParamsURI string `json:"script_params_uri"`
+	ScriptURL       string `json:"script_url"`
+	ScriptParamsURL string `json:"script_params_url"`
 	DataKeyspace    string `json:"data_keyspace"` // Instance/process id
 	RunId           int16  `json:"run_id"`
 	TargetNodeName  string `json:"target_node"`
@@ -22,8 +22,8 @@ func (dc *MessagePayloadDataBatch) FullBatchId() string {
 }
 
 func (dc *MessagePayloadDataBatch) ToString() string {
-	return fmt.Sprintf("ScriptURI:%s,ScriptParamsURI:%s, DataKeyspace:%s, RunId:%d, TargetNodeName:%s, FirstToken:%d, LastToken:%d, BatchIdx:%d, BatchesTotal:%d. ",
-		dc.ScriptURI, dc.ScriptParamsURI, dc.DataKeyspace, dc.RunId, dc.TargetNodeName, dc.FirstToken, dc.LastToken, dc.BatchIdx, dc.BatchesTotal)
+	return fmt.Sprintf("ScriptURL:%s,ScriptParamsURL:%s, DataKeyspace:%s, RunId:%d, TargetNodeName:%s, FirstToken:%d, LastToken:%d, BatchIdx:%d, BatchesTotal:%d. ",
+		dc.ScriptURL, dc.ScriptParamsURL, dc.DataKeyspace, dc.RunId, dc.TargetNodeName, dc.FirstToken, dc.LastToken, dc.BatchIdx, dc.BatchesTotal)
 }
 
 func (dc *MessagePayloadDataBatch) Deserialize(jsonBytes []byte) error {

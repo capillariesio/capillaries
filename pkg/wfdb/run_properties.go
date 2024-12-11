@@ -100,14 +100,14 @@ func HarvestRunIdsByAffectedNodes(logger *l.CapiLogger, pCtx *ctx.MessageProcess
 	return runIds, nodeAffectingRunIdsMap, nil
 }
 
-func WriteRunProperties(cqlSession *gocql.Session, keyspace string, runId int16, startNodes []string, affectedNodes []string, scriptUri string, scriptParamsUri string, runDescription string) error {
+func WriteRunProperties(cqlSession *gocql.Session, keyspace string, runId int16, startNodes []string, affectedNodes []string, scriptUrl string, scriptParamsUrl string, runDescription string) error {
 	q := (&cql.QueryBuilder{}).
 		Keyspace(keyspace).
 		Write("run_id", runId).
 		Write("start_nodes", strings.Join(startNodes, ",")).
 		Write("affected_nodes", strings.Join(affectedNodes, ",")).
-		Write("script_uri", scriptUri).
-		Write("script_params_uri", scriptParamsUri).
+		Write("script_url", scriptUrl).
+		Write("script_params_url", scriptParamsUrl).
 		Write("run_description", runDescription).
 		InsertUnpreparedQuery(wfmodel.TableNameRunAffectedNodes, cql.IgnoreIfExists) // If not exists. First one wins.
 	err := cqlSession.Query(q).Exec()

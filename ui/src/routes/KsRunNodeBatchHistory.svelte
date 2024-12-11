@@ -70,7 +70,7 @@
 		breadcrumbsPathElements = [
 			{ title: 'Keyspaces', link: rootLink() },
 			{ title: ks_name, link: ksMatrixLink(ks_name) },
-			{ title: 'Batch history: run ' + run_id + ', node ' + node_name }
+			{ title: 'run ' + run_id + ' batch history for node ' + node_name }
 		];
 		fetchData();
 	});

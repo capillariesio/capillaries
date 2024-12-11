@@ -150,7 +150,7 @@ func TestTagAndDenormalizeDeserializeFileCriteria(t *testing.T) {
 
 	re := regexp.MustCompile(`"tag_criteria": \{[^\}]+\}`)
 	err := scriptDef.Deserialize(
-		[]byte(re.ReplaceAllString(scriptJson, `"tag_criteria_uri": "../../../test/data/cfg/tag_and_denormalize_quicktest/tag_criteria.json"`)), sc.ScriptJson,
+		[]byte(re.ReplaceAllString(scriptJson, `"tag_criteria_url": "../../../test/data/cfg/tag_and_denormalize_quicktest/tag_criteria.json"`)), sc.ScriptJson,
 		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil)
 	assert.Nil(t, err)
 
@@ -282,12 +282,12 @@ func TestTagAndDenormalizeDeserializeFailures(t *testing.T) {
 	assert.Contains(t, err.Error(), "cannot unmarshal with tag_criteria and tag_criteria_url missing")
 
 	err = scriptDef.Deserialize(
-		[]byte(re.ReplaceAllString(scriptJson, `"tag_criteria":{"a":"b"},"tag_criteria_uri":"aaa"`)), sc.ScriptJson,
+		[]byte(re.ReplaceAllString(scriptJson, `"tag_criteria":{"a":"b"},"tag_criteria_url":"aaa"`)), sc.ScriptJson,
 		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil)
 	assert.Contains(t, err.Error(), "cannot unmarshal both tag_criteria and tag_criteria_url - pick one")
 
 	err = scriptDef.Deserialize(
-		[]byte(re.ReplaceAllString(scriptJson, `"tag_criteria_uri":"aaa"`)), sc.ScriptJson,
+		[]byte(re.ReplaceAllString(scriptJson, `"tag_criteria_url":"aaa"`)), sc.ScriptJson,
 		&TagAndDenormalizeTestTestProcessorDefFactory{}, map[string]json.RawMessage{"tag_and_denormalize": {}}, "", nil)
 	assert.Contains(t, err.Error(), "cannot get criteria file")
 

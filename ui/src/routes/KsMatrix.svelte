@@ -195,7 +195,7 @@
 			target="_blank"
 			href={scriptVizUrl(ks_name, webapiData.run_lifespans[0].run_id, false)}>here</a
 		>
-		for B&W, click
+		for black and white, click
 		<a target="_blank" href={scriptVizUrl(ks_name, webapiData.run_lifespans[0].run_id, true)}
 			>here</a
 		> for colored by root node.

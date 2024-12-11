@@ -112,8 +112,10 @@
 		}
 	}
 
-	var timer;
+	var dataTimer;
+	var svgTimer;
 	let isDestroyed = false;
+
 	function fetchData() {
 		let url = webapiUrl() + '/ks/' + ks_name + '/run/' + run_id + '/node_history';
 		let method = 'GET';
@@ -124,9 +126,9 @@
 				if (!isDestroyed) {
 					if (webapiData.run_lifespan.final_status > 1) {
 						// Run complete, nothing to expect here
-						timer = setTimeout(fetchData, 5000);
+						dataTimer = setTimeout(fetchData, 10000);
 					} else {
-						timer = setTimeout(fetchData, 500);
+						dataTimer = setTimeout(fetchData, 1000);
 					}
 				}
 			})
@@ -139,15 +141,25 @@
 					', error:' +
 					error;
 				console.log(error);
-				timer = setTimeout(fetchData, 3000);
+				dataTimer = setTimeout(fetchData, 3000);
 			});
+	}
 
-		url = statusVizUrl(ks_name, run_id);
-		method = 'GET';
+	function fetchSvg() {
+		let url = statusVizUrl(ks_name, run_id);
+		let method = 'GET';
 		fetch(new Request(url, { method: method }))
 			.then((response) => response.text())
 			.then((responseText) => {
 				svgStatusViz = responseText;
+				if (!isDestroyed) {
+					if (webapiData.run_lifespan.final_status > 1) {
+						// Run complete, nothing to expect here
+						svgTimer = setTimeout(fetchSvg, 10000);
+					} else {
+						svgTimer = setTimeout(fetchSvg, 1000);
+					}
+				}
 			})
 			.catch((error) => {
 				responseError =
@@ -158,6 +170,7 @@
 					', error:' +
 					error;
 				console.log(error);
+				svgTimer = setTimeout(fetchSvg, 3000);
 			});
 	}
 
@@ -168,10 +181,12 @@
 			{ title: 'run ' + run_id + ' node history' }
 		];
 		fetchData();
+		fetchSvg();
 	});
 	onDestroy(() => {
 		isDestroyed = true;
-		if (timer) clearTimeout(timer);
+		if (dataTimer) clearTimeout(dataTimer);
+		if (svgTimer) clearTimeout(svgTimer);
 	});
 </script>
 
@@ -185,10 +200,11 @@
 	<span style="color:#008000">node completed successfully</span>,
 	<span style="color:#FF0000">node failed</span>,
 	<span style="color:#FF8C00">run stop signal received</span>, no color - node was not procesed
-	during this run. To see a static copy of it in a separate window, click
-	<a target="_blank" href={statusVizUrl(ks_name, run_id)}>here</a>. To see detailed script diagram
-	not reflecting run status, click
-	<a target="_blank" href={scriptVizUrl(ks_name, run_id)}>here</a>.
+	during this run. To see a static copy of it in a separate window,
+	click <a target="_blank" href={statusVizUrl(ks_name, run_id)}>here</a>.
+	To see detailed script diagram not reflecting run status,
+	click <a target="_blank" href={scriptVizUrl(ks_name, run_id, false)}>here</a> for black and white,
+	or <a target="_blank" href={scriptVizUrl(ks_name, run_id, true)}>here</a> for colored by root node.
 </p>
 
 <div style="width:100%">

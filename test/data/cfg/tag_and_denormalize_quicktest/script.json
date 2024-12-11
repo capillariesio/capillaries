@@ -5,7 +5,7 @@
             "desc": "Load tags from file",
             "r": {
                 "urls": [
-                    "{dir_in}/tags.csv{uri_suffix}"
+                    "{dir_in}/tags.csv{l_suffix}"
                 ],
                 "csv": {
                     "first_data_line_idx": 0
@@ -35,7 +35,7 @@
             "explicit_run_only": true,
             "r": {
                 "urls": [
-                    "{dir_in}/flipcart_products.tsv{uri_suffix}"
+                    "{dir_in}/flipcart_products.tsv{url_suffix}"
                 ],
                 "csv": {
                     "separator": "\t",
@@ -113,7 +113,7 @@
             },
             "p": {
                 "tag_field_name": "tag",
-                "tag_criteria_uri": "{dir_cfg}/tag_criteria.json{uri_suffix}"
+                "tag_criteria_url": "{dir_cfg}/tag_criteria.json{url_suffix}"
             },
             "w": {
                 "name": "tagged_products",

@@ -193,7 +193,7 @@ func nodeTypeDescription(node *sc.ScriptNodeDef) string {
 				shortenFileName(node.CustomProcessor.(*py_calc.PyCalcProcessorDef).PythonUrls[0]),
 				node.TableCreator.Name)
 		case tag_and_denormalize.ProcessorTagAndDenormalizeName:
-			tagCriteriaUrl := shortenFileName(node.CustomProcessor.(*tag_and_denormalize.TagAndDenormalizeProcessorDef).RawTagCriteriaUri)
+			tagCriteriaUrl := shortenFileName(node.CustomProcessor.(*tag_and_denormalize.TagAndDenormalizeProcessorDef).RawTagCriteriaUrl)
 			if len(tagCriteriaUrl) == 0 {
 				tagCriteriaUrl = "(inline)"
 			}
@@ -278,12 +278,16 @@ func GetCapigraphDiagram(scriptDef *sc.ScriptDef, showIdx bool, showFields bool,
 		if nodeStringColorMap != nil {
 			color = nodeStringColorMap[node.Name]
 		}
+
+		// This is a root node marked as "manual". Do not show "manual" marker,
+		// it is redundant in this case and may be confusing
+		isReallyStartedManually := !node.HasFileReader() && node.StartPolicy == sc.NodeStartManual
 		if nodeStringColorMap != nil {
 			// Short desc
-			nodeDefs[nodeIdx] = capigraph.NodeDef{nodeIdx, fmt.Sprintf("\n%s\n", nodeName), capigraph.EdgeDef{}, []capigraph.EdgeDef{}, nodeTypeIcon(node), color, node.StartPolicy == sc.NodeStartManual}
+			nodeDefs[nodeIdx] = capigraph.NodeDef{nodeIdx, fmt.Sprintf("\n%s\n", nodeName), capigraph.EdgeDef{}, []capigraph.EdgeDef{}, nodeTypeIcon(node), color, isReallyStartedManually}
 		} else {
 			// Full desc
-			nodeDefs[nodeIdx] = capigraph.NodeDef{nodeIdx, fmt.Sprintf("%s\n%s\n%s", nodeName, node.Desc, nodeTypeDescription(node)), capigraph.EdgeDef{}, []capigraph.EdgeDef{}, nodeTypeIcon(node), color, node.StartPolicy == sc.NodeStartManual}
+			nodeDefs[nodeIdx] = capigraph.NodeDef{nodeIdx, fmt.Sprintf("%s\n%s\n%s", nodeName, node.Desc, nodeTypeDescription(node)), capigraph.EdgeDef{}, []capigraph.EdgeDef{}, nodeTypeIcon(node), color, isReallyStartedManually}
 		}
 		nodeIdx++
 	}

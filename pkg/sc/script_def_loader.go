@@ -26,9 +26,9 @@ func getFileType(url string) (ScriptType, error) {
 func NewScriptFromFileBytes(
 	caPath string,
 	privateKeys map[string]string,
-	scriptUri string,
+	scriptUrl string,
 	jsonOrYamlBytesScript []byte,
-	scriptParamsUri string,
+	scriptParamsUrl string,
 	jsonOrYamlBytesParams []byte,
 	customProcessorDefFactoryInstance CustomProcessorDefFactory,
 	customProcessorsSettings map[string]json.RawMessage) (*ScriptDef, ScriptInitProblemType, error) {
@@ -50,19 +50,19 @@ func NewScriptFromFileBytes(
 	re = regexp.MustCompile(`([^"]{[a-zA-Z0-9_]+\|(number|bool)})|({[a-zA-Z0-9_]+\|(number|bool)}[^"])`)
 	invalidParamRefs := re.FindAllString(jsonOrYamlScriptString, -1)
 	if len(invalidParamRefs) > 0 {
-		return nil, ScriptInitUrlProblem, fmt.Errorf("cannot parse number/bool script parameter references in [%s], the following parameter references should not have extra characters between curly braces and double quotes: [%s]", scriptUri, strings.Join(invalidParamRefs, ","))
+		return nil, ScriptInitUrlProblem, fmt.Errorf("cannot parse number/bool script parameter references in [%s], the following parameter references should not have extra characters between curly braces and double quotes: [%s]", scriptUrl, strings.Join(invalidParamRefs, ","))
 	}
 
 	// Apply template params here, script def should know nothing about them: they may tweak some 3d-party tfm config
 
 	paramsMap := map[string]any{}
 	if jsonOrYamlBytesParams != nil {
-		scriptParamsType, err := getFileType(scriptParamsUri)
+		scriptParamsType, err := getFileType(scriptParamsUrl)
 		if err != nil {
 			return nil, ScriptInitContentProblem, err
 		}
 		if err := JsonOrYamlUnmarshal(scriptParamsType, jsonOrYamlBytesParams, &paramsMap); err != nil {
-			return nil, ScriptInitContentProblem, fmt.Errorf("cannot unmarshal script params from [%s]: [%s]", scriptParamsUri, err.Error())
+			return nil, ScriptInitContentProblem, fmt.Errorf("cannot unmarshal script params from [%s]: [%s]", scriptParamsUrl, err.Error())
 		}
 	}
 
@@ -103,16 +103,16 @@ func NewScriptFromFileBytes(
 					for i, itemAny := range arrayParamVal {
 						itemStr, ok := itemAny.(string)
 						if !ok {
-							return nil, ScriptInitContentProblem, fmt.Errorf("stringlist contains non-string value type %T from [%s]: %s", itemAny, scriptParamsUri, templateParam)
+							return nil, ScriptInitContentProblem, fmt.Errorf("stringlist contains non-string value type %T from [%s]: %s", itemAny, scriptParamsUrl, templateParam)
 						}
 						strArray[i] = fmt.Sprintf(`"%s"`, itemStr)
 					}
 					replacerStrings[i+1] = fmt.Sprintf("[%s]", strings.Join(strArray, ","))
 				default:
-					return nil, ScriptInitContentProblem, fmt.Errorf("unsupported array parameter type %T from [%s]: %s", arrayParamVal, scriptParamsUri, templateParam)
+					return nil, ScriptInitContentProblem, fmt.Errorf("unsupported array parameter type %T from [%s]: %s", arrayParamVal, scriptParamsUrl, templateParam)
 				}
 			} else {
-				return nil, ScriptInitContentProblem, fmt.Errorf("unsupported parameter type %T from [%s]: %s", templateParamVal, scriptParamsUri, templateParam)
+				return nil, ScriptInitContentProblem, fmt.Errorf("unsupported parameter type %T from [%s]: %s", templateParamVal, scriptParamsUrl, templateParam)
 			}
 		}
 		i += 2
@@ -130,17 +130,17 @@ func NewScriptFromFileBytes(
 		}
 	}
 	if len(unresolvedParamMap) > 0 {
-		return nil, ScriptInitContentProblem, fmt.Errorf("unresolved parameter references in [%s]: %v; make sure that type in the script matches the type of the parameter value in the script parameters file", scriptUri, unresolvedParamMap)
+		return nil, ScriptInitContentProblem, fmt.Errorf("unresolved parameter references in [%s]: %v; make sure that type in the script matches the type of the parameter value in the script parameters file", scriptUrl, unresolvedParamMap)
 	}
 
-	scriptType, err := getFileType(scriptUri)
+	scriptType, err := getFileType(scriptUrl)
 	if err != nil {
 		return nil, ScriptInitContentProblem, err
 	}
 
 	newScript := &ScriptDef{}
 	if err := newScript.Deserialize([]byte(jsonOrYamlScriptString), scriptType, customProcessorDefFactoryInstance, customProcessorsSettings, caPath, privateKeys); err != nil {
-		return nil, ScriptInitContentProblem, fmt.Errorf("cannot deserialize script %s(%s): %s", scriptUri, scriptParamsUri, err.Error())
+		return nil, ScriptInitContentProblem, fmt.Errorf("cannot deserialize script %s(%s): %s", scriptUrl, scriptParamsUrl, err.Error())
 	}
 
 	return newScript, ScriptInitNoProblem, nil

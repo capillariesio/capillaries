@@ -92,8 +92,8 @@ func (msg *Message) Deserialize(jsonBytes []byte) error {
 // 	tgtMsg.Ts = time.Now().UnixMilli()
 // 	tgtMsg.MessageType = MessageTypeDataBatch
 // 	tgtMsg.Payload = MessagePayloadDataBatch{
-// 		ScriptURI:       context.BatchInfo.ScriptURI,
-// 		ScriptParamsURI: context.BatchInfo.ScriptParamsURI,
+// 		ScriptURL:       context.BatchInfo.ScriptURL,
+// 		ScriptParamsURL: context.BatchInfo.ScriptParamsURL,
 // 		DataKeyspace:    context.BatchInfo.DataKeyspace,
 // 		RunId:           context.BatchInfo.RunId,
 // 		TargetNodeName:  targetNodeName,

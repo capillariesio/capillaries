@@ -137,7 +137,7 @@ func SafeProcessBatch(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.
 
 	if err != nil {
 		logger.DebugCtx(pCtx, "batch processed, error: %s", err.Error())
-		return wfmodel.NodeBatchFail, bs, fmt.Errorf("error running node %s of type %s in the script [%s]: [%s]", pCtx.BatchInfo.TargetNodeName, pCtx.CurrentScriptNode.Type, pCtx.BatchInfo.ScriptURI, err.Error())
+		return wfmodel.NodeBatchFail, bs, fmt.Errorf("error running node %s of type %s in the script [%s]: [%s]", pCtx.BatchInfo.TargetNodeName, pCtx.CurrentScriptNode.Type, pCtx.BatchInfo.ScriptURL, err.Error())
 	}
 	logger.DebugCtx(pCtx, "batch processed ok")
 
@@ -227,14 +227,14 @@ func initCtxScript(logger *l.CapiLogger, scriptCache *expirable.LRU[string, stri
 	var initProblem sc.ScriptInitProblemType
 	var err error
 
-	pCtx.Script, initProblem, err = sc.NewScriptFromFiles(scriptCache, caPath, privateKeys, dataBatchInfo.ScriptURI, dataBatchInfo.ScriptParamsURI, customProcFactory, customProcSettings)
+	pCtx.Script, initProblem, err = sc.NewScriptFromFiles(scriptCache, caPath, privateKeys, dataBatchInfo.ScriptURL, dataBatchInfo.ScriptParamsURL, customProcFactory, customProcSettings)
 	if initProblem == sc.ScriptInitNoProblem {
 		return DaemonCmdNone
 	}
 
 	switch initProblem {
 	case sc.ScriptInitUrlProblem:
-		logger.Error("cannot init script because of URI problem, will not let other workers handle it, giving up with msg %s: %s", dataBatchInfo.ToString(), err.Error())
+		logger.Error("cannot init script because of URL problem, will not let other workers handle it, giving up with msg %s: %s", dataBatchInfo.ToString(), err.Error())
 		return DaemonCmdAckWithError
 	case sc.ScriptInitContentProblem:
 		logger.Error("cannot init script because of content problem, will not let other workers handle it, giving up with msg %s: %s", dataBatchInfo.ToString(), err.Error())
@@ -404,7 +404,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, scriptC
 	var ok bool
 	pCtx.CurrentScriptNode, ok = pCtx.Script.ScriptNodes[dataBatchInfo.TargetNodeName]
 	if !ok {
-		logger.Error("cannot find node %s in the script [%s], giving up with %s, returning DaemonCmdAckWithError, will not let other workers handle it", pCtx.BatchInfo.TargetNodeName, pCtx.BatchInfo.ScriptURI, dataBatchInfo.ToString())
+		logger.Error("cannot find node %s in the script [%s], giving up with %s, returning DaemonCmdAckWithError, will not let other workers handle it", pCtx.BatchInfo.TargetNodeName, pCtx.BatchInfo.ScriptURL, dataBatchInfo.ToString())
 		return DaemonCmdAckWithError
 	}
 

@@ -18,7 +18,7 @@ func (instr *FileInserter) createCsvFileAndStartWorker(logger *l.CapiLogger, u *
 
 	var err error
 	var f *os.File
-	if u.Scheme == xfer.UriSchemeSftp || u.Scheme == xfer.UriSchemeS3 {
+	if u.Scheme == xfer.UrlSchemeSftp || u.Scheme == xfer.UrlSchemeS3 {
 		f, err = os.CreateTemp("", "capi")
 		if err != nil {
 			return fmt.Errorf("cannot create temp file for %s: %s", instr.FinalFileUrl, err.Error())

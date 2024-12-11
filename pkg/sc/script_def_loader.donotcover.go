@@ -8,41 +8,41 @@ import (
 	"github.com/hashicorp/golang-lru/v2/expirable"
 )
 
-func NewScriptFromFiles(scriptCache *expirable.LRU[string, string], caPath string, privateKeys map[string]string, scriptUri string, scriptParamsUri string, customProcessorDefFactoryInstance CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage) (*ScriptDef, ScriptInitProblemType, error) {
+func NewScriptFromFiles(scriptCache *expirable.LRU[string, string], caPath string, privateKeys map[string]string, scriptUrl string, scriptParamsUrl string, customProcessorDefFactoryInstance CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage) (*ScriptDef, ScriptInitProblemType, error) {
 	var err error
 	var jsonBytesScript []byte
 	var jsonBytesParams []byte
 
 	if scriptCache != nil {
-		if jsonCachedScript, ok := scriptCache.Get(scriptUri); ok {
+		if jsonCachedScript, ok := scriptCache.Get(scriptUrl); ok {
 			jsonBytesScript = []byte(jsonCachedScript)
 		}
-		if scriptParamsUri != "" {
-			if jsonCachedParams, ok := scriptCache.Get(scriptParamsUri); ok {
+		if scriptParamsUrl != "" {
+			if jsonCachedParams, ok := scriptCache.Get(scriptParamsUrl); ok {
 				jsonBytesParams = []byte(jsonCachedParams)
 			}
 		}
 	}
 
 	if jsonBytesScript == nil {
-		jsonBytesScript, err = xfer.GetFileBytes(scriptUri, caPath, privateKeys)
+		jsonBytesScript, err = xfer.GetFileBytes(scriptUrl, caPath, privateKeys)
 		if err != nil {
-			return nil, ScriptInitConnectivityProblem, fmt.Errorf("cannot read script %s: %s", scriptUri, err.Error())
+			return nil, ScriptInitConnectivityProblem, fmt.Errorf("cannot read script %s: %s", scriptUrl, err.Error())
 		}
 		if scriptCache != nil {
-			scriptCache.Add(scriptUri, string(jsonBytesScript))
+			scriptCache.Add(scriptUrl, string(jsonBytesScript))
 		}
 	}
 
-	if jsonBytesParams == nil && scriptParamsUri != "" {
-		jsonBytesParams, err = xfer.GetFileBytes(scriptParamsUri, caPath, privateKeys)
+	if jsonBytesParams == nil && scriptParamsUrl != "" {
+		jsonBytesParams, err = xfer.GetFileBytes(scriptParamsUrl, caPath, privateKeys)
 		if err != nil {
-			return nil, ScriptInitConnectivityProblem, fmt.Errorf("cannot read script parameters %s: %s", scriptParamsUri, err.Error())
+			return nil, ScriptInitConnectivityProblem, fmt.Errorf("cannot read script parameters %s: %s", scriptParamsUrl, err.Error())
 		}
 		if scriptCache != nil {
-			scriptCache.Add(scriptParamsUri, string(jsonBytesParams))
+			scriptCache.Add(scriptParamsUrl, string(jsonBytesParams))
 		}
 	}
 
-	return NewScriptFromFileBytes(caPath, privateKeys, scriptUri, jsonBytesScript, scriptParamsUri, jsonBytesParams, customProcessorDefFactoryInstance, customProcessorsSettings)
+	return NewScriptFromFileBytes(caPath, privateKeys, scriptUrl, jsonBytesScript, scriptParamsUrl, jsonBytesParams, customProcessorDefFactoryInstance, customProcessorsSettings)
 }

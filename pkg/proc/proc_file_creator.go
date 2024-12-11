@@ -171,7 +171,7 @@ func RunCreateFile(envConfig *env.EnvConfig,
 
 	u, err := url.Parse(instr.FinalFileUrl)
 	if err != nil {
-		return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("cannot parse file uri %s: %s", instr.FinalFileUrl, err.Error())
+		return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("cannot parse file url %s: %s", instr.FinalFileUrl, err.Error())
 	}
 
 	if node.FileCreator.CreatorFileType == sc.CreatorFileTypeCsv {
@@ -228,11 +228,11 @@ func RunCreateFile(envConfig *env.EnvConfig,
 
 	logger.InfoCtx(pCtx, "uploading %s of size %d to %s...", instr.TempFilePath, st.Size(), instr.FinalFileUrl)
 
-	if u.Scheme == xfer.UriSchemeSftp {
+	if u.Scheme == xfer.UrlSchemeSftp {
 		return bs, xfer.UploadSftpFile(instr.TempFilePath, instr.FinalFileUrl, envConfig.PrivateKeys)
-	} else if u.Scheme == xfer.UriSchemeS3 {
+	} else if u.Scheme == xfer.UrlSchemeS3 {
 		return bs, xfer.UploadS3File(instr.TempFilePath, u)
 	}
 
-	return bs, fmt.Errorf("unexpected URI scheme %s in %s", u.Scheme, instr.FinalFileUrl)
+	return bs, fmt.Errorf("unexpected URL scheme %s in %s", u.Scheme, instr.FinalFileUrl)
 }

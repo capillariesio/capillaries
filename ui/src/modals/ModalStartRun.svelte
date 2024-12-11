@@ -32,6 +32,7 @@
 		if (ks_name in m) {
 			scriptUrl = m[ks_name]['scriptUrl'];
 			paramsUrl = m[ks_name]['paramsUrl'];
+			startNodes = "REVIEW:"+m[ks_name]['startNodes'];
 		}
 	});
 
@@ -74,7 +75,7 @@
 			validateKeyspace(ks_name) + validateUrl(scriptUrl) + validateStartNodes(startNodes);
 		if (responseError.length == 0) {
 			// For this ks, cache last used run parameters
-			$ksRunMap[ks_name] = { scriptUrl: scriptUrl, paramsUrl: paramsUrl };
+			$ksRunMap[ks_name] = { scriptUrl: scriptUrl, paramsUrl: paramsUrl, startNodes: startNodes };
 			webapiWaiting = true;
 			let url = webapiUrl() + '/ks/' + ks_name + '/run';
 			let method = 'POST';
@@ -82,8 +83,8 @@
 				new Request(url, {
 					method: method,
 					body: JSON.stringify({
-						script_uri: scriptUrl,
-						script_params_uri: paramsUrl,
+						script_url: scriptUrl,
+						script_params_url: paramsUrl,
 						start_nodes: startNodes,
 						run_description: runDesc
 					})

@@ -182,43 +182,43 @@ type WebapiNodeRunMatrix struct {
 var NodeDescCache = map[string]string{}
 var NodeDescCacheLock = sync.RWMutex{}
 
-func (h *UrlHandler) getViz(scriptCache *expirable.LRU[string, string], logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16, useRootPalette bool, isStatus bool) (string, error) {
+// func (h *UrlHandler) getViz(scriptCache *expirable.LRU[string, string], logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16, useRootPalette bool, isStatus bool) (string, error) {
 
-	// Static run props
+// 	// Static run props
 
-	runProps, err := getRunProps(logger, cqlSession, keyspace, runId)
-	if err != nil {
-		return "", err
-	}
+// 	runProps, err := getRunProps(logger, cqlSession, keyspace, runId)
+// 	if err != nil {
+// 		return "", err
+// 	}
 
-	// Now we have script URI, load it
+// 	// Now we have script URL, load it
 
-	scriptDef, _, err := sc.NewScriptFromFiles(scriptCache, h.Env.CaPath, h.Env.PrivateKeys, runProps.ScriptUri, runProps.ScriptParamsUri, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
-	if err != nil {
-		return "", err
-	}
+// 	scriptDef, _, err := sc.NewScriptFromFiles(scriptCache, h.Env.CaPath, h.Env.PrivateKeys, runProps.ScriptUrl, runProps.ScriptParamsUrl, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
+// 	if err != nil {
+// 		return "", err
+// 	}
 
-	var nodeColorMap map[string]int32
-	showIdx := true
-	showFields := true
-	if isStatus {
-		nodeColorMap = map[string]int32{}
-		nodes, err := api.GetNodeHistoryForRuns(logger, cqlSession, keyspace, []int16{runId})
-		if err != nil {
-			return "", err
-		}
-		for _, node := range nodes {
-			nodeColorMap[node.ScriptNode] = api.NodeBatchStatusToCapigraphColor(node.Status)
-		}
-		showIdx = false
-		showFields = false
-		useRootPalette = false
-	}
+// 	var nodeColorMap map[string]int32
+// 	showIdx := true
+// 	showFields := true
+// 	if isStatus {
+// 		nodeColorMap = map[string]int32{}
+// 		nodes, err := api.GetNodeHistoryForRuns(logger, cqlSession, keyspace, []int16{runId})
+// 		if err != nil {
+// 			return "", err
+// 		}
+// 		for _, node := range nodes {
+// 			nodeColorMap[node.ScriptNode] = api.NodeBatchStatusToCapigraphColor(node.Status)
+// 		}
+// 		showIdx = false
+// 		showFields = false
+// 		useRootPalette = false
+// 	}
 
-	svg := api.GetCapigraphDiagram(scriptDef, showIdx, showFields, useRootPalette, nodeColorMap)
+// 	svg := api.GetCapigraphDiagram(scriptDef, showIdx, showFields, useRootPalette, nodeColorMap)
 
-	return svg, nil
-}
+// 	return svg, nil
+// }
 
 func (h *UrlHandler) getNodeDesc(scriptCache *expirable.LRU[string, string], logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16, nodeName string) (string, error) {
 
@@ -237,9 +237,9 @@ func (h *UrlHandler) getNodeDesc(scriptCache *expirable.LRU[string, string], log
 		return "", err
 	}
 
-	// Now we have script URI, load it
+	// Now we have script URL, load it
 
-	script, _, err := sc.NewScriptFromFiles(scriptCache, h.Env.CaPath, h.Env.PrivateKeys, runProps.ScriptUri, runProps.ScriptParamsUri, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
+	script, _, err := sc.NewScriptFromFiles(scriptCache, h.Env.CaPath, h.Env.PrivateKeys, runProps.ScriptUrl, runProps.ScriptParamsUrl, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
 	if err != nil {
 		return "", err
 	}
@@ -557,8 +557,8 @@ func (h *UrlHandler) ksRunViz(w http.ResponseWriter, r *http.Request) {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 	}
 
-	// Now we have script URI, load it
-	scriptDef, _, err := sc.NewScriptFromFiles(h.ScriptCache, h.Env.CaPath, h.Env.PrivateKeys, runProps.ScriptUri, runProps.ScriptParamsUri, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
+	// Now we have script URL, load it
+	scriptDef, _, err := sc.NewScriptFromFiles(h.ScriptCache, h.Env.CaPath, h.Env.PrivateKeys, runProps.ScriptUrl, runProps.ScriptParamsUrl, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 	}
@@ -676,7 +676,7 @@ func (h *UrlHandler) ksStartRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	runId, err := api.StartRun(h.Env, h.L, amqpChannel, runProps.ScriptUri, runProps.ScriptParamsUri, cqlSession, keyspace, strings.Split(runProps.StartNodes, ","), runProps.RunDescription)
+	runId, err := api.StartRun(h.Env, h.L, amqpChannel, runProps.ScriptUrl, runProps.ScriptParamsUrl, cqlSession, keyspace, strings.Split(runProps.StartNodes, ","), runProps.RunDescription)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
