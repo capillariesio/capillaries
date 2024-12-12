@@ -23,11 +23,6 @@
 
 {#if Object.keys(run_lifespan).length > 0}
 	<table>
-		<thead>
-			<tr>
-				<th colspan="3">Run summary</th>
-			</tr>
-		</thead>
 		<tbody>
 			<tr>
 				<td>Run Id:</td>
@@ -87,7 +82,8 @@
 		</tbody>
 	</table>
 {/if}
-
+<br/>
+<br/>
 {#if Object.keys(run_props).length > 0}
 	<table>
 		<tbody>

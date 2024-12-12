@@ -1,4 +1,5 @@
 <script>
+	import Tabs from "../Tabs.svelte";
 	import { onDestroy, onMount } from 'svelte';
 	import { modals } from 'svelte-modals';
 	import dayjs from 'dayjs';
@@ -97,7 +98,11 @@
 	}
 
 	onMount(() => {
-		breadcrumbsPathElements = [{ title: 'Keyspaces', link: rootLink() }, { title: ks_name }];
+		breadcrumbsPathElements = [
+			{ title: 'Keyspaces', link: rootLink() },
+			{ title: ks_name },
+			{ title: "runs and nodes" }
+		];
 		fetchData();
 	});
 	onDestroy(() => {
@@ -110,12 +115,25 @@
 	}
 
 	function onNew() {
+		if (webapiData.run_lifespans.length > 0) {
+
+		}
 		modals.open(ModalStartRun, { ks_name: ks_name });
 	}
+	let tabs = [
+    { label: "Runs/nodes matrix",
+		 value: 1,
+		 component: tabMatrix
+		},
+		{ label: "Script node diagram",
+		 value: 2,
+		 component: tabViz
+		}
+	];
 </script>
 
-<Breadcrumbs path_elements={breadcrumbsPathElements} />
-<p style="color:red;">{responseError}</p>
+<!-- eslint-disable-next-line -->
+{#snippet tabMatrix()}
 <table>
 	<thead>
 		<tr>
@@ -188,10 +206,12 @@
 		{/each}
 	</tbody>
 </table>
+{/snippet}
+
+{#snippet tabViz()}
 {#if webapiData.run_lifespans.length > 0}
 	<p>
-		Script diagram. It's static and does not depend on the status of any run. To see it in a
-		separate window, click <a
+		This diagram is static. To see it in a separate window, click <a
 			target="_blank"
 			href={scriptVizUrl(ks_name, webapiData.run_lifespans[0].run_id, false)}>here</a
 		>
@@ -205,6 +225,13 @@
 	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 	{@html svgScriptViz}
 </div>
+{/snippet}
+
+<Breadcrumbs path_elements={breadcrumbsPathElements} />
+<p style="color:red;">{responseError}</p>
+
+<Tabs items={tabs}/>
+
 
 <style>
 	img {

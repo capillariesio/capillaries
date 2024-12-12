@@ -1,4 +1,5 @@
 <script>
+	import Tabs from "../Tabs.svelte";
 	import dayjs from 'dayjs';
 	import { onDestroy, onMount } from 'svelte';
 	import RunInfo from '../panels/RunInfo.svelte';
@@ -178,7 +179,8 @@
 		breadcrumbsPathElements = [
 			{ title: 'Keyspaces', link: rootLink() },
 			{ title: ks_name, link: ksMatrixLink(ks_name) },
-			{ title: 'run ' + run_id + ' node history' }
+			{ title: 'run ' + run_id},
+			{ title: 'node processing'}
 		];
 		fetchData();
 		fetchSvg();
@@ -188,19 +190,39 @@
 		if (dataTimer) clearTimeout(dataTimer);
 		if (svgTimer) clearTimeout(svgTimer);
 	});
+
+	let tabs = [
+		{ label: "Node status diagram",
+		 value: 1,
+		 component: tabDiagram
+		},
+		{ label: "Node processing history",
+		 value: 2,
+		 component: tabHistory
+		},
+		{ label: "Run info",
+		 value: 3,
+		 component: tabRunInfo
+		}
+	];
 </script>
 
 <Breadcrumbs path_elements={breadcrumbsPathElements} />
 <p style="color:red;">{responseError}</p>
-<RunInfo run_lifespan={webapiData.run_lifespan} run_props={webapiData.run_props} {ks_name} />
 
+{#snippet tabRunInfo()}
+<RunInfo run_lifespan={webapiData.run_lifespan} run_props={webapiData.run_props} {ks_name} />
+{/snippet}
+
+{#snippet tabDiagram()}
 <p>
-	Run status diagram. It's dynamic and evolves as nodes are processed. Color legend:
-	<span style="color:#0000FF">node started</span>,
-	<span style="color:#008000">node completed successfully</span>,
-	<span style="color:#FF0000">node failed</span>,
-	<span style="color:#FF8C00">run stop signal received</span>, no color - node was not procesed
-	during this run. To see a static copy of it in a separate window,
+	This diagram is dynamic and evolves as nodes are processed. Color legend:
+	<span class="badge started">node started</span>,
+	<span class="badge success">node completed successfully</span>,
+	<span class="badge failed">node failed</span>,
+	<span class="badge stopped">stop signal received</span>
+	<span class="badge notstarted">node not processed as part of this run (maybe yet)</span>.
+	To see a static copy of it in a separate window,
 	click <a target="_blank" href={statusVizUrl(ks_name, run_id)}>here</a>.
 	To see detailed script diagram not reflecting run status,
 	click <a target="_blank" href={scriptVizUrl(ks_name, run_id, false)}>here</a> for black and white,
@@ -211,7 +233,9 @@
 	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 	{@html svgStatusViz}
 </div>
+{/snippet}
 
+{#snippet tabHistory()}
 <table>
 	<thead>
 		<tr>
@@ -247,6 +271,9 @@
 		{/each}
 	</tbody>
 </table>
+{/snippet}
+
+<Tabs items={tabs}/>
 
 <style>
 	th {
@@ -254,5 +281,40 @@
 	}
 	img {
 		width: 20px;
+	}
+	.badge {
+		display: inline-block;
+		padding: .25em .4em;
+		font-size: 75%;
+		font-weight: 400;
+		line-height: 1;
+		text-align: center;
+		white-space: nowrap;
+		white-space-collapse: collapse;
+		text-wrap-mode: nowrap;
+		vertical-align: baseline;
+		border-radius: .25rem;
+		border-width: thin;
+		border-style: solid;
+	}
+	.success {
+		border-color:#008000;
+		background-color:#00800054;
+	}
+	.started {
+		border-color:#0000FF;
+		background-color:#0000FF54;
+	}
+	.failed {
+		border-color:#FF0000;
+		background-color:#FF000054;
+	}
+	.stopped {
+		border-color:#FF8C00;
+		background-color:#FF8C0054;
+	}
+	.notstarted {
+		border-color:#000000;
+		background-color:#FFFFFF54;
 	}
 </style>

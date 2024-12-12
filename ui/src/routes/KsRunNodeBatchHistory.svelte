@@ -1,4 +1,5 @@
 <script>
+	import Tabs from "../Tabs.svelte";
 	import dayjs from 'dayjs';
 	import { onDestroy, onMount } from 'svelte';
 	import RunInfo from '../panels/RunInfo.svelte';
@@ -70,7 +71,9 @@
 		breadcrumbsPathElements = [
 			{ title: 'Keyspaces', link: rootLink() },
 			{ title: ks_name, link: ksMatrixLink(ks_name) },
-			{ title: 'run ' + run_id + ' batch history for node ' + node_name }
+			{ title: 'run ' + run_id},
+			{ title: 'node ' + node_name },
+			{ title: 'batch processing'}
 		];
 		fetchData();
 	});
@@ -264,18 +267,31 @@
 			elapsedMedian = findMedian(elapsed).toFixed(1);
 		}
 	}
+	let tabs = [
+		{ label: "Batch processing summary",
+		 value: 1,
+		 component: tabBatchProcessingSummary
+		},
+		{ label: "Batch processing history",
+		 value: 2,
+		 component: tabBatchProcessingHistory
+		},
+    	{ label: "Run info",
+		 value: 3,
+		 component: tabRunInfo
+		}
+	];
 </script>
 
 <Breadcrumbs path_elements={breadcrumbsPathElements} />
 <p style="color:red;">{responseError}</p>
-<RunInfo run_lifespan={webapiData.run_lifespan} run_props={webapiData.run_props} {ks_name} />
 
+{#snippet tabRunInfo()}
+<RunInfo run_lifespan={webapiData.run_lifespan} run_props={webapiData.run_props} {ks_name} />
+{/snippet}
+
+{#snippet tabBatchProcessingSummary()}
 <table>
-	<thead>
-		<tr>
-			<th colspan="2">Node batch execution summary</th>
-		</tr>
-	</thead>
 	<tbody>
 		<tr>
 			<td>
@@ -330,6 +346,9 @@
 		</tr>
 	</tbody>
 </table>
+{/snippet}
+
+{#snippet tabBatchProcessingHistory()}
 <table>
 	<thead>
 		<tr>
@@ -370,6 +389,9 @@
 		{/each}
 	</tbody>
 </table>
+{/snippet}
+
+<Tabs items={tabs}/>
 
 <style>
 	th {
