@@ -14,13 +14,11 @@ fannie_mae_bigtest is a variation that uses large number of payment records borr
 
 ## Workflow
 
-The [DOT diagram](../../../doc/glossary.md#dot-diagrams) generated with
+The diagram generated with
 ```
-go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/fannie_mae_quicktest/script.json -params_file=../../../test/data/cfg/fannie_mae_bigtest/script_params.json -idx_dag=true
+go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/fannie_mae_quicktest/script.json -params_file=../../../test/data/cfg/fannie_mae_quicktest/script_params.json -detail=idx
 ```
-and rendered in https://dreampuf.github.io/GraphvizOnline :
-
-![drawing](../../../doc/dot-fanniemae.svg)
+![drawing](../../../doc/viz-fanniemae.svg)
 
 Full transcript of what the result of each script node looks like in Cassandra - [transcript_fannie_mae.md](../../../doc/transcript_fannie_mae.md).
 

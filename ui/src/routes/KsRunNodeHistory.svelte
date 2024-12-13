@@ -222,6 +222,7 @@
 	<span class="badge failed">node failed</span>,
 	<span class="badge stopped">stop signal received</span>
 	<span class="badge notstarted">node not processed as part of this run (maybe yet)</span>.
+	Nodes that require manual start are marked with a thicker border.
 	To see a static copy of it in a separate window,
 	click <a target="_blank" href={statusVizUrl(ks_name, run_id)}>here</a>.
 	To see detailed script diagram not reflecting run status,

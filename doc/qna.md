@@ -75,7 +75,7 @@ Q. Is there a UI for Capillaries?
 
 A. Yes. See [Capillaries UI](../ui/README.md) project, which is a simple web single-page application that shows the status of every [run](glossary.md#run) in every [keyspace](glossary.md#keyspace). UI requirements tend to be very business-specific, it's not an easy task to come up with a cookie-cutter UI framework that would be flexible enough. Dedicated solution developers are encouraged to develop their own UI for Capillaries workflows, using [Capillaries Webapi](glossary.md#webapi) as a back-end and [Capillaries UI](../ui/README.md) as an example.
 
-Also please note that [Toolbelt](glossary.md#toolbelt) can produce rudimentary visuals using [DOT diagram language](glossary.md#dot-diagrams) - see [Toolbelt](glossary.md#toolbelt) `validate_script`, `get_run_status_diagram` commands.
+Also please note that [Toolbelt](glossary.md#toolbelt) can produce visual diagrams - see [Toolbelt](glossary.md#toolbelt) `validate_script`, `get_run_status_diagram` commands.
 
 ## Can Capillaries run in a Docker container?
 

@@ -40,7 +40,7 @@ Node [processor type](glossary.md#processor-types)
 ### start_policy
 
 - `auto`: Capillaries automatically start this node processing when all dependency nodes are successfully completed
-- `manual`: Capillaries will start this node processing only if this node is explicitly specified on the [run](glossary.md#run) start; manual nodes are marked on the [dot diagram](dot-tag-and-denormalize.svg) with a thicker border
+- `manual`: Capillaries will start this node processing only if this node is explicitly specified on the [run](glossary.md#run) start; manual nodes are marked on the [diagram](viz-tag-and-denormalize.svg) with a thicker border
 
 Mark nodes as `manual` when you want the operator to review the results of the previous [runs](glossary.md#run) before moving ahead with the rest of the script.
 

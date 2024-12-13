@@ -85,6 +85,8 @@
 	let nodeElapsed = $state(0);
 	let elapsedAverage = $state(0);
 	let elapsedMedian = $state(0);
+	let elapsedStandardDeviation = $state(0);
+	let elapsedCVPercent = $state(0);
 
 	let nonStartedBatchesPercent = $state(100);
 	let nonStartedBatchesRatio = $state('');
@@ -221,7 +223,8 @@
 			} else {
 				lineWidth = svgHeight / batch_history[0].batches_total;
 			}
-			svgSummary = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${svgWidth} ${svgHeight}" width="${svgWidth}px" height="${svgHeight}px">\n`;
+			//svgSummary = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${svgWidth} ${svgHeight}" width="${svgWidth}px" height="${svgHeight}px">\n`;
+			svgSummary = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${svgWidth} ${svgHeight}">\n`;
 			svgSummary += `<rect width="${svgWidth}" height="${svgHeight}" fill="lightgray" />`;
 			nodeElapsed = Math.round((latestTs - earliestTs) / 1000);
 			for (var batchIdx = 0; batchIdx < batch_history[0].batches_total; batchIdx++) {
@@ -263,8 +266,17 @@
 		}
 
 		if (elapsed.length > 0) {
-			elapsedAverage = (elapsedSum / elapsed.length).toFixed(1);
-			elapsedMedian = findMedian(elapsed).toFixed(1);
+			elapsedAverage = (elapsedSum / elapsed.length);
+			elapsedMedian = findMedian(elapsed);
+
+			let deviationSum = 0;
+			for (let i = 0; i < batch_history.length; i++) {
+				let e = batch_history[i].elapsed;
+				deviationSum += (e-elapsedAverage)*(e-elapsedAverage)
+			}
+			let variance = deviationSum/elapsed.length;
+			elapsedStandardDeviation = Math.sqrt(variance);
+			elapsedCVPercent = (elapsedStandardDeviation/elapsedAverage*100.0);
 		}
 	}
 	let tabs = [
@@ -291,61 +303,58 @@
 {/snippet}
 
 {#snippet tabBatchProcessingSummary()}
+{#if executionDetailsVisible}
 <table>
 	<tbody>
 		<tr>
-			<td>
-				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-				{@html svgSummary}
-			</td>
-			<td>
-				{#if executionDetailsVisible}
-					<table>
-						<tbody>
-							<tr>
-								<td>Elapsed:</td>
-								<td>{nodeElapsed}s</td>
-								<td colspan="2">(not very useful, skewed by other nodes)</td>
-							</tr>
-							<tr>
-								<td>Elapsed average:</td>
-								<td colspan="3">{elapsedAverage}s</td>
-							</tr>
-							<tr>
-								<td>Elapsed median:</td>
-								<td colspan="3">{elapsedMedian}s</td>
-							</tr>
-							<tr>
-								<td>Batches not started:</td>
-								<td style="text-align: right; width:1%;">{nonStartedBatchesPercent.toFixed(0)}%</td>
-								<td style="text-align: right; width:1%;">{nonStartedBatchesRatio}</td>
-								<td>{nonStartedBatches}</td>
-							</tr>
-							<tr>
-								<td>Batches started:</td>
-								<td style="text-align: right; width:1%;">{startedBatchesPercent.toFixed(0)}%</td>
-								<td style="text-align: right; width:1%;">{startedBatchesRatio}</td>
-								<td>{startedBatches}</td>
-							</tr>
-							<tr>
-								<td>Batches running:</td>
-								<td style="text-align: right; width:1%;">{runningBatchesPercent.toFixed(0)}%</td>
-								<td style="text-align: right; width:1%;">{runningBatchesRatio}</td>
-								<td>{runningBatches}</td>
-							</tr>
-							<tr>
-								<td>Batches finished:</td>
-								<td style="text-align: right; width:1%;">{finishedBatchesPercent.toFixed(0)}%</td>
-								<td style="text-align: right; width:1%;">{finishedBatchesRatio}</td>
-								<td>{finishedBatches}</td>
-							</tr>
-						</tbody>
-					</table>
-				{/if}
-			</td>
+			<td>Elapsed total:</td>
+			<td>{nodeElapsed}s</td>
+			<td colspan="2">(not very useful, usually skewed by other nodes/runs/scripts)</td>
+		</tr>
+		<tr>
+			<td>Elapsed average:</td>
+			<td colspan="3">{elapsedAverage.toFixed(1)}s</td>
+		</tr>
+		<tr>
+			<td>Elapsed standard deviation and CV:</td>
+			<td style="text-wrap-mode: nowrap;">{elapsedStandardDeviation.toFixed(2)}s ({elapsedCVPercent.toFixed(1)}%)</td>
+			<td colspan="2">(small SD means no data skew and even distribution of the CPU load)</td>
+		</tr>
+		<tr>
+			<td>Elapsed median:</td>
+			<td colspan="3">{elapsedMedian.toFixed(1)}s</td>
+		</tr>
+		<tr>
+			<td>Batches not started:</td>
+			<td style="text-align: right; width:1%;">{nonStartedBatchesPercent.toFixed(0)}%</td>
+			<td style="text-align: right; width:1%;">{nonStartedBatchesRatio}</td>
+			<td>{nonStartedBatches}</td>
+		</tr>
+		<tr>
+			<td>Batches started:</td>
+			<td style="text-align: right; width:1%;">{startedBatchesPercent.toFixed(0)}%</td>
+			<td style="text-align: right; width:1%;">{startedBatchesRatio}</td>
+			<td>{startedBatches}</td>
+		</tr>
+		<tr>
+			<td>Batches running:</td>
+			<td style="text-align: right; width:1%;">{runningBatchesPercent.toFixed(0)}%</td>
+			<td style="text-align: right; width:1%;">{runningBatchesRatio}</td>
+			<td>{runningBatches}</td>
+		</tr>
+		<tr>
+			<td>Batches finished:</td>
+			<td style="text-align: right; width:1%;">{finishedBatchesPercent.toFixed(0)}%</td>
+			<td style="text-align: right; width:1%;">{finishedBatchesRatio}</td>
+			<td>{finishedBatches}</td>
 		</tr>
 	</tbody>
 </table>
+{/if}
+<div style="width:100%">
+	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+	{@html svgSummary}
+</div>
 {/snippet}
 
 {#snippet tabBatchProcessingHistory()}

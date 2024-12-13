@@ -73,7 +73,7 @@ Default: 5 threads
 Path to the directory containing PEM certificates for all supported CAs. Required only if any of the following is referenced by HTTPS:
 - script file
 - script parameter file
-- [tag_criteria_uri](glossary.md#tag_criteria_uri)
+- [tag_criteria_url](glossary.md#tag_criteria_url)
 - input data files
 
 To obtain the PEM cert, navigate to the file URI with a browser, open certificate information, navigate to the root certificate, save it as DER/CER (say, digicert.cer), and convert it to pem using this command:

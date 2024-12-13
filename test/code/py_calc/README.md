@@ -8,13 +8,12 @@ User-supplied formulas are expected to reside in test/data/cfg/py_calc/py direct
 
 ## Workflow
 
-The [DOT diagram](../../../doc/glossary.md#dot-diagrams) generated with
+The diagram generated with
 ```
-go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/py_calc/script.json -params_file=../../../test/data/cfg/py_calc/script_params.json -idx_dag=true
+go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/py_calc_quicktest/script.json -params_file=../../../test/data/cfg/py_calc_quicktest/script_params.json -detail=idx
 ```
-and rendered in https://dreampuf.github.io/GraphvizOnline :
 
-![drawing](../../../doc/dot-pycalc.svg)
+![drawing](../../../doc/viz-pycalc.svg)
 
 ## What's tested:
 

@@ -5,7 +5,7 @@
             "desc": "Load tags from file",
             "r": {
                 "urls": [
-                    "{dir_in}/tags.csv{l_suffix}"
+                    "{dir_in}/tags.csv{url_suffix}"
                 ],
                 "csv": {
                     "first_data_line_idx": 0

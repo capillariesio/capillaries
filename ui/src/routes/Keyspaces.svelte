@@ -82,7 +82,7 @@
 
 <button
 	onclick={onNew}
-	title="Opens a popup to specify parameters (keyspace, script L etc) for a new run">New run</button
+	title="Opens a popup to specify parameters (keyspace, script URL etc) for a new run">New run</button
 >
 <table>
 	<thead>

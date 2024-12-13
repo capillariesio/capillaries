@@ -15,13 +15,12 @@ and requires test data to be generated - see [1_create_data.sh](./bigtest_cloud/
 
 ## Workflow
 
-The [DOT diagram](../../../doc/glossary.md#dot-diagrams) generated with
+The diagram generated with
 ```
-go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/lookup_quicktest/script.json -params_file=../../../test/data/cfg/lookup_quicktest/script_params_two_runs.json -idx_dag=true
+go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/lookup_quicktest/script.json -params_file=../../../test/data/cfg/lookup_quicktest/script_params_two_runs.json -detail=idx
 ```
-and rendered in https://dreampuf.github.io/GraphvizOnline :
 
-![drawing](../../../doc/dot-lookup.svg)
+![drawing](../../../doc/viz-lookup.svg)
 
 ## What's tested:
 

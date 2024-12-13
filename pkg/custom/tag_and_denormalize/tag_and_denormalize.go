@@ -20,7 +20,7 @@ const ProcessorTagAndDenormalizeName string = "tag_and_denormalize"
 type TagAndDenormalizeProcessorDef struct {
 	TagFieldName         string            `json:"tag_field_name" env:"CAPI_TAGANDDENORMALIZE_TAG_FIELD_NAME, overwrite"`
 	RawTagCriteria       map[string]string `json:"tag_criteria" env:"CAPI_TAGANDDENORMALIZE_TAG_CRITERIA, overwrite"`
-	RawTagCriteriaUrl    string            `json:"l" env:"CAPI_TAGANDDENORMALIZE_RAW_TAG_CRITERIA_URL, overwrite"`
+	RawTagCriteriaUrl    string            `json:"tag_criteria_url" env:"CAPI_TAGANDDENORMALIZE_RAW_TAG_CRITERIA_URL, overwrite"`
 	ParsedTagCriteria    map[string]ast.Expr
 	UsedInCriteriaFields sc.FieldRefs
 }
