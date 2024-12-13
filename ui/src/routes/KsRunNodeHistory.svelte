@@ -25,6 +25,7 @@
 	let webapiData = $state({ run_props: {}, run_lifespan: {}, node_history: [] });
 	let responseError = $state('');
 	let svgStatusViz = $state('');
+	let svgError = $state('');
 
 	function calculateElapsed(node_history) {
 		let earliestTs = null;
@@ -163,7 +164,7 @@
 				}
 			})
 			.catch((error) => {
-				responseError =
+				svgError =
 					'cannot fetch SVG status viz from Capillaries webapi at ' +
 					method +
 					' ' +
@@ -229,6 +230,8 @@
 	click <a target="_blank" href={scriptVizUrl(ks_name, run_id, false)}>here</a> for black and white,
 	or <a target="_blank" href={scriptVizUrl(ks_name, run_id, true)}>here</a> for colored by root node.
 </p>
+
+<p style="color:red;">{svgError}</p>
 
 <div style="width:100%">
 	<!-- eslint-disable-next-line svelte/no-at-html-tags -->

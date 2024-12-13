@@ -24,6 +24,7 @@
 	let breadcrumbsPathElements = $state([]);
 
 	let svgScriptViz = $state('');
+	let svgError = $state('');
 	let webapiData = $state({ run_lifespans: [], nodes: [] });
 	let responseError = $state('');
 	var timer;
@@ -86,7 +87,7 @@
 				svgScriptViz = responseText;
 			})
 			.catch((error) => {
-				responseError =
+				svgError =
 					'cannot fetch SVG viz from Capillaries webapi at ' +
 					method +
 					' ' +
@@ -209,6 +210,7 @@
 {/snippet}
 
 {#snippet tabViz()}
+<p style="color:red;">{svgError}</p>
 {#if webapiData.run_lifespans.length > 0}
 	<p>
 		This diagram is static. To see it in a separate window, click <a
