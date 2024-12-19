@@ -187,7 +187,7 @@ func checkNodeDef(nodeId int16, nodeDefs []NodeDef) error {
 }
 
 func checkNodeIds(nodeDefs []NodeDef) error {
-	for i, _ := range nodeDefs {
+	for i := range nodeDefs {
 		if nodeDefs[i].Id != int16(i) {
 			return fmt.Errorf("cannot process node at index %d, it has id %d", i, nodeDefs[i].Id)
 		}

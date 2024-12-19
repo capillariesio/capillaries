@@ -73,9 +73,8 @@ func (mx LayerMx) clone() LayerMx {
 func halfByteToChar(b int8) rune {
 	if b < 10 {
 		return rune(int('0') + int(b))
-	} else {
-		return rune(int('A') + int(b) - 10)
 	}
+	return rune(int('A') + int(b) - 10)
 }
 
 func (mx LayerMx) signature() string {

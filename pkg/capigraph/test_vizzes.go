@@ -158,11 +158,11 @@ var testNodeDefs40milPerms = []NodeDef{
 	{16, "16", EdgeDef{4, ""}, []EdgeDef{}, "", 0, false},
 	{17, "17", EdgeDef{4, ""}, []EdgeDef{}, "", 0, false},
 	{18, "18", EdgeDef{4, ""}, []EdgeDef{{20, ""}}, "", 0, false},
-	//{19, "19", EdgeDef{4, ""}, []EdgeDef{{21, ""}}, "", 0, false},
+	// {19, "19", EdgeDef{4, ""}, []EdgeDef{{21, ""}}, "", 0, false},
 	{19, "19", EdgeDef{4, ""}, []EdgeDef{}, "", 0, false},
 
 	{20, "20", EdgeDef{}, []EdgeDef{}, "", 0, false},
-	//{21, "21", EdgeDef{}, []EdgeDef{}, "", 0, false},
+	// {21, "21", EdgeDef{}, []EdgeDef{}, "", 0, false},
 }
 
 var testNodeDefs300bilPerms = []NodeDef{

@@ -31,7 +31,6 @@ func NewLayerMxPermIterator(nodeDefs []NodeDef, srcMx LayerMx) (*LayerMxPermIter
 	mxi.WorkMx = srcMx.clone()
 	mxi.PriParentMap = buildPriParentMap(nodeDefs)
 	mxi.PriChildrenMap = buildPriChildrenMap(nodeDefs)
-	//mxi.NodeLayerMap = buildLayerMap(nodeDefs, mxi.PriParentMap)
 	mxi.NodeLayerMap = buildLayerMap(nodeDefs)
 	mxi.RootNodes = buildRootNodeList(mxi.PriParentMap)
 
@@ -76,6 +75,8 @@ func harvestRowPermutationSettings(mxi *LayerMxPermIterator, layerIdx int) (int,
 			}
 		} else {
 			// This is not a root
+
+			// Wrap up the interval, else - continuing current interval
 			if curParent != lastParent {
 				// Wrap up an interval for lastParent
 				if i-lastParentFirstIdx > 2 {
@@ -88,8 +89,6 @@ func harvestRowPermutationSettings(mxi *LayerMxPermIterator, layerIdx int) (int,
 				}
 				lastParent = curParent
 				lastParentFirstIdx = i
-			} else {
-				// Continuing current interval
 			}
 		}
 

@@ -61,7 +61,6 @@ func buildLayerMap(nodeDefs []NodeDef) []int {
 			parentNodeIdx := nodeDefs[nodeIdx].PriIn.SrcId
 			if parentNodeIdx != 0 && nodeLayerMap[parentNodeIdx] != MissingLayer {
 				if nodeLayerMap[nodeIdx] == MissingLayer || nodeLayerMap[nodeIdx] <= nodeLayerMap[parentNodeIdx] {
-					//fmt.Printf("push %d from %d to %d (pri)\n", nodeIdx, nodeLayerMap[nodeIdx], nodeLayerMap[parentNodeIdx]+1)
 					nodeLayerMap[nodeIdx] = nodeLayerMap[parentNodeIdx] + 1
 					reScan = true
 				}
@@ -70,7 +69,6 @@ func buildLayerMap(nodeDefs []NodeDef) []int {
 				parentNodeIdx := secParent.SrcId
 				if parentNodeIdx != 0 && nodeLayerMap[parentNodeIdx] != MissingLayer {
 					if nodeLayerMap[nodeIdx] == MissingLayer || nodeLayerMap[nodeIdx] <= nodeLayerMap[parentNodeIdx] {
-						//fmt.Printf("push %d from %d to %d (sec)\n", nodeIdx, nodeLayerMap[nodeIdx], nodeLayerMap[parentNodeIdx]+1)
 						nodeLayerMap[nodeIdx] = nodeLayerMap[parentNodeIdx] + 1
 						reScan = true
 					}
@@ -90,7 +88,6 @@ func buildLayerMap(nodeDefs []NodeDef) []int {
 			if minChildLayer < math.MaxInt {
 				allowedDist := minChildLayer - 1 - nodeLayerMap[nodeIdx]
 				if allowedDist > 0 {
-					//fmt.Printf("pull %d from %d to %d (direct)\n", nodeIdx, nodeLayerMap[nodeIdx], nodeLayerMap[nodeIdx]+allowedDist)
 					nodeLayerMap[nodeIdx] += allowedDist
 					reScan = true
 				} else {
@@ -99,7 +96,6 @@ func buildLayerMap(nodeDefs []NodeDef) []int {
 					subtreeAllowedDist := maxDistToPullSubtreeDownRecursive(nodeIdx, nodeLayerMap, nodeToRootMap, priChildrenMap, secChildrenMap)
 					// It can return math.MaxInt which means we can pull down this subtree to infinity. But it does not make sense, so leave it where it is.
 					if subtreeAllowedDist < math.MaxInt && subtreeAllowedDist > 0 {
-						//fmt.Printf("pull %d from %d to %d (subtree)\n", nodeIdx, nodeLayerMap[nodeIdx], nodeLayerMap[nodeIdx]+subtreeAllowedDist)
 						nodeLayerMap[nodeIdx] += subtreeAllowedDist
 						reScan = true
 					}

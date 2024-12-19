@@ -123,10 +123,10 @@ func (vnh *VizNodeHierarchy) insertRoot(rootVizNode *VizNode, perm []int16, idx 
 					vnh.insertRootToNearestParent(rootVizNode, perm[i], perm[j])
 					return
 				}
-				j += 1
+				j++
 			}
 		}
-		i -= 1
+		i--
 	}
 
 	// No enclose, resort to adding it to the top ubernode
@@ -534,7 +534,6 @@ func (vnh *VizNodeHierarchy) RemoveDuplicateSecEdgeLabels() {
 
 func getBestHierarchy(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions, optimize bool) ([]VizNode, int64, float64, float64, error) {
 	priParentMap := buildPriParentMap(nodeDefs)
-	//layerMap := buildLayerMap(nodeDefs, priParentMap)
 	layerMap := buildLayerMap(nodeDefs)
 	rootNodes := buildRootNodeList(priParentMap)
 	mx, err := NewLayerMx(nodeDefs, layerMap, rootNodes)
@@ -557,7 +556,7 @@ func getBestHierarchy(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions
 		if err != nil {
 			return nil, int64(0), 0.0, 0.0, err
 		}
-		mxi.MxIterator(func(i int, mxPerm LayerMx) {
+		mxi.MxIterator(func(_ int, mxPerm LayerMx) {
 
 			// Hierarchy
 			vnh.reuseRootSubtreeHierarchy(mxPerm)

@@ -19,7 +19,6 @@ func helperAll(t *testing.T,
 	expectedHierarchyFirst string,
 	expectedHierarchyLast string) {
 	priParentMap := buildPriParentMap(nodeDefs)
-	//layerMap := buildLayerMap(nodeDefs, priParentMap)
 	layerMap := buildLayerMap(nodeDefs)
 	assert.Equal(t, expectedLayerMap, fmt.Sprintf("%v", layerMap))
 
@@ -65,7 +64,6 @@ func helperIteratorAndIncrementalCount(t *testing.T,
 	expectedIterCount int64,
 	expectedIncrementalCount int64) {
 	priParentMap := buildPriParentMap(nodeDefs)
-	//layerMap := buildLayerMap(nodeDefs, priParentMap)
 	layerMap := buildLayerMap(nodeDefs)
 	assert.Equal(t, expectedLayerMap, fmt.Sprintf("%v", layerMap))
 
@@ -76,7 +74,7 @@ func helperIteratorAndIncrementalCount(t *testing.T,
 	mxi, _ := NewLayerMxPermIterator(nodeDefs, mx)
 
 	cnt := int64(0)
-	mxi.MxIterator(func(i int, mxPerm LayerMx) {
+	mxi.MxIterator(func(_ int, _ LayerMx) {
 		cnt++
 	})
 
@@ -293,7 +291,7 @@ func TestPriAndSecInfinitePulldownMxPermutator(t *testing.T) {
 }
 
 func Test40milPermsMxPermutator(t *testing.T) {
-	//defer profile.Start(profile.CPUProfile).Stop()
+	// defer profile.Start(profile.CPUProfile).Stop()
 	helperIteratorAndIncrementalCount(t,
 		testNodeDefs40milPerms,
 		"[-4 0 1 1 1 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 1]",
@@ -303,7 +301,6 @@ func Test40milPermsMxPermutator(t *testing.T) {
 }
 
 func Test300bilPermsMxPermutator(t *testing.T) {
-	//layerMap := buildLayerMap(testNodeDefs300bilPerms, buildPriParentMap(testNodeDefs300bilPerms))
 	layerMap := buildLayerMap(testNodeDefs300bilPerms)
 	assert.Equal(t, "[-4 0 1 1 1 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 1 1 1 1]", fmt.Sprintf("%v", layerMap))
 

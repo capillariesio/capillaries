@@ -50,7 +50,7 @@ type FontOptions struct {
 // 0x0: Basic Latin, Latin-1 Supplement, Latin Extended-A, Latin Extended-B
 // 0x370: Greek and Coptic, Cyrillic
 // Normal (400) and bold (700), Arial, Courier, Verdana font size 100px
-var sizeMap map[FontTypeface]map[FontWeight]map[int][]int = map[FontTypeface]map[FontWeight]map[int][]int{
+var sizeMap = map[FontTypeface]map[FontWeight]map[int][]int{
 	FontTypefaceArial: {
 		FontWeightNormal: {
 			// "Arial|100px|400|0"
@@ -104,9 +104,8 @@ func getCharacterWidth100(cCode int, typeface FontTypeface, weight FontWeight) f
 				return float64(rangeMap[0][cCode])
 			} else if cCode >= 0x370 && cCode < 0x370+len(rangeMap[0x370]) {
 				return float64(rangeMap[0x370][cCode])
-			} else {
-				return float64(rangeMap[0][FallbackAsciiCode])
 			}
+			return float64(rangeMap[0][FallbackAsciiCode])
 		}
 	}
 

@@ -126,3 +126,30 @@ issues:
       text: use of `fmt.Print(|f|ln)` forbidden by pattern
       linters:
         - forbidigo
+    - path: pkg\/capigraph\/svg_test\.go
+      text: use of `fmt.Print(|f|ln)` forbidden by pattern
+      linters:
+        - forbidigo
+    - path: pkg\/capigraph\/layering\.go
+      text: function buildLayerMap has cognitive complexity
+      linters:
+        - revive
+    - path: pkg\/capigraph\/layer_permutator\.go
+      text: function \(\*LayerPermutator\)\.swapPermutationByIdx has cognitive complexity
+      linters:
+        - revive
+    - text: struct literal uses unkeyed fields
+      linters:
+        - govet
+    - path: pkg\/api\/capigraph\.go
+      text: function GetCapigraphDiagram has (cognitive|cyclomatic) complexity
+      linters:
+        - revive
+    - path: pkg\/capigraph\/svg\.go
+      text: maximum number of return results per function exceeded
+      linters:
+        - revive
+    - path: pkg\/capigraph\/viz_node_hierarchy\.go
+      text: maximum number of return results per function exceeded
+      linters:
+        - revive
