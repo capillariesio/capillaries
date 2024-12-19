@@ -4,7 +4,7 @@ source ../../common/util.sh
 check_s3
 
 # Generate in and out-baseline files
-../quicktest/1_create_data.sh
+../quicktest_local_fs/1_create_data.sh
 
 cfgS3=s3://$CAPILLARIES_AWS_TESTBUCKET/capi_cfg/lookup_quicktest
 inS3=s3://$CAPILLARIES_AWS_TESTBUCKET/capi_in/lookup_quicktest
