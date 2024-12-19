@@ -11,13 +11,13 @@ type RunProperties struct {
 	RunId           int16  `header:"run_id" format:"%6d" column:"run_id" type:"int" key:"true" json:"run_id"`
 	StartNodes      string `header:"start_nodes" format:"%20v" column:"start_nodes" type:"text" json:"start_nodes"`
 	AffectedNodes   string `header:"affected_nodes" format:"%20v" column:"affected_nodes" type:"text" json:"affected_nodes"`
-	ScriptUri       string `header:"script_uri" format:"%20v" column:"script_uri" type:"text" json:"script_uri"`
-	ScriptParamsUri string `header:"script_params_uri" format:"%20v" column:"script_params_uri" type:"text" json:"script_params_uri"`
+	ScriptUrl       string `header:"script_url" format:"%20v" column:"script_url" type:"text" json:"script_url"`
+	ScriptParamsUrl string `header:"script_params_url" format:"%20v" column:"script_params_url" type:"text" json:"script_params_url"`
 	RunDescription  string `header:"run_desc" format:"%20v" column:"run_description" type:"text" json:"run_description"`
 }
 
 func RunPropertiesAllFields() []string {
-	return []string{"run_id", "start_nodes", "affected_nodes", "script_uri", "script_params_uri", "run_description"}
+	return []string{"run_id", "start_nodes", "affected_nodes", "script_url", "script_params_url", "run_description"}
 }
 
 func NewRunPropertiesFromMap(r map[string]any, fields []string) (*RunProperties, error) {
@@ -31,10 +31,10 @@ func NewRunPropertiesFromMap(r map[string]any, fields []string) (*RunProperties,
 			res.StartNodes, err = ReadStringFromRow(fieldName, r)
 		case "affected_nodes":
 			res.AffectedNodes, err = ReadStringFromRow(fieldName, r)
-		case "script_uri":
-			res.ScriptUri, err = ReadStringFromRow(fieldName, r)
-		case "script_params_uri":
-			res.ScriptParamsUri, err = ReadStringFromRow(fieldName, r)
+		case "script_url":
+			res.ScriptUrl, err = ReadStringFromRow(fieldName, r)
+		case "script_params_url":
+			res.ScriptParamsUrl, err = ReadStringFromRow(fieldName, r)
 		case "run_description":
 			res.RunDescription, err = ReadStringFromRow(fieldName, r)
 		default:

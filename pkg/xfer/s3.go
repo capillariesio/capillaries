@@ -14,8 +14,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-func GetS3ReadCloser(uri string) (io.ReadCloser, error) {
-	parsedUri, _ := url.Parse(uri)
+func GetS3ReadCloser(fileUrl string) (io.ReadCloser, error) {
+	parsedUrl, _ := url.Parse(fileUrl)
 
 	// Assuming ~/.aws/credentials:
 	// [default]
@@ -39,8 +39,8 @@ func GetS3ReadCloser(uri string) (io.ReadCloser, error) {
 	// })
 
 	resp, err := client.GetObject(context.TODO(), &s3.GetObjectInput{
-		Bucket: aws.String(parsedUri.Host),
-		Key:    aws.String(strings.TrimLeft(parsedUri.Path, "/")),
+		Bucket: aws.String(parsedUrl.Host),
+		Key:    aws.String(strings.TrimLeft(parsedUrl.Path, "/")),
 	})
 	if err != nil {
 		return nil, err
@@ -49,8 +49,8 @@ func GetS3ReadCloser(uri string) (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
-func readS3File(uri string) ([]byte, error) {
-	r, err := GetS3ReadCloser(uri)
+func readS3File(fileUrl string) ([]byte, error) {
+	r, err := GetS3ReadCloser(fileUrl)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func readS3File(uri string) ([]byte, error) {
 
 	bytes, err := io.ReadAll(r)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read body of %s, bad status: %s", uri, err.Error())
+		return nil, fmt.Errorf("cannot read body of %s, bad status: %s", fileUrl, err.Error())
 	}
 	return bytes, nil
 }

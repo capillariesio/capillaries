@@ -89,7 +89,7 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *c
 
 	u, err := url.Parse(filePath)
 	if err != nil {
-		return bs, fmt.Errorf("cannot parse file uri %s: %s", filePath, err.Error())
+		return bs, fmt.Errorf("cannot parse file url %s: %s", filePath, err.Error())
 	}
 
 	bs.Src = filePath
@@ -98,7 +98,7 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *c
 	var localSrcFile *os.File
 	var fileReader io.Reader
 	var fileReadSeeker io.ReadSeeker
-	if u.Scheme == xfer.UriSchemeFile || len(u.Scheme) == 0 {
+	if u.Scheme == xfer.UrlSchemeFile || len(u.Scheme) == 0 {
 		localSrcFile, err = os.Open(filePath)
 		if err != nil {
 			return bs, err
@@ -106,20 +106,20 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *c
 		defer localSrcFile.Close()
 		fileReader = bufio.NewReader(localSrcFile)
 		fileReadSeeker = localSrcFile
-	} else if u.Scheme == xfer.UriSchemeHttp || u.Scheme == xfer.UriSchemeHttps || u.Scheme == xfer.UriSchemeS3 {
+	} else if u.Scheme == xfer.UrlSchemeHttp || u.Scheme == xfer.UrlSchemeHttps || u.Scheme == xfer.UrlSchemeS3 {
 		var readCloser io.ReadCloser
-		if u.Scheme == xfer.UriSchemeHttp || u.Scheme == xfer.UriSchemeHttps {
+		if u.Scheme == xfer.UrlSchemeHttp || u.Scheme == xfer.UrlSchemeHttps {
 			readCloser, err = xfer.GetHttpReadCloser(filePath, u.Scheme, envConfig.CaPath)
 			if err != nil {
 				return bs, fmt.Errorf("cannot open http file %s: %s", filePath, err.Error())
 			}
-		} else if u.Scheme == xfer.UriSchemeS3 {
+		} else if u.Scheme == xfer.UrlSchemeS3 {
 			readCloser, err = xfer.GetS3ReadCloser(filePath)
 			if err != nil {
 				return bs, fmt.Errorf("cannot open http file %s: %s", filePath, err.Error())
 			}
 		} else {
-			return bs, fmt.Errorf("cannot open file %s: unknown uri scheme", filePath)
+			return bs, fmt.Errorf("cannot open file %s: unknown url scheme", filePath)
 		}
 		defer readCloser.Close()
 
@@ -150,7 +150,7 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *c
 			fileReader = readCloser
 			defer readCloser.Close()
 		}
-	} else if u.Scheme == xfer.UriSchemeSftp {
+	} else if u.Scheme == xfer.UrlSchemeSftp {
 		// When dealing with sftp, we download the *whole* file, instead of providing a reader
 		dstFile, err := os.CreateTemp("", "capi")
 		if err != nil {
@@ -175,7 +175,7 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *c
 		fileReader = bufio.NewReader(localSrcFile)
 		fileReadSeeker = localSrcFile
 	} else {
-		return bs, fmt.Errorf("uri scheme %s not supported: %s", u.Scheme, filePath)
+		return bs, fmt.Errorf("l scheme %s not supported: %s", u.Scheme, filePath)
 	}
 
 	if node.FileReader.ReaderFileType == sc.ReaderFileTypeCsv {

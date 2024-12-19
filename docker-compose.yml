@@ -51,29 +51,30 @@ services:
         fluentd-async: "true"
         tag: cassandra
 
-  cassandra2:
-    container_name: capillaries_cassandra2
-    build:
-      context: .
-      dockerfile: ./test/docker/cassandra/Dockerfile
-    depends_on:
-      - fluentd
-    networks:
-      capinet:
-        ipv4_address: 10.5.0.12
-    ports: # Map to different host ports to avoid collision
-      - 17000:7000
-      - 17199:7199
-      - 19042:9042
-      - 17070:7070
-    environment:
-      CASSANDRA_SEEDS: 10.5.0.11
-    logging:
-      driver: fluentd
-      options:
-        fluentd-address: 10.5.0.7:24224
-        fluentd-async: "true"
-        tag: cassandra
+  # Two cassandras bring my laptop to its knees, make it one 
+  # cassandra2:
+  #   container_name: capillaries_cassandra2
+  #   build:
+  #     context: .
+  #     dockerfile: ./test/docker/cassandra/Dockerfile
+  #   depends_on:
+  #     - fluentd
+  #   networks:
+  #     capinet:
+  #       ipv4_address: 10.5.0.12
+  #   ports: # Map to different host ports to avoid collision
+  #     - 17000:7000
+  #     - 17199:7199
+  #     - 19042:9042
+  #     - 17070:7070
+  #   environment:
+  #     CASSANDRA_SEEDS: 10.5.0.11
+  #   logging:
+  #     driver: fluentd
+  #     options:
+  #       fluentd-address: 10.5.0.7:24224
+  #       fluentd-async: "true"
+  #       tag: cassandra
 
   prometheus:
     container_name: capillaries_prometheus

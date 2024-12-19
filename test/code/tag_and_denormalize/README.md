@@ -4,13 +4,12 @@ Created using Ubuntu WSL. Other Linux flavors and MacOS may require edits.
 
 ## Workflow
 
-The [DOT diagram](../../../doc/glossary.md#dot-diagrams) generated with
+The diagram generated with
 ```
-go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/tag_and_denormalize_quicktest/script.json -params_file=../../../test/data/cfg/tag_and_denormalize/script_params_two_runs.json -idx_dag=true
+go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/tag_and_denormalize_quicktest/script.json -params_file=../../../test/data/cfg/tag_and_denormalize_quicktest/script_params_two_runs.json -detail=idx
 ```
-and rendered in https://dreampuf.github.io/GraphvizOnline :
 
-![drawing](../../../doc/dot-tag-and-denormalize.svg)
+![drawing](../../../doc/viz-tag-and-denormalize.svg)
 
 ## What's tested:
 

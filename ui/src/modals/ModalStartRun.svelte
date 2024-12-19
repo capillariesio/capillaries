@@ -1,45 +1,42 @@
 <script>
 	import { onDestroy } from 'svelte';
-	import { closeModal } from 'svelte-modals';
 	import dayjs from 'dayjs';
 	import { webapiUrl, handleResponse } from '../Util.svelte';
 	import { ksRunMap } from '../stores.js';
 
-	// provided by Modals
-	export let isOpen;
+	let { isOpen, close, ks_name } = $props();
 
-	// Component parameters
-	export let keyspace;
+	let responseError = $state('');
+	let webapiWaiting = $state(false);
+	let scriptUrl = $state('');
+	let paramsUrl = $state('');
+	let startNodes = $state('');
+	let runDesc = $state(
+		'Manually started from Capillaries-UI at ' + dayjs().format('MMM D, YYYY HH:mm:ss.SSS Z')
+	);
 
-	let responseError = '';
-	let webapiWaiting = false;
 	function setWebapiData(dataFromJson, errorFromJson) {
 		webapiWaiting = false;
-		if (!!errorFromJson) {
+		if (errorFromJson) {
 			responseError =
 				'cannot start this run, Capillaries webapi returned an error: ' + errorFromJson;
 		} else {
 			console.log(dataFromJson);
 			responseError = '';
-			closeModal();
+			close();
 		}
 	}
 
-	// Local variables
-	let scriptUri = '';
-	let paramsUri = '';
-	let startNodes = '';
-	let runDesc =
-		'Manually started from Capillaries-UI at ' + dayjs().format('MMM D, YYYY HH:mm:ss.SSS Z');
-
 	// For this ks, use cached run parameters
-	const unsubscribeFromKsRunMap = ksRunMap.subscribe((m) => {
-		if (keyspace in m) {
-			scriptUri = m[keyspace]['scriptUri'];
-			paramsUri = m[keyspace]['paramsUri'];
+	const ksRunMapUnsubscriberFunc = ksRunMap.subscribe((m) => {
+		if (ks_name in m) {
+			scriptUrl = m[ks_name]['scriptUrl'];
+			paramsUrl = m[ks_name]['paramsUrl'];
+			startNodes = "REVIEW:"+m[ks_name]['startNodes'];
 		}
 	});
-	onDestroy(unsubscribeFromKsRunMap);
+
+	onDestroy(ksRunMapUnsubscriberFunc);
 
 	function validateKeyspace(ks) {
 		if (ks.trim().length == 0) {
@@ -55,9 +52,9 @@
 		return '';
 	}
 
-	function validateUri(uri) {
-		if (uri.trim().length == 0) {
-			return 'file URI cannot be empty; ';
+	function validateUrl(url) {
+		if (url.trim().length == 0) {
+			return 'file URL cannot be empty; ';
 		}
 		return '';
 	}
@@ -74,21 +71,20 @@
 	}
 
 	function newAndCloseModal() {
-		//console.log("Sending:",JSON.stringify({"script_uri": scriptUri, "script_params_uri": paramsUri, "start_nodes": startNodes}));
 		responseError =
-			validateKeyspace(keyspace) + validateUri(scriptUri) + validateStartNodes(startNodes);
+			validateKeyspace(ks_name) + validateUrl(scriptUrl) + validateStartNodes(startNodes);
 		if (responseError.length == 0) {
 			// For this ks, cache last used run parameters
-			$ksRunMap[keyspace] = { scriptUri: scriptUri, paramsUri: paramsUri };
+			$ksRunMap[ks_name] = { scriptUrl: scriptUrl, paramsUrl: paramsUrl, startNodes: startNodes };
 			webapiWaiting = true;
-			let url = webapiUrl() + '/ks/' + keyspace + '/run';
+			let url = webapiUrl() + '/ks/' + ks_name + '/run';
 			let method = 'POST';
 			fetch(
 				new Request(url, {
 					method: method,
 					body: JSON.stringify({
-						script_uri: scriptUri,
-						script_params_uri: paramsUri,
+						script_url: scriptUrl,
+						script_params_url: paramsUrl,
 						start_nodes: startNodes,
 						run_description: runDesc
 					})
@@ -113,11 +109,11 @@
 			Run description:
 			<input bind:value={runDesc} disabled={webapiWaiting} />
 			Keyspace:
-			<input bind:value={keyspace} disabled={webapiWaiting} />
-			Script URI:
-			<input bind:value={scriptUri} disabled={webapiWaiting} />
-			Script parameters URI:
-			<input bind:value={paramsUri} disabled={webapiWaiting} />
+			<input bind:value={ks_name} disabled={webapiWaiting} />
+			Script URL:
+			<input bind:value={scriptUrl} disabled={webapiWaiting} />
+			Script parameters URL:
+			<input bind:value={paramsUrl} disabled={webapiWaiting} />
 			Start nodes:
 			<input bind:value={startNodes} disabled={webapiWaiting} />
 			<p style="color:red;">{responseError}</p>
@@ -127,8 +123,8 @@
 						style="height: 30px;padding-right: 10px;padding-top: 5px;"
 						alt=""
 					/>{/if}
-				<button on:click={closeModal} disabled={webapiWaiting}>Cancel</button>
-				<button on:click={newAndCloseModal} disabled={webapiWaiting}>OK</button>
+				<button onclick={close} disabled={webapiWaiting}>Cancel</button>
+				<button onclick={newAndCloseModal} disabled={webapiWaiting}>OK</button>
 			</div>
 		</div>
 	</div>

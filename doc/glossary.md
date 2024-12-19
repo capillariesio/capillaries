@@ -118,7 +118,7 @@ The field in the target table where the tag value will be written to
 
 tag->criteria_expression map. [Expressions](#go-expressions) are allowed to use reader fields only (`r.*`).
 
-### tag_criteria_uri
+### tag_criteria_url
 
 Same as [tag_criteria](#tag_criteria), but in a separate JSON file. This is the preferred method to specify tag criteria because the list of tags:
 - may contain thousands of entries, it's not a good idea to pollute the script file with those
@@ -145,10 +145,6 @@ At the moment, Capillaries supports only a limited subset of the standard Go lib
 
 RabbitMQ queue containing messages for a [processor](#processor). The name of the queue is given by the [handler_executable_type](binconfig.md#handler_executable_type) setting.
 
-## DOT diagrams
-
-[Graphviz DOT language](https://graphviz.org/) - markdown-style diagram-drawing language. There is a number of free online tools that can visualize DOT language documents.
-
 ## Toolbelt
 A command-line executable that performs common Capillaries operations by:
 - reading Capillaries [script files](#script)
@@ -157,18 +153,18 @@ A command-line executable that performs common Capillaries operations by:
 The Toolbelt:
 - can [start/stop](api.md) [runs](#run), so solution developers can use it in their scripts
 - gives very basic access to the [workflow tables](#workflow-table), see `get_*_history` commands
-- can produce rudimentary visuals using [DOT diagram language](#dot-diagrams) - see `validate_script`, `get_run_status_diagram` commands
+- can produce visual diagrams - see `validate_script`, `get_run_status_diagram` commands
 
 See [Toolbelt and Daemon configuration](binconfig.md) for configuration settings.
 
-One of the main purposes of the toolbelt is to give system integrators easy access to [Capillaries API](api.md). Also, the toolbelt can be useful for visualizing [scripts](#script) and the status of their execution with [DOT diagrams](#dot-diagrams), for example:
+One of the main purposes of the toolbelt is to give system integrators easy access to [Capillaries API](api.md). Also, the toolbelt can be useful for visualizing [scripts](#script) and the status of their execution with diagrams, for example:
 
 ```
 # Can be executed anytime
-go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/lookup_quicktest/script.json -params_file=../../../test/data/cfg/lookup_quicktest/script_params_two_runs.json -idx_dag=true
+go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/lookup_quicktest/script.json -params_file=../../../test/data/cfg/lookup_quicktest/script_params_two_runs.json -detail=idx
 
 # Can be executed when the lookup script is running using two runs
-go run capitoolbelt.go get_run_status_diagram -script_file=../../../test/data/cfg/lookup_quicktest/script.json -params_file=../../../test/data/cfg/lookup_quicktest/script_params_two_runs.json -keyspace=lookup_quicktest -run_id=1
+go run capitoolbelt.go get_run_status_diagram -script_file=../../../test/data/cfg/lookup_quicktest/script.json -params_file=../../../test/data/cfg/lookup_quicktest/script_params_two_runs.json -keyspace=lookup_quicktest_one_run_json -run_id=1
 ```
 
 ## Deploy tool

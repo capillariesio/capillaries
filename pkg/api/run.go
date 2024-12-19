@@ -117,8 +117,8 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp.
 				Ts:          time.Now().UnixMilli(),
 				MessageType: wfmodel.MessageTypeDataBatch,
 				Payload: wfmodel.MessagePayloadDataBatch{
-					ScriptURI:       scriptFilePath,
-					ScriptParamsURI: paramsFilePath,
+					ScriptURL:       scriptFilePath,
+					ScriptParamsURL: paramsFilePath,
 					DataKeyspace:    keyspace,
 					RunId:           runId,
 					TargetNodeName:  affectedNodeName,
@@ -235,8 +235,8 @@ func RunNode(envConfig *env.EnvConfig, logger *l.CapiLogger, nodeName string, ru
 		batchStartTs := time.Now()
 		logger.Info("BatchStarted: [%d,%d]...", intervals[i][0], intervals[i][1])
 		dataBatchInfo := wfmodel.MessagePayloadDataBatch{
-			ScriptURI:       scriptFilePath,
-			ScriptParamsURI: paramsFilePath,
+			ScriptURL:       scriptFilePath,
+			ScriptParamsURL: paramsFilePath,
 			DataKeyspace:    keyspace,
 			RunId:           runId,
 			TargetNodeName:  nodeName,

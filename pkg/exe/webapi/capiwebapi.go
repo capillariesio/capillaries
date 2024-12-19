@@ -199,9 +199,9 @@ func (h *UrlHandler) getNodeDesc(scriptCache *expirable.LRU[string, string], log
 		return "", err
 	}
 
-	// Now we have script URI, load it
+	// Now we have script URL, load it
 
-	script, _, err := sc.NewScriptFromFiles(scriptCache, h.Env.CaPath, h.Env.PrivateKeys, runProps.ScriptUri, runProps.ScriptParamsUri, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
+	script, _, err := sc.NewScriptFromFiles(scriptCache, h.Env.CaPath, h.Env.PrivateKeys, runProps.ScriptUrl, runProps.ScriptParamsUrl, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
 	if err != nil {
 		return "", err
 	}
@@ -475,6 +475,121 @@ func (h *UrlHandler) ksRunNodeHistory(w http.ResponseWriter, r *http.Request) {
 	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, result)
 }
 
+func (h *UrlHandler) ksRunViz(w http.ResponseWriter, r *http.Request) {
+	var useRootPalette bool
+	useRootPaletteParam := r.URL.Query().Get("use_root_palette")
+	if useRootPaletteParam == "true" {
+		useRootPalette = true
+	}
+
+	var isStatus bool
+	isStatusParam := r.URL.Query().Get("is_status")
+	if isStatusParam == "true" {
+		isStatus = true
+	}
+
+	keyspace, err := getField(r, 0)
+	if err != nil {
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		return
+	}
+
+	cqlSession, err := db.NewSession(h.Env, keyspace, db.DoNotCreateKeyspaceOnConnect)
+	if err != nil {
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		return
+	}
+	defer cqlSession.Close()
+
+	runIdString, err := getField(r, 1)
+	if err != nil {
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		return
+	}
+
+	runId, err := strconv.Atoi(runIdString)
+	if err != nil {
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		return
+	}
+
+	// Extract script URL from run props
+	runProps, err := getRunProps(h.L, cqlSession, keyspace, int16(runId))
+	if err != nil {
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
+	}
+
+	// Now we have script URL, load it
+	scriptDef, _, err := sc.NewScriptFromFiles(h.ScriptCache, h.Env.CaPath, h.Env.PrivateKeys, runProps.ScriptUrl, runProps.ScriptParamsUrl, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
+	if err != nil {
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
+	}
+
+	var nodeColorMap map[string]int32
+	showIdx := true
+	showFields := true
+	if isStatus {
+		nodeColorMap = map[string]int32{}
+		nodes, err := api.GetNodeHistoryForRuns(h.L, cqlSession, keyspace, []int16{int16(runId)})
+		if err != nil {
+			WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		}
+		for _, node := range nodes {
+			nodeColorMap[node.ScriptNode] = api.NodeBatchStatusToCapigraphColor(node.Status)
+		}
+		showIdx = false
+		showFields = false
+		useRootPalette = false
+	}
+
+	svg := api.GetCapigraphDiagram(scriptDef, showIdx, showFields, useRootPalette, nodeColorMap)
+
+	w.Header().Set("content-type", "image/svg+xml")
+	w.Header().Set("Access-Control-Allow-Origin", pickAccessControlAllowOrigin(&h.Env.Webapi, r))
+	if _, err := w.Write([]byte(svg)); err != nil {
+		h.L.Error("cannot write svg response, error %s", err.Error())
+	}
+}
+
+// func (h *UrlHandler) ksRunStatusViz(w http.ResponseWriter, r *http.Request) {
+// 	keyspace, err := getField(r, 0)
+// 	if err != nil {
+// 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
+// 		return
+// 	}
+
+// 	cqlSession, err := db.NewSession(h.Env, keyspace, db.DoNotCreateKeyspaceOnConnect)
+// 	if err != nil {
+// 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
+// 		return
+// 	}
+// 	defer cqlSession.Close()
+
+// 	runIdString, err := getField(r, 1)
+// 	if err != nil {
+// 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
+// 		return
+// 	}
+
+// 	runId, err := strconv.Atoi(runIdString)
+// 	if err != nil {
+// 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
+// 		return
+// 	}
+
+// 	svg, err := h.getViz(h.ScriptCache, h.L, cqlSession, keyspace, int16(runId), true)
+// 	if err != nil {
+// 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
+// 		return
+// 	}
+
+// 	w.Header().Set("content-type", "image/svg+xml")
+// 	w.Header().Set("Access-Control-Allow-Origin", pickAccessControlAllowOrigin(&h.Env.Webapi, r))
+// 	if _, err := w.Write([]byte(svg)); err != nil {
+// 		h.L.Error("cannot write svg response, error %s", err.Error())
+// 	}
+// }
+
 type StartedRunInfo struct {
 	RunId int16 `json:"run_id"`
 }
@@ -523,7 +638,7 @@ func (h *UrlHandler) ksStartRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	runId, err := api.StartRun(h.Env, h.L, amqpChannel, runProps.ScriptUri, runProps.ScriptParamsUri, cqlSession, keyspace, strings.Split(runProps.StartNodes, ","), runProps.RunDescription)
+	runId, err := api.StartRun(h.Env, h.L, amqpChannel, runProps.ScriptUrl, runProps.ScriptParamsUrl, cqlSession, keyspace, strings.Split(runProps.StartNodes, ","), runProps.RunDescription)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -685,6 +800,7 @@ func main() {
 		newRoute("GET", "/ks/([a-zA-Z0-9_]+)[/]*", h.ksMatrix),
 		newRoute("GET", "/ks/([a-zA-Z0-9_]+)/run/([0-9]+)/node/([a-zA-Z0-9_]+)/batch_history[/]*", h.ksRunNodeBatchHistory),
 		newRoute("GET", "/ks/([a-zA-Z0-9_]+)/run/([0-9]+)/node_history[/]*", h.ksRunNodeHistory),
+		newRoute("GET", "/ks/([a-zA-Z0-9_]+)/run/([0-9]+)/viz[/\\?&=a-zA-Z0-9_]*", h.ksRunViz),
 		newRoute("POST", "/ks/([a-zA-Z0-9_]+)/run[/]*", h.ksStartRun),
 		newRoute("OPTIONS", "/ks/([a-zA-Z0-9_]+)/run[/]*", h.ksStartRunOptions),
 		newRoute("DELETE", "/ks/([a-zA-Z0-9_]+)/run/([0-9]+)[/]*", h.ksStopRun),

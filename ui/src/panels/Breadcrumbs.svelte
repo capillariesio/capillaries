@@ -1,5 +1,5 @@
 <script>
-	export let pathElements = [{ title: 'Empty breadcrumbs' }];
+	const { path_elements = [{ title: 'Empty breadcrumbs' }] } = $props();
 </script>
 
 <div>
@@ -9,13 +9,13 @@
 		alt=""
 		title="Capillaries-UI"
 	/>
-	{#each pathElements as e, i}
+	{#each path_elements as e, i}
 		{#if !!e.link}
 			<a href={e.link}>{e.title}</a>
 		{:else}
 			{e.title}
 		{/if}
-		{#if i < pathElements.length - 1}
+		{#if i < path_elements.length - 1}
 			&nbsp; &gt; &nbsp;
 		{/if}
 	{/each}

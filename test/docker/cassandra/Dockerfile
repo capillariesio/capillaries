@@ -1,6 +1,6 @@
-FROM cassandra:4.1
+FROM cassandra:5.0.2
 
-ARG JMX_EXPORTER_VERSION=0.20.0
+ARG JMX_EXPORTER_VERSION=1.0.1
 
 RUN mkdir /prometheus
 ADD "https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/$JMX_EXPORTER_VERSION/jmx_prometheus_javaagent-$JMX_EXPORTER_VERSION.jar" /prometheus

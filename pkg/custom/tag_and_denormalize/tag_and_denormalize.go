@@ -20,7 +20,7 @@ const ProcessorTagAndDenormalizeName string = "tag_and_denormalize"
 type TagAndDenormalizeProcessorDef struct {
 	TagFieldName         string            `json:"tag_field_name" env:"CAPI_TAGANDDENORMALIZE_TAG_FIELD_NAME, overwrite"`
 	RawTagCriteria       map[string]string `json:"tag_criteria" env:"CAPI_TAGANDDENORMALIZE_TAG_CRITERIA, overwrite"`
-	RawTagCriteriaUri    string            `json:"tag_criteria_uri" env:"CAPI_TAGANDDENORMALIZE_RAW_TAG_CRITERIA_URI, overwrite"`
+	RawTagCriteriaUrl    string            `json:"tag_criteria_url" env:"CAPI_TAGANDDENORMALIZE_RAW_TAG_CRITERIA_URL, overwrite"`
 	ParsedTagCriteria    map[string]ast.Expr
 	UsedInCriteriaFields sc.FieldRefs
 }
@@ -58,23 +58,23 @@ func (procDef *TagAndDenormalizeProcessorDef) Deserialize(raw json.RawMessage, _
 	errors := make([]string, 0)
 	procDef.ParsedTagCriteria = map[string]ast.Expr{}
 
-	if len(procDef.RawTagCriteriaUri) > 0 {
+	if len(procDef.RawTagCriteriaUrl) > 0 {
 		if len(procDef.RawTagCriteria) > 0 {
 			return fmt.Errorf("cannot unmarshal both tag_criteria and tag_criteria_url - pick one")
 		}
 
-		criteriaBytes, err := xfer.GetFileBytes(procDef.RawTagCriteriaUri, caPath, privateKeys)
+		criteriaBytes, err := xfer.GetFileBytes(procDef.RawTagCriteriaUrl, caPath, privateKeys)
 		if err != nil {
-			return fmt.Errorf("cannot get criteria file [%s]: %s", procDef.RawTagCriteriaUri, err.Error())
+			return fmt.Errorf("cannot get criteria file [%s]: %s", procDef.RawTagCriteriaUrl, err.Error())
 		}
 
 		if len(criteriaBytes) == 0 {
-			return fmt.Errorf("criteria file [%s] is empty", procDef.RawTagCriteriaUri)
+			return fmt.Errorf("criteria file [%s] is empty", procDef.RawTagCriteriaUrl)
 		}
 
 		if criteriaBytes != nil {
 			if err := json.Unmarshal(criteriaBytes, &procDef.RawTagCriteria); err != nil {
-				return fmt.Errorf("cannot unmarshal tag criteria file [%s]: [%s]", procDef.RawTagCriteriaUri, err.Error())
+				return fmt.Errorf("cannot unmarshal tag criteria file [%s]: [%s]", procDef.RawTagCriteriaUrl, err.Error())
 			}
 		}
 	} else if len(procDef.RawTagCriteria) == 0 {

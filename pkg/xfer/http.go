@@ -11,18 +11,18 @@ import (
 	"time"
 )
 
-const UriSchemeFile string = "file"
-const UriSchemeHttp string = "http"
-const UriSchemeHttps string = "https"
-const UriSchemeSftp string = "sftp"
-const UriSchemeS3 string = "s3"
+const UrlSchemeFile string = "file"
+const UrlSchemeHttp string = "http"
+const UrlSchemeHttps string = "https"
+const UrlSchemeSftp string = "sftp"
+const UrlSchemeS3 string = "s3"
 
-func GetHttpReadCloser(uri string, scheme string, certDir string) (io.ReadCloser, error) {
+func GetHttpReadCloser(fileUrl string, scheme string, certDir string) (io.ReadCloser, error) {
 	var caCertPool *x509.CertPool
 	// tls.Config doc: If RootCAs is nil, TLS uses the host's root CA set.
 	if certDir != "" {
 		caCertPool = x509.NewCertPool()
-		if scheme == UriSchemeHttps {
+		if scheme == UrlSchemeHttps {
 			files, err := os.ReadDir(certDir)
 			if err != nil {
 				return nil, fmt.Errorf("cannot read ca dir with PEM certs %s: %s", certDir, err.Error())
@@ -40,21 +40,21 @@ func GetHttpReadCloser(uri string, scheme string, certDir string) (io.ReadCloser
 	t := &http.Transport{TLSClientConfig: &tls.Config{Certificates: []tls.Certificate{}, RootCAs: caCertPool}}
 	client := http.Client{Transport: t, Timeout: 30 * time.Second}
 
-	resp, err := client.Get(uri)
+	resp, err := client.Get(fileUrl)
 	if err != nil {
-		return nil, fmt.Errorf("cannot get %s: %s", uri, err.Error())
+		return nil, fmt.Errorf("cannot get %s: %s", fileUrl, err.Error())
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		resp.Body.Close()
-		return nil, fmt.Errorf("cannot get %s, bad status: %s", uri, resp.Status)
+		return nil, fmt.Errorf("cannot get %s, bad status: %s", fileUrl, resp.Status)
 	}
 
 	return resp.Body, nil
 }
 
-func readHttpFile(uri string, scheme string, certDir string) ([]byte, error) {
-	r, err := GetHttpReadCloser(uri, scheme, certDir)
+func readHttpFile(fileUrl string, scheme string, certDir string) ([]byte, error) {
+	r, err := GetHttpReadCloser(fileUrl, scheme, certDir)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func readHttpFile(uri string, scheme string, certDir string) ([]byte, error) {
 
 	bytes, err := io.ReadAll(r)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read body of %s, bad status: %s", uri, err.Error())
+		return nil, fmt.Errorf("cannot read body of %s, bad status: %s", fileUrl, err.Error())
 	}
 	return bytes, nil
 }

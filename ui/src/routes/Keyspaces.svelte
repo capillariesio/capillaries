@@ -1,24 +1,21 @@
 <script>
 	import { onDestroy, onMount } from 'svelte';
-	import { openModal } from 'svelte-modals';
+	import { modals } from 'svelte-modals';
 	import Breadcrumbs from '../panels/Breadcrumbs.svelte';
 	import ModalStartRun from '../modals/ModalStartRun.svelte';
-	import Util, { webapiUrl, handleResponse } from '../Util.svelte';
-	let util;
+	import { webapiUrl, handleResponse, ksMatrixLink } from '../Util.svelte';
 
-	// Route params (not used here, but for compatibility)
-	$$restProps;
-	export const params = {};
+	let breadcrumbsPathElements = $state([]);
 
-	// Breadcrumbs
-	let breadcrumbsPathElements = [];
+	let webapiData = $state([]);
+	let responseError = $state('');
+	let dropResponseError = $state('');
+	var timer;
+	let isDestroyed = false;
 
-	// Webapi data
-	let webapiData = [];
-	let responseError = '';
 	function setWebapiData(dataFromJson, errorFromJson) {
-		webapiData = !!dataFromJson ? dataFromJson : [];
-		if (!!errorFromJson) {
+		webapiData = dataFromJson ? dataFromJson : [];
+		if (errorFromJson) {
 			responseError =
 				'cannot retrieve keyspaces, Capillaries webapi returned an error: ' + errorFromJson;
 		} else {
@@ -26,8 +23,6 @@
 		}
 	}
 
-	var timer;
-	let isDestroyed = false;
 	function fetchData() {
 		let url = webapiUrl() + '/ks/';
 		let method = 'GET';
@@ -50,27 +45,28 @@
 			});
 	}
 
-	onMount(async () => {
+	onMount(() => {
+		isDestroyed = false;
 		breadcrumbsPathElements = [{ title: 'Keyspaces' }];
 		fetchData();
 	});
-	onDestroy(async () => {
+
+	onDestroy(() => {
 		isDestroyed = true;
 		if (timer) clearTimeout(timer);
 	});
 
 	function onNew() {
-		openModal(ModalStartRun, { keyspace: '' });
+		modals.open(ModalStartRun, { keyspace: '' });
 	}
 
-	let dropResponseError = '';
 	function onDrop(keyspace) {
 		let url = webapiUrl() + '/ks/' + keyspace;
 		let method = 'DELETE';
 		fetch(new Request(url, { method: method }))
 			.then((response) => response.json())
 			.then((responseJson) => {
-				dropResponseError = !!responseJson ? responseJson.error.msg : '';
+				dropResponseError = responseJson ? responseJson.error.msg : '';
 			})
 			.catch((error) => {
 				dropResponseError = method + ' ' + url + ':' + error;
@@ -79,29 +75,28 @@
 	}
 </script>
 
-<Util bind:this={util} />
-<Breadcrumbs bind:pathElements={breadcrumbsPathElements} />
+<Breadcrumbs path_elements={breadcrumbsPathElements} />
 
 <p style="color:red;">{responseError}</p>
 <p style="color:red;">{dropResponseError}</p>
 
 <button
-	on:click={onNew}
-	title="Opens a popup to specify parameters (keyspace, script URI etc) for a new run"
-	>New run</button
+	onclick={onNew}
+	title="Opens a popup to specify parameters (keyspace, script URL etc) for a new run">New run</button
 >
 <table>
 	<thead>
-		<th>Keyspaces ({webapiData.length})</th>
-		<th>Drop</th>
+		<tr>
+			<th>Keyspaces ({webapiData.length})</th>
+			<th>Drop</th>
+		</tr>
 	</thead>
 	<tbody>
 		{#each webapiData as ks}
 			<tr>
-				<td><a href={util.ksMatrixLink(ks)}>{ks}</a></td>
+				<td><a href={ksMatrixLink(ks)}>{ks}</a></td>
 				<td
-					><button title="Drops the keyspace without any warnings" on:click={onDrop(ks)}
-						>Drop</button
+					><button title="Drops the keyspace without any warnings" onclick={onDrop(ks)}>Drop</button
 					></td
 				>
 			</tr>
