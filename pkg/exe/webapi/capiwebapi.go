@@ -182,44 +182,6 @@ type WebapiNodeRunMatrix struct {
 var NodeDescCache = map[string]string{}
 var NodeDescCacheLock = sync.RWMutex{}
 
-// func (h *UrlHandler) getViz(scriptCache *expirable.LRU[string, string], logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16, useRootPalette bool, isStatus bool) (string, error) {
-
-// 	// Static run props
-
-// 	runProps, err := getRunProps(logger, cqlSession, keyspace, runId)
-// 	if err != nil {
-// 		return "", err
-// 	}
-
-// 	// Now we have script URL, load it
-
-// 	scriptDef, _, err := sc.NewScriptFromFiles(scriptCache, h.Env.CaPath, h.Env.PrivateKeys, runProps.ScriptUrl, runProps.ScriptParamsUrl, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
-// 	if err != nil {
-// 		return "", err
-// 	}
-
-// 	var nodeColorMap map[string]int32
-// 	showIdx := true
-// 	showFields := true
-// 	if isStatus {
-// 		nodeColorMap = map[string]int32{}
-// 		nodes, err := api.GetNodeHistoryForRuns(logger, cqlSession, keyspace, []int16{runId})
-// 		if err != nil {
-// 			return "", err
-// 		}
-// 		for _, node := range nodes {
-// 			nodeColorMap[node.ScriptNode] = api.NodeBatchStatusToCapigraphColor(node.Status)
-// 		}
-// 		showIdx = false
-// 		showFields = false
-// 		useRootPalette = false
-// 	}
-
-// 	svg := api.GetCapigraphDiagram(scriptDef, showIdx, showFields, useRootPalette, nodeColorMap)
-
-// 	return svg, nil
-// }
-
 func (h *UrlHandler) getNodeDesc(scriptCache *expirable.LRU[string, string], logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16, nodeName string) (string, error) {
 
 	nodeKey := keyspace + ":" + nodeName
