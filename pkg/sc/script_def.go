@@ -151,7 +151,7 @@ func (scriptDef *ScriptDef) Deserialize(jsonOrYamlBytesScript []byte, scriptType
 
 	for _, node := range scriptDef.ScriptNodes {
 		if err := scriptDef.checkFieldUsageInCustomProcessorCreator(node); err != nil {
-			return fmt.Errorf("field usage error in custom processor creator, node %s: [%s]", node.Name, err.Error())
+			return fmt.Errorf("field usage error in custom processor creator (check custom artifacts, like criteria files), node %s: [%s]", node.Name, err.Error())
 		}
 	}
 
