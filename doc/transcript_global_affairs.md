@@ -644,7 +644,7 @@ Total 2815 rows
 <pre id="json">{
   "6_file_project_country_quarter_amt": {
     "type": "table_file",
-    "desc": "Write ...",
+    "desc": "Write project_country_quarter_amt.csv",
     "r": {
       "table": "project_country_quarter_amt"
     },
@@ -714,7 +714,7 @@ Total 2815 rows
 <pre id="json">{
   "6_file_project_sector_quarter_amt": {
     "type": "table_file",
-    "desc": "Write ...",
+    "desc": "Write project_sector_quarter_amt.csv",
     "r": {
       "table": "project_sector_quarter_amt"
     },
@@ -784,7 +784,7 @@ Total 4100 rows
 <pre id="json">{
   "6_file_project_partner_quarter_amt": {
     "type": "table_file",
-    "desc": "Write ...",
+    "desc": "Write project_partner_quarter_amt.csv",
     "r": {
       "table": "project_partner_quarter_amt"
     },
