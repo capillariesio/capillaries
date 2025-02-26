@@ -320,7 +320,7 @@
     <use xlink:href="#icon-csv" style="fill:#023EFF;"/>
   </g></g>
   <text class="text-node" x="216.20" y="1511.40">6_file_project_country_quarter_amt</text>
-  <text class="text-node" x="216.20" y="1537.40">Write ...</text>
+  <text class="text-node" x="216.20" y="1537.40">Write project_country_quarter_amt.csv</text>
   <text class="text-node" x="216.20" y="1563.40">Processor: read from table into files</text>
   <text class="text-node" x="216.20" y="1589.40">Source table: project_country_quarter_amt</text>
   <text class="text-node" x="216.20" y="1615.40">File(s): /tmp/capi_out/.../project_country_quarter_amt.csv</text>
@@ -392,7 +392,7 @@
     <use xlink:href="#icon-csv" style="fill:#023EFF;"/>
   </g></g>
   <text class="text-node" x="1123.60" y="1511.40">6_file_project_sector_quarter_amt</text>
-  <text class="text-node" x="1123.60" y="1537.40">Write ...</text>
+  <text class="text-node" x="1123.60" y="1537.40">Write project_sector_quarter_amt.csv</text>
   <text class="text-node" x="1123.60" y="1563.40">Processor: read from table into files</text>
   <text class="text-node" x="1123.60" y="1589.40">Source table: project_sector_quarter_amt</text>
   <text class="text-node" x="1123.60" y="1615.40">File(s): /tmp/capi_out/.../project_sector_quarter_amt.csv</text>
@@ -446,7 +446,7 @@
     <use xlink:href="#icon-csv" style="fill:#023EFF;"/>
   </g></g>
   <text class="text-node" x="2016.40" y="1213.12">6_file_project_partner_quarter_amt</text>
-  <text class="text-node" x="2016.40" y="1239.12">Write ...</text>
+  <text class="text-node" x="2016.40" y="1239.12">Write project_partner_quarter_amt.csv</text>
   <text class="text-node" x="2016.40" y="1265.12">Processor: read from table into files</text>
   <text class="text-node" x="2016.40" y="1291.12">Source table: project_partner_quarter_amt</text>
   <text class="text-node" x="2016.40" y="1317.12">File(s): /tmp/capi_out/.../project_partner_quarter_amt.csv</text>
