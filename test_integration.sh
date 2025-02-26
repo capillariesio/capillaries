@@ -30,11 +30,17 @@ pushd ./test/code/fannie_mae/quicktest_local_fs
 ./test_one_run.sh
 popd
 
+pushd ./test/code/global_affairs/quicktest_local_fs
+# This will take 1 min
+./test_one_run.sh
+popd
+
 # https
 
 pushd ./test/code/tag_and_denormalize
 ./test_one_run_input_https.sh
 popd
+
 
 # s3
 

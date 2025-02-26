@@ -86,7 +86,7 @@
             "mode": "debug",
             "cwd":"${workspaceFolder}/pkg/exe/toolbelt",
             "program": "${workspaceFolder}/pkg/exe/toolbelt/capitoolbelt.go",
-            "args": ["validate_script", "-script_file=/tmp/capi_cfg/fannie_mae_quicktest/script.json", "-params_file=/tmp/capi_cfg/fannie_mae_quicktest/script_params.json", "-format=capigraph", "-detail="]
+            "args": ["validate_script", "-script_file=../../../test/data/cfg/global_affairs_quicktest/script.json", "-params_file=../../../test/data/cfg/global_affairs_quicktest/script_params_quicktest.json", "-format=capigraph", "-detail="]
         },
         {
             "name": "Toolbelt get_run_status_diagram",

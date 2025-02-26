@@ -12,7 +12,7 @@ func TestAppendWithFilter(t *testing.T) {
 	sourceRefs := FieldRefs{FieldRef{TableName: "t1", FieldName: "f1"}, FieldRef{TableName: "t2", FieldName: "f2"}}
 	targetRefs.AppendWithFilter(sourceRefs, "t2")
 	assert.Equal(t, 2, len(targetRefs))
-	assert.True(t, "f0" == targetRefs[0].FieldName && "f2" == targetRefs[1].FieldName || "f2" == targetRefs[0].FieldName && "f0" == targetRefs[1].FieldName)
+	assert.True(t, targetRefs[0].FieldName == "f0" && targetRefs[1].FieldName == "f2" || targetRefs[0].FieldName == "f2" && targetRefs[1].FieldName == "f0")
 
 	assert.True(t, targetRefs.HasFieldsWithTableAlias("t0"))
 	assert.False(t, targetRefs.HasFieldsWithTableAlias("t1"))
@@ -35,7 +35,11 @@ func TestEvalFieldRefExpression(t *testing.T) {
 		{
 			FieldType: FieldTypeDecimal2,
 			TableName: "r",
-			FieldName: "fieldDec"}}
+			FieldName: "fieldDec"},
+		{
+			FieldType: FieldTypeString,
+			TableName: "r",
+			FieldName: "fieldStr"}}
 
 	exp, err := parser.ParseExpr(`r.fieldInt/r.fieldFloat`)
 	assert.Nil(t, err)
@@ -51,4 +55,9 @@ func TestEvalFieldRefExpression(t *testing.T) {
 	assert.Nil(t, err)
 	err = evalExpressionWithFieldRefsAndCheckType(exp, fieldRefs, FieldTypeInt)
 	assert.Contains(t, err.Error(), "expected type int, but got decimal")
+
+	exp, err = parser.ParseExpr(`int(r.fieldStr)/float(r.fieldStr)`)
+	assert.Nil(t, err)
+	err = evalExpressionWithFieldRefsAndCheckType(exp, fieldRefs, FieldTypeFloat)
+	assert.Nil(t, err)
 }

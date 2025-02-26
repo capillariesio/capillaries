@@ -1,0 +1,8 @@
+{
+    "harvested_project_financials_file":"harvested_project_financials_quicktest.csv",
+    "get_amt_from_json_batches": 10,
+    "dir_in": "/tmp/capi_in/global_affairs_quicktest",
+    "dir_out": "/tmp/capi_out/global_affairs_quicktest",
+    "dir_cfg": "/tmp/capi_cfg/global_affairs_quicktest",
+    "dir_py": "/tmp/capi_cfg/global_affairs_quicktest/py"
+}

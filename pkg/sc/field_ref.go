@@ -162,7 +162,7 @@ func evalExpressionWithFieldRefsAndCheckType(exp ast.Expr, fieldRefs FieldRefs, 
 			case FieldTypeBool:
 				varValuesMap[tName][fName] = false
 			case FieldTypeString:
-				varValuesMap[tName][fName] = "12345.67" // There may be a float() call out there
+				varValuesMap[tName][fName] = "12345" // There may be a float() or int() call out there
 			case FieldTypeDateTime:
 				varValuesMap[tName][fName] = time.Now()
 			case FieldTypeDecimal2:

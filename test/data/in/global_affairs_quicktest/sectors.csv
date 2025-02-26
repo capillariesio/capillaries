@@ -1,0 +1,248 @@
+sector_id,sector_name
+11110,"Education, Level Unspecified:  Education policy and administrative management"
+11120,"Education, Level Unspecified:  Education facilities and training"
+11130,Teacher training
+11182,Educational research
+11220,Basic Education:  Primary education
+11230,Basic life skills for youth and adults
+11231,Basic Education:  Basic life skills for youth
+11232,Basic Education:  Primary education equivalent for adults
+11240,Early childhood education
+11250,Basic Education:  School feeding
+11260,Education:  Lower secondary education
+11320,Secondary Education:  Secondary education
+11321,Lower secondary education
+11322,Secondary Education:  Upper secondary education
+11330,Secondary Education:  Vocational training
+11420,Post-Secondary Education:  Higher education
+11430,Post-Secondary Education:  Advanced technical and managerial training
+12110,"Health, General:  Health policy and administrative management"
+12181,"Health, General:  Medical education/training"
+12182,"Health, General:  Medical research"
+12191,"Health, General:  Medical services"
+12196,Health:  Health statistics and data
+12220,Basic health care
+12230,Basic Health:  Basic health infrastructure
+12240,Basic nutrition
+12250,Infectious disease control
+12261,Basic Health:  Health education
+12262,Malaria control
+12263,Basic Health:  Tuberculosis control
+12264,Health:  COVID-19 control
+12281,Health personnel development
+12340,Noncommunicable diseases:  Promotion of mental health and well-being
+12350,Noncommunicable diseases:  Other prevention and treatment of NCDs
+13010,Population policy and administrative management
+13020,Reproductive health care
+13030,Family planning
+13040,STD control including HIV/AIDS
+13081,Personnel development for population and reproductive health
+13096,Population Policies/Programmes And Reproductive Health:  Population statistics and data
+14010,Water And Sanitation:  Water sector policy and administrative management
+14015,Water And Sanitation:  Water resources conservation (including data collection)
+14021,Water supply - large systems
+14022,Sanitation - large systems
+14031,Basic drinking water supply
+14032,Basic sanitation
+14040,River basins' development
+14050,Water And Sanitation:  Waste management/disposal
+14081,Education and training in water supply and sanitation
+15110,Public sector policy and administrative management
+15111,Public finance management
+15112,Decentralisation and support to subnational government
+15113,Anti-corruption organisations and institutions
+15114,"Government And Civil Society, General:  Domestic Revenue Mobilisation"
+15116,Tax collection
+15117,Budget planning
+15118,"Government And Civil Society, General:  National audit"
+15119,Debt and aid management
+15121,Foreign affairs
+15122,Diplomatic missions
+15123,"Government And Civil Society, General:  Administration of developing countries' foreign aid"
+15124,General personnel services
+15125,Central procurement
+15126,Other general public services
+15127,National monitoring and evaluation
+15128,Local government finance
+15130,Legal and judicial development
+15131,"Justice, law and order policy, planning and administration"
+15132,"Government And Civil Society, General:  Police"
+15133,Fire and rescue services
+15134,"Government And Civil Society, General:  Judicial affairs"
+15135,Ombudsman
+15136,Immigration
+15137,"Government And Civil Society, General:  Prisons"
+15142,Macroeconomic policy
+15144,National standards development
+15150,Democratic participation and civil society
+15151,"Government And Civil Society, General:  Elections"
+15152,Legislatures and political parties
+15153,Media and free flow of information
+15154,Executive office
+15155,Tax policy and administration support
+15156,Other non-tax revenue mobilisation
+15160,Human rights
+15170,"Women's rights organisations and movements, and government institutions"
+15180,"Government And Civil Society, General:  Ending violence against women and girls"
+15185,Local government administration
+15190,"Government And Civil Society, General:  Facilitation of orderly, safe, regular and responsible migration and mobility"
+15196,Government and civil society:  Government and civil society statistics and data
+15210,"Conflict Prevention And Resolution, Peace And Security:  Security system management and reform"
+15220,"Conflict Prevention And Resolution, Peace And Security:  Civilian peace-building, conflict prevention and resolution"
+15230,"Conflict Prevention And Resolution, Peace And Security:  Participation in international peacekeeping operations"
+15240,"Conflict Prevention And Resolution, Peace And Security:  Reintegration and SALW control"
+15250,"Conflict Prevention And Resolution, Peace And Security:  Removal of land mines and explosive remnants of war"
+15261,Child soldiers (Prevention and demobilisation)
+16010,Other Social Infrastructure And Services:  Social/welfare services
+16011,"Other Social Infrastructure And Services:  Social protection and welfare services policy, planning and administration"
+16013,General pensions
+16015,Other Social Infrastructure And Services:  Social services (incl youth development and women+ children)
+16020,Employment policy and administrative management
+16030,Housing policy and administrative management
+16040,Other Social Infrastructure And Services:  Low-cost housing
+16050,Other Social Infrastructure And Services:  Multi-sector aid for basic social services
+16061,Other Social Infrastructure And Services:  Culture and recreation
+16062,Other Social Infrastructure And Services:  Statistical capacity building
+16063,Other Social Infrastructure And Services:  Narcotics control
+16064,Other Social Infrastructure And Services:  Social mitigation of HIV/AIDS
+16066,Culture
+16070,Other Social Infrastructure And Services:  Labour Rights
+16080,Social Dialogue
+21010,Transport And Storage:  Transport policy and administrative management
+21011,"Transport And Storage:  Transport policy, planning and administration"
+21012,Transport And Storage:  Public transport services
+21020,Transport And Storage:  Road transport
+21024,National road maintenance
+21030,Rail transport
+21040,Transport And Storage:  Water transport
+21050,Air transport
+21061,Storage
+21081,Education and training in transport and storage
+22010,Communication:  Communications policy and administrative management
+22011,"Communication:  Communications policy, planning and administration"
+22013,Communication:  Information services
+22020,Communication:  Telecommunications
+22030,Communication:  Radio/television/print media
+22040,Communication:  Information and communication technology (ICT)
+23110,"Energy Generation, Distribution And Efficiency - General:  Energy policy and administrative management"
+23111,"Energy Generation, Distribution And Efficiency - General:  Energy sector policy, planning and administration"
+23112,Energy regulation
+23181,Energy education/training
+23182,Energy research
+23183,Energy conservation and demand-side efficiency
+23210,"Energy Generation, Renewable Resources:  Energy generation, renewable sources - multiple technologies"
+23220,"Energy Generation, Renewable Resources:  Hydro-electric power plants"
+23230,"Energy Generation, Renewable Resources:  Solar energy"
+23231,Energy Generation And Supply:  Solar energy for isolated grids and standalone systems
+23232,Energy Generation And Supply:  Solar energy – thermal applications
+23240,Wind energy
+23260,Geothermal energy
+23270,"Energy Generation, Renewable Resources:  Biofuel-fired power plants"
+23310,"Energy Generation, Non-Renewable Sources:  Energy generation, non-renewable sources - unspecified"
+23510,Nuclear Energy Electric Power Plants:  Nuclear energy electric power plants
+23630,"Heating, Cooling And Energy Distribution:  Electric power transmission and&nbsp; distribution"
+23640,"Heating, Cooling And Energy Distribution:  Gas distribution"
+23642,Energy Generation And Supply:  Electric mobility infrastructures
+24010,Financial policy and administrative management
+24020,Banking And Financial Services:  Monetary institutions
+24030,Formal sector financial intermediaries
+24040,Informal/semi-formal financial intermediaries
+24050,"Remittance facilitation, promotion and optimisation"
+24081,Education/training in banking and financial services
+25010,Business And Other Services:  Business support services and institutions
+25020,Privatization
+25030,Business Development Services
+25040,Responsible Business Conduct
+31110,Agricultural policy and administrative management
+31120,Agricultural development
+31130,Agricultural land resources
+31140,Agricultural water resources
+31150,Agricultural inputs
+31161,Food crop production
+31162,Industrial crops/export crops
+31163,Livestock
+31164,Agriculture:  Agrarian reform
+31165,Agricultural alternative development
+31166,Agricultural extension
+31181,Agriculture:  Agricultural education/training
+31182,Agricultural research
+31191,Agricultural services
+31192,Plant and post-harvest protection and pest control
+31193,Agriculture:  Agricultural financial services
+31194,Agricultural co-operatives
+31195,Livestock/veterinary services
+31210,Forestry:  Forestry policy and administrative management
+31220,Forestry:  Forestry development
+31261,Forestry:  Fuelwood/charcoal
+31281,Forestry education/training
+31282,Forestry:  Forestry research
+31291,Forestry:  Forestry services
+31310,Fishing:  Fishing policy and administrative management
+31320,Fishery development
+31381,Fishery education/training
+31382,Fishery research
+31391,Fishery services
+32110,Industry:  Industrial policy and administrative management
+32120,Industry:  Industrial development
+32130,Industry:  Small and medium-sized enterprises (SME) development
+32140,Industry:  Cottage industries and handicrafts
+32161,Industry:  Agro-industries
+32162,Forest industries
+32163,"Textiles, leather and substitutes"
+32164,Chemicals
+32165,Industry:  Fertilizer plants
+32167,Energy manufacturing
+32169,Industry:  Basic metal industries
+32182,Technological research and development
+32210,Mineral Resources And Mining:  Mineral/mining policy and administrative management
+32220,Mineral Resources And Mining:  Mineral prospection and exploration
+32261,Coal
+32262,Mineral Resources And Mining:  Oil and gas
+32263,Ferrous metals
+32264,Nonferrous metals
+32265,Mineral Resources And Mining:  Precious metals/materials
+32266,Industrial minerals
+32267,Fertilizer minerals
+32310,Construction:  Construction policy and administrative management
+33110,Trade policy and administrative management
+33120,Trade Policy And Regulations And Trade-Related Adjustment:  Trade facilitation
+33130,Regional trade agreements (RTAs)
+33140,Multilateral trade negotiations
+33150,Trade-related adjustment
+33181,Trade education/training
+33210,Tourism:  Tourism policy and administrative management
+41010,Environmental policy and administrative management
+41020,General Environmental Protection:  Biosphere protection
+41030,Bio-diversity
+41040,Site preservation
+41050,Flood prevention/control
+41081,General Environmental Protection:  Environmental education/training
+41082,Environmental research
+43010,Other Multisector:  Multisector aid
+43030,Other Multisector:  Urban development and management
+43031,Urban land policy and management
+43032,Urban development
+43040,Other Multisector:  Rural development
+43041,Other Multisector:  Rural land policy and management
+43042,Other Multisector:  Rural development
+43050,Non-agricultural alternative development
+43060,Other Multisector:  Disaster Risk Reduction
+43071,Multi-sector/General environmental protection:  Food security policy and administrative management
+43072,Multi-sector/General environmental protection:  Household food security programmes
+43073,Multi-sector/General environmental protection:  Food safety and quality
+43081,Other Multisector:  Multisector education/training
+43082,Other Multisector:  Research/scientific institutions
+52010,Developmental Food Aid/Food Security Assistance:  Food aid/food security programs
+53030,Other Commodity Assistance:  Import support (capital goods)
+53040,Other Commodity Assistance:  Import support (commodities)
+72010,Emergency Response:  Material relief assistance and services
+72011,Humanitarian aid:  Basic Health Care in Emergencies
+72012,Humanitarian aid:  Education in Emergencies
+72040,Emergency Response:  Emergency food aid
+72050,Emergency Response:  Relief co-ordination; protection and support services
+73010,Reconstruction Relief And Rehabilitation:  Reconstruction relief and rehabilitation
+74010,Disaster Prevention And Preparedness:  Disaster prevention and preparedness
+74020,Disaster Prevention And Preparedness:  Multi-hazard response preparedness
+91010,Administrative Costs Of Donors:  Administrative costs
+99810,Unallocated/ Unspecified:  Sectors not specified
+99820,Unallocated/ Unspecified:  Promotion of development awareness
