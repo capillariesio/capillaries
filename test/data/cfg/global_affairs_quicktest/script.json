@@ -544,7 +544,7 @@
             "type": "table_file",
             "desc": "Write project_partner_quarter_amt.csv",
             "r": {
-                "table": "project_partner_quarter_amt.csv"
+                "table": "project_partner_quarter_amt"
             },
             "w": {
                 "top": {
