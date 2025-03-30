@@ -50,17 +50,17 @@ func newFileInserter(pCtx *ctx.MessageProcessingContext, fileCreator *sc.FileCre
 }
 
 func (instr *FileInserter) checkWorkerOutputForErrors() error {
-	errors := make([]string, 0)
+	foundErrors := make([]string, 0)
 	for {
 		select {
 		case err := <-instr.RecordWrittenStatuses:
 			instr.BatchesSent--
 			if err != nil {
-				errors = append(errors, err.Error())
+				foundErrors = append(foundErrors, err.Error())
 			}
 		default:
-			if len(errors) > 0 {
-				return fmt.Errorf("%s", strings.Join(errors, "; "))
+			if len(foundErrors) > 0 {
+				return fmt.Errorf("%s", strings.Join(foundErrors, "; "))
 			} else {
 				return nil
 			}
@@ -80,13 +80,13 @@ func (instr *FileInserter) waitForWorker(logger *l.CapiLogger, pCtx *ctx.Message
 	}
 
 	logger.DebugCtx(pCtx, "started reading BatchesSent=%d from instr.RecordWrittenStatuses", instr.BatchesSent)
-	errors := make([]string, 0)
+	foundErrors := make([]string, 0)
 	// It's crucial that the number of errors to receive eventually should match instr.BatchesSent
 	errCount := 0
 	for i := 0; i < instr.BatchesSent; i++ {
 		err := <-instr.RecordWrittenStatuses
 		if err != nil {
-			errors = append(errors, err.Error())
+			foundErrors = append(foundErrors, err.Error())
 			errCount++
 		}
 		logger.DebugCtx(pCtx, "got result for sent record %d out of %d from instr.RecordWrittenStatuses, %d errors so far", i, instr.BatchesSent, errCount)
@@ -101,8 +101,8 @@ func (instr *FileInserter) waitForWorker(logger *l.CapiLogger, pCtx *ctx.Message
 	close(instr.BatchesIn)
 	logger.DebugCtx(pCtx, "closed BatchesIn")
 
-	if len(errors) > 0 {
-		return fmt.Errorf("%s", strings.Join(errors, "; "))
+	if len(foundErrors) > 0 {
+		return fmt.Errorf("%s", strings.Join(foundErrors, "; "))
 	}
 
 	return nil

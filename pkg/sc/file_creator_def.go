@@ -2,6 +2,7 @@ package sc
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go/ast"
 	"strings"
@@ -126,7 +127,7 @@ func (creatorDef *FileCreatorDef) Deserialize(rawWriter json.RawMessage) error {
 			creatorDef.Csv.Separator = ","
 		}
 	} else {
-		return fmt.Errorf("cannot cannot detect file creator type: parquet should have column_name, csv should have header etc")
+		return errors.New("cannot cannot detect file creator type: parquet should have column_name, csv should have header etc")
 	}
 
 	// Having
@@ -167,7 +168,7 @@ func (creatorDef *FileCreatorDef) Deserialize(rawWriter json.RawMessage) error {
 }
 
 func (creatorDef *FileCreatorDef) CalculateFileRecordFromSrcVars(srcVars eval.VarValuesMap) ([]any, error) {
-	errors := make([]string, 0, 2)
+	foundErrors := make([]string, 0, 2)
 
 	fileRecord := make([]any, len(creatorDef.Columns))
 
@@ -175,16 +176,16 @@ func (creatorDef *FileCreatorDef) CalculateFileRecordFromSrcVars(srcVars eval.Va
 		eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, &srcVars)
 		valVolatile, err := eCtx.Eval(creatorDef.Columns[colIdx].ParsedExpression)
 		if err != nil {
-			errors = append(errors, fmt.Sprintf("cannot evaluate expression for column %s: [%s]", creatorDef.Columns[colIdx].Name, err.Error()))
+			foundErrors = append(foundErrors, fmt.Sprintf("cannot evaluate expression for column %s: [%s]", creatorDef.Columns[colIdx].Name, err.Error()))
 		}
 		if err := CheckValueType(valVolatile, creatorDef.Columns[colIdx].Type); err != nil {
-			errors = append(errors, fmt.Sprintf("invalid field %s type: [%s]", creatorDef.Columns[colIdx].Name, err.Error()))
+			foundErrors = append(foundErrors, fmt.Sprintf("invalid field %s type: [%s]", creatorDef.Columns[colIdx].Name, err.Error()))
 		}
 		fileRecord[colIdx] = valVolatile
 	}
 
-	if len(errors) > 0 {
-		return nil, fmt.Errorf("%s", strings.Join(errors, "; "))
+	if len(foundErrors) > 0 {
+		return nil, fmt.Errorf("%s", strings.Join(foundErrors, "; "))
 	}
 	return fileRecord, nil
 }

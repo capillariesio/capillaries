@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go/ast"
 	"regexp"
@@ -60,7 +61,7 @@ func harvestCallExp(callExp *ast.CallExpr, sigMap map[string]struct{}) error {
 	// Build a func_name(arg,arg,...) signature for it to check our Python code later
 	funIdentExp, ok := callExp.Fun.(*ast.Ident)
 	if !ok {
-		return fmt.Errorf("cannot cast to ident in harvestCallExp")
+		return errors.New("cannot cast to ident in harvestCallExp")
 	}
 	funcSig := fmt.Sprintf("%s(%s)", funIdentExp.Name, strings.Trim(strings.Repeat("arg,", len(callExp.Args)), ","))
 	sigMap[funcSig] = struct{}{}
@@ -91,14 +92,14 @@ func (procDef *PyCalcProcessorDef) Deserialize(raw json.RawMessage, customProcSe
 	}
 
 	if len(procDef.EnvSettings.InterpreterPath) == 0 {
-		return fmt.Errorf("py_calc interpreter path cannot be empty")
+		return errors.New("py_calc interpreter path cannot be empty")
 	}
 
 	if procDef.EnvSettings.ExecutionTimeout == 0 {
 		procDef.EnvSettings.ExecutionTimeout = 5000
 	}
 
-	errors := make([]string, 0)
+	foundErrors := make([]string, 0)
 	usedPythonFunctionSignatures := map[string]struct{}{}
 
 	// Calculated fields
@@ -106,9 +107,9 @@ func (procDef *PyCalcProcessorDef) Deserialize(raw json.RawMessage, customProcSe
 		var err error
 		// Use relaxed Go parser for Python - we are lucky that Go designers liked Python, so we do not have to implement a separate Python partser (for now)
 		if fieldDef.ParsedExpression, err = sc.ParseRawRelaxedGolangExpressionStringAndHarvestFieldRefs(fieldDef.RawExpression, &fieldDef.UsedFields, sc.FieldRefAllowUnknownIdents); err != nil {
-			errors = append(errors, fmt.Sprintf("cannot parse field expression [%s]: [%s]", fieldDef.RawExpression, err.Error()))
+			foundErrors = append(foundErrors, fmt.Sprintf("cannot parse field expression [%s]: [%s]", fieldDef.RawExpression, err.Error()))
 		} else if !sc.IsValidFieldType(fieldDef.Type) {
-			errors = append(errors, fmt.Sprintf("invalid field type [%s]", fieldDef.Type))
+			foundErrors = append(foundErrors, fmt.Sprintf("invalid field type [%s]", fieldDef.Type))
 		}
 
 		// Each calculated field expression must be a valid Python expression and either:
@@ -120,12 +121,12 @@ func (procDef *PyCalcProcessorDef) Deserialize(raw json.RawMessage, customProcSe
 		switch typedExp := fieldDef.ParsedExpression.(type) {
 		case *ast.CallExpr:
 			if err := harvestCallExp(typedExp, usedPythonFunctionSignatures); err != nil {
-				errors = append(errors, fmt.Sprintf("cannot harvest Python call expressions in %s: %s", fieldDef.RawExpression, err.Error()))
+				foundErrors = append(foundErrors, fmt.Sprintf("cannot harvest Python call expressions in %s: %s", fieldDef.RawExpression, err.Error()))
 			}
 		case *ast.SelectorExpr:
 			// Assume it's a reader or calculated field. Do not check it here, checkFieldUsageInCustomProcessor() will do that
 		default:
-			errors = append(errors, fmt.Sprintf("invalid calculated field expression '%s', expected either 'some_function_from_your_python_code(...)' or some reader field, like 'r.order_id', or some other calculated (by this processor) field, like 'p.calculatedMargin'", fieldDef.RawExpression))
+			foundErrors = append(foundErrors, fmt.Sprintf("invalid calculated field expression '%s', expected either 'some_function_from_your_python_code(...)' or some reader field, like 'r.order_id', or some other calculated (by this processor) field, like 'p.calculatedMargin'", fieldDef.RawExpression))
 		}
 	}
 
@@ -137,7 +138,7 @@ func (procDef *PyCalcProcessorDef) Deserialize(raw json.RawMessage, customProcSe
 	for _, url := range procDef.PythonUrls {
 		bytes, err := xfer.GetFileBytes(url, caPath, privateKeys)
 		if err != nil {
-			errors = append(errors, err.Error())
+			foundErrors = append(foundErrors, err.Error())
 		}
 		b.WriteString(string(bytes))
 		b.WriteString("\n")
@@ -146,7 +147,7 @@ func (procDef *PyCalcProcessorDef) Deserialize(raw json.RawMessage, customProcSe
 	procDef.PythonCode = b.String()
 
 	if errCheckDefs := checkPythonFuncDefAvailability(usedPythonFunctionSignatures, procDef.PythonCode); errCheckDefs != nil {
-		errors = append(errors, errCheckDefs.Error())
+		foundErrors = append(foundErrors, errCheckDefs.Error())
 	}
 
 	// Build a set of "r.inputFieldX" and "p.calculatedFieldY" to perform Python code checks
@@ -169,13 +170,13 @@ func (procDef *PyCalcProcessorDef) Deserialize(raw json.RawMessage, customProcSe
 	// Check DAG and return calc fields in the order they should be calculated
 	var err error
 	if procDef.CalculationOrder, err = kahn(dag); err != nil {
-		errors = append(errors, fmt.Sprintf("%s. Calc dependency map:\n%v", err, dag))
+		foundErrors = append(foundErrors, fmt.Sprintf("%s. Calc dependency map:\n%v", err, dag))
 	}
 
 	// TODO: deserialize other stuff from raw here if needed
 
-	if len(errors) > 0 {
-		return fmt.Errorf("%s", strings.Join(errors, "; "))
+	if len(foundErrors) > 0 {
+		return fmt.Errorf("%s", strings.Join(foundErrors, "; "))
 	}
 
 	return nil
@@ -201,9 +202,8 @@ func valueToPythonExpr(val any) string {
 	case bool:
 		if typedVal {
 			return "TRUE"
-		} else {
-			return "FALSE"
 		}
+		return "FALSE"
 	case decimal.Decimal:
 		return typedVal.String()
 	case time.Time:
@@ -271,7 +271,7 @@ Pays attention to function name and number of arguments. Expressions may contain
 Does NOT perform deep checks for Python function call hierarchy.
 */
 func checkPythonFuncDefAvailability(usedPythonFunctionSignatures map[string]struct{}, codeFormulaDefs string) error {
-	var errors strings.Builder
+	var foundErrors strings.Builder
 
 	// Walk trhough the whole code and collect Python function defs
 	availableDefSigs := map[string]struct{}{}
@@ -308,17 +308,17 @@ func checkPythonFuncDefAvailability(usedPythonFunctionSignatures map[string]stru
 	for usedSig := range usedPythonFunctionSignatures {
 		if _, ok := availableDefSigs[usedSig]; !ok {
 			if _, ok := pythoBuiltinFunctions[usedSig]; !ok {
-				errors.WriteString(fmt.Sprintf("function def '%s' not found in Python file, and it's not in the list of allowed Python built-in functions; ", usedSig))
+				foundErrors.WriteString(fmt.Sprintf("function def '%s' not found in Python file, and it's not in the list of allowed Python built-in functions; ", usedSig))
 			}
 		}
 	}
 
-	if errors.Len() > 0 {
+	if foundErrors.Len() > 0 {
 		var defs strings.Builder
 		for defSig := range availableDefSigs {
 			defs.WriteString(fmt.Sprintf("%s; ", defSig))
 		}
-		return fmt.Errorf("Python function defs availability check failed, the following functions are not defined: [%s]. Full list of available Python function definitions: %s", errors.String(), defs.String())
+		return fmt.Errorf("Python function defs availability check failed, the following functions are not defined: [%s]. Full list of available Python function definitions: %s", foundErrors.String(), defs.String())
 	}
 
 	return nil
@@ -363,7 +363,7 @@ func kahn(depMap map[string][]string) ([]string, error) {
 
 	for _, inDegree := range inDegreeMap {
 		if inDegree > 0 {
-			return []string{}, fmt.Errorf("Formula expressions have cycle(s)")
+			return []string{}, errors.New("Formula expressions have cycle(s)")
 		}
 	}
 
@@ -464,7 +464,7 @@ func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput
 	// No Python interpreter errors, but there may be runtime errors and good results.
 	// Timeout error may be there too.
 
-	var errors strings.Builder
+	var foundErrors strings.Builder
 	varsArray := make([]*eval.VarValuesMap, pyCalcFlushBufferSize)
 	varsArrayCount := 0
 
@@ -475,7 +475,7 @@ func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput
 			return fatalError
 		}
 		if len(rowError) > 0 {
-			errors.WriteString(rowError)
+			foundErrors.WriteString(rowError)
 		} else {
 			// SUCCESS code snippet jsonString is there, try to get the result JSON
 			var itemResults map[string]any
@@ -483,7 +483,7 @@ func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput
 			if err != nil {
 				// Bad JSON
 				errorText := fmt.Sprintf("%d:unexpected error, cannot deserialize results, %s, '%s'", rowIdx, err, jsonString)
-				errors.WriteString(errorText)
+				foundErrors.WriteString(errorText)
 				// logText.WriteString(errorText)
 			} else {
 				// Success
@@ -499,18 +499,18 @@ func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput
 				for _, outFieldRef := range *outFieldRefs {
 					pythonFieldValue, ok := itemResults[outFieldRef.FieldName]
 					if !ok {
-						errors.WriteString(fmt.Sprintf("cannot find result for row %d, field %s;", rowIdx, outFieldRef.FieldName))
+						foundErrors.WriteString(fmt.Sprintf("cannot find result for row %d, field %s;", rowIdx, outFieldRef.FieldName))
 					} else {
 						valVolatile, err := pythonResultToRowsetValue(&outFieldRef, pythonFieldValue)
 						if err != nil {
-							errors.WriteString(fmt.Sprintf("cannot deserialize result for row %d: %s;", rowIdx, err.Error()))
+							foundErrors.WriteString(fmt.Sprintf("cannot deserialize result for row %d: %s;", rowIdx, err.Error()))
 						} else {
 							vars[sc.CustomProcessorAlias][outFieldRef.FieldName] = valVolatile
 						}
 					}
 				}
 
-				if errors.Len() == 0 {
+				if foundErrors.Len() == 0 {
 					varsArray[varsArrayCount] = &vars
 					varsArrayCount++
 					if varsArrayCount == len(varsArray) {
@@ -525,9 +525,9 @@ func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput
 		}
 	}
 
-	if errors.Len() > 0 {
+	if foundErrors.Len() > 0 {
 		// fmt.Println(fmt.Sprintf("%s\nRaw output below:\n%s\nFull codebase below (may be big):\n%s", logText.String(), rawOutput, codeBase.String()))
-		return fmt.Errorf("%s", errors.String())
+		return fmt.Errorf("%s", foundErrors.String())
 	}
 
 	// fmt.Println(fmt.Sprintf("%s\nRaw output below:\n%s", logText.String(), rawOutput))

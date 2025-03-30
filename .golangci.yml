@@ -153,3 +153,15 @@ issues:
       text: maximum number of return results per function exceeded
       linters:
         - revive
+    - path: pkg\/sc\/script_def_loader.donotcover\.go
+      text: Filename script_def_loader.donotcover.go is not of the format
+      linters:
+        - revive
+    - path: pkg\/custom\/tag_and_denormalize\/tag_and_denormalize.donotcover\.go
+      text: Filename tag_and_denormalize.donotcover.go is not of the format
+      linters:
+        - revive
+    - path: pkg\/custom\/py_calc\/py_calc.donotcover\.go
+      text: Filename py_calc.donotcover.go is not of the format
+      linters:
+        - revive

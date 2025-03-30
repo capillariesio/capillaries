@@ -248,7 +248,7 @@ func CalculateFieldValue(fieldName string, fieldDef *WriteTableFieldDef, srcVars
 }
 
 func (tcDef *TableCreatorDef) CalculateTableRecordFromSrcVars(canUseAggFunc bool, srcVars eval.VarValuesMap) (map[string]any, error) {
-	errors := make([]string, 0, 2)
+	foundErrors := make([]string, 0, 2)
 
 	tableRecord := map[string]any{}
 
@@ -256,12 +256,12 @@ func (tcDef *TableCreatorDef) CalculateTableRecordFromSrcVars(canUseAggFunc bool
 		var err error
 		tableRecord[fieldName], err = CalculateFieldValue(fieldName, fieldDef, srcVars, canUseAggFunc)
 		if err != nil {
-			errors = append(errors, err.Error())
+			foundErrors = append(foundErrors, err.Error())
 		}
 	}
 
-	if len(errors) > 0 {
-		return nil, fmt.Errorf("%s", strings.Join(errors, "; "))
+	if len(foundErrors) > 0 {
+		return nil, fmt.Errorf("%s", strings.Join(foundErrors, "; "))
 	}
 
 	return tableRecord, nil

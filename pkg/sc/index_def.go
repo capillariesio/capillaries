@@ -1,6 +1,7 @@
 package sc
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -156,7 +157,7 @@ func (idxDef *IdxDef) parseComponentExpr(fldExp *ast.Expr, fieldRefs *FieldRefs)
 		idxCompDef.FieldName = typedFldExp.Name
 
 	default:
-		return fmt.Errorf(
+		return errors.New(
 			"invalid expression in index component definition, expected 'field([modifiers])' or 'field' where 'field' is one of the fields of the table created by this node")
 	}
 
@@ -176,7 +177,7 @@ func (idxDef *IdxDef) parseComponentExpr(fldExp *ast.Expr, fieldRefs *FieldRefs)
 }
 
 func (idxDefMap *IdxDefMap) parseRawIndexDefMap(rawIdxDefMap map[string]string, fieldRefs *FieldRefs) error {
-	errors := make([]string, 0, 10)
+	foundErrors := make([]string, 0, 10)
 
 	for idxName, rawIdxDef := range rawIdxDefMap {
 
@@ -209,7 +210,7 @@ func (idxDefMap *IdxDefMap) parseRawIndexDefMap(rawIdxDefMap map[string]string, 
 			for _, fldExp := range typedExp.Args {
 				err := idxDef.parseComponentExpr(&fldExp, fieldRefs)
 				if err != nil {
-					errors = append(errors, fmt.Sprintf("index %s: [%s]", rawIdxDef, err.Error()))
+					foundErrors = append(foundErrors, fmt.Sprintf("index %s: [%s]", rawIdxDef, err.Error()))
 				}
 			}
 
@@ -223,8 +224,8 @@ func (idxDefMap *IdxDefMap) parseRawIndexDefMap(rawIdxDefMap map[string]string, 
 		}
 	}
 
-	if len(errors) > 0 {
-		return fmt.Errorf("cannot parse order definitions: [%s]", strings.Join(errors, "; "))
+	if len(foundErrors) > 0 {
+		return fmt.Errorf("cannot parse order definitions: [%s]", strings.Join(foundErrors, "; "))
 	}
 
 	return nil

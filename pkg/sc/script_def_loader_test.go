@@ -200,19 +200,19 @@ func (procDef *SomeTestCustomProcessorDef) Deserialize(raw json.RawMessage, _ js
 		return fmt.Errorf("cannot unmarshal some_test_custom_processor def: %s", err.Error())
 	}
 
-	errors := make([]string, 0)
+	foundErrors := make([]string, 0)
 
 	// Produced fields (same as in PyCalcProcessorDef.Deserialize, we assume that this test processor also uses Python syntax for expressions)
 	for _, fieldDef := range procDef.ProducedFields {
 		if fieldDef.ParsedExpression, err = ParseRawRelaxedGolangExpressionStringAndHarvestFieldRefs(fieldDef.RawExpression, &fieldDef.UsedFields, FieldRefAllowUnknownIdents); err != nil {
-			errors = append(errors, fmt.Sprintf("cannot parse field expression [%s]: [%s]", fieldDef.RawExpression, err.Error()))
+			foundErrors = append(foundErrors, fmt.Sprintf("cannot parse field expression [%s]: [%s]", fieldDef.RawExpression, err.Error()))
 		} else if !IsValidFieldType(fieldDef.Type) {
-			errors = append(errors, fmt.Sprintf("invalid field type [%s]", fieldDef.Type))
+			foundErrors = append(foundErrors, fmt.Sprintf("invalid field type [%s]", fieldDef.Type))
 		}
 	}
 
-	if len(errors) > 0 {
-		return fmt.Errorf("%s", strings.Join(errors, ";"))
+	if len(foundErrors) > 0 {
+		return fmt.Errorf("%s", strings.Join(foundErrors, ";"))
 	}
 
 	procDef.UsedInTargetExpressionsFields = GetFieldRefsUsedInAllTargetExpressions(procDef.ProducedFields)

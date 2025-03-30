@@ -1,6 +1,7 @@
 package capigraph
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"slices"
@@ -580,7 +581,7 @@ func getBestHierarchy(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions
 		tElapsed = time.Since(tStart).Seconds()
 
 		if bestMx == nil {
-			return nil, int64(mxPermCnt), tElapsed, 0.0, fmt.Errorf("no best")
+			return nil, int64(mxPermCnt), tElapsed, 0.0, errors.New("no best")
 		}
 	} else {
 		bestMx = mx

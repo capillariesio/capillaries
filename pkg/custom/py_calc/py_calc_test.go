@@ -2,7 +2,7 @@ package py_calc
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"regexp"
 	"strings"
 	"testing"
@@ -264,13 +264,13 @@ func testCalculator(t *testing.T, scriptDef *sc.ScriptDef) {
 
 	// Interpreter executable returns an error
 
-	_, err = pyCalcProcDef.analyseExecError(codeBase, "", "", fmt.Errorf("file not found"))
+	_, err = pyCalcProcDef.analyseExecError(codeBase, "", "", errors.New("file not found"))
 	assert.Equal(t, "interpreter binary not found: /some/bad/python/path", err.Error())
 
-	_, err = pyCalcProcDef.analyseExecError(codeBase, "", "rawErrors", fmt.Errorf("exit status"))
+	_, err = pyCalcProcDef.analyseExecError(codeBase, "", "rawErrors", errors.New("exit status"))
 	assert.Equal(t, "interpreter returned an error (probably syntax), see log for details: rawErrors", err.Error())
 
-	_, err = pyCalcProcDef.analyseExecError(codeBase, "", "unknown raw errors", fmt.Errorf("unexpected error"))
+	_, err = pyCalcProcDef.analyseExecError(codeBase, "", "unknown raw errors", errors.New("unexpected error"))
 	assert.Equal(t, "unexpected calculation errors: unknown raw errors", err.Error())
 
 	// Interpreter ok, analyse output

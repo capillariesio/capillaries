@@ -43,15 +43,13 @@ func valueToString(value any, quotePolicy QuotePolicyType) string {
 	case string:
 		if quotePolicy == ForceUnquote {
 			return strings.ReplaceAll(v, "'", "''")
-		} else {
-			return fmt.Sprintf("'%s'", strings.ReplaceAll(v, "'", "''"))
 		}
+		return fmt.Sprintf("'%s'", strings.ReplaceAll(v, "'", "''"))
 	case time.Time:
 		if quotePolicy == ForceUnquote {
 			return v.Format(sc.CassandraDatetimeFormat)
-		} else {
-			return v.Format(fmt.Sprintf("'%s'", sc.CassandraDatetimeFormat))
 		}
+		return v.Format(fmt.Sprintf("'%s'", sc.CassandraDatetimeFormat))
 	default:
 		return fmt.Sprintf("%v", v)
 	}

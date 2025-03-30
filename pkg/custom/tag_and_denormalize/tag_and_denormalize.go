@@ -3,6 +3,7 @@ package tag_and_denormalize
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go/ast"
 	"strings"
@@ -48,19 +49,19 @@ func (procDef *TagAndDenormalizeProcessorDef) Deserialize(raw json.RawMessage, _
 			return fmt.Errorf("cannot unmarshal tag_and_denormalize processor def yaml: %s", err.Error())
 		}
 	} else {
-		return fmt.Errorf("cannot unmarshal tag_and_denormalize processor def: json or yaml expected")
+		return errors.New("cannot unmarshal tag_and_denormalize processor def: json or yaml expected")
 	}
 
 	if err := envconfig.Process(context.TODO(), procDef); err != nil {
 		return fmt.Errorf("cannot process tag_and_denormalize env variables: %s", err.Error())
 	}
 
-	errors := make([]string, 0)
+	foundErrors := make([]string, 0)
 	procDef.ParsedTagCriteria = map[string]ast.Expr{}
 
 	if len(procDef.RawTagCriteriaUrl) > 0 {
 		if len(procDef.RawTagCriteria) > 0 {
-			return fmt.Errorf("cannot unmarshal both tag_criteria and tag_criteria_url - pick one")
+			return errors.New("cannot unmarshal both tag_criteria and tag_criteria_url - pick one")
 		}
 
 		criteriaBytes, err := xfer.GetFileBytes(procDef.RawTagCriteriaUrl, caPath, privateKeys)
@@ -78,19 +79,19 @@ func (procDef *TagAndDenormalizeProcessorDef) Deserialize(raw json.RawMessage, _
 			}
 		}
 	} else if len(procDef.RawTagCriteria) == 0 {
-		return fmt.Errorf("cannot unmarshal with tag_criteria and tag_criteria_url missing")
+		return errors.New("cannot unmarshal with tag_criteria and tag_criteria_url missing")
 	}
 
 	for tag, rawExp := range procDef.RawTagCriteria {
 		if procDef.ParsedTagCriteria[tag], err = sc.ParseRawGolangExpressionStringAndHarvestFieldRefs(rawExp, &procDef.UsedInCriteriaFields); err != nil {
-			errors = append(errors, fmt.Sprintf("cannot parse tag criteria expression [%s]: [%s]", rawExp, err.Error()))
+			foundErrors = append(foundErrors, fmt.Sprintf("cannot parse tag criteria expression [%s]: [%s]", rawExp, err.Error()))
 		}
 	}
 
 	// Later on, checkFieldUsageInCustomProcessor() will verify all fields from procDef.UsedInCriteriaFields are valid reader fields
 
-	if len(errors) > 0 {
-		return fmt.Errorf("%s", strings.Join(errors, "; "))
+	if len(foundErrors) > 0 {
+		return fmt.Errorf("%s", strings.Join(foundErrors, "; "))
 	}
 	return nil
 }

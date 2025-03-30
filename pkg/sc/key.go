@@ -20,45 +20,46 @@ const BeginningOfTimeMicro = int64(-62135596800000000) // time.Date(1, time.Janu
 func getNumericValueSign(v any, expectedType TableFieldType) (string, any, error) {
 	var sign string
 	var newVal any
+	var ok bool
 
 	switch expectedType {
 	case FieldTypeInt:
-		if n, ok := v.(int64); ok {
-			if n >= 0 {
-				sign = "0" // "0" > "-"
-				newVal = n
-			} else {
-				sign = "-"
-				newVal = -n
-			}
-		} else {
+		var n int64
+		if n, ok = v.(int64); !ok {
 			return "", nil, fmt.Errorf("cannot convert value %v to type %v", v, expectedType)
+		}
+		if n >= 0 {
+			sign = "0" // "0" > "-"
+			newVal = n
+		} else {
+			sign = "-"
+			newVal = -n
 		}
 
 	case FieldTypeFloat:
-		if f, ok := v.(float64); ok {
-			if f >= 0 {
-				sign = "0" // "0" > "-"
-				newVal = f
-			} else {
-				sign = "-"
-				newVal = -f
-			}
-		} else {
+		var f float64
+		if f, ok = v.(float64); !ok {
 			return "", nil, fmt.Errorf("cannot convert value %v to type %v", v, expectedType)
+		}
+		if f >= 0 {
+			sign = "0" // "0" > "-"
+			newVal = f
+		} else {
+			sign = "-"
+			newVal = -f
 		}
 
 	case FieldTypeDecimal2:
-		if d, ok := v.(decimal.Decimal); ok {
-			if d.Sign() >= 0 {
-				sign = "0" // "0" > "-"
-				newVal = d
-			} else {
-				sign = "-"
-				newVal = d.Neg()
-			}
-		} else {
+		var d decimal.Decimal
+		if d, ok = v.(decimal.Decimal); !ok {
 			return "", nil, fmt.Errorf("cannot convert value %v to type %v", v, expectedType)
+		}
+		if d.Sign() >= 0 {
+			sign = "0" // "0" > "-"
+			newVal = d
+		} else {
+			sign = "-"
+			newVal = d.Neg()
 		}
 
 	default:

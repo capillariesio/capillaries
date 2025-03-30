@@ -2,6 +2,7 @@ package sc
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -85,7 +86,7 @@ func (frDef *FileReaderDef) getCsvColumnIndexingMode() (FileColumnIndexingMode, 
 	}
 
 	if usesIdxCount > 0 && usesHdrNameCount > 0 {
-		return "", fmt.Errorf("file reader column definitions cannot use both indexes and names, pick one method: col_hdr or col_idx")
+		return "", errors.New("file reader column definitions cannot use both indexes and names, pick one method: col_hdr or col_idx")
 	}
 
 	if usesIdxCount > 0 {
@@ -95,21 +96,21 @@ func (frDef *FileReaderDef) getCsvColumnIndexingMode() (FileColumnIndexingMode, 
 	}
 
 	// Never land here
-	return "", fmt.Errorf("file reader column indexing mode dev error")
+	return "", errors.New("file reader column indexing mode dev error")
 
 }
 
 func (frDef *FileReaderDef) Deserialize(rawReader json.RawMessage) error {
-	errors := make([]string, 0, 2)
+	foundErrors := make([]string, 0, 2)
 
 	// Unmarshal
 
 	if err := json.Unmarshal(rawReader, frDef); err != nil {
-		errors = append(errors, err.Error())
+		foundErrors = append(foundErrors, err.Error())
 	}
 
 	if len(frDef.SrcFileUrls) == 0 {
-		errors = append(errors, "no source file urls specified, need at least one")
+		foundErrors = append(foundErrors, "no source file urls specified, need at least one")
 	}
 
 	frDef.ReaderFileType = ReaderFileTypeUnknown
@@ -125,7 +126,7 @@ func (frDef *FileReaderDef) Deserialize(rawReader json.RawMessage) error {
 			var err error
 			frDef.Csv.ColumnIndexingMode, err = frDef.getCsvColumnIndexingMode()
 			if err != nil {
-				errors = append(errors, fmt.Sprintf("cannot detect csv column indexing mode: [%s]", err.Error()))
+				foundErrors = append(foundErrors, fmt.Sprintf("cannot detect csv column indexing mode: [%s]", err.Error()))
 			}
 
 			// Default CSV field Separator
@@ -137,11 +138,11 @@ func (frDef *FileReaderDef) Deserialize(rawReader json.RawMessage) error {
 	}
 
 	if frDef.ReaderFileType == ReaderFileTypeUnknown {
-		errors = append(errors, "cannot detect file reader type: parquet should have col_name, csv should have col_hdr or col_idx etc")
+		foundErrors = append(foundErrors, "cannot detect file reader type: parquet should have col_name, csv should have col_hdr or col_idx etc")
 	}
 
-	if len(errors) > 0 {
-		return fmt.Errorf("%s", strings.Join(errors, "; "))
+	if len(foundErrors) > 0 {
+		return fmt.Errorf("%s", strings.Join(foundErrors, "; "))
 	}
 	return nil
 }

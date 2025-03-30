@@ -672,9 +672,9 @@ func (eCtx *EvalCtx) Eval(exp ast.Expr) (any, error) {
 			eCtx.Value = exp.Value
 			if exp.Value[0] == '"' {
 				return strings.Trim(exp.Value, "\""), nil
-			} else {
-				return strings.Trim(exp.Value, "`"), nil
 			}
+			return strings.Trim(exp.Value, "`"), nil
+
 		default:
 			return nil, fmt.Errorf("cannot evaluate expression %s of type %v", exp.Value, exp.Kind)
 		}
@@ -689,9 +689,8 @@ func (eCtx *EvalCtx) Eval(exp ast.Expr) (any, error) {
 		} else if exp.Name == "false" {
 			eCtx.Value = false
 			return false, nil
-		} else {
-			return nil, fmt.Errorf("cannot evaluate identifier %s", exp.Name)
 		}
+		return nil, fmt.Errorf("cannot evaluate identifier %s", exp.Name)
 
 	case *ast.CallExpr:
 		args := make([]any, len(exp.Args))

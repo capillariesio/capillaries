@@ -1,6 +1,7 @@
 package sc
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -193,7 +194,7 @@ func evalExpressionWithFieldRefsAndCheckType(exp ast.Expr, fieldRefs FieldRefs, 
 		deltaDecimal = deltaDecimal.Add(decimal.NewFromFloat(3.45))
 	}
 
-	return fmt.Errorf("unexpectedly keep getting divide by zero error when evalExpressionWithFieldRefsAndCheckType")
+	return errors.New("unexpectedly keep getting divide by zero error when evalExpressionWithFieldRefsAndCheckType")
 }
 
 func (fieldRefs *FieldRefs) FindByFieldName(fieldName string) (*FieldRef, bool) {
@@ -232,26 +233,26 @@ func checkAllowed(fieldRefsToCheck *FieldRefs, prohibitedFieldRefs *FieldRefs, a
 		}
 	}
 
-	errors := make([]string, 0, 2)
+	foundErrors := make([]string, 0, 2)
 
 	for i := 0; i < len(*fieldRefsToCheck); i++ {
 		if len((*fieldRefsToCheck)[i].TableName) == 0 || len((*fieldRefsToCheck)[i].FieldName) == 0 {
-			errors = append(errors, fmt.Sprintf("dev error, empty FieldRef %s.%s",
+			foundErrors = append(foundErrors, fmt.Sprintf("dev error, empty FieldRef %s.%s",
 				(*fieldRefsToCheck)[i].TableName, (*fieldRefsToCheck)[i].FieldName))
 		}
 		hash := fmt.Sprintf("%s.%s", (*fieldRefsToCheck)[i].TableName, (*fieldRefsToCheck)[i].FieldName)
 		if _, ok := prohibitedHashes[hash]; ok {
-			errors = append(errors, fmt.Sprintf("prohibited field %s.%s", (*fieldRefsToCheck)[i].TableName, (*fieldRefsToCheck)[i].FieldName))
+			foundErrors = append(foundErrors, fmt.Sprintf("prohibited field %s.%s", (*fieldRefsToCheck)[i].TableName, (*fieldRefsToCheck)[i].FieldName))
 		} else if _, ok := allowedHashes[hash]; !ok {
-			errors = append(errors, fmt.Sprintf("unknown field %s.%s", (*fieldRefsToCheck)[i].TableName, (*fieldRefsToCheck)[i].FieldName))
+			foundErrors = append(foundErrors, fmt.Sprintf("unknown field %s.%s", (*fieldRefsToCheck)[i].TableName, (*fieldRefsToCheck)[i].FieldName))
 		} else {
 			// Update check field type, we will use it later for test eval
 			(*fieldRefsToCheck)[i].FieldType = allowedHashes[hash].FieldType
 		}
 	}
 
-	if len(errors) > 0 {
-		return fmt.Errorf("%s", strings.Join(errors, "; "))
+	if len(foundErrors) > 0 {
+		return fmt.Errorf("%s", strings.Join(foundErrors, "; "))
 	}
 
 	return nil

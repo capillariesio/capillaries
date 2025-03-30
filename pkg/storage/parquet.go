@@ -217,16 +217,17 @@ func ParquetReadDateTime(val any, se *pgparquet.SchemaElement) (time.Time, error
 		if isParquetInt32Date(se) {
 			// It's a number of days from UNIX epoch
 			return time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC).AddDate(0, 0, int(typedVal)).In(time.UTC), nil
-		} else {
-			switch *se.ConvertedType {
-			case pgparquet.ConvertedType_TIMESTAMP_MILLIS:
-				return time.UnixMilli(int64(typedVal)).In(time.UTC), nil
-			case pgparquet.ConvertedType_TIMESTAMP_MICROS:
-				return time.UnixMicro(int64(typedVal)).In(time.UTC), nil
-			default:
-				return sc.DefaultDateTime(), fmt.Errorf("cannot read parquet datetime from int32, unsupported converted type, schema %v", se)
-			}
 		}
+
+		switch *se.ConvertedType {
+		case pgparquet.ConvertedType_TIMESTAMP_MILLIS:
+			return time.UnixMilli(int64(typedVal)).In(time.UTC), nil
+		case pgparquet.ConvertedType_TIMESTAMP_MICROS:
+			return time.UnixMicro(int64(typedVal)).In(time.UTC), nil
+		default:
+			return sc.DefaultDateTime(), fmt.Errorf("cannot read parquet datetime from int32, unsupported converted type, schema %v", se)
+		}
+
 	case int64:
 		switch *se.ConvertedType {
 		case pgparquet.ConvertedType_TIMESTAMP_MILLIS:
@@ -236,9 +237,11 @@ func ParquetReadDateTime(val any, se *pgparquet.SchemaElement) (time.Time, error
 		default:
 			return sc.DefaultDateTime(), fmt.Errorf("cannot read parquet datetime from int64, unsupported converted type, schema %v", se)
 		}
+
 	case [12]byte:
 		// Deprecated parquet int96 timestamp
 		return gp.Int96ToTime(typedVal).In(time.UTC), nil
+
 	default:
 		return sc.DefaultDateTime(), fmt.Errorf("cannot read parquet datetime from %T, schema %v", se, typedVal)
 	}
