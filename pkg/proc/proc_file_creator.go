@@ -2,6 +2,7 @@ package proc
 
 import (
 	"container/heap"
+	"errors"
 	"fmt"
 	"io/fs"
 	"net/url"
@@ -148,13 +149,13 @@ func RunCreateFile(envConfig *env.EnvConfig,
 	totalStartTime := time.Now()
 
 	if readerNodeRunId == 0 {
-		return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
+		return BatchStats{RowsRead: 0, RowsWritten: 0}, errors.New("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
 	}
 
 	node := pCtx.CurrentScriptNode
 
 	if !node.HasFileCreator() {
-		return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("node does not have file creator")
+		return BatchStats{RowsRead: 0, RowsWritten: 0}, errors.New("node does not have file creator")
 	}
 
 	// Fields to read from source table

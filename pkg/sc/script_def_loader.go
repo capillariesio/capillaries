@@ -94,25 +94,24 @@ func NewScriptFromFileBytes(
 			replacerStrings[i+1] = fmt.Sprintf("%t", typedParamVal)
 		default:
 			arrayParamVal, ok := templateParamVal.([]any)
-			if ok {
-				switch arrayParamVal[0].(type) {
-				case string:
-					// It's a stringlist
-					replacerStrings[i] = fmt.Sprintf(`"{%s|stringlist}"`, templateParam)
-					strArray := make([]string, len(arrayParamVal))
-					for i, itemAny := range arrayParamVal {
-						itemStr, ok := itemAny.(string)
-						if !ok {
-							return nil, ScriptInitContentProblem, fmt.Errorf("stringlist contains non-string value type %T from [%s]: %s", itemAny, scriptParamsUrl, templateParam)
-						}
-						strArray[i] = fmt.Sprintf(`"%s"`, itemStr)
-					}
-					replacerStrings[i+1] = fmt.Sprintf("[%s]", strings.Join(strArray, ","))
-				default:
-					return nil, ScriptInitContentProblem, fmt.Errorf("unsupported array parameter type %T from [%s]: %s", arrayParamVal, scriptParamsUrl, templateParam)
-				}
-			} else {
+			if !ok {
 				return nil, ScriptInitContentProblem, fmt.Errorf("unsupported parameter type %T from [%s]: %s", templateParamVal, scriptParamsUrl, templateParam)
+			}
+			switch arrayParamVal[0].(type) {
+			case string:
+				// It's a stringlist
+				replacerStrings[i] = fmt.Sprintf(`"{%s|stringlist}"`, templateParam)
+				strArray := make([]string, len(arrayParamVal))
+				for i, itemAny := range arrayParamVal {
+					itemStr, ok := itemAny.(string)
+					if !ok {
+						return nil, ScriptInitContentProblem, fmt.Errorf("stringlist contains non-string value type %T from [%s]: %s", itemAny, scriptParamsUrl, templateParam)
+					}
+					strArray[i] = fmt.Sprintf(`"%s"`, itemStr)
+				}
+				replacerStrings[i+1] = fmt.Sprintf("[%s]", strings.Join(strArray, ","))
+			default:
+				return nil, ScriptInitContentProblem, fmt.Errorf("unsupported array parameter type %T from [%s]: %s", arrayParamVal, scriptParamsUrl, templateParam)
 			}
 		}
 		i += 2

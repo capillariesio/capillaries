@@ -1,6 +1,7 @@
 package proc
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -46,9 +47,8 @@ func (rs *Rowset) ToString() string {
 			case *bool:
 				if *typedVal {
 					return "                          TRUE"
-				} else {
-					return "                         FALSE"
 				}
+				return "                         FALSE"
 			case *decimal.Decimal:
 				b.WriteString(fmt.Sprintf("%30s", (*typedVal).String()))
 			case *time.Time:
@@ -64,7 +64,7 @@ func (rs *Rowset) ToString() string {
 
 func (rs *Rowset) ArrangeByRowid(rowids []int64) error {
 	if len(rowids) < rs.RowCount {
-		return fmt.Errorf("invalid rowid array length")
+		return errors.New("invalid rowid array length")
 	}
 
 	rowidColIdx := rs.FieldsByFieldName["rowid"]

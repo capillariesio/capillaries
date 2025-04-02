@@ -2,6 +2,7 @@ package sc
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"gopkg.in/yaml.v3"
@@ -49,7 +50,7 @@ func JsonOrYamlUnmarshal(scriptType ScriptType, in []byte, out any) error {
 			return fmt.Errorf("cannot unmarshal yaml: %s", err.Error())
 		}
 	} else {
-		return fmt.Errorf("cannot unmarshal yaml or json, unknown format")
+		return errors.New("cannot unmarshal yaml or json, unknown format")
 	}
 
 	return nil

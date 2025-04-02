@@ -1,6 +1,7 @@
 package eval
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -31,9 +32,9 @@ func GetAggStringSeparator(funcName string, aggFuncArgs []ast.Expr) (string, err
 		case token.STRING:
 			return strings.Trim(separatorExpTyped.Value, "\""), nil
 		default:
-			return "", fmt.Errorf("string_agg/if second parameter must be a constant string")
+			return "", errors.New("string_agg/if second parameter must be a constant string")
 		}
 	default:
-		return "", fmt.Errorf("string_agg/if second parameter must be a basic literal")
+		return "", errors.New("string_agg/if second parameter must be a basic literal")
 	}
 }

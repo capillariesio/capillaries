@@ -30,9 +30,8 @@ func callInt(args []any) (any, error) {
 	case bool:
 		if typedArg0 {
 			return int64(1), nil
-		} else {
-			return int64(0), nil
 		}
+		return int64(0), nil
 
 	case int:
 		return int64(typedArg0), nil
@@ -76,9 +75,8 @@ func callDecimal2(args []any) (any, error) {
 	case bool:
 		if typedArg0 {
 			return decimal.NewFromInt(1), nil
-		} else {
-			return decimal.NewFromInt(0), nil
 		}
+		return decimal.NewFromInt(0), nil
 
 	case int:
 		return decimal.NewFromInt(int64(typedArg0)), nil
@@ -120,9 +118,8 @@ func callFloat(args []any) (any, error) {
 	case bool:
 		if typedArg0 {
 			return float64(1), nil
-		} else {
-			return float64(0), nil
 		}
+		return float64(0), nil
 
 	case int:
 		return float64(typedArg0), nil

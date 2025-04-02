@@ -2,6 +2,7 @@ package sc
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go/ast"
 	"math"
@@ -33,9 +34,8 @@ func (v *AggFinderVisitor) Visit(node ast.Node) ast.Visitor {
 			if eval.StringToAggFunc(callIdentExp.Name) != eval.AggUnknown {
 				v.Error = fmt.Errorf("found aggregate function %s()", callIdentExp.Name)
 				return nil
-			} else {
-				return v
 			}
+			return v
 		default:
 			return v
 		}
@@ -172,23 +172,23 @@ func (node *ScriptNodeDef) initReader() error {
 		if err := json.Unmarshal(node.RawReader, &node.TableReader); err != nil {
 			return fmt.Errorf("cannot unmarshal table reader: [%s]", err.Error())
 		}
-		errors := make([]string, 0)
+		foundErrors := make([]string, 0)
 		if len(node.TableReader.TableName) == 0 {
-			errors = append(errors, "table reader cannot reference empty table name")
+			foundErrors = append(foundErrors, "table reader cannot reference empty table name")
 		}
 		if node.TableReader.ExpectedBatchesTotal == 0 {
 			node.TableReader.ExpectedBatchesTotal = 1
 		} else if node.TableReader.ExpectedBatchesTotal < 0 || node.TableReader.ExpectedBatchesTotal > MaxAcceptedBatchesByTableReader {
-			errors = append(errors, fmt.Sprintf("table reader can accept between 1 and %d batches, %d specified", MaxAcceptedBatchesByTableReader, node.TableReader.ExpectedBatchesTotal))
+			foundErrors = append(foundErrors, fmt.Sprintf("table reader can accept between 1 and %d batches, %d specified", MaxAcceptedBatchesByTableReader, node.TableReader.ExpectedBatchesTotal))
 		}
 		if node.TableReader.RowsetSize < 0 || MaxRowsetSize < node.TableReader.RowsetSize {
-			errors = append(errors, fmt.Sprintf("invalid rowset size %d, table reader can accept between 0 (defaults to %d) and %d", node.TableReader.RowsetSize, DefaultRowsetSize, MaxRowsetSize))
+			foundErrors = append(foundErrors, fmt.Sprintf("invalid rowset size %d, table reader can accept between 0 (defaults to %d) and %d", node.TableReader.RowsetSize, DefaultRowsetSize, MaxRowsetSize))
 		}
 		if node.TableReader.RowsetSize == 0 {
 			node.TableReader.RowsetSize = DefaultRowsetSize
 		}
-		if len(errors) > 0 {
-			return fmt.Errorf("%s", strings.Join(errors, "; "))
+		if len(foundErrors) > 0 {
+			return fmt.Errorf("%s", strings.Join(foundErrors, "; "))
 		}
 	} else if node.HasFileReader() {
 		if err := node.FileReader.Deserialize(node.RawReader); err != nil {
@@ -215,10 +215,10 @@ func (node *ScriptNodeDef) initCreator() error {
 func (node *ScriptNodeDef) initCustomProcessor(customProcessorDefFactory CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage, scriptType ScriptType, caPath string, privateKeys map[string]string) error {
 	if node.HasCustomProcessor() {
 		if customProcessorDefFactory == nil {
-			return fmt.Errorf("undefined custom processor factory")
+			return errors.New("undefined custom processor factory")
 		}
 		if customProcessorsSettings == nil {
-			return fmt.Errorf("missing custom processor settings section")
+			return errors.New("missing custom processor settings section")
 		}
 		var ok bool
 		node.CustomProcessor, ok = customProcessorDefFactory.Create(node.CustomProcessorType)
@@ -238,7 +238,7 @@ func (node *ScriptNodeDef) initCustomProcessor(customProcessorDefFactory CustomP
 }
 
 func (node *ScriptNodeDef) Deserialize(customProcessorDefFactory CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage, scriptType ScriptType, caPath string, privateKeys map[string]string) error {
-	errors := make([]string, 0)
+	foundErrors := make([]string, 0)
 
 	if err := ValidateNodeType(node.Type); err != nil {
 		return err
@@ -264,49 +264,49 @@ func (node *ScriptNodeDef) Deserialize(customProcessorDefFactory CustomProcessor
 
 	// Reader
 	if err := node.initReader(); err != nil {
-		errors = append(errors, err.Error())
+		foundErrors = append(foundErrors, err.Error())
 	}
 
 	// Creator
 	if err := node.initCreator(); err != nil {
-		errors = append(errors, err.Error())
+		foundErrors = append(foundErrors, err.Error())
 	}
 
 	// Custom processor
 	if err := node.initCustomProcessor(customProcessorDefFactory, customProcessorsSettings, scriptType, caPath, privateKeys); err != nil {
-		errors = append(errors, err.Error())
+		foundErrors = append(foundErrors, err.Error())
 	}
 
 	// Distinct table
 	if node.Type == NodeTypeDistinctTable {
 		if node.RerunPolicy != NodeFail {
-			errors = append(errors, "distinct_table node must have fail policy, no reruns possible")
+			foundErrors = append(foundErrors, "distinct_table node must have fail policy, no reruns possible")
 		}
 		if _, _, err := node.TableCreator.GetSingleUniqueIndexDef(); err != nil {
-			errors = append(errors, err.Error())
+			foundErrors = append(foundErrors, err.Error())
 		}
 	}
 
-	if len(errors) > 0 {
-		return fmt.Errorf("%s", strings.Join(errors, "; "))
+	if len(foundErrors) > 0 {
+		return fmt.Errorf("%s", strings.Join(foundErrors, "; "))
 	}
 
 	return nil
 }
 
 func (node *ScriptNodeDef) evalCreatorAndLookupExpressionsAndCheckType() error {
-	errors := make([]string, 0, 2)
+	foundErrors := make([]string, 0, 2)
 
 	if node.HasLookup() && node.Lookup.UsesFilter() {
 		if err := evalExpressionWithFieldRefsAndCheckType(node.Lookup.Filter, node.Lookup.UsedInFilterFields, FieldTypeBool); err != nil {
-			errors = append(errors, fmt.Sprintf("cannot evaluate lookup filter expression [%s]: [%s]", node.Lookup.RawFilter, err.Error()))
+			foundErrors = append(foundErrors, fmt.Sprintf("cannot evaluate lookup filter expression [%s]: [%s]", node.Lookup.RawFilter, err.Error()))
 		}
 	}
 
 	if node.HasTableCreator() {
 		// Having
 		if err := evalExpressionWithFieldRefsAndCheckType(node.TableCreator.Having, node.TableCreator.UsedInHavingFields, FieldTypeBool); err != nil {
-			errors = append(errors, fmt.Sprintf("cannot evaluate table creator 'having' expression [%s]: [%s]", node.TableCreator.RawHaving, err.Error()))
+			foundErrors = append(foundErrors, fmt.Sprintf("cannot evaluate table creator 'having' expression [%s]: [%s]", node.TableCreator.RawHaving, err.Error()))
 		}
 
 		// Target table fields
@@ -321,13 +321,13 @@ func (node *ScriptNodeDef) evalCreatorAndLookupExpressionsAndCheckType() error {
 				v := AggFinderVisitor{}
 				ast.Walk(&v, tgtFieldDef.ParsedExpression)
 				if v.Error != nil {
-					errors = append(errors, fmt.Sprintf("cannot use agg functions in [%s], lookup group flag is not set or no lookups used: [%s]", tgtFieldDef.RawExpression, v.Error.Error()))
+					foundErrors = append(foundErrors, fmt.Sprintf("cannot use agg functions in [%s], lookup group flag is not set or no lookups used: [%s]", tgtFieldDef.RawExpression, v.Error.Error()))
 				}
 			}
 
 			// Just eval with test values, agg functions will go through preserving the type no problem
 			if err := evalExpressionWithFieldRefsAndCheckType(tgtFieldDef.ParsedExpression, node.TableCreator.UsedInTargetExpressionsFields, tgtFieldDef.Type); err != nil {
-				errors = append(errors, fmt.Sprintf("cannot evaluate table creator target field %s expression [%s]: [%s]", tgtFieldName, tgtFieldDef.RawExpression, err.Error()))
+				foundErrors = append(foundErrors, fmt.Sprintf("cannot evaluate table creator target field %s expression [%s]: [%s]", tgtFieldName, tgtFieldDef.RawExpression, err.Error()))
 			}
 		}
 	}
@@ -335,14 +335,14 @@ func (node *ScriptNodeDef) evalCreatorAndLookupExpressionsAndCheckType() error {
 	if node.HasFileCreator() {
 		// Having
 		if err := evalExpressionWithFieldRefsAndCheckType(node.FileCreator.Having, node.FileCreator.UsedInHavingFields, FieldTypeBool); err != nil {
-			errors = append(errors, fmt.Sprintf("cannot evaluate file creator 'having' expression [%s]: [%s]", node.FileCreator.RawHaving, err.Error()))
+			foundErrors = append(foundErrors, fmt.Sprintf("cannot evaluate file creator 'having' expression [%s]: [%s]", node.FileCreator.RawHaving, err.Error()))
 		}
 
 		// Target table fields (yes, they are not just strings, we check the type)
 		for i := 0; i < len(node.FileCreator.Columns); i++ {
 			colDef := &node.FileCreator.Columns[i]
 			if err := evalExpressionWithFieldRefsAndCheckType(colDef.ParsedExpression, node.FileCreator.UsedInTargetExpressionsFields, colDef.Type); err != nil {
-				errors = append(errors, fmt.Sprintf("cannot evaluate file creator target field %s expression [%s]: [%s]", colDef.Name, colDef.RawExpression, err.Error()))
+				foundErrors = append(foundErrors, fmt.Sprintf("cannot evaluate file creator target field %s expression [%s]: [%s]", colDef.Name, colDef.RawExpression, err.Error()))
 			}
 		}
 	}
@@ -350,8 +350,8 @@ func (node *ScriptNodeDef) evalCreatorAndLookupExpressionsAndCheckType() error {
 	// NOTE: do not even try to eval expressions from the custom processor here,
 	// they may contain custom stuff and are pretty much guaranteed to fail
 
-	if len(errors) > 0 {
-		return fmt.Errorf("%s", strings.Join(errors, "; "))
+	if len(foundErrors) > 0 {
+		return fmt.Errorf("%s", strings.Join(foundErrors, "; "))
 	}
 
 	return nil

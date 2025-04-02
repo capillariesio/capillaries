@@ -95,9 +95,8 @@ func castToInt64(arg any) (int64, error) {
 	case decimal.Decimal:
 		if typedArg.IsInteger() {
 			return typedArg.BigInt().Int64(), nil
-		} else {
-			return 0.0, fmt.Errorf("cannot cast decimal '%v' to int64, exact conversion impossible", typedArg)
 		}
+		return 0.0, fmt.Errorf("cannot cast decimal '%v' to int64, exact conversion impossible", typedArg)
 	default:
 		return 0.0, fmt.Errorf("cannot cast %v(%T) to int64, unsuported type", typedArg, typedArg)
 	}

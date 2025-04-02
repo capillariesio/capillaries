@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -138,7 +139,7 @@ func (h *UrlHandler) ks(w http.ResponseWriter, r *http.Request) {
 	for _, row := range rows {
 		ksVolatile, ok := row["keyspace_name"]
 		if !ok {
-			WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot find keyspace_name in the response"), http.StatusInternalServerError)
+			WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, errors.New("cannot find keyspace_name in the response"), http.StatusInternalServerError)
 			return
 		}
 
@@ -738,7 +739,7 @@ type ctxKey struct {
 func getField(r *http.Request, index int) (string, error) {
 	fields, ok := r.Context().Value(ctxKey{}).([]string)
 	if !ok {
-		return "", fmt.Errorf("no fields in http request")
+		return "", errors.New("no fields in http request")
 	}
 	if len(fields) <= index {
 		return "", fmt.Errorf("no t enough fields in http request, index %d", index)

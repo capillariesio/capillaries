@@ -236,9 +236,8 @@ func nodeTypeIcon(node *sc.ScriptNodeDef) string {
 			return "icon-csv"
 		} else if node.FileCreator.CreatorFileType == sc.CreatorFileTypeParquet {
 			return "icon-parquet"
-		} else {
-			return ""
 		}
+		return ""
 	case sc.NodeTypeTableCustomTfmTable:
 		switch node.CustomProcessorType {
 		case py_calc.ProcessorPyCalcName:
@@ -251,7 +250,6 @@ func nodeTypeIcon(node *sc.ScriptNodeDef) string {
 	case sc.NodeTypeDistinctTable:
 		return "icon-database-table-distinct"
 	default:
-
 		return ""
 	}
 }

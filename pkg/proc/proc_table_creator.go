@@ -2,6 +2,7 @@ package proc
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -60,10 +61,10 @@ func reportWriteTableComplete(logger *l.CapiLogger, pCtx *ctx.MessageProcessingC
 
 func checkRunReadFileForBatchSanity(node *sc.ScriptNodeDef, srcFileIdx int) error {
 	if !node.HasFileReader() {
-		return fmt.Errorf("node does not have file reader")
+		return errors.New("node does not have file reader")
 	}
 	if !node.HasTableCreator() {
-		return fmt.Errorf("node does not have table creator")
+		return errors.New("node does not have table creator")
 	}
 
 	if srcFileIdx < 0 || srcFileIdx >= len(node.FileReader.SrcFileUrls) {
@@ -203,14 +204,14 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: node.TableReader.TableName + cql.RunIdSuffix(readerNodeRunId), Dst: node.TableCreator.Name + cql.RunIdSuffix(readerNodeRunId)}
 
 	if readerNodeRunId == 0 {
-		return bs, fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
+		return bs, errors.New("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
 	}
 
 	if !node.HasTableReader() {
-		return bs, fmt.Errorf("node does not have table reader")
+		return bs, errors.New("node does not have table reader")
 	}
 	if !node.HasTableCreator() {
-		return bs, fmt.Errorf("node does not have table creator")
+		return bs, errors.New("node does not have table creator")
 	}
 
 	// Fields to read from source table
@@ -328,14 +329,14 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: node.TableReader.TableName + cql.RunIdSuffix(readerNodeRunId), Dst: node.TableCreator.Name + cql.RunIdSuffix(readerNodeRunId)}
 
 	if readerNodeRunId == 0 {
-		return bs, fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
+		return bs, errors.New("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
 	}
 
 	if !node.HasTableReader() {
-		return bs, fmt.Errorf("node does not have table reader")
+		return bs, errors.New("node does not have table reader")
 	}
 	if !node.HasTableCreator() {
-		return bs, fmt.Errorf("node does not have table creator")
+		return bs, errors.New("node does not have table creator")
 	}
 
 	// Fields to read from source table
@@ -444,18 +445,18 @@ func RunCreateDistinctTableForBatch(envConfig *env.EnvConfig,
 	bs := BatchStats{RowsRead: 0, RowsWritten: 0, Src: node.TableReader.TableName + cql.RunIdSuffix(readerNodeRunId), Dst: node.TableCreator.Name + cql.RunIdSuffix(readerNodeRunId)}
 
 	if readerNodeRunId == 0 {
-		return bs, fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
+		return bs, errors.New("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
 	}
 
 	if !node.HasTableReader() {
-		return bs, fmt.Errorf("node does not have table reader")
+		return bs, errors.New("node does not have table reader")
 	}
 	if !node.HasTableCreator() {
-		return bs, fmt.Errorf("node does not have table creator")
+		return bs, errors.New("node does not have table creator")
 	}
 
 	if node.TableCreator.RawHaving != "" {
-		return bs, fmt.Errorf("distinct_table node is not allowed to have Having condition")
+		return bs, errors.New("distinct_table node is not allowed to have Having condition")
 	}
 
 	distinctIdxName, _, err := node.TableCreator.GetSingleUniqueIndexDef()
@@ -809,21 +810,21 @@ func checkHavingAddRecordAndSaveBatchIfNeeded(pCtx *ctx.MessageProcessingContext
 
 func checkRunCreateTableRelForBatchSanity(node *sc.ScriptNodeDef, readerNodeRunId int16, lookupNodeRunId int16) error {
 	if readerNodeRunId == 0 {
-		return fmt.Errorf("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
+		return errors.New("this node has a dependency node to read data from that was never started in this keyspace (readerNodeRunId == 0)")
 	}
 
 	if lookupNodeRunId == 0 {
-		return fmt.Errorf("this node has a dependency node to lookup data at that was never started in this keyspace (lookupNodeRunId == 0)")
+		return errors.New("this node has a dependency node to lookup data at that was never started in this keyspace (lookupNodeRunId == 0)")
 	}
 
 	if !node.HasTableReader() {
-		return fmt.Errorf("node does not have table reader")
+		return errors.New("node does not have table reader")
 	}
 	if !node.HasTableCreator() {
-		return fmt.Errorf("node does not have table creator")
+		return errors.New("node does not have table creator")
 	}
 	if !node.HasLookup() {
-		return fmt.Errorf("node does not have lookup")
+		return errors.New("node does not have lookup")
 	}
 	return nil
 }

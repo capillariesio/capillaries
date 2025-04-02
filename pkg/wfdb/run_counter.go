@@ -1,6 +1,7 @@
 package wfdb
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
@@ -55,5 +56,5 @@ func GetNextRunCounter(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace
 		// Retry
 		logger.Info("GetNextRunCounter: retry %d", retryCount)
 	}
-	return 0, fmt.Errorf("cannot increment run counter, too many attempts")
+	return 0, errors.New("cannot increment run counter, too many attempts")
 }
