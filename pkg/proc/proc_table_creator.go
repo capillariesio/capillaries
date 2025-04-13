@@ -1023,11 +1023,10 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 								return bs, err
 							}
 
-							var rowsWritten int
 							if err := checkHavingAddRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, instr); err != nil {
 								return bs, err
 							}
-							bs.RowsWritten += rowsWritten
+							bs.RowsWritten++
 
 						} // non-group result row written
 					} // group case handled
@@ -1060,11 +1059,10 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 					continue
 				}
 
-				var rowsWritten int
 				if err = checkHavingAddRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, instr); err != nil {
 					return bs, err
 				}
-				bs.RowsWritten += rowsWritten
+				bs.RowsWritten++
 			}
 		} else if node.Lookup.LookupJoin == sc.LookupJoinLeft {
 
@@ -1083,11 +1081,10 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 					return bs, nil
 				}
 
-				var rowsWritten int
 				if err := checkHavingAddRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, instr); err != nil {
 					return bs, err
 				}
-				bs.RowsWritten += rowsWritten
+				bs.RowsWritten++
 			}
 		}
 

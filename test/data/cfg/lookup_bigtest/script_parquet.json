@@ -56,7 +56,7 @@
                     }
                 },
                 "indexes": {
-                    "idx_orders_order_id_just_to_check_uniqueness": "unique(order_id(case_sensitive))"
+                    "idx_orders_order_id_to_check_uniq": "unique(order_id(case_sensitive))"
                 }
             }
         },
@@ -344,7 +344,7 @@
                     }
                 },
                 "indexes": {
-                    "idx_order_item_date_outer_order_id_item_id_just_to_check_uniqueness": "unique(order_id(case_sensitive),order_item_id())"
+                    "idx_order_item_date_outer_order_id_item_id_to_check_uniq": "unique(order_id(case_sensitive),order_item_id())"
                 }
             }
         },

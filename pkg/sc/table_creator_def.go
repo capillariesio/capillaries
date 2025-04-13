@@ -122,6 +122,10 @@ func (tcDef *TableCreatorDef) Deserialize(rawWriter json.RawMessage) error {
 		return fmt.Errorf("invalid table name [%s]: allowed regex is [%s]", tcDef.Name, AllowedTableNameRegex)
 	}
 
+	if len(tcDef.Name) > MaxTableNameLen {
+		return fmt.Errorf("table name [%s] too long: max allowed %d", tcDef.Name, MaxTableNameLen)
+	}
+
 	// Having
 	tcDef.Having, err = ParseRawGolangExpressionStringAndHarvestFieldRefs(tcDef.RawHaving, &tcDef.UsedInHavingFields)
 	if err != nil {
@@ -152,7 +156,9 @@ func (tcDef *TableCreatorDef) Deserialize(rawWriter json.RawMessage) error {
 		if len(invalidNamePieceFound) != len(idxName) {
 			return fmt.Errorf("invalid index name [%s]: allowed regex is [%s]", idxName, AllowedIdxNameRegex)
 		}
-
+		if len(idxName) > MaxTableNameLen {
+			return fmt.Errorf("index name [%s] too long: max allowed %d", idxName, MaxTableNameLen)
+		}
 	}
 
 	return nil

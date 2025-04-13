@@ -30,7 +30,7 @@ Data/idx table name for each run needs run id as a suffix
 */
 func RunIdSuffix(runId int16) string {
 	if runId > 0 {
-		return fmt.Sprintf("_%05d", runId)
+		return fmt.Sprintf(sc.RunIdSuffixFormat, runId)
 	}
 	return ""
 }
@@ -427,9 +427,9 @@ func (qb *QueryBuilder) UpdateRun(tableName string, runId int16) string {
 	return q
 }
 
-func (qb *QueryBuilder) Create(tableName string, ifNotExists IfNotExistsType) string {
-	return qb.CreateRun(tableName, RunIdForEmptyRun, ifNotExists)
-}
+//	func (qb *QueryBuilder) Create(tableName string, ifNotExists IfNotExistsType) string {
+//		return qb.CreateRun(tableName, RunIdForEmptyRun, ifNotExists)
+//	}
 func (qb *QueryBuilder) CreateRun(tableName string, runId int16, ifNotExists IfNotExistsType) string {
 	var b strings.Builder
 	if runId == 0 {
@@ -458,6 +458,8 @@ func (qb *QueryBuilder) CreateRun(tableName string, runId int16, ifNotExists IfN
 		b.WriteString(")")
 	}
 	b.WriteString(");")
+	//b.WriteString(" WITH CUSTOM_PROPERTIES = {'capacity_mode':{'throughput_mode':'PROVISIONED','write_capacity_units':1000,'read_capacity_units':1000}};")
+
 	return b.String()
 }
 

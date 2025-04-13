@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -40,9 +41,103 @@ type CreateKeyspaceEnumType int
 const DoNotCreateKeyspaceOnConnect CreateKeyspaceEnumType = 0
 const CreateKeyspaceOnConnect CreateKeyspaceEnumType = 1
 
+const CreateKeyspaceCheckAttempts int = 24
+const CreateKeyspaceCheckIntervalSeconds int = 5
+const DeleteKeyspaceCheckAttempts int = 24
+const DeleteKeyspaceCheckIntervalSeconds int = 5
+const CreateTableCheckAttempts int = 24
+const CreateTableCheckIntervalSeconds int = 5
+
+func verifyKeyspaceExists(cqlSession *gocql.Session, keyspace string) error {
+	checkKsQuery := fmt.Sprintf("SELECT * FROM system_schema.keyspaces where keyspace_name='%s'", keyspace)
+	for ksCheckAttempt := range CreateKeyspaceCheckAttempts {
+		rows, ksCheckErr := cqlSession.Query(checkKsQuery).Iter().SliceMap()
+		if ksCheckErr != nil {
+			return WrapDbErrorWithQuery("failed to check keyspace exists", checkKsQuery, ksCheckErr)
+		}
+		if len(rows) == 1 {
+			return nil
+		}
+
+		if ksCheckAttempt < CreateKeyspaceCheckAttempts-1 {
+			time.Sleep(time.Duration(CreateKeyspaceCheckIntervalSeconds) * time.Second)
+		}
+	}
+	return WrapDbErrorWithQuery("failed to check keyspace exists, giving up", checkKsQuery, errors.New("number of check attempts reached"))
+}
+
+func VerifyKeyspaceDeleted(cqlSession *gocql.Session, keyspace string) error {
+	checkKsQuery := fmt.Sprintf("SELECT * FROM system_schema.keyspaces where keyspace_name='%s'", keyspace)
+	for ksCheckAttempt := range DeleteKeyspaceCheckAttempts {
+		rows, ksCheckErr := cqlSession.Query(checkKsQuery).Iter().SliceMap()
+		if ksCheckErr != nil {
+			return WrapDbErrorWithQuery("failed to check keyspace deleted", checkKsQuery, ksCheckErr)
+		}
+		if len(rows) == 0 {
+			return nil
+		}
+
+		if ksCheckAttempt < DeleteKeyspaceCheckAttempts-1 {
+			time.Sleep(time.Duration(DeleteKeyspaceCheckIntervalSeconds) * time.Second)
+		}
+	}
+	return WrapDbErrorWithQuery("failed to check keyspace deleted, giving up", checkKsQuery, errors.New("number of check attempts reached"))
+}
+
+func VerifyTablesExist(cqlSession *gocql.Session, keyspace string, tableNames []string) error {
+	checkMcsKsQuery := "SELECT * FROM system_schema.keyspaces where keyspace_name='system_schema_mcs'"
+	rows, ksCheckErr := cqlSession.Query(checkMcsKsQuery).Iter().SliceMap()
+	if ksCheckErr != nil {
+		return WrapDbErrorWithQuery("failed to check tables, cannot detect mcs keyspace presense", checkMcsKsQuery, ksCheckErr)
+	}
+	if len(rows) == 0 {
+		// This is not Amazon Keyspaces, assume the tables are there
+		return nil
+	}
+	tableCheckQuery := fmt.Sprintf("SELECT table_name, status from system_schema_mcs.tables where keyspace_name='%s'", keyspace)
+	for tableCheckAttempt := range CreateTableCheckAttempts {
+		rows, tableCheckErr := cqlSession.Query(tableCheckQuery).Iter().SliceMap()
+		if tableCheckErr != nil {
+			return WrapDbErrorWithQuery("failed to check tables", tableCheckQuery, tableCheckErr)
+		}
+
+		foundTables := map[string]struct{}{}
+		if len(rows) >= len(tableNames) {
+			for _, r := range rows {
+				if foundTableName, ok := r["table_name"].(string); ok {
+					if foundTableStatus, ok := r["status"].(string); ok {
+						if foundTableStatus == "ACTIVE" {
+							foundTables[foundTableName] = struct{}{}
+						}
+					}
+				}
+			}
+			matchingTableCount := 0
+			for _, tableName := range tableNames {
+				if _, ok := foundTables[tableName]; ok {
+					matchingTableCount++
+				}
+			}
+			if matchingTableCount == len(tableNames) {
+				return nil
+			}
+		}
+
+		if tableCheckAttempt < CreateTableCheckAttempts-1 {
+			time.Sleep(time.Duration(CreateTableCheckIntervalSeconds) * time.Second)
+		}
+	}
+	return WrapDbErrorWithQuery("failed to check tables, giving up", tableCheckQuery, errors.New("number of check attempts reached"))
+}
+
 func NewSession(envConfig *env.EnvConfig, keyspace string, createKeyspace CreateKeyspaceEnumType) (*gocql.Session, error) {
 	dataCluster := gocql.NewCluster(envConfig.Cassandra.Hosts...)
 	dataCluster.Port = envConfig.Cassandra.Port
+
+	// AWS Keyspaces
+	dataCluster.Consistency = gocql.LocalQuorum
+	dataCluster.DisableInitialHostLookup = false
+
 	dataCluster.Authenticator = gocql.PasswordAuthenticator{Username: envConfig.Cassandra.Username, Password: envConfig.Cassandra.Password}
 	dataCluster.NumConns = envConfig.Cassandra.NumConns
 	dataCluster.Timeout = time.Duration(envConfig.Cassandra.Timeout * int(time.Millisecond))
@@ -75,6 +170,15 @@ func NewSession(envConfig *env.EnvConfig, keyspace string, createKeyspace Create
 				return nil, WrapDbErrorWithQuery("failed to create keyspace", createKsQuery, err)
 			}
 
+			// Ensure KS exists (AWS Keyspaces may be slow)
+			if checkKeyspaceErr := verifyKeyspaceExists(cqlSession, keyspace); checkKeyspaceErr != nil {
+				return nil, checkKeyspaceErr
+			}
+
+			if err := cqlSession.Query(createKsQuery).Exec(); err != nil {
+				return nil, WrapDbErrorWithQuery("failed to create keyspace", createKsQuery, err)
+			}
+
 			// Create WF tables if needed
 			if err = createWfTable(cqlSession, keyspace, reflect.TypeOf(wfmodel.BatchHistoryEvent{}), wfmodel.TableNameBatchHistory); err != nil {
 				return nil, err
@@ -90,6 +194,15 @@ func NewSession(envConfig *env.EnvConfig, keyspace string, createKeyspace Create
 			}
 			if err = createWfTable(cqlSession, keyspace, reflect.TypeOf(wfmodel.RunCounter{}), wfmodel.TableNameRunCounter); err != nil {
 				return nil, err
+			}
+
+			if checkTableErr := VerifyTablesExist(cqlSession, keyspace, []string{
+				wfmodel.TableNameBatchHistory,
+				wfmodel.TableNameNodeHistory,
+				wfmodel.TableNameRunHistory,
+				wfmodel.TableNameRunAffectedNodes,
+				wfmodel.TableNameRunCounter}); checkTableErr != nil {
+				return nil, checkTableErr
 			}
 
 			qb := cql.QueryBuilder{}

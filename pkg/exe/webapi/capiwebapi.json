@@ -1,11 +1,12 @@
 {
     "handler_executable_type":"capi_webapi",
     "cassandra":{
-      "hosts": ["127.0.0.1"],
-      "port": 9042,
-      "username": "cassandra",
-      "password": "cassandra",
-      "keyspace_replication_config": "{ 'class' : 'NetworkTopologyStrategy', 'datacenter1' : 1 }",
+      "hosts": ["cassandra.us-east-1.amazonaws.com"],
+      "port": 9142,
+      "username": "UserAccessCapillariesKeyspaces-at-728560144492",
+      "password": "msRxi7cGfOO85J1cbnhw4ZwwFb3hLA6pxzAlgNJoOblBIGCx8yQhR+pxZQA=",
+      "ssl_opts": {"ca_path":"/home/johndoe/.ssh/sf-class2-root.crt", "enable_host_verification":false},
+      "keyspace_replication_config": "{ 'class' : 'SingleRegionStrategy'}",
       "writer_workers": 20,
       "min_inserter_rate": 10,
       "num_conns": 2,

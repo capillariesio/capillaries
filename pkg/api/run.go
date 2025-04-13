@@ -74,10 +74,11 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp.
 	}
 
 	logger.Info("creating data and idx tables for run %d...", runId)
+	createTablesStartTime := time.Now()
 
 	// Create all run-specific tables, do not create them in daemon on the fly to avoid INCOMPATIBLE_SCHEMA error
 	// (apparently, thrown if we try to insert immediately after creating a table)
-	tablesCreated := 0
+	var tableNames []string
 	for _, nodeName := range affectedNodes {
 		node, ok := script.ScriptNodes[nodeName]
 		if !ok || !node.HasTableCreator() {
@@ -87,17 +88,22 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp.
 		if err := cqlSession.Query(q).Exec(); err != nil {
 			return 0, db.WrapDbErrorWithQuery("cannot create data table", q, err)
 		}
-		tablesCreated++
+		tableNames = append(tableNames, fmt.Sprintf("%s%s", node.TableCreator.Name, cql.RunIdSuffix(runId)))
+
 		for idxName, idxDef := range node.TableCreator.Indexes {
 			q = proc.CreateIdxTableCql(keyspace, runId, idxName, idxDef)
 			if err := cqlSession.Query(q).Exec(); err != nil {
 				return 0, db.WrapDbErrorWithQuery("cannot create idx table", q, err)
 			}
-			tablesCreated++
+			tableNames = append(tableNames, fmt.Sprintf("%s%s", idxName, cql.RunIdSuffix(runId)))
 		}
 	}
 
-	logger.Info("created %d tables, creating messages to send for run %d...", tablesCreated, runId)
+	if checkTableErr := db.VerifyTablesExist(cqlSession, keyspace, tableNames); checkTableErr != nil {
+		return 0, checkTableErr
+	}
+
+	logger.Info("created %d tables [%s] in %.2fs, creating messages to send for run %d...", len(tableNames), strings.Join(tableNames, ","), time.Since(createTablesStartTime).Seconds(), runId)
 
 	allMsgs := make([]*wfmodel.Message, 0)
 	allHandlerExeTypes := make([]string, 0)
@@ -138,6 +144,7 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp.
 	}
 
 	logger.Info("sending %d messages for run %d...", len(allMsgs), runId)
+	sendMsgStartTime := time.Now()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -162,6 +169,8 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp.
 			return 0, fmt.Errorf("failed to send next message: %s", errSend.Error())
 		}
 	}
+	logger.Info("sent %d msgs in %.2fs for run %d", len(allMsgs), time.Since(sendMsgStartTime).Seconds(), runId)
+
 	return runId, nil
 }
 

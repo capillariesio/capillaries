@@ -78,7 +78,7 @@ func GetCreateTableCql(t reflect.Type, keyspace string, tableName string) string
 		}
 	}
 
-	return fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s.%s (%s, PRIMARY KEY(%s));",
+	return fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s.%s (%s, PRIMARY KEY(%s));", // WITH CUSTOM_PROPERTIES = {'capacity_mode':{'throughput_mode':'PROVISIONED','write_capacity_units':1000,'read_capacity_units':1000}};",
 		keyspace,
 		tableName,
 		strings.Join(columnDefs, ", "),

@@ -52,7 +52,7 @@
                     }
                 },
                 "indexes": {
-                    "idx_orders_order_id_just_to_check_uniqueness": "unique(order_id(case_sensitive))"
+                    "idx_orders_order_id_to_check_uniq": "unique(order_id(case_sensitive))"
                 }
             }
         },

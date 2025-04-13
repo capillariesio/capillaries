@@ -83,6 +83,10 @@ func DropKeyspace(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace stri
 	if err := cqlSession.Query(q).Exec(); err != nil {
 		return db.WrapDbErrorWithQuery("cannot drop keyspace", q, err)
 	}
+
+	if checkKeyspaceErr := db.VerifyKeyspaceDeleted(cqlSession, keyspace); checkKeyspaceErr != nil {
+		return checkKeyspaceErr
+	}
 	return nil
 }
 

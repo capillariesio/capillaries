@@ -7,6 +7,10 @@ import (
 	"strings"
 )
 
+const RunIdSuffixLen int = 6             // _00001
+const RunIdSuffixFormat string = "_%05d" // _00001
+const MaxTableNameLen int = 42           // Amazon keyspaces 48, minus RunIdSuffixLen
+
 const (
 	ReservedParamBatchIdx string = "{batch_idx|string}"
 	ReservedParamRunId    string = "{run_id|string}"
@@ -144,7 +148,7 @@ func (scriptDef *ScriptDef) Deserialize(jsonOrYamlBytesScript []byte, scriptType
 	for idxName, creatorNodeDef := range scriptDef.IndexNodeMap {
 		if !scriptDef.isScriptUsesIdx(idxName) {
 			// TODO: this is a hack to allow indexes that are deliberately added to check uniqueness
-			if !strings.Contains(idxName, "just_to_check_uniqueness") {
+			if !strings.Contains(idxName, "to_check_uniq") {
 				return fmt.Errorf("cannot find nodes that use index %s created by node %s, consider removing this index", idxName, creatorNodeDef.Name)
 			}
 		}

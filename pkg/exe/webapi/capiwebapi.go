@@ -607,12 +607,15 @@ func (h *UrlHandler) ksStartRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	dbStartTime := time.Now()
 	cqlSession, err := db.NewSession(h.Env, keyspace, db.CreateKeyspaceOnConnect)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
+	h.L.Info("start run in %s, db session creation took %.2fs", keyspace, time.Since(dbStartTime).Seconds())
 
+	amqpStartTime := time.Now()
 	amqpConnection, err := amqp.Dial(h.Env.Amqp.URL)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot dial RabbitMQ at %v, will reconnect: %v", h.Env.Amqp.URL, err), http.StatusInternalServerError)
@@ -626,6 +629,7 @@ func (h *UrlHandler) ksStartRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer amqpChannel.Close()
+	h.L.Info("start runin %s, amqp connect took %.2fs", keyspace, time.Since(amqpStartTime).Seconds())
 
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -719,11 +723,16 @@ func (h *UrlHandler) ksDrop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	dbStartTime := time.Now()
+
 	err = api.DropKeyspace(h.L, cqlSession, keyspace)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
+
+	h.L.Info("drop keyspace %s took %.2fs", keyspace, time.Since(dbStartTime).Seconds())
+
 	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, nil)
 }
 
