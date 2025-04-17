@@ -160,9 +160,9 @@ func UpdateNodeStatusFromBatches(logger *l.CapiLogger, pCtx *ctx.MessageProcessi
 		switch totalNodeStatus {
 		case wfmodel.NodeBatchSuccess:
 			comment = "completed - all batches ok"
-			if pCtx.CurrentScriptNode.Type == sc.NodeTypeFileTable {
-				time.Sleep(120 * time.Second) // Ugly hack to let Amazon keyspaces process all writes
-			}
+			// if pCtx.CurrentScriptNode.Type == sc.NodeTypeFileTable {
+			// 	time.Sleep(30 * time.Second) // Ugly hack to let Amazon keyspaces process all writes
+			// }
 		case wfmodel.NodeBatchFail:
 			comment = "completed with some failed batches - check batch history"
 		case wfmodel.NodeBatchRunStopReceived:

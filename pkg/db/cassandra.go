@@ -145,6 +145,7 @@ func NewSession(envConfig *env.EnvConfig, keyspace string, createKeyspace Create
 	// Token-aware policy should give better perf results when used together with prepared queries, and Capillaries chatty inserts are killing Cassandra.
 	// TODO: consider making it configurable
 	dataCluster.PoolConfig.HostSelectionPolicy = gocql.TokenAwareHostPolicy(gocql.RoundRobinHostPolicy())
+
 	// When testing, we load Cassandra cluster at 100%. There will be "Operation timed out - received only 0 responses" errors.
 	// It's up to admins how to handle the load, but we should not give up quickly in any case. Make it 3 attempts.
 	dataCluster.RetryPolicy = &gocql.SimpleRetryPolicy{NumRetries: 3}

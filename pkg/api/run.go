@@ -143,6 +143,8 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp.
 		return 0, err
 	}
 
+	// time.Sleep(30 * time.Second) // Ugly hack
+
 	logger.Info("sending %d messages for run %d...", len(allMsgs), runId)
 	sendMsgStartTime := time.Now()
 

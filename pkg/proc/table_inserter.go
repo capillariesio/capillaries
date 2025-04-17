@@ -319,9 +319,11 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, writ
 			return fmt.Errorf("cannot generate insert params for prepared query %s: %s", pq.Query, err.Error())
 		}
 
+		wStart := time.Now()
 		existingDataRow := map[string]any{}
 		var isApplied bool
 		isApplied, err = instr.PCtx.CqlSession.Query(pq.Query, preparedDataQueryParams...).MapScanCAS(existingDataRow)
+		logger.DebugCtx(instr.PCtx, "Write: %.3fs %s", time.Since(wStart).Seconds(), pq.Query)
 
 		// TEST ONLY (comment out pq.Qb.InsertRunParams() and instr.PCtx.CqlSession.Query() above)
 		// var err error

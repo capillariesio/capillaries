@@ -57,15 +57,9 @@ func selectBatchFromDataTablePaged(logger *l.CapiLogger,
 	logger.PushF("proc.selectBatchFromDataTablePaged")
 	defer logger.PopF()
 
+	rowids := intMapToSlice(rowidsToFind)
 	if err := rs.InitRows(batchSize); err != nil {
 		return nil, err
-	}
-
-	rowids := make([]int64, len(rowidsToFind))
-	i := 0
-	for k := range rowidsToFind {
-		rowids[i] = k
-		i++
 	}
 
 	qb := cql.QueryBuilder{}
@@ -77,8 +71,10 @@ func selectBatchFromDataTablePaged(logger *l.CapiLogger,
 	var iter *gocql.Iter
 	selectRetryIdx := 0
 	curSelectExpBackoffFactor := 1
+	var nextPageState []byte
 	for {
 		iter = pCtx.CqlSession.Query(q, rowids).PageSize(batchSize).PageState(pageState).Iter()
+		nextPageState = iter.PageState()
 
 		dbWarnings := iter.Warnings()
 		if len(dbWarnings) > 0 {
@@ -117,7 +113,7 @@ func selectBatchFromDataTablePaged(logger *l.CapiLogger,
 		selectRetryIdx++
 	}
 
-	return iter.PageState(), nil
+	return nextPageState, nil
 }
 
 func selectBatchPagedAllRowids(logger *l.CapiLogger,
@@ -141,6 +137,7 @@ func selectBatchPagedAllRowids(logger *l.CapiLogger,
 		SelectRun(tableName, lookupNodeRunId, *rs.GetFieldNames())
 
 	iter := pCtx.CqlSession.Query(q).PageSize(batchSize).PageState(pageState).Iter()
+	nextPageState := iter.PageState()
 
 	dbWarnings := iter.Warnings()
 	if len(dbWarnings) > 0 {
@@ -168,7 +165,7 @@ func selectBatchPagedAllRowids(logger *l.CapiLogger,
 		return nil, db.WrapDbErrorWithQuery("data all rows scanner error", q, err)
 	}
 
-	return iter.PageState(), nil
+	return nextPageState, nil
 }
 
 func selectBatchFromIdxTablePaged(logger *l.CapiLogger,
@@ -193,6 +190,7 @@ func selectBatchFromIdxTablePaged(logger *l.CapiLogger,
 		SelectRun(tableName, lookupNodeRunId, *rs.GetFieldNames())
 
 	iter := pCtx.CqlSession.Query(q, *keysToFind).PageSize(batchSize).PageState(pageState).Iter()
+	nextPageState := iter.PageState()
 
 	dbWarnings := iter.Warnings()
 	if len(dbWarnings) > 0 {
@@ -215,7 +213,7 @@ func selectBatchFromIdxTablePaged(logger *l.CapiLogger,
 		return nil, db.WrapDbErrorWithQuery("idx scanner error", q, err)
 	}
 
-	return iter.PageState(), nil
+	return nextPageState, nil
 }
 
 func selectBatchFromTableByToken(logger *l.CapiLogger,
@@ -413,9 +411,12 @@ func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.Messag
 
 			// TODO: assuming Delete won't interfere with paging used above;
 			// do we need to reset the pageState? After all, we have deleted some records from that table.
+			// On the other hand, if we reset it, we will have to walk through thousands of rows that do not belong to this batch, again.
 		}
 
-		if rs.RowCount < pCtx.CurrentScriptNode.TableReader.RowsetSize || len(pageState) == 0 {
+		// Amazon Keyspaces: do not rely on the retrieved row count, use pagestate
+		//if rs.RowCount < pCtx.CurrentScriptNode.TableReader.RowsetSize || len(pageState) == 0 {
+		if len(pageState) == 0 {
 			break
 		}
 	}
@@ -423,4 +424,14 @@ func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.Messag
 	logger.DebugCtx(pCtx, "deleted data records for %s, elapsed %v", pCtx.BatchInfo.FullBatchId(), time.Since(deleteStartTime))
 
 	return nil
+}
+
+func intMapToSlice(m map[int64]struct{}) []int64 {
+	a := make([]int64, len(m))
+	i := 0
+	for id, _ := range m {
+		a[i] = id
+		i++
+	}
+	return a
 }

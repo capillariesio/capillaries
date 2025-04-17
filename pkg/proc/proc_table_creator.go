@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
@@ -595,17 +597,13 @@ func buildKeysToFindInTheLookupIndex(rsLeft *Rowset, scriptNodeLookup sc.LookupD
 func getRightRowidsToFind(rsIdx *Rowset) (map[int64]struct{}, map[int64]string) {
 	// Build a map of right-row-id -> key
 	rightRowIdToKeyMap := map[int64]string{}
+	rowidsToFind := map[int64]struct{}{}
 	for rowIdx := 0; rowIdx < rsIdx.RowCount; rowIdx++ {
 		rightRowId := *((*rsIdx.Rows[rowIdx])[rsIdx.FieldsByFieldName["rowid"]].(*int64))
 		key := *((*rsIdx.Rows[rowIdx])[rsIdx.FieldsByFieldName["key"]].(*string))
 		rightRowIdToKeyMap[rightRowId] = key
+		rowidsToFind[rightRowId] = struct{}{}
 	}
-
-	rowidsToFind := make(map[int64]struct{}, len(rightRowIdToKeyMap))
-	for k := range rightRowIdToKeyMap {
-		rowidsToFind[k] = struct{}{}
-	}
-
 	return rowidsToFind, rightRowIdToKeyMap
 }
 
@@ -911,10 +909,17 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 			leftRowFoundRightLookup[rowIdx] = false
 		}
 
+		keyInQuestion := "0031733d77e4b31c1ae701f6db1f6322                                "
+
 		// Build keys to find in the lookup index, one key may yield multiple rowids
 		keysToFind, keyToLeftRowIdxMap, err := buildKeysToFindInTheLookupIndex(rsLeft, node.Lookup)
 		if err != nil {
 			return bs, err
+		}
+
+		_, isKeyInQuestionInKeysToFind := keyToLeftRowIdxMap[keyInQuestion]
+		if isKeyInQuestionInKeysToFind {
+			logger.DebugCtx(pCtx, "selectBatchFromIdxTablePaged: isKeyInQuestionInKeysToFind")
 		}
 
 		lookupFieldRefs := sc.FieldRefs{}
@@ -943,6 +948,10 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 				return bs, err
 			}
 
+			if isKeyInQuestionInKeysToFind {
+				logger.DebugCtx(pCtx, "selectBatchFromIdxTablePaged: isKeyInQuestionInKeysToFind page %d retrieved %d idx records, next pagestate %+v", rightIdxPageIdx, rsIdx.RowCount, idxPageState)
+			}
+
 			if rsIdx.RowCount == 0 {
 				break
 			}
@@ -952,17 +961,39 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 
 			logger.DebugCtx(pCtx, "selectBatchFromIdxTablePaged: leftPageIdx %d, rightIdxPageIdx %d, queried %d keys in %.3fs, retrieved %d right rowids", leftPageIdx, rightIdxPageIdx, len(keysToFind), time.Since(selectIdxBatchStartTime).Seconds(), len(rightRowidsToFind))
 
+			keyToFindRowIdsMap := map[int64]struct{}{}
+			if isKeyInQuestionInKeysToFind {
+				keyToFindRowIds := []string{}
+				for rightRowId, rightKey := range rightRowIdToKeyMap {
+					if keyInQuestion == rightKey {
+						keyToFindRowIds = append(keyToFindRowIds, strconv.FormatInt(rightRowId, 10))
+						keyToFindRowIdsMap[rightRowId] = struct{}{}
+					}
+				}
+				if len(keyToFindRowIds) > 0 {
+					sb := strings.Builder{}
+					for rowid := range rightRowidsToFind {
+						if sb.Len() > 0 {
+							sb.WriteString(",")
+						}
+						sb.WriteString(fmt.Sprintf("%d", rowid))
+					}
+					logger.DebugCtx(pCtx, "selectBatchFromIdxTablePaged: isKeyInQuestionInKeysToFind got rowids in idx %s, will query rowids %s", strings.Join(keyToFindRowIds, ","), sb.String())
+				}
+			}
+
 			// Select from right table by rowid
 			rsRight := NewRowsetFromFieldRefs(
 				sc.FieldRefs{sc.RowidFieldRef(node.Lookup.TableCreator.Name)},
 				sc.FieldRefs{sc.RowidTokenFieldRef()},
 				srcRightFieldRefs)
 
-			var rightPageState []byte
-			rightDataPageIdx := 0
+			rightDataAttemptIdx := 0
 			for {
+				// We will keep resetting page state because we will keep shrinking rightRowidsToFind
+				var rightPageState []byte
 				selectBatchStartTime := time.Now()
-				rightPageState, err = selectBatchFromDataTablePaged(logger,
+				_, err = selectBatchFromDataTablePaged(logger,
 					pCtx,
 					rsRight,
 					node.Lookup.TableCreator.Name,
@@ -974,7 +1005,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 					return bs, err
 				}
 
-				logger.DebugCtx(pCtx, "selectBatchFromDataTablePaged: leftPageIdx %d, rightIdxPageIdx %d, rightDataPageIdx %d, queried %d rowids in %.3fs, retrieved %d rowids", leftPageIdx, rightIdxPageIdx, rightDataPageIdx, len(rightRowidsToFind), time.Since(selectBatchStartTime).Seconds(), rsRight.RowCount)
+				logger.DebugCtx(pCtx, "selectBatchFromDataTablePaged: leftPageIdx %d, rightIdxPageIdx %d, rightDataAttemptIdx %d, queried %d rowids in %.3fs, retrieved %d rowids", leftPageIdx, rightIdxPageIdx, rightDataAttemptIdx, len(rightRowidsToFind), time.Since(selectBatchStartTime).Seconds(), rsRight.RowCount)
 
 				if rsRight.RowCount == 0 {
 					break
@@ -984,9 +1015,11 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 					rightRowId := *((*rsRight.Rows[rightRowIdx])[rsRight.FieldsByFieldName["rowid"]].(*int64))
 					rightRowKey := rightRowIdToKeyMap[rightRowId]
 
+					if _, ok := keyToFindRowIdsMap[rightRowId]; ok {
+						logger.DebugCtx(pCtx, "selectBatchFromDataTablePaged: isKeyInQuestionInKeysToFind got rowid in data %d", rightRowId)
+					}
+
 					// Remove this right rowid from the set, we do not need it anymore.
-					// Reset page state, we will have to start over
-					rightPageState = nil
 					delete(rightRowidsToFind, rightRowId)
 
 					// Check filter condition if needed
@@ -1032,13 +1065,17 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 					} // group case handled
 				} // for each found right row
 
-				if rsRight.RowCount < node.Lookup.RightLookupReadBatchSize || len(rightPageState) == 0 {
+				// No more ids in the IN condition, we are done retrieving right-side rowids
+				if len(rightRowidsToFind) == 0 {
 					break
 				}
-				rightDataPageIdx++
+
+				rightDataAttemptIdx++
 			} // for each data page
 
-			if rsIdx.RowCount < node.Lookup.IdxReadBatchSize || len(idxPageState) == 0 {
+			// For Cassandra, we can rely on rsIdx.RowCount. But for Amazon Keyspaces, gocql returns only a fraction of records page after page, until page state is empty
+			// if rsIdx.RowCount < node.Lookup.IdxReadBatchSize || len(idxPageState) == 0 {
+			if len(idxPageState) == 0 {
 				break
 			}
 			rightIdxPageIdx++
@@ -1089,6 +1126,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 		}
 
 		bs.RowsRead += rsLeft.RowCount
+		// No page state used when querying left page, so rely on the row count
 		if rsLeft.RowCount < leftBatchSize {
 			break
 		}
