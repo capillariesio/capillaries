@@ -201,14 +201,14 @@ func NewSession(envConfig *env.EnvConfig, keyspace string, createKeyspace Create
 	}
 
 	cassandraEngine := CassandraEngineNone
-	if isAmazonKeyspaces, err := checkIfAmazonKeyspaces(cqlSession); err == nil {
-		if isAmazonKeyspaces {
-			cassandraEngine = CassandraEngineAmazonKeyspaces
-		} else {
-			cassandraEngine = CassandraEngineCassandra
-		}
-	} else {
+	isAmazonKeyspaces, err := checkIfAmazonKeyspaces(cqlSession)
+	if err != nil {
 		return nil, cassandraEngine, err
+	}
+	if isAmazonKeyspaces {
+		cassandraEngine = CassandraEngineAmazonKeyspaces
+	} else {
+		cassandraEngine = CassandraEngineCassandra
 	}
 
 	// Create keyspace if needed

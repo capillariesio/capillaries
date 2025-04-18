@@ -124,6 +124,9 @@ func TestCreatorDefaultFieldValues(t *testing.T) {
 	err = c.Deserialize([]byte(strings.ReplaceAll(tableCreatorNodeJson, "test_table_creator", "idx_a")))
 	assert.Contains(t, err.Error(), "invalid table name [idx_a]: prohibited regex is")
 
+	err = c.Deserialize([]byte(strings.ReplaceAll(tableCreatorNodeJson, "test_table_creator", "veeeeeeeeeeeeeeeeeeeeeeeeery_loooooooong_table_name")))
+	assert.Contains(t, err.Error(), "too long: max allowed 42")
+
 	err = c.Deserialize([]byte(strings.ReplaceAll(tableCreatorNodeJson, "string", "bad_type")))
 	assert.Contains(t, err.Error(), "invalid field type [bad_type]")
 

@@ -145,19 +145,6 @@ func (cc *queryBuilderConditions) addInInt(column string, values []int64) {
 	cc.Len++
 }
 
-// func (cc *queryBuilderConditions) addInIntViaEqual(column string, values []int64) {
-// 	// Amazon keyspaces cannot delete with IN, is says "IN is not yet supported"
-// 	sb := strings.Builder{}
-// 	for _, v := range values {
-// 		if sb.Len() > 0 {
-// 			sb.WriteString(" OR ")
-// 		}
-// 		sb.WriteString(fmt.Sprintf("%s=%d", column, v))
-// 	}
-// 	cc.Items[cc.Len] = sb.String()
-// 	cc.Len++
-// }
-
 func (cc *queryBuilderConditions) addInInt16(column string, values []int16) {
 	inValues := make([]string, len(values))
 	for i, v := range values {
@@ -171,19 +158,6 @@ func (cc *queryBuilderConditions) addInString(column string, values []string) {
 	cc.Items[cc.Len] = fmt.Sprintf("%s IN ( '%s' )", column, strings.Join(values, "', '"))
 	cc.Len++
 }
-
-// func (cc *queryBuilderConditions) addInStringViaEqual(column string, values []string) {
-// 	// Amazon keyspaces cannot delete with IN, is says "IN is not yet supported"
-// 	sb := strings.Builder{}
-// 	for _, v := range values {
-// 		if sb.Len() > 0 {
-// 			sb.WriteString(" OR ")
-// 		}
-// 		sb.WriteString(fmt.Sprintf("%s=%s", column, v))
-// 	}
-// 	cc.Items[cc.Len] = sb.String()
-// 	cc.Len++
-// }
 
 func (cc *queryBuilderConditions) addSimple(column string, op string, value any) {
 	cc.Items[cc.Len] = fmt.Sprintf("%s %s %s", column, op, valueToString(value, LeaveQuoteAsIs))

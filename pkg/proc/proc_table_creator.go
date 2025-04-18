@@ -1121,6 +1121,6 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 	// start the daemon
 	// in the log, watch for DeleteDataAndUniqueIndexesByBatchIdx messagesbatchStartTime
 	// make sure lookup_quicktest completed successfully and result data is good
-	//os.Exit(0)
+	// os.Exit(0)
 	return bs, nil
 }

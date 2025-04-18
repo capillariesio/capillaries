@@ -460,7 +460,7 @@ func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.Messag
 		}
 
 		// Amazon Keyspaces: do not rely on the retrieved row count, use pagestate
-		//if rs.RowCount < pCtx.CurrentScriptNode.TableReader.RowsetSize || len(pageState) == 0 {
+		// if rs.RowCount < pCtx.CurrentScriptNode.TableReader.RowsetSize || len(pageState) == 0 {
 		if len(pageState) == 0 {
 			break
 		}
