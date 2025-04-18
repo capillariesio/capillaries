@@ -186,7 +186,7 @@ func initAmqpDeliveryChannel(envConfig *env.EnvConfig, logger *l.CapiLogger, amq
 		false, // delete when unused
 		false, // exclusive
 		false, // no-wait
-		amqp.Table{"x-dead-letter-exchange": envConfig.Amqp.Exchange, "x-dead-letter-routing-key": envConfig.HandlerExecutableType, "x-message-ttl": envConfig.DeadLetterTtl})
+		amqp.Table{"x-dead-letter-exchange": envConfig.Amqp.Exchange, "x-dead-letter-routing-key": envConfig.HandlerExecutableType, "x-message-ttl": envConfig.Daemon.DeadLetterTtl})
 	if err != nil {
 		logger.Error("cannot declare queue %s, will reconnect: %s\n", envConfig.HandlerExecutableType+DlxSuffix, err.Error())
 		return nil, DaemonCmdReconnectQueue
@@ -249,12 +249,12 @@ func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, script
 
 	logger.Info("started consuming queue %s, routing key %s, exchange %s", envConfig.HandlerExecutableType, envConfig.HandlerExecutableType, envConfig.Amqp.Exchange)
 
-	var sem = make(chan int, envConfig.ThreadPoolSize)
+	var sem = make(chan int, envConfig.Daemon.ThreadPoolSize)
 
 	// daemonCommands len should be > ThreadPoolSize, otherwise on reconnect, we will get a deadlock:
 	// "still waiting for all workers to complete" will wait for one or more workers that will try adding
 	// "daemonCommands <- DaemonCmdReconnectDb" to the channel. Play safe by multiplying by 2.
-	var daemonCommands = make(chan DaemonCmdType, envConfig.ThreadPoolSize*2)
+	var daemonCommands = make(chan DaemonCmdType, envConfig.Daemon.ThreadPoolSize*2)
 
 	for {
 		select {

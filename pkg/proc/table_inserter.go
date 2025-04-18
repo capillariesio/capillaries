@@ -319,11 +319,9 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, writ
 			return fmt.Errorf("cannot generate insert params for prepared query %s: %s", pq.Query, err.Error())
 		}
 
-		wStart := time.Now()
 		existingDataRow := map[string]any{}
 		var isApplied bool
 		isApplied, err = instr.PCtx.CqlSession.Query(pq.Query, preparedDataQueryParams...).MapScanCAS(existingDataRow)
-		logger.DebugCtx(instr.PCtx, "Write: %.3fs %s", time.Since(wStart).Seconds(), pq.Query)
 
 		// TEST ONLY (comment out pq.Qb.InsertRunParams() and instr.PCtx.CqlSession.Query() above)
 		// var err error
@@ -594,7 +592,7 @@ func (instr *TableInserter) insertDistinctIdxAndDataRecords(logger *l.CapiLogger
 				return curRowid, errInsertData
 			}
 			// Delete inserted idx record before trying another rowid
-			errDelete := deleteIdxRecordByKey(logger, pCtx, idxName, []string{writeItem.IndexKeyMap[idxName]})
+			errDelete := deleteIdxRecordByKey(pCtx, idxName, []string{writeItem.IndexKeyMap[idxName]})
 			if errDelete != nil {
 				return curRowid, errDelete
 			}

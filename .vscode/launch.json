@@ -74,7 +74,7 @@
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "envFile": "${env:HOME}/UserAccessCapillariesTestbucket.env",
+            "envFile": "${env:HOME}/CapiAmazonKeyspaces.env",
             "cwd":"${workspaceFolder}/pkg/exe/daemon",
             "program": "${workspaceFolder}/pkg/exe/daemon/capidaemon.go",
             "args": []
@@ -102,7 +102,7 @@
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "envFile": "${env:HOME}/UserAccessCapillariesTestbucket.env",
+            "envFile": "${env:HOME}/CapiAmazonKeyspaces.env",
             "cwd":"${workspaceFolder}/pkg/exe/webapi",
             "program": "${workspaceFolder}/pkg/exe/webapi/capiwebapi.go",
             "args": []

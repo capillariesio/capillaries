@@ -117,7 +117,7 @@ func WriteApiSuccess(logger *l.CapiLogger, wc *env.WebapiConfig, r *http.Request
 }
 
 func (h *UrlHandler) ks(w http.ResponseWriter, r *http.Request) {
-	cqlSession, err := db.NewSession(h.Env, "", db.DoNotCreateKeyspaceOnConnect)
+	cqlSession, _, err := db.NewSession(h.Env, "", db.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -230,7 +230,7 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
-	cqlSession, err := db.NewSession(h.Env, keyspace, db.DoNotCreateKeyspaceOnConnect)
+	cqlSession, _, err := db.NewSession(h.Env, keyspace, db.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -383,7 +383,7 @@ func (h *UrlHandler) ksRunNodeBatchHistory(w http.ResponseWriter, r *http.Reques
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
-	cqlSession, err := db.NewSession(h.Env, keyspace, db.DoNotCreateKeyspaceOnConnect)
+	cqlSession, _, err := db.NewSession(h.Env, keyspace, db.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -438,7 +438,7 @@ func (h *UrlHandler) ksRunNodeHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cqlSession, err := db.NewSession(h.Env, keyspace, db.DoNotCreateKeyspaceOnConnect)
+	cqlSession, _, err := db.NewSession(h.Env, keyspace, db.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -495,7 +495,7 @@ func (h *UrlHandler) ksRunViz(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cqlSession, err := db.NewSession(h.Env, keyspace, db.DoNotCreateKeyspaceOnConnect)
+	cqlSession, _, err := db.NewSession(h.Env, keyspace, db.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -608,7 +608,7 @@ func (h *UrlHandler) ksStartRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dbStartTime := time.Now()
-	cqlSession, err := db.NewSession(h.Env, keyspace, db.CreateKeyspaceOnConnect)
+	cqlSession, cassandraEngine, err := db.NewSession(h.Env, keyspace, db.CreateKeyspaceOnConnect)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -643,7 +643,7 @@ func (h *UrlHandler) ksStartRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	runId, err := api.StartRun(h.Env, h.L, amqpChannel, runProps.ScriptUrl, runProps.ScriptParamsUrl, cqlSession, keyspace, strings.Split(runProps.StartNodes, ","), runProps.RunDescription)
+	runId, err := api.StartRun(h.Env, h.L, amqpChannel, runProps.ScriptUrl, runProps.ScriptParamsUrl, cqlSession, cassandraEngine, keyspace, strings.Split(runProps.StartNodes, ","), runProps.RunDescription)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -668,7 +668,7 @@ func (h *UrlHandler) ksStopRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cqlSession, err := db.NewSession(h.Env, keyspace, db.DoNotCreateKeyspaceOnConnect)
+	cqlSession, _, err := db.NewSession(h.Env, keyspace, db.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -717,21 +717,17 @@ func (h *UrlHandler) ksDrop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cqlSession, err := db.NewSession(h.Env, keyspace, db.DoNotCreateKeyspaceOnConnect)
+	cqlSession, _, err := db.NewSession(h.Env, keyspace, db.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
-
-	dbStartTime := time.Now()
 
 	err = api.DropKeyspace(h.L, cqlSession, keyspace)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
-
-	h.L.Info("drop keyspace %s took %.2fs", keyspace, time.Since(dbStartTime).Seconds())
 
 	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, nil)
 }

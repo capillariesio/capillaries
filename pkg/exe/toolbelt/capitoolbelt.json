@@ -1,12 +1,14 @@
 {
     "handler_executable_type":"capi_toolbelt",
     "cassandra":{
-      "hosts": ["cassandra.us-east-2.amazonaws.com"],
-      "port": 9142,
-      "username": "UserAccessCapillariesKeyspaces-at-728560144492",
-      "password": "msRxi7cGfOO85J1cbnhw4ZwwFb3hLA6pxzAlgNJoOblBIGCx8yQhR+pxZQA=",
+      "hosts": ["127.0.0.1"],
+      "port": 9042,
+      "username": "cassandra",
+      "password": "cassandra",
       "ssl_opts": {"ca_path":"~/.ssh/sf-class2-root.crt", "enable_host_verification":false},
       "keyspace_replication_config": "{ 'class' : 'NetworkTopologyStrategy', 'datacenter1' : 1 }",
+      "consistency": "LOCAL_QUORUM",
+      "disable_initial_host_lookup": false,
       "writer_workers": 20,
       "min_inserter_rate": 10,
       "num_conns": 2,

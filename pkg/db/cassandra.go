@@ -13,6 +13,14 @@ import (
 	"github.com/gocql/gocql"
 )
 
+type CassandraEngineType int
+
+const (
+	CassandraEngineNone CassandraEngineType = iota
+	CassandraEngineCassandra
+	CassandraEngineAmazonKeyspaces
+)
+
 const ErrorPrefixDb string = "dberror:"
 
 func WrapDbErrorWithQuery(msg string, query string, dbErr error) error {
@@ -84,16 +92,20 @@ func VerifyKeyspaceDeleted(cqlSession *gocql.Session, keyspace string) error {
 	return WrapDbErrorWithQuery("failed to check keyspace deleted, giving up", checkKsQuery, errors.New("number of check attempts reached"))
 }
 
-func VerifyTablesExist(cqlSession *gocql.Session, keyspace string, tableNames []string) error {
+func checkIfAmazonKeyspaces(cqlSession *gocql.Session) (bool, error) {
 	checkMcsKsQuery := "SELECT * FROM system_schema.keyspaces where keyspace_name='system_schema_mcs'"
 	rows, ksCheckErr := cqlSession.Query(checkMcsKsQuery).Iter().SliceMap()
 	if ksCheckErr != nil {
-		return WrapDbErrorWithQuery("failed to check tables, cannot detect mcs keyspace presense", checkMcsKsQuery, ksCheckErr)
+		return false, WrapDbErrorWithQuery("failed to check system_schema_mcs keyspace presense", checkMcsKsQuery, ksCheckErr)
 	}
 	if len(rows) == 0 {
-		// This is not Amazon Keyspaces, assume the tables are there
-		return nil
+		// This is not Amazon Keyspaces
+		return false, nil
 	}
+	return true, nil
+}
+
+func VerifyAmazonKeyspacesTablesReady(cqlSession *gocql.Session, keyspace string, tableNames []string) error {
 	tableCheckQuery := fmt.Sprintf("SELECT table_name, status from system_schema_mcs.tables where keyspace_name='%s'", keyspace)
 	for tableCheckAttempt := range CreateTableCheckAttempts {
 		rows, tableCheckErr := cqlSession.Query(tableCheckQuery).Iter().SliceMap()
@@ -130,14 +142,41 @@ func VerifyTablesExist(cqlSession *gocql.Session, keyspace string, tableNames []
 	return WrapDbErrorWithQuery("failed to check tables, giving up", tableCheckQuery, errors.New("number of check attempts reached"))
 }
 
-func NewSession(envConfig *env.EnvConfig, keyspace string, createKeyspace CreateKeyspaceEnumType) (*gocql.Session, error) {
+// func stringToCassandraConsistency(s string) (gocql.Consistency, error) {
+// 	switch(s) {
+// 	case "Any":
+// 		return gocql.Any, nil
+// 	case "One":
+// 		return gocql.One, nil
+// 	case "Three":
+// 		return gocql.Three, nil
+// 	case "Quorum":
+// 		return gocql.Quorum, nil
+// 	case "All":
+// 		return gocql.All, nil
+// 	case "LocalQuorum":
+// 		return gocql.LocalQuorum, nil
+// 	case "EachQuorum":
+// 		return gocql.EachQuorum, nil
+// 	case "LocalOne":
+// 		return gocql.LocalOne, nil
+// 	default:
+// 		return fmt.Errorf("unknown Cassandra consistency")
+// 	}
+// }
+
+func NewSession(envConfig *env.EnvConfig, keyspace string, createKeyspace CreateKeyspaceEnumType) (*gocql.Session, CassandraEngineType, error) {
 	dataCluster := gocql.NewCluster(envConfig.Cassandra.Hosts...)
 	dataCluster.Port = envConfig.Cassandra.Port
 
-	// AWS Keyspaces
-	dataCluster.Consistency = gocql.LocalQuorum
-	dataCluster.DisableInitialHostLookup = false
-
+	// AWS Keyspaces require LocalQuorum
+	// If empty, gocql sets it to Quorum by default
+	if envConfig.Cassandra.Consistency != "" {
+		if err := dataCluster.Consistency.UnmarshalText([]byte(envConfig.Cassandra.Consistency)); err != nil {
+			return nil, CassandraEngineNone, err
+		}
+	}
+	dataCluster.DisableInitialHostLookup = envConfig.Cassandra.DisableInitialHostLookup
 	dataCluster.Authenticator = gocql.PasswordAuthenticator{Username: envConfig.Cassandra.Username, Password: envConfig.Cassandra.Password}
 	dataCluster.NumConns = envConfig.Cassandra.NumConns
 	dataCluster.Timeout = time.Duration(envConfig.Cassandra.Timeout * int(time.Millisecond))
@@ -145,7 +184,6 @@ func NewSession(envConfig *env.EnvConfig, keyspace string, createKeyspace Create
 	// Token-aware policy should give better perf results when used together with prepared queries, and Capillaries chatty inserts are killing Cassandra.
 	// TODO: consider making it configurable
 	dataCluster.PoolConfig.HostSelectionPolicy = gocql.TokenAwareHostPolicy(gocql.RoundRobinHostPolicy())
-
 	// When testing, we load Cassandra cluster at 100%. There will be "Operation timed out - received only 0 responses" errors.
 	// It's up to admins how to handle the load, but we should not give up quickly in any case. Make it 3 attempts.
 	dataCluster.RetryPolicy = &gocql.SimpleRetryPolicy{NumRetries: 3}
@@ -159,8 +197,20 @@ func NewSession(envConfig *env.EnvConfig, keyspace string, createKeyspace Create
 	}
 	cqlSession, err := dataCluster.CreateSession()
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to data cluster %v, keyspace [%s]: %s", envConfig.Cassandra.Hosts, keyspace, err.Error())
+		return nil, CassandraEngineNone, fmt.Errorf("failed to connect to data cluster %v, keyspace [%s]: %s", envConfig.Cassandra.Hosts, keyspace, err.Error())
 	}
+
+	cassandraEngine := CassandraEngineNone
+	if isAmazonKeyspaces, err := checkIfAmazonKeyspaces(cqlSession); err == nil {
+		if isAmazonKeyspaces {
+			cassandraEngine = CassandraEngineAmazonKeyspaces
+		} else {
+			cassandraEngine = CassandraEngineCassandra
+		}
+	} else {
+		return nil, cassandraEngine, err
+	}
+
 	// Create keyspace if needed
 	if len(keyspace) > 0 {
 		dataCluster.Keyspace = keyspace
@@ -168,42 +218,45 @@ func NewSession(envConfig *env.EnvConfig, keyspace string, createKeyspace Create
 		if createKeyspace == CreateKeyspaceOnConnect {
 			createKsQuery := fmt.Sprintf("CREATE KEYSPACE IF NOT EXISTS %s WITH REPLICATION = %s", keyspace, envConfig.Cassandra.KeyspaceReplicationConfig)
 			if err := cqlSession.Query(createKsQuery).Exec(); err != nil {
-				return nil, WrapDbErrorWithQuery("failed to create keyspace", createKsQuery, err)
+				return nil, cassandraEngine, WrapDbErrorWithQuery("failed to create keyspace", createKsQuery, err)
 			}
 
-			// Ensure KS exists (AWS Keyspaces may be slow)
-			if checkKeyspaceErr := verifyKeyspaceExists(cqlSession, keyspace); checkKeyspaceErr != nil {
-				return nil, checkKeyspaceErr
+			if cassandraEngine == CassandraEngineAmazonKeyspaces {
+				if checkKeyspaceErr := verifyKeyspaceExists(cqlSession, keyspace); checkKeyspaceErr != nil {
+					return nil, cassandraEngine, checkKeyspaceErr
+				}
 			}
 
 			if err := cqlSession.Query(createKsQuery).Exec(); err != nil {
-				return nil, WrapDbErrorWithQuery("failed to create keyspace", createKsQuery, err)
+				return nil, cassandraEngine, WrapDbErrorWithQuery("failed to create keyspace", createKsQuery, err)
 			}
 
 			// Create WF tables if needed
 			if err = createWfTable(cqlSession, keyspace, reflect.TypeOf(wfmodel.BatchHistoryEvent{}), wfmodel.TableNameBatchHistory); err != nil {
-				return nil, err
+				return nil, cassandraEngine, err
 			}
 			if err = createWfTable(cqlSession, keyspace, reflect.TypeOf(wfmodel.NodeHistoryEvent{}), wfmodel.TableNameNodeHistory); err != nil {
-				return nil, err
+				return nil, cassandraEngine, err
 			}
 			if err = createWfTable(cqlSession, keyspace, reflect.TypeOf(wfmodel.RunHistoryEvent{}), wfmodel.TableNameRunHistory); err != nil {
-				return nil, err
+				return nil, cassandraEngine, err
 			}
 			if err = createWfTable(cqlSession, keyspace, reflect.TypeOf(wfmodel.RunProperties{}), wfmodel.TableNameRunAffectedNodes); err != nil {
-				return nil, err
+				return nil, cassandraEngine, err
 			}
 			if err = createWfTable(cqlSession, keyspace, reflect.TypeOf(wfmodel.RunCounter{}), wfmodel.TableNameRunCounter); err != nil {
-				return nil, err
+				return nil, cassandraEngine, err
 			}
 
-			if checkTableErr := VerifyTablesExist(cqlSession, keyspace, []string{
-				wfmodel.TableNameBatchHistory,
-				wfmodel.TableNameNodeHistory,
-				wfmodel.TableNameRunHistory,
-				wfmodel.TableNameRunAffectedNodes,
-				wfmodel.TableNameRunCounter}); checkTableErr != nil {
-				return nil, checkTableErr
+			if cassandraEngine == CassandraEngineAmazonKeyspaces {
+				if checkTableErr := VerifyAmazonKeyspacesTablesReady(cqlSession, keyspace, []string{
+					wfmodel.TableNameBatchHistory,
+					wfmodel.TableNameNodeHistory,
+					wfmodel.TableNameRunHistory,
+					wfmodel.TableNameRunAffectedNodes,
+					wfmodel.TableNameRunCounter}); checkTableErr != nil {
+					return nil, cassandraEngine, checkTableErr
+				}
 			}
 
 			qb := cql.QueryBuilder{}
@@ -214,9 +267,9 @@ func NewSession(envConfig *env.EnvConfig, keyspace string, createKeyspace Create
 			q := qb.InsertUnpreparedQuery(wfmodel.TableNameRunCounter, cql.IgnoreIfExists) // If not exists. Insert only once.
 			err = cqlSession.Query(q).Exec()
 			if err != nil {
-				return nil, WrapDbErrorWithQuery("cannot initialize run counter", q, err)
+				return nil, cassandraEngine, WrapDbErrorWithQuery("cannot initialize run counter", q, err)
 			}
 		}
 	}
-	return cqlSession, nil
+	return cqlSession, cassandraEngine, nil
 }

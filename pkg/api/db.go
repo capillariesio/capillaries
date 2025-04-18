@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/db"
@@ -72,6 +73,8 @@ func DropKeyspace(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace stri
 	logger.PushF("api.DropKeyspace")
 	defer logger.PopF()
 
+	dbStartTime := time.Now()
+
 	if err := checkKeyspaceName(keyspace); err != nil {
 		return err
 	}
@@ -84,9 +87,12 @@ func DropKeyspace(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace stri
 		return db.WrapDbErrorWithQuery("cannot drop keyspace", q, err)
 	}
 
-	if checkKeyspaceErr := db.VerifyKeyspaceDeleted(cqlSession, keyspace); checkKeyspaceErr != nil {
-		return checkKeyspaceErr
+	if err := db.VerifyKeyspaceDeleted(cqlSession, keyspace); err != nil {
+		return err
 	}
+
+	logger.Info("drop keyspace %s took %.2fs", keyspace, time.Since(dbStartTime).Seconds())
+
 	return nil
 }
 

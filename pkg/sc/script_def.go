@@ -147,7 +147,7 @@ func (scriptDef *ScriptDef) Deserialize(jsonOrYamlBytesScript []byte, scriptType
 
 	for idxName, creatorNodeDef := range scriptDef.IndexNodeMap {
 		if !scriptDef.isScriptUsesIdx(idxName) {
-			// TODO: this is a hack to allow indexes that are deliberately added to check uniqueness
+			// TODO: this is a hack to allow indexes that are deliberately added to check uniqueness without Capillaries complaining "this idx is not used"
 			if !strings.Contains(idxName, "to_check_uniq") {
 				return fmt.Errorf("cannot find nodes that use index %s created by node %s, consider removing this index", idxName, creatorNodeDef.Name)
 			}

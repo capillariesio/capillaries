@@ -13,6 +13,8 @@ import (
 	"github.com/gocql/gocql"
 )
 
+const MaxAmazonKeyspacesBatchLen int = 30
+
 // func ClearNodeOutputs(logger *l.Logger, script *sc.ScriptDef, session *gocql.Session, keyspace string, nodeName string, runId int16) error {
 // 	node, ok := script.ScriptNodes[nodeName]
 // 	if !ok {
@@ -57,9 +59,15 @@ func selectBatchFromDataTablePaged(logger *l.CapiLogger,
 	logger.PushF("proc.selectBatchFromDataTablePaged")
 	defer logger.PopF()
 
-	rowids := intMapToSlice(rowidsToFind)
 	if err := rs.InitRows(batchSize); err != nil {
 		return nil, err
+	}
+
+	rowids := make([]int64, len(rowidsToFind))
+	i := 0
+	for rowid := range rowidsToFind {
+		rowids[i] = rowid
+		i++
 	}
 
 	qb := cql.QueryBuilder{}
@@ -288,26 +296,63 @@ func populateUniqueKeysToDeleteMap(uniqueKeysToDeleteMap map[string][]string, in
 }
 
 func deleteDataRecordByRowid(pCtx *ctx.MessageProcessingContext, rowids []int64) error {
-	q := (&cql.QueryBuilder{}).
-		Keyspace(pCtx.BatchInfo.DataKeyspace).
-		CondInInt("rowid", rowids).
-		DeleteRun(pCtx.CurrentScriptNode.TableCreator.Name, pCtx.BatchInfo.RunId)
-	if err := pCtx.CqlSession.Query(q).Exec(); err != nil {
-		return db.WrapDbErrorWithQuery("cannot delete from data table", q, err)
+	if pCtx.CassandraEngine == db.CassandraEngineAmazonKeyspaces {
+		// Amazon Keyspaces supports unlogged batch commands with up to 30 commands in the batch
+		sb := strings.Builder{}
+		for i, rowid := range rowids {
+			sb.WriteString(
+				(&cql.QueryBuilder{}).
+					Keyspace(pCtx.BatchInfo.DataKeyspace).
+					Cond("rowid", "=", rowid).
+					DeleteRun(pCtx.CurrentScriptNode.TableCreator.Name, pCtx.BatchInfo.RunId))
+			sb.WriteString(";")
+			if (i+1)%MaxAmazonKeyspacesBatchLen == 0 || i == len(rowids)-1 {
+				batchStmt := "BEGIN UNLOGGED BATCH " + sb.String() + " APPLY BATCH"
+				if err := pCtx.CqlSession.Query(batchStmt).Exec(); err != nil {
+					return db.WrapDbErrorWithQuery("cannot delete from data table", batchStmt, err)
+				}
+				sb.Reset()
+			}
+		}
+	} else {
+		q := (&cql.QueryBuilder{}).
+			Keyspace(pCtx.BatchInfo.DataKeyspace).
+			CondInInt("rowid", rowids).
+			DeleteRun(pCtx.CurrentScriptNode.TableCreator.Name, pCtx.BatchInfo.RunId)
+		if err := pCtx.CqlSession.Query(q).Exec(); err != nil {
+			return db.WrapDbErrorWithQuery("cannot delete from data table", q, err)
+		}
 	}
 	return nil
 }
 
-func deleteIdxRecordByKey(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, idxName string, keys []string) error {
-	logger.PushF("proc.deleteIdxRecordByKey")
-	defer logger.PopF()
-	q := (&cql.QueryBuilder{}).
-		Keyspace(pCtx.BatchInfo.DataKeyspace).
-		CondInString("key", keys).
-		DeleteRun(idxName, pCtx.BatchInfo.RunId)
-	if err := pCtx.CqlSession.Query(q).Exec(); err != nil {
-		logger.ErrorCtx(pCtx, "cannot delete from idx table, %s: %s", q, err.Error())
-		return db.WrapDbErrorWithQuery("cannot delete from idx table", q, err)
+func deleteIdxRecordByKey(pCtx *ctx.MessageProcessingContext, idxName string, keys []string) error {
+	if pCtx.CassandraEngine == db.CassandraEngineAmazonKeyspaces {
+		// Amazon Keyspaces supports unlogged batch commands with up to 30 commands in the batch
+		sb := strings.Builder{}
+		for i, key := range keys {
+			sb.WriteString(
+				(&cql.QueryBuilder{}).
+					Keyspace(pCtx.BatchInfo.DataKeyspace).
+					Cond("key", "=", key).
+					DeleteRun(pCtx.CurrentScriptNode.TableCreator.Name, pCtx.BatchInfo.RunId))
+			sb.WriteString(";")
+			if (i+1)%MaxAmazonKeyspacesBatchLen == 0 || i == len(key)-1 {
+				batchStmt := "BEGIN UNLOGGED BATCH " + sb.String() + " APPLY BATCH"
+				if err := pCtx.CqlSession.Query(batchStmt).Exec(); err != nil {
+					return db.WrapDbErrorWithQuery("cannot delete from idx table", batchStmt, err)
+				}
+				sb.Reset()
+			}
+		}
+	} else {
+		q := (&cql.QueryBuilder{}).
+			Keyspace(pCtx.BatchInfo.DataKeyspace).
+			CondInString("key", keys).
+			DeleteRun(idxName, pCtx.BatchInfo.RunId)
+		if err := pCtx.CqlSession.Query(q).Exec(); err != nil {
+			return db.WrapDbErrorWithQuery("cannot delete from idx table", q, err)
+		}
 	}
 	return nil
 }
@@ -404,7 +449,7 @@ func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.Messag
 				// Trim unused empty key slots
 				trimmedIdxKeysToDelete := idxKeysToDelete[:rowIdsToDeleteCount]
 				logger.DebugCtx(pCtx, "deleting %d idx %s records from %d/%s idx %s for batch_idx %d: '%s'", len(rowIdsToDelete), idxName, pCtx.BatchInfo.RunId, pCtx.BatchInfo.TargetNodeName, idxName, pCtx.BatchInfo.BatchIdx, strings.Join(trimmedIdxKeysToDelete, `','`))
-				if err := deleteIdxRecordByKey(logger, pCtx, idxName, trimmedIdxKeysToDelete); err != nil {
+				if err := deleteIdxRecordByKey(pCtx, idxName, trimmedIdxKeysToDelete); err != nil {
 					return err
 				}
 			}
@@ -424,14 +469,4 @@ func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.Messag
 	logger.DebugCtx(pCtx, "deleted data records for %s, elapsed %v", pCtx.BatchInfo.FullBatchId(), time.Since(deleteStartTime))
 
 	return nil
-}
-
-func intMapToSlice(m map[int64]struct{}) []int64 {
-	a := make([]int64, len(m))
-	i := 0
-	for id, _ := range m {
-		a[i] = id
-		i++
-	}
-	return a
 }

@@ -11,10 +11,10 @@ type SslOptions struct {
 }
 
 type CassandraConfig struct {
-	Hosts                     []string    `json:"hosts" env:"CAPI_CASSANDRA_HOSTS, overwrite"`
-	Port                      int         `json:"port" env:"CAPI_CASSANDRA_PORT, overwrite"`
-	Username                  string      `json:"username" env:"CAPI_CASSANDRA_USERNAME, overwrite"`
-	Password                  string      `json:"password" env:"CAPI_CASSANDRA_PASSWORD, overwrite"`
+	Hosts                     []string    `json:"hosts" env:"CAPI_CASSANDRA_HOSTS, overwrite"`                                             // CAPI_CASSANDRA_HOSTS=1.2.3.4,5.6.7.8
+	Port                      int         `json:"port" env:"CAPI_CASSANDRA_PORT, overwrite"`                                               // 9999
+	Username                  string      `json:"username" env:"CAPI_CASSANDRA_USERNAME, overwrite"`                                       // someuser
+	Password                  string      `json:"password" env:"CAPI_CASSANDRA_PASSWORD, overwrite"`                                       // somepass
 	WriterWorkers             int         `json:"writer_workers" env:"CAPI_CASSANDRA_WRITER_WORKERS, overwrite"`                           // 20 is conservative, 80 is very aggressive
 	MinInserterRate           int         `json:"min_inserter_rate" env:"CAPI_CASSANDRA_MIN_INSERTER_RATE, overwrite"`                     // writes/sec; if the rate falls below this, we consider the db too slow and throw an error
 	NumConns                  int         `json:"num_conns" env:"CAPI_CASSANDRA_NUM_CONNS, overwrite"`                                     // gocql default is 2, don't make it too high
@@ -22,6 +22,8 @@ type CassandraConfig struct {
 	ConnectTimeout            int         `json:"connect_timeout" env:"CAPI_CASSANDRA_CONNECT_TIMEOUT, overwrite"`                         // in ms, set it to 1s, gocql default 600ms may be ok, but let's stay on the safe side
 	KeyspaceReplicationConfig string      `json:"keyspace_replication_config" env:"CAPI_CASSANDRA_KEYSPACE_REPLICATION_CONFIG, overwrite"` // { 'class' : 'NetworkTopologyStrategy', 'datacenter1' : 1 }
 	SslOpts                   *SslOptions `json:"ssl_opts"`
+	Consistency               string      `json:"consistency" env:"CAPI_CASSANDRA_CONSISTENCY, overwrite"`                                 // Amazon Keyspaces requires LOCAL_QUORUM, gocql default is QUORUM
+	DisableInitialHostLookup  bool        `json:"disable_initial_host_lookup" env:"CAPI_CASSANDRA_DISABLE_INITIAL_HOST_LOOKUP, overwrite"` // default false
 }
 
 func (c *CassandraConfig) ShallowCopy() CassandraConfig {
@@ -37,6 +39,8 @@ func (c *CassandraConfig) ShallowCopy() CassandraConfig {
 		ConnectTimeout:            c.ConnectTimeout,
 		KeyspaceReplicationConfig: c.KeyspaceReplicationConfig,
 		SslOpts:                   c.SslOpts,
+		Consistency:               c.Consistency,
+		DisableInitialHostLookup:  c.DisableInitialHostLookup,
 	}
 }
 func (c *CassandraConfig) MarshalJSON() ([]byte, error) {

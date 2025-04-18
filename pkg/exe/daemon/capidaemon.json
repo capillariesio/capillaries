@@ -1,34 +1,35 @@
 {
-    "handler_executable_type":"capi_daemon",
-    "cassandra":{
-      "hosts": ["cassandra.us-east-1.amazonaws.com"],
-      "port": 9142,
-      "username": "UserAccessCapillariesKeyspaces-at-728560144492",
-      "password": "msRxi7cGfOO85J1cbnhw4ZwwFb3hLA6pxzAlgNJoOblBIGCx8yQhR+pxZQA=",
-      "ssl_opts": {"ca_path":"/home/johndoe/.ssh/sf-class2-root.crt", "enable_host_verification":false},
-      "keyspace_replication_config": "{ 'class' : 'SingleRegionStrategy'}",
-      "writer_workers": 20,
-      "min_inserter_rate": 5,
-      "num_conns": 2,
-      "timeout": 5000,
-      "connect_timeout": 1000
+  "handler_executable_type": "capi_daemon",
+  "cassandra": {
+    "hosts": ["127.0.0.1"],
+    "port": 9042,
+    "username": "cassandra",
+    "password": "cassandra",
+    "keyspace_replication_config": "{ 'class' : 'NetworkTopologyStrategy', 'datacenter1' : 1 }",
+    "writer_workers": 4,
+    "min_inserter_rate": 10,
+    "num_conns": 2,
+    "timeout": 5000,
+    "connect_timeout": 1000
+  },
+  "amqp": {
+    "url": "amqp://guest:guest@127.0.0.1/",
+    "exchange": "capillaries",
+    "prefetch_count": 20,
+    "prefetch_size": 0
+  },
+  "custom_processors": {
+    "py_calc": {
+      "python_interpreter_path": "python",
+      "python_interpreter_params": ["-u", "-" ]
     },
-    "amqp":{
-      "url": "amqp://guest:guest@127.0.0.1/",
-      "exchange": "capillaries",
-      "prefetch_count": 20,
-      "prefetch_size": 0
-    },
-    "custom_processors":{
-      "py_calc":{
-        "python_interpreter_path":"python",
-        "python_interpreter_params":["-u", "-"]
-      },
-      "tag_and_denormalize":{}
-    },
-    "thread_pool_size": 8,
-    "dead_letter_ttl": 10000,
-    "log":{
-          "level": "debug"
-      }
+    "tag_and_denormalize": {}
+  },
+  "daemon": {
+    "thread_pool_size": 1,
+    "dead_letter_ttl": 10000
+  },
+  "log": {
+    "level": "debug"
   }
+}

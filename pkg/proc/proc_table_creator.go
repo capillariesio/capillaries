@@ -7,8 +7,6 @@ import (
 	"io"
 	"net/url"
 	"os"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
@@ -909,17 +907,10 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 			leftRowFoundRightLookup[rowIdx] = false
 		}
 
-		keyInQuestion := "0031733d77e4b31c1ae701f6db1f6322                                "
-
 		// Build keys to find in the lookup index, one key may yield multiple rowids
 		keysToFind, keyToLeftRowIdxMap, err := buildKeysToFindInTheLookupIndex(rsLeft, node.Lookup)
 		if err != nil {
 			return bs, err
-		}
-
-		_, isKeyInQuestionInKeysToFind := keyToLeftRowIdxMap[keyInQuestion]
-		if isKeyInQuestionInKeysToFind {
-			logger.DebugCtx(pCtx, "selectBatchFromIdxTablePaged: isKeyInQuestionInKeysToFind")
 		}
 
 		lookupFieldRefs := sc.FieldRefs{}
@@ -948,10 +939,6 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 				return bs, err
 			}
 
-			if isKeyInQuestionInKeysToFind {
-				logger.DebugCtx(pCtx, "selectBatchFromIdxTablePaged: isKeyInQuestionInKeysToFind page %d retrieved %d idx records, next pagestate %+v", rightIdxPageIdx, rsIdx.RowCount, idxPageState)
-			}
-
 			if rsIdx.RowCount == 0 {
 				break
 			}
@@ -962,25 +949,6 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 			logger.DebugCtx(pCtx, "selectBatchFromIdxTablePaged: leftPageIdx %d, rightIdxPageIdx %d, queried %d keys in %.3fs, retrieved %d right rowids", leftPageIdx, rightIdxPageIdx, len(keysToFind), time.Since(selectIdxBatchStartTime).Seconds(), len(rightRowidsToFind))
 
 			keyToFindRowIdsMap := map[int64]struct{}{}
-			if isKeyInQuestionInKeysToFind {
-				keyToFindRowIds := []string{}
-				for rightRowId, rightKey := range rightRowIdToKeyMap {
-					if keyInQuestion == rightKey {
-						keyToFindRowIds = append(keyToFindRowIds, strconv.FormatInt(rightRowId, 10))
-						keyToFindRowIdsMap[rightRowId] = struct{}{}
-					}
-				}
-				if len(keyToFindRowIds) > 0 {
-					sb := strings.Builder{}
-					for rowid := range rightRowidsToFind {
-						if sb.Len() > 0 {
-							sb.WriteString(",")
-						}
-						sb.WriteString(fmt.Sprintf("%d", rowid))
-					}
-					logger.DebugCtx(pCtx, "selectBatchFromIdxTablePaged: isKeyInQuestionInKeysToFind got rowids in idx %s, will query rowids %s", strings.Join(keyToFindRowIds, ","), sb.String())
-				}
-			}
 
 			// Select from right table by rowid
 			rsRight := NewRowsetFromFieldRefs(
@@ -991,6 +959,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 			rightDataAttemptIdx := 0
 			for {
 				// We will keep resetting page state because we will keep shrinking rightRowidsToFind
+				// Let's keep uisng paging in case there are too many ids to retireve
 				var rightPageState []byte
 				selectBatchStartTime := time.Now()
 				_, err = selectBatchFromDataTablePaged(logger,
@@ -1152,6 +1121,6 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 	// start the daemon
 	// in the log, watch for DeleteDataAndUniqueIndexesByBatchIdx messagesbatchStartTime
 	// make sure lookup_quicktest completed successfully and result data is good
-	// os.Exit(0)
+	//os.Exit(0)
 	return bs, nil
 }

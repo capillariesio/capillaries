@@ -12,18 +12,17 @@ import (
 )
 
 type EnvConfig struct {
-	HandlerExecutableType string          `json:"handler_executable_type"`
-	Cassandra             CassandraConfig `json:"cassandra"`
-	Amqp                  AmqpConfig      `json:"amqp"`
-	// ZapConfig                         zap.Config                 `json:"zap_config"`
+	HandlerExecutableType             string                       `json:"handler_executable_type"` // daemon,webapi,toolbelt
+	Cassandra                         CassandraConfig              `json:"cassandra"`
+	Amqp                              AmqpConfig                   `json:"amqp"`
 	Log                               LogConfig                    `json:"log"`
-	ThreadPoolSize                    int                          `json:"thread_pool_size" env:"CAPI_THREAD_POOL_SIZE, overwrite"`
-	DeadLetterTtl                     int                          `json:"dead_letter_ttl" env:"CAPI_DEAD_LETTER_TTL, overwrite"`
-	CaPath                            string                       `json:"ca_path" env:"CAPI_CA_PATH, overwrite"`
-	PrivateKeys                       map[string]string            `json:"private_keys" env:"CAPI_PRIVATE_KEYS, overwrite"`
+	CaPath                            string                       `json:"ca_path" env:"CAPI_CA_PATH, overwrite"`           // Used for HTTP, host ca dir if empty
+	PrivateKeys                       map[string]string            `json:"private_keys" env:"CAPI_PRIVATE_KEYS, overwrite"` // Used for SFTP
+	Daemon                            DaemonConfig                 `json:"daemon,omitempty"`
 	Webapi                            WebapiConfig                 `json:"webapi,omitempty"`
 	CustomProcessorsSettings          map[string]json.RawMessage   `json:"custom_processors"`
 	CustomProcessorDefFactoryInstance sc.CustomProcessorDefFactory `json:"-"`
+	// ZapConfig                      zap.Config                   `json:"zap_config"`
 }
 
 func (ec *EnvConfig) Deserialize(ctx context.Context, jsonBytes []byte) error {
@@ -38,12 +37,12 @@ func (ec *EnvConfig) Deserialize(ctx context.Context, jsonBytes []byte) error {
 
 	// Defaults
 
-	if ec.ThreadPoolSize <= 0 || ec.ThreadPoolSize > 100 {
-		ec.ThreadPoolSize = 5
+	if ec.Daemon.ThreadPoolSize <= 0 || ec.Daemon.ThreadPoolSize > 100 {
+		ec.Daemon.ThreadPoolSize = 5
 	}
 
-	if ec.DeadLetterTtl < 100 || ec.DeadLetterTtl > 3600000 { // [100ms,1hr]
-		ec.DeadLetterTtl = 10000
+	if ec.Daemon.DeadLetterTtl < 100 || ec.Daemon.DeadLetterTtl > 3600000 { // [100ms,1hr]
+		ec.Daemon.DeadLetterTtl = 10000
 	}
 
 	return nil

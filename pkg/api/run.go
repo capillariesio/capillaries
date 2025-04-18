@@ -33,7 +33,7 @@ func StopRun(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, r
 
 // Used by Webapi and Toolbelt (start_run command). This is the way to start Capillaries processing.
 // startNodes parameter contains names of the script nodes to be executed right upon run start.
-func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp.Channel, scriptFilePath string, paramsFilePath string, cqlSession *gocql.Session, keyspace string, startNodes []string, desc string) (int16, error) {
+func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp.Channel, scriptFilePath string, paramsFilePath string, cqlSession *gocql.Session, cassandraEngine db.CassandraEngineType, keyspace string, startNodes []string, desc string) (int16, error) {
 	logger.PushF("api.StartRun")
 	defer logger.PopF()
 
@@ -74,10 +74,10 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp.
 	}
 
 	logger.Info("creating data and idx tables for run %d...", runId)
-	createTablesStartTime := time.Now()
 
 	// Create all run-specific tables, do not create them in daemon on the fly to avoid INCOMPATIBLE_SCHEMA error
 	// (apparently, thrown if we try to insert immediately after creating a table)
+	createTablesStartTime := time.Now()
 	var tableNames []string
 	for _, nodeName := range affectedNodes {
 		node, ok := script.ScriptNodes[nodeName]
@@ -99,8 +99,10 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp.
 		}
 	}
 
-	if checkTableErr := db.VerifyTablesExist(cqlSession, keyspace, tableNames); checkTableErr != nil {
-		return 0, checkTableErr
+	if cassandraEngine == db.CassandraEngineAmazonKeyspaces {
+		if err := db.VerifyAmazonKeyspacesTablesReady(cqlSession, keyspace, tableNames); err != nil {
+			return 0, err
+		}
 	}
 
 	logger.Info("created %d tables [%s] in %.2fs, creating messages to send for run %d...", len(tableNames), strings.Join(tableNames, ","), time.Since(createTablesStartTime).Seconds(), runId)
@@ -142,8 +144,6 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp.
 	if err := wfdb.SetRunStatus(logger, cqlSession, keyspace, runId, wfmodel.RunStart, "api.StartRun", cql.ThrowIfExists); err != nil {
 		return 0, err
 	}
-
-	// time.Sleep(30 * time.Second) // Ugly hack
 
 	logger.Info("sending %d messages for run %d...", len(allMsgs), runId)
 	sendMsgStartTime := time.Now()

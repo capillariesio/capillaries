@@ -137,7 +137,7 @@ func startRun(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 
 	startNodes := strings.Split(*startNodesString, ",")
 
-	cqlSession, err := db.NewSession(envConfig, *keyspace, db.CreateKeyspaceOnConnect)
+	cqlSession, cassandraEngine, err := db.NewSession(envConfig, *keyspace, db.CreateKeyspaceOnConnect)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
@@ -158,7 +158,7 @@ func startRun(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 	}
 	defer amqpChannel.Close()
 
-	runId, err := api.StartRun(envConfig, logger, amqpChannel, *scriptFilePath, *paramsFilePath, cqlSession, *keyspace, startNodes, "started by Toolbelt")
+	runId, err := api.StartRun(envConfig, logger, amqpChannel, *scriptFilePath, *paramsFilePath, cqlSession, cassandraEngine, *keyspace, startNodes, "started by Toolbelt")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
@@ -183,7 +183,7 @@ func stopRun(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 		return 1
 	}
 
-	cqlSession, err := db.NewSession(envConfig, *keyspace, db.DoNotCreateKeyspaceOnConnect)
+	cqlSession, _, err := db.NewSession(envConfig, *keyspace, db.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
@@ -205,7 +205,7 @@ func getRunHistory(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 		return 0
 	}
 
-	cqlSession, err := db.NewSession(envConfig, *keyspace, db.DoNotCreateKeyspaceOnConnect)
+	cqlSession, _, err := db.NewSession(envConfig, *keyspace, db.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
@@ -232,7 +232,7 @@ func getNodeHistory(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 		return 0
 	}
 
-	cqlSession, err := db.NewSession(envConfig, *keyspace, db.DoNotCreateKeyspaceOnConnect)
+	cqlSession, _, err := db.NewSession(envConfig, *keyspace, db.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
@@ -266,7 +266,7 @@ func getBatchHistory(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 		return 0
 	}
 
-	cqlSession, err := db.NewSession(envConfig, *keyspace, db.DoNotCreateKeyspaceOnConnect)
+	cqlSession, _, err := db.NewSession(envConfig, *keyspace, db.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
@@ -345,7 +345,7 @@ func getRunStatusDiagram(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 		return 1
 	}
 
-	cqlSession, err := db.NewSession(envConfig, *keyspace, db.DoNotCreateKeyspaceOnConnect)
+	cqlSession, _, err := db.NewSession(envConfig, *keyspace, db.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
@@ -382,7 +382,7 @@ func dropKeyspace(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 		return 0
 	}
 
-	cqlSession, err := db.NewSession(envConfig, *keyspace, db.DoNotCreateKeyspaceOnConnect)
+	cqlSession, _, err := db.NewSession(envConfig, *keyspace, db.DoNotCreateKeyspaceOnConnect)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
@@ -397,7 +397,7 @@ func dropKeyspace(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 }
 
 func checkDbConnectivity(envConfig *env.EnvConfig) int {
-	cqlSession, err := db.NewSession(envConfig, "", db.CreateKeyspaceOnConnect)
+	cqlSession, _, err := db.NewSession(envConfig, "", db.CreateKeyspaceOnConnect)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
@@ -434,7 +434,7 @@ func execNode(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 
 	startTime := time.Now()
 
-	cqlSession, err := db.NewSession(envConfig, *keyspace, db.CreateKeyspaceOnConnect)
+	cqlSession, _, err := db.NewSession(envConfig, *keyspace, db.CreateKeyspaceOnConnect)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
