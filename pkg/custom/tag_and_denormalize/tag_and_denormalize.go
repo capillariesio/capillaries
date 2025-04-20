@@ -17,11 +17,11 @@ import (
 
 const ProcessorTagAndDenormalizeName string = "tag_and_denormalize"
 
-// All processor settings, root values coming from node
+// All processor settings, stored in Capillaries script, root values coming from node
 type TagAndDenormalizeProcessorDef struct {
-	TagFieldName         string            `json:"tag_field_name" env:"CAPI_TAGANDDENORMALIZE_TAG_FIELD_NAME, overwrite"`
-	RawTagCriteria       map[string]string `json:"tag_criteria" env:"CAPI_TAGANDDENORMALIZE_TAG_CRITERIA, overwrite"`
-	RawTagCriteriaUrl    string            `json:"tag_criteria_url" env:"CAPI_TAGANDDENORMALIZE_RAW_TAG_CRITERIA_URL, overwrite"`
+	TagFieldName         string            `json:"tag_field_name"`
+	RawTagCriteria       map[string]string `json:"tag_criteria"`
+	RawTagCriteriaUrl    string            `json:"tag_criteria_url"`
 	ParsedTagCriteria    map[string]ast.Expr
 	UsedInCriteriaFields sc.FieldRefs
 }

@@ -2,7 +2,7 @@
     "nodes": {
         "1_read_project_financials": {
             "type": "file_table",
-            "desc": "Read file project_budget.csv to table",
+            "desc": "Read file harvested_project_financials_*.csv to table",
             "start_policy": "manual",
             "r": {
                 "urls": [
@@ -124,7 +124,7 @@
                 }
             },
             "w": {
-                "name": "quarterly_project_budget",
+                "name": "quarterly_project_bdgt",
                 "fields": {
                     "project_id": {
                         "expression": "r.project_id",
@@ -155,7 +155,7 @@
             "custom_proc_type": "tag_and_denormalize",
             "desc": "Tag by country",
             "r": {
-                "table": "quarterly_project_budget",
+                "table": "quarterly_project_bdgt",
                 "expected_batches_total": 10
             },
             "p": {
@@ -163,7 +163,7 @@
                 "tag_criteria_url": "{dir_cfg}/tag_criteria_country.json"
             },
             "w": {
-                "name": "quarterly_project_budget_tagged_by_country",
+                "name": "quarterly_project_bdgt_tggd_by_country",
                 "fields": {
                     "project_id": {
                         "expression": "r.project_id",
@@ -185,7 +185,7 @@
             "custom_proc_type": "tag_and_denormalize",
             "desc": "Tag by sector",
             "r": {
-                "table": "quarterly_project_budget",
+                "table": "quarterly_project_bdgt",
                 "expected_batches_total": 10
             },
             "p": {
@@ -193,7 +193,7 @@
                 "tag_criteria_url": "{dir_cfg}/tag_criteria_sector.json"
             },
             "w": {
-                "name": "quarterly_project_budget_tagged_by_sector",
+                "name": "quarterly_project_bdgt_tggd_by_sector",
                 "fields": {
                     "project_id": {
                         "expression": "r.project_id",
@@ -216,7 +216,7 @@
             "custom_proc_type": "tag_and_denormalize",
             "desc": "Tag by country and quarter",
             "r": {
-                "table": "quarterly_project_budget_tagged_by_country",
+                "table": "quarterly_project_bdgt_tggd_by_country",
                 "expected_batches_total": 10
             },
             "p": {
@@ -224,7 +224,7 @@
                 "tag_criteria_url": "{dir_cfg}/tag_criteria_country_quarter.json"
             },
             "w": {
-                "name": "quarterly_project_budget_tagged_by_country_quarter",
+                "name": "quarterly_project_bdgt_tggd_by_country_qtr",
                 "fields": {
                     "project_id": {
                         "expression": "r.project_id",
@@ -250,7 +250,7 @@
             "custom_proc_type": "tag_and_denormalize",
             "desc": "Tag by sector and quarter",
             "r": {
-                "table": "quarterly_project_budget_tagged_by_sector",
+                "table": "quarterly_project_bdgt_tggd_by_sector",
                 "expected_batches_total": 10
             },
             "p": {
@@ -258,7 +258,7 @@
                 "tag_criteria_url": "{dir_cfg}/tag_criteria_sector_quarter.json"
             },
             "w": {
-                "name": "quarterly_project_budget_tagged_by_sector_quarter",
+                "name": "quarterly_project_bdgt_tggd_by_sector_qtr",
                 "fields": {
                     "project_id": {
                         "expression": "r.project_id",
@@ -284,7 +284,7 @@
             "custom_proc_type": "tag_and_denormalize",
             "desc": "Tag by partner and quarter",
             "r": {
-                "table": "quarterly_project_budget",
+                "table": "quarterly_project_bdgt",
                 "expected_batches_total": 10
             },
             "p": {
@@ -292,7 +292,7 @@
                 "tag_criteria_url": "{dir_cfg}/tag_criteria_partner_quarter.json"
             },
             "w": {
-                "name": "quarterly_project_budget_tagged_by_partner_quarter",
+                "name": "quarterly_project_bdgt_tggd_by_partner_qtr",
                 "fields": {
                     "project_id": {
                         "expression": "r.project_id",
@@ -319,7 +319,7 @@
             "custom_proc_type": "py_calc",
             "desc": "Get country quarter amount",
             "r": {
-                "table": "quarterly_project_budget_tagged_by_country_quarter",
+                "table": "quarterly_project_bdgt_tggd_by_country_qtr",
                 "expected_batches_total": "{get_amt_from_json_batches|number}"
             },
             "p": {
@@ -360,7 +360,7 @@
             "custom_proc_type": "py_calc",
             "desc": "Get sector quarter amount",
             "r": {
-                "table": "quarterly_project_budget_tagged_by_sector_quarter",
+                "table": "quarterly_project_bdgt_tggd_by_sector_qtr",
                 "expected_batches_total": "{get_amt_from_json_batches|number}"
             },
             "p": {
@@ -401,7 +401,7 @@
             "custom_proc_type": "py_calc",
             "desc": "Get partner quarter amount",
             "r": {
-                "table": "quarterly_project_budget_tagged_by_partner_quarter",
+                "table": "quarterly_project_bdgt_tggd_by_partner_qtr",
                 "expected_batches_total": "{get_amt_from_json_batches|number}"
             },
             "p": {

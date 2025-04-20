@@ -47,6 +47,23 @@ const MaxAmazonKeyspacesBatchLen int = 30
 // 	return nil
 // }
 
+func getFirstIntsFromSet(intSet map[int64]struct{}, cnt int) []int64 {
+	intSliceLen := cnt
+	if intSliceLen > len(intSet) {
+		intSliceLen = len(intSet)
+	}
+	intSlice := make([]int64, intSliceLen)
+	i := 0
+	for v := range intSet {
+		intSlice[i] = v
+		i++
+		if i == intSliceLen {
+			break
+		}
+	}
+	return intSlice
+}
+
 func selectBatchFromDataTablePaged(logger *l.CapiLogger,
 	pCtx *ctx.MessageProcessingContext,
 	rs *Rowset,
@@ -54,20 +71,13 @@ func selectBatchFromDataTablePaged(logger *l.CapiLogger,
 	lookupNodeRunId int16,
 	batchSize int,
 	pageState []byte,
-	rowidsToFind map[int64]struct{}) ([]byte, error) {
+	rowids []int64) ([]byte, error) {
 
 	logger.PushF("proc.selectBatchFromDataTablePaged")
 	defer logger.PopF()
 
 	if err := rs.InitRows(batchSize); err != nil {
 		return nil, err
-	}
-
-	rowids := make([]int64, len(rowidsToFind))
-	i := 0
-	for rowid := range rowidsToFind {
-		rowids[i] = rowid
-		i++
 	}
 
 	qb := cql.QueryBuilder{}

@@ -32,8 +32,8 @@ func WrapDbErrorWithQuery(msg string, query string, dbErr error) error {
 
 func IsDbConnError(err error) bool {
 	return strings.Contains(err.Error(), ErrorPrefixDb+gocql.ErrNoConnections.Error()) ||
-		strings.Contains(err.Error(), ErrorPrefixDb+"EOF")
-
+		strings.Contains(err.Error(), ErrorPrefixDb+"EOF") ||
+		strings.Contains(err.Error(), ErrorPrefixDb+"gocql: heartbeat failed")
 }
 
 func createWfTable(cqlSession *gocql.Session, keyspace string, t reflect.Type, tableName string) error {

@@ -350,7 +350,7 @@
 			}
 		},
 
-		"04_loan_summaries_calculated": {
+		"04_loan_smrs_clcltd": {
 			"type": "table_custom_tfm_table",
 			"custom_proc_type": "py_calc",
 			"desc": "Apply Python calculations to loan summaries",
@@ -383,7 +383,7 @@
 				}
 			},
 			"w": {
-				"name": "loan_summaries_calculated",
+				"name": "loan_smrs_clcltd",
 				"fields": {
 					"loan_id": {
 						"expression": "r.loan_id",
@@ -443,22 +443,22 @@
 					}
 				},
 				"indexes": {
-					"idx_loan_summaries_calculated_deal_name": "non_unique(deal_name)",
-					"idx_loan_summaries_calculated_deal_name_seller_name": "non_unique(deal_name,seller_name)"
+					"idx_loan_smrs_clcltd_deal_name": "non_unique(deal_name)",
+					"idx_loan_smrs_clcltd_deal_name_seller_name": "non_unique(deal_name,seller_name)"
 				}
 			}
 		},
-		"04_write_file_loan_summaries_calculated": {
+		"04_write_file_loan_smrs_clcltd": {
 			"type": "table_file",
 			"desc": "Write from table to file loan_summaries.parquet",
 			"r": {
-				"table": "loan_summaries_calculated"
+				"table": "loan_smrs_clcltd"
 			},
 			"w": {
 				"top": {
 					"order": "loan_id(asc)"
 				},
-				"url_template": "{dir_out}/loan_summaries_calculated.parquet",
+				"url_template": "{dir_out}/loan_smrs_clcltd.parquet",
 				"columns": [
 					{
 						"parquet": { "column_name": "loan_id" },
@@ -551,7 +551,7 @@
 				"expected_batches_total": "{expected_batches|number}"
 			},
 			"l": {
-				"index_name": "idx_loan_summaries_calculated_deal_name_seller_name",
+				"index_name": "idx_loan_smrs_clcltd_deal_name_seller_name",
 				"join_on": "r.deal_name,r.seller_name",
 				"group": true,
 				"join_type": "left"
@@ -742,7 +742,7 @@
 				"expected_batches_total": "{expected_batches|number}"
 			},
 			"l": {
-				"index_name": "idx_loan_summaries_calculated_deal_name",
+				"index_name": "idx_loan_smrs_clcltd_deal_name",
 				"join_on": "r.deal_name",
 				"group": true,
 				"join_type": "left"

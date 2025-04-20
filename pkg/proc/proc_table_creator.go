@@ -23,6 +23,7 @@ type TableRecordPtr *map[string]any
 type TableRecordBatch []TableRecordPtr
 
 const DefaultInserterBatchSize int = 5000
+const MaxAmazonKeyspacesInElements int = 100
 
 /*
 func reportWriteTable(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, recordCount int, dur time.Duration, indexCount int, workerCount int) {
@@ -269,6 +270,12 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 			}
 		}
 
+		// Write leftovers if anything was sent at all
+		if instr.RecordsSent > 0 {
+			if err := instr.letWorkersDrainRecordWrittenStatuses(logger, pCtx); err != nil {
+				return err
+			}
+		}
 		// reportWriteTable(logger, pCtx, rowsWritten, time.Since(flushStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
 
 		return nil
@@ -825,6 +832,27 @@ func checkRunCreateTableRelForBatchSanity(node *sc.ScriptNodeDef, readerNodeRunI
 	return nil
 }
 
+func splitKeysIntoChunks(allKeys []string, chunkSize int) [][]string {
+	chunkCount := len(allKeys) / chunkSize
+	if len(allKeys)%chunkSize > 0 {
+		chunkCount++
+	}
+
+	keysChunks := make([][]string, chunkCount)
+	keyIdx := 0
+	for chunkIdx := range keysChunks {
+		keysChunks[chunkIdx] = make([]string, 0)
+		for {
+			keysChunks[chunkIdx] = append(keysChunks[chunkIdx], allKeys[keyIdx])
+			keyIdx++
+			if keyIdx == len(allKeys) || keyIdx%MaxAmazonKeyspacesBatchLen == 0 {
+				break
+			}
+		}
+	}
+	return keysChunks
+}
+
 func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 	logger *l.CapiLogger,
 	pCtx *ctx.MessageProcessingContext,
@@ -908,7 +936,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 		}
 
 		// Build keys to find in the lookup index, one key may yield multiple rowids
-		keysToFind, keyToLeftRowIdxMap, err := buildKeysToFindInTheLookupIndex(rsLeft, node.Lookup)
+		allKeysToFind, keyToLeftRowIdxMap, err := buildKeysToFindInTheLookupIndex(rsLeft, node.Lookup)
 		if err != nil {
 			return bs, err
 		}
@@ -923,132 +951,135 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 			sc.FieldRefs{sc.KeyTokenFieldRef()},
 			sc.FieldRefs{sc.IdxKeyFieldRef()})
 
-		var idxPageState []byte
-		rightIdxPageIdx := 0
-		for {
-			selectIdxBatchStartTime := time.Now()
-			idxPageState, err = selectBatchFromIdxTablePaged(logger,
-				pCtx,
-				rsIdx,
-				node.Lookup.IndexName,
-				lookupNodeRunId,
-				node.Lookup.IdxReadBatchSize,
-				idxPageState,
-				&keysToFind)
-			if err != nil {
-				return bs, err
-			}
-
-			if rsIdx.RowCount == 0 {
-				break
-			}
-
-			// Build a map of right-row-id -> key
-			rightRowidsToFind, rightRowIdToKeyMap := getRightRowidsToFind(rsIdx)
-
-			logger.DebugCtx(pCtx, "selectBatchFromIdxTablePaged: leftPageIdx %d, rightIdxPageIdx %d, queried %d keys in %.3fs, retrieved %d right rowids", leftPageIdx, rightIdxPageIdx, len(keysToFind), time.Since(selectIdxBatchStartTime).Seconds(), len(rightRowidsToFind))
-
-			keyToFindRowIdsMap := map[int64]struct{}{}
-
-			// Select from right table by rowid
-			rsRight := NewRowsetFromFieldRefs(
-				sc.FieldRefs{sc.RowidFieldRef(node.Lookup.TableCreator.Name)},
-				sc.FieldRefs{sc.RowidTokenFieldRef()},
-				srcRightFieldRefs)
-
-			rightDataAttemptIdx := 0
+		keysToFindChunks := splitKeysIntoChunks(allKeysToFind, MaxAmazonKeyspacesBatchLen)
+		for _, keysToFind := range keysToFindChunks {
+			var idxPageState []byte
+			rightIdxPageIdx := 0
 			for {
-				// We will keep resetting page state because we will keep shrinking rightRowidsToFind
-				// Let's keep uisng paging in case there are too many ids to retireve
-				var rightPageState []byte
-				selectBatchStartTime := time.Now()
-				_, err = selectBatchFromDataTablePaged(logger,
+				selectIdxBatchStartTime := time.Now()
+				idxPageState, err = selectBatchFromIdxTablePaged(logger,
 					pCtx,
-					rsRight,
-					node.Lookup.TableCreator.Name,
+					rsIdx,
+					node.Lookup.IndexName,
 					lookupNodeRunId,
-					node.Lookup.RightLookupReadBatchSize,
-					rightPageState,
-					rightRowidsToFind)
+					node.Lookup.IdxReadBatchSize,
+					idxPageState,
+					&keysToFind)
 				if err != nil {
 					return bs, err
 				}
 
-				logger.DebugCtx(pCtx, "selectBatchFromDataTablePaged: leftPageIdx %d, rightIdxPageIdx %d, rightDataAttemptIdx %d, queried %d rowids in %.3fs, retrieved %d rowids", leftPageIdx, rightIdxPageIdx, rightDataAttemptIdx, len(rightRowidsToFind), time.Since(selectBatchStartTime).Seconds(), rsRight.RowCount)
-
-				if rsRight.RowCount == 0 {
+				if rsIdx.RowCount == 0 {
 					break
 				}
 
-				for rightRowIdx := 0; rightRowIdx < rsRight.RowCount; rightRowIdx++ {
-					rightRowId := *((*rsRight.Rows[rightRowIdx])[rsRight.FieldsByFieldName["rowid"]].(*int64))
-					rightRowKey := rightRowIdToKeyMap[rightRowId]
+				// Build a map of right-row-id -> key
+				rightRowidsToFind, rightRowIdToKeyMap := getRightRowidsToFind(rsIdx)
 
-					if _, ok := keyToFindRowIdsMap[rightRowId]; ok {
-						logger.DebugCtx(pCtx, "selectBatchFromDataTablePaged: isKeyInQuestionInKeysToFind got rowid in data %d", rightRowId)
-					}
+				logger.DebugCtx(pCtx, "selectBatchFromIdxTablePaged: leftPageIdx %d, rightIdxPageIdx %d, queried %d keys in %.3fs, retrieved %d right rowids", leftPageIdx, rightIdxPageIdx, len(allKeysToFind), time.Since(selectIdxBatchStartTime).Seconds(), len(rightRowidsToFind))
 
-					// Remove this right rowid from the set, we do not need it anymore.
-					delete(rightRowidsToFind, rightRowId)
+				keyToFindRowIdsMap := map[int64]struct{}{}
 
-					// Check filter condition if needed
-					lookupFilterOk, err := checkLookupFilter(&node.Lookup, rsRight, rightRowIdx)
+				// Select from right table by rowid
+				rsRight := NewRowsetFromFieldRefs(
+					sc.FieldRefs{sc.RowidFieldRef(node.Lookup.TableCreator.Name)},
+					sc.FieldRefs{sc.RowidTokenFieldRef()},
+					srcRightFieldRefs)
+
+				rightDataAttemptIdx := 0
+				for {
+					// We will keep resetting page state because we will keep shrinking rightRowidsToFind
+					// Let's keep uisng paging in case there are too many ids to retireve
+					var rightPageState []byte
+					selectBatchStartTime := time.Now()
+					_, err = selectBatchFromDataTablePaged(logger,
+						pCtx,
+						rsRight,
+						node.Lookup.TableCreator.Name,
+						lookupNodeRunId,
+						node.Lookup.RightLookupReadBatchSize,
+						rightPageState,
+						getFirstIntsFromSet(rightRowidsToFind, MaxAmazonKeyspacesInElements)) // Amazon Keyspaces allows max 100 IN elements
 					if err != nil {
 						return bs, err
 					}
 
-					if !lookupFilterOk {
-						// Skip this right row
-						continue
+					logger.DebugCtx(pCtx, "selectBatchFromDataTablePaged: leftPageIdx %d, rightIdxPageIdx %d, rightDataAttemptIdx %d, queried %d rowids in %.3fs, retrieved %d rowids", leftPageIdx, rightIdxPageIdx, rightDataAttemptIdx, len(rightRowidsToFind), time.Since(selectBatchStartTime).Seconds(), rsRight.RowCount)
+
+					if rsRight.RowCount == 0 {
+						break
 					}
 
-					if node.Lookup.IsGroup {
-						// Find correspondent row from rsLeft, merge left and right and
-						// call group eval eCtxMap[leftRowid] for each output field,
-						// but do not write them yet - there may be more
-						for _, leftRowIdx := range keyToLeftRowIdxMap[rightRowKey] {
+					for rightRowIdx := 0; rightRowIdx < rsRight.RowCount; rightRowIdx++ {
+						rightRowId := *((*rsRight.Rows[rightRowIdx])[rsRight.FieldsByFieldName["rowid"]].(*int64))
+						rightRowKey := rightRowIdToKeyMap[rightRowId]
 
-							leftRowFoundRightLookup[leftRowIdx] = true
-							if err := evalRowGroupedFields(node.TableCreator.Fields, rsLeft, leftRowIdx, rsRight, rightRowIdx, eCtxMap); err != nil {
-								return bs, err
-							}
+						if _, ok := keyToFindRowIdsMap[rightRowId]; ok {
+							logger.DebugCtx(pCtx, "selectBatchFromDataTablePaged: isKeyInQuestionInKeysToFind got rowid in data %d", rightRowId)
 						}
-					} else {
-						// Non-group, and the right row was found for the parent left row.
-						// Find correspondent row from rsLeft, merge left and right and call row-level eval
-						for _, leftRowIdx := range keyToLeftRowIdxMap[rightRowKey] {
 
-							leftRowFoundRightLookup[leftRowIdx] = true
+						// Remove this right rowid from the set, we do not need it anymore.
+						delete(rightRowidsToFind, rightRowId)
 
-							tableRecord, err := produceNonGroupedTableRecordForLeftWithChildren(node, rsLeft, leftRowIdx, rsRight, rightRowIdx)
-							if err != nil {
-								return bs, err
+						// Check filter condition if needed
+						lookupFilterOk, err := checkLookupFilter(&node.Lookup, rsRight, rightRowIdx)
+						if err != nil {
+							return bs, err
+						}
+
+						if !lookupFilterOk {
+							// Skip this right row
+							continue
+						}
+
+						if node.Lookup.IsGroup {
+							// Find correspondent row from rsLeft, merge left and right and
+							// call group eval eCtxMap[leftRowid] for each output field,
+							// but do not write them yet - there may be more
+							for _, leftRowIdx := range keyToLeftRowIdxMap[rightRowKey] {
+
+								leftRowFoundRightLookup[leftRowIdx] = true
+								if err := evalRowGroupedFields(node.TableCreator.Fields, rsLeft, leftRowIdx, rsRight, rightRowIdx, eCtxMap); err != nil {
+									return bs, err
+								}
 							}
+						} else {
+							// Non-group, and the right row was found for the parent left row.
+							// Find correspondent row from rsLeft, merge left and right and call row-level eval
+							for _, leftRowIdx := range keyToLeftRowIdxMap[rightRowKey] {
 
-							if err := checkHavingAddRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, instr); err != nil {
-								return bs, err
-							}
-							bs.RowsWritten++
+								leftRowFoundRightLookup[leftRowIdx] = true
 
-						} // non-group result row written
-					} // group case handled
-				} // for each found right row
+								tableRecord, err := produceNonGroupedTableRecordForLeftWithChildren(node, rsLeft, leftRowIdx, rsRight, rightRowIdx)
+								if err != nil {
+									return bs, err
+								}
 
-				// No more ids in the IN condition, we are done retrieving right-side rowids
-				if len(rightRowidsToFind) == 0 {
+								if err := checkHavingAddRecordAndSaveBatchIfNeeded(pCtx, logger, node, tableRecord, instr); err != nil {
+									return bs, err
+								}
+								bs.RowsWritten++
+
+							} // non-group result row written
+						} // group case handled
+					} // for each found right row
+
+					// No more ids in the IN condition, we are done retrieving right-side rowids
+					if len(rightRowidsToFind) == 0 {
+						break
+					}
+
+					rightDataAttemptIdx++
+				} // for each data page
+
+				// For Cassandra, we can rely on rsIdx.RowCount. But for Amazon Keyspaces, gocql returns only a fraction of records page after page, until page state is empty
+				// if rsIdx.RowCount < node.Lookup.IdxReadBatchSize || len(idxPageState) == 0 {
+				if len(idxPageState) == 0 {
 					break
 				}
-
-				rightDataAttemptIdx++
-			} // for each data page
-
-			// For Cassandra, we can rely on rsIdx.RowCount. But for Amazon Keyspaces, gocql returns only a fraction of records page after page, until page state is empty
-			// if rsIdx.RowCount < node.Lookup.IdxReadBatchSize || len(idxPageState) == 0 {
-			if len(idxPageState) == 0 {
-				break
-			}
-			rightIdxPageIdx++
-		} // for each idx page
+				rightIdxPageIdx++
+			} // for each idx page
+		} // for each 100-key chunk
 
 		// For grouped - group
 		// For non-grouped left join - add empty left-side (those who have right counterpart were alredy hendled above)

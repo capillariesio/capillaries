@@ -26,11 +26,11 @@ if [[ $OUT_FILE == *html ]]; then
 	table2html deal_names 02_deal_names $SCRIPT_JSON $OUT_FILE fannie_mae_quicktest
 	table2html deal_total_upbs 03_deal_total_upbs $SCRIPT_JSON $OUT_FILE fannie_mae_quicktest
 	table2html loan_payment_summaries 04_loan_payment_summaries $SCRIPT_JSON $OUT_FILE fannie_mae_quicktest
-	table2html loan_summaries_calculated 04_loan_summaries_calculated $SCRIPT_JSON $OUT_FILE fannie_mae_quicktest
+	table2html loan_smrs_clcltd 04_loan_smrs_clcltd $SCRIPT_JSON $OUT_FILE fannie_mae_quicktest
 	table2html deal_seller_summaries 05_deal_seller_summaries $SCRIPT_JSON $OUT_FILE fannie_mae_quicktest
 	table2html deal_summaries 05_deal_summaries $SCRIPT_JSON $OUT_FILE fannie_mae_quicktest
 
-	parquet2html "$DATA_ROOT/out/fannie_mae_quicktest/loan_summaries_calculated_baseline.parquet" 04_write_file_loan_summaries_calculated $SCRIPT_JSON $OUT_FILE
+	parquet2html "$DATA_ROOT/out/fannie_mae_quicktest/loan_smrs_clcltd_baseline.parquet" 04_write_file_loan_smrs_clcltd $SCRIPT_JSON $OUT_FILE
 	parquet2html "$DATA_ROOT/out/fannie_mae_quicktest/deal_seller_summaries_baseline.parquet" 05_write_file_deal_seller_summaries $SCRIPT_JSON $OUT_FILE
 	parquet2html "$DATA_ROOT/out/fannie_mae_quicktest/deal_summaries_baseline.parquet" 05_write_file_deal_summaries $SCRIPT_JSON $OUT_FILE
 
@@ -47,11 +47,11 @@ else
 	table2md deal_names 02_deal_names $SCRIPT_JSON $OUT_FILE fannie_mae_quicktest
 	table2md deal_total_upbs 03_deal_total_upbs $SCRIPT_JSON $OUT_FILE fannie_mae_quicktest
 	table2md loan_payment_summaries 04_loan_payment_summaries $SCRIPT_JSON $OUT_FILE fannie_mae_quicktest
-	table2md loan_summaries_calculated 04_loan_summaries_calculated $SCRIPT_JSON $OUT_FILE fannie_mae_quicktest
+	table2md loan_smrs_clcltd 04_loan_smrs_clcltdJSON $OUT_FILE fannie_mae_quicktest
 	table2md deal_seller_summaries 05_deal_seller_summaries $SCRIPT_JSON $OUT_FILE fannie_mae_quicktest
 	table2md deal_summaries 05_deal_summaries $SCRIPT_JSON $OUT_FILE fannie_mae_quicktest
 
-	parquet2md "$DATA_ROOT/out/fannie_mae_quicktest/loan_summaries_calculated_baseline.parquet" 04_write_file_loan_summaries_calculated $SCRIPT_JSON $OUT_FILE
+	parquet2md "$DATA_ROOT/out/fannie_mae_quicktest/loan_smrs_clcltd.parquet" 04_write_file_loan_smrs_clcltdJSON $OUT_FILE
 	parquet2md "$DATA_ROOT/out/fannie_mae_quicktest/deal_seller_summaries_baseline.parquet" 05_write_file_deal_seller_summaries $SCRIPT_JSON $OUT_FILE
 	parquet2md "$DATA_ROOT/out/fannie_mae_quicktest/deal_summaries_baseline.parquet" 05_write_file_deal_summaries $SCRIPT_JSON $OUT_FILE
 fi

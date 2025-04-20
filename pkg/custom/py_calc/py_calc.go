@@ -27,13 +27,12 @@ type PyCalcEnvSettings struct {
 	// Windows: `python` or `C:\Users\%USERNAME%\AppData\Local\Programs\Python\Python310\python.exe`
 	// WSL: `python` or `/mnt/c/Users/myusername/AppData/Local/Programs/Python/Python310/python.exe`
 	// Linux: `python`
-	InterpreterPath string `json:"python_interpreter_path" env:"CAPI_PYCALC_INTERPRETER_PATH, overwrite"`
-	// Usually: ["-u", "-"]. -u is essential: without it, we will not see stdout/stderr in the timeout scenario
-	InterpreterParams []string `json:"python_interpreter_params" env:"CAPI_PYCALC_INTERPRETER_PARAMS, overwrite"`
-	ExecutionTimeout  int      `json:"execution_timeout" env:"CAPI_PYCALC_EXECUTION_TIMEOUT, overwrite"` // Default 5000 milliseconds
+	InterpreterPath   string   `json:"python_interpreter_path" env:"CAPI_PYCALC_INTERPRETER_PATH, overwrite"`     // Python binary full path or name (if in PATH)
+	InterpreterParams []string `json:"python_interpreter_params" env:"CAPI_PYCALC_INTERPRETER_PARAMS, overwrite"` // Usually: ["-u", "-"]. -u is essential: without it, we will not see stdout/stderr in the timeout scenario
+	ExecutionTimeout  int      `json:"execution_timeout" env:"CAPI_PYCALC_EXECUTION_TIMEOUT, overwrite"`          // Default 5000 milliseconds
 }
 
-// All processor settings, root values coming from node
+// All processor settings, stored in Capillaries scripts, root values coming from node
 type PyCalcProcessorDef struct {
 	PythonUrls                    []string                          `json:"python_code_urls"`
 	CalculatedFields              map[string]*sc.WriteTableFieldDef `json:"calculated_fields"`

@@ -14,7 +14,6 @@ test_period_txns = [
     {"ts": "2001-01-11", "t": "MSFT", "q": -1, "p": 3.9}
 ]
 
-
 def _test(expected, actual):
     if actual != expected:
         print(expected)
@@ -22,6 +21,15 @@ def _test(expected, actual):
     else:
         print("OK")
 
+# Simulates 1_read_txns packing
+# fmt.Sprintf(`\"%s|%s|%d|%s\"`, r.col_ts, r.col_ticker, r.col_qty, decimal2(r.col_price))
+def pack_txn(txn):
+    return f'{txn["ts"]}|{txn["t"]}|{txn["q"]}|{txn["p"]}'
+
+# Simulates 1_read_txns packing
+# fmt.Sprintf(`\"%s|%s|%d|%s\"`, r.col_ts, r.col_ticker, r.col_qty, decimal2(r.col_price))
+def pack_holding(h):
+    return f'{h["d"]}|{h["t"]}|{h["q"]}'
 
 class UnitTestCompanyInfoProvider:
     def get_sectors():
@@ -154,7 +162,7 @@ def test_txns_and_holdings_to_twr_cagr_by_sector():
             test_period_start_eod,
             test_period_end_eod,
             json.dumps(test_period_start_holdings),
-            json.dumps(test_period_txns),
+            json.dumps([pack_txn(x) for x in test_period_txns]),
             UnitTestEodPriceProvider,
             UnitTestCompanyInfoProvider))
 
@@ -171,13 +179,15 @@ def test_split_period_into_years_and_quarters():
     _test(json.dumps(year_periods),json.dumps([{"name": "2021", "start_eod": "2020-12-31", "end_eod": "2021-12-31"}, {"name": "2022", "start_eod": "2021-12-31", "end_eod": "2022-12-31"}]))
 
 def test_txns_and_holdings_to_twr_cagr_by_sector_year_quarter():
-        _test(
+    holdings_to_test = [{"d":"2000-12-31", "t":"AAPL", "q":2}, {"d":"2000-12-31", "t":"MSFT", "q":1}]
+    txns_to_test = test_period_txns + [{"ts": "2001-01-12", "t": "AAPL", "q": -4, "p": 4.0}, {"ts": "2001-01-12", "t": "TSLA", "q": -5, "p": 2.0}]
+    _test(
         json.dumps({"2001": {"All": {"cagr": 1.9939, "twr": 1.9939}, "Automotive": {"cagr": 1.0, "twr": 1.0}, "Electronics": {"cagr": 2.0983, "twr": 2.0983}, "Software": {"cagr": 0.3, "twr": 0.3}}, "2001Q1": {"All": {"cagr": 84.3871, "twr": 1.9939}, "Automotive": {"cagr": 15.6281, "twr": 1.0}, "Electronics": {"cagr": 97.1207, "twr": 2.0983}, "Software": {"cagr": 1.898, "twr": 0.3}}, "2001Q2": {"All": {"cagr": 0.0, "twr": 0.0}, "Automotive": {"cagr": 0.0, "twr": 0.0}, "Electronics": {"cagr": 0.0, "twr": 0.0}, "Software": {"cagr": 0.0, "twr": 0.0}}, "2001Q3": {"All": {"cagr": 0.0, "twr": 0.0}, "Automotive": {"cagr": 0.0, "twr": 0.0}, "Electronics": {"cagr": 0.0, "twr": 0.0}, "Software": {"cagr": 0.0, "twr": 0.0}}, "2001Q4": {"All": {"cagr": 0.0, "twr": 0.0}, "Automotive": {"cagr": 0.0, "twr": 0.0}, "Electronics": {"cagr": 0.0, "twr": 0.0}, "Software": {"cagr": 0.0, "twr": 0.0}}}),
         txns_and_holdings_to_twr_cagr_by_sector_year_quarter_json(
             "2000-12-31",
             "2001-12-31",
-            json.dumps([{"d":"2000-12-31", "t":"AAPL", "q":2}, {"d":"2000-12-31", "t":"MSFT", "q":1}]),
-            json.dumps(test_period_txns + [{"ts": "2001-01-12", "t": "AAPL", "q": -4, "p": 4.0}, {"ts": "2001-01-12", "t": "TSLA", "q": -5, "p": 2.0}]),
+            json.dumps([pack_holding(x) for x in holdings_to_test]),
+            json.dumps([pack_txn(x) for x in txns_to_test]),
             UnitTestEodPriceProvider,
             UnitTestCompanyInfoProvider))
 
