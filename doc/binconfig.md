@@ -39,7 +39,7 @@ Milliseconds, passed to gocql.ClusterConfig.Timeout. It is expected to be larger
 ### connect_timeout
 Milliseconds, passed to gocql.ClusterConfig.ConnectTimeout
 
-## amqp
+## amqp091
 RabbitMQ settings, used in [github.com/rabbitmq/amqp091-go](#https://pkg.go.dev/github.com/rabbitmq/amqp091-go)
 
 ### url

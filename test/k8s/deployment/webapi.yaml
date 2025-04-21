@@ -25,7 +25,7 @@ spec:
        ports:
          - containerPort: 6543
        env:
-         - name: CAPI_AMQP_URL
+         - name: CAPI_AMQP091_URL
            value: amqp://guest:guest@rabbitmq.default.svc.cluster.local
          - name: CAPI_CASSANDRA_HOSTS
            value: cassandra-0.cassandra.default.svc.cluster.local,cassandra-1.cassandra.default.svc.cluster.local

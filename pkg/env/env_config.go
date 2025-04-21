@@ -14,7 +14,7 @@ import (
 type EnvConfig struct {
 	HandlerExecutableType             string                       `json:"handler_executable_type"` // daemon,webapi,toolbelt
 	Cassandra                         CassandraConfig              `json:"cassandra"`
-	Amqp                              AmqpConfig                   `json:"amqp"`
+	Amqp                              Amqp091Config                `json:"amqp"`
 	Log                               LogConfig                    `json:"log"`
 	CaPath                            string                       `json:"ca_path" env:"CAPI_CA_PATH, overwrite"`           // Used for HTTP, host's CA dir if empty
 	PrivateKeys                       map[string]string            `json:"private_keys" env:"CAPI_PRIVATE_KEYS, overwrite"` // Used for SFTP only
