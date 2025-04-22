@@ -13,6 +13,8 @@ import (
 	"github.com/gocql/gocql"
 )
 
+const MaxAmazonKeyspacesBatchLen int = 30
+
 // func ClearNodeOutputs(logger *l.Logger, script *sc.ScriptDef, session *gocql.Session, keyspace string, nodeName string, runId int16) error {
 // 	node, ok := script.ScriptNodes[nodeName]
 // 	if !ok {
@@ -45,6 +47,23 @@ import (
 // 	return nil
 // }
 
+func getFirstIntsFromSet(intSet map[int64]struct{}, cnt int) []int64 {
+	intSliceLen := cnt
+	if intSliceLen > len(intSet) {
+		intSliceLen = len(intSet)
+	}
+	intSlice := make([]int64, intSliceLen)
+	i := 0
+	for v := range intSet {
+		intSlice[i] = v
+		i++
+		if i == intSliceLen {
+			break
+		}
+	}
+	return intSlice
+}
+
 func selectBatchFromDataTablePaged(logger *l.CapiLogger,
 	pCtx *ctx.MessageProcessingContext,
 	rs *Rowset,
@@ -52,20 +71,13 @@ func selectBatchFromDataTablePaged(logger *l.CapiLogger,
 	lookupNodeRunId int16,
 	batchSize int,
 	pageState []byte,
-	rowidsToFind map[int64]struct{}) ([]byte, error) {
+	rowids []int64) ([]byte, error) {
 
 	logger.PushF("proc.selectBatchFromDataTablePaged")
 	defer logger.PopF()
 
 	if err := rs.InitRows(batchSize); err != nil {
 		return nil, err
-	}
-
-	rowids := make([]int64, len(rowidsToFind))
-	i := 0
-	for k := range rowidsToFind {
-		rowids[i] = k
-		i++
 	}
 
 	qb := cql.QueryBuilder{}
@@ -77,8 +89,10 @@ func selectBatchFromDataTablePaged(logger *l.CapiLogger,
 	var iter *gocql.Iter
 	selectRetryIdx := 0
 	curSelectExpBackoffFactor := 1
+	var nextPageState []byte
 	for {
 		iter = pCtx.CqlSession.Query(q, rowids).PageSize(batchSize).PageState(pageState).Iter()
+		nextPageState = iter.PageState()
 
 		dbWarnings := iter.Warnings()
 		if len(dbWarnings) > 0 {
@@ -117,7 +131,7 @@ func selectBatchFromDataTablePaged(logger *l.CapiLogger,
 		selectRetryIdx++
 	}
 
-	return iter.PageState(), nil
+	return nextPageState, nil
 }
 
 func selectBatchPagedAllRowids(logger *l.CapiLogger,
@@ -141,6 +155,7 @@ func selectBatchPagedAllRowids(logger *l.CapiLogger,
 		SelectRun(tableName, lookupNodeRunId, *rs.GetFieldNames())
 
 	iter := pCtx.CqlSession.Query(q).PageSize(batchSize).PageState(pageState).Iter()
+	nextPageState := iter.PageState()
 
 	dbWarnings := iter.Warnings()
 	if len(dbWarnings) > 0 {
@@ -168,7 +183,7 @@ func selectBatchPagedAllRowids(logger *l.CapiLogger,
 		return nil, db.WrapDbErrorWithQuery("data all rows scanner error", q, err)
 	}
 
-	return iter.PageState(), nil
+	return nextPageState, nil
 }
 
 func selectBatchFromIdxTablePaged(logger *l.CapiLogger,
@@ -193,6 +208,7 @@ func selectBatchFromIdxTablePaged(logger *l.CapiLogger,
 		SelectRun(tableName, lookupNodeRunId, *rs.GetFieldNames())
 
 	iter := pCtx.CqlSession.Query(q, *keysToFind).PageSize(batchSize).PageState(pageState).Iter()
+	nextPageState := iter.PageState()
 
 	dbWarnings := iter.Warnings()
 	if len(dbWarnings) > 0 {
@@ -215,7 +231,7 @@ func selectBatchFromIdxTablePaged(logger *l.CapiLogger,
 		return nil, db.WrapDbErrorWithQuery("idx scanner error", q, err)
 	}
 
-	return iter.PageState(), nil
+	return nextPageState, nil
 }
 
 func selectBatchFromTableByToken(logger *l.CapiLogger,
@@ -290,26 +306,63 @@ func populateUniqueKeysToDeleteMap(uniqueKeysToDeleteMap map[string][]string, in
 }
 
 func deleteDataRecordByRowid(pCtx *ctx.MessageProcessingContext, rowids []int64) error {
-	q := (&cql.QueryBuilder{}).
-		Keyspace(pCtx.BatchInfo.DataKeyspace).
-		CondInInt("rowid", rowids).
-		DeleteRun(pCtx.CurrentScriptNode.TableCreator.Name, pCtx.BatchInfo.RunId)
-	if err := pCtx.CqlSession.Query(q).Exec(); err != nil {
-		return db.WrapDbErrorWithQuery("cannot delete from data table", q, err)
+	if pCtx.CassandraEngine == db.CassandraEngineAmazonKeyspaces {
+		// Amazon Keyspaces supports unlogged batch commands with up to 30 commands in the batch
+		sb := strings.Builder{}
+		for i, rowid := range rowids {
+			sb.WriteString(
+				(&cql.QueryBuilder{}).
+					Keyspace(pCtx.BatchInfo.DataKeyspace).
+					Cond("rowid", "=", rowid).
+					DeleteRun(pCtx.CurrentScriptNode.TableCreator.Name, pCtx.BatchInfo.RunId))
+			sb.WriteString(";")
+			if (i+1)%MaxAmazonKeyspacesBatchLen == 0 || i == len(rowids)-1 {
+				batchStmt := "BEGIN UNLOGGED BATCH " + sb.String() + " APPLY BATCH"
+				if err := pCtx.CqlSession.Query(batchStmt).Exec(); err != nil {
+					return db.WrapDbErrorWithQuery("cannot delete from data table", batchStmt, err)
+				}
+				sb.Reset()
+			}
+		}
+	} else {
+		q := (&cql.QueryBuilder{}).
+			Keyspace(pCtx.BatchInfo.DataKeyspace).
+			CondInInt("rowid", rowids).
+			DeleteRun(pCtx.CurrentScriptNode.TableCreator.Name, pCtx.BatchInfo.RunId)
+		if err := pCtx.CqlSession.Query(q).Exec(); err != nil {
+			return db.WrapDbErrorWithQuery("cannot delete from data table", q, err)
+		}
 	}
 	return nil
 }
 
-func deleteIdxRecordByKey(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, idxName string, keys []string) error {
-	logger.PushF("proc.deleteIdxRecordByKey")
-	defer logger.PopF()
-	q := (&cql.QueryBuilder{}).
-		Keyspace(pCtx.BatchInfo.DataKeyspace).
-		CondInString("key", keys).
-		DeleteRun(idxName, pCtx.BatchInfo.RunId)
-	if err := pCtx.CqlSession.Query(q).Exec(); err != nil {
-		logger.ErrorCtx(pCtx, "cannot delete from idx table, %s: %s", q, err.Error())
-		return db.WrapDbErrorWithQuery("cannot delete from idx table", q, err)
+func deleteIdxRecordByKey(pCtx *ctx.MessageProcessingContext, idxName string, keys []string) error {
+	if pCtx.CassandraEngine == db.CassandraEngineAmazonKeyspaces {
+		// Amazon Keyspaces supports unlogged batch commands with up to 30 commands in the batch
+		sb := strings.Builder{}
+		for i, key := range keys {
+			sb.WriteString(
+				(&cql.QueryBuilder{}).
+					Keyspace(pCtx.BatchInfo.DataKeyspace).
+					Cond("key", "=", key).
+					DeleteRun(pCtx.CurrentScriptNode.TableCreator.Name, pCtx.BatchInfo.RunId))
+			sb.WriteString(";")
+			if (i+1)%MaxAmazonKeyspacesBatchLen == 0 || i == len(key)-1 {
+				batchStmt := "BEGIN UNLOGGED BATCH " + sb.String() + " APPLY BATCH"
+				if err := pCtx.CqlSession.Query(batchStmt).Exec(); err != nil {
+					return db.WrapDbErrorWithQuery("cannot delete from idx table", batchStmt, err)
+				}
+				sb.Reset()
+			}
+		}
+	} else {
+		q := (&cql.QueryBuilder{}).
+			Keyspace(pCtx.BatchInfo.DataKeyspace).
+			CondInString("key", keys).
+			DeleteRun(idxName, pCtx.BatchInfo.RunId)
+		if err := pCtx.CqlSession.Query(q).Exec(); err != nil {
+			return db.WrapDbErrorWithQuery("cannot delete from idx table", q, err)
+		}
 	}
 	return nil
 }
@@ -406,16 +459,18 @@ func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.Messag
 				// Trim unused empty key slots
 				trimmedIdxKeysToDelete := idxKeysToDelete[:rowIdsToDeleteCount]
 				logger.DebugCtx(pCtx, "deleting %d idx %s records from %d/%s idx %s for batch_idx %d: '%s'", len(rowIdsToDelete), idxName, pCtx.BatchInfo.RunId, pCtx.BatchInfo.TargetNodeName, idxName, pCtx.BatchInfo.BatchIdx, strings.Join(trimmedIdxKeysToDelete, `','`))
-				if err := deleteIdxRecordByKey(logger, pCtx, idxName, trimmedIdxKeysToDelete); err != nil {
+				if err := deleteIdxRecordByKey(pCtx, idxName, trimmedIdxKeysToDelete); err != nil {
 					return err
 				}
 			}
 
 			// TODO: assuming Delete won't interfere with paging used above;
 			// do we need to reset the pageState? After all, we have deleted some records from that table.
+			// On the other hand, if we reset it, we will have to walk through thousands of rows that do not belong to this batch, again.
 		}
 
-		if rs.RowCount < pCtx.CurrentScriptNode.TableReader.RowsetSize || len(pageState) == 0 {
+		// Amazon Keyspaces: do not rely on the retrieved row count, use pagestate
+		if len(pageState) == 0 {
 			break
 		}
 	}

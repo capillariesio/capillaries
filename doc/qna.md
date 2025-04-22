@@ -28,7 +28,7 @@ Make sure the script this command generated from your data file works as you exp
 
 Q. Is there a limit on the number of nodes, runs, and indexes?
 
-A. The number of nodes in the script and runs performed for a keyspace are virtually unlimited. But keep in mind that each run-node pair creates a separate [table](glossary.md#table) in Cassandra (if an index is created, account for an extra table for each run-node-index triad), and Cassandra does not scale well when the number of tables in a keyspace exceeds a couple of hundreds.
+A. The number of nodes in the script and runs performed for a keyspace are virtually unlimited. But keep in mind that each run-node pair creates a separate [table](glossary.md#table) in Cassandra (if an index is created, account for an extra table for each run-node-index triad), and Cassandra does not scale well when the number of tables in a keyspace exceeds a couple of hundreds. As of 2025, I would not try scripts with more than 100 nodes.
 
 ## NULL support
 
@@ -63,6 +63,12 @@ Q. Can Capilaries survive RabbitMQ service disruption?
 
 A. No. Guaranteed delivery of RabbitMQ messages for each Capillaries [batch](glossary.md#data-batch) is one of the cornerstones of Capillaries architecture.
 
+## Cassandra only?
+
+Q. Can Capillaries use an internal database engine other than Cassandra?
+
+A. No. One of the goals of Capillaries design is to use Cassandra's scalability features to their greater extent. Things like partition/clustering keys and LWTs are the cornersones of Capillaries architecture.   
+
 ## External data acquisition/processing
 
 Q. For each row in my [data table](glossary.md#data-table), I need to acquire some new data from an external source (say, via web service), providing some row fields as arguments.
@@ -75,29 +81,31 @@ Q. Is there a UI for Capillaries?
 
 A. Yes. See [Capillaries UI](../ui/README.md) project, which is a simple web single-page application that shows the status of every [run](glossary.md#run) in every [keyspace](glossary.md#keyspace). UI requirements tend to be very business-specific, it's not an easy task to come up with a cookie-cutter UI framework that would be flexible enough. Dedicated solution developers are encouraged to develop their own UI for Capillaries workflows, using [Capillaries Webapi](glossary.md#webapi) as a back-end and [Capillaries UI](../ui/README.md) as an example.
 
-Also please note that [Toolbelt](glossary.md#toolbelt) can produce visual diagrams - see [Toolbelt](glossary.md#toolbelt) `validate_script`, `get_run_status_diagram` commands.
+Also please note that [Toolbelt](glossary.md#toolbelt) can produce visual diagrams - see [Toolbelt](glossary.md#toolbelt) `validate_script`, `get_run_status_diagram` commands. Theay are not a replacement for even a rudimentary UI, but can help visualize some things.
 
 ## Can Capillaries run in a Docker container?
 
 Yes. See Capillaries [100% Docker-based demo](started.md#run-100-dockerized-capillaries-demo).
 
+## RabbitMQ in the cloud?
+
+Q. Can I run Capillaries with RabbitMQ hosted in the cloud?
+
+A. Yes. Capillaries were successfully tested agains AWS RabbitMQ broker.
+
 ## Cassandra in the cloud?
 
 Q. Can I run Capillaries against cloud-based Cassandra?
 
-A. As of this writing (2022), Azure CosmosDB and AWS Keyspaces have notoriously high latency. For example, Azure can complete "CREATE TABLE" command successfully, but an "INSERT" command executed immediately after that may return an error saying that the table does not exist.
-
-This situation can be mitigated to some extent by creating all tables for a specific [run](glossary.md#run) in advance and verifying that all tables are in place. A [toolbelt](glossary.md#toolbelt) command producing CQL statements that creates all tables for a [run](glossary.md#run) may look like this:
-
-``` 
-go run capitoolbelt.go get_table_cql -script_file=... -params_file=... -keyspace=... -run_id=... -start_nodes=...
-```
-
-The tricky part is to specify the correct run id for a run that has not started yet.
-
-Another tricky part is to run this CQL against the cloud infrastructure and wait until all tables are guaranteed to be created.
-
-Bottom line: Capillaries' use of cloud-based Cassandra is questionable at the moment.
+A. Update 2025: version 1.1.25 adds support for Amazon Keyspaces. As of 2025, this is a relatively new feature, so we have to watch for Amazon Keyspaces' pecularities. The list includes:
+- everytime a keyspace or a table is created or deleted, Capillaries has to ensure the operation is completed using Amazon-specific system_schema_mcs keyspace; keyspace or table creation may take about a minute
+- gocql library does not support com.amazonaws.cassandra.DefaultPartitioner, so make sure your Amazon Keyspaces configuration has org.apache.cassandra.dht.Murmur3Partitioner setting set
+- Amazon Keyspaces has row size limit of 1mb
+- Amazon Keyspaces has table name limit of 48 characters
+- Amazon Keyspaces only supports up to 30 unconditional INSERT, UPDATE, or DELETE commands in unlogged batches
+- Amazon Keyspaces supports only up to 100 values in the IN operator
+- [Amazon Keyspaces pagination](https://docs.aws.amazon.com/keyspaces/latest/devguide/paginating-results.html) may return fewer records than requested, so Capillaries should watch pagestate closely
+For a sample Amazon Keyspaces configuration, see [sample_amazon_keyspaces_config.env](../sample_amazon_keyspaces_config.env).
 
 ## What's next?
 
@@ -120,3 +128,5 @@ A. Here are some, in no particular order:
 7. Select distinct field values from a table: it can be implemented easily using a set, but it will not scale and it will be limited by the size of the map. Alternatively, it can be implemented using Cassandra features, but it will require Capillaries to support tables without [rowid](glossary.md#rowid) (so the unique values are stored in a partitioning key field). Update March 2024: done, see [distinct_table](./glossary.md#distinct_table) node.
 
 8. Keep adding support for Go library functions
+
+9. Bugs. One of the biggest painpoints is connectivity failure handling. 

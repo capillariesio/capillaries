@@ -38,7 +38,7 @@
             expression: "r.col_order_purchase_timestamp"
             type: "datetime"
         indexes: 
-          idx_orders_order_id_just_to_check_uniqueness: "unique(order_id(case_sensitive))"
+          idx_orders_order_id_to_check_uniq: "unique(order_id(case_sensitive))"
     read_order_items: 
       type: "file_table"
       desc: "Load order item data from CSV file"

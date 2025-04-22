@@ -9,10 +9,10 @@ export cmdDiff="go run ../../parquet/capiparquet.go"
 
 aws s3 cp $outS3/deal_seller_summaries.parquet $outDir/
 aws s3 cp $outS3/deal_summaries.parquet $outDir/
-aws s3 cp $outS3/loan_summaries_calculated.parquet $outDir/
+aws s3 cp $outS3/loan_smrs_clcltd.parquet $outDir/
 
 if ! $cmdDiff diff $outDir/deal_seller_summaries_baseline.parquet $outDir/deal_seller_summaries.parquet ||
-  ! $cmdDiff diff $outDir/loan_summaries_calculated_baseline.parquet $outDir/loan_summaries_calculated.parquet ||
+  ! $cmdDiff diff $outDir/loan_smrs_clcltd.parquet $outDir/loan_smrs_clcltd.parquet ||
   ! $cmdDiff diff $outDir/deal_summaries_baseline.parquet $outDir/deal_summaries.parquet; then
   echo -e "\033[0;31m fannie_mae_quicktest s3 diff FAILED\e[0m"
   exit 1

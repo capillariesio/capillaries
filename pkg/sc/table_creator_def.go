@@ -33,38 +33,6 @@ type TableCreatorDef struct {
 	Indexes                       IdxDefMap                      `json:"-"`
 }
 
-// func (fieldDef *WriteTableFieldDef) CheckValueType(val any) error {
-// 	switch assertedValue := val.(type) {
-// 	case int64:
-// 		if fieldDef.Type != FieldTypeInt {
-// 			return fmt.Errorf("expected type %s, but got int64 (%d)", fieldDef.Type, assertedValue)
-// 		}
-// 	case float64:
-// 		if fieldDef.Type != FieldTypeFloat {
-// 			return fmt.Errorf("expected type %s, but got float64 (%f)", fieldDef.Type, assertedValue)
-// 		}
-// 	case string:
-// 		if fieldDef.Type != FieldTypeString {
-// 			return fmt.Errorf("expected type %s, but got string (%s)", fieldDef.Type, assertedValue)
-// 		}
-// 	case bool:
-// 		if fieldDef.Type != FieldTypeBool {
-// 			return fmt.Errorf("expected type %s, but got bool (%v)", fieldDef.Type, assertedValue)
-// 		}
-// 	case time.Time:
-// 		if fieldDef.Type != FieldTypeDateTime {
-// 			return fmt.Errorf("expected type %s, but got datetime (%s)", fieldDef.Type, assertedValue.String())
-// 		}
-// 	case decimal.Decimal:
-// 		if fieldDef.Type != FieldTypeDecimal2 {
-// 			return fmt.Errorf("expected type %s, but got decimal (%s)", fieldDef.Type, assertedValue.String())
-// 		}
-// 	default:
-// 		return fmt.Errorf("expected type %s, but got unexpected type %T(%v)", fieldDef.Type, assertedValue, assertedValue)
-// 	}
-// 	return nil
-// }
-
 func (tcDef *TableCreatorDef) GetSingleUniqueIndexDef() (string, *IdxDef, error) {
 	var distinctIdxName string
 	var distinctIdxDef *IdxDef
@@ -122,6 +90,10 @@ func (tcDef *TableCreatorDef) Deserialize(rawWriter json.RawMessage) error {
 		return fmt.Errorf("invalid table name [%s]: allowed regex is [%s]", tcDef.Name, AllowedTableNameRegex)
 	}
 
+	if len(tcDef.Name) > MaxTableNameLen {
+		return fmt.Errorf("table name [%s] too long: max allowed %d", tcDef.Name, MaxTableNameLen)
+	}
+
 	// Having
 	tcDef.Having, err = ParseRawGolangExpressionStringAndHarvestFieldRefs(tcDef.RawHaving, &tcDef.UsedInHavingFields)
 	if err != nil {
@@ -152,7 +124,9 @@ func (tcDef *TableCreatorDef) Deserialize(rawWriter json.RawMessage) error {
 		if len(invalidNamePieceFound) != len(idxName) {
 			return fmt.Errorf("invalid index name [%s]: allowed regex is [%s]", idxName, AllowedIdxNameRegex)
 		}
-
+		if len(idxName) > MaxTableNameLen {
+			return fmt.Errorf("index name [%s] too long: max allowed %d", idxName, MaxTableNameLen)
+		}
 	}
 
 	return nil

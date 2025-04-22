@@ -203,10 +203,11 @@ func (instr *TableInserter) buildIndexKeys(tableRecord TableRecord) (map[string]
 func (instr *TableInserter) add(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, tableRecord TableRecord, indexKeyMap map[string]string) error {
 
 	// No need a critsec here, there is only one thread that writes to instr.RecordsIn
+	// TODO: add exp backoff here 100ms->5s
 
 	for len(instr.RecordsIn) == cap(instr.RecordsIn) {
 		logger.DebugCtx(pCtx, "RecordsIn cap %d reached, waiting for workers to drain RecordsIn...", cap(instr.RecordsIn))
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 	}
 
 	instr.RecordsSent++
@@ -592,7 +593,7 @@ func (instr *TableInserter) insertDistinctIdxAndDataRecords(logger *l.CapiLogger
 				return curRowid, errInsertData
 			}
 			// Delete inserted idx record before trying another rowid
-			errDelete := deleteIdxRecordByKey(logger, pCtx, idxName, []string{writeItem.IndexKeyMap[idxName]})
+			errDelete := deleteIdxRecordByKey(pCtx, idxName, []string{writeItem.IndexKeyMap[idxName]})
 			if errDelete != nil {
 				return curRowid, errDelete
 			}

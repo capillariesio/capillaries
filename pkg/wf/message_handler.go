@@ -252,7 +252,7 @@ func checkRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, da
 	if runStatus == wfmodel.RunNone {
 		comment := fmt.Sprintf("run history status for batch %s is empty, looks like this run %d was never started", dataBatchInfo.FullBatchId(), pCtx.BatchInfo.RunId)
 		logger.ErrorCtx(pCtx, "%s", comment)
-		if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeBatchRunStopReceived, comment); err != nil {
+		if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeBatchFail, comment); err != nil {
 			if db.IsDbConnError(err) {
 				return DaemonCmdReconnectDb
 			}
@@ -330,6 +330,9 @@ func checkLastBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingConte
 			logger.ErrorCtx(pCtx, "unexpected rerun policy %s, looks like dev error", pCtx.CurrentScriptNode.RerunPolicy)
 			return DaemonCmdAckWithError
 		}
+	} else if lastBatchStatus == wfmodel.NodeBatchRunStopReceived {
+		// Stop was signaled, do not try to handle this batch anymore, call it a success
+		return DaemonCmdAckWithError
 	} else if lastBatchStatus != wfmodel.NodeBatchNone {
 		logger.ErrorCtx(pCtx, "unexpected batch %s status %d, expected None, looks like dev error.", pCtx.BatchInfo.FullBatchId(), lastBatchStatus)
 		return DaemonCmdAckWithError

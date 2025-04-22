@@ -84,7 +84,7 @@ func TestUpdate(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf(qTemplate, ""), qb.Update("table1"))
 }
 
-func TestCreate(t *testing.T) {
+func TestCreateRun(t *testing.T) {
 	const qTemplate string = "CREATE TABLE IF NOT EXISTS table1%s ( col_int BIGINT, col_bool BOOLEAN, col_string TEXT, col_datetime TIMESTAMP, col_decimal2 DECIMAL, col_float DOUBLE, PRIMARY KEY((col_int, col_decimal2), col_bool, col_float));"
 	qb := (&QueryBuilder{}).
 		ColumnDef("col_int", sc.FieldTypeInt).
@@ -96,7 +96,6 @@ func TestCreate(t *testing.T) {
 		PartitionKey("col_int", "col_decimal2").
 		ClusteringKey("col_bool", "col_float")
 	assert.Equal(t, fmt.Sprintf(qTemplate, "_00123"), qb.CreateRun("table1", 123, IgnoreIfExists))
-	assert.Equal(t, fmt.Sprintf(qTemplate, ""), qb.Create("table1", IgnoreIfExists))
 }
 
 func TestInsertPrepared(t *testing.T) {

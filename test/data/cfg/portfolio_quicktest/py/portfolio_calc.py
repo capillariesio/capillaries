@@ -15,6 +15,19 @@ wrapped_default.default = JSONEncoder().default
 JSONEncoder.original_default = JSONEncoder.default
 JSONEncoder.default = wrapped_default
 
+# To save space, 1_read_txns packs txns as
+# fmt.Sprintf(`\"%s|%s|%d|%s\"`, r.col_ts, r.col_ticker, r.col_qty, decimal2(r.col_price))
+# This helper unpacks packed txn to an object
+def unpack_txn(packed_txn_str):
+    p = packed_txn_str.split("|")
+    return {"ts":p[0], "t":p[1], "q":int(p[2]), "p":float(p[3])}
+
+# To save space, 1_read_period_holdings packs holdings as
+# fmt.Sprintf(`\"%s|%s|%d\"`, r.col_eod, r.col_ticker, r.col_qty)
+# This helper unpacks packed holding to an object
+def unpack_holding(packed_holding_str):
+    p = packed_holding_str.split("|")
+    return {"d":p[0], "t":p[1], "q":int(p[2])}
 
 class CfItQ:
     def __init__(self, d, cf, qty, val):
@@ -183,9 +196,19 @@ def txns_and_holdings_to_twr_cagr_by_sector(period_start_eod, period_end_eod, pe
         sector_perf_map[sector] = {"twr": round(twr, 4), "cagr": round(cagr, 4)}
     return sector_perf_map
 
-# Same as above, but returns json
-def txns_and_holdings_to_twr_cagr_by_sector_json(period_start_eod, period_end_eod, period_start_holdings_json, all_txns_json, eod_price_provider, company_info_provider):
-    return json.dumps(txns_and_holdings_to_twr_cagr_by_sector(period_start_eod, period_end_eod, json.loads(period_start_holdings_json), json.loads(all_txns_json), eod_price_provider, company_info_provider), sort_keys=True)
+# Used in the script: same as above, but returns json
+def txns_and_holdings_to_twr_cagr_by_sector_json( period_start_eod, period_end_eod, period_start_holdings_packed_json, all_txns_packed_json, eod_price_provider, company_info_provider):
+    all_txns = [unpack_txn(x) for x in json.loads(all_txns_packed_json)]
+    period_start_holdings = json.loads(period_start_holdings_packed_json)
+    
+    return json.dumps(
+        txns_and_holdings_to_twr_cagr_by_sector(
+            period_start_eod, period_end_eod,
+            period_start_holdings,
+            all_txns,
+            eod_price_provider,
+            company_info_provider),
+        sort_keys=True)
 
 # A helper for txns_and_holdings_to_twr_cagr_by_sector_year_quarter
 def split_period_into_years_and_quarters(period_start_eod, period_end_eod):
@@ -216,7 +239,12 @@ def accumulate_holdings_by_date(all_holdings, d):
     return date_holdings
 
 # Split period into years and quarters and call txns_and_holdings_to_twr_cagr_by_sector
-def txns_and_holdings_to_twr_cagr_by_sector_year_quarter(period_start_eod, period_end_eod, all_holdings, all_txns, eod_price_provider, company_info_provider):
+def txns_and_holdings_to_twr_cagr_by_sector_year_quarter(
+        period_start_eod, period_end_eod,
+        all_holdings,
+        all_txns,
+        eod_price_provider,
+        company_info_provider):
     quarter_periods, year_periods = split_period_into_years_and_quarters(period_start_eod, period_end_eod)
     period_perf = {} # All stats returned in a single map, assuming period names (year and quarter) are all distinct
     for period in quarter_periods+year_periods:
@@ -224,6 +252,15 @@ def txns_and_holdings_to_twr_cagr_by_sector_year_quarter(period_start_eod, perio
         period_perf[period.name] = txns_and_holdings_to_twr_cagr_by_sector(period.start_eod, period.end_eod, period_start_holdings, [txn for txn in all_txns if (period.start_eod < txn["ts"] and txn["ts"] <= period.end_eod)], eod_price_provider, company_info_provider)
     return period_perf
 
-# Same as above, but json
-def txns_and_holdings_to_twr_cagr_by_sector_year_quarter_json(period_start_eod, period_end_eod, all_holdings_json, all_txns_json, eod_price_provider, company_info_provider):
-    return json.dumps(txns_and_holdings_to_twr_cagr_by_sector_year_quarter(period_start_eod, period_end_eod, json.loads(all_holdings_json), json.loads(all_txns_json), eod_price_provider, company_info_provider), sort_keys=True)
+# Used in the script: same as above, but unpacks txns and holdings strings into object lists and produces twr/cagr json
+def txns_and_holdings_to_twr_cagr_by_sector_year_quarter_json( period_start_eod, period_end_eod, all_holdings_packed_json, all_txns_packed_json, eod_price_provider, company_info_provider):
+    all_txns = [unpack_txn(x) for x in json.loads(all_txns_packed_json)]
+    all_holdings = [unpack_holding(x) for x in json.loads(all_holdings_packed_json)]
+    return json.dumps(
+        txns_and_holdings_to_twr_cagr_by_sector_year_quarter(
+            period_start_eod, period_end_eod,
+            all_holdings,
+            all_txns,
+            eod_price_provider,
+            company_info_provider),
+        sort_keys=True)
