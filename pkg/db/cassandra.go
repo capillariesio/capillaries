@@ -142,29 +142,6 @@ func VerifyAmazonKeyspacesTablesReady(cqlSession *gocql.Session, keyspace string
 	return WrapDbErrorWithQuery("failed to check tables, giving up", tableCheckQuery, errors.New("number of check attempts reached"))
 }
 
-// func stringToCassandraConsistency(s string) (gocql.Consistency, error) {
-// 	switch(s) {
-// 	case "Any":
-// 		return gocql.Any, nil
-// 	case "One":
-// 		return gocql.One, nil
-// 	case "Three":
-// 		return gocql.Three, nil
-// 	case "Quorum":
-// 		return gocql.Quorum, nil
-// 	case "All":
-// 		return gocql.All, nil
-// 	case "LocalQuorum":
-// 		return gocql.LocalQuorum, nil
-// 	case "EachQuorum":
-// 		return gocql.EachQuorum, nil
-// 	case "LocalOne":
-// 		return gocql.LocalOne, nil
-// 	default:
-// 		return fmt.Errorf("unknown Cassandra consistency")
-// 	}
-// }
-
 func NewSession(envConfig *env.EnvConfig, keyspace string, createKeyspace CreateKeyspaceEnumType) (*gocql.Session, CassandraEngineType, error) {
 	dataCluster := gocql.NewCluster(envConfig.Cassandra.Hosts...)
 	dataCluster.Port = envConfig.Cassandra.Port

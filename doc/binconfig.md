@@ -95,7 +95,7 @@ x-message-ttl setting passed to amqp.Channel.QueueDeclare(). After RabbitMQ dete
 
 1s is very aggressive, may work well for small and time-critical cases. 5-10s are more reasonable values.
 
-Default: 100 seconds
+Default: 10 seconds
 
 Read more about [Capillaries dead-letter-exchange](qna.md#dead-letter-exchange).
 

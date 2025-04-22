@@ -97,7 +97,7 @@ A. Yes. Capillaries were successfully tested agains AWS RabbitMQ broker.
 
 Q. Can I run Capillaries against cloud-based Cassandra?
 
-A. Update 2025: version 1.25 adds support for Amazon Keyspaces. As of 2025, this is a relatively new feature, so we have to watch for Amazon Keyspaces' pecularities. The list includes:
+A. Update 2025: version 1.1.25 adds support for Amazon Keyspaces. As of 2025, this is a relatively new feature, so we have to watch for Amazon Keyspaces' pecularities. The list includes:
 - everytime a keyspace or a table is created or deleted, Capillaries has to ensure the operation is completed using Amazon-specific system_schema_mcs keyspace; keyspace or table creation may take about a minute
 - gocql library does not support com.amazonaws.cassandra.DefaultPartitioner, so make sure your Amazon Keyspaces configuration has org.apache.cassandra.dht.Murmur3Partitioner setting set
 - Amazon Keyspaces has row size limit of 1mb
