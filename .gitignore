@@ -9,6 +9,10 @@ __debug_bin
 .pyc
 __pycache__/
 build/
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
 
 # Test binary, built with `go test -c`
 *.test

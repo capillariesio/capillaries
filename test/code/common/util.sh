@@ -33,12 +33,12 @@ check_s3()
         exit 1
     fi
     if [ "$AWS_SECRET_ACCESS_KEY" == "" ]; then
-        echo Error, please specify export AWS_SECRET_ACCESS_KEY=...
+        echo Error, please specify export AWS_SECRET_ACCESS_KEY=... for a user who has access to test S3 bucket, see UserAccessCapillariesTestbucket in the readme
         exit 1
     fi
 
     if [ "$AWS_DEFAULT_REGION" == "" ]; then
-        echo Error, please specify export AWS_DEFAULT_REGION=...
+        echo Error, please specify export AWS_DEFAULT_REGION=... because CAPILLARIES_AWS_TESTBUCKET gives bucket URI, not URL
         exit 1
     fi
 }
