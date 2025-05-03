@@ -13,13 +13,6 @@ resource "aws_iam_instance_profile" "capillaries_instance_profile" {
   role = aws_iam_role.capillaries_assume_role.name
 }
 
-resource "aws_eip" "bastion_public_ip" {
-  domain = "vpc"
-  tags = {
-    Name = "capillaries_bastion_public_ip"
-  }
-}
-
 resource "aws_eip_association" "bastion_public_ip_association" {
   instance_id   = aws_instance.bastion.id
   allocation_id = aws_eip.bastion_public_ip.id

@@ -186,17 +186,26 @@ rm -fR aws
 rm awscliv2.zip
 
 # Test S3 log location
+echo Checking access to ${s3_log_url}...
 aws s3 ls ${s3_log_url}/
 
-# Send logs to S3 every 5 min
+# Add hostname to the log file names and send them to S3 every 5 min
 SEND_LOGS_FILE=/home/${ssh_user}/sendlogs.sh
 sudo tee $SEND_LOGS_FILE <<EOF
 #!/bin/bash
+# Send SIGHUP to the running binary, it will rotate the log using Lumberjack
 ps axf | grep capiwebapi | grep -v grep | awk '{print "kill -s 1 " \$1}' | sh
 for f in /var/log/capillaries/*.gz;do
   if [ -f \$f ]; then
-    aws s3 cp \$f ${s3_log_url}/
-    rm \$f
+    # Lumberjack produces: capiwebapi-2025-05-03T21-37-01.283.log.gz
+    # Add hostname to it: capiwebapi-2025-05-03T21-37-01.283.ip-10-5-1-10.log.gz
+    fname=\$(basename -- "\$f")
+    fnamedatetime=\$(echo \$fname|cut -d'.' -f1)
+    fnamemillis=\$(echo \$fname|cut -d'.' -f2)
+    newfilepath=/var/log/capillaries/\$fnamedatetime.\$fnamemillis.\$HOSTNAME.log.gz
+    mv \$f \$newfilepath
+    aws s3 cp \$newfilepath ${s3_log_url}/
+    rm \$newfilepath
   fi
 done
 EOF

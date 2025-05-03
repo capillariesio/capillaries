@@ -130,7 +130,11 @@ source ~/UserAccessCapillariesTestbucket.rc
 
 To watch the script running in the UI, visit `http://your_bastion_ip_address`.
 
-To see the logs, download them from `s3://$CAPILLARIES_AWS_TESTBUCKET/log`.
+To see the logs, download them from `s3://$CAPILLARIES_AWS_TESTBUCKET/log`, or use 
+
+```
+./download_logs.sh
+```
 
 # Deleting Capillaries deployment
 

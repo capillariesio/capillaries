@@ -15,6 +15,10 @@ resource "aws_iam_role" "capillaries_assume_role" {
   ]
 }
 EOF
+
+tags = {
+   Name = "capillaries_assume_role"
+ }
 }
 
 resource "aws_iam_role_policy_attachment" "capillaries_s3_access_policy_attachment" {
