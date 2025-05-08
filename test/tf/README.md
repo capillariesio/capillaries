@@ -44,7 +44,7 @@ with username/password credentials generated:
 
 ![](./doc/keyspaces-iam-credentials.png)
 
-TF variables: `cassandra_hosts`, `cassandra_port`, `CASSANDRA_USERNAME`, `CASSANDRA_PASSWORD`
+TF variables: `cassandra_hosts`, `cassandra_port`, `TF_VAR_CASSANDRA_USERNAME`, `TF_VAR_CASSANDRA_PASSWORD`
 
 ## RabbitMQ broker
 
@@ -52,13 +52,13 @@ Make sure you have a RabbitMQ Broker running in AWS. In RabbitMQ admin console, 
 
 ![](./doc/rabbitmq-capiuser.png)
 
-TF variables: `RABBITMQ_URL`
+TF variables: `TF_VAR_RABBITMQ_URL`
 
 ## IP whitelist
 
 This example does not create any complicated security mechanisms besides IP whitelisting implemented by nginx web server running on the bastion instance. Collect all IP addresses (or subnets) from which you want to access Capillaries deployment as a comma-separated list, for example: 123.234.0.0/16,111.222.0.5
 
-TF variables: `BASTION_ALLOWED_IPS`
+TF variables: `TF_VAR_BASTION_ALLOWED_IPS`
 
 ## Environment variables
 
@@ -76,6 +76,10 @@ export TF_VAR_CASSANDRA_PASSWORD="..."
 After successfully running `terraform apply`, you will have a vpc with:
 - a bastion/jumphost instance with Capillaries UI and Capillaries WebAPI, and nginx running as reverse proxy for them 
 - a few EC2 instances running Capillaries Daemon
+
+![](./doc/deployment.svg)
+
+[This animation](https://capillaries.io/i/capi-animation.svg) explains how data flows between components in detail.
 
 Store the bastion/jumphost address returned by Terraform in this environment variable:
  ```
