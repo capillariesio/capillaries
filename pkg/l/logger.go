@@ -19,7 +19,7 @@ type CapiLogger struct {
 	ZapLogger  *zap.Logger
 	ZapMachine zapcore.Field
 	ZapThread  zapcore.Field
-	//SavedZapConfig      zap.Config
+	// SavedZapConfig      zap.Config
 	AtomicThreadCounter *int64
 	ZapFunction         zapcore.Field
 	FunctionStack       []string
@@ -86,7 +86,11 @@ func NewLoggerFromEnvConfig(envConfig *env.EnvConfig) (*CapiLogger, error) {
 		go func() {
 			for {
 				<-ljChan
-				lj.Rotate()
+				if err := lj.Rotate(); err != nil {
+					if l.ZapLogger != nil {
+						l.ZapLogger.Error(fmt.Sprintf("cannot rotate log file: %s", err.Error()), l.ZapMachine, l.ZapThread, l.ZapFunction)
+					}
+				}
 			}
 		}()
 		lj_file := zapcore.AddSync(&lj)
@@ -121,7 +125,7 @@ func NewLoggerFromEnvConfig(envConfig *env.EnvConfig) (*CapiLogger, error) {
 
 func NewLoggerFromLogger(srcLogger *CapiLogger) (*CapiLogger, error) {
 	l := CapiLogger{
-		//SavedZapConfig:      srcLogger.SavedZapConfig,
+		// SavedZapConfig:      srcLogger.SavedZapConfig,
 		AtomicThreadCounter: srcLogger.AtomicThreadCounter,
 		ZapMachine:          srcLogger.ZapMachine,
 		ZapFunction:         zap.String("f", ""),
