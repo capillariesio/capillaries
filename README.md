@@ -97,7 +97,7 @@ Capillaries binaries are intended to be container-friendly. Check out the `docke
 
 #### VM-based deployment
 
-There is Capideploy project at `https://github.com/capillariesio/capillaries-deploy` which is capable of deploying Capillaries in AWS. Its a work in progress and it's not a production-quality solution yet.
+See [Terraform script](./test/tf/README.md) that creates Capillaries deployment in AWS.
 
 ## Capillaries in depth
 

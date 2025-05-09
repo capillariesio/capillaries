@@ -7,13 +7,13 @@ check_cloud_deployment()
     if [ "$BASTION_IP" = "" ]; then
         echo Error, missing: export BASTION_IP=1.2.3.4
         echo This is the ip address of the bastion host in your Capilaries cloud deployment
-        echo See capillaries-deploy repo for details
+        echo See test/tf Terraform script for details
         exit 1
     fi
     if [ "$EXTERNAL_WEBAPI_PORT" = "" ]; then
         echo Error, missing: export EXTERNAL_WEBAPI_PORT=6544
         echo "This is the external (proxied) port of the webapi in your Capilaries cloud deployment"
-        echo See capillaries-deploy repo for details
+        echo See test/tf Terraform script for details
         exit 1
     fi
 }
