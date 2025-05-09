@@ -28,7 +28,7 @@ resource "aws_instance" "daemon" {
       cassandra_port              = var.cassandra_port
       cassandra_username          = var.CASSANDRA_USERNAME
       cassandra_password          = var.CASSANDRA_PASSWORD
-	  rabbitmq_url				  = var.RABBITMQ_URL
+	  rabbitmq_url                = var.RABBITMQ_URL
       s3_log_url                  = var.s3_log_url
    })
   

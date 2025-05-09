@@ -37,7 +37,7 @@ resource "aws_instance" "bastion" {
       cassandra_port              = var.cassandra_port
       cassandra_username          = var.CASSANDRA_USERNAME
       cassandra_password          = var.CASSANDRA_PASSWORD
- 	    rabbitmq_url				        = var.RABBITMQ_URL
+ 	    rabbitmq_url                = var.RABBITMQ_URL
 
       bastion_external_ip_address = aws_eip.bastion_public_ip.public_ip
       bastion_allowed_ips         = var.BASTION_ALLOWED_IPS
