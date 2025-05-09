@@ -7,13 +7,13 @@ check_cloud_deployment()
     if [ "$BASTION_IP" = "" ]; then
         echo Error, missing: export BASTION_IP=1.2.3.4
         echo This is the ip address of the bastion host in your Capilaries cloud deployment
-        echo See capillaries-deploy repo for details
+        echo See test/tf Terraform script for details
         exit 1
     fi
     if [ "$EXTERNAL_WEBAPI_PORT" = "" ]; then
         echo Error, missing: export EXTERNAL_WEBAPI_PORT=6544
         echo "This is the external (proxied) port of the webapi in your Capilaries cloud deployment"
-        echo See capillaries-deploy repo for details
+        echo See test/tf Terraform script for details
         exit 1
     fi
 }
@@ -33,12 +33,12 @@ check_s3()
         exit 1
     fi
     if [ "$AWS_SECRET_ACCESS_KEY" == "" ]; then
-        echo Error, please specify export AWS_SECRET_ACCESS_KEY=...
+        echo Error, please specify export AWS_SECRET_ACCESS_KEY=... for a user who has access to test S3 bucket, see UserAccessCapillariesTestbucket in the readme
         exit 1
     fi
 
     if [ "$AWS_DEFAULT_REGION" == "" ]; then
-        echo Error, please specify export AWS_DEFAULT_REGION=...
+        echo Error, please specify export AWS_DEFAULT_REGION=... because CAPILLARIES_AWS_TESTBUCKET gives bucket URI, not URL
         exit 1
     fi
 }

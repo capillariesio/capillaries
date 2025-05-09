@@ -21,7 +21,10 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-require github.com/kr/pretty v0.3.1 // indirect
+require (
+	github.com/kr/pretty v0.3.1 // indirect
+	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
+)
 
 require (
 	github.com/apache/thrift v0.21.0 // indirect

@@ -3,20 +3,23 @@ package l
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 type CapiLogger struct {
-	ZapLogger           *zap.Logger
-	ZapMachine          zapcore.Field
-	ZapThread           zapcore.Field
-	SavedZapConfig      zap.Config
+	ZapLogger  *zap.Logger
+	ZapMachine zapcore.Field
+	ZapThread  zapcore.Field
+	// SavedZapConfig      zap.Config
 	AtomicThreadCounter *int64
 	ZapFunction         zapcore.Field
 	FunctionStack       []string
@@ -56,40 +59,84 @@ func NewLoggerFromEnvConfig(envConfig *env.EnvConfig) (*CapiLogger, error) {
 		return nil, fmt.Errorf("cannot parse zap atomic level %s from config: %s", envConfig.Log.Level, err.Error())
 	}
 
-	// Make it configurable via envConfig.Log if needed
-	l.SavedZapConfig = zap.Config{
-		Level:            atomicLevel,
-		OutputPaths:      []string{"stdout"},
-		ErrorOutputPaths: []string{"stderr"},
-		Encoding:         "json",
-		EncoderConfig: zapcore.EncoderConfig{
-			TimeKey:     "ts",
-			EncodeTime:  zapcore.ISO8601TimeEncoder,
-			MessageKey:  "m",
-			LevelKey:    "l",
-			EncodeLevel: zapcore.LowercaseLevelEncoder,
-		},
+	encoderConfig := zapcore.EncoderConfig{
+		TimeKey:     "ts",
+		EncodeTime:  zapcore.ISO8601TimeEncoder,
+		MessageKey:  "m",
+		LevelKey:    "l",
+		EncodeLevel: zapcore.LowercaseLevelEncoder,
 	}
-	l.ZapLogger, err = l.SavedZapConfig.Build()
-	if err != nil {
-		return nil, fmt.Errorf("cannot build l from config: %s", err.Error())
+
+	var core zapcore.Core
+	if envConfig.Log.LogFile == "" {
+		core = zapcore.NewTee(
+			zapcore.NewCore(zapcore.NewConsoleEncoder(encoderConfig), zapcore.AddSync(os.Stdout), atomicLevel),
+		)
+	} else {
+		// Lumberjack: rotates by schedule and on SIGHUP
+		lj := lumberjack.Logger{
+			Filename:   envConfig.Log.LogFile, // /var/log/capillaries/capiwebapi.log
+			MaxSize:    1,                     // megabytes
+			MaxBackups: 10,
+			MaxAge:     1, // days
+			Compress:   true,
+		}
+		ljChan := make(chan os.Signal, 1)
+		signal.Notify(ljChan, syscall.SIGHUP)
+		go func() {
+			for {
+				<-ljChan
+				if err := lj.Rotate(); err != nil {
+					if l.ZapLogger != nil {
+						l.ZapLogger.Error(fmt.Sprintf("cannot rotate log file: %s", err.Error()), l.ZapMachine, l.ZapThread, l.ZapFunction)
+					}
+				}
+			}
+		}()
+		lj_file := zapcore.AddSync(&lj)
+		core = zapcore.NewTee(
+			zapcore.NewCore(zapcore.NewConsoleEncoder(encoderConfig), zapcore.AddSync(os.Stdout), atomicLevel),
+			zapcore.NewCore(zapcore.NewJSONEncoder(encoderConfig), lj_file, atomicLevel),
+		)
 	}
+	l.ZapLogger = zap.New(core)
+
+	// // Make it configurable via envConfig.Log if needed
+	// l.SavedZapConfig = zap.Config{
+	// 	Level:            atomicLevel,
+	// 	OutputPaths:      []string{"stdout"},
+	// 	ErrorOutputPaths: []string{"stderr"},
+	// 	Encoding:         "json",
+	// 	EncoderConfig: zapcore.EncoderConfig{
+	// 		TimeKey:     "ts",
+	// 		EncodeTime:  zapcore.ISO8601TimeEncoder,
+	// 		MessageKey:  "m",
+	// 		LevelKey:    "l",
+	// 		EncodeLevel: zapcore.LowercaseLevelEncoder,
+	// 	},
+	// }
+	// l.ZapLogger, err = l.SavedZapConfig.Build()
+	// if err != nil {
+	// 	return nil, fmt.Errorf("cannot build l from config: %s", err.Error())
+	// }
+
 	return &l, nil
 }
 
 func NewLoggerFromLogger(srcLogger *CapiLogger) (*CapiLogger, error) {
 	l := CapiLogger{
-		SavedZapConfig:      srcLogger.SavedZapConfig,
+		// SavedZapConfig:      srcLogger.SavedZapConfig,
 		AtomicThreadCounter: srcLogger.AtomicThreadCounter,
 		ZapMachine:          srcLogger.ZapMachine,
 		ZapFunction:         zap.String("f", ""),
-		ZapThread:           zap.Int64("t", atomic.AddInt64(srcLogger.AtomicThreadCounter, 1))}
+		ZapThread:           zap.Int64("t", atomic.AddInt64(srcLogger.AtomicThreadCounter, 1)),
+		ZapLogger:           srcLogger.ZapLogger}
 
-	var err error
-	l.ZapLogger, err = srcLogger.SavedZapConfig.Build()
-	if err != nil {
-		return nil, fmt.Errorf("cannot build l from l: %s", err.Error())
-	}
+	// var err error
+	// l.ZapLogger, err = srcLogger.SavedZapConfig.Build()
+	// if err != nil {
+	// 	return nil, fmt.Errorf("cannot build l from l: %s", err.Error())
+	// }
 	return &l, nil
 }
 
