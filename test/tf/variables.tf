@@ -1,17 +1,17 @@
 variable "awsregion" {
-	type = string
+	type    = string
 	default = "us-east-1"
 }
 
 variable "awsavailabilityzone" {
-	type = string
+	type    = string
 	default = "us-east-1a"
 }
 
 variable "internal_bastion_ip" {
- type        = string
- description = "Bastion IP in the VPC"
- default     = "10.5.1.10"
+    type        = string
+    description = "Bastion IP in the VPC"
+    default     = "10.5.1.10"
 }
 
 variable "capillaries_release_url" {
@@ -50,7 +50,7 @@ variable "bastion_ami_name" {
 
 variable "number_of_daemons" {
 	type        = number
-    default     = 4
+	default     = 4
 }
 
 variable "daemon_instance_type" {
@@ -75,15 +75,15 @@ variable "daemon_thread_pool_size" {
 }
 
 variable "cassandra_hosts" {
-	type = string
+	type        = string
 	description = "List of cassandra host urls, or one url, no username/password, no port"
-	default = "cassandra.us-east-1.amazonaws.com"
+	default     = "cassandra.us-east-1.amazonaws.com"
 }
 
 variable "cassandra_port" {
-	type = string
+	type        = string
 	description = "Amazon Keyspaces Cassandra port"
-	default = "9142"
+	default     = "9142"
 }
 
 variable "internal_webapi_port" {
@@ -104,21 +104,21 @@ variable "s3_log_url" {
 # Env variables TF_VAR_
 
 variable "BASTION_ALLOWED_IPS" {
-	type = string
+	type        = string
 	description = "Comma-separated list of IP addresses and cidr blocks allowed to access bastion from the outside"
 }
 
 variable "RABBITMQ_URL" {
-	type = string
+	type        = string
 	description = "Full url (with username, password, port) of the RabbitMQ broker"
 }
 
 variable "CASSANDRA_USERNAME" {
-	type = string
+	type        = string
 	description = "Cassandra username"
 }
 
 variable "CASSANDRA_PASSWORD" {
-	type = string
+	type        = string
 	description = "Cassandra password"
 }
