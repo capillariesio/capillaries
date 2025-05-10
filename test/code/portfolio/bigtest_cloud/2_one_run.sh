@@ -3,9 +3,9 @@
 source ../../common/util.sh
 check_s3
 
-keyspace="portfolio_bigtest"
+keyspace="portfolio_bigtest_cloud"
 scriptFile=s3://$CAPILLARIES_AWS_TESTBUCKET/capi_cfg/portfolio_bigtest/script.json
-paramsFile=s3://$CAPILLARIES_AWS_TESTBUCKET/capi_cfg/portfolio_bigtest/script_params.json
+paramsFile=s3://$CAPILLARIES_AWS_TESTBUCKET/capi_cfg/portfolio_bigtest/script_params_aws.json # Use script_params_cassandra.json if running against Cassandra
 startNodes=1_read_accounts,1_read_txns,1_read_period_holdings
 
 # Do not run locally (takes forever)

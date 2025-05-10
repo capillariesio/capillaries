@@ -427,7 +427,7 @@ func (qb *QueryBuilder) UpdateRun(tableName string, runId int16) string {
 	return q
 }
 
-func (qb *QueryBuilder) CreateRun(tableName string, runId int16, ifNotExists IfNotExistsType) string {
+func (qb *QueryBuilder) CreateRun(tableName string, runId int16, ifNotExists IfNotExistsType, createProperties string) string {
 	var b strings.Builder
 	if runId == 0 {
 		b.WriteString("INVALID runId: ")
@@ -454,9 +454,13 @@ func (qb *QueryBuilder) CreateRun(tableName string, runId int16, ifNotExists IfN
 		}
 		b.WriteString(")")
 	}
-	b.WriteString(");")
+	b.WriteString(")")
 	// If needed, can add for Amazon Keyspaces
-	// b.WriteString(" WITH CUSTOM_PROPERTIES = {'capacity_mode':{'throughput_mode':'PROVISIONED','write_capacity_units':1000,'read_capacity_units':1000}};")
+	// WITH CUSTOM_PROPERTIES = {'capacity_mode':{'throughput_mode':'PROVISIONED','write_capacity_units':1000,'read_capacity_units':1000}}
+	if strings.Trim(createProperties, " ") != "" {
+		b.WriteString(" " + strings.Trim(createProperties, " "))
+	}
+	b.WriteString(";")
 
 	return b.String()
 }

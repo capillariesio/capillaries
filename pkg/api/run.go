@@ -91,7 +91,7 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp.
 		tableNames = append(tableNames, fmt.Sprintf("%s%s", node.TableCreator.Name, cql.RunIdSuffix(runId)))
 
 		for idxName, idxDef := range node.TableCreator.Indexes {
-			q = proc.CreateIdxTableCql(keyspace, runId, idxName, idxDef)
+			q = proc.CreateIdxTableCql(keyspace, runId, idxName, idxDef, &node.TableCreator)
 			if err := cqlSession.Query(q).Exec(); err != nil {
 				return 0, db.WrapDbErrorWithQuery("cannot create idx table", q, err)
 			}
@@ -232,7 +232,7 @@ func RunNode(envConfig *env.EnvConfig, logger *l.CapiLogger, nodeName string, ru
 		}
 		tablesCreated++
 		for idxName, idxDef := range node.TableCreator.Indexes {
-			q = proc.CreateIdxTableCql(keyspace, runId, idxName, idxDef)
+			q = proc.CreateIdxTableCql(keyspace, runId, idxName, idxDef, &node.TableCreator)
 			if err := cqlSession.Query(q).Exec(); err != nil {
 				return 0, db.WrapDbErrorWithQuery("cannot create idx table", q, err)
 			}

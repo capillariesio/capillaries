@@ -30,6 +30,8 @@ resource "aws_instance" "daemon" {
       cassandra_password          = var.CASSANDRA_PASSWORD
 	  rabbitmq_url                = var.RABBITMQ_URL
       s3_log_url                  = var.s3_log_url
+	  writer_workers              = var.daemon_writer_workers
+	  thread_pool_size            = var.daemon_thread_pool_size
    })
   
    tags = {

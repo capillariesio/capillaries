@@ -45,6 +45,8 @@ func (f *StandardDaemonProcessorDefFactory) Create(processorType string) (sc.Cus
 	}
 }
 
+var version string
+
 func main() {
 	initCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
@@ -64,6 +66,7 @@ func main() {
 	logger.PushF("daemon.main")
 	defer logger.PopF()
 
+	logger.Info("Capillaries daemon %s", version)
 	logger.Info("env config: %s", envConfig.String())
 	logger.Info("S3 config status: %s", xfer.GetS3ConfigStatus(initCtx).String())
 

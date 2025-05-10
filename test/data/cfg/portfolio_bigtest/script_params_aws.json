@@ -1,0 +1,8 @@
+{
+    "high_load_create_properties": "WITH CUSTOM_PROPERTIES = {'capacity_mode':{'throughput_mode':'PROVISIONED','write_capacity_units':20000,'read_capacity_units':10000}}",
+    "period_start_eod": "2020-12-31",
+    "period_end_eod": "2022-12-31",
+    "dir_in": "s3://$CAPILLARIES_AWS_TESTBUCKET/capi_in/portfolio_bigtest",
+    "dir_out": "s3://$CAPILLARIES_AWS_TESTBUCKET/capi_out/portfolio_bigtest",
+    "dir_py": "s3://$CAPILLARIES_AWS_TESTBUCKET/capi_cfg/portfolio_bigtest/py"
+}

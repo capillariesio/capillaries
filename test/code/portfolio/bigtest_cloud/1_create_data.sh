@@ -45,7 +45,8 @@ go run ../../parquet/capiparquet.go sort $outDir/account_period_sector_perf_base
 go run ../../parquet/capiparquet.go sort $outDir/account_year_perf_baseline.parquet 'ARK fund,Period'
 
 echo "Patching cfg..."
-sed -i -e 's~$CAPILLARIES_AWS_TESTBUCKET~'"$CAPILLARIES_AWS_TESTBUCKET"'~g' $cfgDir/script_params.json
+sed -i -e 's~$CAPILLARIES_AWS_TESTBUCKET~'"$CAPILLARIES_AWS_TESTBUCKET"'~g' $cfgDir/script_params_aws.json
+sed -i -e 's~$CAPILLARIES_AWS_TESTBUCKET~'"$CAPILLARIES_AWS_TESTBUCKET"'~g' $cfgDir/script_params_cassandra.json
 
 cfgS3=s3://$CAPILLARIES_AWS_TESTBUCKET/capi_cfg/portfolio_bigtest
 inS3=s3://$CAPILLARIES_AWS_TESTBUCKET/capi_in/portfolio_bigtest

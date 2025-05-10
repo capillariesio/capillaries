@@ -62,7 +62,7 @@ func GetTablesCql(script *sc.ScriptDef, keyspace string, runId int16, startNodeN
 		sb.WriteString(fmt.Sprintf("-- %s\n", nodeName))
 		sb.WriteString(fmt.Sprintf("%s\n", proc.CreateDataTableCql(keyspace, runId, &node.TableCreator)))
 		for idxName, idxDef := range node.TableCreator.Indexes {
-			sb.WriteString(fmt.Sprintf("%s\n", proc.CreateIdxTableCql(keyspace, runId, idxName, idxDef)))
+			sb.WriteString(fmt.Sprintf("%s\n", proc.CreateIdxTableCql(keyspace, runId, idxName, idxDef, &node.TableCreator)))
 		}
 	}
 	return sb.String()

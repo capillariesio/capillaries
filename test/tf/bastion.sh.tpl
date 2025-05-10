@@ -193,21 +193,23 @@ aws s3 ls ${s3_log_url}/
 SEND_LOGS_FILE=/home/${ssh_user}/sendlogs.sh
 sudo tee $SEND_LOGS_FILE <<EOF
 #!/bin/bash
-# Send SIGHUP to the running binary, it will rotate the log using Lumberjack
-ps axf | grep capiwebapi | grep -v grep | awk '{print "kill -s 1 " \$1}' | sh
-for f in /var/log/capillaries/*.gz;do
-  if [ -f \$f ]; then
-    # Lumberjack produces: capiwebapi-2025-05-03T21-37-01.283.log.gz
-    # Add hostname to it: capiwebapi-2025-05-03T21-37-01.283.ip-10-5-1-10.log.gz
-    fname=\$(basename -- "\$f")
-    fnamedatetime=\$(echo \$fname|cut -d'.' -f1)
-    fnamemillis=\$(echo \$fname|cut -d'.' -f2)
-    newfilepath=/var/log/capillaries/\$fnamedatetime.\$fnamemillis.\$HOSTNAME.log.gz
-    mv \$f \$newfilepath
-    aws s3 cp \$newfilepath ${s3_log_url}/
-    rm \$newfilepath
-  fi
-done
+if [ -s /var/log/capillaries/capiwebapi.log ]; then
+  # Send SIGHUP to the running binary, it will rotate the log using Lumberjack
+  ps axf | grep capiwebapi | grep -v grep | awk '{print "kill -s 1 " \$1}' | sh
+  for f in /var/log/capillaries/*.gz;do
+    if [ -e \$f ]; then
+      # Lumberjack produces: capiwebapi-2025-05-03T21-37-01.283.log.gz
+      # Add hostname to it: capiwebapi-2025-05-03T21-37-01.283.ip-10-5-1-10.log.gz
+      fname=\$(basename -- "\$f")
+      fnamedatetime=\$(echo \$fname|cut -d'.' -f1)
+      fnamemillis=\$(echo \$fname|cut -d'.' -f2)
+      newfilepath=/var/log/capillaries/\$fnamedatetime.\$fnamemillis.\$HOSTNAME.log.gz
+      mv \$f \$newfilepath
+      aws s3 cp \$newfilepath ${s3_log_url}/
+      rm \$newfilepath
+    fi
+  done
+fi
 EOF
 sudo chmod 744 $SEND_LOGS_FILE
 sudo su ${ssh_user} -c "echo \"*/5 * * * * $SEND_LOGS_FILE\" | crontab -"

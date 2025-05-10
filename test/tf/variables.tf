@@ -50,7 +50,7 @@ variable "bastion_ami_name" {
 
 variable "number_of_daemons" {
 	type        = number
-    default     = 2
+    default     = 4
 }
 
 variable "daemon_instance_type" {
@@ -62,6 +62,16 @@ variable "daemon_ami_name" {
 	type        = string
 	description = "Expires 2026-12-18 ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-20241218"
     default     =  "ami-04474687c34a061cf"
+}
+
+variable "daemon_writer_workers" {
+	type        = number
+    default     = 5
+}
+variable "daemon_thread_pool_size" {
+	type        = number
+	description = "Number of Daemon instance CPUs x1.5"
+    default     = 3
 }
 
 variable "cassandra_hosts" {

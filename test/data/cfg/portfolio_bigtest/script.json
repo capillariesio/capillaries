@@ -25,6 +25,7 @@
             },
             "w": {
                 "name": "accounts",
+                "create_properties": "",
                 "having": "!time.After(w.earliest_period_start, time.Parse(`2006-01-02`,`{period_start_eod}`))",
                 "fields": {
                     "account_id": {
@@ -580,6 +581,7 @@
             },
             "w": {
                 "name": "txns",
+                "create_properties": "{high_load_create_properties}",
                 "having": "time.After(w.ts,time.Parse(`2006-01-02`,`{period_start_eod}`)) && !time.After(w.ts,time.Parse(`2006-01-02`,`{period_end_eod}`))",
                 "fields": {
                     "account_id": {
@@ -615,6 +617,7 @@
             },
             "w": {
                 "name": "account_txns",
+                "create_properties": "",
                 "fields": {
                     "account_id": {
                         "expression": "r.account_id",
@@ -673,6 +676,7 @@
             },
             "w": {
                 "name": "period_holdings",
+                "create_properties": "{high_load_create_properties}",
                 "having": "!time.After(time.Parse(`2006-01-02`,`{period_start_eod}`),w.eod) && !time.After(w.eod,time.Parse(`2006-01-02`,`{period_end_eod}`))",
 
                 "fields": {
@@ -709,6 +713,7 @@
             },
             "w": {
                 "name": "account_period_holdings",
+                "create_properties": "",
                 "fields": {
                     "account_id": {
                         "expression": "r.account_id",
@@ -739,6 +744,7 @@
             },
             "w": {
                 "name": "account_period_activity",
+                "create_properties": "",
                 "fields": {
                     "account_id": {
                         "expression": "r.account_id",
@@ -778,6 +784,7 @@
             },
             "w": {
                 "name": "account_period_perf",
+                "create_properties": "",
                 "fields": {
                     "account_id": {
                         "expression": "r.account_id",
@@ -815,6 +822,7 @@
             },
             "w": {
                 "name": "account_period_perf_by_period",
+                "create_properties": "",
                 "fields": {
                     "period": {
                         "expression": "p.period",
@@ -855,6 +863,7 @@
             },
             "w": {
                 "name": "account_period_perf_by_period_sector",
+                "create_properties": "",
                 "fields": {
                     "period": {
                         "expression": "r.period",
@@ -900,6 +909,7 @@
             },
             "w": {
                 "name": "account_period_sector_twr_cagr",
+                "create_properties": "",
                 "fields": {
                     "account_id": {
                         "expression": "r.account_id",

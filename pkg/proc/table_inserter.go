@@ -102,10 +102,10 @@ func CreateDataTableCql(keyspace string, runId int16, tableCreator *sc.TableCrea
 	for fieldName, fieldDef := range tableCreator.Fields {
 		qb.ColumnDef(fieldName, fieldDef.Type)
 	}
-	return qb.PartitionKey("rowid").Keyspace(keyspace).CreateRun(tableCreator.Name, runId, cql.IgnoreIfExists)
+	return qb.PartitionKey("rowid").Keyspace(keyspace).CreateRun(tableCreator.Name, runId, cql.IgnoreIfExists, tableCreator.CreateProperties)
 }
 
-func CreateIdxTableCql(keyspace string, runId int16, idxName string, idxDef *sc.IdxDef) string {
+func CreateIdxTableCql(keyspace string, runId int16, idxName string, idxDef *sc.IdxDef, tableCreator *sc.TableCreatorDef) string {
 	qb := cql.NewQB()
 	qb.Keyspace(keyspace).
 		ColumnDef("key", sc.FieldTypeString).
@@ -118,7 +118,7 @@ func CreateIdxTableCql(keyspace string, runId int16, idxName string, idxDef *sc.
 		qb.PartitionKey("key")
 		qb.ClusteringKey("rowid")
 	}
-	return qb.CreateRun(idxName, runId, cql.IgnoreIfExists)
+	return qb.CreateRun(idxName, runId, cql.IgnoreIfExists, tableCreator.CreateProperties)
 }
 
 func (instr *TableInserter) letWorkersDrainRecordWrittenStatuses(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) error {
@@ -127,31 +127,44 @@ func (instr *TableInserter) letWorkersDrainRecordWrittenStatuses(logger *l.CapiL
 
 	drainedRecordCount := 0
 	errorsFound := make([]string, 0)
-	errCount := 0
 	startTime := time.Now()
 	logger.DebugCtx(pCtx, "started draining at RecordsSent=%d from instr.RecordWrittenStatuses", instr.RecordsSent)
 
 	// 1. It's crucial that the number of errors to receive eventually should match instr.RecordsSent
 	// 2. We do not need an extra select/timeout here - we are guaranteed to receive something in instr.RecordWrittenStatuses because of cassandra read timeouts (5-15s or so)
+	// 3. If a daemon just hangs, look here. Turn debug logging on and watch for unmatched start/done draining.
+	stopDrainingBecauseOfEmergency := false
 	for instr.RecordsSent > instr.RecordsProcessed {
-		err := <-instr.RecordWrittenStatuses
-		instr.RecordsProcessed++
-		drainedRecordCount++
-		if err != nil {
-			errorsFound = append(errorsFound, err.Error())
-			errCount++
-		}
+		// Read from instr.RecordWrittenStatuses with timeout (just in case those Cassandra timeouts are not reliable enough)
+		timeoutChannel := make(chan bool, 1)
+		go func() {
+			time.Sleep(60 * time.Second)
+			timeoutChannel <- true
+		}()
+		select {
+		case err := <-instr.RecordWrittenStatuses:
+			instr.RecordsProcessed++
+			drainedRecordCount++
+			if err != nil {
+				errorsFound = append(errorsFound, err.Error())
+			}
 
-		// If it falls below min rate, it does not make sense to continue
-		inserterRate := float64(drainedRecordCount) / time.Since(startTime).Seconds()
-		if drainedRecordCount > 5 && inserterRate < float64(instr.MinInserterRate) {
-			logger.DebugCtx(pCtx, "slow db insertion rate triggered, will stop reading from instr.RecordWrittenStatuses")
-			errorsFound = append(errorsFound, fmt.Sprintf("table inserter detected slow db insertion rate %.0f records/s, wrote %d records out of %d", inserterRate, drainedRecordCount, instr.RecordsSent))
-			errCount++
+			// If it falls below min rate, it does not make sense to continue
+			inserterRate := float64(drainedRecordCount) / time.Since(startTime).Seconds()
+			if drainedRecordCount > 5 && inserterRate < float64(instr.MinInserterRate) {
+				errorsFound = append(errorsFound, fmt.Sprintf("table inserter detected slow db insertion rate %.0f records/s, wrote %d records out of %d", inserterRate, drainedRecordCount, instr.RecordsSent))
+				stopDrainingBecauseOfEmergency = true
+			}
+		case <-timeoutChannel:
+			err := fmt.Errorf("got a timeout while draining, records sent %d, processed %d", instr.RecordsSent, instr.RecordsProcessed)
+			errorsFound = append(errorsFound, err.Error())
+			stopDrainingBecauseOfEmergency = true
+		}
+		if stopDrainingBecauseOfEmergency {
 			break
 		}
 	}
-	logger.DebugCtx(pCtx, "done draining %d records at RecordsSent=%d from instr.RecordWrittenStatuses, %d errors", drainedRecordCount, instr.RecordsSent, errCount)
+	logger.DebugCtx(pCtx, "done draining %d records at RecordsSent=%d from instr.RecordWrittenStatuses, %d errors", drainedRecordCount, instr.RecordsSent, len(errorsFound))
 
 	if len(errorsFound) > 0 {
 		return fmt.Errorf("%s", strings.Join(errorsFound, "; "))

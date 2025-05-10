@@ -232,7 +232,7 @@ one_daemon_run_webapi()
       exit 1
     fi
 
-    echo Starting a run in $keyspace at $webapiUrl ...
+    echo Starting a run in $keyspace at $webapiUrl, script $scriptFile, params $paramsFile ...
     curl -s -w "\n" -d '{"script_url":"'$scriptFile'", "script_params_url":"'$paramsFile'", "start_nodes":"'$startNodes'"}' -H "Content-Type: application/json" -X POST $webapiUrl"/ks/$keyspace/run"
     if [ "$?" != "0" ]; then
       exit 1
