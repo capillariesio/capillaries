@@ -593,7 +593,7 @@
                         "type": "datetime"
                     },
                     "txn_json": {
-                        "expression": "strings.ReplaceAll(fmt.Sprintf(`{'ts':'%s','t':'%s','q':%d,'p':%s}`, time.Format(r.col_ts, `2006-01-02`), r.col_ticker, r.col_qty, decimal2(r.col_price)), `'`,`\"`)",
+                        "expression": "fmt.Sprintf(`\"%s|%s|%d|%s\"`, r.col_ts, r.col_ticker, r.col_qty, decimal2(r.col_price))",
                         "type": "string"
                     }
                 },
@@ -689,7 +689,7 @@
                         "type": "datetime"
                     },
                     "holding_json": {
-                        "expression": "fmt.Sprintf(`{\"d\":\"%s\",\"t\":\"%s\",\"q\":%d}`, time.Format(r.col_eod, `2006-01-02`), r.col_ticker, r.col_qty)",
+                        "expression": "fmt.Sprintf(`\"%s|%s|%d\"`, r.col_eod, r.col_ticker, r.col_qty)",
                         "type": "string"
                     }
                 },
