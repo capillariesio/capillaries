@@ -66,7 +66,7 @@ variable "daemon_ami_name" {
 
 variable "daemon_writer_workers" {
 	type        = number
-    default     = 5
+    default     = 8
 }
 variable "daemon_thread_pool_size" {
 	type        = number
@@ -122,3 +122,16 @@ variable "CASSANDRA_PASSWORD" {
 	type        = string
 	description = "Cassandra password"
 }
+
+# 4 x c7g.large, 5 writers, threadpool 3
+# accounts 6900
+# txns 7700 (daemons 20% cpu, 35-45s per batch)
+
+# 8 writers
+# period holdings 8300 write, same idx_period holdings
+# txns 20-30s per batch, load 12000, daemon instance cpu 30%
+# when building accnt_txns, txns read units at 8900
+
+# last 5 batches of txns cannot write to idx:
+# error running node 1_read_txns of type file_table in the script [s3://capillaries-testbucket/capi_cfg/portfolio_bigtest/script.json]: [cannot insert idx record: cannot write to idx table, query:INSERT INTO portfolio_bigtest_cloud.idx_txns_account_id_00001 ( key, rowid ) VALUES ( ?, ? ) ;, dberror:Operation failed - received 0 responses and 1 failures; cannot insert idx record: cannot write to idx table, query:INSERT INTO portfolio_bigtest_cloud.idx_txns_account_id_00001 ( key, rowid ) VALUES ( ?, ? ) ;, dberror:Operation failed - received 0 responses and 1 failures; cannot insert idx record: cannot write to idx table, query:INSERT INTO portfolio_bigtest_cloud.idx_txns_account_id_00001 ( key, rowid ) VALUES ( ?, ? ) ;, dberror:Operation failed - received 0 responses and 1 failures; cannot insert idx record: cannot write to idx table, query:INSERT INTO portfolio_bigtest_cloud.idx_txns_account_id_00001 ( key, rowid ) VALUES ( ?, ? ) ;, dberror:Operation failed - received 0 responses and 1 failures]
+
