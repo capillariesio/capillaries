@@ -85,7 +85,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestCreateRun(t *testing.T) {
-	const qTemplate string = "CREATE TABLE IF NOT EXISTS table1%s ( col_int BIGINT, col_bool BOOLEAN, col_string TEXT, col_datetime TIMESTAMP, col_decimal2 DECIMAL, col_float DOUBLE, PRIMARY KEY((col_int, col_decimal2), col_bool, col_float));"
+	const qTemplate string = "CREATE TABLE IF NOT EXISTS table1%s ( col_int BIGINT, col_bool BOOLEAN, col_string TEXT, col_datetime TIMESTAMP, col_decimal2 DECIMAL, col_float DOUBLE, PRIMARY KEY((col_int, col_decimal2), col_bool, col_float)) WITH PROPERTIES BLA;"
 	qb := (&QueryBuilder{}).
 		ColumnDef("col_int", sc.FieldTypeInt).
 		ColumnDef("col_bool", sc.FieldTypeBool).
@@ -95,7 +95,7 @@ func TestCreateRun(t *testing.T) {
 		ColumnDef("col_float", sc.FieldTypeFloat).
 		PartitionKey("col_int", "col_decimal2").
 		ClusteringKey("col_bool", "col_float")
-	assert.Equal(t, fmt.Sprintf(qTemplate, "_00123"), qb.CreateRun("table1", 123, IgnoreIfExists))
+	assert.Equal(t, fmt.Sprintf(qTemplate, "_00123"), qb.CreateRun("table1", 123, IgnoreIfExists, "WITH PROPERTIES BLA"))
 }
 
 func TestInsertPrepared(t *testing.T) {
@@ -106,4 +106,9 @@ func TestInsertPrepared(t *testing.T) {
 	assert.Nil(t, err)
 	s, _ := dataQb.InsertRunPreparedQuery("table1", 123, IgnoreIfExists)
 	assert.Equal(t, "INSERT INTO table1_00123 ( col_int ) VALUES ( ? ) IF NOT EXISTS;", s)
+}
+
+func TestSumOfExpBackoffDelaysMs(t *testing.T) {
+	assert.Equal(t, int64(200), SumOfExpBackoffDelaysMs(200, 2, 0))
+	assert.Equal(t, int64(200+400+800+1600+3200), SumOfExpBackoffDelaysMs(200, 2, 4))
 }

@@ -107,13 +107,15 @@ A. Update 2025: version 1.1.25 adds support for Amazon Keyspaces. As of 2025, th
 - [Amazon Keyspaces pagination](https://docs.aws.amazon.com/keyspaces/latest/devguide/paginating-results.html) may return fewer records than requested, so Capillaries should watch pagestate closely
 For a sample Amazon Keyspaces configuration, see [sample_amazon_keyspaces_config.env](../sample_amazon_keyspaces_config.env).
 
+WARNING: please keep in mind that without setting read/write capacity units, Amazon Keyspaces may be extremely slow, and with those capacity units specified - extremely expensive; exercise extreme caution when setting them.
+
 ## What's next?
 
 Q. What are the potential directions for improvement?
 
 A. Here are some, in no particular order:
 
-1. Performance enhancements, espcecially those related to the efficient use of Cassandra.
+1. Performance enhancements, especially those related to the efficient use of Cassandra.
 
 2. Read/write from/to other file formats, maybe databases. Update 2023: Apache Parquet support was added, see [Parquet reader](glossary.md#parquet-reader-column-properties) and [Parquet writer](glossary.md#parquet-specific-writer-column-properties).
 
@@ -123,7 +125,7 @@ A. Here are some, in no particular order:
 
 5. Python formulas. (a) Need a strategy to mitigate potential security threats introduced by py_calc. SELinux/AppArmor? (b) Consider generic lambda functions?
 
-6. Keep an eye on Azure/AWS/GCP progress with Cassandra-compatible databases (latency!) and RabbitMQ offerings.
+6. Keep an eye on Azure/AWS/GCP progress with Cassandra-compatible databases (latency!) and RabbitMQ offerings. Update 2025: version 1.1.25 works with Amazon RabbitMQ broker and Amazon Keyspaces.
 
 7. Select distinct field values from a table: it can be implemented easily using a set, but it will not scale and it will be limited by the size of the map. Alternatively, it can be implemented using Cassandra features, but it will require Capillaries to support tables without [rowid](glossary.md#rowid) (so the unique values are stored in a partitioning key field). Update March 2024: done, see [distinct_table](./glossary.md#distinct_table) node.
 

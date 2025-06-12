@@ -145,6 +145,10 @@ issues:
       text: function GetCapigraphDiagram has (cognitive|cyclomatic) complexity
       linters:
         - revive
+    - path: pkg\/proc\/table_inserter\.go
+      text: insertDataRecordWithRowid has cognitive complexity
+      linters:
+        - revive
     - path: pkg\/capigraph\/svg\.go
       text: maximum number of return results per function exceeded
       linters:

@@ -25,6 +25,7 @@
             },
             "w": {
                 "name": "accounts",
+                "table_options": "",
                 "having": "!time.After(w.earliest_period_start, time.Parse(`2006-01-02`,`{period_start_eod}`))",
                 "fields": {
                     "account_id": {
@@ -580,6 +581,7 @@
             },
             "w": {
                 "name": "txns",
+                "table_options": "{aws_keyspaces_table_options}",
                 "having": "time.After(w.ts,time.Parse(`2006-01-02`,`{period_start_eod}`)) && !time.After(w.ts,time.Parse(`2006-01-02`,`{period_end_eod}`))",
                 "fields": {
                     "account_id": {
@@ -591,7 +593,7 @@
                         "type": "datetime"
                     },
                     "txn_json": {
-                        "expression": "strings.ReplaceAll(fmt.Sprintf(`{'ts':'%s','t':'%s','q':%d,'p':%s}`, time.Format(r.col_ts, `2006-01-02`), r.col_ticker, r.col_qty, decimal2(r.col_price)), `'`,`\"`)",
+                        "expression": "fmt.Sprintf(`\"%s|%s|%d|%s\"`, time.Format(r.col_ts, `2006-01-02`), r.col_ticker, r.col_qty, decimal2(r.col_price))",
                         "type": "string"
                     }
                 },
@@ -615,6 +617,7 @@
             },
             "w": {
                 "name": "account_txns",
+                "table_options": "",
                 "fields": {
                     "account_id": {
                         "expression": "r.account_id",
@@ -673,6 +676,7 @@
             },
             "w": {
                 "name": "period_holdings",
+                "table_options": "{aws_keyspaces_table_options}",
                 "having": "!time.After(time.Parse(`2006-01-02`,`{period_start_eod}`),w.eod) && !time.After(w.eod,time.Parse(`2006-01-02`,`{period_end_eod}`))",
 
                 "fields": {
@@ -685,7 +689,7 @@
                         "type": "datetime"
                     },
                     "holding_json": {
-                        "expression": "fmt.Sprintf(`{\"d\":\"%s\",\"t\":\"%s\",\"q\":%d}`, time.Format(r.col_eod, `2006-01-02`), r.col_ticker, r.col_qty)",
+                        "expression": "fmt.Sprintf(`\"%s|%s|%d\"`, time.Format(r.col_eod, `2006-01-02`), r.col_ticker, r.col_qty)",
                         "type": "string"
                     }
                 },
@@ -709,6 +713,7 @@
             },
             "w": {
                 "name": "account_period_holdings",
+                "table_options": "",
                 "fields": {
                     "account_id": {
                         "expression": "r.account_id",
@@ -739,6 +744,7 @@
             },
             "w": {
                 "name": "account_period_activity",
+                "table_options": "",
                 "fields": {
                     "account_id": {
                         "expression": "r.account_id",
@@ -778,6 +784,7 @@
             },
             "w": {
                 "name": "account_period_perf",
+                "table_options": "",
                 "fields": {
                     "account_id": {
                         "expression": "r.account_id",
@@ -815,6 +822,7 @@
             },
             "w": {
                 "name": "account_period_perf_by_period",
+                "table_options": "",
                 "fields": {
                     "period": {
                         "expression": "p.period",
@@ -855,6 +863,7 @@
             },
             "w": {
                 "name": "account_period_perf_by_period_sector",
+                "table_options": "",
                 "fields": {
                     "period": {
                         "expression": "r.period",
@@ -900,6 +909,7 @@
             },
             "w": {
                 "name": "account_period_sector_twr_cagr",
+                "table_options": "",
                 "fields": {
                     "account_id": {
                         "expression": "r.account_id",

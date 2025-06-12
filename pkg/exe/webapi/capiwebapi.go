@@ -181,15 +181,17 @@ type WebapiNodeRunMatrix struct {
 
 // Poor man's cache
 var NodeDescCache = map[string]string{}
+var NodeDescCacheTs = map[string]time.Time{}
 var NodeDescCacheLock = sync.RWMutex{}
 
 func (h *UrlHandler) getNodeDesc(scriptCache *expirable.LRU[string, string], logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16, nodeName string) (string, error) {
 
 	nodeKey := keyspace + ":" + nodeName
 	NodeDescCacheLock.RLock()
-	nodeDesc, ok := NodeDescCache[nodeKey]
+	nodeDesc, okData := NodeDescCache[nodeKey]
+	nodeDescTs, okTs := NodeDescCacheTs[nodeKey]
 	NodeDescCacheLock.RUnlock()
-	if ok {
+	if okData && okTs && time.Since(nodeDescTs).Seconds() < 30 {
 		return nodeDesc, nil
 	}
 
@@ -219,6 +221,7 @@ func (h *UrlHandler) getNodeDesc(scriptCache *expirable.LRU[string, string], log
 		}
 	}
 	NodeDescCache[nodeKey] = nodeDef.Desc
+	NodeDescCacheTs[nodeKey] = time.Now()
 	NodeDescCacheLock.RUnlock()
 
 	return nodeDef.Desc, nil
@@ -318,15 +321,17 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 
 // Poor man's cache
 var RunPropsCache = map[string]*wfmodel.RunProperties{}
+var RunPropsCacheTs = map[string]time.Time{}
 var RunPropsCacheLock = sync.RWMutex{}
 
 func getRunProps(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16) (*wfmodel.RunProperties, error) {
 	runPropsCacheKey := keyspace + ":" + fmt.Sprintf("%d", runId)
 	RunPropsCacheLock.RLock()
-	oneRunProps, ok := RunPropsCache[runPropsCacheKey]
+	oneRunProps, okData := RunPropsCache[runPropsCacheKey]
+	oneRunPropsTs, okTs := RunPropsCacheTs[runPropsCacheKey]
 	RunPropsCacheLock.RUnlock()
 
-	if ok {
+	if okData && okTs && time.Since(oneRunPropsTs).Seconds() < 30 {
 		return oneRunProps, nil
 	}
 	allRunsProps, err := api.GetRunProperties(logger, cqlSession, keyspace, int16(runId))
@@ -344,6 +349,7 @@ func getRunProps(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace strin
 		}
 	}
 	RunPropsCache[runPropsCacheKey] = allRunsProps[0]
+	RunPropsCacheTs[runPropsCacheKey] = time.Now()
 	RunPropsCacheLock.RUnlock()
 
 	return allRunsProps[0], nil
@@ -777,6 +783,8 @@ func (h UrlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.NotFound(w, r)
 }
 
+var version string
+
 func main() {
 	initCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
@@ -794,6 +802,7 @@ func main() {
 	}
 	defer logger.Close()
 
+	logger.Info("Capillaries webapi %s", version)
 	logger.Info("env config: %s", envConfig.String())
 	logger.Info("S3 config status: %s", xfer.GetS3ConfigStatus(initCtx).String())
 

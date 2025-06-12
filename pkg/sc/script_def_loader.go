@@ -129,7 +129,7 @@ func NewScriptFromFileBytes(
 		}
 	}
 	if len(unresolvedParamMap) > 0 {
-		return nil, ScriptInitContentProblem, fmt.Errorf("unresolved parameter references in [%s]: %v; make sure that type in the script matches the type of the parameter value in the script parameters file", scriptUrl, unresolvedParamMap)
+		return nil, ScriptInitContentProblem, fmt.Errorf("unresolved parameter references in [%s], params[%s]: %v; make sure that type in the script matches the type of the parameter value in the script parameters file", scriptUrl, scriptParamsUrl, unresolvedParamMap)
 	}
 
 	scriptType, err := getFileType(scriptUrl)

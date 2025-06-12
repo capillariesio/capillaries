@@ -41,6 +41,7 @@ pushd ./test/code/tag_and_denormalize
 ./test_one_run_input_https.sh
 popd
 
+# exit 0
 
 # s3
 

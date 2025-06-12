@@ -3,7 +3,7 @@
 source ../../common/util.sh
 check_s3
 
-keyspace="portfolio_bigtest"
+keyspace="portfolio_bigtest_cloud"
 cfgS3=s3://$CAPILLARIES_AWS_TESTBUCKET/capi_cfg/portfolio_bigtest
 inS3=s3://$CAPILLARIES_AWS_TESTBUCKET/capi_in/portfolio_bigtest
 outS3=s3://$CAPILLARIES_AWS_TESTBUCKET/capi_out/portfolio_bigtest

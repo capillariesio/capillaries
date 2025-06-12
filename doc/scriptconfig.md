@@ -162,6 +162,10 @@ File writer only: array of file writer [column definitions](glossary.md#file-wri
 
 [Go expression](glossary.md#go-expression) used as a filter before the row/line is about to be written to the target table/file. Allows writer (`w.*`) fields (for table writer) and columns (for file writers) only (no `r.*` or `p.*` fields allowed).
 
+#### w.table_options
+
+Any additional parameters to add after the CREATE TABLE clause when Cassandra table is created. See CREATE TABLE syntax for your Cassandra implementation for details.
+
 #### w.indexes
 
 Table writer only. index_name->[index_definition](glossary.md#index-definition) map.

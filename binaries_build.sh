@@ -30,34 +30,34 @@ mv ./ui/build/webui.tgz $DIR_BUILD_WEBUI
 
 echo "Building "$DIR_BUILD_LINUX_AMD64
 
-GOOS=linux GOARCH=amd64 go build -o $DIR_BUILD_LINUX_AMD64/capidaemon -ldflags="-s -w" ./pkg/exe/daemon/capidaemon.go
+GOOS=linux GOARCH=amd64 go build -o $DIR_BUILD_LINUX_AMD64/capidaemon -ldflags="-s -w -X main.version=$(git describe --tags --always)" ./pkg/exe/daemon/capidaemon.go
 cp ./pkg/exe/daemon/capidaemon.json $DIR_BUILD_LINUX_AMD64
 gzip -f -k $DIR_BUILD_LINUX_AMD64/capidaemon
 
-GOOS=linux GOARCH=amd64 go build -o $DIR_BUILD_LINUX_AMD64/capiwebapi -ldflags="-s -w" "./pkg/exe/webapi/capiwebapi.go"
+GOOS=linux GOARCH=amd64 go build -o $DIR_BUILD_LINUX_AMD64/capiwebapi -ldflags="-s -w -X main.version=$(git describe --tags --always)" "./pkg/exe/webapi/capiwebapi.go"
 cp ./pkg/exe/webapi/capiwebapi.json $DIR_BUILD_LINUX_AMD64
 gzip -f -k $DIR_BUILD_LINUX_AMD64/capiwebapi
 
-GOOS=linux GOARCH=amd64 go build -o $DIR_BUILD_LINUX_AMD64/capitoolbelt -ldflags="-s -w" "./pkg/exe/toolbelt/capitoolbelt.go"
+GOOS=linux GOARCH=amd64 go build -o $DIR_BUILD_LINUX_AMD64/capitoolbelt -ldflags="-s -w -X main.version=$(git describe --tags --always)" "./pkg/exe/toolbelt/capitoolbelt.go"
 cp ./pkg/exe/toolbelt/capitoolbelt.json $DIR_BUILD_LINUX_AMD64
 gzip -f -k $DIR_BUILD_LINUX_AMD64/capitoolbelt
 
-GOOS=linux GOARCH=amd64 go build -o $DIR_BUILD_LINUX_AMD64/capiparquet -ldflags="-s -w" ./test/code/parquet/capiparquet.go
+GOOS=linux GOARCH=amd64 go build -o $DIR_BUILD_LINUX_AMD64/capiparquet -ldflags="-s -w -X main.version=$(git describe --tags --always)" ./test/code/parquet/capiparquet.go
 gzip -f -k $DIR_BUILD_LINUX_AMD64/capiparquet
 
 echo "Building "$DIR_BUILD_LINUX_ARM64
 
-GOOS=linux GOARCH=arm64 go build -o $DIR_BUILD_LINUX_ARM64/capidaemon -ldflags="-s -w" ./pkg/exe/daemon/capidaemon.go
+GOOS=linux GOARCH=arm64 go build -o $DIR_BUILD_LINUX_ARM64/capidaemon -ldflags="-s -w -X main.version=$(git describe --tags --always)" ./pkg/exe/daemon/capidaemon.go
 cp ./pkg/exe/daemon/capidaemon.json $DIR_BUILD_LINUX_ARM64
 gzip -f -k $DIR_BUILD_LINUX_ARM64/capidaemon
 
-GOOS=linux GOARCH=arm64 go build -o $DIR_BUILD_LINUX_ARM64/capiwebapi -ldflags="-s -w" ./pkg/exe/webapi/capiwebapi.go
+GOOS=linux GOARCH=arm64 go build -o $DIR_BUILD_LINUX_ARM64/capiwebapi -ldflags="-s -w -X main.version=$(git describe --tags --always)" ./pkg/exe/webapi/capiwebapi.go
 cp ./pkg/exe/webapi/capiwebapi.json $DIR_BUILD_LINUX_ARM64
 gzip -f -k $DIR_BUILD_LINUX_ARM64/capiwebapi
 
-GOOS=linux GOARCH=arm64 go build -o $DIR_BUILD_LINUX_ARM64/capitoolbelt -ldflags="-s -w" ./pkg/exe/toolbelt/capitoolbelt.go
+GOOS=linux GOARCH=arm64 go build -o $DIR_BUILD_LINUX_ARM64/capitoolbelt -ldflags="-s -w -X main.version=$(git describe --tags --always)" ./pkg/exe/toolbelt/capitoolbelt.go
 cp ./pkg/exe/toolbelt/capitoolbelt.json $DIR_BUILD_LINUX_ARM64
 gzip -f -k $DIR_BUILD_LINUX_ARM64/capitoolbelt
 
-GOOS=linux GOARCH=arm64 go build -o $DIR_BUILD_LINUX_ARM64/capiparquet -ldflags="-s -w" ./test/code/parquet/capiparquet.go
+GOOS=linux GOARCH=arm64 go build -o $DIR_BUILD_LINUX_ARM64/capiparquet -ldflags="-s -w -X main.version=$(git describe --tags --always)" ./test/code/parquet/capiparquet.go
 gzip -f -k $DIR_BUILD_LINUX_ARM64/capiparquet

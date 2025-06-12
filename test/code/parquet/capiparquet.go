@@ -24,8 +24,10 @@ const (
 	CmdSort string = "sort"
 )
 
+var version string
+
 func usage(flagset *flag.FlagSet) {
-	fmt.Printf("Capillaries parquet tool\nUsage: capiparquet <command> <command parameters>\nCommands:\n")
+	fmt.Printf("Capillaries parquet tool %s\nUsage: capiparquet <command> <command parameters>\nCommands:\n", version)
 	fmt.Printf("  %s %s\n  %s %s %s %s\n  %s %s %s\n",
 		CmdCat, "<file>",
 		CmdDiff, "<left file>", "<right file>", "[optional parameters]",

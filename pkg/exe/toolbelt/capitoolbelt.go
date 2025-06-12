@@ -78,7 +78,7 @@ const (
 )
 
 func usage(flagset *flag.FlagSet) {
-	fmt.Printf("Capillaries toolbelt\nUsage: capitoolbelt <command> <command parameters>\nCommands:\n")
+	fmt.Printf("Capillaries toolbelt %s\nUsage: capitoolbelt <command> <command parameters>\nCommands:\n", version)
 	fmt.Printf("  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n",
 		CmdValidateScript,
 		CmdStartRun,
@@ -641,6 +641,8 @@ func protoFileReaderCreator() int {
 
 	return 0
 }
+
+var version string
 
 func main() {
 	// defer profile.Start().Stop()

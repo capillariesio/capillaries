@@ -26,20 +26,24 @@ const (
 )
 
 type TableInserter struct {
-	PCtx                       *ctx.MessageProcessingContext
-	TableCreator               *sc.TableCreatorDef
-	RecordsIn                  chan WriteChannelItem // Channel to pass records from the main function like RunCreateTableForBatch, usig add(), to TableInserter
-	RecordWrittenStatuses      chan error
-	RecordWrittenStatusesMutex sync.Mutex
-	MachineHash                int64
-	NumWorkers                 int
-	MinInserterRate            int
-	WorkerWaitGroup            sync.WaitGroup
-	RecordsSent                int // Records sent to RecordsIn
-	RecordsProcessed           int // Number of items received in RecordWrittenStatuses
-	DoesNotExistPause          float32
-	OperationTimedOutPause     float32
-	DataIdxSeqMode             DataIdxSeqModeType
+	PCtx                         *ctx.MessageProcessingContext
+	TableCreator                 *sc.TableCreatorDef
+	RecordsIn                    chan WriteChannelItem // Channel to pass records from the main function like RunCreateTableForBatch, usig add(), to TableInserter
+	RecordWrittenStatuses        chan error
+	RecordWrittenStatusesMutex   sync.Mutex
+	MachineHash                  int64
+	NumWorkers                   int
+	MinInserterRate              int
+	WorkerWaitGroup              sync.WaitGroup
+	RecordsSent                  int   // Records sent to RecordsIn
+	RecordsProcessed             int   // Number of items received in RecordWrittenStatuses
+	DoesNotExistPauseMillis      int64 // millis
+	OperationTimedOutPauseMillis int64 // millis
+	ExpBackoffFactorMultiplier   int64 // 2
+	MaxDbProblemRetries          int   // 5
+	MaxDuplicateRetries          int   // 5
+	DataIdxSeqMode               DataIdxSeqModeType
+	MaxAllowedRowInsertionTimeMs int64
 }
 
 type WriteChannelItem struct {
@@ -63,18 +67,27 @@ func createInserterAndStartWorkers(logger *l.CapiLogger, envConfig *env.EnvConfi
 	}
 
 	instr := &TableInserter{
-		PCtx:                   pCtx,
-		TableCreator:           tableCreator,
-		RecordsIn:              make(chan WriteChannelItem, channelSize), // Capacity should match RecordWrittenStatuses
-		RecordWrittenStatuses:  make(chan error, channelSize),            // Capacity should match RecordsIn
-		MachineHash:            int64(stringHash.Sum64()),
-		NumWorkers:             envConfig.Cassandra.WriterWorkers,
-		MinInserterRate:        envConfig.Cassandra.MinInserterRate,
-		RecordsSent:            0,    // Total number of records added to RecordsIn
-		RecordsProcessed:       0,    // Total number of records read from RecordsOut
-		DoesNotExistPause:      5.0,  // sec
-		OperationTimedOutPause: 10.0, // sec
-		DataIdxSeqMode:         dataIdxSeqMode,
+		PCtx:                         pCtx,
+		TableCreator:                 tableCreator,
+		RecordsIn:                    make(chan WriteChannelItem, channelSize), // Capacity should match RecordWrittenStatuses
+		RecordWrittenStatuses:        make(chan error, channelSize),            // Capacity should match RecordsIn
+		MachineHash:                  int64(stringHash.Sum64()),
+		NumWorkers:                   envConfig.Cassandra.WriterWorkers,
+		MinInserterRate:              envConfig.Cassandra.MinInserterRate,
+		RecordsSent:                  0,    // Total number of records added to RecordsIn
+		RecordsProcessed:             0,    // Total number of records read from RecordsOut
+		DoesNotExistPauseMillis:      2000, // 2000 + 4000 + 8000 + 16000 + 32000
+		OperationTimedOutPauseMillis: 200,  // millis 200 + 400 + 800 + 1600 + 3200 = 6200
+		ExpBackoffFactorMultiplier:   2,
+		MaxDbProblemRetries:          5,
+		MaxDuplicateRetries:          5,
+		DataIdxSeqMode:               dataIdxSeqMode,
+	}
+	maxInsertionTimeForDoesNotExistMs := cql.SumOfExpBackoffDelaysMs(instr.DoesNotExistPauseMillis, instr.ExpBackoffFactorMultiplier, instr.MaxDbProblemRetries)
+	maxInsertionTimeForOperationTimeoutMs := cql.SumOfExpBackoffDelaysMs(instr.OperationTimedOutPauseMillis, instr.ExpBackoffFactorMultiplier, instr.MaxDbProblemRetries)
+	instr.MaxAllowedRowInsertionTimeMs = maxInsertionTimeForDoesNotExistMs
+	if instr.MaxAllowedRowInsertionTimeMs < maxInsertionTimeForOperationTimeoutMs {
+		instr.MaxAllowedRowInsertionTimeMs = maxInsertionTimeForOperationTimeoutMs
 	}
 
 	logger.DebugCtx(pCtx, "launching %d writers...", instr.NumWorkers)
@@ -102,10 +115,10 @@ func CreateDataTableCql(keyspace string, runId int16, tableCreator *sc.TableCrea
 	for fieldName, fieldDef := range tableCreator.Fields {
 		qb.ColumnDef(fieldName, fieldDef.Type)
 	}
-	return qb.PartitionKey("rowid").Keyspace(keyspace).CreateRun(tableCreator.Name, runId, cql.IgnoreIfExists)
+	return qb.PartitionKey("rowid").Keyspace(keyspace).CreateRun(tableCreator.Name, runId, cql.IgnoreIfExists, tableCreator.CreateProperties)
 }
 
-func CreateIdxTableCql(keyspace string, runId int16, idxName string, idxDef *sc.IdxDef) string {
+func CreateIdxTableCql(keyspace string, runId int16, idxName string, idxDef *sc.IdxDef, tableCreator *sc.TableCreatorDef) string {
 	qb := cql.NewQB()
 	qb.Keyspace(keyspace).
 		ColumnDef("key", sc.FieldTypeString).
@@ -118,7 +131,7 @@ func CreateIdxTableCql(keyspace string, runId int16, idxName string, idxDef *sc.
 		qb.PartitionKey("key")
 		qb.ClusteringKey("rowid")
 	}
-	return qb.CreateRun(idxName, runId, cql.IgnoreIfExists)
+	return qb.CreateRun(idxName, runId, cql.IgnoreIfExists, tableCreator.CreateProperties)
 }
 
 func (instr *TableInserter) letWorkersDrainRecordWrittenStatuses(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) error {
@@ -127,31 +140,45 @@ func (instr *TableInserter) letWorkersDrainRecordWrittenStatuses(logger *l.CapiL
 
 	drainedRecordCount := 0
 	errorsFound := make([]string, 0)
-	errCount := 0
 	startTime := time.Now()
 	logger.DebugCtx(pCtx, "started draining at RecordsSent=%d from instr.RecordWrittenStatuses", instr.RecordsSent)
 
 	// 1. It's crucial that the number of errors to receive eventually should match instr.RecordsSent
 	// 2. We do not need an extra select/timeout here - we are guaranteed to receive something in instr.RecordWrittenStatuses because of cassandra read timeouts (5-15s or so)
+	// 3. If a daemon just hangs, look here. Turn debug logging on and watch for unmatched start/done draining.
+	stopDrainingBecauseOfEmergency := false
 	for instr.RecordsSent > instr.RecordsProcessed {
-		err := <-instr.RecordWrittenStatuses
-		instr.RecordsProcessed++
-		drainedRecordCount++
-		if err != nil {
-			errorsFound = append(errorsFound, err.Error())
-			errCount++
-		}
+		// Read from instr.RecordWrittenStatuses with timeout (just in case those Cassandra timeouts are not reliable enough)
+		timeoutChannel := make(chan bool, 1)
+		go func() {
+			// Add one second to be safe
+			time.Sleep(time.Duration(instr.MaxAllowedRowInsertionTimeMs+1000) * time.Millisecond)
+			timeoutChannel <- true
+		}()
+		select {
+		case err := <-instr.RecordWrittenStatuses:
+			instr.RecordsProcessed++
+			drainedRecordCount++
+			if err != nil {
+				errorsFound = append(errorsFound, err.Error())
+			}
 
-		// If it falls below min rate, it does not make sense to continue
-		inserterRate := float64(drainedRecordCount) / time.Since(startTime).Seconds()
-		if drainedRecordCount > 5 && inserterRate < float64(instr.MinInserterRate) {
-			logger.DebugCtx(pCtx, "slow db insertion rate triggered, will stop reading from instr.RecordWrittenStatuses")
-			errorsFound = append(errorsFound, fmt.Sprintf("table inserter detected slow db insertion rate %.0f records/s, wrote %d records out of %d", inserterRate, drainedRecordCount, instr.RecordsSent))
-			errCount++
+			// If it falls below min rate, it does not make sense to continue
+			inserterRate := float64(drainedRecordCount) / time.Since(startTime).Seconds()
+			if drainedRecordCount > 5 && inserterRate < float64(instr.MinInserterRate) {
+				errorsFound = append(errorsFound, fmt.Sprintf("table inserter detected slow db insertion rate %.0f records/s, wrote %d records out of %d", inserterRate, drainedRecordCount, instr.RecordsSent))
+				stopDrainingBecauseOfEmergency = true
+			}
+		case <-timeoutChannel:
+			err := fmt.Errorf("got a timeout while draining, records sent %d, processed %d", instr.RecordsSent, instr.RecordsProcessed)
+			errorsFound = append(errorsFound, err.Error())
+			stopDrainingBecauseOfEmergency = true
+		}
+		if stopDrainingBecauseOfEmergency {
 			break
 		}
 	}
-	logger.DebugCtx(pCtx, "done draining %d records at RecordsSent=%d from instr.RecordWrittenStatuses, %d errors", drainedRecordCount, instr.RecordsSent, errCount)
+	logger.DebugCtx(pCtx, "done draining %d records at RecordsSent=%d from instr.RecordWrittenStatuses, %d errors", drainedRecordCount, instr.RecordsSent, len(errorsFound))
 
 	if len(errorsFound) > 0 {
 		return fmt.Errorf("%s", strings.Join(errorsFound, "; "))
@@ -279,8 +306,7 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, writ
 	logger.PushF("proc.insertDataRecordWithRowid")
 	defer logger.PopF()
 
-	maxRetries := 5
-	curDataExpBackoffFactor := float32(1.0)
+	curDataExpBackoffFactor := int64(1)
 	var errorToReturn error
 
 	// This is the first item from the channel, initialize prepared query, do this once
@@ -308,7 +334,7 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, writ
 		}
 	}
 
-	for retryCount := 0; retryCount < maxRetries; retryCount++ {
+	for retryCount := 0; retryCount < instr.MaxDbProblemRetries; retryCount++ {
 		// rowid=111
 		if err := pq.Qb.WritePreparedValue("rowid", rowid); err != nil {
 			return fmt.Errorf("cannot write rowid to prepared query: %s", err.Error())
@@ -327,8 +353,8 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, writ
 		// TEST ONLY (comment out pq.Qb.InsertRunParams() and instr.PCtx.CqlSession.Query() above)
 		// var err error
 		// if dataRetryCount == 0 {
-		// 	instr.DoesNotExistPause = 0.01      // speed things up for testing
-		// 	instr.OperationTimedOutPause = 0.01 // speed things up for testing
+		// 	instr.DoesNotExistPause = 100      // speed things up for testing
+		// 	instr.OperationTimedOutPause = 100 // speed things up for testing
 		// 	if CurrentTestScenario == TestDataDoesNotExist {
 		// 		// log: will wait for table ... to be created, table retry count 0, got does not exist
 		// 		// retry and succeed
@@ -364,22 +390,45 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, writ
 		}
 		if strings.Contains(err.Error(), "does not exist") {
 			// There is a chance this table is brand new and table schema was not propagated to all Cassandra nodes
-			if retryCount >= maxRetries-1 {
+			if retryCount >= instr.MaxDbProblemRetries-1 {
 				errorToReturn = fmt.Errorf("cannot write to data table %s after %d attempts, apparently, table schema still not propagated to all nodes: %s", instr.tableNameWithSuffix(instr.TableCreator.Name), retryCount+1, err.Error())
 				break
 			}
 			logger.WarnCtx(instr.PCtx, "will wait for table %s to be created, table retry count %d, got %s", instr.tableNameWithSuffix(instr.TableCreator.Name), retryCount, err.Error())
 			// TODO: come up with a better waiting strategy (exp backoff, at least)
-			time.Sleep(time.Duration(instr.DoesNotExistPause) * time.Second)
+			time.Sleep(time.Duration(instr.DoesNotExistPauseMillis) * time.Millisecond)
 		} else if strings.Contains(err.Error(), "Operation timed out") {
 			// The cluster is overloaded, slow down
-			if retryCount >= maxRetries-1 {
-				errorToReturn = fmt.Errorf("cannot write to data table %s after %d attempts, still getting timeouts: %s", instr.tableNameWithSuffix(instr.TableCreator.Name), retryCount+1, err.Error())
+			if retryCount >= instr.MaxDbProblemRetries-1 {
+				errorToReturn = fmt.Errorf("cannot write to data table %s after %d attempts and %dms, still getting timeouts: %s", instr.tableNameWithSuffix(instr.TableCreator.Name), retryCount+1, cql.SumOfExpBackoffDelaysMs(instr.OperationTimedOutPauseMillis, instr.ExpBackoffFactorMultiplier, retryCount), err.Error())
 				break
 			}
-			logger.WarnCtx(instr.PCtx, "cluster overloaded (%s), will wait for %fms before writing to data table %s again, table retry count %d", err.Error(), 10*curDataExpBackoffFactor, instr.tableNameWithSuffix(instr.TableCreator.Name), retryCount)
-			time.Sleep(time.Duration(instr.OperationTimedOutPause*curDataExpBackoffFactor) * time.Millisecond)
-			curDataExpBackoffFactor *= 2.0
+			logger.WarnCtx(instr.PCtx, "cluster overloaded (%s), will wait for %dms before writing to data table %s again, table retry count %d", err.Error(), instr.OperationTimedOutPauseMillis*curDataExpBackoffFactor, instr.tableNameWithSuffix(instr.TableCreator.Name), retryCount)
+			time.Sleep(time.Duration(instr.OperationTimedOutPauseMillis*curDataExpBackoffFactor) * time.Millisecond)
+			curDataExpBackoffFactor *= instr.ExpBackoffFactorMultiplier
+		} else if strings.Contains(err.Error(), "Operation failed - received 0 responses and 1 failures") {
+			// Saw this from Amazon Keyspaces, slow down
+			if retryCount >= instr.MaxDbProblemRetries-1 {
+				errorToReturn = fmt.Errorf("cannot write to data table %s after %d attempts and %dms, still getting zero responses: %s", instr.tableNameWithSuffix(instr.TableCreator.Name), retryCount+1, cql.SumOfExpBackoffDelaysMs(instr.OperationTimedOutPauseMillis, instr.ExpBackoffFactorMultiplier, retryCount), err.Error())
+				break
+			}
+			logger.WarnCtx(instr.PCtx, "cluster returns zero responses (%s), will wait for %dms before writing to data table %s again, table retry count %d", err.Error(), instr.OperationTimedOutPauseMillis*curDataExpBackoffFactor, instr.tableNameWithSuffix(instr.TableCreator.Name), retryCount)
+			time.Sleep(time.Duration(instr.OperationTimedOutPauseMillis*curDataExpBackoffFactor) * time.Millisecond)
+			curDataExpBackoffFactor *= instr.ExpBackoffFactorMultiplier
+		} else if strings.Contains(err.Error(), "The row has exceeded the maximum allowed size") {
+			// Saw this from Amazon Keyspaces, give some details
+			sb := strings.Builder{}
+			sb.WriteString("cannot write to data table, some string lengths exceed max allowed value: ")
+			for fieldName, fieldValue := range *writeItem.TableRecord {
+				switch v := fieldValue.(type) {
+				case string:
+					sb.WriteString(fmt.Sprintf("%s:%d characters;", fieldName, len(v)))
+				default:
+					sb.WriteString(fmt.Sprintf("%s:%T;", fieldName, fieldValue))
+				}
+			}
+			errorToReturn = db.WrapDbErrorWithQuery(sb.String(), pq.Query, err)
+			break
 		} else {
 			// Some serious error happened, stop trying this rowid
 			errorToReturn = db.WrapDbErrorWithQuery("cannot write to data table", pq.Query, err)
@@ -395,9 +444,8 @@ func (instr *TableInserter) insertDataRecord(logger *l.CapiLogger, writeItem *Wr
 	logger.PushF("proc.insertDataRecord")
 	defer logger.PopF()
 
-	const maxRetries int = 5
 	curRowid := rowidRand.Int63()
-	for retryCount := 0; retryCount < maxRetries; retryCount++ {
+	for retryCount := 0; retryCount < instr.MaxDuplicateRetries; retryCount++ {
 
 		err := instr.insertDataRecordWithRowid(logger, writeItem, curRowid, pq)
 		if err == nil {
@@ -408,14 +456,14 @@ func (instr *TableInserter) insertDataRecord(logger *l.CapiLogger, writeItem *Wr
 			errorToReturn := fmt.Errorf("cannot insert data record [%s]: %s", pq.Query, err.Error())
 			logger.ErrorCtx(instr.PCtx, "%s", errorToReturn.Error())
 			return curRowid, errorToReturn
-		} else if retryCount < maxRetries-1 {
+		} else if retryCount < instr.MaxDuplicateRetries-1 {
 			rowidRand.Seed(newSeed(instr.MachineHash))
 			curRowid = rowidRand.Int63()
 		}
 		logger.WarnCtx(instr.PCtx, "duplicate rowid not written [%s], rowid retry count %d", pq.Query, retryCount)
 	}
 
-	errorToReturn := fmt.Errorf("duplicate rowid not written [%s], giving up after %d rowid retries", pq.Query, maxRetries)
+	errorToReturn := fmt.Errorf("duplicate rowid not written [%s], giving up after %d rowid retries", pq.Query, instr.MaxDbProblemRetries)
 	logger.ErrorCtx(instr.PCtx, "%s", errorToReturn.Error())
 	return curRowid, errorToReturn
 }
@@ -424,8 +472,7 @@ func (instr *TableInserter) insertIdxRecordWithRowid(logger *l.CapiLogger, idxNa
 	logger.PushF("proc.insertIdxRecordWithRowid")
 	defer logger.PopF()
 
-	maxRetries := 5
-	curIdxExpBackoffFactor := float32(1.0)
+	curIdxExpBackoffFactor := int64(1.0)
 	var err error
 
 	ifNotExistsFlag := cql.ThrowIfExists
@@ -464,7 +511,7 @@ func (instr *TableInserter) insertIdxRecordWithRowid(logger *l.CapiLogger, idxNa
 	}
 
 	var errorToReturn error
-	for retryCount := 0; retryCount < maxRetries; retryCount++ {
+	for retryCount := 0; retryCount < instr.MaxDbProblemRetries; retryCount++ {
 		existingIdxRow := map[string]any{}
 		var isApplied = true
 
@@ -479,8 +526,8 @@ func (instr *TableInserter) insertIdxRecordWithRowid(logger *l.CapiLogger, idxNa
 		// TEST ONLY (comment out if idxUniqueness == sc.IdxUnique {...} else {...} above)
 		// var err error
 		// if idxRetryCount == 0 {
-		// 	instr.DoesNotExistPause = 0.01      // speed things up for testing
-		// 	instr.OperationTimedOutPause = 0.01 // speed things up for testing
+		// 	instr.DoesNotExistPause = 100      // speed things up for testing
+		// 	instr.OperationTimedOutPause = 100 // speed things up for testing
 		// 	if CurrentTestScenario == TestIdxDoesNotExist {
 		// 		// log: will wait for idx table ... to be created, table retry count 0, got does not exist
 		// 		// retry and succeed
@@ -548,22 +595,31 @@ func (instr *TableInserter) insertIdxRecordWithRowid(logger *l.CapiLogger, idxNa
 
 		if strings.Contains(err.Error(), "does not exist") {
 			// There is a chance this table is brand new and table schema was not propagated to all Cassandra nodes
-			if retryCount >= maxRetries-1 {
+			if retryCount >= instr.MaxDbProblemRetries-1 {
 				errorToReturn = fmt.Errorf("cannot write to idx table %s after %d attempts, apparently, table schema still not propagated to all nodes: %s", instr.tableNameWithSuffix(idxName), retryCount+1, err.Error())
 				break
 			}
 			logger.WarnCtx(instr.PCtx, "will wait for idx table %s to be created, table retry count %d, got %s", instr.tableNameWithSuffix(idxName), retryCount, err.Error())
 			// TODO: come up with a better waiting strategy (exp backoff, at least)
-			time.Sleep(time.Duration(instr.DoesNotExistPause) * time.Second)
+			time.Sleep(time.Duration(instr.DoesNotExistPauseMillis) * time.Millisecond)
 		} else if strings.Contains(err.Error(), "Operation timed out") {
 			// The cluster is overloaded, slow down
-			if retryCount >= maxRetries-1 {
-				errorToReturn = fmt.Errorf("cannot write to idx table %s after %d attempts, still getting timeout: %s", instr.tableNameWithSuffix(idxName), retryCount+1, err.Error())
+			if retryCount >= instr.MaxDbProblemRetries-1 {
+				errorToReturn = fmt.Errorf("cannot write to idx table %s after %d attempts and %dms, still getting timeout: %s", instr.tableNameWithSuffix(idxName), retryCount+1, cql.SumOfExpBackoffDelaysMs(instr.OperationTimedOutPauseMillis, instr.ExpBackoffFactorMultiplier, retryCount), err.Error())
 				break
 			}
-			logger.WarnCtx(instr.PCtx, "cluster overloaded (%s), will wait for %fms before writing to idx table %s again, table retry count %d", err.Error(), 10*curIdxExpBackoffFactor, instr.tableNameWithSuffix(idxName), retryCount)
-			time.Sleep(time.Duration(instr.OperationTimedOutPause*curIdxExpBackoffFactor) * time.Millisecond)
-			curIdxExpBackoffFactor *= 2.0
+			logger.WarnCtx(instr.PCtx, "cluster overloaded (%s), will wait for %dms before writing to idx table %s again, table retry count %d", err.Error(), instr.OperationTimedOutPauseMillis*curIdxExpBackoffFactor, instr.tableNameWithSuffix(idxName), retryCount)
+			time.Sleep(time.Duration(instr.OperationTimedOutPauseMillis*curIdxExpBackoffFactor) * time.Millisecond)
+			curIdxExpBackoffFactor *= instr.ExpBackoffFactorMultiplier
+		} else if strings.Contains(err.Error(), "Operation failed - received 0 responses and 1 failures") {
+			// Saw this from Amazon Keyspaces, slow down
+			if retryCount >= instr.MaxDbProblemRetries-1 {
+				errorToReturn = fmt.Errorf("cannot write to idx table %s after %d attempts and %dms, still getting zero responses: %s", instr.tableNameWithSuffix(idxName), retryCount+1, cql.SumOfExpBackoffDelaysMs(instr.OperationTimedOutPauseMillis, instr.ExpBackoffFactorMultiplier, retryCount), err.Error())
+				break
+			}
+			logger.WarnCtx(instr.PCtx, "cluster returns zero responses (%s), will wait for %dms before writing to idx table %s again, table retry count %d", err.Error(), instr.OperationTimedOutPauseMillis*curIdxExpBackoffFactor, instr.tableNameWithSuffix(idxName), retryCount)
+			time.Sleep(time.Duration(instr.OperationTimedOutPauseMillis*curIdxExpBackoffFactor) * time.Millisecond)
+			curIdxExpBackoffFactor *= instr.ExpBackoffFactorMultiplier
 		} else {
 			// Some serious error happened, stop trying this idx record
 			errorToReturn = db.WrapDbErrorWithQuery("cannot write to idx table", pq.Query, err)
@@ -579,9 +635,8 @@ func (instr *TableInserter) insertDistinctIdxAndDataRecords(logger *l.CapiLogger
 	logger.PushF("proc.insertDistinctIdxAndDataRecords")
 	defer logger.PopF()
 
-	const maxRetries int = 5
 	curRowid := rowidRand.Int63()
-	for retryCount := 0; retryCount < maxRetries; retryCount++ {
+	for retryCount := 0; retryCount < instr.MaxDuplicateRetries; retryCount++ {
 		errInsertIdx := instr.insertIdxRecordWithRowid(logger, idxName, sc.IdxUnique, writeItem.IndexKeyMap[idxName], curRowid, piq)
 		if errInsertIdx == nil {
 			errInsertData := instr.insertDataRecordWithRowid(logger, writeItem, curRowid, pdq)
@@ -602,7 +657,7 @@ func (instr *TableInserter) insertDistinctIdxAndDataRecords(logger *l.CapiLogger
 			// ErrDuplicateKey is ok, this means we already have a distinct record, nothing to do here
 			logger.DebugCtx(pCtx, "already have a distinct record, nothing to do here: key %s, rowid %d", writeItem.IndexKeyMap[idxName], curRowid)
 			return curRowid, nil
-		} else if retryCount < maxRetries-1 {
+		} else if retryCount < instr.MaxDuplicateRetries-1 {
 			rowidRand.Seed(newSeed(instr.MachineHash))
 		} else {
 			// Some serious error
@@ -610,7 +665,7 @@ func (instr *TableInserter) insertDistinctIdxAndDataRecords(logger *l.CapiLogger
 		}
 	} // retry loop
 
-	errorToReport := fmt.Errorf("cannot insert distinct idx/data records after %d attempts", maxRetries)
+	errorToReport := fmt.Errorf("cannot insert distinct idx/data records after %d attempts", instr.MaxDuplicateRetries)
 	logger.ErrorCtx(pCtx, "%s", errorToReport.Error())
 	return curRowid, errorToReport
 }
