@@ -281,16 +281,15 @@ func selectBatchFromTableByToken(logger *l.CapiLogger,
 		if err == nil {
 			break
 		}
-		if strings.Contains(err.Error(), "Operation timed out") {
-			if retryCount >= maxRetries-1 {
-				return 0, db.WrapDbErrorWithQuery(fmt.Sprintf("cannot close iterator after %d attempts and %dms, still getting timeouts", retryCount+1, cql.SumOfExpBackoffDelaysMs(operationTimedOutPauseMillis, int64(expBackoffFactorMultiplier), retryCount)), q, err)
-			}
-			logger.WarnCtx(pCtx, "cluster overloaded (%s), will wait for %dms before closing iterator %s again, retry count %d", err.Error(), operationTimedOutPauseMillis*curDataExpBackoffFactor, fmt.Sprintf("%s%s", tableName, cql.RunIdSuffix(pCtx.BatchInfo.RunId)), retryCount)
-			time.Sleep(time.Duration(operationTimedOutPauseMillis*curDataExpBackoffFactor) * time.Millisecond)
-			curDataExpBackoffFactor *= expBackoffFactorMultiplier
-		} else {
+		if !strings.Contains(err.Error(), "Operation timed out") {
 			return 0, db.WrapDbErrorWithQuery("cannot close iterator", q, err)
 		}
+		if retryCount >= maxRetries-1 {
+			return 0, db.WrapDbErrorWithQuery(fmt.Sprintf("cannot close iterator after %d attempts and %dms, still getting timeouts", retryCount+1, cql.SumOfExpBackoffDelaysMs(operationTimedOutPauseMillis, int64(expBackoffFactorMultiplier), retryCount)), q, err)
+		}
+		logger.WarnCtx(pCtx, "cluster overloaded (%s), will wait for %dms before closing iterator %s again, retry count %d", err.Error(), operationTimedOutPauseMillis*curDataExpBackoffFactor, fmt.Sprintf("%s%s", tableName, cql.RunIdSuffix(pCtx.BatchInfo.RunId)), retryCount)
+		time.Sleep(time.Duration(operationTimedOutPauseMillis*curDataExpBackoffFactor) * time.Millisecond)
+		curDataExpBackoffFactor *= expBackoffFactorMultiplier
 	}
 
 	return lastRetrievedToken, nil
