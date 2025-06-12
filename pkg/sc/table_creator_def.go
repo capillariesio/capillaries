@@ -24,7 +24,7 @@ type TableUpdaterDef struct {
 
 type TableCreatorDef struct {
 	Name                          string                         `json:"name" yaml:"name"`
-	CreateProperties              string                         `json:"create_properties" yaml:"create_properties"`
+	CreateProperties              string                         `json:"table_options" yaml:"table_options"`
 	RawHaving                     string                         `json:"having,omitempty" yaml:"having,omitempty"`
 	Having                        ast.Expr                       `json:"-"`
 	UsedInHavingFields            FieldRefs                      `json:"-"`

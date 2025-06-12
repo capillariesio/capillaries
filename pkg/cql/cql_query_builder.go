@@ -25,6 +25,14 @@ const (
 	ForceUnquote
 )
 
+func SumOfExpBackoffDelaysMs(startDelayMs int64, expBackoffFactorMultiplier int64, iteration int) int64 {
+	s := int64(0)
+	for i := range iteration + 1 {
+		s += startDelayMs * int64(math.Pow(float64(expBackoffFactorMultiplier), float64(i)))
+	}
+	return s
+}
+
 /*
 Data/idx table name for each run needs run id as a suffix
 */

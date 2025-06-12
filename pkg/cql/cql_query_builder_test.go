@@ -107,3 +107,8 @@ func TestInsertPrepared(t *testing.T) {
 	s, _ := dataQb.InsertRunPreparedQuery("table1", 123, IgnoreIfExists)
 	assert.Equal(t, "INSERT INTO table1_00123 ( col_int ) VALUES ( ? ) IF NOT EXISTS;", s)
 }
+
+func TestSumOfExpBackoffDelaysMs(t *testing.T) {
+	assert.Equal(t, int64(200), SumOfExpBackoffDelaysMs(200, 2, 0))
+	assert.Equal(t, int64(200+400+800+1600+3200), SumOfExpBackoffDelaysMs(200, 2, 4))
+}
