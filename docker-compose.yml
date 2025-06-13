@@ -230,3 +230,9 @@ services:
 # docker image rm $(docker images | grep -e daemon -e webapi | awk '{print $3}')
 # Delete all images
 # docker image rm $(docker images | awk '{print $3}')
+
+# Shell to Cassandra:
+# docker exec -it $(docker container ls | grep cassandra | awk '{print $1}') bash
+
+# Build one image
+# docker compose -p "test_capillaries_containers" build cassandra1

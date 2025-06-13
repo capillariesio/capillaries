@@ -10,8 +10,8 @@ resource "aws_network_interface" "daemon_internal_ip" {
 }
 
 resource "aws_instance" "daemon" {
-   instance_type          = var.bastion_instance_type
-   ami                    = var.bastion_ami_name
+   instance_type          = var.daemon_instance_type
+   ami                    = var.daemon_ami_name
    count                  = var.number_of_daemons
    key_name               = var.ssh_keypair_name
    network_interface {
