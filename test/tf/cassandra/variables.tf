@@ -108,7 +108,7 @@ variable "cassandra_password" {
 variable "cassandra_instance_type" {
 	type        = string
 	description = "Make sure it's in the nvme_regex_map list"
-    default     = "c7gd.large"
+    default     = "c7gd.xlarge"
 }
 
 variable "cassandra_ami_name" {
@@ -150,7 +150,7 @@ variable "cassandra_initial_tokens_4" {
 variable "cassandra_initial_tokens_map" {
 	type = map(list(string))
 	default = {
-		"1" = [""]
+		"1" = ["-9223372036854775808"]
 		"2" = ["-9223372036854775808", "0"]
 		"3" = ["-9223372036854775808", "-3074457345618258603", "3074457345618258602"]
 		"4" = ["-9223372036854775808", "-4611686018427387904", "0", "4611686018427387904"]
@@ -169,7 +169,7 @@ variable "nvme_regex_map" {
     "c5ad.4xlarge"  = "nvme[0-9]n[0-9] [0-9]+.[0-9]G" # quick_lookup 23s, cass lsblk: "nvme1n1 259:0 0 279.4G  0 disk /data0"
     "c5ad.8xlarge"  = "nvme[0-9]n[0-9] 558.8G"
     "c5ad.16xlarge" = "nvme[0-9]n[0-9] [0-9]+.[0-9]T"
-	"c7gd.large"    = "nvme[0-9]n[0-9] [0-9]+.[0-9]G"
+	"c7gd.large"    = "nvme[0-9]n[0-9] 109.9G"
     "c7gd.xlarge"   = "nvme[0-9]n[0-9] 220.7G" # quick_lookup 23s, lsblk: cassandra data0 nvme1n1 220.7G, bastion /mnt/capi_log nvme1n1 10G
     "c7gd.2xlarge"  = "nvme[0-9]n[0-9] [0-9]+.[0-9]G"
     "c7gd.4xlarge"  = "nvme[0-9]n[0-9] 884.8G"

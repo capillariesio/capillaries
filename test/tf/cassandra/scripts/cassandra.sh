@@ -6,6 +6,14 @@ if [ "$SSH_USER" = "" ]; then
   echo Error, missing: SSH_USER=ubuntu
   exit 1
 fi
+if [ "$PROMETHEUS_NODE_EXPORTER_VERSION" = "" ]; then
+  echo Error, missing: PROMETHEUS_NODE_EXPORTER_VERSION=1.2.3
+  exit 1
+fi
+if [ "$JMX_EXPORTER_VERSION" = "" ]; then
+  echo Error, missing: JMX_EXPORTER_VERSION=1.0.1
+  exit 1
+fi
 if [ "$CASSANDRA_VERSION" = "" ]; then
   echo Error, missing: CASSANDRA_VERSION=50x
   exit 1
@@ -352,21 +360,21 @@ sudo rm -f rm /etc/cassandra/cassandra-topology.properties
 mount_device(){
 	local mount_dir="/data"$1
  	local device_name=$2
-    echo Mounting $device_name at $mount_dir
+    echo Checking to mount $device_name at $mount_dir ...
     if [ "$(lsblk -f | grep -E $device_name'[ ]+xfs')" == "" ]; then
-      echo Formatting partition
+      echo Formatting partition ...
 	    sudo mkfs -t xfs /dev/$device_name
     else
       echo Partition already formatted
     fi
     if [ ! -d "$mount_dir" ]; then
-      echo Creating $mount_dir
+      echo Creating $mount_dir ...
 	  sudo mkdir $mount_dir
     else
       echo $mount_dir already created
     fi
     if [ "$(lsblk -f | grep $mount_dir)" == "" ]; then
-      echo Mounting...
+      echo Mounting /dev/$device_name as $mount_dir ... 
 	    sudo mount /dev/$device_name $mount_dir
     else
       echo Already mounted

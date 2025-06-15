@@ -17,8 +17,9 @@ rm -fR aws
 rm awscliv2.zip
 popd
 
+echo Downloading s3://${capillaries_tf_deploy_temp_bucket_name}/cassandra.sh ...
 sudo aws s3 cp s3://${capillaries_tf_deploy_temp_bucket_name}/cassandra.sh /tmp/
 sudo chmod +x /tmp/cassandra.sh
 sudo chown ${ssh_user} /tmp/cassandra.sh
-echo Running cassandra.sh with ${cassandra_provisioner_vars} ...
+echo Running cassandra.sh with ${cassandra_provisioner_vars} as ${ssh_user} ...
 sudo su ${ssh_user} -c '${cassandra_provisioner_vars} /tmp/cassandra.sh > /tmp/cassandra.out 2>/tmp/cassandra.err'

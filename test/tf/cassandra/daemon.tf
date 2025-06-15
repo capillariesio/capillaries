@@ -22,7 +22,10 @@ resource "aws_instance" "daemon" {
     network_interface_id = aws_network_interface.daemon_internal_ip[count.index].id
     device_index         = 0
   }
+
+  # Daemon needs to assume this role to access S3 bucket to get cloud-init daemon.sh and read/write data
   iam_instance_profile = aws_iam_instance_profile.capillaries_instance_profile.name
+  
   user_data              = templatefile("./daemon.sh.tpl", {
     os_arch                                = var.os_arch
     ssh_user                               = var.ssh_user

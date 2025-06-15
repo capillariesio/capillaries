@@ -17,8 +17,9 @@ rm -fR aws
 rm awscliv2.zip
 popd
 
+echo Downloading s3://${capillaries_tf_deploy_temp_bucket_name}/daemon.sh ...
 sudo aws s3 cp s3://${capillaries_tf_deploy_temp_bucket_name}/daemon.sh /tmp/
 sudo chmod +x /tmp/daemon.sh
 sudo chown ${ssh_user} /tmp/daemon.sh
-echo Running daemon.sh with ${daemon_provisioner_vars} ...
+echo Running daemon.sh with ${daemon_provisioner_vars} as ${ssh_user} ...
 sudo su ${ssh_user} -c '${daemon_provisioner_vars} /tmp/daemon.sh > /tmp/daemon.out 2>/tmp/daemon.err'

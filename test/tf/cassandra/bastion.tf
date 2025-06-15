@@ -31,6 +31,8 @@ resource "aws_instance" "bastion" {
     network_interface_id = aws_network_interface.bastion_internal_ip.id
     device_index         = 0
   }
+  
+  # Bastion needs to assume this role to access S3 bucket to get cloud-init bastion.sh
   iam_instance_profile = aws_iam_instance_profile.capillaries_instance_profile.name
 
   user_data              = templatefile("./bastion.sh.tpl", {
