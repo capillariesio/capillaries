@@ -37,6 +37,17 @@ variable "ssh_keypair_name" {
     default     = "sampledeployment005-root-key"
 }
 
+# variable "ssh_keypair_root_key_file" {
+# 	type        = string
+# 	description = "Path to local copy of the private key used to access instances via SSH"
+#     default     = "~/.ssh/sampledeployment005_rsa"
+# }
+
+variable "capillaries_tf_deploy_temp_bucket_name" {
+	type = string
+	default = "capillaries-tf-deploy-temp-bucket"
+}
+
 variable "bastion_instance_type" {
 	type        = string
     default     = "c7g.large"
@@ -50,7 +61,7 @@ variable "bastion_ami_name" {
 
 variable "number_of_daemons" {
 	type        = number
-	default     = 2
+	default     = 1
 }
 
 variable "daemon_instance_type" {
@@ -66,18 +77,14 @@ variable "daemon_ami_name" {
 
 variable "daemon_writer_workers" {
 	type        = number
+	description = "From 5 to 20"
     default     = 8
-}
-variable "daemon_thread_pool_size" {
-	type        = number
-	description = "Number of Daemon instance CPUs x1.5"
-    default     = 3
 }
 
 variable "number_of_cassandra_hosts" {
 	type        = number
 	description = "90 max, because IP address starts with 11, and 101 is a daemon"
-	default     = 2
+	default     = 1
 }
 
 variable "cassandra_port" {
@@ -143,6 +150,7 @@ variable "cassandra_initial_tokens_4" {
 variable "cassandra_initial_tokens_map" {
 	type = map(list(string))
 	default = {
+		"1" = [""]
 		"2" = ["-9223372036854775808", "0"]
 		"3" = ["-9223372036854775808", "-3074457345618258603", "3074457345618258602"]
 		"4" = ["-9223372036854775808", "-4611686018427387904", "0", "4611686018427387904"]
@@ -155,6 +163,7 @@ variable "cassandra_initial_tokens_map" {
 variable "nvme_regex_map" {
   type = map(string)
   default = {
+	"c5ad.large"    = "nvme[0-9]n[0-9] [0-9]+.[0-9]G"
     "c5ad.xlarge"   = "nvme[0-9]n[0-9] 139.7G"
     "c5ad.2xlarge"  = "nvme[0-9]n[0-9] 279.4G" # quick_lookup 23s, bastion lsblk: "xvdf 202:80 0 10G  0 disk /mnt/capi_log", cass lsblk: "nvme1n1 259:1 0 139.7G 0 disk"
     "c5ad.4xlarge"  = "nvme[0-9]n[0-9] [0-9]+.[0-9]G" # quick_lookup 23s, cass lsblk: "nvme1n1 259:0 0 279.4G  0 disk /data0"
@@ -166,6 +175,24 @@ variable "nvme_regex_map" {
     "c7gd.4xlarge"  = "nvme[0-9]n[0-9] 884.8G"
     "c7gd.8xlarge"  = "nvme[0-9]n[0-9] 1.7T"
     "c7gd.16xlarge" = "nvme[0-9]n[0-9] 1.7T"
+  }
+}
+
+# Number of vCPUs x 1.5
+variable "thread_pool_size_map" {
+  type = map(number)
+  default = {
+	"c6a.large"    = 3
+    "c6a.xlarge"   = 6
+    "c6a.2xlarge"  = 12
+    "c6a.4xlarge"  = 24
+	"c6a.8xlarge"  = 48
+	"c7g.medium"   = 1
+	"c7g.large"    = 3
+    "c7g.xlarge"   = 6
+    "c7g.2xlarge"  = 12
+    "c7g.4xlarge"  = 24
+    "c7g.8xlarge"  = 48
   }
 }
 
@@ -181,7 +208,7 @@ variable "external_webapi_port" {
 
 variable "external_rabbitmq_console_port" {
 	type    = string
-	default = "15672"
+	default = "15673"
 }
 
 variable "external_prometheus_console_port" {
@@ -253,8 +280,8 @@ variable "prometheus_server_version" {
 locals {
 	cassandra_hosts          = join(",",[ for i in range(var.number_of_cassandra_hosts) : format("10.5.0.%02s", i+11) ])
     cassandra_initial_tokens = var.cassandra_initial_tokens_map[var.number_of_cassandra_hosts]
-	rabbitmq_url             = join("",["amqps://", var.rabbitmq_user_name, ":", var.rabbitmq_user_pass, "@10.5.0.5/"])
-    prometheus_targets       = join(",",concat( # \'localhost:9100\',\'10.5.1.10:9100\'"
+	rabbitmq_url             = join("",["amqp://", var.rabbitmq_user_name, ":", var.rabbitmq_user_pass, "@10.5.1.10/"])
+    prometheus_targets       = join(",",concat( # "\'localhost:9100\',\'10.5.1.10:9100\'"
 		                ["'localhost:9100'"], // bastion node exporter
 						[ for i in range(var.number_of_cassandra_hosts) : format("'10.5.0.%02s:9100'", i+11) ], // cassandra node exporters
 						[ for i in range(var.number_of_daemons) : format("'10.5.0.1%02s:9100'", i+1) ], // daemon node expoters

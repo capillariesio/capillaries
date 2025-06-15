@@ -34,14 +34,16 @@ resource "aws_security_group" "capillaries_securitygroup_bastion" {
   }
 }
 
-resource "aws_security_group" "capillaries_securitygroup_daemon" {
-  name = "capillaries_securitygroup_daemon"
-  description = "capillaries_securitygroup_daemon"
+resource "aws_security_group" "capillaries_securitygroup_private" {
+  name = "capillaries_securitygroup_private"
+  description = "capillaries_securitygroup_private"
   vpc_id = aws_vpc.main_vpc.id
   tags = {
-    "Name" = "capillaries_securitygroup_daemon"
+    "Name" = "capillaries_securitygroup_private"
   }
 }
+
+# Bastion
 
 resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_bastion_ssh" {
   description = "External SSH"
@@ -52,7 +54,7 @@ resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_bastion_ssh" {
   to_port           = 22
 }
 
-resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_bastion_webapi" {
+resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_bastion_webapi_external" {
   description = "Capillaries WebAPI external port"
   security_group_id = aws_security_group.capillaries_securitygroup_bastion.id
   cidr_ipv4         = "0.0.0.0/0"
@@ -70,6 +72,42 @@ resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_bastion_capiui" {
   to_port           = 80
 }
 
+resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_bastion_prometheus_node_exporter" {
+  description = "Capillaries Prometheus node exporter"
+  security_group_id = aws_security_group.capillaries_securitygroup_bastion.id
+  cidr_ipv4         = aws_vpc.main_vpc.cidr_block
+  from_port         = 9100
+  ip_protocol       = "tcp"
+  to_port           = 9100
+}
+
+resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_bastion_rabbitmq_api" {
+  description = "RabbitMQ API"
+  security_group_id = aws_security_group.capillaries_securitygroup_bastion.id
+  cidr_ipv4         = aws_vpc.main_vpc.cidr_block
+  from_port         = 5672
+  ip_protocol       = "tcp"
+  to_port           = 5672
+}
+
+resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_bastion_rabbitmq_console_external" {
+  description = "RabbitMQ console (external)"
+  security_group_id = aws_security_group.capillaries_securitygroup_bastion.id
+  cidr_ipv4         = "0.0.0.0/0"
+  from_port         = var.external_rabbitmq_console_port
+  ip_protocol       = "tcp"
+  to_port           = var.external_rabbitmq_console_port
+}
+
+resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_bastion_prometheus_console_external" {
+  description = "Prometheus console (external)"
+  security_group_id = aws_security_group.capillaries_securitygroup_bastion.id
+  cidr_ipv4         = "0.0.0.0/0"
+  from_port         = var.external_prometheus_console_port
+  ip_protocol       = "tcp"
+  to_port           = var.external_prometheus_console_port
+}
+
 resource "aws_vpc_security_group_egress_rule" "capillaries_sg_bastion_egress_all" {
   description = "Allow all outbound traffic"
   security_group_id = aws_security_group.capillaries_securitygroup_bastion.id
@@ -79,18 +117,65 @@ resource "aws_vpc_security_group_egress_rule" "capillaries_sg_bastion_egress_all
   to_port           = 0
 }
 
-resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_daemon_ssh" {
+# Internal
+
+resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_private_ssh" {
   description = "Internal SSH"
-  security_group_id = aws_security_group.capillaries_securitygroup_daemon.id
+  security_group_id = aws_security_group.capillaries_securitygroup_private.id
   cidr_ipv4         = aws_vpc.main_vpc.cidr_block
   from_port         = 22
   ip_protocol       = "tcp"
   to_port           = 22
 }
 
-resource "aws_vpc_security_group_egress_rule" "capillaries_sg_daemon_egress_all" {
+resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_private_prometheus_node_exporter" {
+  description = "Prometheus node exporter"
+  security_group_id = aws_security_group.capillaries_securitygroup_private.id
+  cidr_ipv4         = aws_vpc.main_vpc.cidr_block
+  from_port         = 9100
+  ip_protocol       = "tcp"
+  to_port           = 9100
+}
+
+resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_private_jmx_exporter" {
+  description = "JMX exporter"
+  security_group_id = aws_security_group.capillaries_securitygroup_private.id
+  cidr_ipv4         = aws_vpc.main_vpc.cidr_block
+  from_port         = 7070
+  ip_protocol       = "tcp"
+  to_port           = 7070
+}
+
+resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_private_cassandra_jmx" {
+  description = "Cassandra JMX"
+  security_group_id = aws_security_group.capillaries_securitygroup_private.id
+  cidr_ipv4         = aws_vpc.main_vpc.cidr_block
+  from_port         = 7199
+  ip_protocol       = "tcp"
+  to_port           = 7199
+}
+
+resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_private_cassandra_cluster_comm" {
+  description = "Cassandra cluster comm"
+  security_group_id = aws_security_group.capillaries_securitygroup_private.id
+  cidr_ipv4         = aws_vpc.main_vpc.cidr_block
+  from_port         = 7000
+  ip_protocol       = "tcp"
+  to_port           = 7000
+}
+
+resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_private_cassandra_api" {
+  description = "Cassandra API"
+  security_group_id = aws_security_group.capillaries_securitygroup_private.id
+  cidr_ipv4         = aws_vpc.main_vpc.cidr_block
+  from_port         = 9042
+  ip_protocol       = "tcp"
+  to_port           = 9042
+}
+
+resource "aws_vpc_security_group_egress_rule" "capillaries_sg_private_egress_all" {
   description = "Allow all outbound traffic"
-  security_group_id = aws_security_group.capillaries_securitygroup_daemon.id
+  security_group_id = aws_security_group.capillaries_securitygroup_private.id
   cidr_ipv4         = "0.0.0.0/0"
   from_port         = 0
   ip_protocol       = "-1"

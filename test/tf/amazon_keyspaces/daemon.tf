@@ -2,7 +2,7 @@ resource "aws_network_interface" "daemon_internal_ip" {
   count         = var.number_of_daemons
   subnet_id     = aws_subnet.private_subnet.id
   private_ips   = [format("10.5.0.1%02s", count.index+1)] // 10.5.0.101, 10.5.0.102, ...
-  security_groups = [aws_security_group.capillaries_securitygroup_daemon.id]
+  security_groups = [aws_security_group.capillaries_securitygroup_private.id]
 
   tags = {
     Name = format("capillaries_daemon_internal_ip_1%02s", count.index+1)

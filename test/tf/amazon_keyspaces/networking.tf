@@ -34,12 +34,12 @@ resource "aws_security_group" "capillaries_securitygroup_bastion" {
   }
 }
 
-resource "aws_security_group" "capillaries_securitygroup_daemon" {
-  name = "capillaries_securitygroup_daemon"
-  description = "capillaries_securitygroup_daemon"
+resource "aws_security_group" "capillaries_securitygroup_private" {
+  name = "capillaries_securitygroup_private"
+  description = "capillaries_securitygroup_private"
   vpc_id = aws_vpc.main_vpc.id
   tags = {
-    "Name" = "capillaries_securitygroup_daemon"
+    "Name" = "capillaries_securitygroup_private"
   }
 }
 
@@ -79,18 +79,18 @@ resource "aws_vpc_security_group_egress_rule" "capillaries_sg_bastion_egress_all
   to_port           = 0
 }
 
-resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_daemon_ssh" {
+resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_private_ssh" {
   description = "Internal SSH"
-  security_group_id = aws_security_group.capillaries_securitygroup_daemon.id
+  security_group_id = aws_security_group.capillaries_securitygroup_private.id
   cidr_ipv4         = aws_vpc.main_vpc.cidr_block
   from_port         = 22
   ip_protocol       = "tcp"
   to_port           = 22
 }
 
-resource "aws_vpc_security_group_egress_rule" "capillaries_sg_daemon_egress_all" {
+resource "aws_vpc_security_group_egress_rule" "capillaries_sg_private_egress_all" {
   description = "Allow all outbound traffic"
-  security_group_id = aws_security_group.capillaries_securitygroup_daemon.id
+  security_group_id = aws_security_group.capillaries_securitygroup_private.id
   cidr_ipv4         = "0.0.0.0/0"
   from_port         = 0
   ip_protocol       = "-1"
