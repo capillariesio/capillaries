@@ -80,9 +80,6 @@ Cassandra read/write statistics collected by Prometheus available at:
 
 ## Further steps
 
-### Kubernetes
-There is a [Kubernetes deployment POC](./test/k8s/README.md), but it may require some work: Minikube cluster setup, S3 buckets with proper permissions, S3-based Docker image repositories.
-
 ### Blog at <a href="https://capillaries.io/blog">capillaries.io</a>
 For more details about this particular demo, see Capillaries blog: [Use Capillaries to calculate ARK portfolio performance](https://capillaries.io/blog/2023-04-08-portfolio/index.html). To learn how this demo runs on a bigger dataset with 14 million transactions, see [Capillaries: ARK portfolio performance calculation at scale](https://capillaries.io/blog/2023-11-15-portfolio-scale/index.html).
 
@@ -93,11 +90,11 @@ For more details about getting started, see [Getting started](doc/started.md).
 
 #### Container-based deployments
 
-Capillaries binaries are intended to be container-friendly. Check out the `docker-compose.yml` and [Kubernetes deployment POC](./test/k8s/README.md), these test projects may be a good starting point for creating your full-scale container-based deployment.
+Capillaries binaries are intended to be container-friendly. Check out the `docker-compose.yml` and [Kubernetes deployment POC](./deploy/k8s/README.md), these test projects may be a good starting point for creating your full-scale container-based deployment.
 
 #### VM-based deployment
 
-See [Terraform script](./test/tf/README.md) that creates Capillaries deployment in AWS.
+See [Terraform script](./deploy/tf/cassandra_cluster/README.md) that creates Capillaries deployment in AWS.
 
 ## Capillaries in depth
 

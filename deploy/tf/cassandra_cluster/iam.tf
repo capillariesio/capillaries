@@ -28,3 +28,10 @@ resource "aws_iam_role_policy_attachment" "capillaries_s3_access_policy_attachme
   role       = aws_iam_role.capillaries_assume_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
 }
+
+# For AWS CLI access, instances use instance profile
+resource "aws_iam_instance_profile" "capillaries_instance_profile" {
+  name = "capillaries_instance_profile"
+  role = aws_iam_role.capillaries_assume_role.name
+}
+

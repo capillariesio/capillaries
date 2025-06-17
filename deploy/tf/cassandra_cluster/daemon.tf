@@ -29,6 +29,7 @@ resource "aws_instance" "daemon" {
   user_data              = templatefile("./daemon.sh.tpl", {
     os_arch                                = var.os_arch
     ssh_user                               = var.ssh_user
+    capillaries_instance_profile           = aws_iam_instance_profile.capillaries_instance_profile.name
     daemon_provisioner_vars                = local.daemon_provisioner_vars
     capillaries_tf_deploy_temp_bucket_name = var.capillaries_tf_deploy_temp_bucket_name
   })  

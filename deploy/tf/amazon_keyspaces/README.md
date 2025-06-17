@@ -30,8 +30,6 @@ TF variables: `s3_log_url`
 
 ## Amazon Keyspaces
 
-This section applies to the tf/amazon_keyspaces Terraform script only.
-
 Amazon Keyspaces database can be either in the selected AWS region (`us-east-1`) or in some other region.
 
 Make sure your database uses MurMur3 partitioner (gocql does not support com.amazonaws.cassandra.DefaultPartitioner)
@@ -49,8 +47,6 @@ with username/password credentials generated:
 TF variables: `cassandra_hosts`, `cassandra_port`, `TF_VAR_CASSANDRA_USERNAME`, `TF_VAR_CASSANDRA_PASSWORD`
 
 ## RabbitMQ broker
-
-This section applies to the tf/amazon_keyspaces Terraform script only.
 
 Make sure you have a RabbitMQ Broker running in AWS. In RabbitMQ admin console, create a user with access to virtual hosts,  [Webapi](../../doc/glossary.md#webapi) and [Daemon](../../doc/glossary.md#daemon) will use its credentials to access RabbitMQ:
 
@@ -70,7 +66,6 @@ Sensitive TF variables can be set from environment variables as follows:
 
 ```
 export TF_VAR_BASTION_ALLOWED_IPS="123.234.0.0/16,111.222.0.5"
-# Amazon Keyspaces only
 export TF_VAR_RABBITMQ_URL="amqps://capiuser:capipass@d-12345678-1234-1234-1234-123456781234.mq.us-east-1.on.aws:5671"
 export TF_VAR_CASSANDRA_USERNAME="UserAccessCapillariesKeyspaces-at-XXXXXXXX"
 export TF_VAR_CASSANDRA_PASSWORD="..."

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Upload binaries to S3 bucket so they can be used by capillaries-deploy or test/tf Terraform script.
+# Upload binaries to S3 bucket so they can be used by capillaries-deploy or deploy/tf Terraform script.
 
 # Assuming the bucket $1 (s3://capillaries-release/latest) is publicly accessible for read (no write, and no directory listing)
 # {
