@@ -22,7 +22,7 @@ type TableRecord map[string]any
 type TableRecordPtr *map[string]any
 type TableRecordBatch []TableRecordPtr
 
-const DefaultInserterBatchSize int = 5000
+const DefaultInserterBatchSize int = 1000 // 5000 may cause OOM on c7g.large daemon boxes when loading portfolio bigtest parquet files
 const MaxAmazonKeyspacesInElements int = 100
 
 /*

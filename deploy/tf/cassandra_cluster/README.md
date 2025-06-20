@@ -76,6 +76,8 @@ and access them using this command (daemon instance IP addresses end with 101, 1
 ssh -o StrictHostKeyChecking=no -i ~/.ssh/your_keypair_private_key -J $BASTION_IP ubuntu@10.5.0.101
 ```
 
+Before running any tests, make sure Cassandra is up by navigating to `http://$BASTION_IP` and making sure there are no errors.
+
 To run a simple lookup test, use:
 ```
 cd test/code/lookup/quicktest_s3

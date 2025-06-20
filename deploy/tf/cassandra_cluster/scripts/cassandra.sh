@@ -303,6 +303,8 @@ sudo sed -i -e "s~endpoint_snitch:[\: \"a-zA-Z0-9\.]*~endpoint_snitch: SimpleSni
 sudo sed -i -e "s~debug.log.%d{yyyy-MM-dd}.%i.zip~debug.log.%d{\"yyyy-MM-dd'T'HH-mm\"}.%i.gz~g" /etc/cassandra/logback.xml
 # Keep at least 60 min of debug.log and system.log history
 sudo sed -i -e "s~<maxHistory>7</maxHistory>~<maxHistory>60</maxHistory>~g" /etc/cassandra/logback.xml
+# Add node address to log msg
+sudo sed -i -e "s~<pattern>%-5level~<pattern>$HOSTNAME %-5level~g" /etc/cassandra/logback.xml
 
 # No need to logrotate, Cassandra uses log4j, configure it conservatively
 sudo sed -i -e "s~<maxFileSize>[^<]*</maxFileSize>~<maxFileSize>10MB</maxFileSize>~g" /etc/cassandra/logback.xml
@@ -417,9 +419,9 @@ for f in /var/log/cassandra/debug.log.*.gz; do
     # Do not send empty files
     if [[ \$filesize -ge 200 ]]; then
        echo \$newfilepath not empty \$filesize bytes
-       mv \$f \$newfilepath
+       sudo mv \$f \$newfilepath
        aws s3 cp \$newfilepath $S3_LOG_URL/
-       rm \$newfilepath
+       sudo rm \$newfilepath
     else
        echo \$newfilepath empty \$filesize bytes
     fi

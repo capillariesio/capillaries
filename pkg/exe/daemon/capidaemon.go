@@ -3,12 +3,17 @@ package main
 import (
 	"context"
 	"log"
+
+	// "net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	_ "net/http/pprof"
+
 	"github.com/hashicorp/golang-lru/v2/expirable"
+	// "github.com/pkg/profile"
 
 	"github.com/capillariesio/capillaries/pkg/custom/py_calc"
 	"github.com/capillariesio/capillaries/pkg/custom/tag_and_denormalize"
@@ -48,6 +53,12 @@ func (f *StandardDaemonProcessorDefFactory) Create(processorType string) (sc.Cus
 var version string
 
 func main() {
+	// defer profile.Start(profile.MemProfile).Stop()
+	// go func() {
+	// 	http.ListenAndServe("localhost:8081", nil)
+	// }()
+	// curl http://localhost:8081/debug/pprof/heap > heap.01.pprof
+
 	initCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 

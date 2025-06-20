@@ -60,7 +60,7 @@ variable "number_of_daemons" {
 
 variable "daemon_instance_type" {
 	type        = string
-    default     = "c7g.xlarge"
+    default     = "c7g.large"
 }
 
 variable "daemon_ami_name" {
@@ -71,8 +71,8 @@ variable "daemon_ami_name" {
 
 variable "daemon_writer_workers" {
 	type        = number
-	description = "From 5 to 20"
-    default     = 16
+	description = "From 5 to 20, depending on Cassandra latency; common is one cassandra node cores per cpu / 2, aggressive is one cassandra node cores per cpu * 0.75"
+    default     = 6 # c7gd.2xlarge is 8 cores, so 8*0.75=6
 }
 
 variable "number_of_cassandra_hosts" {
@@ -148,7 +148,7 @@ variable "nvme_regex_map" {
     "c5ad.16xlarge" = "nvme[0-9]n[0-9] [0-9]+.[0-9]T"
 	"c7gd.large"    = "nvme[0-9]n[0-9] 109.9G"
     "c7gd.xlarge"   = "nvme[0-9]n[0-9] 220.7G" # quick_lookup 23s, lsblk: cassandra data0 nvme1n1 220.7G, bastion /mnt/capi_log nvme1n1 10G
-    "c7gd.2xlarge"  = "nvme[0-9]n[0-9] [0-9]+.[0-9]G"
+    "c7gd.2xlarge"  = "nvme[0-9]n[0-9] 441.4G" # 4-1597s
     "c7gd.4xlarge"  = "nvme[0-9]n[0-9] 884.8G"
     "c7gd.8xlarge"  = "nvme[0-9]n[0-9] 1.7T"
     "c7gd.16xlarge" = "nvme[0-9]n[0-9] 1.7T"

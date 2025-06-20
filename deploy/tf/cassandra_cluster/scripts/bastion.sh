@@ -372,7 +372,7 @@ if [ -s /var/log/capillaries/capiwebapi.log ]; then
   # Send SIGHUP to the running binary, it will rotate the log using Lumberjack
   ps axf | grep capiwebapi | grep -v grep | awk '{print "kill -s 1 " \$1}' | sh
   for f in /var/log/capillaries/*.gz;do
-    if [ -e \$f ]; then
+    if [[ -e \$f && \$f=~^capi* ]]; then
       # Lumberjack produces: capiwebapi-2025-05-03T21-37-01.283.log.gz
       # Add hostname to it: capiwebapi-2025-05-03T21-37-01.283.ip-10-5-1-10.log.gz
       fname=\$(basename -- "\$f")
