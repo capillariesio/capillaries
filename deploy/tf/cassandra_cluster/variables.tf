@@ -55,7 +55,7 @@ variable "bastion_ami_name" {
 
 variable "number_of_daemons" {
 	type        = number
-	default     = 4
+	default     = 8
 }
 
 variable "daemon_instance_type" {
@@ -69,16 +69,10 @@ variable "daemon_ami_name" {
     default     =  "ami-04474687c34a061cf"
 }
 
-variable "daemon_writer_workers" {
-	type        = number
-	description = "From 5 to 20, depending on Cassandra latency; common is one cassandra node cores per cpu / 2, aggressive is one cassandra node cores per cpu * 0.75"
-    default     = 6 # c7gd.2xlarge is 8 cores, so 8*0.75=6
-}
-
 variable "number_of_cassandra_hosts" {
 	type        = number
 	description = "90 max, because IP address starts with 11, and 101 is a daemon"
-	default     = 4
+	default     = 8
 }
 
 variable "cassandra_port" {
@@ -137,6 +131,115 @@ variable "cassandra_initial_tokens_map" {
 	}
 }
 
+variable "instance_hourly_cost" {
+	type = map(number)
+	description = "As of June 2025"
+	default = {
+		"t2.nano" = 0.0058
+		"t2.micro" = 0.0116
+		"t2.small" = 0.0230
+		"t2.medium" = 0.0464
+		"t2.large" = 0.0928
+		"t2.xlarge" = 0.1856
+		"t2.2xlarge" = 0.3712
+		"c5ad.large" = 0.0860
+		"c5ad.xlarge" = 0.1720
+		"c5ad.2xlarge" = 0.3440
+		"c5ad.4xlarge" = 0.6880
+		"c5ad.8xlarge" = 1.3760
+		"c5ad.12xlarge" = 2.0640
+		"c5ad.16xlarge" = 2.7520
+		"c5ad.24xlarge" = 4.1280
+		"c6a.large" = 0.0765
+		"c6a.xlarge" = 0.1530
+		"c6a.2xlarge" = 0.3060
+		"c6a.4xlarge" = 0.6120
+		"c6a.8xlarge" = 1.2240
+		"c6a.12xlarge" = 1.8360
+		"c6a.16xlarge" = 2.4480
+		"c6a.24xlarge" = 3.6720
+		"c6a.32xlarge" = 4.8960
+		"c6a.metal" = 7.3440
+		"c6a.48xlarge" = 7.3440
+		"c7g.medium" = 0.0363
+		"c7g.large" = 0.0725
+		"c7g.xlarge" = 0.1450
+		"c7g.2xlarge" = 0.2900
+		"c7g.4xlarge" = 0.5800
+		"c7g.8xlarge" = 1.1600
+		"c7g.12xlarge" = 1.7400
+		"c7g.16xlarge" = 2.3200
+		"c7g.metal" = 2.3200
+		"c7gd.medium" = 0.0454
+		"c7gd.large" = 0.0907
+		"c7gd.xlarge" = 0.1814
+		"c7gd.2xlarge" = 0.3629
+		"c7gd.4xlarge" = 0.7258
+		"c7gd.8xlarge" = 1.4515
+		"c7gd.12xlarge" = 2.1773
+		"c7gd.16xlarge" = 2.9030		
+		"c7gd.metal" = 2.9030
+		"c8g.medium" = 0.03988
+		"c8g.large" = 0.07976
+		"c8g.xlarge" = 0.15952
+		"c8g.2xlarge" = 0.31904
+		"c8g.4xlarge" = 0.63808
+		"c8g.8xlarge" = 1.27616
+		"c8g.12xlarge" = 1.91424
+		"c8g.16xlarge" = 2.55232
+		"c8gd.medium" = 0.04899
+		"c8gd.large" = 0.09798
+		"c8gd.xlarge" = 0.19596
+		"c8gd.2xlarge" = 0.39192
+		"c8gd.4xlarge" = 0.78384
+		"c8gd.8xlarge" = 1.56768
+		"c8gd.12xlarge" = 2.35152
+		"c8gd.16xlarge" = 3.13536		
+	}
+}
+variable "cpu_count_map" {
+  type = map(number)
+  default = {
+	// Daemon
+	"c6a.large"    = 2
+    "c6a.xlarge"   = 4
+    "c6a.2xlarge"  = 8
+    "c6a.4xlarge"  = 16
+	"c6a.8xlarge"  = 32
+	"c7g.medium"   = 1
+	"c7g.large"    = 2
+    "c7g.xlarge"   = 4
+    "c7g.2xlarge"  = 8
+    "c7g.4xlarge"  = 16
+    "c7g.8xlarge"  = 32
+	"c8g.medium"   = 1
+	"c8g.large"    = 2
+    "c8g.xlarge"   = 4
+    "c8g.2xlarge"  = 8
+    "c8g.4xlarge"  = 16
+    "c8g.8xlarge"  = 32
+	// Cassandra
+	"c5ad.large"    = 2
+    "c5ad.xlarge"   = 4
+    "c5ad.2xlarge"  = 8
+    "c5ad.4xlarge"  = 16
+    "c5ad.8xlarge"  = 32
+    "c5ad.16xlarge" = 64
+	"c7gd.large"    = 2
+    "c7gd.xlarge"   = 4
+    "c7gd.2xlarge"  = 8
+    "c7gd.4xlarge"  = 16
+    "c7gd.8xlarge"  = 32
+    "c7gd.16xlarge" = 64
+	"c8gd.large"    = 2
+    "c8gd.xlarge"   = 4
+    "c8gd.2xlarge"  = 8
+    "c8gd.4xlarge"  = 16
+    "c8gd.8xlarge"  = 32
+    "c8gd.16xlarge" = 64
+  }
+}
+
 variable "nvme_regex_map" {
   type = map(string)
   default = {
@@ -148,28 +251,16 @@ variable "nvme_regex_map" {
     "c5ad.16xlarge" = "nvme[0-9]n[0-9] [0-9]+.[0-9]T"
 	"c7gd.large"    = "nvme[0-9]n[0-9] 109.9G"
     "c7gd.xlarge"   = "nvme[0-9]n[0-9] 220.7G" # quick_lookup 23s, lsblk: cassandra data0 nvme1n1 220.7G, bastion /mnt/capi_log nvme1n1 10G
-    "c7gd.2xlarge"  = "nvme[0-9]n[0-9] 441.4G" # 4-1597s
+    "c7gd.2xlarge"  = "nvme[0-9]n[0-9] 441.4G" # 4-1296s, 8-890s
     "c7gd.4xlarge"  = "nvme[0-9]n[0-9] 884.8G"
     "c7gd.8xlarge"  = "nvme[0-9]n[0-9] 1.7T"
     "c7gd.16xlarge" = "nvme[0-9]n[0-9] 1.7T"
-  }
-}
-
-# Number of vCPUs x 1.5
-variable "thread_pool_size_map" {
-  type = map(number)
-  default = {
-	"c6a.large"    = 3
-    "c6a.xlarge"   = 6
-    "c6a.2xlarge"  = 12
-    "c6a.4xlarge"  = 24
-	"c6a.8xlarge"  = 48
-	"c7g.medium"   = 1
-	"c7g.large"    = 3
-    "c7g.xlarge"   = 6
-    "c7g.2xlarge"  = 12
-    "c7g.4xlarge"  = 24
-    "c7g.8xlarge"  = 48
+	"c8gd.large"    = "nvme[0-9]n[0-9] 109.9G"
+    "c8gd.xlarge"   = "nvme[0-9]n[0-9] 220.7G"
+    "c8gd.2xlarge"  = "nvme[0-9]n[0-9] 441.4G" # Same overall perf as c7, not worth the price, Cassandra load: c7g 70%, c8g 45%
+    "c8gd.4xlarge"  = "nvme[0-9]n[0-9] 884.8G"
+    "c8gd.8xlarge"  = "nvme[0-9]n[0-9] 1.7T"
+    "c8gd.16xlarge" = "nvme[0-9]n[0-9] 1.7T"
   }
 }
 
@@ -254,6 +345,18 @@ variable "prometheus_server_version" {
 	default     = "3.2.1"
 }
 
+variable "daemon_thread_pool_factor" {
+	type        = number
+	description= "1.5 avg, 2.0 aggressive (watch for OOM)"
+	default     = 2.0
+}
+
+variable "daemon_writer_worker_factor" {
+	type        = number
+	description= " 0.25 conservative, 0.5 avg, 0.75 aggressive (does not increase Cassandra load if higher than that, for some reason)"
+	default     = 0.75
+}
+
 locals {
 	cassandra_hosts          = join(",",[ for i in range(var.number_of_cassandra_hosts) : format("10.5.0.%02s", i+11) ])
     cassandra_initial_tokens = var.cassandra_initial_tokens_map[var.number_of_cassandra_hosts]
@@ -263,8 +366,9 @@ locals {
 						[ for i in range(var.number_of_cassandra_hosts) : format("'10.5.0.%02s:9100'", i+11) ], // cassandra node exporters
 						[ for i in range(var.number_of_daemons) : format("'10.5.0.1%02s:9100'", i+1) ], // daemon node expoters
 						[ for i in range(var.number_of_cassandra_hosts) : format("'10.5.0.%02s:7070'", i+11) ])) // cassandra JMX exporters
+	daemon_thread_pool_size  = ceil(var.cpu_count_map[var.daemon_instance_type] * var.daemon_thread_pool_factor )
+	daemon_writer_workers  = ceil(var.cpu_count_map[var.cassandra_instance_type] * var.daemon_writer_worker_factor )
 } 
-
 
 # Env variables TF_VAR_
 
@@ -273,3 +377,56 @@ variable "BASTION_ALLOWED_IPS" {
 	description = "Comma-separated list of IP addresses and cidr blocks allowed to access bastion from the outside"
 }
 
+# Output
+
+
+output "output_bastion_public_ip" {
+  value = aws_eip.bastion_public_ip.public_ip
+}
+
+output "output_daemon_cpus" {
+  value = format("%d cpus ($%f/hr)", var.cpu_count_map[var.daemon_instance_type], var.instance_hourly_cost[var.daemon_instance_type])
+}
+
+output "output_daemon_instances" {
+  value = var.number_of_daemons
+}
+
+output "output_daemon_total_cpus" {
+  value = var.cpu_count_map[var.daemon_instance_type]*var.number_of_daemons
+}
+
+output "output_cassandra_cpus" {
+  value = format("%d cpus ($%f/hr)", var.cpu_count_map[var.cassandra_instance_type], var.instance_hourly_cost[var.cassandra_instance_type])
+}
+
+output "output_cassandra_hosts" {
+  value = var.number_of_cassandra_hosts
+}
+
+output "output_cassandra_total_cpus" {
+  value = var.cpu_count_map[var.cassandra_instance_type]*var.number_of_cassandra_hosts
+}
+
+output "output_daemon_thread_pool_size" {
+  value = local.daemon_thread_pool_size
+}
+
+output "output_daemon_writer_workers" {
+  value = local.daemon_writer_workers
+}
+
+output "output_total_ec2_hourly_cost" {
+  value = format("$%f/hr",var.instance_hourly_cost[var.cassandra_instance_type]*var.number_of_cassandra_hosts + var.instance_hourly_cost[var.daemon_instance_type]*var.number_of_daemons + var.instance_hourly_cost[var.bastion_instance_type])
+}
+
+output "output_vars_bastion_provisioner_static_vars" {
+  value = local.bastion_provisioner_static_vars
+}
+output "output_vars_cassandra_provisioner_vars" {
+  value = local.cassandra_provisioner_vars
+}
+
+output "output_vars_daemon_provisioner_vars" {
+  value = local.daemon_provisioner_vars
+}

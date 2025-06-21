@@ -42,11 +42,3 @@ resource "aws_instance" "bastion" {
     Name = "capillaries_bastion"
   }
 }
-
-output "output_bastion_public_ip" {
-  value = aws_eip.bastion_public_ip.public_ip
-}
-
-output "output_bastion_provisioner_static_vars" {
-  value = local.bastion_provisioner_static_vars
-}

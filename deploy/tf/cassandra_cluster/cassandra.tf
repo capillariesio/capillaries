@@ -46,7 +46,4 @@ resource "aws_instance" "cassandra" {
   }
 }
 
-output "output_cassandra_provisioner_vars" {
-  value = local.cassandra_provisioner_vars
-}
 

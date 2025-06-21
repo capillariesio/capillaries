@@ -76,7 +76,11 @@ and access them using this command (daemon instance IP addresses end with 101, 1
 ssh -o StrictHostKeyChecking=no -i ~/.ssh/your_keypair_private_key -J $BASTION_IP ubuntu@10.5.0.101
 ```
 
-Before running any tests, make sure Cassandra is up by navigating to `http://$BASTION_IP` and making sure there are no errors.
+Before running any tests, make sure Cassandra is up by navigating to `http://$BASTION_IP` and making sure there are no errors. Make sure all Cassandra nodes are up by running:
+
+```
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/your_keypair_private_key -J $BASTION_IP ubuntu@10.5.0.11 'nodetool status'
+```
 
 To run a simple lookup test, use:
 ```
@@ -108,7 +112,8 @@ source ~/UserAccessCapillariesTestbucket.rc
 To watch the script running in the UI, visit `http://your_bastion_ip_address`.
 
 Prometheus CPU and Cassandra writes at:
-`http://$BASTION_IP$:9091/query?g0.expr=100+-+%28avg+by%28instance%29+%28rate%28node_cpu_seconds_total%7Bmode%3D%22idle%22%7D%5B1m%5D%29%29+*+100%29&g0.show_tree=0&g0.tab=graph&g0.range_input=15m&g0.res_type=auto&g0.res_density=medium&g0.display_mode=lines&g0.show_exemplars=0&g1.expr=sum%28irate%28cassandra_clientrequest_localrequests_count%7Bclientrequest%3D%22Write%22%7D%5B1m%5D%29%29&g1.show_tree=0&g1.tab=graph&g1.range_input=15m&g1.res_type=auto&g1.res_density=medium&g1.display_mode=lines&g1.show_exemplars=0`
+
+`http://23.20.218.155:9091/query?g0.expr=100+-+%28avg+by%28instance%29+%28rate%28node_cpu_seconds_total%7Bmode%3D%22idle%22%7D%5B1m%5D%29%29+*+100%29&g0.show_tree=0&g0.tab=graph&g0.range_input=15m&g0.res_type=auto&g0.res_density=medium&g0.display_mode=lines&g0.show_exemplars=0&g1.expr=100+*+%281+-+%28%28avg_over_time%28node_memory_MemFree_bytes%5B1m%5D%29+%2B+avg_over_time%28node_memory_Cached_bytes%5B1m%5D%29+%2B+avg_over_time%28node_memory_Buffers_bytes%5B1m%5D%29%29+%2F+avg_over_time%28node_memory_MemTotal_bytes%5B1m%5D%29%29%29&g1.show_tree=0&g1.tab=graph&g1.range_input=15m&g1.res_type=auto&g1.res_density=medium&g1.display_mode=lines&g1.show_exemplars=0&g2.expr=sum%28irate%28cassandra_clientrequest_localrequests_count%7Bclientrequest%3D%22Read%22%7D%5B1m%5D%29%29&g2.show_tree=0&g2.tab=graph&g2.range_input=15m&g2.res_type=auto&g2.res_density=medium&g2.display_mode=lines&g2.show_exemplars=0&g3.expr=sum%28irate%28cassandra_clientrequest_localrequests_count%7Bclientrequest%3D%22Write%22%7D%5B1m%5D%29%29&g3.show_tree=0&g3.tab=graph&g3.range_input=15m&g3.res_type=auto&g3.res_density=medium&g3.display_mode=lines&g3.show_exemplars=0`
 
 To see the logs, download them from `s3://$CAPILLARIES_AWS_TESTBUCKET/log`, or use 
 
