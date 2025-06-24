@@ -17,6 +17,7 @@ type CassandraConfig struct {
 	Password                  string      `json:"password" env:"CAPI_CASSANDRA_PASSWORD, overwrite"`                                       // Cassandra user password
 	WriterWorkers             int         `json:"writer_workers" env:"CAPI_CASSANDRA_WRITER_WORKERS, overwrite"`                           // 20 is conservative, 80 is very aggressive
 	MinInserterRate           int         `json:"min_inserter_rate" env:"CAPI_CASSANDRA_MIN_INSERTER_RATE, overwrite"`                     // inserter writes/sec; if the rate falls below this, we consider the db too slow and throw an error
+	InserterCapacity          int         `json:"inserter_capacity" env:"CAPI_CASSANDRA_INSERTER_CAPACITY, overwrite"`                     // Size of the drainer buffer between add() and final writer results, in write commands; default 500, higher values can make Daemon marginally faster, but more prone to OOM; 1000 still may cause OOM on c7g.large daemon boxes when loading portfolio bigtest parquet files
 	NumConns                  int         `json:"num_conns" env:"CAPI_CASSANDRA_NUM_CONNS, overwrite"`                                     // gocql.ClusterConfig.NumConns default is 2, don't make it too high
 	Timeout                   int         `json:"timeout" env:"CAPI_CASSANDRA_TIMEOUT, overwrite"`                                         // in ms, set it to 5s, gocql default 600ms is way too aggressive for heavy writes by multiple workers
 	ConnectTimeout            int         `json:"connect_timeout" env:"CAPI_CASSANDRA_CONNECT_TIMEOUT, overwrite"`                         // in ms, set it to 1s, gocql default 600ms may be ok, but let's stay on the safe side
@@ -34,6 +35,7 @@ func (c *CassandraConfig) ShallowCopy() CassandraConfig {
 		Password:                  c.Password,
 		WriterWorkers:             c.WriterWorkers,
 		MinInserterRate:           c.MinInserterRate,
+		InserterCapacity:          c.InserterCapacity,
 		NumConns:                  c.NumConns,
 		Timeout:                   c.Timeout,
 		ConnectTimeout:            c.ConnectTimeout,

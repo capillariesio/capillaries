@@ -55,7 +55,7 @@ variable "bastion_ami_name" {
 
 variable "number_of_daemons" {
 	type        = number
-	default     = 8
+	default     = 4
 }
 
 variable "daemon_instance_type" {
@@ -72,7 +72,7 @@ variable "daemon_ami_name" {
 variable "number_of_cassandra_hosts" {
 	type        = number
 	description = "90 max, because IP address starts with 11, and 101 is a daemon"
-	default     = 8
+	default     = 4
 }
 
 variable "cassandra_port" {
@@ -348,12 +348,12 @@ variable "prometheus_server_version" {
 variable "daemon_thread_pool_factor" {
 	type        = number
 	description= "1.5 avg, 2.0 aggressive (watch for OOM)"
-	default     = 2.0
+	default     = 1.5
 }
 
 variable "daemon_writer_worker_factor" {
 	type        = number
-	description= " 0.25 conservative, 0.5 avg, 0.75 aggressive (does not increase Cassandra load if higher than that, for some reason)"
+	description= " 0.25 conservative, 0.5 avg, 0.75 aggressive (does not increase Cassandra load if higher than that, on heavy from-file loads)"
 	default     = 0.75
 }
 

@@ -122,17 +122,14 @@ func readParquet(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.Messa
 		}
 	}
 
-	lineIdx := int64(0)
-	// tableRecordBatchCount := 0
-
 	// Prepare inserter
-	instr, err := createInserterAndStartWorkers(logger, envConfig, pCtx, &node.TableCreator, ReadFileTableInserterBatchSize, DataIdxSeqModeDataFirst, logger.ZapMachine.String)
+	instr, err := createInserterAndStartWorkers(logger, envConfig, pCtx, &node.TableCreator, DataIdxSeqModeDataFirst, logger.ZapMachine.String)
 	if err != nil {
 		return bs, err
 	}
-	defer instr.letWorkersDrainRecordWrittenStatusesAndCloseInserter(logger, pCtx)
+	instr.startDrainer()
+	defer instr.closeInserter(logger, pCtx)
 
-	// batchStartTime := time.Now()
 	for {
 		d, err := reader.NextRow()
 
@@ -140,55 +137,47 @@ func readParquet(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.Messa
 			break
 		}
 		if err != nil {
-			return bs, fmt.Errorf("cannot get row %d: %s", bs.RowsRead, err.Error())
+			instr.cancelDrainer(fmt.Errorf("cannot get parquet [%s] row %d: %s", filePath, bs.RowsRead, err.Error()))
+			return bs, instr.waitForDrainer(logger, pCtx)
 		}
 
 		colVars := eval.VarValuesMap{}
 		if err := readParquetRowToValuesMap(d, bs.RowsRead, requestedParquetColumnNames, parquetToCapiFieldNameMap, parquetToCapiTypeMap, schemaElementMap, colVars); err != nil {
-			return bs, err
+			instr.cancelDrainer(fmt.Errorf("cannot read values from parquet [%s] row %d: %s", filePath, bs.RowsRead, err.Error()))
+			return bs, instr.waitForDrainer(logger, pCtx)
 		}
 
 		// TableCreator: evaluate table column expressions
 		tableRecord, err := node.TableCreator.CalculateTableRecordFromSrcVars(false, colVars)
 		if err != nil {
-			return bs, fmt.Errorf("cannot populate table record from [%s], line %d: [%s]", filePath, lineIdx, err.Error())
+			instr.cancelDrainer(fmt.Errorf("cannot populate table record from parquet [%s] row %d: [%s]", filePath, bs.RowsRead, err.Error()))
+			return bs, instr.waitForDrainer(logger, pCtx)
 		}
 
 		// Check table creator having
 		inResult, err := node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
 		if err != nil {
-			return bs, fmt.Errorf("cannot check having condition [%s], table record [%v]: [%s]", node.TableCreator.RawHaving, tableRecord, err.Error())
+			instr.cancelDrainer(fmt.Errorf("cannot check having condition [%s] from parquet [%s] row %d, table record [%v]: [%s]", node.TableCreator.RawHaving, filePath, bs.RowsRead, tableRecord, err.Error()))
+			return bs, instr.waitForDrainer(logger, pCtx)
 		}
 
-		// Write batch if needed
 		if inResult {
 			indexKeyMap, err := instr.buildIndexKeys(tableRecord)
 			if err != nil {
-				return bs, fmt.Errorf("cannot build index keys for %s: [%s]", node.TableCreator.Name, err.Error())
+				instr.cancelDrainer(fmt.Errorf("cannot build index keys for table %s from parquet [%s] row %d: [%s]", node.TableCreator.Name, filePath, bs.RowsRead, err.Error()))
+				return bs, instr.waitForDrainer(logger, pCtx)
 			}
 
-			if len(instr.RecordWrittenStatuses) == cap(instr.RecordWrittenStatuses) {
-				if err := instr.letWorkersDrainRecordWrittenStatuses(logger, pCtx); err != nil {
-					return bs, err
-				}
-			}
-			if err := instr.add(logger, pCtx, tableRecord, indexKeyMap); err != nil {
-				return bs, fmt.Errorf("cannot add record to inserter %s: [%s]", node.TableCreator.Name, err.Error())
-			}
-
+			instr.add(tableRecord, indexKeyMap)
 			bs.RowsWritten++
 		}
 		bs.RowsRead++
 	}
 
-	// Write leftovers if anything was sent at all
-	if instr.RecordsSent > 0 {
-		if err := instr.letWorkersDrainRecordWrittenStatuses(logger, pCtx); err != nil {
-			return bs, err
-		}
+	instr.doneSending()
+	if err := instr.waitForDrainer(logger, pCtx); err != nil {
+		return bs, err
 	}
-
-	// reportWriteTableLeftovers(logger, pCtx, tableRecordBatchCount, time.Since(batchStartTime), len(node.TableCreator.Indexes), instr.NumWorkers)
 
 	bs.Elapsed = time.Since(totalStartTime)
 	reportWriteTableComplete(logger, pCtx, bs.RowsRead, bs.RowsWritten, bs.Elapsed, len(node.TableCreator.Indexes), instr.NumWorkers)
