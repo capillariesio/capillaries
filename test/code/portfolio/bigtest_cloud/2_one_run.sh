@@ -5,6 +5,7 @@ check_s3
 
 keyspace="portfolio_bigtest_cloud"
 scriptFile=s3://$CAPILLARIES_AWS_TESTBUCKET/capi_cfg/portfolio_bigtest/script.json
+#scriptFile=/tmp/capi_cfg/portfolio_bigtest/script.json
 paramsFile=s3://$CAPILLARIES_AWS_TESTBUCKET/capi_cfg/portfolio_bigtest/script_params_cassandra.json # Use script_params_aws.json if running against Amazon Keyspaces
 startNodes=1_read_accounts,1_read_txns,1_read_period_holdings
 
@@ -14,3 +15,4 @@ startNodes=1_read_accounts,1_read_txns,1_read_period_holdings
 # 179s on 4 x c7gd.16xlarge Cassandra nodes, 64 cores each
 check_cloud_deployment
 one_daemon_run_webapi 'http://'$BASTION_IP':'$EXTERNAL_WEBAPI_PORT $keyspace $scriptFile $paramsFile $startNodes
+#one_daemon_run_webapi 'http://localhost:6543' $keyspace $scriptFile $paramsFile $startNodes

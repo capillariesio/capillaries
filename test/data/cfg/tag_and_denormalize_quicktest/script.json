@@ -32,7 +32,6 @@
         "read_products": {
             "type": "file_table",
             "desc": "Load product data from CSV files to a table, one input file - one batch",
-            "explicit_run_only": true,
             "r": {
                 "urls": [
                     "{dir_in}/flipcart_products.tsv{url_suffix}"

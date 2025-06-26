@@ -137,6 +137,15 @@ resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_private_prometheu
   to_port           = 9100
 }
 
+resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_private_prometheus_go_daemon_exporter" {
+  description = "Prometheus Go daemon exporter"
+  security_group_id = aws_security_group.capillaries_securitygroup_private.id
+  cidr_ipv4         = aws_vpc.main_vpc.cidr_block
+  from_port         = 9200
+  ip_protocol       = "tcp"
+  to_port           = 9200
+}
+
 resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_private_jmx_exporter" {
   description = "JMX exporter"
   security_group_id = aws_security_group.capillaries_securitygroup_private.id

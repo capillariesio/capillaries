@@ -19,7 +19,7 @@ type DaemonCmdType int8
 const (
 	DaemonCmdNone                DaemonCmdType = 0 // Should never see this
 	DaemonCmdAckSuccess          DaemonCmdType = 2 // Best case
-	DaemonCmdRejectAndRetryLater DaemonCmdType = 3 // Node dependencies are not ready, wait with proessing this node
+	DaemonCmdRejectAndRetryLater DaemonCmdType = 3 // Node dependencies are not ready, wait with processing this node
 	DaemonCmdReconnectDb         DaemonCmdType = 4 // Db workflow error, try to reconnect
 	DaemonCmdQuit                DaemonCmdType = 5 // Shutdown command was received
 	DaemonCmdAckWithError        DaemonCmdType = 6 // There was a processing error: either some serious biz logic re-trying will not help, or it was a data table error (we consider it persistent), so ack it

@@ -2,18 +2,19 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 
-	// "net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"net/http"
 	_ "net/http/pprof"
 
 	"github.com/hashicorp/golang-lru/v2/expirable"
-	// "github.com/pkg/profile"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/capillariesio/capillaries/pkg/custom/py_calc"
 	"github.com/capillariesio/capillaries/pkg/custom/tag_and_denormalize"
@@ -57,7 +58,9 @@ func main() {
 	// go func() {
 	// 	http.ListenAndServe("localhost:8081", nil)
 	// }()
+
 	// curl http://localhost:8081/debug/pprof/heap > heap.01.pprof
+	// aws s3 cp heap.01.pprof s3://capillaries-testbucket/log/
 
 	initCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
@@ -67,6 +70,13 @@ func main() {
 		log.Fatalf("%s", err.Error())
 	}
 	envConfig.CustomProcessorDefFactoryInstance = &StandardDaemonProcessorDefFactory{}
+
+	if envConfig.Log.PrometheusExporterPort > 0 {
+		go func() {
+			http.Handle("/metrics", promhttp.Handler())
+			fmt.Println(http.ListenAndServe(fmt.Sprintf(":%d", envConfig.Log.PrometheusExporterPort), nil))
+		}()
+	}
 
 	logger, err := l.NewLoggerFromEnvConfig(envConfig)
 	if err != nil {

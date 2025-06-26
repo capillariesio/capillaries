@@ -244,6 +244,51 @@ one_daemon_run_webapi()
     echo "$(($duration / 60))m $(($duration % 60))s elapsed."
 }
 
+three_daemon_runs_webapi()
+{
+    local webapiUrl=$1
+    local keyspace=$2
+    local scriptFile=$3
+    local paramsFile=$4
+    local startNodesOne=$5
+    local startNodesTwo=$6
+    local startNodesThree=$7
+
+    SECONDS=0
+    echo Deleting keyspace $keyspace at $webapiUrl ...
+    curl -s -w "\n" -H "Content-Type: application/json" -X DELETE $webapiUrl"/ks/"$keyspace
+    if [ "$?" != "0" ]; then
+      exit 1
+    fi
+
+    echo Starting first run in $keyspace at $webapiUrl, script $scriptFile, params $paramsFile ...
+    curl -s -w "\n" -d '{"script_url":"'$scriptFile'", "script_params_url":"'$paramsFile'", "start_nodes":"'$startNodesOne'"}' -H "Content-Type: application/json" -X POST $webapiUrl"/ks/$keyspace/run"
+    if [ "$?" != "0" ]; then
+      exit 1
+    fi
+
+    wait_run_webapi $webapiUrl $keyspace 1
+
+    echo Starting second run in $keyspace at $webapiUrl, script $scriptFile, params $paramsFile ...
+    curl -s -w "\n" -d '{"script_url":"'$scriptFile'", "script_params_url":"'$paramsFile'", "start_nodes":"'$startNodesTwo'"}' -H "Content-Type: application/json" -X POST $webapiUrl"/ks/$keyspace/run"
+    if [ "$?" != "0" ]; then
+      exit 1
+    fi
+
+    wait_run_webapi $webapiUrl $keyspace 2
+
+    echo Starting third run in $keyspace at $webapiUrl, script $scriptFile, params $paramsFile ...
+    curl -s -w "\n" -d '{"script_url":"'$scriptFile'", "script_params_url":"'$paramsFile'", "start_nodes":"'$startNodesThree'"}' -H "Content-Type: application/json" -X POST $webapiUrl"/ks/$keyspace/run"
+    if [ "$?" != "0" ]; then
+      exit 1
+    fi
+
+    wait_run_webapi $webapiUrl $keyspace 3
+
+    duration=$SECONDS
+    echo "$(($duration / 60))m $(($duration % 60))s elapsed."
+}
+
 drop_keyspace_webapi()
 {
     local webapiUrl=$1

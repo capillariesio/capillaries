@@ -23,7 +23,7 @@ variable "capillaries_release_url" {
 variable "os_arch" {
 	type        = string
 	description = "linux/arm64 or linux/amd64, matches the AMI"
-    default     = "linux/arm64"
+    default     = "linux/amd64"
 }
 
 variable "ssh_user" {
@@ -44,13 +44,13 @@ variable "capillaries_tf_deploy_temp_bucket_name" {
 
 variable "bastion_instance_type" {
 	type        = string
-    default     = "c7g.large"
+    default     = "c6a.large"
 }
 
 variable "bastion_ami_name" {
 	type        = string
-	description = "Expires 2026-12-18 ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-20241218"
-    default     =  "ami-04474687c34a061cf"
+	description = "arm64: ami-04474687c34a061cf Expires 2026-12-18 ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-20241218; amd64: ami-079cb33ef719a7b78 Expires 2026-12-18 ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20241218 // ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20240606"
+    default     =  "ami-079cb33ef719a7b78"
 }
 
 variable "number_of_daemons" {
@@ -60,13 +60,19 @@ variable "number_of_daemons" {
 
 variable "daemon_instance_type" {
 	type        = string
-    default     = "c7g.large"
+    default     = "c6a.large"
 }
 
 variable "daemon_ami_name" {
 	type        = string
-	description = "Expires 2026-12-18 ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-20241218"
-    default     =  "ami-04474687c34a061cf"
+	description = "arm64: ami-04474687c34a061cf Expires 2026-12-18 ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-20241218; amd64: ami-079cb33ef719a7b78 Expires 2026-12-18 ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20241218 // ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20240606"
+    default     =  "ami-079cb33ef719a7b78"
+}
+
+variable "daemon_gogc" {
+	type        = string
+	description = "GOGC env var for daemon, usually 100"
+    default     = "100"
 }
 
 variable "number_of_cassandra_hosts" {
@@ -96,13 +102,13 @@ variable "cassandra_password" {
 variable "cassandra_instance_type" {
 	type        = string
 	description = "Make sure it's in the nvme_regex_map list"
-    default     = "c7gd.2xlarge"
+    default     = "c5ad.2xlarge"
 }
 
 variable "cassandra_ami_name" {
 	type        = string
-	description = "Expires 2026-12-18 ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-20241218"
-    default     =  "ami-04474687c34a061cf"
+	description = "arm64: ami-04474687c34a061cf Expires 2026-12-18 ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-20241218; amd64: ami-079cb33ef719a7b78 Expires 2026-12-18 ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20241218 // ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20240606"
+    default     = "ami-079cb33ef719a7b78"
 }
 
 variable "cassandra_version" {
@@ -240,6 +246,31 @@ variable "cpu_count_map" {
   }
 }
 
+variable "instance_memory_map" {
+  type = map(number)
+  description = "Instance memory in GiB"
+  default = {
+	// Daemon
+	"c6a.large"    = 4
+    "c6a.xlarge"   = 8
+    "c6a.2xlarge"  = 16
+    "c6a.4xlarge"  = 32
+	"c6a.8xlarge"  = 64
+	"c7g.medium"   = 2
+	"c7g.large"    = 4
+    "c7g.xlarge"   = 8
+    "c7g.2xlarge"  = 16
+    "c7g.4xlarge"  = 32
+    "c7g.8xlarge"  = 64
+	"c8g.medium"   = 2
+	"c8g.large"    = 4
+    "c8g.xlarge"   = 8
+    "c8g.2xlarge"  = 16
+    "c8g.4xlarge"  = 32
+    "c8g.8xlarge"  = 64
+  }
+}
+
 variable "nvme_regex_map" {
   type = map(string)
   default = {
@@ -347,27 +378,29 @@ variable "prometheus_server_version" {
 
 variable "daemon_thread_pool_factor" {
 	type        = number
-	description= "1.5 avg, 2.0 aggressive (watch for OOM)"
-	default     = 1.5
+	description= "1.0 conservative, 1.5 avg, 2.0 aggressive (watch for OOM)"
+	default     = 1
 }
 
 variable "daemon_writer_worker_factor" {
 	type        = number
 	description= " 0.25 conservative, 0.5 avg, 0.75 aggressive (does not increase Cassandra load if higher than that, on heavy from-file loads)"
-	default     = 0.75
+	default     = 1
 }
 
 locals {
-	cassandra_hosts          = join(",",[ for i in range(var.number_of_cassandra_hosts) : format("10.5.0.%02s", i+11) ])
-    cassandra_initial_tokens = var.cassandra_initial_tokens_map[var.number_of_cassandra_hosts]
-	rabbitmq_url             = join("",["amqp://", var.rabbitmq_user_name, ":", var.rabbitmq_user_pass, "@10.5.1.10/"])
-    prometheus_targets       = join(",",concat( # "\'localhost:9100\',\'10.5.1.10:9100\'"
-		                ["'localhost:9100'"], // bastion node exporter
-						[ for i in range(var.number_of_cassandra_hosts) : format("'10.5.0.%02s:9100'", i+11) ], // cassandra node exporters
-						[ for i in range(var.number_of_daemons) : format("'10.5.0.1%02s:9100'", i+1) ], // daemon node expoters
-						[ for i in range(var.number_of_cassandra_hosts) : format("'10.5.0.%02s:7070'", i+11) ])) // cassandra JMX exporters
-	daemon_thread_pool_size  = ceil(var.cpu_count_map[var.daemon_instance_type] * var.daemon_thread_pool_factor )
-	daemon_writer_workers  = ceil(var.cpu_count_map[var.cassandra_instance_type] * var.daemon_writer_worker_factor )
+	cassandra_hosts            = join(",", [ for i in range(var.number_of_cassandra_hosts) : format("10.5.0.%02s", i+11) ])
+    cassandra_initial_tokens   = var.cassandra_initial_tokens_map[var.number_of_cassandra_hosts]
+	rabbitmq_url               = join("",  ["amqp://", var.rabbitmq_user_name, ":", var.rabbitmq_user_pass, "@10.5.1.10/"])
+    prometheus_node_targets    = join(",",concat( # "\'localhost:9100\',\'10.5.1.10:9100\'"
+										["'localhost:9100'"], // bastion node exporter
+										[ for i in range(var.number_of_cassandra_hosts) : format("'10.5.0.%02s:9100'", i+11) ], // cassandra node exporters
+										[ for i in range(var.number_of_daemons) : format("'10.5.0.1%02s:9100'", i+1) ])) // daemon node expoters
+    prometheus_jmx_targets     = join(",", [ for i in range(var.number_of_cassandra_hosts) : format("'10.5.0.%02s:7070'", i+11) ]) // cassandra JMX exporters
+    prometheus_go_targets      = join(",", [ for i in range(var.number_of_daemons) : format("'10.5.0.1%02s:9200'", i+1) ]) // daemon go exporters
+	daemon_thread_pool_size    = ceil(var.cpu_count_map[var.daemon_instance_type] * var.daemon_thread_pool_factor )
+	daemon_writer_workers      = ceil(var.cpu_count_map[var.cassandra_instance_type] * var.daemon_writer_worker_factor )
+	daemon_gomemlimit_gb       = ceil(var.instance_memory_map[var.daemon_instance_type] / 2 ) // Let daemon use half of RAM, GOGC=100 will probably take it to 70%, and we also need some memory to run Python
 } 
 
 # Env variables TF_VAR_

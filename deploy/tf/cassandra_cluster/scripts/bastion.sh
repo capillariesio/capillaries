@@ -106,8 +106,16 @@ if [ "$PROMETHEUS_SERVER_VERSION" = "" ]; then
   echo Error, missing: PROMETHEUS_SERVER_VERSION=1.2.3
   exit 1
 fi
-if [ "$PROMETHEUS_TARGETS" = "" ]; then
-  echo Error, missing: PROMETHEUS_TARGETS="'localhost:9100','10.5.1.10:9100'"
+if [ "$PROMETHEUS_NODE_TARGETS" = "" ]; then
+  echo Error, missing: PROMETHEUS_NODE_TARGETS="'localhost:9100','10.5.1.10:9100'"
+  exit 1
+fi
+if [ "$PROMETHEUS_JMX_TARGETS" = "" ]; then
+  echo Error, missing: PROMETHEUS_JMX_TARGETS="'10.5.1.11:7070','10.5.1.12:7070'"
+  exit 1
+fi
+if [ "$PROMETHEUS_GO_TARGETS" = "" ]; then
+  echo Error, missing: PROMETHEUS_GO_TARGETS="'10.5.1.101:9200','10.5.1.102:9200'"
   exit 1
 fi
 
@@ -766,14 +774,18 @@ sudo tee $PROMETHEUS_YAML_FILE <<EOF
 global:
   scrape_interval: 15s
 scrape_configs:
-  - job_name: 'prometheus'
-    scrape_interval: 5s
-    static_configs:
-      - targets: ['localhost:9090']
   - job_name: 'node_exporter'
     scrape_interval: 5s
     static_configs:
-      - targets: [$PROMETHEUS_TARGETS]
+      - targets: [$PROMETHEUS_NODE_TARGETS]
+  - job_name: 'jmx_exporter'
+    scrape_interval: 5s
+    static_configs:
+      - targets: [$PROMETHEUS_JMX_TARGETS]
+  - job_name: 'go_exporter'
+    scrape_interval: 5s
+    static_configs:
+      - targets: [$PROMETHEUS_GO_TARGETS]
 EOF
 sudo chown -R prometheus:prometheus $PROMETHEUS_YAML_FILE
 

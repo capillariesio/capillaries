@@ -201,6 +201,7 @@ func (rs *Rowset) GetTableRecord(rowIdx int) (map[string]any, error) {
 	return tableRecord, nil
 }
 
+// TODO: consider passing just vars eval.VarValuesMap; maps are passed by ref in Go anyways
 func (rs *Rowset) ExportToVarsWithAlias(rowIdx int, vars *eval.VarValuesMap, useTableAlias string) error {
 	for colIdx := 0; colIdx < len(rs.Fields); colIdx++ {
 		tName := &rs.Fields[colIdx].TableName

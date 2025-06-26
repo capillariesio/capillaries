@@ -32,8 +32,14 @@ func readCsv(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessagePr
 	instr.startDrainer()
 	defer instr.closeInserter(logger, pCtx)
 
+	// Minimize allocations to help GC in this high-traffic loop
+	var tableRecord map[string]any
+	indexKeyMap := map[string]string{}
+	colVars := eval.VarValuesMap{}
+	var line []string
+	var inResult bool
 	for {
-		line, err := r.Read()
+		line, err = r.Read()
 		if err == io.EOF {
 			break
 		}
@@ -49,28 +55,28 @@ func readCsv(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessagePr
 		} else if lineIdx >= int64(node.FileReader.Csv.SrcFileFirstDataLineIdx) {
 
 			// FileReader: read columns
-			colVars := eval.VarValuesMap{}
+			clear(colVars)
 			if err := node.FileReader.ReadCsvLineToValuesMap(&line, colVars); err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot read values from csv file [%s], line %d: [%s]", filePath, lineIdx, err.Error()))
 				return bs, instr.waitForDrainer(logger, pCtx)
 			}
 
 			// TableCreator: evaluate table column expressions
-			tableRecord, err := node.TableCreator.CalculateTableRecordFromSrcVars(false, colVars)
+			tableRecord, err = node.TableCreator.CalculateTableRecordFromSrcVars(false, colVars)
 			if err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot populate table record from csv file [%s], line %d: [%s]", filePath, lineIdx, err.Error()))
 				return bs, instr.waitForDrainer(logger, pCtx)
 			}
 
 			// Check table creator having
-			inResult, err := node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
+			inResult, err = node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
 			if err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot check having condition [%s], csv file [%s] line %d, table record [%v]: [%s]", node.TableCreator.RawHaving, filePath, lineIdx, tableRecord, err.Error()))
 				return bs, instr.waitForDrainer(logger, pCtx)
 			}
 
 			if inResult {
-				indexKeyMap, err := instr.buildIndexKeys(tableRecord)
+				err = instr.buildIndexKeys(tableRecord, indexKeyMap)
 				if err != nil {
 					instr.cancelDrainer(fmt.Errorf("cannot build index keys for table %s, csv file [%s] line %d: [%s]", node.TableCreator.Name, filePath, lineIdx, err.Error()))
 					return bs, instr.waitForDrainer(logger, pCtx)

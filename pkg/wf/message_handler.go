@@ -341,7 +341,8 @@ func checkLastBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingConte
 }
 
 func checkDependencyNogoOrWait(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, nodeReady sc.ReadyToRunNodeCmdType) DaemonCmdType {
-	if nodeReady == sc.NodeNogo {
+	switch nodeReady {
+	case sc.NodeNogo:
 		comment := fmt.Sprintf("some dependency nodes for %s are in bad state, or runs executing dependency nodes were stopped/invalidated, will not run this node; for details, check rules in dependency_policies and previous runs history", pCtx.BatchInfo.FullBatchId())
 		logger.InfoCtx(pCtx, "%s", comment)
 		if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeFail, comment); err != nil {
@@ -358,11 +359,12 @@ func checkDependencyNogoOrWait(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 		}
 		return DaemonCmdAckWithError
 
-	} else if nodeReady == sc.NodeWait {
+	case sc.NodeWait:
 		logger.InfoCtx(pCtx, "some dependency nodes for %s are not ready, will wait", pCtx.BatchInfo.FullBatchId())
 		return DaemonCmdRejectAndRetryLater
+	default:
+		return DaemonCmdNone
 	}
-	return DaemonCmdNone
 }
 
 func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, scriptCache *expirable.LRU[string, string], msgTs int64, dataBatchInfo *wfmodel.MessagePayloadDataBatch) DaemonCmdType {

@@ -147,6 +147,7 @@
 		"02_loan_ids": {
 			"type": "distinct_table",
 			"desc": "Select distinct loan ids",
+			"start_policy": "manual",
 			"rerun_policy": "fail",
 			"r": {
 				"table": "payments",
@@ -202,6 +203,7 @@
 		"02_deal_names": {
 			"type": "distinct_table",
 			"desc": "Select distinct deal names",
+  		    "start_policy": "manual",
 			"rerun_policy": "fail",
 			"r": {
 				"table": "loan_ids",
@@ -224,6 +226,7 @@
 		"02_deal_sellers": {
 			"type": "distinct_table",
 			"desc": "Select distinct sellers",
+			"start_policy": "manual",
 			"rerun_policy": "fail",
 			"r": {
 				"table": "loan_ids",

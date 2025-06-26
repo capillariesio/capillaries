@@ -44,9 +44,9 @@ func (ec *EnvConfig) Deserialize(ctx context.Context, jsonBytes []byte) error {
 	if ec.Daemon.DeadLetterTtl < 100 || ec.Daemon.DeadLetterTtl > 3600000 { // [100ms,1hr]
 		ec.Daemon.DeadLetterTtl = 10000
 	}
-	if ec.Cassandra.InserterCapacity < 50 || ec.Cassandra.InserterCapacity > 10000 {
-		ec.Cassandra.InserterCapacity = 500
-	}
+	// if ec.Cassandra.InserterCapacity < 50 || ec.Cassandra.InserterCapacity > 10000 {
+	// 	ec.Cassandra.InserterCapacity = ec.Cassandra.WriterWorkers
+	// }
 
 	return nil
 }

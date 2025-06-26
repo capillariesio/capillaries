@@ -19,7 +19,7 @@ Golang float64, Cassandra DOUBLE
 ### bool
 Golang bool, Cassandra BOOLEAN
 ### datetime
-Golang time.time, Cassandra TIMESTAMP
+Golang time.time (up to milliseconds only, because Cassandra does not go beyond that), Cassandra TIMESTAMP
 ### decimal2
 Golang github.com/shopspring/decimal, Cassandra DECIMAL (both trimmed to 2 decimal digits)
 

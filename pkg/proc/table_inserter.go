@@ -33,7 +33,6 @@ type TableInserter struct {
 	RecordWrittenStatusesMutex   sync.Mutex // Only to report on draining, otherwise useless
 	MachineHash                  int64
 	NumWorkers                   int
-	MinInserterRate              int
 	DrainerCapacity              int
 	WorkerWaitGroup              sync.WaitGroup
 	RecordsSent                  int   // Records sent to RecordsIn
@@ -50,9 +49,48 @@ type TableInserter struct {
 	DrainerDoneSignal            chan error
 }
 
+type TableRecordItem struct {
+	FieldName string
+	Value     any
+}
+
+func buildTableRecordItems(tr TableRecord) []TableRecordItem {
+	result := make([]TableRecordItem, len(tr))
+	i := 0
+	for fieldName, val := range tr {
+		result[i] = TableRecordItem{fieldName, val}
+		i++
+	}
+	return result
+}
+
+type IndexKeyItem struct {
+	IdxName  string
+	KeyValue string
+}
+
+func buildIndexKeyItems(ikm map[string]string) []IndexKeyItem {
+	result := make([]IndexKeyItem, len(ikm))
+	i := 0
+	for idxName, keyVal := range ikm {
+		result[i] = IndexKeyItem{idxName, keyVal}
+		i++
+	}
+	return result
+}
+
 type WriteChannelItem struct {
-	TableRecord *TableRecord
-	IndexKeyMap map[string]string
+	TableRecordItems []TableRecordItem
+	IndexKeyItems    []IndexKeyItem
+}
+
+func (wci *WriteChannelItem) findIndexKeyValByName(idxName string) (string, error) {
+	for _, ikmi := range wci.IndexKeyItems {
+		if idxName == ikmi.IdxName {
+			return ikmi.KeyValue, nil
+		}
+	}
+	return "", fmt.Errorf("cannot find idx name %s in %v", idxName, wci.IndexKeyItems)
 }
 
 var seedCounter = int64(0)
@@ -73,12 +111,10 @@ func createInserterAndStartWorkers(logger *l.CapiLogger, envConfig *env.EnvConfi
 	instr := &TableInserter{
 		PCtx:                         pCtx,
 		TableCreator:                 tableCreator,
-		RecordsIn:                    make(chan WriteChannelItem, envConfig.Cassandra.InserterCapacity),
-		RecordWrittenStatuses:        make(chan error, envConfig.Cassandra.InserterCapacity),
+		RecordsIn:                    make(chan WriteChannelItem, envConfig.Cassandra.WriterWorkers),
+		RecordWrittenStatuses:        make(chan error, envConfig.Cassandra.WriterWorkers),
 		MachineHash:                  int64(stringHash.Sum64()),
 		NumWorkers:                   envConfig.Cassandra.WriterWorkers,
-		MinInserterRate:              envConfig.Cassandra.MinInserterRate,
-		DrainerCapacity:              envConfig.Cassandra.InserterCapacity,
 		RecordsSent:                  0,    // Total number of records added to RecordsIn
 		RecordsProcessed:             0,    // Total number of records read from RecordWrittenStatuses
 		DoesNotExistPauseMillis:      2000, // 2000 + 4000 + 8000 + 16000 + 32000
@@ -153,9 +189,7 @@ const MaxInserterErrors int = 5
 
 func (instr *TableInserter) startDrainer() {
 	go func() {
-		drainedRecordCount := 0
 		errorsFound := make([]string, 0)
-		startTime := time.Now()
 		stillSending := true
 		for stillSending || instr.RecordsSent > instr.RecordsProcessed {
 			// Read from instr.RecordWrittenStatuses with timeout (just in case those Cassandra timeouts are not reliable enough)
@@ -168,16 +202,9 @@ func (instr *TableInserter) startDrainer() {
 			select {
 			case err = <-instr.RecordWrittenStatuses:
 				instr.RecordsProcessed++
-				drainedRecordCount++
 				if err != nil {
 					if len(errorsFound) < MaxInserterErrors {
 						errorsFound = append(errorsFound, err.Error())
-					}
-				} else {
-					// If it falls below min rate, it does not make sense to continue
-					inserterRate := float64(drainedRecordCount) / time.Since(startTime).Seconds()
-					if drainedRecordCount > 5 && inserterRate < float64(instr.MinInserterRate) {
-						errorsFound = append(errorsFound, fmt.Sprintf("table inserter detected slow db insertion rate %.0f records/s, wrote %d records out of %d", inserterRate, drainedRecordCount, instr.RecordsSent))
 					}
 				}
 			case <-timeoutChannel:
@@ -328,17 +355,17 @@ func (instr *TableInserter) closeInserter(logger *l.CapiLogger, pCtx *ctx.Messag
 // 	logger.DebugCtx(pCtx, "closed RecordWrittenStatuses")
 // }
 
-func (instr *TableInserter) buildIndexKeys(tableRecord TableRecord) (map[string]string, error) {
-	indexKeyMap := map[string]string{}
+func (instr *TableInserter) buildIndexKeys(tableRecord TableRecord, indexKeyMap map[string]string) error {
+	clear(indexKeyMap)
 	for idxName, idxDef := range instr.TableCreator.Indexes {
 		var err error
 		indexKeyMap[idxName], err = sc.BuildKey(tableRecord, idxDef)
 		if err != nil {
-			return nil, fmt.Errorf("cannot build key for idx %s, table record [%v]: [%s]", idxName, tableRecord, err.Error())
+			return fmt.Errorf("cannot build key for idx %s, table record [%v]: [%s]", idxName, tableRecord, err.Error())
 		}
 	}
 
-	return indexKeyMap, nil
+	return nil
 }
 
 // func (instr *TableInserter) add(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, tableRecord TableRecord, indexKeyMap map[string]string) error {
@@ -351,11 +378,14 @@ func (instr *TableInserter) add(tableRecord TableRecord, indexKeyMap map[string]
 	// 	//time.Sleep(500 * time.Millisecond)
 	// }
 
-	instr.RecordsIn <- WriteChannelItem{TableRecord: &tableRecord, IndexKeyMap: indexKeyMap}
+	// instr.RecordsIn <- WriteChannelItem{TableRecord: &tableRecord, IndexKeyMap: indexKeyMap}
+
+	// Do not reuse maps, make GC's job easier
+	instr.RecordsIn <- WriteChannelItem{TableRecordItems: buildTableRecordItems(tableRecord), IndexKeyItems: buildIndexKeyItems(indexKeyMap)}
 	instr.RecordsSent++
 }
 
-func newDataQueryBuilder(keyspace string, writeItem *WriteChannelItem, batchIdx int16) (*cql.QueryBuilder, error) {
+func newDataQueryBuilder(keyspace string, tableRecordItems []TableRecordItem, batchIdx int16) (*cql.QueryBuilder, error) {
 	dataQb := cql.NewQB().Keyspace(keyspace)
 	if err := dataQb.WritePreparedColumn("rowid"); err != nil {
 		return nil, err
@@ -367,8 +397,8 @@ func newDataQueryBuilder(keyspace string, writeItem *WriteChannelItem, batchIdx 
 		return nil, err
 	}
 
-	for fieldName := range *writeItem.TableRecord {
-		if err := dataQb.WritePreparedColumn(fieldName); err != nil {
+	for _, tri := range tableRecordItems {
+		if err := dataQb.WritePreparedColumn(tri.FieldName); err != nil {
 			return nil, err
 		}
 	}
@@ -414,7 +444,7 @@ func (instr *TableInserter) tableNameWithSuffix(tableName string) string {
 var ErrDuplicateRowid = errors.New("duplicate rowid")
 var ErrDuplicateKey = errors.New("duplicate key")
 
-func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, writeItem *WriteChannelItem, rowid int64, pq *PreparedQuery) error {
+func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, tableRecordItems []TableRecordItem, rowid int64, pq *PreparedQuery) error {
 	logger.PushF("proc.insertDataRecordWithRowid")
 	defer logger.PopF()
 
@@ -425,7 +455,7 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, writ
 	if pq.Qb == nil {
 		var err error
 		// rowid=?, batch_idx=123, field1=?, field2=?
-		pq.Qb, err = newDataQueryBuilder(instr.PCtx.BatchInfo.DataKeyspace, writeItem, instr.PCtx.BatchInfo.BatchIdx)
+		pq.Qb, err = newDataQueryBuilder(instr.PCtx.BatchInfo.DataKeyspace, tableRecordItems, instr.PCtx.BatchInfo.BatchIdx)
 		if err != nil {
 			return fmt.Errorf("cannot create insert data query builder: %s", err.Error())
 		}
@@ -440,9 +470,9 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, writ
 	}
 
 	// field1=123, field2=456
-	for fieldName, fieldValue := range *writeItem.TableRecord {
-		if err := pq.Qb.WritePreparedValue(fieldName, fieldValue); err != nil {
-			return fmt.Errorf("cannot write prepared value for %s: %s", fieldName, err.Error())
+	for _, tri := range tableRecordItems {
+		if err := pq.Qb.WritePreparedValue(tri.FieldName, tri.Value); err != nil {
+			return fmt.Errorf("cannot write prepared value for %s: %s", tri.FieldName, err.Error())
 		}
 	}
 
@@ -531,12 +561,12 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, writ
 			// Saw this from Amazon Keyspaces, give some details
 			sb := strings.Builder{}
 			sb.WriteString("cannot write to data table, some string lengths exceed max allowed value: ")
-			for fieldName, fieldValue := range *writeItem.TableRecord {
-				switch v := fieldValue.(type) {
+			for _, tri := range tableRecordItems {
+				switch v := tri.Value.(type) {
 				case string:
-					sb.WriteString(fmt.Sprintf("%s:%d characters;", fieldName, len(v)))
+					sb.WriteString(fmt.Sprintf("%s:%d characters;", tri.FieldName, len(v)))
 				default:
-					sb.WriteString(fmt.Sprintf("%s:%T;", fieldName, fieldValue))
+					sb.WriteString(fmt.Sprintf("%s:%T;", tri.FieldName, tri.Value))
 				}
 			}
 			errorToReturn = db.WrapDbErrorWithQuery(sb.String(), pq.Query, err)
@@ -552,14 +582,14 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, writ
 	return errorToReturn
 }
 
-func (instr *TableInserter) insertDataRecord(logger *l.CapiLogger, writeItem *WriteChannelItem, pq *PreparedQuery, rowidRand *rand.Rand) (int64, error) {
+func (instr *TableInserter) insertDataRecord(logger *l.CapiLogger, tableRecordItems []TableRecordItem, pq *PreparedQuery, rowidRand *rand.Rand) (int64, error) {
 	logger.PushF("proc.insertDataRecord")
 	defer logger.PopF()
 
 	curRowid := rowidRand.Int63()
 	for retryCount := 0; retryCount < instr.MaxDuplicateRetries; retryCount++ {
 
-		err := instr.insertDataRecordWithRowid(logger, writeItem, curRowid, pq)
+		err := instr.insertDataRecordWithRowid(logger, tableRecordItems, curRowid, pq)
 		if err == nil {
 			return curRowid, nil
 		}
@@ -743,15 +773,15 @@ func (instr *TableInserter) insertIdxRecordWithRowid(logger *l.CapiLogger, idxNa
 	return errorToReturn
 }
 
-func (instr *TableInserter) insertDistinctIdxAndDataRecords(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, idxName string, writeItem *WriteChannelItem, pdq *PreparedQuery, piq *PreparedQuery, rowidRand *rand.Rand) (int64, error) {
+func (instr *TableInserter) insertDistinctIdxAndDataRecords(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, tableRecordItems []TableRecordItem, idxName string, keyValue string, pdq *PreparedQuery, piq *PreparedQuery, rowidRand *rand.Rand) (int64, error) {
 	logger.PushF("proc.insertDistinctIdxAndDataRecords")
 	defer logger.PopF()
 
 	curRowid := rowidRand.Int63()
 	for retryCount := 0; retryCount < instr.MaxDuplicateRetries; retryCount++ {
-		errInsertIdx := instr.insertIdxRecordWithRowid(logger, idxName, sc.IdxUnique, writeItem.IndexKeyMap[idxName], curRowid, piq)
+		errInsertIdx := instr.insertIdxRecordWithRowid(logger, idxName, sc.IdxUnique, keyValue, curRowid, piq)
 		if errInsertIdx == nil {
-			errInsertData := instr.insertDataRecordWithRowid(logger, writeItem, curRowid, pdq)
+			errInsertData := instr.insertDataRecordWithRowid(logger, tableRecordItems, curRowid, pdq)
 			if errInsertData == nil {
 				return curRowid, nil
 			}
@@ -760,14 +790,14 @@ func (instr *TableInserter) insertDistinctIdxAndDataRecords(logger *l.CapiLogger
 				return curRowid, errInsertData
 			}
 			// Delete inserted idx record before trying another rowid
-			errDelete := deleteIdxRecordByKey(pCtx, idxName, []string{writeItem.IndexKeyMap[idxName]})
+			errDelete := deleteIdxRecordByKey(pCtx, idxName, []string{keyValue})
 			if errDelete != nil {
 				return curRowid, errDelete
 			}
-			logger.InfoCtx(pCtx, "cannot insert duplicate rowid on %d attempt: key %s, rowid %d", retryCount, writeItem.IndexKeyMap[idxName], curRowid)
+			logger.InfoCtx(pCtx, "cannot insert duplicate rowid on %d attempt: key %s, rowid %d", retryCount, keyValue, curRowid)
 		} else if errors.Is(errInsertIdx, ErrDuplicateKey) {
 			// ErrDuplicateKey is ok, this means we already have a distinct record, nothing to do here
-			logger.DebugCtx(pCtx, "already have a distinct record, nothing to do here: key %s, rowid %d", writeItem.IndexKeyMap[idxName], curRowid)
+			logger.DebugCtx(pCtx, "already have a distinct record, nothing to do here: key %s, rowid %d", keyValue, curRowid)
 			return curRowid, nil
 		} else if retryCount < instr.MaxDuplicateRetries-1 {
 			rowidRand.Seed(newSeed(instr.MachineHash))
@@ -780,6 +810,23 @@ func (instr *TableInserter) insertDistinctIdxAndDataRecords(logger *l.CapiLogger
 	errorToReport := fmt.Errorf("cannot insert distinct idx/data records after %d attempts", instr.MaxDuplicateRetries)
 	logger.ErrorCtx(pCtx, "%s", errorToReport.Error())
 	return curRowid, errorToReport
+}
+
+func (instr *TableInserter) insertIdxRecordsForIndexes(logger *l.CapiLogger, writeItem *WriteChannelItem, idxNameToSkip string, newRowid int64, piq *PreparedQuery) error {
+	for _, ikmi := range writeItem.IndexKeyItems {
+		if idxNameToSkip != "" && ikmi.IdxName == idxNameToSkip {
+			continue
+		}
+		idxDef, ok := instr.TableCreator.Indexes[ikmi.IdxName]
+		if !ok {
+			return fmt.Errorf("dev error, inserter cannot find index %s in %v", ikmi.IdxName, instr.TableCreator.Indexes)
+		}
+		if err := instr.insertIdxRecordWithRowid(logger, ikmi.IdxName, idxDef.Uniqueness, ikmi.KeyValue, newRowid, piq); err != nil {
+			return fmt.Errorf("cannot insert idx record to %s: %s", ikmi.IdxName, err.Error())
+		}
+	}
+
+	return nil
 }
 
 func (instr *TableInserter) tableInserterWorker(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) {
@@ -801,40 +848,39 @@ func (instr *TableInserter) tableInserterWorker(logger *l.CapiLogger, pCtx *ctx.
 	for writeItem := range instr.RecordsIn {
 		handledRecordCount++
 		var errorToReport error
-		if instr.DataIdxSeqMode == DataIdxSeqModeDataFirst {
+		switch instr.DataIdxSeqMode {
+		case DataIdxSeqModeDataFirst:
 			var newRowid int64
-			newRowid, errorToReport = instr.insertDataRecord(logger, &writeItem, &pdq, rowidRand)
+			newRowid, errorToReport = instr.insertDataRecord(logger, writeItem.TableRecordItems, &pdq, rowidRand)
 			if errorToReport == nil {
 				// Index tables
-				for idxName, idxDef := range instr.TableCreator.Indexes {
-					if err := instr.insertIdxRecordWithRowid(logger, idxName, idxDef.Uniqueness, writeItem.IndexKeyMap[idxName], newRowid, &piq); err != nil {
-						errorToReport = fmt.Errorf("cannot insert DataIdxSeqModeDataFirst idx record to %s: %s", idxName, err.Error())
-						break
-					}
-				} // idx loop
+				err := instr.insertIdxRecordsForIndexes(logger, &writeItem, "", newRowid, &piq)
+				if err != nil {
+					errorToReport = fmt.Errorf("cannot insert index records for DataFirst: %s", err.Error())
+				}
 			}
-		} else if instr.DataIdxSeqMode == DataIdxSeqModeDistinctIdxFirst {
+		case DataIdxSeqModeDistinctIdxFirst:
 			// Assuming there is only one index def here, and it's unique
 			distinctIdxName, _, err := instr.TableCreator.GetSingleUniqueIndexDef()
 			if err != nil {
 				errorToReport = fmt.Errorf("unsupported configuration error: %s", err.Error())
 			} else {
 				var newRowid int64
-				newRowid, errorToReport = instr.insertDistinctIdxAndDataRecords(logger, pCtx, distinctIdxName, &writeItem, &pdq, &piq, rowidRand)
-				if errorToReport == nil {
-					// Create records for other indexes if any (they all must be non-unique)
-					for idxName, idxDef := range instr.TableCreator.Indexes {
-						if idxName == distinctIdxName {
-							continue
+				distinctIdxKeyVal, err := writeItem.findIndexKeyValByName(distinctIdxName)
+				if err != nil {
+					errorToReport = fmt.Errorf("unexpectedly cannot find key value for distinct index: %s", err.Error())
+				} else {
+					newRowid, errorToReport = instr.insertDistinctIdxAndDataRecords(logger, pCtx, writeItem.TableRecordItems, distinctIdxName, distinctIdxKeyVal, &pdq, &piq, rowidRand)
+					if errorToReport == nil {
+						// Create records for other indexes if any (they all must be non-unique)
+						err := instr.insertIdxRecordsForIndexes(logger, &writeItem, distinctIdxName, newRowid, &piq)
+						if err != nil {
+							errorToReport = fmt.Errorf("cannot insert index records for IdxFirst: %s", err.Error())
 						}
-						if err := instr.insertIdxRecordWithRowid(logger, idxName, idxDef.Uniqueness, writeItem.IndexKeyMap[idxName], newRowid, &piq); err != nil {
-							errorToReport = fmt.Errorf("cannot insert DataIdxSeqModeDistinctIdxFirst idx record to %s: %s", idxName, err.Error())
-							break
-						}
-					} // idx loop
+					}
 				}
 			}
-		} else {
+		default:
 			errorToReport = fmt.Errorf("unsupported instr.DataIdxSeqMode %d", instr.DataIdxSeqMode)
 		}
 

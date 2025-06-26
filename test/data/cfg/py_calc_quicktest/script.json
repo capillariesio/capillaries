@@ -3,7 +3,6 @@
         "read_order_items": {
             "type": "file_table",
             "desc": "Load order item data from CSV files to a table, one input file - one batch",
-            "explicit_run_only": true,
             "r": {
                 "urls": [
                     "{dir_in}/olist_order_items_dataset00.csv",

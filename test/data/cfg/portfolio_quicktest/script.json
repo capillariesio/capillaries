@@ -3,7 +3,6 @@
         "1_read_accounts": {
             "type": "file_table",
             "desc": "Load accounts from csv",
-            "explicit_run_only": true,
             "r": {
                 "urls": [
                     "{dir_in}/accounts.csv"
@@ -45,7 +44,6 @@
         "1_read_txns": {
             "type": "file_table",
             "desc": "Load txns from csv",
-            "explicit_run_only": true,
             "r": {
                 "urls": [
                     "{dir_in}/txns.csv"
@@ -114,6 +112,7 @@
         "2_account_txns_outer": {
             "type": "table_lookup_table",
             "desc": "For each account, merge all txns into single json string",
+            "start_policy": "manual",
             "r": {
                 "table": "accounts",
                 "expected_batches_total": 10
@@ -141,7 +140,6 @@
         "1_read_period_holdings": {
             "type": "file_table",
             "desc": "Load holdings from csv",
-            "explicit_run_only": true,
             "r": {
                 "urls": [
                     "{dir_in}/holdings.csv"
@@ -203,6 +201,7 @@
         "2_account_period_holdings_outer": {
             "type": "table_lookup_table",
             "desc": "For each account, merge all holdings into single json string",
+            "start_policy": "manual",
             "r": {
                 "table": "accounts",
                 "expected_batches_total": 10
@@ -233,6 +232,7 @@
         "3_build_account_period_activity": {
             "type": "table_lookup_table",
             "desc": "For each account, merge holdings and txns",
+            "start_policy": "manual",
             "r": {
                 "table": "account_txns",
                 "expected_batches_total": 10

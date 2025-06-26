@@ -18,7 +18,7 @@ pushd ./test/code/tag_and_denormalize
 popd
 
 pushd ./test/code/portfolio/quicktest_local_fs
-./test_one_run.sh
+./test_three_runs.sh
 popd
 
 pushd ./test/code/proto_file_reader_creator
@@ -41,7 +41,7 @@ pushd ./test/code/tag_and_denormalize
 ./test_one_run_input_https.sh
 popd
 
-# exit 0
+ exit 0
 
 # s3
 

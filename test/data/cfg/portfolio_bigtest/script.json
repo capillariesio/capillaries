@@ -3,7 +3,6 @@
         "1_read_accounts": {
             "type": "file_table",
             "desc": "Load accounts from parquet",
-            "explicit_run_only": true,
             "r": {
                 "urls": [
                     "{dir_in}/accounts.parquet"
@@ -42,7 +41,6 @@
         "1_read_txns": {
             "type": "file_table",
             "desc": "Load txns from parquet",
-            "explicit_run_only": true,
             "r": {
                 "urls": [
                     "{dir_in}/txns_000.parquet",
@@ -605,6 +603,7 @@
         "2_account_txns_outer": {
             "type": "table_lookup_table",
             "desc": "For each account, merge all txns into single json string",
+            "start_policy": "manual",
             "r": {
                 "table": "accounts",
                 "expected_batches_total": 1000
@@ -633,7 +632,6 @@
         "1_read_period_holdings": {
             "type": "file_table",
             "desc": "Load holdings from parquet",
-            "explicit_run_only": true,
             "r": {
                 "urls": [
                     "{dir_in}/holdings_000.parquet",
@@ -701,6 +699,7 @@
         "2_account_period_holdings_outer": {
             "type": "table_lookup_table",
             "desc": "For each account, merge all holdings into single json string",
+            "start_policy": "manual",
             "r": {
                 "table": "accounts",
                 "expected_batches_total": 100
@@ -732,6 +731,7 @@
         "3_build_account_period_activity": {
             "type": "table_lookup_table",
             "desc": "For each account, merge holdings and txns",
+            "start_policy": "manual",
             "r": {
                 "table": "account_txns",
                 "expected_batches_total": 100

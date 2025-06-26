@@ -241,24 +241,29 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 
 		instr.startDrainer()
 
+		// Minimize allocations to help GC in this high-traffic loop
+		var tableRecord map[string]any
+		indexKeyMap := map[string]string{}
+		var inResult bool
+		var err error
 		for outRowIdx := 0; outRowIdx < varsArrayCount; outRowIdx++ {
 			vars := varsArray[outRowIdx]
 
-			tableRecord, err := node.TableCreator.CalculateTableRecordFromSrcVars(false, *vars)
+			tableRecord, err = node.TableCreator.CalculateTableRecordFromSrcVars(false, *vars)
 			if err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot populate table record from [%v], node %s: [%s]", vars, node.Name, err.Error()))
 				return instr.waitForDrainer(logger, pCtx)
 			}
 
 			// Check table creator having
-			inResult, err := node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
+			inResult, err = node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
 			if err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot check having condition [%s], node %s, table record [%v]: [%s]", node.TableCreator.RawHaving, node.Name, tableRecord, err.Error()))
 				return instr.waitForDrainer(logger, pCtx)
 			}
 
 			if inResult {
-				indexKeyMap, err := instr.buildIndexKeys(tableRecord)
+				err = instr.buildIndexKeys(tableRecord, indexKeyMap)
 				if err != nil {
 					instr.cancelDrainer(fmt.Errorf("cannot build index keys for table %s: [%s]", node.TableCreator.Name, err.Error()))
 					return instr.waitForDrainer(logger, pCtx)
@@ -377,22 +382,28 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 			break
 		}
 
+		// Minimize allocations to help GC in this high-traffic loop
+		var tableRecord map[string]any
+		indexKeyMap := map[string]string{}
+		vars := eval.VarValuesMap{}
+		var inResult bool
+
 		// Save rsIn
 		for outRowIdx := 0; outRowIdx < rsIn.RowCount; outRowIdx++ {
-			vars := eval.VarValuesMap{}
+			clear(vars)
 			if err := rsIn.ExportToVars(outRowIdx, &vars); err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot export to vars from source table, node %s: %s", node.Name, err.Error()))
 				return bs, instr.waitForDrainer(logger, pCtx)
 			}
 
-			tableRecord, err := node.TableCreator.CalculateTableRecordFromSrcVars(false, vars)
+			tableRecord, err = node.TableCreator.CalculateTableRecordFromSrcVars(false, vars)
 			if err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot populate table record from [%v], node %s: [%s]", vars, node.Name, err.Error()))
 				return bs, instr.waitForDrainer(logger, pCtx)
 			}
 
 			// Check table creator having
-			inResult, err := node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
+			inResult, err = node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
 			if err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot check having condition [%s], table record [%v], node %s: [%s]", node.TableCreator.RawHaving, tableRecord, node.Name, err.Error()))
 				return bs, instr.waitForDrainer(logger, pCtx)
@@ -400,7 +411,7 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 
 			// Write batch if needed
 			if inResult {
-				indexKeyMap, err := instr.buildIndexKeys(tableRecord)
+				err = instr.buildIndexKeys(tableRecord, indexKeyMap)
 				if err != nil {
 					instr.cancelDrainer(fmt.Errorf("cannot build index keys for table %s: [%s]", node.TableCreator.Name, err.Error()))
 					return bs, instr.waitForDrainer(logger, pCtx)
@@ -507,21 +518,26 @@ func RunCreateDistinctTableForBatch(envConfig *env.EnvConfig,
 			break
 		}
 
+		// Minimize allocations to help GC in this high-traffic loop
+		var tableRecord map[string]any
+		indexKeyMap := map[string]string{}
+		vars := eval.VarValuesMap{}
+
 		// Save rsIn
 		for outRowIdx := 0; outRowIdx < rsIn.RowCount; outRowIdx++ {
-			vars := eval.VarValuesMap{}
-			if err := rsIn.ExportToVars(outRowIdx, &vars); err != nil {
+			clear(vars)
+			if err = rsIn.ExportToVars(outRowIdx, &vars); err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot export to vars from source table, node %s: %s", node.Name, err.Error()))
 				return bs, instr.waitForDrainer(logger, pCtx)
 			}
 
-			tableRecord, err := node.TableCreator.CalculateTableRecordFromSrcVars(false, vars)
+			tableRecord, err = node.TableCreator.CalculateTableRecordFromSrcVars(false, vars)
 			if err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot populate table record from [%v], node %s: [%s]", vars, node.Name, err.Error()))
 				return bs, instr.waitForDrainer(logger, pCtx)
 			}
 
-			indexKeyMap, err := instr.buildIndexKeys(tableRecord)
+			err = instr.buildIndexKeys(tableRecord, indexKeyMap)
 			if err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot build index keys for table %s: [%s]", node.TableCreator.Name, err.Error()))
 				return bs, instr.waitForDrainer(logger, pCtx)
@@ -777,7 +793,7 @@ func produceNonGroupedTableRecordForCheldlessLeft(node *sc.ScriptNodeDef, rsLeft
 // 	return nil
 // }
 
-func checkHavingAddRecordAndSaveBatchIfNeeded(logger *l.CapiLogger, node *sc.ScriptNodeDef, tableRecord map[string]any, instr *TableInserter) error {
+func checkHavingAddRecordAndSaveBatchIfNeeded(logger *l.CapiLogger, node *sc.ScriptNodeDef, tableRecord map[string]any, indexKeyMap map[string]string, instr *TableInserter) error {
 	logger.PushF("proc.checkHavingAddRecordAndSaveBatchIfNeeded")
 	defer logger.PopF()
 
@@ -789,7 +805,7 @@ func checkHavingAddRecordAndSaveBatchIfNeeded(logger *l.CapiLogger, node *sc.Scr
 	}
 
 	if inResult {
-		indexKeyMap, err := instr.buildIndexKeys(tableRecord)
+		err = instr.buildIndexKeys(tableRecord, indexKeyMap)
 		if err != nil {
 			return fmt.Errorf("cannot build index keys for %s: [%s]", node.TableCreator.Name, err.Error())
 		}
@@ -1005,6 +1021,9 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 						break
 					}
 
+					// Help GC
+					var indexKeyMap = map[string]string{}
+					var tableRecord map[string]any
 					for rightRowIdx := 0; rightRowIdx < rsRight.RowCount; rightRowIdx++ {
 						rightRowId := *((*rsRight.Rows[rightRowIdx])[rsRight.FieldsByFieldName["rowid"]].(*int64))
 						rightRowKey := rightRowIdToKeyMap[rightRowId]
@@ -1047,13 +1066,13 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 
 								leftRowFoundRightLookup[leftRowIdx] = true
 
-								tableRecord, err := produceNonGroupedTableRecordForLeftWithChildren(node, rsLeft, leftRowIdx, rsRight, rightRowIdx)
+								tableRecord, err = produceNonGroupedTableRecordForLeftWithChildren(node, rsLeft, leftRowIdx, rsRight, rightRowIdx)
 								if err != nil {
 									instr.cancelDrainer(fmt.Errorf("cannot produceNonGroupedTableRecordForLeftWithChildren, node %s: %s", node.Name, err.Error()))
 									return bs, instr.waitForDrainer(logger, pCtx)
 								}
 
-								if err := checkHavingAddRecordAndSaveBatchIfNeeded(logger, node, tableRecord, instr); err != nil {
+								if err = checkHavingAddRecordAndSaveBatchIfNeeded(logger, node, tableRecord, indexKeyMap, instr); err != nil {
 									instr.cancelDrainer(fmt.Errorf("cannot checkHavingAddRecordAndSaveBatchIfNeeded, node %s: %s", node.Name, err.Error()))
 									return bs, instr.waitForDrainer(logger, pCtx)
 								}
@@ -1084,9 +1103,12 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 		// For non-grouped left join - add empty left-side (those who have right counterpart were alredy hendled above)
 		// Non-grouped inner join - already handled above
 		if node.Lookup.IsGroup {
+			// Help GC
+			var indexKeyMap = map[string]string{}
+			var tableRecord map[string]any
 			// Time to write the result of the grouped we evaluated above using eCtxMap
 			for leftRowIdx := 0; leftRowIdx < rsLeft.RowCount; leftRowIdx++ {
-				tableRecord, err := produceGroupedTableRecord(node, rsLeft, leftRowIdx, leftRowFoundRightLookup, eCtxMap)
+				tableRecord, err = produceGroupedTableRecord(node, rsLeft, leftRowIdx, leftRowFoundRightLookup, eCtxMap)
 				if err != nil {
 					instr.cancelDrainer(fmt.Errorf("cannot produceGroupedTableRecord, node %s: %s", node.Name, err.Error()))
 					return bs, instr.waitForDrainer(logger, pCtx)
@@ -1096,7 +1118,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 					continue
 				}
 
-				if err = checkHavingAddRecordAndSaveBatchIfNeeded(logger, node, tableRecord, instr); err != nil {
+				if err = checkHavingAddRecordAndSaveBatchIfNeeded(logger, node, tableRecord, indexKeyMap, instr); err != nil {
 					instr.cancelDrainer(fmt.Errorf("cannot Group checkHavingAddRecordAndSaveBatchIfNeeded, node %s: %s", node.Name, err.Error()))
 					return bs, instr.waitForDrainer(logger, pCtx)
 				}
@@ -1108,19 +1130,22 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 			// Handle those left rows that did not have right lookup counterpart
 			// (those who had - they have been written already)
 
+			// Help GC
+			var indexKeyMap = map[string]string{}
+			var tableRecord map[string]any
 			for leftRowIdx := 0; leftRowIdx < rsLeft.RowCount; leftRowIdx++ {
 				if leftRowFoundRightLookup[leftRowIdx] {
 					// This left row had right counterparts and grouped result was already written
 					continue
 				}
 
-				tableRecord, err := produceNonGroupedTableRecordForCheldlessLeft(node, rsLeft, leftRowIdx)
+				tableRecord, err = produceNonGroupedTableRecordForCheldlessLeft(node, rsLeft, leftRowIdx)
 				if err != nil {
 					instr.cancelDrainer(fmt.Errorf("cannot JoinLeft produceNonGroupedTableRecordForCheldlessLeft, node %s: %s", node.Name, err.Error()))
 					return bs, instr.waitForDrainer(logger, pCtx)
 				}
 
-				if err := checkHavingAddRecordAndSaveBatchIfNeeded(logger, node, tableRecord, instr); err != nil {
+				if err = checkHavingAddRecordAndSaveBatchIfNeeded(logger, node, tableRecord, indexKeyMap, instr); err != nil {
 					instr.cancelDrainer(fmt.Errorf("cannot JoinLeft checkHavingAddRecordAndSaveBatchIfNeeded, node %s: %s", node.Name, err.Error()))
 					return bs, instr.waitForDrainer(logger, pCtx)
 				}
