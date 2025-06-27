@@ -214,6 +214,120 @@ const plainScriptJson string = `
 	}
 }`
 
+const trickyAffectedScriptJson string = `
+{
+	"nodes": {
+		"read_table1": {
+			"type": "file_table",
+			"r": {
+				"urls": [
+					"file1.csv"
+				],
+				"csv":{
+					"first_data_line_idx": 0
+				},
+				"columns": {
+					"col_field_int": {
+						"csv":{
+							"col_idx": 0
+						},
+						"col_type": "int"
+					},
+					"col_field_string": {
+						"csv":{
+							"col_idx": 1
+						},
+						"col_type": "string"
+					}
+				}
+			},
+			"w": {
+				"name": "table1",
+				"having": "w.field_int1 > 1",
+				"fields": {
+					"field_int1": {
+						"expression": "r.col_field_int",
+						"type": "int"
+					},
+					"field_string1": {
+						"expression": "r.col_field_string",
+						"type": "string"
+					}
+				},
+				"indexes": {
+					"idx_table1_string1": "unique(field_string1)"
+				}
+			}
+		},
+		"distinct_table1": {
+			"type": "distinct_table",
+			"rerun_policy": "fail",
+			"start_policy": "manual",
+			"r": {
+				"table": "table1",
+				"expected_batches_total": 100
+			},
+			"w": {
+				"name": "distinct_table1",
+				"fields": {
+					"field_int1": {
+						"expression": "r.field_int1",
+						"type": "int"
+					},
+					"field_string1": {
+						"expression": "r.field_string1",
+						"type": "string"
+					}
+				},
+				"indexes": {
+					"idx_distinct_table1_field_int1": "unique(field_int1)"
+				}
+			}
+		},
+		"join_table1_table1": {
+			"type": "table_lookup_table",
+			"start_policy": "auto",
+			"r": {
+				"table": "distinct_table1",
+				"expected_batches_total": 2
+			},
+			"l": {
+				"index_name": "idx_table1_string1",
+				"join_on": "r.field_string1",
+				"filter": "l.field_int1 > 100",
+				"group": true,
+				"join_type": "left"
+			},
+			"w": {
+				"name": "joined_table1_table1",
+				"having": "w.total_value > 2",
+				"fields": {
+					"field_int1": {
+						"expression": "r.field_int1",
+						"type": "int"
+					},
+					"field_string1": {
+						"expression": "r.field_string1",
+						"type": "string"
+					},
+					"total_value": {
+						"expression": "sum(l.field_int1)",
+						"type": "int"
+					},
+					"item_count": {
+						"expression": "count()",
+						"type": "int"
+					}
+				}
+			}
+		}
+	},
+	"dependency_policies": {
+		"current_active_first_stopped_nogo":` + DefaultPolicyCheckerConfJson +
+	`		
+	}
+}`
+
 func jsonToYamlToScriptDef(t *testing.T) *ScriptDef {
 	var jsonDeserializedAsMap map[string]any
 	err := json.Unmarshal([]byte(plainScriptJson), &jsonDeserializedAsMap)
@@ -646,6 +760,34 @@ func TestAffectedNodesJson(t *testing.T) {
 func TestAffectedNodesYaml(t *testing.T) {
 	scriptDef := jsonToYamlToScriptDef(t)
 	testAffectedNodes(t, scriptDef)
+}
+
+func TestTrickyAffectedNodesJson(t *testing.T) {
+	scriptDef := &ScriptDef{}
+	assert.Nil(t, scriptDef.Deserialize([]byte(trickyAffectedScriptJson), ScriptJson, nil, nil, "", nil))
+
+	affectedNodes := scriptDef.GetAffectedNodes([]string{"read_table1"})
+	assert.Equal(t, 1, len(affectedNodes))
+	assert.Contains(t, affectedNodes, "read_table1")
+
+	affectedNodes = scriptDef.GetAffectedNodes([]string{"distinct_table1"})
+	assert.Equal(t, 2, len(affectedNodes))
+	assert.Contains(t, affectedNodes, "distinct_table1")
+	assert.Contains(t, affectedNodes, "join_table1_table1")
+
+	// Make distinct_table1 auto
+	assert.Nil(t, scriptDef.Deserialize([]byte(strings.Replace(trickyAffectedScriptJson, `"start_policy": "manual"`, `"start_policy": "auto"`, 1)), ScriptJson, nil, nil, "", nil))
+
+	affectedNodes = scriptDef.GetAffectedNodes([]string{"read_table1"})
+	assert.Equal(t, 3, len(affectedNodes))
+	assert.Contains(t, affectedNodes, "read_table1")
+	assert.Contains(t, affectedNodes, "distinct_table1")
+	assert.Contains(t, affectedNodes, "join_table1_table1")
+
+	affectedNodes = scriptDef.GetAffectedNodes([]string{"distinct_table1"})
+	assert.Equal(t, 2, len(affectedNodes))
+	assert.Contains(t, affectedNodes, "distinct_table1")
+	assert.Contains(t, affectedNodes, "join_table1_table1")
 }
 
 func TestUnusedIndex(t *testing.T) {

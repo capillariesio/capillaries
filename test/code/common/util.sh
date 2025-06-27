@@ -203,18 +203,18 @@ wait_run_webapi()
     do
       runNodeHistoryCmd="curl -s -X GET ""$webapiUrl/ks/$keyspace/run/$runIdToCheck/node_history"""
       runNodeHistory=$($runNodeHistoryCmd)
-      string='My long string'
       if [[ $runNodeHistory == *"\"final_status\":1"* ]]; then
-        echo "Run $runIdToCheck running, waiting..."
+        echo "Run $runIdToCheck running, waiting..." >&2
       elif [[ $runNodeHistory == *"\"final_status\":2"* ]]; then
-        echo "Run $runIdToCheck completed"
-        return
+        echo "Run $runIdToCheck completed" >&2
+        break
       elif [[ $runNodeHistory == *"\"final_status\":3"* ]]; then
-        echo "Run $runIdToCheck was stopped"
-        return
+        echo "Run $runIdToCheck was stopped" >&2
+        break
       fi
       sleep 2
     done
+    echo "0"
 }
 
 one_daemon_run_webapi()
@@ -244,15 +244,40 @@ one_daemon_run_webapi()
     echo "$(($duration / 60))m $(($duration % 60))s elapsed."
 }
 
-three_daemon_runs_webapi()
+start_and_wait_daemon_run_webapi() {
+    local webapiUrl=$1
+    local keyspace=$2
+    local scriptFile=$3
+    local paramsFile=$4
+    local runNumber=$5
+    local startNodes=$6
+
+    if [ "$startNodes" = "" ]; then
+      echo "0"
+    else
+        echo Starting run $runNumber in $keyspace at $webapiUrl, script $scriptFile, params $paramsFile, start nodes $startNodes ...  >&2
+        curl -s -w "\n" -d '{"script_url":"'$scriptFile'", "script_params_url":"'$paramsFile'", "start_nodes":"'$startNodes'"}' -H "Content-Type: application/json" -X POST $webapiUrl"/ks/$keyspace/run" >&2
+        if [ "$?" != "0" ]; then
+          exit $?
+        fi
+
+        echo Started run $runNumber successfully, waiting for it to finish...  >&2
+        echo $(wait_run_webapi $webapiUrl $keyspace $runNumber)
+    fi
+}
+
+webapi_multi_run()
 {
     local webapiUrl=$1
     local keyspace=$2
     local scriptFile=$3
     local paramsFile=$4
-    local startNodesOne=$5
-    local startNodesTwo=$6
-    local startNodesThree=$7
+    local startNodes1=$5
+    local startNodes2=$6
+    local startNodes3=$7
+    local startNodes4=$8
+    local startNodes5=$9
+    local startNodes6=${10}
 
     SECONDS=0
     echo Deleting keyspace $keyspace at $webapiUrl ...
@@ -261,29 +286,29 @@ three_daemon_runs_webapi()
       exit 1
     fi
 
-    echo Starting first run in $keyspace at $webapiUrl, script $scriptFile, params $paramsFile ...
-    curl -s -w "\n" -d '{"script_url":"'$scriptFile'", "script_params_url":"'$paramsFile'", "start_nodes":"'$startNodesOne'"}' -H "Content-Type: application/json" -X POST $webapiUrl"/ks/$keyspace/run"
-    if [ "$?" != "0" ]; then
+    if [ "$(start_and_wait_daemon_run_webapi $webapiUrl $keyspace $scriptFile $paramsFile 1 $startNodes1)" != "0" ]; then
       exit 1
     fi
 
-    wait_run_webapi $webapiUrl $keyspace 1
-
-    echo Starting second run in $keyspace at $webapiUrl, script $scriptFile, params $paramsFile ...
-    curl -s -w "\n" -d '{"script_url":"'$scriptFile'", "script_params_url":"'$paramsFile'", "start_nodes":"'$startNodesTwo'"}' -H "Content-Type: application/json" -X POST $webapiUrl"/ks/$keyspace/run"
-    if [ "$?" != "0" ]; then
+    if [ "$(start_and_wait_daemon_run_webapi $webapiUrl $keyspace $scriptFile $paramsFile 2 $startNodes2)" != "0" ]; then
       exit 1
     fi
 
-    wait_run_webapi $webapiUrl $keyspace 2
-
-    echo Starting third run in $keyspace at $webapiUrl, script $scriptFile, params $paramsFile ...
-    curl -s -w "\n" -d '{"script_url":"'$scriptFile'", "script_params_url":"'$paramsFile'", "start_nodes":"'$startNodesThree'"}' -H "Content-Type: application/json" -X POST $webapiUrl"/ks/$keyspace/run"
-    if [ "$?" != "0" ]; then
+    if [ "$(start_and_wait_daemon_run_webapi $webapiUrl $keyspace $scriptFile $paramsFile 3 $startNodes3)" != "0" ]; then
       exit 1
     fi
 
-    wait_run_webapi $webapiUrl $keyspace 3
+    if [ "$(start_and_wait_daemon_run_webapi $webapiUrl $keyspace $scriptFile $paramsFile 4 $startNodes4)" != "0" ]; then
+      exit 1
+    fi
+
+    if [ "$(start_and_wait_daemon_run_webapi $webapiUrl $keyspace $scriptFile $paramsFile 5 $startNodes5)" != "0" ]; then
+      exit 1
+    fi
+
+    if [ "$(start_and_wait_daemon_run_webapi $webapiUrl $keyspace $scriptFile $paramsFile 6 $startNodes6)" != "0" ]; then
+      exit 1
+    fi
 
     duration=$SECONDS
     echo "$(($duration / 60))m $(($duration % 60))s elapsed."

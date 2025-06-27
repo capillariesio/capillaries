@@ -217,7 +217,7 @@
 
 {#snippet tabDiagram()}
 <p>
-	This diagram is dynamic and evolves as nodes are processed. Color legend:
+	This diagram is dynamic and evolves as nodes are processed by this run. Color legend:
 	<span class="badge started">node started</span>,
 	<span class="badge success">node completed successfully</span>,
 	<span class="badge failed">node failed</span>,

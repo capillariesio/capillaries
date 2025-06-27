@@ -254,6 +254,7 @@
 		"03_deal_total_upbs": {
 			"type": "table_lookup_table",
 			"desc": "For each deal, calculate total UPBs",
+			"start_policy": "manual",
 			"r": {
 				"table": "deal_names",
 				"expected_batches_total": "{expected_batches|number}"
@@ -296,6 +297,7 @@
 		"04_loan_payment_summaries": {
 			"type": "table_lookup_table",
 			"desc": "For each loan, merge all payments into single json string",
+			"start_policy": "manual",
 			"r": {
 				"table": "loan_ids",
 				"expected_batches_total": "{expected_batches|number}"
@@ -357,6 +359,7 @@
 			"type": "table_custom_tfm_table",
 			"custom_proc_type": "py_calc",
 			"desc": "Apply Python calculations to loan summaries",
+			"start_policy": "manual",
 			"r": {
 				"table": "loan_payment_summaries",
 				"rowset_size": 1000,
@@ -548,6 +551,7 @@
 		"05_deal_seller_summaries": {
 			"type": "table_lookup_table",
 			"desc": "For each deal/seller, calculate aggregates from calculated loan summaries",
+			"start_policy": "manual",
 			"rerun_policy": "fail",
 			"r": {
 				"table": "deal_sellers",
@@ -740,6 +744,7 @@
 		"05_deal_summaries": {
 			"type": "table_lookup_table",
 			"desc": "For each deal, calculate aggregates from calculated loan summaries",
+			"start_policy": "manual",
 			"r": {
 				"table": "deal_total_upbs",
 				"expected_batches_total": "{expected_batches|number}"

@@ -18,7 +18,7 @@ pushd ./test/code/tag_and_denormalize
 popd
 
 pushd ./test/code/portfolio/quicktest_local_fs
-./test_three_runs.sh
+./test_multi_run.sh
 popd
 
 pushd ./test/code/proto_file_reader_creator
@@ -26,8 +26,8 @@ pushd ./test/code/proto_file_reader_creator
 popd
 
 pushd ./test/code/fannie_mae/quicktest_local_fs
-# This will take a few min
-./test_one_run.sh
+# 263-288s
+./test_multi_run.sh
 popd
 
 pushd ./test/code/global_affairs/quicktest_local_fs
