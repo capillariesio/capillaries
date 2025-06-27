@@ -95,9 +95,10 @@ func main() {
 	signal.Notify(osSignalChannel, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	scriptCache := expirable.NewLRU[string, string](100, nil, time.Minute*1)
+	nodeDependencyReadynessCache := expirable.NewLRU[string, string](1000, nil, time.Second*2)
 
 	for {
-		daemonCmd := wf.AmqpFullReconnectCycle(envConfig, logger, scriptCache, osSignalChannel)
+		daemonCmd := wf.AmqpFullReconnectCycle(envConfig, logger, scriptCache, nodeDependencyReadynessCache, osSignalChannel)
 		if daemonCmd == wf.DaemonCmdQuit {
 			logger.Info("got quit cmd, shut down is supposed to be complete by now")
 			os.Exit(0)

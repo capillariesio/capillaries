@@ -199,12 +199,16 @@ wait_run_webapi()
     local webapiUrl=$1
     local keyspace=$2
     local runIdToCheck=$3
+
+    SECONDS=0
+    echo "." >&2
     while true
     do
       runNodeHistoryCmd="curl -s -X GET ""$webapiUrl/ks/$keyspace/run/$runIdToCheck/node_history"""
       runNodeHistory=$($runNodeHistoryCmd)
       if [[ $runNodeHistory == *"\"final_status\":1"* ]]; then
-        echo "Run $runIdToCheck running, waiting..." >&2
+        duration=$SECONDS
+        echo -e "\e[1A\e[KWaiting for run $runIdToCheck, elapsed ${duration}s ..." >&2
       elif [[ $runNodeHistory == *"\"final_status\":2"* ]]; then
         echo "Run $runIdToCheck completed" >&2
         break
@@ -212,7 +216,7 @@ wait_run_webapi()
         echo "Run $runIdToCheck was stopped" >&2
         break
       fi
-      sleep 2
+      sleep 1
     done
     echo "0"
 }

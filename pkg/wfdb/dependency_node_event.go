@@ -9,6 +9,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
+// Very db-heavy
 func BuildDependencyNodeEventLists(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, depNodeNames []string) (map[string][]wfmodel.DependencyNodeEvent, error) {
 	logger.PushF("wfdb.buildDependencyNodeEventLists")
 	defer logger.PopF()
@@ -37,7 +38,7 @@ func BuildDependencyNodeEventLists(logger *l.CapiLogger, pCtx *ctx.MessageProces
 			if !ok {
 				return nil, fmt.Errorf("unexpectedly, cannot find run lifespan map for run %d, was it ever started?", affectingRunId)
 			}
-			if runLifespan.StartTs == time.Unix(0, 0) || runLifespan.FinalStatus == wfmodel.RunNone {
+			if runLifespan.StartTs.Equal(time.Unix(0, 0)) || runLifespan.FinalStatus == wfmodel.RunNone {
 				return nil, fmt.Errorf("unexpectedly, run lifespan %d looks like the run never started: %s", affectingRunId, runLifespanMap.ToString())
 			}
 			e := wfmodel.DependencyNodeEvent{

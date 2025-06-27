@@ -18,6 +18,7 @@ pushd ./test/code/tag_and_denormalize
 popd
 
 pushd ./test/code/portfolio/quicktest_local_fs
+# 100s
 ./test_multi_run.sh
 popd
 
@@ -26,12 +27,12 @@ pushd ./test/code/proto_file_reader_creator
 popd
 
 pushd ./test/code/fannie_mae/quicktest_local_fs
-# 263-288s
+# 215s
 ./test_multi_run.sh
 popd
 
 pushd ./test/code/global_affairs/quicktest_local_fs
-# This will take 1 min
+# 59s
 ./test_one_run.sh
 popd
 
@@ -41,7 +42,7 @@ pushd ./test/code/tag_and_denormalize
 ./test_one_run_input_https.sh
 popd
 
- exit 0
+# exit 0
 
 # s3
 

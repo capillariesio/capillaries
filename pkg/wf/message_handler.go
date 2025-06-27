@@ -19,9 +19,32 @@ import (
 	"go.uber.org/zap"
 )
 
-func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) (sc.ReadyToRunNodeCmdType, int16, int16, error) {
+const CachedNodeStateFormat string = "%s/%d/%d"
+
+func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, nodeDependencyReadynessCache *expirable.LRU[string, string]) (sc.ReadyToRunNodeCmdType, int16, int16, error) {
 	logger.PushF("wf.checkDependencyNodesReady")
 	defer logger.PopF()
+
+	// Before reading state db, check our cache
+	nodeDependencyReadynessCacheKey := pCtx.BatchInfo.FullNodeId()
+	if nodeDependencyReadynessCache != nil {
+		cachedState, ok := nodeDependencyReadynessCache.Get(nodeDependencyReadynessCacheKey)
+		if ok {
+			var cachedNodeCmdStr string
+			var cachedRunIdReader, cachedRunIdLookup int16
+			if partCount, err := fmt.Sscanf(cachedState, CachedNodeStateFormat, &cachedNodeCmdStr, &cachedRunIdReader, &cachedRunIdLookup); err != nil && partCount == 3 {
+				cachedNodeCmd, err := sc.ReadyToRunNodeCmdTypeFromString(cachedNodeCmdStr)
+				if err == nil {
+					return cachedNodeCmd, cachedRunIdReader, cachedRunIdLookup, nil
+				}
+				logger.WarnCtx(pCtx, "invalid cached nodecmd %s, proceeding with querying state db", cachedNodeCmdStr)
+				nodeDependencyReadynessCache.Remove(nodeDependencyReadynessCacheKey)
+			} else {
+				logger.WarnCtx(pCtx, "cannot parse nodecmd and node ids from %s, proceeding with querying state db", cachedState)
+				nodeDependencyReadynessCache.Remove(nodeDependencyReadynessCacheKey)
+			}
+		}
+	}
 
 	depNodeNames := make([]string, 2)
 	depNodeCount := 0
@@ -92,6 +115,11 @@ func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 		logger.InfoCtx(pCtx, "checked all dependency nodes for %s, commands are %v, run ids are %v, finalCmd is %s", pCtx.BatchInfo.TargetNodeName, dependencyNodeCmds, dependencyRunIds, finalCmd)
 	} else {
 		logger.DebugCtx(pCtx, "checked all dependency nodes for %s, commands are %v, run ids are %v, finalCmd is wait", pCtx.BatchInfo.TargetNodeName, dependencyNodeCmds, dependencyRunIds)
+	}
+
+	// Update cache
+	if nodeDependencyReadynessCache != nil {
+		nodeDependencyReadynessCache.Add(nodeDependencyReadynessCacheKey, fmt.Sprintf(CachedNodeStateFormat, finalCmd, finalRunIdReader, finalRunIdLookup))
 	}
 
 	return finalCmd, finalRunIdReader, finalRunIdLookup, nil
@@ -367,7 +395,7 @@ func checkDependencyNogoOrWait(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 	}
 }
 
-func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, scriptCache *expirable.LRU[string, string], msgTs int64, dataBatchInfo *wfmodel.MessagePayloadDataBatch) DaemonCmdType {
+func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, scriptCache *expirable.LRU[string, string], nodeDependencyReadynessCache *expirable.LRU[string, string], msgTs int64, dataBatchInfo *wfmodel.MessagePayloadDataBatch) DaemonCmdType {
 	logger.PushF("wf.ProcessDataBatchMsg")
 	defer logger.PopF()
 
@@ -430,8 +458,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, scriptC
 
 	// At this point, we are assuming this batch processing either never started or was started and then abandoned
 
-	// Check if we have dependency nodes ready
-	nodeReady, readerNodeRunId, lookupNodeRunId, err := checkDependencyNodesReady(logger, pCtx)
+	nodeReady, readerNodeRunId, lookupNodeRunId, err := checkDependencyNodesReady(logger, pCtx, nodeDependencyReadynessCache)
 	if err != nil {
 		logger.ErrorCtx(pCtx, "cannot verify dependency nodes status for %s: %s", pCtx.BatchInfo.FullBatchId(), err.Error())
 		if db.IsDbConnError(err) {
