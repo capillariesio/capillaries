@@ -467,10 +467,10 @@ const HOLDING_FILES_TOTAL int = 10
 const TXN_FILES_TOTAL int = 500 // For perf testing purposes, this better be > total_number_of_daemon_cores
 
 func main() {
-	quicktestIn := flag.String("quicktest_in", "../../../data/in/portfolio_quicktest", "Root dir for in quicktest files to be used as a template")
-	quicktestOut := flag.String("quicktest_out", "../../../data/out/portfolio_quicktest", "Root dir for out quicktest files to be used as a template")
-	inRoot := flag.String("in_root", "/tmp/capi_in/portfolio_bigtest", "Root dir for generated in files")
-	outRoot := flag.String("out_root", "/tmp/capi_out/portfolio_bigtest", "Root dir for generated out files")
+	quicktestIn := flag.String("quicktest_in", "/someunknowndir", "Root dir for in quicktest files to be used as a template")
+	quicktestOut := flag.String("quicktest_out", "/someunknowndir", "Root dir for out quicktest files to be used as a template")
+	inRoot := flag.String("in_root", "/someunknowndir", "Root dir for generated in files")
+	outRoot := flag.String("out_root", "/someunknowndir", "Root dir for generated out files")
 	totalAccountsSuggested := flag.Int("accounts", 100, "Total number of accounts to generate")
 	flag.Parse()
 

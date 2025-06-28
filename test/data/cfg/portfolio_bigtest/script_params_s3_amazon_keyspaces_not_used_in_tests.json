@@ -1,4 +1,5 @@
 {
+    "manual_if_multi": "auto",
     "WARNING": "Exercise extreme caution when setting Amazon Keyspaces capacity units: they can be very pricey",
     "aws_keyspaces_table_options": "WITH CUSTOM_PROPERTIES = {'capacity_mode':{'throughput_mode':'PROVISIONED','write_capacity_units':200,'read_capacity_units':100}}",
     "period_start_eod": "2020-12-31",

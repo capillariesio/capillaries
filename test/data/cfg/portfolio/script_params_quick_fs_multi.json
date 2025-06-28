@@ -1,4 +1,6 @@
 {
+    "manual_if_multi": "manual",
+    "aws_keyspaces_table_options": "",
     "period_start_eod": "2020-12-31",
     "period_end_eod": "2022-12-31",
     "dir_in": "/tmp/capi_in/portfolio_quicktest",

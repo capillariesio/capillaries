@@ -70,7 +70,7 @@ func NewLoggerFromEnvConfig(envConfig *env.EnvConfig) (*CapiLogger, error) {
 	var core zapcore.Core
 	if envConfig.Log.LogFile == "" {
 		core = zapcore.NewTee(
-			zapcore.NewCore(zapcore.NewConsoleEncoder(encoderConfig), zapcore.AddSync(os.Stdout), atomicLevel),
+			zapcore.NewCore(zapcore.NewJSONEncoder(encoderConfig), zapcore.AddSync(os.Stdout), atomicLevel),
 		)
 	} else {
 		// Lumberjack: rotates by schedule and on SIGHUP
@@ -95,7 +95,7 @@ func NewLoggerFromEnvConfig(envConfig *env.EnvConfig) (*CapiLogger, error) {
 		}()
 		lj_file := zapcore.AddSync(&lj)
 		core = zapcore.NewTee(
-			zapcore.NewCore(zapcore.NewConsoleEncoder(encoderConfig), zapcore.AddSync(os.Stdout), atomicLevel),
+			zapcore.NewCore(zapcore.NewJSONEncoder(encoderConfig), zapcore.AddSync(os.Stdout), atomicLevel),
 			zapcore.NewCore(zapcore.NewJSONEncoder(encoderConfig), lj_file, atomicLevel),
 		)
 	}
