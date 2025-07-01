@@ -1,7 +1,5 @@
 #!/bin/bash
 
-echo "Make sure that pkg/exe/toolbelt has access to Cassandra and RabbitMQ"
-
 fs_or_https=$1
 one_or_multi=$2
 

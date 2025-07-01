@@ -1,7 +1,5 @@
 #!/bin/bash
 
-echo "Make sure that pkg/exe/toolbelt has access to Cassandra and RabbitMQ"
-
 json_or_yaml=$1
 
 if [[ "$json_or_yaml" != "json" && "$json_or_yaml" != "yaml" ]]; then

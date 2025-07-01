@@ -1,7 +1,5 @@
 #!/bin/bash
 
-echo "Make sure that pkg/exe/toolbelt has access to Cassandra and RabbitMQ"
-
 ./4_clean.sh
 ./1_generate_scripts.sh
 ./2_one_run_csv.sh

@@ -1,7 +1,5 @@
 #!/bin/bash
 
-echo "Make sure that pkg/exe/toolbelt has access to Cassandra and RabbitMQ"
-
 ./4_clean.sh quick local fs execnodes
 ./1_create_data.sh quick fs
 ./2_exec_nodes.sh

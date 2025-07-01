@@ -40,14 +40,14 @@ Start a new Capillaries [data processing run](./doc/glossary.md#run) by clicking
 | Field | Value |
 |- | - |
 | Keyspace | portfolio_quicktest |
-| Script URI | /tmp/capi_cfg/portfolio_quicktest/script.json |
-| Script parameters URI | /tmp/capi_cfg/portfolio_quicktest/script_params.json |
+| Script URI | /tmp/capi_cfg/portfolio_quicktest/script_quick.json |
+| Script parameters URI | /tmp/capi_cfg/portfolio_quicktest/script_params_quick_fs_one.json |
 | Start nodes |	1_read_accounts,1_read_txns,1_read_period_holdings |
 
 Alternatively, you can start a new [run](./doc/glossary.md#run) using Capillaries [toolbelt](./doc/glossary.md#toolbelt) by executing the following command from the Docker host machine, it should have the same effect as starting a run from the UI:
 
 ```
-docker exec -it capillaries_webapi /usr/local/bin/capitoolbelt start_run -script_file=/tmp/capi_cfg/portfolio_quicktest/script.json -params_file=/tmp/capi_cfg/portfolio_quicktest/script_params.json -keyspace=portfolio_quicktest -start_nodes=1_read_accounts,1_read_txns,1_read_period_holdings
+docker exec -it capillaries_webapi /usr/local/bin/capitoolbelt start_run -script_file=/tmp/capi_cfg/portfolio_quicktest/script_quick.json -params_file=/tmp/capi_cfg/portfolio_quicktest/script_params_quick_fs_one.json -keyspace=portfolio_quicktest -start_nodes=1_read_accounts,1_read_txns,1_read_period_holdings
 ```
 
 Watch the progress in Capillaries UI. A new keyspace `portfolio_quicktest` will appear in the keyspace list. Click on it and watch the run complete - nodes `7_file_account_period_sector_perf` and `7_file_account_year_perf` should produce result files:

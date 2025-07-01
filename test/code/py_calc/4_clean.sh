@@ -17,5 +17,4 @@ rm -f $inDir/raw $inDir/header $inDir/data*
 rm -f $outDir/raw $outDir/header $outDir/data* $outDir/*0.csv $outDir/*1.csv $outDir/*py.csv $outDir/*go.csv
 pushd ../../../pkg/exe/toolbelt
   go run capitoolbelt.go drop_keyspace -keyspace=$keyspace
-  go run capitoolbelt.go drop_keyspace -keyspace=$keyspace
 popd
