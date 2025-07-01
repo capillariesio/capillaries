@@ -1,8 +1,8 @@
 #!/bin/bash
 
-keyspace="tag_and_denormalize_quicktest"
+keyspace="tag_and_denormalize_quicktest_execnodes"
 scriptFile=/tmp/capi_cfg/tag_and_denormalize_quicktest/script.json
-paramsFile=/tmp/capi_cfg/tag_and_denormalize_quicktest/script_params_one_run.json
+paramsFile=/tmp/capi_cfg/tag_and_denormalize_quicktest/script_params_fs_one.json
 outDir=/tmp/capi_out/tag_and_denormalize_quicktest
 
 SECONDS=0
@@ -22,4 +22,4 @@ set +x
 popd
 
 duration=$SECONDS
-echo "$(($duration / 60))m $(($duration % 60))s elapsed."
+echo "$duration s elapsed"

@@ -7,4 +7,4 @@ cfgDir=/tmp/capi_cfg/proto_file_reader_creator_quicktest
 outDir=/tmp/capi_out/proto_file_reader_creator_quicktest
 scriptFile=$cfgDir/script_parquet.json
 
-one_daemon_run_no_params $keyspace $scriptFile $outDir 'read_file'
+toolbelt_one_run_no_params $keyspace $scriptFile $outDir 'read_file'

@@ -24,7 +24,7 @@ fi
 
 echo "Copying config files to "$cfgDir
 
-cp -r ../../data/cfg/py_calc_quicktest/* $cfgDir/
+cp -r ../../data/cfg/py_calc/* $cfgDir/
 
 echo "Generating files..."
 

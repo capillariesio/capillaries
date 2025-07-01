@@ -112,10 +112,10 @@ one_daemon_run()
     fi
     popd
     duration=$SECONDS
-    echo "$(($duration / 60))m $(($duration % 60))s elapsed."    
+    echo "$duration s elapsed"    
 }
 
-one_daemon_run_no_params()
+toolbelt_one_run_no_params()
 {
     local keyspace=$1
     local scriptFile=$2
@@ -146,7 +146,7 @@ one_daemon_run_no_params()
     fi
     popd
     duration=$SECONDS
-    echo "$(($duration / 60))m $(($duration % 60))s elapsed."    
+    echo "$duration s elapsed"    
 }
 
 two_daemon_runs()
@@ -191,7 +191,7 @@ two_daemon_runs()
     fi    
     popd
     duration=$SECONDS
-    echo "$(($duration / 60))m $(($duration % 60))s elapsed."
+    echo "$duration s elapsed"
 }
 
 wait_run_webapi()
@@ -244,7 +244,7 @@ one_daemon_run_webapi()
     wait_run_webapi $webapiUrl $keyspace 1
 
     duration=$SECONDS
-    echo "$(($duration / 60))m $(($duration % 60))s elapsed."
+    echo "$duration s elapsed"
 }
 
 start_and_wait_daemon_run_webapi() {
