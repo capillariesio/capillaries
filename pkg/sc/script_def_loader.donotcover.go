@@ -33,12 +33,12 @@ func NewScriptFromFiles(caPath string, privateKeys map[string]string, scriptUrl 
 
 	scriptCacheKey := fmt.Sprintf("%s %s", scriptUrl, scriptParamsUrl)
 	if ScriptDefCache != nil {
-		if cachedScriptInitResult, ok := ScriptDefCache.Get(scriptCacheKey); ok {
-			ScriptDefCacheHitCounter.Inc()
-			return cachedScriptInitResult.Def, cachedScriptInitResult.InitProblem, cachedScriptInitResult.Err
-		} else {
+		cachedScriptInitResult, ok := ScriptDefCache.Get(scriptCacheKey)
+		if !ok {
 			ScriptDefCacheMissCounter.Inc()
 		}
+		ScriptDefCacheHitCounter.Inc()
+		return cachedScriptInitResult.Def, cachedScriptInitResult.InitProblem, cachedScriptInitResult.Err
 	}
 
 	var err error

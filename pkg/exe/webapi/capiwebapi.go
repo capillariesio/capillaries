@@ -187,7 +187,7 @@ var NodeDescCache = map[string]string{}
 var NodeDescCacheTs = map[string]time.Time{}
 var NodeDescCacheLock = sync.RWMutex{}
 
-func (h *UrlHandler) getNodeDesc(scriptCache *expirable.LRU[string, string], logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16, nodeName string) (string, error) {
+func (h *UrlHandler) getNodeDesc(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16, nodeName string) (string, error) {
 
 	nodeKey := keyspace + ":" + nodeName
 	NodeDescCacheLock.RLock()
@@ -287,7 +287,7 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 	mx.Nodes = make([]WebapiNodeRunMatrixRow, len(nodeRunStatusMap))
 	nodeCount := 0
 	for nodeName, runNodeStatusMap := range nodeRunStatusMap {
-		nodeDesc, err := h.getNodeDesc(h.ScriptCache, h.L, cqlSession, keyspace, runLifespanMap[1].RunId, nodeName)
+		nodeDesc, err := h.getNodeDesc(h.L, cqlSession, keyspace, runLifespanMap[1].RunId, nodeName)
 		if err != nil {
 			WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot get node description: %s", err.Error()), http.StatusInternalServerError)
 			return
@@ -742,9 +742,8 @@ func (h *UrlHandler) ksDrop(w http.ResponseWriter, r *http.Request) {
 }
 
 type UrlHandler struct {
-	Env         *env.EnvConfig
-	L           *l.CapiLogger
-	ScriptCache *expirable.LRU[string, string]
+	Env *env.EnvConfig
+	L   *l.CapiLogger
 }
 
 type ctxKey struct {
@@ -811,7 +810,7 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	h := UrlHandler{Env: envConfig, L: logger, ScriptCache: expirable.NewLRU[string, string](100, nil, time.Minute*1)}
+	h := UrlHandler{Env: envConfig, L: logger}
 
 	routes = []route{
 		newRoute("GET", "/ks[/]*", h.ks),
@@ -837,7 +836,9 @@ func main() {
 		prometheus.MustRegister(sc.ScriptDefCacheHitCounter, sc.ScriptDefCacheMissCounter)
 		go func() {
 			http.Handle("/metrics", promhttp.Handler())
-			fmt.Println(http.ListenAndServe(fmt.Sprintf(":%d", envConfig.Log.PrometheusExporterPort), nil))
+			if err := http.ListenAndServe(fmt.Sprintf(":%d", envConfig.Log.PrometheusExporterPort), nil); err != nil {
+				log.Fatalf("%s", err.Error())
+			}
 		}()
 	}
 

@@ -78,7 +78,9 @@ func main() {
 		prometheus.MustRegister(wf.NodeDependencyReadynessHitCounter, wf.NodeDependencyReadynessMissCounter, wf.NodeDependencyReadynessGetDuration, wf.NodeDependencyNoneCounter, wf.NodeDependencyWaitCounter, wf.NodeDependencyGoCounter, wf.NodeDependencyNogoCounter)
 		go func() {
 			http.Handle("/metrics", promhttp.Handler())
-			fmt.Println(http.ListenAndServe(fmt.Sprintf(":%d", envConfig.Log.PrometheusExporterPort), nil))
+			if err := http.ListenAndServe(fmt.Sprintf(":%d", envConfig.Log.PrometheusExporterPort), nil); err != nil {
+				log.Fatalf("%s", err.Error())
+			}
 		}()
 	}
 
