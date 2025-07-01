@@ -140,10 +140,10 @@ func shuffleAndSaveInOrders(inOrders []*Order, totalChunks int, basePath string,
 				}
 				parquetWriter, err = storage.NewParquetWriter(fParquet, sc.ParquetCodecGzip)
 				if err != nil {
-					log.Fatalf("%s", err.Error())
+					log.Fatalf("cannot create parquet writer: %s", err.Error())
 				}
 				if err := parquetWriter.AddColumn("order_id", sc.FieldTypeString); err != nil {
-					log.Fatalf("%s", err.Error())
+					log.Fatalf("cannot add column order_id %s", err.Error())
 				}
 				if err := parquetWriter.AddColumn("customer_id", sc.FieldTypeString); err != nil {
 					log.Fatalf("%s", err.Error())
@@ -264,10 +264,10 @@ func shuffleAndSaveInOrderItems(inOrderItems []*OrderItem, totalChunks int, base
 				}
 				parquetWriter, err = storage.NewParquetWriter(fParquet, sc.ParquetCodecGzip)
 				if err != nil {
-					log.Fatalf("%s", err.Error())
+					log.Fatalf("cannot create parquet writer: %s", err.Error())
 				}
 				if err := parquetWriter.AddColumn("order_id", sc.FieldTypeString); err != nil {
-					log.Fatalf("%s", err.Error())
+					log.Fatalf("cannot add column order_id %s", err.Error())
 				}
 				if err := parquetWriter.AddColumn("order_item_id", sc.FieldTypeInt); err != nil {
 					log.Fatalf("%s", err.Error())
@@ -376,11 +376,11 @@ func sortAndSaveNoGroup(items []*NoGroupItem, fileBase string, formats string) {
 
 		w, err := storage.NewParquetWriter(fParquet, sc.ParquetCodecGzip)
 		if err != nil {
-			log.Fatalf("%s", err.Error())
+			log.Fatalf("cannot create parquet writer: %s", err.Error())
 		}
 
 		if err := w.AddColumn("order_id", sc.FieldTypeString); err != nil {
-			log.Fatalf("%s", err.Error())
+			log.Fatalf("cannot add column order_id %s", err.Error())
 		}
 		if err := w.AddColumn("order_item_id", sc.FieldTypeInt); err != nil {
 			log.Fatalf("%s", err.Error())
@@ -470,11 +470,11 @@ func sortAndSaveGroup(items []*GroupItem, fileBase string, formats string) {
 
 		w, err := storage.NewParquetWriter(fParquet, sc.ParquetCodecGzip)
 		if err != nil {
-			log.Fatalf("%s", err.Error())
+			log.Fatalf("cannot create parquet writer: %s", err.Error())
 		}
 
 		if err := w.AddColumn("total_value", sc.FieldTypeDecimal2); err != nil {
-			log.Fatalf("%s", err.Error())
+			log.Fatalf("cannot add column total_value %s", err.Error())
 		}
 		if err := w.AddColumn("order_purchase_timestamp", sc.FieldTypeDateTime); err != nil {
 			log.Fatalf("%s", err.Error())

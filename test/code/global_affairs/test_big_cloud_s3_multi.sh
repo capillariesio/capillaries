@@ -1,0 +1,17 @@
+#!/bin/bash
+
+
+# 1380 s
+
+
+echo "Make sure that pkg/exe/toolbelt has access to Cassandra and RabbitMQ"
+
+./4_clean.sh big cloud s3 multi
+./1_copy_data.sh big s3
+./2_run.sh big cloud s3 multi
+if ! ./3_compare_results.sh big s3; then
+  echo "NOT CLEANED"
+  exit 1
+else
+  ./4_clean.sh big cloud s3 multi
+fi

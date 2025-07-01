@@ -14,6 +14,7 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/hashicorp/golang-lru/v2/expirable"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/capillariesio/capillaries/pkg/custom/py_calc"
@@ -72,6 +73,9 @@ func main() {
 	envConfig.CustomProcessorDefFactoryInstance = &StandardDaemonProcessorDefFactory{}
 
 	if envConfig.Log.PrometheusExporterPort > 0 {
+		prometheus.MustRegister(xfer.SftpFileGetGetDuration, xfer.HttpFileGetGetDuration, xfer.S3FileGetGetDuration)
+		prometheus.MustRegister(sc.ScriptDefCacheHitCounter, sc.ScriptDefCacheMissCounter)
+		prometheus.MustRegister(wf.NodeDependencyReadynessHitCounter, wf.NodeDependencyReadynessMissCounter, wf.NodeDependencyReadynessGetDuration, wf.NodeDependencyNoneCounter, wf.NodeDependencyWaitCounter, wf.NodeDependencyGoCounter, wf.NodeDependencyNogoCounter)
 		go func() {
 			http.Handle("/metrics", promhttp.Handler())
 			fmt.Println(http.ListenAndServe(fmt.Sprintf(":%d", envConfig.Log.PrometheusExporterPort), nil))
@@ -94,11 +98,11 @@ func main() {
 	osSignalChannel := make(chan os.Signal, 1)
 	signal.Notify(osSignalChannel, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	scriptCache := expirable.NewLRU[string, string](100, nil, time.Minute*1)
-	nodeDependencyReadynessCache := expirable.NewLRU[string, string](1000, nil, time.Second*2)
+	sc.ScriptDefCache = expirable.NewLRU[string, sc.ScriptInitResult](50, nil, time.Minute*1)
+	wf.NodeDependencyReadynessCache = expirable.NewLRU[string, string](1000, nil, time.Second*2)
 
 	for {
-		daemonCmd := wf.AmqpFullReconnectCycle(envConfig, logger, scriptCache, nodeDependencyReadynessCache, osSignalChannel)
+		daemonCmd := wf.AmqpFullReconnectCycle(envConfig, logger, osSignalChannel)
 		if daemonCmd == wf.DaemonCmdQuit {
 			logger.Info("got quit cmd, shut down is supposed to be complete by now")
 			os.Exit(0)

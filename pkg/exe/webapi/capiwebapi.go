@@ -23,10 +23,13 @@ import (
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
+	"github.com/capillariesio/capillaries/pkg/wf"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/capillariesio/capillaries/pkg/xfer"
 	"github.com/gocql/gocql"
 	"github.com/hashicorp/golang-lru/v2/expirable"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -204,7 +207,7 @@ func (h *UrlHandler) getNodeDesc(scriptCache *expirable.LRU[string, string], log
 
 	// Now we have script URL, load it
 
-	script, _, err := sc.NewScriptFromFiles(scriptCache, h.Env.CaPath, h.Env.PrivateKeys, runProps.ScriptUrl, runProps.ScriptParamsUrl, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
+	script, _, err := sc.NewScriptFromFiles(h.Env.CaPath, h.Env.PrivateKeys, runProps.ScriptUrl, runProps.ScriptParamsUrl, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
 	if err != nil {
 		return "", err
 	}
@@ -342,7 +345,7 @@ func getRunProps(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace strin
 		return nil, fmt.Errorf("invalid number of matching runs (%d), expected 1; this usually happens when webapi caller makes wrong assumptions about the process status", len(allRunsProps))
 	}
 
-	RunPropsCacheLock.RLock()
+	RunPropsCacheLock.Lock()
 	if len(RunPropsCache) > 1000 {
 		for k := range RunPropsCache {
 			delete(RunPropsCache, k)
@@ -350,7 +353,7 @@ func getRunProps(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace strin
 	}
 	RunPropsCache[runPropsCacheKey] = allRunsProps[0]
 	RunPropsCacheTs[runPropsCacheKey] = time.Now()
-	RunPropsCacheLock.RUnlock()
+	RunPropsCacheLock.Unlock()
 
 	return allRunsProps[0], nil
 }
@@ -527,7 +530,7 @@ func (h *UrlHandler) ksRunViz(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Now we have script URL, load it
-	scriptDef, _, err := sc.NewScriptFromFiles(h.ScriptCache, h.Env.CaPath, h.Env.PrivateKeys, runProps.ScriptUrl, runProps.ScriptParamsUrl, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
+	scriptDef, _, err := sc.NewScriptFromFiles(h.Env.CaPath, h.Env.PrivateKeys, runProps.ScriptUrl, runProps.ScriptParamsUrl, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 	}
@@ -825,6 +828,18 @@ func main() {
 	}
 
 	mux.Handle("/", h)
+
+	sc.ScriptDefCache = expirable.NewLRU[string, sc.ScriptInitResult](50, nil, time.Minute*1)
+	wf.NodeDependencyReadynessCache = expirable.NewLRU[string, string](1000, nil, time.Second*2)
+
+	if envConfig.Log.PrometheusExporterPort > 0 {
+		prometheus.MustRegister(xfer.SftpFileGetGetDuration, xfer.HttpFileGetGetDuration, xfer.S3FileGetGetDuration)
+		prometheus.MustRegister(sc.ScriptDefCacheHitCounter, sc.ScriptDefCacheMissCounter)
+		go func() {
+			http.Handle("/metrics", promhttp.Handler())
+			fmt.Println(http.ListenAndServe(fmt.Sprintf(":%d", envConfig.Log.PrometheusExporterPort), nil))
+		}()
+	}
 
 	logger.Info("listening on %d...", h.Env.Webapi.Port)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", h.Env.Webapi.Port), mux); err != nil {

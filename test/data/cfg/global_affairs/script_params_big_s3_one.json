@@ -1,0 +1,9 @@
+{
+    "manual_if_multi": "auto",
+    "harvested_project_financials_file":"harvested_project_financials_bigtest.csv",
+    "get_amt_from_json_batches": 100,
+    "dir_in": "s3://$CAPILLARIES_AWS_TESTBUCKET/capi_in/global_affairs_bigtest",
+    "dir_out": "s3://$CAPILLARIES_AWS_TESTBUCKET/capi_out/global_affairs_bigtest",
+    "dir_cfg": "s3://$CAPILLARIES_AWS_TESTBUCKET/capi_cfg/global_affairs_bigtest",
+    "dir_py": "s3://$CAPILLARIES_AWS_TESTBUCKET/capi_cfg/global_affairs_bigtest/py"
+}

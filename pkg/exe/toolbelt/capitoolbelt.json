@@ -6,7 +6,7 @@
       "username": "cassandra",
       "password": "cassandra",
       "keyspace_replication_config": "{ 'class' : 'NetworkTopologyStrategy', 'datacenter1' : 1 }",
-      "writer_workers": 20,
+      "writer_workers": 4,
       "num_conns": 2,
       "timeout": 5000,
       "connect_timeout": 1000
@@ -17,7 +17,7 @@
       "prefetch_count": 20,
       "prefetch_size": 0
     },
-    "thread_pool_size": 5,
+    "thread_pool_size": 1,
     "custom_processors":{
       "py_calc":{
         "python_interpreter_path":"some_non_empty_python_path"

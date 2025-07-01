@@ -5,16 +5,16 @@ source ../common/util.sh
 quick_or_big=$1
 fs_or_s3=$2
 
-if [[ "$quick_or_big" != "quick" && "$quick_or_big" != "big" || "$fs_or_s3" != "fs" && "$fs_or_s3" != "s3" ]]; then
+if [[ "$quick_or_big" != "quick" && "$quick_or_big" != "big" || \
+  "$fs_or_s3" != "fs" && "$fs_or_s3" != "s3" ]]; then
   echo $(basename "$0") requires 2 parameters:  'quick|big' 'fs|s3'
   exit 1
 fi
 
-if [[ "$quick_or_big" = "big" ]]; then
-  dataDirName=portfolio_bigtest
-else
-  dataDirName=portfolio_quicktest
-fi
+dataDirName=portfolio_${quick_or_big}test
+cfgDir=/tmp/capi_cfg/$dataDirName
+inDir=/tmp/capi_in/$dataDirName
+outDir=/tmp/capi_out/$dataDirName
 
 if [[ "$fs_or_s3" = "s3" ]]; then
   check_s3
@@ -22,9 +22,6 @@ if [[ "$fs_or_s3" = "s3" ]]; then
   inS3=s3://$CAPILLARIES_AWS_TESTBUCKET/capi_in/$dataDirName
 fi
 
-cfgDir=/tmp/capi_cfg/$dataDirName
-inDir=/tmp/capi_in/$dataDirName
-outDir=/tmp/capi_out/$dataDirName
 
 
 # Create /tmp dirs
@@ -56,7 +53,7 @@ fi
 # Copy cfg files, generate in/out files
 
 echo "Copying Python files to "$cfgDir/py
-cp ../../data/cfg/portfolio_quicktest/py/* $cfgDir/py/
+cp ../../data/cfg/portfolio/py/* $cfgDir/py/
 
 if [[ "$quick_or_big" = "big" ]]; then
   echo "Copying config files to "$cfgDir
@@ -65,6 +62,9 @@ if [[ "$quick_or_big" = "big" ]]; then
 
   echo "Generating bigtest data from quicktest data by cloning accounts and txns..."
   go run ./generate_bigtest_data.go -accounts=1000 -quicktest_in=../../data/in/portfolio -quicktest_out=../../data/out/portfolio -in_root=$inDir -out_root=$outDir
+  if [ "$?" -ne "0" ]; then
+    exit 1
+  fi
 
   echo "Sorting out files..."
   go run ../parquet/capiparquet.go sort $outDir/account_period_sector_perf_baseline.parquet 'ARK fund,Period,Sector'
@@ -83,7 +83,7 @@ else
 fi
 
 if [[ "$fs_or_s3" == "s3" ]]; then
-  echo "Patching cfg by specifying actual s3 backet name..."
+  echo "Patching cfg by specifying actual s3 bucket name..."
   sed -i -e 's~$CAPILLARIES_AWS_TESTBUCKET~'"$CAPILLARIES_AWS_TESTBUCKET"'~g' $cfgDir/script_params_${quick_or_big}_s3_one.json
   sed -i -e 's~$CAPILLARIES_AWS_TESTBUCKET~'"$CAPILLARIES_AWS_TESTBUCKET"'~g' $cfgDir/script_params_${quick_or_big}_s3_multi.json
 

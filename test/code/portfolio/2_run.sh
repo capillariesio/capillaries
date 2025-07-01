@@ -7,7 +7,10 @@ local_or_cloud=$2
 fs_or_s3=$3
 one_or_multi=$4
 
-if [[ "$quick_or_big" != "quick" && "$quick_or_big" != "big" || "$local_or_cloud" != "local" && "$local_or_cloud" != "cloud" || "$fs_or_s3" != "fs" && "$fs_or_s3" != "s3" || "$one_or_multi" != "one" && "$one_or_multi" != "multi" ]]; then
+if [[ "$quick_or_big" != "quick" && "$quick_or_big" != "big" || \
+  "$local_or_cloud" != "local" && "$local_or_cloud" != "cloud" || \
+  "$fs_or_s3" != "fs" && "$fs_or_s3" != "s3" || \
+  "$one_or_multi" != "one" && "$one_or_multi" != "multi" ]]; then
   echo $(basename "$0") requires 4 parameters:  'quick|big' 'local|cloud' 'fs|s3' 'one|multi'
   exit 1
 fi
@@ -16,11 +19,7 @@ if [[ "$local_or_cloud" = "cloud" ]]; then
   check_cloud_deployment
 fi
 
-if [[ "$quick_or_big" = "big" ]]; then
-  dataDirName=portfolio_bigtest
-else
-  dataDirName=portfolio_quicktest
-fi
+dataDirName=portfolio_${quick_or_big}test
 
 keyspace=${dataDirName}_${local_or_cloud}_${fs_or_s3}_${one_or_multi}
 

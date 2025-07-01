@@ -117,6 +117,12 @@ variable "cassandra_version" {
 	default     = "50x"
 }
 
+variable "webapi_gogc" {
+	type        = string
+	description = "GOGC env var for webapi, usually 100"
+    default     = "100"
+}
+
 # TODO: replace it with 1.3.0
 variable "jmx_exporter_version" {
 	type        = string
@@ -397,10 +403,11 @@ locals {
 										[ for i in range(var.number_of_cassandra_hosts) : format("'10.5.0.%02s:9100'", i+11) ], // cassandra node exporters
 										[ for i in range(var.number_of_daemons) : format("'10.5.0.1%02s:9100'", i+1) ])) // daemon node expoters
     prometheus_jmx_targets     = join(",", [ for i in range(var.number_of_cassandra_hosts) : format("'10.5.0.%02s:7070'", i+11) ]) // cassandra JMX exporters
-    prometheus_go_targets      = join(",", [ for i in range(var.number_of_daemons) : format("'10.5.0.1%02s:9200'", i+1) ]) // daemon go exporters
+    prometheus_go_targets      = join(",", concat( ["'localhost:9200'"], [ for i in range(var.number_of_daemons) : format("'10.5.0.1%02s:9200'", i+1) ])) // webapi and daemon go exporters
 	daemon_thread_pool_size    = ceil(var.cpu_count_map[var.daemon_instance_type] * var.daemon_thread_pool_factor )
 	daemon_writer_workers      = ceil(var.cpu_count_map[var.cassandra_instance_type] * var.daemon_writer_worker_factor )
 	daemon_gomemlimit_gb       = ceil(var.instance_memory_map[var.daemon_instance_type] / 2 ) // Let daemon use half of RAM, GOGC=100 will probably take it to 70%, and we also need some memory to run Python
+	webapi_gomemlimit_gb       = ceil(var.instance_memory_map[var.bastion_instance_type] / 2 )
 } 
 
 # Env variables TF_VAR_

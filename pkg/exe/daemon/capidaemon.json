@@ -26,10 +26,10 @@
   },
   "daemon": {
     "thread_pool_size": 1,
-    "dead_letter_ttl": 10000
+    "dead_letter_ttl": 5000
   },
   "log": {
-    "level": "debug",
+    "level": "info",
     "prometheus_exporter_port": 9200
   }
 }

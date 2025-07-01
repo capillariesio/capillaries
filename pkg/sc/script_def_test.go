@@ -790,6 +790,17 @@ func TestTrickyAffectedNodesJson(t *testing.T) {
 	assert.Contains(t, affectedNodes, "join_table1_table1")
 }
 
+func TestTrickyAffectedNodesJson2(t *testing.T) {
+	scriptDef := &ScriptDef{}
+	assert.Nil(t, scriptDef.Deserialize([]byte(trickyAffectedScriptJson), ScriptJson, nil, nil, "", nil))
+
+	affectedNodes := scriptDef.GetAffectedNodes([]string{"read_table1", "distinct_table1"})
+	assert.Equal(t, 3, len(affectedNodes))
+	assert.Contains(t, affectedNodes, "read_table1")
+	assert.Contains(t, affectedNodes, "distinct_table1")
+	assert.Contains(t, affectedNodes, "join_table1_table1")
+}
+
 func TestUnusedIndex(t *testing.T) {
 	scriptDef := &ScriptDef{}
 	err := scriptDef.Deserialize(

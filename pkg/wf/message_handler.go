@@ -16,34 +16,75 @@ import (
 	"github.com/capillariesio/capillaries/pkg/wfdb"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/hashicorp/golang-lru/v2/expirable"
+	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 )
 
-const CachedNodeStateFormat string = "%s/%d/%d"
+const CachedNodeStateFormat string = "%s %d %d"
 
-func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, nodeDependencyReadynessCache *expirable.LRU[string, string]) (sc.ReadyToRunNodeCmdType, int16, int16, error) {
+var (
+	NodeDependencyReadynessHitCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "capi_node_dep_ready_cache_hit_count",
+		Help: "Capillaries node dependencies readiness cache hits",
+	})
+	NodeDependencyReadynessMissCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "capi_node_dep_ready_cache_miss_count",
+		Help: "Capillaries node dependencies readiness cache misses",
+	})
+	NodeDependencyReadynessGetDuration = prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name:    "capi_node_dep_ready_get_duration",
+		Help:    "Duration of checkDependencyNodesReady",
+		Buckets: prometheus.ExponentialBuckets(0.001, 10.0, 4),
+	})
+	NodeDependencyNoneCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "capi_node_dep_none_count",
+		Help: "Capillaries node dependencies NodeNone count",
+	})
+	NodeDependencyWaitCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "capi_node_dep_wait_count",
+		Help: "Capillaries node dependencies NodeWait count",
+	})
+	NodeDependencyGoCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "capi_node_dep_go_count",
+		Help: "Capillaries node dependencies NodeGo count",
+	})
+	NodeDependencyNogoCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "capi_node_dep_nogo_count",
+		Help: "Capillaries node dependencies NodeNogo count",
+	})
+)
+
+var NodeDependencyReadynessCache *expirable.LRU[string, string]
+
+func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) (sc.ReadyToRunNodeCmdType, int16, int16, error) {
 	logger.PushF("wf.checkDependencyNodesReady")
 	defer logger.PopF()
 
 	// Before reading state db, check our cache
 	nodeDependencyReadynessCacheKey := pCtx.BatchInfo.FullNodeId()
-	if nodeDependencyReadynessCache != nil {
-		cachedState, ok := nodeDependencyReadynessCache.Get(nodeDependencyReadynessCacheKey)
+	if NodeDependencyReadynessCache != nil {
+		cachedState, ok := NodeDependencyReadynessCache.Get(nodeDependencyReadynessCacheKey)
 		if ok {
 			var cachedNodeCmdStr string
 			var cachedRunIdReader, cachedRunIdLookup int16
-			if partCount, err := fmt.Sscanf(cachedState, CachedNodeStateFormat, &cachedNodeCmdStr, &cachedRunIdReader, &cachedRunIdLookup); err != nil && partCount == 3 {
+			partCount, err := fmt.Sscanf(cachedState, CachedNodeStateFormat, &cachedNodeCmdStr, &cachedRunIdReader, &cachedRunIdLookup)
+			if err != nil {
+				logger.WarnCtx(pCtx, "cannot parse nodecmd and node ids from %s (%s), proceeding with querying state db", cachedState, err.Error())
+				NodeDependencyReadynessCache.Remove(nodeDependencyReadynessCacheKey)
+			} else if partCount != 3 {
+				logger.WarnCtx(pCtx, "cannot parse nodecmd and node ids from %s (parsed component count %d), proceeding with querying state db", cachedState, partCount)
+				NodeDependencyReadynessCache.Remove(nodeDependencyReadynessCacheKey)
+			} else {
 				cachedNodeCmd, err := sc.ReadyToRunNodeCmdTypeFromString(cachedNodeCmdStr)
 				if err == nil {
+					NodeDependencyReadynessHitCounter.Inc()
 					return cachedNodeCmd, cachedRunIdReader, cachedRunIdLookup, nil
 				}
-				logger.WarnCtx(pCtx, "invalid cached nodecmd %s, proceeding with querying state db", cachedNodeCmdStr)
-				nodeDependencyReadynessCache.Remove(nodeDependencyReadynessCacheKey)
-			} else {
-				logger.WarnCtx(pCtx, "cannot parse nodecmd and node ids from %s, proceeding with querying state db", cachedState)
-				nodeDependencyReadynessCache.Remove(nodeDependencyReadynessCacheKey)
+				logger.WarnCtx(pCtx, "invalid cached nodecmd %s (%s), proceeding with querying state db", cachedNodeCmdStr, err.Error())
+				NodeDependencyReadynessCache.Remove(nodeDependencyReadynessCacheKey)
 			}
 		}
+		NodeDependencyReadynessMissCounter.Inc()
 	}
 
 	depNodeNames := make([]string, 2)
@@ -70,6 +111,8 @@ func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 	if depNodeCount == 0 {
 		return sc.NodeGo, 0, 0, nil
 	}
+
+	startTime := time.Now()
 
 	depNodeNames = depNodeNames[:depNodeCount]
 
@@ -117,9 +160,11 @@ func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 		logger.DebugCtx(pCtx, "checked all dependency nodes for %s, commands are %v, run ids are %v, finalCmd is wait", pCtx.BatchInfo.TargetNodeName, dependencyNodeCmds, dependencyRunIds)
 	}
 
+	NodeDependencyReadynessGetDuration.Observe(float64(time.Since(startTime).Seconds()))
+
 	// Update cache
-	if nodeDependencyReadynessCache != nil {
-		nodeDependencyReadynessCache.Add(nodeDependencyReadynessCacheKey, fmt.Sprintf(CachedNodeStateFormat, finalCmd, finalRunIdReader, finalRunIdLookup))
+	if NodeDependencyReadynessCache != nil {
+		NodeDependencyReadynessCache.Add(nodeDependencyReadynessCacheKey, fmt.Sprintf(CachedNodeStateFormat, finalCmd, finalRunIdReader, finalRunIdLookup))
 	}
 
 	return finalCmd, finalRunIdReader, finalRunIdLookup, nil
@@ -251,11 +296,11 @@ func refreshNodeAndRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingCo
 	return nil
 }
 
-func initCtxScript(logger *l.CapiLogger, scriptCache *expirable.LRU[string, string], pCtx *ctx.MessageProcessingContext, caPath string, privateKeys map[string]string, dataBatchInfo *wfmodel.MessagePayloadDataBatch, customProcFactory sc.CustomProcessorDefFactory, customProcSettings map[string]json.RawMessage) DaemonCmdType {
+func initCtxScript(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, caPath string, privateKeys map[string]string, dataBatchInfo *wfmodel.MessagePayloadDataBatch, customProcFactory sc.CustomProcessorDefFactory, customProcSettings map[string]json.RawMessage) DaemonCmdType {
 	var initProblem sc.ScriptInitProblemType
 	var err error
 
-	pCtx.Script, initProblem, err = sc.NewScriptFromFiles(scriptCache, caPath, privateKeys, dataBatchInfo.ScriptURL, dataBatchInfo.ScriptParamsURL, customProcFactory, customProcSettings)
+	pCtx.Script, initProblem, err = sc.NewScriptFromFiles(caPath, privateKeys, dataBatchInfo.ScriptURL, dataBatchInfo.ScriptParamsURL, customProcFactory, customProcSettings)
 	if initProblem == sc.ScriptInitNoProblem {
 		return DaemonCmdNone
 	}
@@ -395,7 +440,7 @@ func checkDependencyNogoOrWait(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 	}
 }
 
-func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, scriptCache *expirable.LRU[string, string], nodeDependencyReadynessCache *expirable.LRU[string, string], msgTs int64, dataBatchInfo *wfmodel.MessagePayloadDataBatch) DaemonCmdType {
+func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msgTs int64, dataBatchInfo *wfmodel.MessagePayloadDataBatch) DaemonCmdType {
 	logger.PushF("wf.ProcessDataBatchMsg")
 	defer logger.PopF()
 
@@ -430,7 +475,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, scriptC
 		return daemonCmd
 	}
 
-	if daemonCmd := initCtxScript(logger, scriptCache, pCtx, envConfig.CaPath, envConfig.PrivateKeys, dataBatchInfo, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings); daemonCmd != DaemonCmdNone {
+	if daemonCmd := initCtxScript(logger, pCtx, envConfig.CaPath, envConfig.PrivateKeys, dataBatchInfo, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings); daemonCmd != DaemonCmdNone {
 		return daemonCmd
 	}
 
@@ -458,7 +503,17 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, scriptC
 
 	// At this point, we are assuming this batch processing either never started or was started and then abandoned
 
-	nodeReady, readerNodeRunId, lookupNodeRunId, err := checkDependencyNodesReady(logger, pCtx, nodeDependencyReadynessCache)
+	nodeReady, readerNodeRunId, lookupNodeRunId, err := checkDependencyNodesReady(logger, pCtx)
+	switch nodeReady {
+	case sc.NodeNone:
+		NodeDependencyNoneCounter.Inc()
+	case sc.NodeWait:
+		NodeDependencyWaitCounter.Inc()
+	case sc.NodeGo:
+		NodeDependencyGoCounter.Inc()
+	case sc.NodeNogo:
+		NodeDependencyNogoCounter.Inc()
+	}
 	if err != nil {
 		logger.ErrorCtx(pCtx, "cannot verify dependency nodes status for %s: %s", pCtx.BatchInfo.FullBatchId(), err.Error())
 		if db.IsDbConnError(err) {

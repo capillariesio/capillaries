@@ -310,15 +310,16 @@ func (scriptDef *ScriptDef) checkFieldUsageInCustomProcessorCreator(node *Script
 	return nil
 }
 
-func (scriptDef *ScriptDef) addChildrenToManual(rootNode *ScriptNodeDef, manualSet map[string]struct{}) {
+func (scriptDef *ScriptDef) addChildrenToManual(rootNode *ScriptNodeDef, manualSet map[string]struct{}, startSet map[string]struct{}) {
 	_, isRootInManual := manualSet[rootNode.Name]
+	_, isRootInStart := startSet[rootNode.Name]
 	for _, node := range scriptDef.ScriptNodes {
-		if rootNode.HasTableCreator() && node.HasTableReader() && rootNode.TableCreator.Name == node.TableReader.TableName && (isRootInManual || node.StartPolicy == NodeStartManual) {
+		if rootNode.HasTableCreator() && node.HasTableReader() && rootNode.TableCreator.Name == node.TableReader.TableName && (isRootInManual && !isRootInStart || node.StartPolicy == NodeStartManual) {
 			manualSet[node.Name] = struct{}{}
-			scriptDef.addChildrenToManual(node, manualSet)
-		} else if rootNode.HasTableCreator() && node.HasLookup() && rootNode.TableCreator.Name == node.Lookup.TableCreator.Name && (isRootInManual || node.StartPolicy == NodeStartManual) {
+			scriptDef.addChildrenToManual(node, manualSet, startSet)
+		} else if rootNode.HasTableCreator() && node.HasLookup() && rootNode.TableCreator.Name == node.Lookup.TableCreator.Name && (isRootInManual && !isRootInStart || node.StartPolicy == NodeStartManual) {
 			manualSet[node.Name] = struct{}{}
-			scriptDef.addChildrenToManual(node, manualSet)
+			scriptDef.addChildrenToManual(node, manualSet, startSet)
 		}
 	}
 }
@@ -339,10 +340,14 @@ func (scriptDef *ScriptDef) addChildrenToAffected(rootNode *ScriptNodeDef, affec
 // Returns all nodes that will receive RabbitMQ messages when a run is started with startNodeNames
 // The tricky part is not to include nodes that have "manual" nodes between them and the start nodes (see addChildrenToManual)
 func (scriptDef *ScriptDef) GetAffectedNodes(startNodeNames []string) []string {
+	startSet := map[string]struct{}{}
+	for _, nodeName := range startNodeNames {
+		startSet[nodeName] = struct{}{}
+	}
 	manualSet := map[string]struct{}{}
 	for _, nodeName := range startNodeNames {
 		if node, ok := scriptDef.ScriptNodes[nodeName]; ok {
-			scriptDef.addChildrenToManual(node, manualSet)
+			scriptDef.addChildrenToManual(node, manualSet, startSet)
 		}
 	}
 

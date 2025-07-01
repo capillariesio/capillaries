@@ -28,6 +28,7 @@
       "tag_and_denormalize":{}
     },
     "log":{
-      "level": "debug"
+      "level": "info",
+      "prometheus_exporter_port": 9200
     }
 }
