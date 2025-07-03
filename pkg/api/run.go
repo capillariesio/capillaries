@@ -156,7 +156,7 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp.
 	for msgIdx := 0; msgIdx < len(allMsgs); msgIdx++ {
 		msgOutBytes, errMsgOut := allMsgs[msgIdx].Serialize()
 		if errMsgOut != nil {
-			return 0, fmt.Errorf("cannot serialize outgoing message %v. %v", allMsgs[msgIdx].ToString(), errMsgOut)
+			return 0, fmt.Errorf("cannot serialize outgoing message %d %v. %v", msgIdx, allMsgs[msgIdx].ToString(), errMsgOut)
 		}
 
 		errSend := amqpChannel.PublishWithContext(
@@ -168,7 +168,7 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp.
 			amqp.Publishing{ContentType: "text/plain", Body: msgOutBytes})
 		if errSend != nil {
 			// Reconnect required
-			return 0, fmt.Errorf("failed to send next message: %s", errSend.Error())
+			return 0, fmt.Errorf("failed to send next message %d: %s", msgIdx, errSend.Error())
 		}
 	}
 	logger.Info("sent %d msgs in %.2fs for run %d", len(allMsgs), time.Since(sendMsgStartTime).Seconds(), runId)

@@ -530,7 +530,7 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, tabl
 			errorToReturn = fmt.Errorf("cannot write to data table, got rowid duplicate [%s]: %w", pq.Query, ErrDuplicateRowid)
 			break
 		}
-		if strings.Contains(err.Error(), "does not exist") {
+		if strings.Contains(err.Error(), "table ") && strings.Contains(err.Error(), "does not exist") {
 			// There is a chance this table is brand new and table schema was not propagated to all Cassandra nodes
 			if retryCount >= instr.MaxDbProblemRetries-1 {
 				errorToReturn = fmt.Errorf("cannot write to data table %s after %d attempts, apparently, table schema still not propagated to all nodes: %s", instr.tableNameWithSuffix(instr.TableCreator.Name), retryCount+1, err.Error())

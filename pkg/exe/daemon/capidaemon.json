@@ -30,6 +30,6 @@
   },
   "log": {
     "level": "info",
-    "prometheus_exporter_port": 9200
+    "prometheus_exporter_port": 9201
   }
 }

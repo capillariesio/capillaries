@@ -250,10 +250,13 @@ func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, osSign
 
 	var sem = make(chan int, envConfig.Daemon.ThreadPoolSize)
 
-	// daemonCommands len should be > ThreadPoolSize, otherwise on reconnect, we will get a deadlock:
-	// "still waiting for all workers to complete" will wait for one or more workers that will try adding
-	// "daemonCommands <- DaemonCmdReconnectDb" to the channel. Play safe by multiplying by 2.
-	var daemonCommands = make(chan DaemonCmdType, envConfig.Daemon.ThreadPoolSize*2)
+	// daemonCommands len is crucial. How big should it be?
+	// Check out all places with "daemonCommands <-":
+	// - a few places in the for loop below
+	// - each gouroutene guardd by the sem below (so it will be ThreadPoolSize max)
+	// It sounds like ThreadPoolSize*2 would be safe, but I saw deadlocks with that, so make it 10
+	// TODO: figure out the proper size
+	var daemonCommands = make(chan DaemonCmdType, envConfig.Daemon.ThreadPoolSize*10)
 
 	for {
 		select {
@@ -331,7 +334,7 @@ func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, osSign
 			// Lock one slot in the semaphore
 			sem <- 1
 
-			// envConfig.ThreadPoolSize goroutenes run simultaneously
+			// envConfig.ThreadPoolSize goroutines run simultaneously
 			go func(threadLogger *l.CapiLogger, delivery amqp.Delivery, _ *amqp.Channel) {
 				var err error
 
@@ -346,7 +349,7 @@ func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, osSign
 					if daemonCmd == DaemonCmdAckSuccess || daemonCmd == DaemonCmdAckWithError {
 						err = delivery.Ack(false)
 						if err != nil {
-							threadLogger.Error("failed to ack message, will reconnect: %s", err.Error())
+							threadLogger.Error("failed to ack message, will reconnect, sending daemonCommands <- DaemonCmdReconnectQueue: %s", err.Error())
 							daemonCommands <- DaemonCmdReconnectQueue
 						}
 					} else if daemonCmd == DaemonCmdRejectAndRetryLater {

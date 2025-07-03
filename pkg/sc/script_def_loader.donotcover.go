@@ -34,25 +34,20 @@ func NewScriptFromFiles(caPath string, privateKeys map[string]string, scriptUrl 
 	scriptCacheKey := fmt.Sprintf("%s %s", scriptUrl, scriptParamsUrl)
 	if ScriptDefCache != nil {
 		cachedScriptInitResult, ok := ScriptDefCache.Get(scriptCacheKey)
-		if !ok {
-			ScriptDefCacheMissCounter.Inc()
+		if ok {
+			ScriptDefCacheHitCounter.Inc()
+			return cachedScriptInitResult.Def, cachedScriptInitResult.InitProblem, cachedScriptInitResult.Err
 		}
-		ScriptDefCacheHitCounter.Inc()
-		return cachedScriptInitResult.Def, cachedScriptInitResult.InitProblem, cachedScriptInitResult.Err
+		ScriptDefCacheMissCounter.Inc()
 	}
 
-	var err error
-	var jsonBytesScript []byte
+	jsonBytesScript, err := xfer.GetFileBytes(scriptUrl, caPath, privateKeys)
+	if err != nil {
+		return nil, ScriptInitConnectivityProblem, fmt.Errorf("cannot read script %s: %s", scriptUrl, err.Error())
+	}
+
 	var jsonBytesParams []byte
-
-	if jsonBytesScript == nil {
-		jsonBytesScript, err = xfer.GetFileBytes(scriptUrl, caPath, privateKeys)
-		if err != nil {
-			return nil, ScriptInitConnectivityProblem, fmt.Errorf("cannot read script %s: %s", scriptUrl, err.Error())
-		}
-	}
-
-	if jsonBytesParams == nil && scriptParamsUrl != "" {
+	if scriptParamsUrl != "" {
 		jsonBytesParams, err = xfer.GetFileBytes(scriptParamsUrl, caPath, privateKeys)
 		if err != nil {
 			return nil, ScriptInitConnectivityProblem, fmt.Errorf("cannot read script parameters %s: %s", scriptParamsUrl, err.Error())

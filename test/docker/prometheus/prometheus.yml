@@ -9,4 +9,5 @@ scrape_configs:
   - job_name: 'go_exporter'
     scrape_interval: 5s
     static_configs:
-      - targets: ['10.5.0.20:9200','10.5.0.101:9200','10.5.0.102:9200']
+      # webapi and daemons run on the same box, so ports must be different; not a problem when webapi and daemons run on different VMs
+      - targets: ['10.5.0.20:9200','10.5.0.101:9201','10.5.0.102:9202']
