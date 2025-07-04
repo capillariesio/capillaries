@@ -16,9 +16,8 @@ fi
 dataDirName=py_calc_quicktest
 keyspace=${dataDirName}_${json_or_yaml}
 
-keyspace="py_calc_quicktest_json"
-cfgDir=/tmp/capi_cfg/py_calc_quicktest
-outDir=/tmp/capi_out/py_calc_quicktest
+cfgDir=/tmp/capi_cfg/${dataDirName}
+outDir=/tmp/capi_out/${dataDirName}
 scriptFile=$cfgDir/script.json
 paramsFile=$cfgDir/script_params.json
 
