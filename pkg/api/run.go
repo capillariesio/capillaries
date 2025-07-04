@@ -256,8 +256,8 @@ func RunNode(envConfig *env.EnvConfig, logger *l.CapiLogger, nodeName string, ru
 			BatchIdx:        int16(i),
 			BatchesTotal:    int16(len(intervals))}
 
-		if daemonCmd := wf.ProcessDataBatchMsg(envConfig, logger, batchStartTs.UnixMilli(), &dataBatchInfo); daemonCmd != wf.ProcessDeliveryAckSuccess {
-			return 0, fmt.Errorf("processor returned daemon cmd %d, assuming failure, check the logs", daemonCmd)
+		if processDeliveryResult := wf.ProcessDataBatchMsg(envConfig, logger, batchStartTs.UnixMilli(), &dataBatchInfo); processDeliveryResult != wf.ProcessDeliveryAckSuccess {
+			return 0, fmt.Errorf("processor returned processDeliveryResult %d, assuming failure, check the logs", processDeliveryResult)
 		}
 		logger.Info("BatchComplete: [%d,%d], %.3fs", intervals[i][0], intervals[i][1], time.Since(batchStartTs).Seconds())
 	}

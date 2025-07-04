@@ -17,7 +17,6 @@ const DlxSuffix string = "_dlx"
 type DaemonCmdType int8
 
 const (
-	DaemonCmdOK             DaemonCmdType = 0 // All good
 	DaemonCmdReconnectDb    DaemonCmdType = 4 // Db workflow error, try to reconnect
 	DaemonCmdQuit           DaemonCmdType = 5 // Shutdown command was received
 	DaemonCmdReconnectQueue DaemonCmdType = 7 // Queue error, try to reconnect
@@ -25,8 +24,6 @@ const (
 
 func (daemonCmd DaemonCmdType) ToString() string {
 	switch daemonCmd {
-	case DaemonCmdOK:
-		return "cmd_ok"
 	case DaemonCmdReconnectDb:
 		return "cmd_reconnect_db"
 	case DaemonCmdQuit:
@@ -130,7 +127,7 @@ func AmqpFullReconnectCycle(envConfig *env.EnvConfig, logger *l.CapiLogger, osSi
 	return daemonCmd
 }
 
-func initAmqpDeliveryChannel(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp.Channel, ampqChannelConsumerTag string) (<-chan amqp.Delivery, DaemonCmdType) {
+func initAmqpDeliveryChannel(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp.Channel, ampqChannelConsumerTag string) (<-chan amqp.Delivery, error) {
 	errExchange := amqpChannel.ExchangeDeclare(
 		envConfig.Amqp.Exchange, // exchange name
 		"direct",                // type, "direct"
@@ -141,7 +138,7 @@ func initAmqpDeliveryChannel(envConfig *env.EnvConfig, logger *l.CapiLogger, amq
 		nil)                     // arguments
 	if errExchange != nil {
 		logger.Error("cannot declare exchange %s, will reconnect: %s", envConfig.Amqp.Exchange, errExchange.Error())
-		return nil, DaemonCmdReconnectQueue
+		return nil, errExchange
 	}
 
 	errExchange = amqpChannel.ExchangeDeclare(
@@ -154,7 +151,7 @@ func initAmqpDeliveryChannel(envConfig *env.EnvConfig, logger *l.CapiLogger, amq
 		nil)                               // arguments
 	if errExchange != nil {
 		logger.Error("cannot declare exchange %s, will reconnect: %s", envConfig.Amqp.Exchange+DlxSuffix, errExchange.Error())
-		return nil, DaemonCmdReconnectQueue
+		return nil, errExchange
 	}
 
 	// TODO: declare exchange for non-data signals and handle them in a separate queue
@@ -168,7 +165,7 @@ func initAmqpDeliveryChannel(envConfig *env.EnvConfig, logger *l.CapiLogger, amq
 		amqp.Table{"x-dead-letter-exchange": envConfig.Amqp.Exchange + DlxSuffix, "x-dead-letter-routing-key": envConfig.HandlerExecutableType + DlxSuffix}) // arguments
 	if err != nil {
 		logger.Error("cannot declare queue %s, will reconnect: %s\n", envConfig.HandlerExecutableType, err.Error())
-		return nil, DaemonCmdReconnectQueue
+		return nil, err
 	}
 
 	amqpQueueDlx, err := amqpChannel.QueueDeclare(
@@ -180,7 +177,7 @@ func initAmqpDeliveryChannel(envConfig *env.EnvConfig, logger *l.CapiLogger, amq
 		amqp.Table{"x-dead-letter-exchange": envConfig.Amqp.Exchange, "x-dead-letter-routing-key": envConfig.HandlerExecutableType, "x-message-ttl": envConfig.Daemon.DeadLetterTtl})
 	if err != nil {
 		logger.Error("cannot declare queue %s, will reconnect: %s\n", envConfig.HandlerExecutableType+DlxSuffix, err.Error())
-		return nil, DaemonCmdReconnectQueue
+		return nil, err
 	}
 
 	errBind := amqpChannel.QueueBind(
@@ -191,7 +188,7 @@ func initAmqpDeliveryChannel(envConfig *env.EnvConfig, logger *l.CapiLogger, amq
 		nil)                             // args
 	if errBind != nil {
 		logger.Error("cannot bind queue %s with routing key %s, exchange %s , will reconnect: %s", amqpQueue.Name, envConfig.HandlerExecutableType, envConfig.Amqp.Exchange, errBind.Error())
-		return nil, DaemonCmdReconnectQueue
+		return nil, errBind
 	}
 
 	errBind = amqpChannel.QueueBind(
@@ -202,13 +199,13 @@ func initAmqpDeliveryChannel(envConfig *env.EnvConfig, logger *l.CapiLogger, amq
 		nil)                                       // args
 	if errBind != nil {
 		logger.Error("cannot bind queue %s with routing key %s, exchange %s , will reconnect: %s", amqpQueueDlx.Name, envConfig.HandlerExecutableType+DlxSuffix, envConfig.Amqp.Exchange+DlxSuffix, errBind.Error())
-		return nil, DaemonCmdReconnectQueue
+		return nil, errBind
 	}
 
 	errQos := amqpChannel.Qos(envConfig.Amqp.PrefetchCount, envConfig.Amqp.PrefetchSize, false)
 	if errQos != nil {
 		logger.Error("cannot set Qos, will reconnect: %s", errQos.Error())
-		return nil, DaemonCmdReconnectQueue
+		return nil, errQos
 	}
 
 	chanDeliveries, err := amqpChannel.Consume(
@@ -221,10 +218,10 @@ func initAmqpDeliveryChannel(envConfig *env.EnvConfig, logger *l.CapiLogger, amq
 		nil)                    // args
 	if err != nil {
 		logger.Error("cannot register consumer, queue %s, will reconnect: %s", amqpQueue.Name, err.Error())
-		return nil, DaemonCmdReconnectQueue
+		return nil, err
 	}
 
-	return chanDeliveries, DaemonCmdOK
+	return chanDeliveries, nil
 }
 
 func writeSingletonDaemonCmd(daemonCommands chan DaemonCmdType, writeCount *int64, cmd DaemonCmdType) {
@@ -239,9 +236,9 @@ func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, osSign
 
 	ampqChannelConsumerTag := logger.ZapMachine.String + "/consumer"
 
-	chanDeliveries, daemonCmd := initAmqpDeliveryChannel(envConfig, logger, amqpChannel, ampqChannelConsumerTag)
-	if daemonCmd != DaemonCmdOK {
-		return daemonCmd
+	chanDeliveries, initErr := initAmqpDeliveryChannel(envConfig, logger, amqpChannel, ampqChannelConsumerTag)
+	if initErr != nil {
+		return DaemonCmdReconnectQueue
 	}
 
 	logger.Info("started consuming queue %s, routing key %s, exchange %s", envConfig.HandlerExecutableType, envConfig.HandlerExecutableType, envConfig.Amqp.Exchange)
@@ -293,12 +290,6 @@ func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, osSign
 				return DaemonCmdQuit
 			}
 
-			// TODO: come up with safe logging
-			// it's tempting to move it into the async func below, but it will break the logger stack
-			// leaving it here is not good either: revive says "prefer not to defer inside loops"
-			// logger.PushF("wf.amqpConnectAndSelect_worker")
-			// defer logger.PopF()
-
 			// Lock one slot in the semaphore
 			sem <- 1
 
@@ -327,23 +318,22 @@ func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, osSign
 							writeSingletonDaemonCmd(daemonCommands, &daemonCommandCount, DaemonCmdReconnectQueue)
 						}
 					case ProcessDeliveryReconnectQueue:
-						// // Ideally, RabbitMQ should be smart enough to re-deliver a msg that was neither acked nor rejected.
-						// // But apparently, sometimes (when the machine goes to sleep, for example) the msg is never re-delivered. To improve our chances, force re-delivery by rejecting the msg.
-						// threadLogger.Error("daemonCmd %s detected, will reject(requeue) and reconnect", daemonCmd.ToString())
+						// Ideally, RabbitMQ should be smart enough to re-deliver a msg that was neither acked nor rejected.
+						// But apparently, sometimes (when the machine goes to sleep, for example) the msg is never re-delivered. To improve our chances, force re-delivery by rejecting the msg.
+						// threadLogger.Error("ProcessDeliveryReconnectQueue detected, will reject(requeue) and reconnect")
 						// err = delivery.Reject(true)
 						// if err != nil {
 						// 	threadLogger.Error("failed to reject message, will reconnect: %s", err.Error())
 						// 	daemonCommands <- DaemonCmdReconnectQueue
 						// } else {
-						// 	daemonCommands <- daemonCmd
+						// 	daemonCommands <- whatever the result was
 						// }
-
 						// Verdict: we do not handle machine sleep scenario, amqp091-go goes into deadlock when shutting down the box as of 2022
 						writeSingletonDaemonCmd(daemonCommands, &daemonCommandCount, DaemonCmdReconnectQueue)
 					case ProcessDeliveryReconnectDb:
 						writeSingletonDaemonCmd(daemonCommands, &daemonCommandCount, DaemonCmdReconnectDb)
 					default:
-						threadLogger.Error("unexpected daemon cmd: %d", processDeliveryResult)
+						threadLogger.Error("unexpected process delivery result: %d", processDeliveryResult)
 					}
 				}
 
