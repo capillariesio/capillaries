@@ -288,7 +288,7 @@ variable "nvme_regex_map" {
     "c5ad.16xlarge" = "nvme[0-9]n[0-9] [0-9]+.[0-9]T"
 	"c7gd.large"    = "nvme[0-9]n[0-9] 109.9G"
     "c7gd.xlarge"   = "nvme[0-9]n[0-9] 220.7G" # quick_lookup 23s, lsblk: cassandra data0 nvme1n1 220.7G, bastion /mnt/capi_log nvme1n1 10G
-    "c7gd.2xlarge"  = "nvme[0-9]n[0-9] 441.4G" # 4-1296s, 8-890s
+    "c7gd.2xlarge"  = "nvme[0-9]n[0-9] 441.4G" # Portfolio: intel writers=cpus 4-1870s writers=cpus*1.5 1881 , 8-890s
     "c7gd.4xlarge"  = "nvme[0-9]n[0-9] 884.8G"
     "c7gd.8xlarge"  = "nvme[0-9]n[0-9] 1.7T"
     "c7gd.16xlarge" = "nvme[0-9]n[0-9] 1.7T"
@@ -390,8 +390,8 @@ variable "daemon_thread_pool_factor" {
 
 variable "daemon_writer_worker_factor" {
 	type        = number
-	description= " 0.25 conservative, 0.5 avg, 0.75 aggressive (does not increase Cassandra load if higher than that, on heavy from-file loads)"
-	default     = 1
+	description= "for large daemon 2xlarge cassandr: 1 is conservative, 1.5 is more like 'perf competition'"
+	default     = 0.75
 }
 
 locals {
