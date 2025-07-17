@@ -50,12 +50,11 @@ func GetS3ReadCloser(fileUrl string) (io.ReadCloser, error) {
 		if err == nil {
 			return resp.Body, nil
 		}
-		if strings.Contains(err.Error(), "failed to refresh cached credentials, no EC2 IMDS role found, operation error ec2imds: GetMetadata, canceled, context deadline exceeded") {
-			if retryCount < maxRetries-1 {
-				time.Sleep(1 * time.Second)
-			}
-		} else {
+		if !strings.Contains(err.Error(), "failed to refresh cached credentials, no EC2 IMDS role found, operation error ec2imds: GetMetadata, canceled, context deadline exceeded") {
 			return nil, err
+		}
+		if retryCount < maxRetries-1 {
+			time.Sleep(1 * time.Second)
 		}
 	}
 

@@ -279,7 +279,7 @@ func amqpConnectAndSelect(envConfig *env.EnvConfig, logger *l.CapiLogger, osSign
 				time.Sleep(1000 * time.Millisecond)
 			}
 
-			logger.Info("final daemon cmd %d(%s), all workers complete, %d", finalDaemonCmd, finalDaemonCmd.ToString())
+			logger.Info("final daemon cmd %d(%s), all workers complete", finalDaemonCmd, finalDaemonCmd.ToString())
 			return finalDaemonCmd
 
 		case amqpDelivery := <-chanDeliveries:

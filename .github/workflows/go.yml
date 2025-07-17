@@ -120,7 +120,7 @@ jobs:
 
     - name: pkg/sc test coverage threshold check
       env:
-          TESTCOVERAGE_THRESHOLD: 89.5
+          TESTCOVERAGE_THRESHOLD: 89.7
       run: |
             go test -v ./pkg/sc/... -coverprofile coverage.out -covermode count
             totalCoverage=`go tool cover -func=coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`
