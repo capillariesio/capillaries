@@ -6,7 +6,7 @@ Created using Ubuntu WSL. Other Linux flavors and MacOS may require edits.
 
 The diagram generated with
 ```
-go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/tag_and_denormalize_quicktest/script.json -params_file=../../../test/data/cfg/tag_and_denormalize_quicktest/script_params_two_runs.json -detail=idx
+go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/tag_and_denormalize/script.json -params_file=../../../test/data/cfg/tag_and_denormalize/script_params_fs_multi.json -detail=idx
 ```
 
 ![drawing](../../../doc/viz-tag-and-denormalize.svg)

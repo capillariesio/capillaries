@@ -10,7 +10,7 @@ User-supplied formulas are expected to reside in test/data/cfg/py_calc/py direct
 
 The diagram generated with
 ```
-go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/py_calc_quicktest/script.json -params_file=../../../test/data/cfg/py_calc_quicktest/script_params.json -detail=idx
+go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/py_calc/script.json -params_file=../../../test/data/cfg/py_calc/script_params.json -detail=idx
 ```
 
 ![drawing](../../../doc/viz-pycalc.svg)
@@ -29,12 +29,12 @@ See [integration tests](../../../doc/testing.md#integration-tests) section for g
 
 ## User-supplied formulas
 
-There are two files in `test/data/cfg/py_calc_quicktest/py` directory: one contains Python functions called by Capillaries [py_calc processor](../../../doc/glossary.md#py_calc-processor), another file is a user-provided set of tests for those functions (yes, user-provided code can/should be tested too). 
+There are two files in `test/data/cfg/py_calc/py` directory: one contains Python functions called by Capillaries [py_calc processor](../../../doc/glossary.md#py_calc-processor), another file is a user-provided set of tests for those functions (yes, user-provided code can/should be tested too). 
 
 ## Possible edits
 
-- number of total line items (see "-items=..." in [1_create_quicktest_data.sh](1_create_quicktest_data.sh))
-- number of input files (default is 5, see "split -d -nl/5..." in [1_create_quicktest_data.sh](1_create_quicktest_data.sh))
+- number of total line items (see "-items=..." in [1_copy_data.sh](1_copy_data.sh))
+- number of input files (default is 5, see "split -d -nl/5..." in [1_copy_data.sh](1_copy_data.sh))
 
 ## References:
 

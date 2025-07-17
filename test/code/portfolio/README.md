@@ -11,13 +11,13 @@ portfolio_quicktest has all data ready, it just has to be copied to /tmp/capi_*,
 portfolio_bigtest is a variation of this test that uses:
 - large number of accounts
 - parquet files for input and output 
-and requires test data to be generated - see [1_create_data.sh](./bigtest_cloud/1_create_data.sh).
+and requires test data to be generated - see [1_create_data.sh](./1_create_data.sh).
 
 ## Workflow
 
 The diagram generated with
 ```
-go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/portfolio_quicktest/script.json -params_file=../../../test/data/cfg/portfolio_quicktest/script_params.json -detail=idx
+go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/portfolio/script_quick.json -params_file=../../../test/data/cfg/portfolio/script_params_quick_fs_one.json -detail=idx
 ```
 
 ![drawing](./doc/viz-portfolio.svg)
@@ -73,7 +73,7 @@ See [integration tests](../../../doc/testing.md#integration-tests) section for g
 
 ## User-supplied formulas
 
-There are files in `test/data/cfg/portfolio_quicktest/py` directory: some contains Python functions called by Capillaries [py_calc processor](../../../doc/glossary.md#py_calc-processor), other (with `_test` suffix) files are user-provided set of tests for those functions (yes, user-provided code can/should be tested too). 
+There are files in `test/data/cfg/portfolio/py` directory: some contains Python functions called by Capillaries [py_calc processor](../../../doc/glossary.md#py_calc-processor), other (with `_test` suffix) files are user-provided set of tests for those functions (yes, user-provided code can/should be tested too). 
 
 ## Possible edits
 

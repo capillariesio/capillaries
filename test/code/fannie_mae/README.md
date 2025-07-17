@@ -16,7 +16,7 @@ fannie_mae_bigtest is a variation that uses large number of payment records borr
 
 The diagram generated with
 ```
-go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/fannie_mae_quicktest/script.json -params_file=../../../test/data/cfg/fannie_mae_quicktest/script_params.json -detail=idx
+go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/fannie_mae/script.json -params_file=../../../test/data/cfg/fannie_mae/script_params_quick_fs_one.json -detail=idx
 ```
 ![drawing](../../../doc/viz-fanniemae.svg)
 
