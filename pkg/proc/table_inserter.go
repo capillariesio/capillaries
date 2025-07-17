@@ -270,91 +270,6 @@ func (instr *TableInserter) closeInserter(logger *l.CapiLogger, pCtx *ctx.Messag
 	logger.DebugCtx(pCtx, "closed DrainerCompleteSignal")
 }
 
-// func (instr *TableInserter) letWorkersDrainRecordWrittenStatuses(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, drainStrategy InserterDrainStrategy) error {
-// 	logger.PushF("proc.letWorkersDrainRecordWrittenStatuses/TableInserter")
-// 	defer logger.PopF()
-
-// 	drainedRecordCount := 0
-// 	errorsFound := make([]string, 0)
-// 	startTime := time.Now()
-// 	logger.InfoCtx(pCtx, "started draining at RecordsSent=%d, RecordsProcessed=%d, len(instr.RecordWrittenStatuses)=%d, from instr.RecordWrittenStatuses", instr.RecordsSent, instr.RecordsProcessed, len(instr.RecordWrittenStatuses))
-
-// 	keepMaxRecordsInQueue := 0
-// 	if drainStrategy == InserterDrainSome {
-// 		// Drain a half should be enough
-// 		keepMaxRecordsInQueue = cap(instr.RecordWrittenStatuses) / 2
-// 	}
-// 	// 1. It's crucial that the number of errors to receive eventually should match instr.RecordsSent
-// 	// 2. We do not need an extra select/timeout here - we are guaranteed to receive something in instr.RecordWrittenStatuses because of cassandra read timeouts (5-15s or so)
-// 	// 3. If a daemon just hangs, look here. Turn debug logging on and watch for unmatched start/done draining.
-// 	stopDrainingBecauseOfEmergency := false
-// 	for instr.RecordsSent > instr.RecordsProcessed && len(instr.RecordWrittenStatuses) > keepMaxRecordsInQueue {
-// 		// Read from instr.RecordWrittenStatuses with timeout (just in case those Cassandra timeouts are not reliable enough)
-// 		timeoutChannel := make(chan bool, 1)
-// 		go func() {
-// 			// Add one second to be safe
-// 			time.Sleep(time.Duration(instr.MaxAllowedRowInsertionTimeMs+1000) * time.Millisecond)
-// 			timeoutChannel <- true
-// 		}()
-// 		select {
-// 		case err := <-instr.RecordWrittenStatuses:
-// 			instr.RecordsProcessed++
-// 			drainedRecordCount++
-// 			if err != nil {
-// 				errorsFound = append(errorsFound, err.Error())
-// 			}
-
-// 			// If it falls below min rate, it does not make sense to continue
-// 			inserterRate := float64(drainedRecordCount) / time.Since(startTime).Seconds()
-// 			if drainedRecordCount > 5 && inserterRate < float64(instr.MinInserterRate) {
-// 				errorsFound = append(errorsFound, fmt.Sprintf("table inserter detected slow db insertion rate %.0f records/s, wrote %d records out of %d", inserterRate, drainedRecordCount, instr.RecordsSent))
-// 				stopDrainingBecauseOfEmergency = true
-// 			}
-// 		case <-timeoutChannel:
-// 			err := fmt.Errorf("got a timeout while draining, records sent %d, processed %d", instr.RecordsSent, instr.RecordsProcessed)
-// 			errorsFound = append(errorsFound, err.Error())
-// 			stopDrainingBecauseOfEmergency = true
-// 		}
-// 		if stopDrainingBecauseOfEmergency {
-// 			break
-// 		}
-// 	}
-// 	logger.InfoCtx(pCtx, "done draining %d records at RecordsSent=%d, RecordsProcessed=%d, len(instr.RecordWrittenStatuses)=%d from instr.RecordWrittenStatuses, %d errors", drainedRecordCount, instr.RecordsSent, instr.RecordsProcessed, len(instr.RecordWrittenStatuses), len(errorsFound))
-
-// 	if len(errorsFound) > 0 {
-// 		return fmt.Errorf("%s", strings.Join(errorsFound, "; "))
-// 	}
-
-// 	return nil
-// }
-
-// func (instr *TableInserter) letWorkersDrainRecordWrittenStatusesAndCloseInserter(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) {
-// 	logger.PushF("proc.letWorkersDrainRecordWrittenStatusesAndCloseInserter/TableInserter")
-// 	defer logger.PopF()
-
-// 	// If anything was sent at all - drain
-// 	if instr.RecordsSent > 0 {
-// 		if err := instr.letWorkersDrainRecordWrittenStatuses(logger, pCtx, InserterDrainCompletely); err != nil {
-// 			logger.ErrorCtx(pCtx, "error(s) while waiting for workers to drain RecordsIn: %s", err.Error())
-// 		}
-// 	}
-
-// 	// Close instr.RecordsIn, so workers can get out of the "for writeItem := range instr.RecordsIn" loop
-// 	logger.DebugCtx(pCtx, "closing RecordsIn")
-// 	close(instr.RecordsIn)
-// 	logger.DebugCtx(pCtx, "closed RecordsIn")
-
-// 	// Workers complete
-// 	logger.DebugCtx(pCtx, "waiting for writer workers to complete...")
-// 	instr.WorkerWaitGroup.Wait()
-// 	logger.DebugCtx(pCtx, "writer workers are done")
-
-// 	// Now it's safe to close RecordWrittenStatuses
-// 	logger.DebugCtx(pCtx, "closing RecordWrittenStatuses")
-// 	close(instr.RecordWrittenStatuses)
-// 	logger.DebugCtx(pCtx, "closed RecordWrittenStatuses")
-// }
-
 func (instr *TableInserter) buildIndexKeys(tableRecord TableRecord, indexKeyMap map[string]string) error {
 	clear(indexKeyMap)
 	for idxName, idxDef := range instr.TableCreator.Indexes {
@@ -368,17 +283,7 @@ func (instr *TableInserter) buildIndexKeys(tableRecord TableRecord, indexKeyMap 
 	return nil
 }
 
-// func (instr *TableInserter) add(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, tableRecord TableRecord, indexKeyMap map[string]string) error {
 func (instr *TableInserter) add(tableRecord TableRecord, indexKeyMap map[string]string) {
-
-	// No need a critsec here, there is only one thread that writes to instr.RecordsIn
-	// TODO: add exp backoff here 100ms->5s
-	// if len(instr.RecordsIn) == cap(instr.RecordsIn) {
-	// 	logger.InfoCtx(pCtx, "RecordsIn cap %d reached, waiting for workers to drain RecordsIn...", cap(instr.RecordsIn))
-	// 	//time.Sleep(500 * time.Millisecond)
-	// }
-
-	// instr.RecordsIn <- WriteChannelItem{TableRecord: &tableRecord, IndexKeyMap: indexKeyMap}
 
 	// Do not reuse maps, make GC's job easier
 	instr.RecordsIn <- WriteChannelItem{TableRecordItems: buildTableRecordItems(tableRecord), IndexKeyItems: buildIndexKeyItems(indexKeyMap)}
@@ -884,25 +789,7 @@ func (instr *TableInserter) tableInserterWorker(logger *l.CapiLogger, pCtx *ctx.
 			errorToReport = fmt.Errorf("unsupported instr.DataIdxSeqMode %d", instr.DataIdxSeqMode)
 		}
 
-		// // Without this capacity check, the code works fine: instr.RecordWrittenStatuses <- ... just waits until there is room
-		// // We just want to have some logging. So, lock/unlock and for ... can be removed if needed.
-		// // As of June 2025, this does not affect performance
-		// reportDrainComplete := false
-		// instr.RecordWrittenStatusesMutex.Lock()
-		// // Do not do it in a loop with a sleep, reporting it once is enough
-		// if len(instr.RecordWrittenStatuses) == cap(instr.RecordWrittenStatuses) {
-		// 	reportDrainComplete = true
-		// 	logger.InfoCtx(pCtx, "cannot write to RecordWrittenStatuses, waiting for letWorkersDrainRecordWrittenStatuses to be called, RecordWrittenStatuses len/cap: %d / %d, RecordsIn len/cap: %d / %d ", len(instr.RecordWrittenStatuses), cap(instr.RecordWrittenStatuses), len(instr.RecordsIn), cap(instr.RecordsIn))
-		// 	//time.Sleep(100 * time.Millisecond)
-		// }
-		// instr.RecordWrittenStatusesMutex.Unlock()
-
 		instr.RecordWrittenStatuses <- errorToReport
-
-		// if reportDrainComplete {
-		// 	logger.InfoCtx(pCtx, "wrote to RecordWrittenStatuses after waiting for letWorkersDrainRecordWrittenStatuses, RecordWrittenStatuses len/cap: %d / %d, RecordsIn len/cap: %d / %d ", len(instr.RecordWrittenStatuses), cap(instr.RecordWrittenStatuses), len(instr.RecordsIn), cap(instr.RecordsIn))
-		// }
-
 	} // items loop
 
 	logger.DebugCtx(pCtx, "done reading from RecordsIn, this writer worker handled %d records from instr.RecordsIn", handledRecordCount)

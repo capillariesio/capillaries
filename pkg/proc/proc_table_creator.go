@@ -779,21 +779,6 @@ func produceNonGroupedTableRecordForCheldlessLeft(node *sc.ScriptNodeDef, rsLeft
 	return tableRecord, nil
 }
 
-// func addRecordAndSaveBatchIfNeeded(pCtx *ctx.MessageProcessingContext, logger *l.CapiLogger, node *sc.ScriptNodeDef, tableRecord map[string]any, indexKeyMap map[string]string, instr *TableInserter) error {
-// 	logger.PushF("proc.addRecordAndSaveBatchIfNeeded")
-// 	defer logger.PopF()
-
-// 	// if len(instr.RecordWrittenStatuses) == cap(instr.RecordWrittenStatuses) {
-// 	// 	if err := instr.letWorkersDrainRecordWrittenStatuses(logger, pCtx, InserterDrainCompletely); err != nil {
-// 	// 		return err
-// 	// 	}
-// 	// }
-// 	if err := instr.add(logger, pCtx, tableRecord, indexKeyMap); err != nil {
-// 		return fmt.Errorf("cannot add record to inserter %s: [%s]", node.TableCreator.Name, err.Error())
-// 	}
-// 	return nil
-// }
-
 func checkHavingAddRecordAndSaveBatchIfNeeded(logger *l.CapiLogger, node *sc.ScriptNodeDef, tableRecord map[string]any, indexKeyMap map[string]string, instr *TableInserter) error {
 	logger.PushF("proc.checkHavingAddRecordAndSaveBatchIfNeeded")
 	defer logger.PopF()

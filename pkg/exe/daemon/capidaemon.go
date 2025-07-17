@@ -4,14 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log"
-
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-
-	"net/http"
-	_ "net/http/pprof"
 
 	"github.com/hashicorp/golang-lru/v2/expirable"
 	"github.com/prometheus/client_golang/prometheus"
