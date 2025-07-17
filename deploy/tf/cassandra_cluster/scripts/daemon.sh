@@ -148,11 +148,6 @@ sudo systemctl daemon-reload
 
 sudo systemctl start node_exporter
 sudo systemctl status node_exporter
-curl -s http://localhost:9100/metrics > /dev/null
-if [ "$?" -ne "0" ]; then
-    echo localhost:9100/metrics
-    exit $?
-fi
 
 
 
@@ -225,6 +220,11 @@ sudo su $SSH_USER -c "echo \"*/5 * * * * $SEND_LOGS_FILE\" | crontab -"
 # Everything in ~ should belong to ssh user
 sudo chown -R $SSH_USER /home/$SSH_USER
 
+# Check node exporter, by now it should be up
+curl -s http://localhost:9100/metrics >/dev/null
+if [ "$?" -ne "0" ]; then
+    echo localhost:9100/metrics failed with $?
+fi
 
 # Run daemon
 

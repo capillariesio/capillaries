@@ -82,6 +82,10 @@ var (
 		Name: "capi_node_dep_nogo_count",
 		Help: "Capillaries node dependencies NodeNogo count",
 	})
+	ReceivedMsgCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "capi_received_msg_count",
+		Help: "Capillaries RabbitMQ received msg count",
+	})
 )
 
 var NodeDependencyReadynessCache *expirable.LRU[string, string]
@@ -474,6 +478,8 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msgTs i
 	logger.PushF("wf.ProcessDataBatchMsg")
 	defer logger.PopF()
 
+	ReceivedMsgCounter.Inc()
+
 	pCtx := &ctx.MessageProcessingContext{
 		MsgTs:           msgTs,
 		BatchInfo:       *dataBatchInfo,
@@ -534,6 +540,14 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msgTs i
 	// At this point, we are assuming this batch processing either never started or was started and then abandoned
 
 	nodeReady, readerNodeRunId, lookupNodeRunId, err := checkDependencyNodesReady(logger, pCtx)
+	if err != nil {
+		logger.ErrorCtx(pCtx, "cannot verify dependency nodes status for %s: %s", pCtx.BatchInfo.FullBatchId(), err.Error())
+		if db.IsDbConnError(err) {
+			return ProcessDeliveryReconnectDb
+		}
+		return ProcessDeliveryAckWithError
+	}
+
 	switch nodeReady {
 	case sc.NodeNone:
 		NodeDependencyNoneCounter.Inc()
@@ -543,13 +557,6 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msgTs i
 		NodeDependencyGoCounter.Inc()
 	case sc.NodeNogo:
 		NodeDependencyNogoCounter.Inc()
-	}
-	if err != nil {
-		logger.ErrorCtx(pCtx, "cannot verify dependency nodes status for %s: %s", pCtx.BatchInfo.FullBatchId(), err.Error())
-		if db.IsDbConnError(err) {
-			return ProcessDeliveryReconnectDb
-		}
-		return ProcessDeliveryAckWithError
 	}
 
 	if processDeliveryResult := checkDependencyNogoOrWait(logger, pCtx, nodeReady); processDeliveryResult != ProcessDeliveryOK {

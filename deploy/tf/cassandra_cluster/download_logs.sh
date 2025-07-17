@@ -14,3 +14,5 @@ find . -name "cassandra-*.log" -print0 | sort -z | xargs -0 cat > cassandra.log
 # This will likely choke on big files
 sort -k 2 -t',' capidaemon.log > capidaemon.sorted.log 
 popd
+
+# aws s3 rm s3://$CAPILLARIES_AWS_TESTBUCKET/log/ --recursive

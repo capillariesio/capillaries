@@ -696,11 +696,6 @@ sudo systemctl daemon-reload
 
 sudo systemctl start node_exporter
 sudo systemctl status node_exporter
-curl -s http://localhost:9100/metrics > /dev/null
-if [ "$?" -ne "0" ]; then
-    echo localhost:9100/metrics
-    exit $?
-fi
 
 
 
@@ -820,6 +815,13 @@ sudo systemctl daemon-reload
 sudo systemctl start prometheus
 sudo systemctl status prometheus
 
+# Check node exporter, by now it should be up
+curl -s http://localhost:9100/metrics >/dev/null
+if [ "$?" -ne "0" ]; then
+    echo localhost:9100/metrics failed with $?
+fi
+
+# Check Prometheus UI
 curl -s http://localhost:9090
 if [ "$?" -ne "0" ]; then
     echo Cannot check localhost:9090
