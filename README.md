@@ -2,7 +2,7 @@
 
 
 Capillaries is a data processing framework that:
-- addresses scalability issues and manages intermediate data storage, enabling users to concentrate on data transforms and quality control;
+- addresses scalability issues and manages intermediate data storage, enabling users to focus on data transforms and quality control;
 - bridges the gap between distributed, scalable data processing/integration solutions and the necessity to produce enriched, customer-ready, production-quality, human-curated data within SLA time limits.
 
 ## Why Capillaries?
