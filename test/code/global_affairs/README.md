@@ -14,7 +14,7 @@ See 2_one_run.sh to see how run the bigtest. It takes about 40 min to run on an 
 
 The diagram generated with
 ```
-go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/global_affairs_quicktest/script.json -params_file=../../../test/data/cfg/global_affairs_quicktest/script_params_quicktest.json -detail=idx
+go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/global_affairs/script.json -params_file=../../../test/data/cfg/global_affairs/script_params_quick_fs_one.json -detail=idx
 ```
 ![drawing](../../../doc/viz-globalaffairs.svg)
 

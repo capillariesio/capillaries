@@ -23,7 +23,7 @@ else
 fi
 
 echo "Copying data files to "$inDir"..."
-cp -r ../../data/in/proto_file_reader_creator_quicktest/* $inDir/
+cp -r ../../data/in/proto_file_reader_creator/* $inDir/
 
 pushd ../../../pkg/exe/toolbelt
 echo "Generating Capillaries script files to "$cfgDir"..."

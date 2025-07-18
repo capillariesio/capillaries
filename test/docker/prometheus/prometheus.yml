@@ -1,11 +1,13 @@
 global:
   scrape_interval: 15s
 scrape_configs:
-  - job_name: 'prometheus'
+
+  - job_name: 'jmx_exporter'
     scrape_interval: 5s
     static_configs:
-      - targets: ['localhost:9090']
-  - job_name: 'node_exporter'
+      - targets: ['10.5.0.11:7070']
+  - job_name: 'go_exporter'
     scrape_interval: 5s
     static_configs:
-      - targets: ['10.5.0.11:7070'] #['10.5.0.11:7070','10.5.0.12:7070']
+      # webapi and daemons run on the same box, so ports must be different; not a problem when webapi and daemons run on different VMs
+      - targets: ['10.5.0.20:9200','10.5.0.101:9201','10.5.0.102:9202']

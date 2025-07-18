@@ -19,7 +19,7 @@ Golang float64, Cassandra DOUBLE
 ### bool
 Golang bool, Cassandra BOOLEAN
 ### datetime
-Golang time.time, Cassandra TIMESTAMP
+Golang time.time (up to milliseconds only, because Cassandra does not go beyond that), Cassandra TIMESTAMP
 ### decimal2
 Golang github.com/shopspring/decimal, Cassandra DECIMAL (both trimmed to 2 decimal digits)
 
@@ -161,10 +161,10 @@ One of the main purposes of the toolbelt is to give system integrators easy acce
 
 ```
 # Can be executed anytime
-go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/lookup_quicktest/script.json -params_file=../../../test/data/cfg/lookup_quicktest/script_params_two_runs.json -detail=idx
+go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/lookup/script_quick.yaml -params_file=../../../test/data/cfg/lookup/script_params_quick_fs_one.yaml -detail=idx
 
 # Can be executed when the lookup script is running using two runs
-go run capitoolbelt.go get_run_status_diagram -script_file=../../../test/data/cfg/lookup_quicktest/script.json -params_file=../../../test/data/cfg/lookup_quicktest/script_params_two_runs.json -keyspace=lookup_quicktest_one_run_json -run_id=1
+go run capitoolbelt.go get_run_status_diagram -script_file=../../../test/data/cfg/lookup/script_quick.yaml -params_file=../../../test/data/cfg/lookup/script_params_quick_fs_multi.yaml -keyspace=lookup_quicktest_fs_multi -run_id=1
 ```
 
 ## Deploy tool

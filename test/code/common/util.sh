@@ -7,13 +7,13 @@ check_cloud_deployment()
     if [ "$BASTION_IP" = "" ]; then
         echo Error, missing: export BASTION_IP=1.2.3.4
         echo This is the ip address of the bastion host in your Capilaries cloud deployment
-        echo See test/tf Terraform script for details
+        echo See deploy/tf Terraform script for details
         exit 1
     fi
     if [ "$EXTERNAL_WEBAPI_PORT" = "" ]; then
         echo Error, missing: export EXTERNAL_WEBAPI_PORT=6544
         echo "This is the external (proxied) port of the webapi in your Capilaries cloud deployment"
-        echo See test/tf Terraform script for details
+        echo See deploy/tf Terraform script for details
         exit 1
     fi
 }
@@ -38,7 +38,7 @@ check_s3()
     fi
 
     if [ "$AWS_DEFAULT_REGION" == "" ]; then
-        echo Error, please specify export AWS_DEFAULT_REGION=... because CAPILLARIES_AWS_TESTBUCKET gives bucket URI, not URL
+        echo Error, please specify export AWS_DEFAULT_REGION=... We need it because CAPILLARIES_AWS_TESTBUCKET gives bucket URI, not URL.
         exit 1
     fi
 }
@@ -112,10 +112,10 @@ one_daemon_run()
     fi
     popd
     duration=$SECONDS
-    echo "$(($duration / 60))m $(($duration % 60))s elapsed."    
+    echo "$duration s elapsed"    
 }
 
-one_daemon_run_no_params()
+toolbelt_one_run_no_params()
 {
     local keyspace=$1
     local scriptFile=$2
@@ -146,7 +146,7 @@ one_daemon_run_no_params()
     fi
     popd
     duration=$SECONDS
-    echo "$(($duration / 60))m $(($duration % 60))s elapsed."    
+    echo "$duration s elapsed"    
 }
 
 two_daemon_runs()
@@ -191,7 +191,7 @@ two_daemon_runs()
     fi    
     popd
     duration=$SECONDS
-    echo "$(($duration / 60))m $(($duration % 60))s elapsed."
+    echo "$duration s elapsed"
 }
 
 wait_run_webapi()
@@ -199,21 +199,24 @@ wait_run_webapi()
     local webapiUrl=$1
     local keyspace=$2
     local runIdToCheck=$3
+
+    SECONDS=0
+    echo "." >&2
     while true
     do
       runNodeHistoryCmd="curl -s -X GET ""$webapiUrl/ks/$keyspace/run/$runIdToCheck/node_history"""
       runNodeHistory=$($runNodeHistoryCmd)
-      string='My long string'
       if [[ $runNodeHistory == *"\"final_status\":1"* ]]; then
-        echo "Run $runIdToCheck running, waiting..."
+        duration=$SECONDS
+        echo -e "\e[1A\e[KWaiting for run $runIdToCheck, ${duration} s ..." >&2
       elif [[ $runNodeHistory == *"\"final_status\":2"* ]]; then
-        echo "Run $runIdToCheck completed"
-        return
+        echo "Run $runIdToCheck successfully completed" >&2
+        break
       elif [[ $runNodeHistory == *"\"final_status\":3"* ]]; then
-        echo "Run $runIdToCheck was stopped"
-        return
+        echo "Run $runIdToCheck was stopped" >&2
+        break
       fi
-      sleep 2
+      sleep 1
     done
 }
 
@@ -241,7 +244,58 @@ one_daemon_run_webapi()
     wait_run_webapi $webapiUrl $keyspace 1
 
     duration=$SECONDS
-    echo "$(($duration / 60))m $(($duration % 60))s elapsed."
+    echo "$duration s elapsed"
+}
+
+start_and_wait_daemon_run_webapi() {
+    local webapiUrl=$1
+    local keyspace=$2
+    local scriptFile=$3
+    local paramsFile=$4
+    local runNumber=$5
+    local startNodes=$6
+
+    if [ "$startNodes" != "" ]; then
+        echo Starting run $runNumber in $keyspace at $webapiUrl, script $scriptFile, params $paramsFile, start nodes $startNodes ...  >&2
+        curl -s -w "\n" -d '{"script_url":"'$scriptFile'", "script_params_url":"'$paramsFile'", "start_nodes":"'$startNodes'"}' -H "Content-Type: application/json" -X POST $webapiUrl"/ks/$keyspace/run" >&2
+        if [ "$?" != "0" ]; then
+          exit $?
+        fi
+
+        echo Started run $runNumber successfully, waiting for it to finish...  >&2
+        wait_run_webapi $webapiUrl $keyspace $runNumber
+    fi
+}
+
+webapi_multi_run()
+{
+    local webapiUrl=$1
+    local keyspace=$2
+    local scriptFile=$3
+    local paramsFile=$4
+    local startNodes1=$5
+    local startNodes2=$6
+    local startNodes3=$7
+    local startNodes4=$8
+    local startNodes5=$9
+    local startNodes6=${10}
+
+    SECONDS=0
+    echo Deleting keyspace $keyspace at $webapiUrl ...
+    curl -s -w "\n" -H "Content-Type: application/json" -X DELETE $webapiUrl"/ks/"$keyspace
+    if [ "$?" != "0" ]; then
+      exit 1
+    fi
+
+    start_and_wait_daemon_run_webapi $webapiUrl $keyspace $scriptFile $paramsFile 1 $startNodes1
+    start_and_wait_daemon_run_webapi $webapiUrl $keyspace $scriptFile $paramsFile 2 $startNodes2
+    start_and_wait_daemon_run_webapi $webapiUrl $keyspace $scriptFile $paramsFile 3 $startNodes3
+    start_and_wait_daemon_run_webapi $webapiUrl $keyspace $scriptFile $paramsFile 4 $startNodes4
+    start_and_wait_daemon_run_webapi $webapiUrl $keyspace $scriptFile $paramsFile 5 $startNodes5
+    start_and_wait_daemon_run_webapi $webapiUrl $keyspace $scriptFile $paramsFile 6 $startNodes6
+
+    duration=$SECONDS
+    echo "$duration s elapsed"
 }
 
 drop_keyspace_webapi()

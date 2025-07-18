@@ -21,6 +21,10 @@ func (dc *MessagePayloadDataBatch) FullBatchId() string {
 	return fmt.Sprintf("%s/%d/%s/%d", dc.DataKeyspace, dc.RunId, dc.TargetNodeName, dc.BatchIdx)
 }
 
+func (dc *MessagePayloadDataBatch) FullNodeId() string {
+	return fmt.Sprintf("%s/%d/%s", dc.DataKeyspace, dc.RunId, dc.TargetNodeName)
+}
+
 func (dc *MessagePayloadDataBatch) ToString() string {
 	return fmt.Sprintf("ScriptURL:%s,ScriptParamsURL:%s, DataKeyspace:%s, RunId:%d, TargetNodeName:%s, FirstToken:%d, LastToken:%d, BatchIdx:%d, BatchesTotal:%d. ",
 		dc.ScriptURL, dc.ScriptParamsURL, dc.DataKeyspace, dc.RunId, dc.TargetNodeName, dc.FirstToken, dc.LastToken, dc.BatchIdx, dc.BatchesTotal)

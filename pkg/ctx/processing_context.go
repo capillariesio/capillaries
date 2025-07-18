@@ -25,7 +25,7 @@ type MessageProcessingContext struct {
 
 func (pCtx *MessageProcessingContext) DbConnect(envConfig *env.EnvConfig) error {
 	var err error
-	if pCtx.CqlSession, pCtx.CassandraEngine, err = db.NewSession(envConfig, pCtx.BatchInfo.DataKeyspace, db.CreateKeyspaceOnConnect); err != nil {
+	if pCtx.CqlSession, pCtx.CassandraEngine, err = db.NewSession(envConfig, pCtx.BatchInfo.DataKeyspace, db.DoNotCreateKeyspaceOnConnect); err != nil {
 		return err
 	}
 	// rnd := rand.New(rand.NewSource(time.Now().UnixMilli()))

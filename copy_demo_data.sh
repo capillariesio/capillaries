@@ -13,6 +13,19 @@ chmod 777 /tmp/capi_in
 chmod 777 /tmp/capi_out
 chmod 777 /tmp/capi_log
 
-cp -r ./test/data/cfg/* /tmp/capi_cfg
-cp -r ./test/data/in/* /tmp/capi_in
-cp -r ./test/data/out/* /tmp/capi_out
+pushd test/code/lookup
+./1_create_data.sh quick fs
+popd
+
+pushd test/code/py_calc
+./1_copy_data.sh
+popd
+
+pushd test/code/tag_and_denormalize
+./1_copy_data.sh
+popd
+
+pushd test/code/portfolio
+./1_create_data.sh quick fs
+popd
+

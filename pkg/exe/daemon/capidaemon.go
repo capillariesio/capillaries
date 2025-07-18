@@ -2,13 +2,18 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/hashicorp/golang-lru/v2/expirable"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/capillariesio/capillaries/pkg/custom/py_calc"
 	"github.com/capillariesio/capillaries/pkg/custom/tag_and_denormalize"
@@ -48,6 +53,14 @@ func (f *StandardDaemonProcessorDefFactory) Create(processorType string) (sc.Cus
 var version string
 
 func main() {
+	// defer profile.Start(profile.MemProfile).Stop()
+	// go func() {
+	// 	http.ListenAndServe("localhost:8081", nil)
+	// }()
+
+	// curl http://localhost:8081/debug/pprof/heap > heap.01.pprof
+	// aws s3 cp heap.01.pprof s3://capillaries-testbucket/log/
+
 	initCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
@@ -56,6 +69,18 @@ func main() {
 		log.Fatalf("%s", err.Error())
 	}
 	envConfig.CustomProcessorDefFactoryInstance = &StandardDaemonProcessorDefFactory{}
+
+	if envConfig.Log.PrometheusExporterPort > 0 {
+		prometheus.MustRegister(xfer.SftpFileGetGetDuration, xfer.HttpFileGetGetDuration, xfer.S3FileGetGetDuration)
+		prometheus.MustRegister(sc.ScriptDefCacheHitCounter, sc.ScriptDefCacheMissCounter)
+		prometheus.MustRegister(wf.NodeDependencyReadynessHitCounter, wf.NodeDependencyReadynessMissCounter, wf.NodeDependencyReadynessGetDuration, wf.NodeDependencyNoneCounter, wf.NodeDependencyWaitCounter, wf.NodeDependencyGoCounter, wf.NodeDependencyNogoCounter, wf.ReceivedMsgCounter)
+		go func() {
+			http.Handle("/metrics", promhttp.Handler())
+			if err := http.ListenAndServe(fmt.Sprintf(":%d", envConfig.Log.PrometheusExporterPort), nil); err != nil {
+				log.Fatalf("%s", err.Error())
+			}
+		}()
+	}
 
 	logger, err := l.NewLoggerFromEnvConfig(envConfig)
 	if err != nil {
@@ -73,10 +98,11 @@ func main() {
 	osSignalChannel := make(chan os.Signal, 1)
 	signal.Notify(osSignalChannel, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	scriptCache := expirable.NewLRU[string, string](100, nil, time.Minute*1)
+	sc.ScriptDefCache = expirable.NewLRU[string, sc.ScriptInitResult](50, nil, time.Minute*1)
+	wf.NodeDependencyReadynessCache = expirable.NewLRU[string, string](1000, nil, time.Second*2)
 
 	for {
-		daemonCmd := wf.AmqpFullReconnectCycle(envConfig, logger, scriptCache, osSignalChannel)
+		daemonCmd := wf.AmqpFullReconnectCycle(envConfig, logger, osSignalChannel)
 		if daemonCmd == wf.DaemonCmdQuit {
 			logger.Info("got quit cmd, shut down is supposed to be complete by now")
 			os.Exit(0)

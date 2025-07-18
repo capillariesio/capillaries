@@ -32,7 +32,7 @@
 		if (ks_name in m) {
 			scriptUrl = m[ks_name]['scriptUrl'];
 			paramsUrl = m[ks_name]['paramsUrl'];
-			startNodes = "REVIEW:"+m[ks_name]['startNodes'];
+			startNodes = m[ks_name]['startNodes'];
 		}
 	});
 

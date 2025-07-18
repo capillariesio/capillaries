@@ -7,7 +7,6 @@
       "password": "cassandra",
       "keyspace_replication_config": "{ 'class' : 'NetworkTopologyStrategy', 'datacenter1' : 1 }",
       "writer_workers": 20,
-      "min_inserter_rate": 5,
       "num_conns": 2,
       "timeout": 5000,
       "connect_timeout": 1000
@@ -29,6 +28,7 @@
       "tag_and_denormalize":{}
     },
     "log":{
-      "level": "debug"
+      "level": "info",
+      "prometheus_exporter_port": 9200
     }
 }

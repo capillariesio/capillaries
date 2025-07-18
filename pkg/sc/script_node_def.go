@@ -19,7 +19,7 @@ const (
 )
 
 const MaxAcceptedBatchesByTableReader int = 1000000
-const DefaultRowsetSize int = 1000
+const DefaultRowsetSize int = 1000 // 1000 seems to work on c7g.large without OOM, careful with using bigger values
 const MaxRowsetSize int = 100000
 
 type AggFinderVisitor struct {

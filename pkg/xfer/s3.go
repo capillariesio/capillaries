@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -38,15 +39,26 @@ func GetS3ReadCloser(fileUrl string) (io.ReadCloser, error) {
 	// 	Credentials: aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider("AK...", "...", "")),
 	// })
 
-	resp, err := client.GetObject(context.TODO(), &s3.GetObjectInput{
-		Bucket: aws.String(parsedUrl.Host),
-		Key:    aws.String(strings.TrimLeft(parsedUrl.Path, "/")),
-	})
-	if err != nil {
-		return nil, err
+	// This may throw intermittent error:
+	// operation error S3: GetObject, get identity: get credentials: failed to refresh cached credentials, no EC2 IMDS role found, operation error ec2imds: GetMetadata, canceled, context deadline exceeded
+	maxRetries := 5
+	for retryCount := 0; retryCount < maxRetries; retryCount++ {
+		resp, err := client.GetObject(context.TODO(), &s3.GetObjectInput{
+			Bucket: aws.String(parsedUrl.Host),
+			Key:    aws.String(strings.TrimLeft(parsedUrl.Path, "/")),
+		})
+		if err == nil {
+			return resp.Body, nil
+		}
+		if !strings.Contains(err.Error(), "failed to refresh cached credentials, no EC2 IMDS role found, operation error ec2imds: GetMetadata, canceled, context deadline exceeded") {
+			return nil, err
+		}
+		if retryCount < maxRetries-1 {
+			time.Sleep(1 * time.Second)
+		}
 	}
 
-	return resp.Body, nil
+	return nil, fmt.Errorf("cannot download S3 file because of the EC2 IMDS error after %d attempts, giving up", maxRetries-1)
 }
 
 func readS3File(fileUrl string) ([]byte, error) {

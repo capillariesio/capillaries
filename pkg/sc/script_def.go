@@ -310,27 +310,52 @@ func (scriptDef *ScriptDef) checkFieldUsageInCustomProcessorCreator(node *Script
 	return nil
 }
 
-func (scriptDef *ScriptDef) addToAffected(rootNode *ScriptNodeDef, affectedSet map[string]struct{}) {
-	if _, ok := affectedSet[rootNode.Name]; ok {
-		return
-	}
-
-	affectedSet[rootNode.Name] = struct{}{}
-
+func (scriptDef *ScriptDef) addChildrenToManual(rootNode *ScriptNodeDef, manualSet map[string]struct{}, startSet map[string]struct{}) {
+	_, isRootInManual := manualSet[rootNode.Name]
+	_, isRootInStart := startSet[rootNode.Name]
 	for _, node := range scriptDef.ScriptNodes {
-		if rootNode.HasTableCreator() && node.HasTableReader() && rootNode.TableCreator.Name == node.TableReader.TableName && node.StartPolicy == NodeStartAuto {
-			scriptDef.addToAffected(node, affectedSet)
-		} else if rootNode.HasTableCreator() && node.HasLookup() && rootNode.TableCreator.Name == node.Lookup.TableCreator.Name && node.StartPolicy == NodeStartAuto {
-			scriptDef.addToAffected(node, affectedSet)
+		if rootNode.HasTableCreator() && node.HasTableReader() && rootNode.TableCreator.Name == node.TableReader.TableName && (isRootInManual && !isRootInStart || node.StartPolicy == NodeStartManual) {
+			manualSet[node.Name] = struct{}{}
+			scriptDef.addChildrenToManual(node, manualSet, startSet)
+		} else if rootNode.HasTableCreator() && node.HasLookup() && rootNode.TableCreator.Name == node.Lookup.TableCreator.Name && (isRootInManual && !isRootInStart || node.StartPolicy == NodeStartManual) {
+			manualSet[node.Name] = struct{}{}
+			scriptDef.addChildrenToManual(node, manualSet, startSet)
 		}
 	}
 }
 
+func (scriptDef *ScriptDef) addChildrenToAffected(rootNode *ScriptNodeDef, affectedSet map[string]struct{}, manualSet map[string]struct{}) {
+	for _, node := range scriptDef.ScriptNodes {
+		_, isCurrentInManual := manualSet[node.Name]
+		if rootNode.HasTableCreator() && node.HasTableReader() && rootNode.TableCreator.Name == node.TableReader.TableName && !isCurrentInManual {
+			affectedSet[node.Name] = struct{}{}
+			scriptDef.addChildrenToAffected(node, affectedSet, manualSet)
+		} else if rootNode.HasTableCreator() && node.HasLookup() && rootNode.TableCreator.Name == node.Lookup.TableCreator.Name && !isCurrentInManual {
+			affectedSet[node.Name] = struct{}{}
+			scriptDef.addChildrenToAffected(node, affectedSet, manualSet)
+		}
+	}
+}
+
+// Returns all nodes that will receive RabbitMQ messages when a run is started with startNodeNames
+// The tricky part is not to include nodes that have "manual" nodes between them and the start nodes (see addChildrenToManual)
 func (scriptDef *ScriptDef) GetAffectedNodes(startNodeNames []string) []string {
+	startSet := map[string]struct{}{}
+	for _, nodeName := range startNodeNames {
+		startSet[nodeName] = struct{}{}
+	}
+	manualSet := map[string]struct{}{}
+	for _, nodeName := range startNodeNames {
+		if node, ok := scriptDef.ScriptNodes[nodeName]; ok {
+			scriptDef.addChildrenToManual(node, manualSet, startSet)
+		}
+	}
+
 	affectedSet := map[string]struct{}{}
 	for _, nodeName := range startNodeNames {
 		if node, ok := scriptDef.ScriptNodes[nodeName]; ok {
-			scriptDef.addToAffected(node, affectedSet)
+			affectedSet[node.Name] = struct{}{}
+			scriptDef.addChildrenToAffected(node, affectedSet, manualSet)
 		}
 	}
 

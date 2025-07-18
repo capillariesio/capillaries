@@ -109,7 +109,10 @@ services:
     environment:
       CAPI_AMQP091_URL: amqp://guest:guest@10.5.0.5/
       CAPI_CASSANDRA_HOSTS: 10.5.0.11
+      CAPI_CASSANDRA_WRITER_WORKERS: 4
       CAPI_PYCALC_INTERPRETER_PATH: python3
+      CAPI_DEAD_LETTER_TTL: 5000
+      CAPI_PROMETHEUS_EXPORTER_PORT: 9201
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
@@ -137,6 +140,9 @@ services:
     environment:
       CAPI_AMQP091_URL: amqp://guest:guest@10.5.0.5/
       CAPI_CASSANDRA_HOSTS: 10.5.0.11
+      CAPI_CASSANDRA_WRITER_WORKERS: 4
+      CAPI_DEAD_LETTER_TTL: 5000
+      CAPI_PROMETHEUS_EXPORTER_PORT: 9202
       CAPI_PYCALC_INTERPRETER_PATH: python3
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
@@ -167,6 +173,7 @@ services:
       CAPI_CASSANDRA_HOSTS: 10.5.0.11
       CAPI_WEBAPI_PORT: 6543
       CAPI_WEBAPI_ACCESS_CONTROL_ALLOW_ORIGIN: http://localhost:8080,http://127.0.0.1:8080
+      CAPI_PROMETHEUS_EXPORTER_PORT: 9200
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
@@ -230,3 +237,9 @@ services:
 # docker image rm $(docker images | grep -e daemon -e webapi | awk '{print $3}')
 # Delete all images
 # docker image rm $(docker images | awk '{print $3}')
+
+# Shell to Cassandra:
+# docker exec -it $(docker container ls | grep cassandra | awk '{print $1}') bash
+
+# Build one image
+# docker compose -p "test_capillaries_containers" build cassandra1

@@ -2,7 +2,7 @@
 
 
 Capillaries is a data processing framework that:
-- addresses scalability issues and manages intermediate data storage, enabling users to concentrate on data transforms and quality control;
+- addresses scalability issues and manages intermediate data storage, enabling users to focus on data transforms and quality control;
 - bridges the gap between distributed, scalable data processing/integration solutions and the necessity to produce enriched, customer-ready, production-quality, human-curated data within SLA time limits.
 
 ## Why Capillaries?
@@ -31,23 +31,21 @@ cd capillaries
 docker compose -p "test_capillaries_containers" up
 ```
 
-Wait until all containers are started and Cassandra is fully initialized (it will log something like `Created default superuser role 'cassandra'`). Now Capillaries is ready to process sample demo input data according to the sample demo scripts (all copied by copy_demo_data.sh above).
+Navigate to `http://localhost:8080` to see [Capillaries UI](./doc/glossary.md#capillaries-ui), wait until it shows the `Keyspaces` screen with no errors. It may take a while - all docker containers must start and Cassandra must be fully initialized. Now Capillaries is ready to process sample demo input data according to the sample demo scripts (all copied by copy_demo_data.sh above).
 
-Navigate to `http://localhost:8080` to see [Capillaries UI](./doc/glossary.md#capillaries-ui).
-
-Start a new Capillaries [data processing run](./doc/glossary.md#run) by clicking "New run" and providing the following parameters (no tabs or spaces allowed):
+Start a new Capillaries [data processing run](./doc/glossary.md#run) by clicking "New run" and providing the following parameters (no tabs or spaces allowed in textboxes):
 
 | Field | Value |
 |- | - |
 | Keyspace | portfolio_quicktest |
-| Script URI | /tmp/capi_cfg/portfolio_quicktest/script.json |
-| Script parameters URI | /tmp/capi_cfg/portfolio_quicktest/script_params.json |
+| Script URI | /tmp/capi_cfg/portfolio_quicktest/script_quick.json |
+| Script parameters URI | /tmp/capi_cfg/portfolio_quicktest/script_params_quick_fs_one.json |
 | Start nodes |	1_read_accounts,1_read_txns,1_read_period_holdings |
 
 Alternatively, you can start a new [run](./doc/glossary.md#run) using Capillaries [toolbelt](./doc/glossary.md#toolbelt) by executing the following command from the Docker host machine, it should have the same effect as starting a run from the UI:
 
 ```
-docker exec -it capillaries_webapi /usr/local/bin/capitoolbelt start_run -script_file=/tmp/capi_cfg/portfolio_quicktest/script.json -params_file=/tmp/capi_cfg/portfolio_quicktest/script_params.json -keyspace=portfolio_quicktest -start_nodes=1_read_accounts,1_read_txns,1_read_period_holdings
+docker exec -it capillaries_webapi /usr/local/bin/capitoolbelt start_run -script_file=/tmp/capi_cfg/portfolio_quicktest/script_quick.json -params_file=/tmp/capi_cfg/portfolio_quicktest/script_params_quick_fs_one.json -keyspace=portfolio_quicktest -start_nodes=1_read_accounts,1_read_txns,1_read_period_holdings
 ```
 
 Watch the progress in Capillaries UI. A new keyspace `portfolio_quicktest` will appear in the keyspace list. Click on it and watch the run complete - nodes `7_file_account_period_sector_perf` and `7_file_account_year_perf` should produce result files:
@@ -75,13 +73,11 @@ To see Cassandra cluster status, run this command (reset JVM_OPTS so jmx-exporte
 docker exec -e JVM_OPTS= capillaries_cassandra1 nodetool status
 ```
 
-Cassandra read/write statistics collected by Prometheus available at:
-`http://localhost:9090/graph?g0.expr=sum(irate(cassandra_clientrequest_localrequests_count%7Bclientrequest%3D%22Write%22%7D%5B1m%5D))&g0.tab=0&g0.display_mode=lines&g0.show_exemplars=1&g0.range_input=15m&g1.expr=sum(irate(cassandra_clientrequest_localrequests_count%7Bclientrequest%3D%22Read%22%7D%5B1m%5D))&g1.tab=0&g1.display_mode=lines&g1.show_exemplars=0&g1.range_input=15m&g2.expr=sum(irate(cassandra_clientrequest_localrequests_count%7Binstance%3D%2210.5.0.11%3A7070%22%7D%5B1m%5D))&g2.tab=0&g2.display_mode=lines&g2.show_exemplars=0&g2.range_input=15m&g3.expr=sum(irate(cassandra_clientrequest_localrequests_count%7Binstance%3D%2210.5.0.12%3A7070%22%7D%5B1m%5D))&g3.tab=0&g3.display_mode=lines&g3.show_exemplars=0&g3.range_input=15m`
+Cassandra read/write statistics and some Daemon/Webapi metrics collected by Prometheus available at:
+
+`http://localhost:9090/query?g0.expr=sum%28irate%28cassandra_clientrequest_localrequests_count%7Bclientrequest%3D%22Write%22%7D%5B1m%5D%29%29&g0.show_tree=0&g0.tab=graph&g0.range_input=15m&g0.res_type=auto&g0.res_density=medium&g0.display_mode=lines&g0.show_exemplars=1&g1.expr=sum%28irate%28cassandra_clientrequest_localrequests_count%7Bclientrequest%3D%22Read%22%7D%5B1m%5D%29%29&g1.show_tree=0&g1.tab=graph&g1.range_input=15m&g1.res_type=auto&g1.res_density=medium&g1.display_mode=lines&g1.show_exemplars=0&g2.expr=irate%28capi_script_def_cache_hit_count%5B1m%5D%29&g2.show_tree=0&g2.tab=graph&g2.range_input=15m&g2.res_type=auto&g2.res_density=medium&g2.display_mode=lines&g2.show_exemplars=0&g3.expr=irate%28capi_script_def_cache_miss_count%5B1m%5D%29&g3.show_tree=0&g3.tab=graph&g3.range_input=15m&g3.res_type=auto&g3.res_density=medium&g3.display_mode=lines&g3.show_exemplars=0`
 
 ## Further steps
-
-### Kubernetes
-There is a [Kubernetes deployment POC](./test/k8s/README.md), but it may require some work: Minikube cluster setup, S3 buckets with proper permissions, S3-based Docker image repositories.
 
 ### Blog at <a href="https://capillaries.io/blog">capillaries.io</a>
 For more details about this particular demo, see Capillaries blog: [Use Capillaries to calculate ARK portfolio performance](https://capillaries.io/blog/2023-04-08-portfolio/index.html). To learn how this demo runs on a bigger dataset with 14 million transactions, see [Capillaries: ARK portfolio performance calculation at scale](https://capillaries.io/blog/2023-11-15-portfolio-scale/index.html).
@@ -93,11 +89,11 @@ For more details about getting started, see [Getting started](doc/started.md).
 
 #### Container-based deployments
 
-Capillaries binaries are intended to be container-friendly. Check out the `docker-compose.yml` and [Kubernetes deployment POC](./test/k8s/README.md), these test projects may be a good starting point for creating your full-scale container-based deployment.
+Capillaries binaries are intended to be container-friendly. Check out the `docker-compose.yml` and [Kubernetes deployment POC](./deploy/k8s/README.md), these test projects may be a good starting point for creating your full-scale container-based deployment.
 
 #### VM-based deployment
 
-See [Terraform script](./test/tf/README.md) that creates Capillaries deployment in AWS.
+See [Terraform script](./deploy/tf/cassandra_cluster/README.md) that creates Capillaries deployment in AWS.
 
 ## Capillaries in depth
 

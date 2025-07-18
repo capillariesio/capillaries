@@ -38,6 +38,21 @@ const (
 	NodeNogo ReadyToRunNodeCmdType = "nogo"
 )
 
+func ReadyToRunNodeCmdTypeFromString(s string) (ReadyToRunNodeCmdType, error) {
+	switch s {
+	case string(NodeNone):
+		return NodeNone, nil
+	case string(NodeGo):
+		return NodeGo, nil
+	case string(NodeWait):
+		return NodeWait, nil
+	case string(NodeNogo):
+		return NodeNogo, nil
+	default:
+		return NodeNone, fmt.Errorf("invalid ReadyToRunNodeCmdType %s", s)
+	}
+}
+
 type DependencyRule struct {
 	Cmd              ReadyToRunNodeCmdType `json:"cmd" yaml:"cmd"`
 	RawExpression    string                `json:"expression" yaml:"expression"`

@@ -1,0 +1,9 @@
+{
+    "manual_if_multi": "auto",
+    "aws_keyspaces_table_options": "",
+    "period_start_eod": "2020-12-31",
+    "period_end_eod": "2022-12-31",
+    "dir_in": "s3://$CAPILLARIES_AWS_TESTBUCKET/capi_in/portfolio_bigtest",
+    "dir_out": "s3://$CAPILLARIES_AWS_TESTBUCKET/capi_out/portfolio_bigtest",
+    "dir_py": "s3://$CAPILLARIES_AWS_TESTBUCKET/capi_cfg/portfolio_bigtest/py"
+}

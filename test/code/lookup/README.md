@@ -11,13 +11,13 @@ portfolio_quicktest has all data ready, it just has to be copied to /tmp/capi_*,
 lookup_bigtest is a variation of this test that uses:
 - large number of orders
 - parquet files for input and output 
-and requires test data to be generated - see [1_create_data.sh](./bigtest_cloud/1_create_data.sh).
+and requires test data to be generated - see [1_create_data.sh](./1_create_data.sh).
 
 ## Workflow
 
 The diagram generated with
 ```
-go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/lookup_quicktest/script.json -params_file=../../../test/data/cfg/lookup_quicktest/script_params_two_runs.json -detail=idx
+go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/lookup/script_quick.yaml -params_file=../../../test/data/cfg/lookup/script_params_quick_fs_multi.yaml -detail=idx
 ```
 
 ![drawing](../../../doc/viz-lookup.svg)
@@ -37,7 +37,7 @@ See [integration tests](../../../doc/testing.md#integration-tests) section for g
 
 ## Possible edits
 
-Play with the number of total line items (see "-items=..." in [1_create_data.sh](./quicktest_local_fs/1_create_data.sh)).
+Play with the number of total line items (see "-items=..." in [1_create_data.sh](./1_create_data.sh)).
   
 ## References:
 

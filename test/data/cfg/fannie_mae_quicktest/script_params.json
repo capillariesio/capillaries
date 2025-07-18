@@ -1,9 +1,0 @@
-{
-    "expected_batches": 10,
-    "dir_cfg": "/tmp/capi_cfg/fannie_mae_quicktest",
-    "file_urls": [
-        "/tmp/capi_in/fannie_mae_quicktest/CAS_2023_R08_G1_20231020_000.parquet",
-        "/tmp/capi_in/fannie_mae_quicktest/CAS_2023_R08_G1_20231020_001.parquet"
-    ],
-    "dir_out": "/tmp/capi_out/fannie_mae_quicktest"
-}
