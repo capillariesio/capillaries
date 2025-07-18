@@ -55,12 +55,12 @@ variable "bastion_ami_name" {
 
 variable "number_of_daemons" {
 	type        = number
-	default     = 16
+	default     = 4
 }
 
 variable "daemon_instance_type" {
 	type        = string
-    default     = "c7g.xlarge"
+    default     = "c7g.large"
 }
 
 variable "daemon_ami_name" {
@@ -78,7 +78,7 @@ variable "daemon_gogc" {
 variable "number_of_cassandra_hosts" {
 	type        = number
 	description = "90 max, because IP address starts with 11, and 101 is a daemon"
-	default     = 16
+	default     = 4
 }
 
 variable "cassandra_port" {
@@ -102,7 +102,7 @@ variable "cassandra_password" {
 variable "cassandra_instance_type" {
 	type        = string
 	description = "Make sure it's in the nvme_regex_map list"
-    default     = "c7gd.4xlarge"
+    default     = "c7gd.2xlarge"
 }
 
 variable "cassandra_ami_name" {

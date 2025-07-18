@@ -74,6 +74,7 @@ docker exec -e JVM_OPTS= capillaries_cassandra1 nodetool status
 ```
 
 Cassandra read/write statistics and some Daemon/Webapi metrics collected by Prometheus available at:
+
 `http://localhost:9090/query?g0.expr=sum%28irate%28cassandra_clientrequest_localrequests_count%7Bclientrequest%3D%22Write%22%7D%5B1m%5D%29%29&g0.show_tree=0&g0.tab=graph&g0.range_input=15m&g0.res_type=auto&g0.res_density=medium&g0.display_mode=lines&g0.show_exemplars=1&g1.expr=sum%28irate%28cassandra_clientrequest_localrequests_count%7Bclientrequest%3D%22Read%22%7D%5B1m%5D%29%29&g1.show_tree=0&g1.tab=graph&g1.range_input=15m&g1.res_type=auto&g1.res_density=medium&g1.display_mode=lines&g1.show_exemplars=0&g2.expr=irate%28capi_script_def_cache_hit_count%5B1m%5D%29&g2.show_tree=0&g2.tab=graph&g2.range_input=15m&g2.res_type=auto&g2.res_density=medium&g2.display_mode=lines&g2.show_exemplars=0&g3.expr=irate%28capi_script_def_cache_miss_count%5B1m%5D%29&g3.show_tree=0&g3.tab=graph&g3.range_input=15m&g3.res_type=auto&g3.res_density=medium&g3.display_mode=lines&g3.show_exemplars=0`
 
 ## Further steps

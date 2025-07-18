@@ -32,11 +32,9 @@
 		</g>
 		<g id="dio-privatesubnet" transform="scale(19.0663) translate(-2.35,-1.35)" style="visibility: visible; pointer-events: none;">
 			<path d="M 2.35 1.35 L 7.6 1.35 L 7.6 6.6 L 2.35 6.6 Z M 4.98 2.03 C 4.74 2.02 4.52 2.11 4.34 2.27 C 4.17 2.42 4.07 2.64 4.07 2.87 L 4.07 3.4 L 3.59 3.4 C 3.57 3.4 3.55 3.41 3.53 3.43 C 3.52 3.44 3.51 3.46 3.51 3.48 L 3.51 5.85 C 3.51 5.89 3.55 5.93 3.59 5.93 L 6.36 5.93 C 6.4 5.93 6.44 5.89 6.44 5.85 L 6.44 3.48 C 6.44 3.46 6.43 3.44 6.42 3.43 C 6.4 3.41 6.38 3.41 6.36 3.41 L 5.88 3.41 L 5.88 2.88 C 5.88 2.65 5.78 2.44 5.62 2.28 C 5.45 2.12 5.22 2.03 4.98 2.03 Z M 4.98 2.18 C 5.18 2.17 5.37 2.25 5.51 2.39 C 5.65 2.51 5.73 2.69 5.73 2.88 L 5.73 3.41 L 4.21 3.41 L 4.22 2.87 C 4.22 2.69 4.3 2.51 4.44 2.38 C 4.59 2.25 4.78 2.17 4.98 2.18 Z M 3.66 3.55 L 6.29 3.55 L 6.29 5.78 L 3.66 5.78 Z M 4.98 4.03 C 4.76 4.02 4.58 4.19 4.56 4.4 C 4.54 4.62 4.69 4.81 4.9 4.85 L 4.9 5.43 L 5.05 5.43 L 5.05 4.85 C 5.25 4.81 5.39 4.64 5.39 4.44 C 5.39 4.21 5.21 4.03 4.98 4.03 Z M 4.95 4.18 C 4.96 4.18 4.97 4.18 4.98 4.18 C 5.05 4.18 5.11 4.2 5.16 4.25 C 5.21 4.3 5.24 4.37 5.24 4.44 C 5.24 4.51 5.21 4.58 5.16 4.63 C 5.11 4.68 5.05 4.71 4.98 4.71 C 4.88 4.71 4.79 4.67 4.73 4.59 C 4.68 4.51 4.67 4.4 4.72 4.32 C 4.77 4.23 4.85 4.18 4.95 4.18 Z" fill="#00a4a6" stroke="none" style="fill: light-dark(rgb(0, 164, 166), rgb(15, 156, 158)); pointer-events: none;"></path>
-			<!-- <path d="M 2.35 1.35 L 29.65 1.35 L 29.65 28.65 L 2.35 28.65 Z" fill="#e6f6f7" stroke="none" style="fill: light-dark(rgb(230, 246, 247), rgb(18, 31, 32)); pointer-events:none;"></path> -->
 		</g>
 		<g id="dio-publicsubnet" transform="scale(19.0663) translate(-2.35,-1.35)" style="visibility: visible; pointer-events: none;">
 			<path d="M 2.35 1.35 L 7.6 1.35 L 7.6 6.6 L 2.35 6.6 Z M 4.98 2.03 C 4.74 2.02 4.52 2.11 4.34 2.27 C 4.17 2.42 4.07 2.64 4.07 2.87 L 4.07 3.4 L 3.59 3.4 C 3.57 3.4 3.55 3.41 3.53 3.43 C 3.52 3.44 3.51 3.46 3.51 3.48 L 3.51 5.85 C 3.51 5.89 3.55 5.93 3.59 5.93 L 6.36 5.93 C 6.4 5.93 6.44 5.89 6.44 5.85 L 6.44 3.48 C 6.44 3.46 6.43 3.44 6.42 3.43 C 6.4 3.41 6.38 3.41 6.36 3.41 L 5.88 3.41 L 5.88 2.88 C 5.88 2.65 5.78 2.44 5.62 2.28 C 5.45 2.12 5.22 2.03 4.98 2.03 Z M 4.98 2.18 C 5.18 2.17 5.37 2.25 5.51 2.39 C 5.65 2.51 5.73 2.69 5.73 2.88 L 5.73 3.41 L 4.21 3.41 L 4.22 2.87 C 4.22 2.69 4.3 2.51 4.44 2.38 C 4.59 2.25 4.78 2.17 4.98 2.18 Z M 3.66 3.55 L 6.29 3.55 L 6.29 5.78 L 3.66 5.78 Z M 4.98 4.03 C 4.76 4.02 4.58 4.19 4.56 4.4 C 4.54 4.62 4.69 4.81 4.9 4.85 L 4.9 5.43 L 5.05 5.43 L 5.05 4.85 C 5.25 4.81 5.39 4.64 5.39 4.44 C 5.39 4.21 5.21 4.03 4.98 4.03 Z M 4.95 4.18 C 4.96 4.18 4.97 4.18 4.98 4.18 C 5.05 4.18 5.11 4.2 5.16 4.25 C 5.21 4.3 5.24 4.37 5.24 4.44 C 5.24 4.51 5.21 4.58 5.16 4.63 C 5.11 4.68 5.05 4.71 4.98 4.71 C 4.88 4.71 4.79 4.67 4.73 4.59 C 4.68 4.51 4.67 4.4 4.72 4.32 C 4.77 4.23 4.85 4.18 4.95 4.18 Z" fill="#7aa116" stroke="none" style="fill: light-dark(rgb(122, 161, 22), rgb(97, 130, 11)); pointer-events: none;"></path>
-			<!-- <path d="M 2.35 1.35 L 29.65 1.35 L 29.65 28.65 L 2.35 28.65 Z" fill="#f2f6e8" stroke="none" style="fill: light-dark(rgb(242, 246, 232), rgb(26, 29, 17)); pointer-events:none;"></path> -->
 		</g>
 		<g id="dio-user" transform="scale(1.8333) translate(-2.35,-1.35)" style="visibility: visible; pointer-events: none;">
 			<path d="M 4.85 27.41 C 5.16 21.26 10.04 16.35 16 16.35 C 18.02 16.35 19.99 16.92 21.71 17.99 C 24.91 19.98 26.95 23.55 27.15 27.41 Z M 9.91 8.72 C 9.91 5.34 12.64 2.59 16 2.59 C 19.36 2.59 22.08 5.34 22.08 8.72 C 22.08 12.1 19.36 14.85 16 14.85 C 12.64 14.85 9.91 12.1 9.91 8.72 Z M 22.37 16.94 C 21.29 16.27 20.13 15.78 18.91 15.48 C 21.51 14.34 23.33 11.74 23.33 8.72 C 23.33 4.66 20.04 1.35 16 1.35 C 11.96 1.35 8.67 4.66 8.67 8.72 C 8.67 11.75 10.5 14.35 13.09 15.48 C 7.65 16.85 3.59 21.95 3.59 28.03 C 3.59 28.37 3.87 28.65 4.21 28.65 L 27.79 28.65 C 28.13 28.65 28.41 28.37 28.41 28.03 C 28.41 23.51 26.09 19.26 22.37 16.94 Z" fill="#232f3d" stroke="none" style="fill: light-dark(rgb(35, 47, 61), rgb(190, 200, 212)); pointer-events: none;"></path>
@@ -44,11 +42,16 @@
 		<g id="dio-instance" transform="scale(19.0663) translate(-2.35,-1.35)" style="visibility: visible; pointer-events: none;">
 			<path d="M 2.35 1.35 L 29.65 1.35 L 29.65 28.65 L 2.35 28.65 Z" fill="none" stroke="white" stroke-width="9.3" stroke-miterlimit="10" style="stroke: light-dark(rgb(216, 102, 19), rgb(216, 118, 46)); pointer-events: none;" visibility="hidden"></path>
 			<path d="M 2.35 1.35 L 7.6 1.35 L 7.6 6.6 L 2.35 6.6 Z M 6.78 3.11 L 6.78 2.96 L 6.42 2.96 L 6.42 2.53 L 5.97 2.53 L 5.97 2.18 L 5.82 2.18 L 5.82 2.53 L 5.5 2.53 L 5.5 2.18 L 5.35 2.18 L 5.35 2.53 L 5.03 2.53 L 5.03 2.18 L 4.88 2.18 L 4.88 2.53 L 4.56 2.53 L 4.56 2.18 L 4.41 2.18 L 4.41 2.53 L 4.09 2.53 L 4.09 2.18 L 3.94 2.18 L 3.94 2.53 L 3.53 2.53 L 3.53 2.96 L 3.18 2.96 L 3.18 3.11 L 3.53 3.11 L 3.53 3.43 L 3.18 3.43 L 3.18 3.58 L 3.53 3.58 L 3.53 3.9 L 3.18 3.9 L 3.18 4.05 L 3.53 4.05 L 3.53 4.37 L 3.18 4.37 L 3.18 4.52 L 3.53 4.52 L 3.53 4.84 L 3.18 4.84 L 3.18 4.99 L 3.53 4.99 L 3.53 5.42 L 3.94 5.42 L 3.94 5.78 L 4.09 5.78 L 4.09 5.42 L 4.41 5.42 L 4.41 5.78 L 4.56 5.78 L 4.56 5.42 L 4.88 5.42 L 4.88 5.78 L 5.03 5.78 L 5.03 5.42 L 5.35 5.42 L 5.35 5.78 L 5.5 5.78 L 5.5 5.42 L 5.82 5.42 L 5.82 5.78 L 5.97 5.78 L 5.97 5.42 L 6.42 5.42 L 6.42 4.99 L 6.78 4.99 L 6.78 4.84 L 6.42 4.84 L 6.42 4.52 L 6.78 4.52 L 6.78 4.37 L 6.42 4.37 L 6.42 4.05 L 6.78 4.05 L 6.78 3.9 L 6.42 3.9 L 6.42 3.58 L 6.78 3.58 L 6.78 3.43 L 6.42 3.43 L 6.42 3.11 Z M 6.27 5.27 L 3.68 5.27 L 3.68 2.68 L 6.27 2.68 Z" fill="#d86613" stroke="none" style="fill: light-dark(rgb(216, 102, 19), rgb(216, 118, 46)); pointer-events: none;"></path>
-			<!--<path d="M 2.35 1.35 L 29.65 1.35 L 29.65 28.65 L 2.35 28.65 Z" fill="none" stroke="#d86613" stroke-width="1.3" stroke-miterlimit="10" style="stroke: light-dark(rgb(216, 102, 19), rgb(216, 118, 46)); pointer-events: none;"></path>-->
 		</g>
 		<g id="dio-elasticip" transform="scale(3.3) translate(-1,0)" style="visibility: visible; pointer-events: none;">
 			<path d="M 7.8 16.49 C 7.32 17.89 6.03 18.67 4.75 18.67 C 2.85 18.67 1.47 17.18 1.47 15.58 L 1.47 14.39 C 1.47 12.81 2.94 11.34 4.67 11.34 C 6.15 11.34 7.37 12.24 7.8 13.52 L 20.99 13.52 L 20.99 11.01 L 30.54 14.48 L 30.54 15.51 L 20.99 18.99 L 20.99 16.49 Z" fill="#f58534" stroke="none" style="fill: light-dark(rgb(245, 133, 52), rgb(189, 92, 23)); pointer-events: none;"></path>
 			<path d="M 20.99 17.96 L 30.54 14.48 L 30.54 15.51 L 20.99 18.99 Z M 20.99 16.49 L 7.8 16.49 C 7.32 17.88 6.02 18.67 4.75 18.67 C 2.85 18.67 1.47 17.18 1.47 15.58 L 1.47 14.39 C 1.47 16.38 3.05 17.63 4.75 17.63 C 6.17 17.63 7.38 16.68 7.79 15.45 L 20.99 15.45 Z" fill-opacity="0.3" fill="#000000" stroke="none" style="fill: light-dark(rgb(0, 0, 0), rgb(237, 237, 237)); pointer-events: none;"></path>
+		</g>
+		<g id="icon-prometheus" transform="scale(0.20) translate(-180,0)">
+			<path d="m 295.4265,-0.667 c -60.59678,0 -109.72415,49.120811 -109.72415,109.72415 0,60.60334 49.12737,109.72415 109.72415,109.72415 60.59678,0 109.72415,-49.12737 109.72415,-109.72415 C 405.15065,48.460376 356.02328,-0.667 295.4265,-0.667 Z m 0,205.35939 c -17.24021,0 -31.21752,-11.51536 -31.21752,-25.72245 h 62.43504 c 0,14.20053 -13.98388,25.72245 -31.21752,25.72245 z m 51.56306,-34.23751 H 243.85031 v -18.71081 h 103.0736 v 18.71081 z m -0.36765,-28.32883 H 244.1523 l -1.0176,-1.18173 c -10.55684,-12.82183 -13.04505,-19.51177 -15.45448,-26.32645 -0.0394,-0.22321 12.80214,2.62608 21.90807,4.67443 a 276.9857,276.9857 0 0 0 11.53505,2.33064 c -6.57833,-7.70754 -10.48462,-17.50938 -10.48462,-27.527874 0,-21.993413 16.87256,-41.216312 10.78005,-56.74957 5.92181,0.479259 12.25723,12.500137 12.68397,31.296298 6.30259,-8.698887 8.92867,-24.593231 8.92867,-34.335985 0,-10.090709 6.65054,-21.809587 13.29452,-22.210064 -5.92837,9.769014 1.53626,18.146207 8.16711,38.918493 2.49477,7.812585 2.16651,20.942981 4.09012,29.261087 0.63682,-17.299297 3.61086,-42.542483 14.58787,-51.247935 -4.83855,10.963881 0.72217,24.70484 4.51685,31.302864 6.1319,10.648751 9.8478,18.710814 9.8478,33.981464 0,10.241712 -3.77499,19.866292 -10.1498,27.396572 7.24798,-1.359 12.25066,-2.58669 12.25066,-2.58669 l 23.52967,-4.59564 c 0,0 -3.4139,14.04953 -16.55743,27.60009 z" fill="#da4e31" style="stroke-width:6.5652" />
+		</g>
+		<g id="icon-rabbitmq" transform="scale(0.4) translate(0,0)">
+			<path fill="#FF6600" d="M93.5,39H62.3c-2.1,0-3.9-1.7-3.9-3.9c0,0,0,0,0,0V3.9c0-2.1-1.7-3.9-3.9-3.9c0,0,0,0,0,0H42.8   c-2.1,0-3.9,1.7-3.9,3.9c0,0,0,0,0,0v31.2c0,2.1-1.7,3.9-3.9,3.9c0,0,0,0,0,0H23.4c-2.1,0-3.9-1.7-3.9-3.9c0,0,0,0,0,0V3.9   c0-2.1-1.7-3.9-3.9-3.9c0,0,0,0,0,0H3.9C1.7,0,0,1.7,0,3.9c0,0,0,0,0,0v89.6c0,2.1,1.7,3.9,3.9,3.9c0,0,0,0,0,0h89.6   c2.1,0,3.9-1.7,3.9-3.9c0,0,0,0,0,0V42.9c0.1-2.1-1.6-3.9-3.8-4C93.6,39,93.5,39,93.5,39z M77.8,72c0,3.2-2.6,5.8-5.8,5.9   c0,0,0,0,0,0h-7.8c-3.2,0-5.8-2.6-5.8-5.8c0,0,0,0,0,0v-7.8c0-3.2,2.6-5.8,5.8-5.9c0,0,0,0,0,0H72c3.2,0,5.8,2.6,5.8,5.8   c0,0,0,0,0,0V72z"></path>
 		</g>
 		<g id="icon-nginx" transform="scale(0.675) translate(5,0)">
 			<style>.cls-1{fill:#009639;}.cls-2{fill:#fff;}.cls-3{fill:#999;}</style>
@@ -184,24 +187,12 @@
 			<text x="110" y="155" class="small">Capillaries Daemon</text>
 		</g>
 		<g id="private_subnet">
-			<path d="M90,0 L90,480 L0,480 L0,1130 L670,1130 L670,0 z" stroke-width="0" fill="#e6f6f7"/>
-			<use x="180" y="0" transform="scale(0.5)" xlink:href="#dio-privatesubnet" />
-			<text x="150" y="10" class="extra-small" fill="#00a4a6">Private subnet</text>
-			<use x="30" y="80" xlink:href="#cassandra" />
-			<use x="300" y="570" xlink:href="#arrow_up_down_75" />
-			<use x="30" y="740" xlink:href="#instances" />
-		</g>
-
-		<g id="envelope" transform="scale(.8,.8) translate(0,0)">
-			<path d="M7.048,0h108.784c1.939,0,3.701,0.794,4.977,2.069c1.277,1.277,2.07,3.042,2.07,4.979v74.759 c0,1.461-0.451,2.822-1.221,3.951c-0.141,0.365-0.361,0.705-0.662,0.994c-0.201,0.189-0.422,0.344-0.656,0.461 c-1.225,1.021-2.799,1.643-4.508,1.643H7.048c-1.937,0-3.701-0.793-4.979-2.07C0.794,85.51,0,83.748,0,81.807V7.048 c0-1.941,0.792-3.704,2.068-4.979C3.344,0.792,5.107,0,7.048,0L7.048,0z M5.406,78.842l38.124-38.22L5.406,9.538V78.842 L5.406,78.842z M47.729,44.045L8.424,83.449h105.701L76.563,44.051L64.18,54.602l0,0c-0.971,0.83-2.425,0.877-3.453,0.043 L47.729,44.045L47.729,44.045z M80.674,40.549l36.799,38.598V9.198L80.674,40.549L80.674,40.549z M8.867,5.406l53.521,43.639 l51.223-43.639H8.867L8.867,5.406z"></path>
-		</g>
-		<g id="queue">
-			<rect x="0" y="0" width="240" height="350" stroke="#e7157b" stroke-width="2" fill="transparent"/>
-			<use x="0" y="0" transform="scale(0.5)" xlink:href="#dio-mq" />
-			<text x="60" y="10" class="extra-small" fill="#e7157b">RabbitMQ</text>
-			<use x="75" y="70" xlink:href="#envelope" />
-			<use x="75" y="160" xlink:href="#envelope" />
-			<use x="75" y="250" xlink:href="#envelope" />
+			<rect x="0" y="0" width="670" height="980" stroke-width="0" fill="#e6f6f7" />
+			<use x="0" y="0" transform="scale(0.5)" xlink:href="#dio-privatesubnet" />
+			<text x="70" y="10" class="extra-small" fill="#00a4a6">Private subnet</text>
+			<use x="30" y="70" xlink:href="#cassandra" />
+			<use x="300" y="500" xlink:href="#arrow_up_down_75" />
+			<use x="30" y="600" xlink:href="#instances" />
 		</g>
 
 		<g id="db_inter" transform="scale(1,1) translate(0,0)">
@@ -220,15 +211,6 @@
 			<text x="150" y="70" class="small">state</text>
 			<use x="0" y="0" xlink:href="#db_wf" />
 		</g>
-<!--		
-		<g id="cassandra">
-			<rect x="0" y="0" width="450" height="350" stroke="#c925d1" stroke-width="2" fill="transparent"/>
-			<use x="0" y="0" transform="scale(0.5)" xlink:href="#dio-keyspaces" />
-			<text x="60" y="10" class="extra-small" fill="#c925d1">Amazon Keyspaces</text>
-			<use x="20" y="70" xlink:href="#intermediate_db" />
-			<use x="20" y="210" xlink:href="#wf_db" />
-		</g>
-	-->
 		<g id="cassandra">
 			<rect x="140" y="60" width="470" height="350" stroke="#d86613" stroke-width="2" fill="#fff"/>
 			<rect x="110" y="30" width="470" height="350" stroke="#d86613" stroke-width="2" fill="#fff"/>
@@ -269,31 +251,50 @@
 			<text x="60" y="10" class="extra-small" fill="#8c4fff">VPC</text>
 		</g>
 
+		<g id="rabbitmq">
+			<use x="0" y="0" xlink:href="#icon-rabbitmq" />
+			<text x="60" y="3" class="small" fill="#000">RabbitMQ</text>
+		</g>
+
+		<g id="prometheus">
+			<use x="0" y="0" xlink:href="#icon-prometheus" />
+			<text x="60" y="5" class="small" fill="#000">Prometheus</text>
+			<text x="100" y="45" class="small" fill="#000">Server</text>
+		</g>
+
 		<g id="bastion_instance">
-			<rect x="0" y="0" width="1070" height="500" stroke="#d86613" stroke-width="2" fill="#fff"/>
+			<rect x="0" y="0" width="1070" height="660" stroke="#d86613" stroke-width="2" fill="#fff"/>
 			<use x="0" y="0" transform="scale(0.5)" xlink:href="#dio-instance" />
-			<text x="60" y="10" class="extra-small" fill="#d86613">EC2 Bastion/Jumphost instance</text>
+			<text x="60" y="10" class="extra-small" fill="#d86613">EC2 Bastion//RabbitMQ/Prometheus instance</text>
 
 			<text x="890" y="10" class="extra-small" fill="#f58534">Elastic IP</text>
-			<use x="920" y="5" xlink:href="#dio-elasticip" />
+			<use x="920" y="15" xlink:href="#dio-elasticip" />
 
 			<use x="240" y="100" xlink:href="#icon-nginx" />
 			<text x="300" y="105" class="small">NGINX reverse proxy</text>
 
-			<use x="520" y="170" xlink:href="#arrow_up_down_75" />
+			<use x="460" y="170" xlink:href="#arrow_up_down_75" />
 
-			<use x="440" y="270" xlink:href="#icon-capillaries" />
-			<text x="500" y="275" class="small">Capillaries UI</text>
+			<use x="340" y="260" xlink:href="#icon-capillaries" />
+			<text x="400" y="265" class="small">Capillaries UI</text>
 
-			<use x="280" y="170" xlink:href="#arrow_up_down_125" />
-			<use x="520" y="340" xlink:href="#arrow_up_down_75" />
+			<use x="680" y="170" xlink:href="#arrow_up_down_75" />
+			<use x="700" y="260" xlink:href="#prometheus" />
 
-			<use x="240" y="430" xlink:href="#icon-capillaries" />
-			<text x="300" y="435" class="small">Capillaries Webapi</text>
+			<use x="230" y="170" xlink:href="#arrow_up_down_125" />
+			<use x="460" y="320" xlink:href="#arrow_up_down_75" />
+
+
+			<use x="240" y="410" xlink:href="#icon-capillaries" />
+			<text x="300" y="415" class="small">Capillaries Webapi</text>
+
+		    <use x="390" y="480" xlink:href="#arrow_down_75" />
+
+			<use x="310" y="565" xlink:href="#rabbitmq" />
 		</g>
 
 		<g id="public_subnet">
-			<path d="M0,0 L0,1090 L530,1090 L530,610 L1130,610 L1130,0 z" stroke-width="0" fill="#f2f6e8"/>
+			<rect x="0" y="0" width="1130" height="770" stroke-width="0" fill="#f2f6e8"/>
 			<use x="0" y="0" transform="scale(0.5)" xlink:href="#dio-publicsubnet" />
 			<text x="60" y="10" class="extra-small" fill="#7aa116">Public subnet</text>
 			<use x="30" y="80" xlink:href="#bastion_instance" />
@@ -311,22 +312,19 @@
     <use x="20" y="20" xlink:href="#user" />
 
 	<use x="420" y="210" xlink:href="#vpc" />
-	<path d="M420,210 L420,1400 L880,1400 L880,1540 L880,2060 L1590,2060 L1590,210z" stroke="#8c4fff" stroke-width="2" fill="transparent"/>
+	<path d="M420,210 L420,1070 L880,1070 L880,1540 L880,2060 L1590,2060 L1590,210z" stroke="#8c4fff" stroke-width="02" fill="transparent"/>
 
 	<use x="740" y="100" xlink:href="#arrow_up_down_75" />
 
 	<use x="440" y="280" xlink:href="#public_subnet" />
 
-	<use x="710" y="990" xlink:href="#queue" />
-
 	<use x="20" y="1540" xlink:href="#s3" />
-
 
 	<path d="M340,100 L340,1590" stroke-width="5" stroke="#000000" stroke-linecap="round"/>
 	<use x="315" y="1570" xlink:href="#arrow_head_down" />
 
-	<use x="575" y="900" xlink:href="#arrow_head_up" />
-	<path d="M600,903 L600,1590" stroke-width="5" stroke="#000000" stroke-linecap="round"/>
+	<use x="700" y="840" xlink:href="#arrow_head_up" />
+	<path d="M725,843 L725,1620" stroke-width="5" stroke="#000000" stroke-linecap="round"/>
 
 	<use x="260" y="1600" xlink:href="#scripts" />
 	<use x="770" y="1625" xlink:href="#arrow_right_75" />
@@ -343,12 +341,10 @@
 	<use x="60" y="1900" xlink:href="#final_data" />
 	<use x="770" y="1925" xlink:href="#arrow_left_75" />
 
-	<use x="900" y="910" xlink:href="#private_subnet" />
+	<use x="900" y="1060" xlink:href="#private_subnet" />
 
-    <use x="800" y="890" xlink:href="#arrow_down_75" />
-	<use x="1360" y="890" xlink:href="#arrow_up_down_75" />
+	<use x="1040" y="840" xlink:href="#arrow_up_down_125" />
 
-	<path d="M940,1380 L940,1620" stroke-width="5" stroke="#000000" stroke-linecap="round"/>
-	<use x="915" y="1600" xlink:href="#arrow_head_down" />
-
+	<path d="M960,1000 L960,1630" stroke-width="5" stroke="#000000" stroke-linecap="round"/>
+	<use x="935" y="1610" xlink:href="#arrow_head_down" />
 </svg>

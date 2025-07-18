@@ -47,6 +47,7 @@ export TF_VAR_BASTION_ALLOWED_IPS="123.234.0.0/16,111.222.0.5"
 After successfully running `terraform apply`, you will have a vpc with:
 - a bastion/jumphost instance with Capillaries UI and Capillaries WebAPI, and nginx running as reverse proxy for them 
 - a few EC2 instances running Capillaries Daemon
+- a few EC2 instances running Cassandra
 
 ![](./doc/deployment.svg)
 
@@ -84,7 +85,7 @@ ssh -o StrictHostKeyChecking=no -i ~/.ssh/your_keypair_private_key -J $BASTION_I
 
 To run a simple lookup test, use:
 ```
-cd test/code/lookup/quicktest_s3
+cd test/code/lookup
 
 # We store data and script here
 export CAPILLARIES_AWS_TESTBUCKET=capillaries-testbucket
@@ -96,17 +97,8 @@ export EXTERNAL_WEBAPI_PORT=6544
 # Remember UserAccessCapillariesTestbucket introduced in ../../../doc/s3.md ?
 source ~/UserAccessCapillariesTestbucket.rc
 
-# This creates source data and copies it together with lookup_quicktest script to the S3 bucket
-./1_create_data.sh
-
-# This calls WebAPI on the bastion instance to start the script, and waits until it's complete
-./2_one_run_cloud.sh
-
-# This downloads result data files from S3 bucket and compares them to the golden copy
-./3_compare_results.sh
-
-# This removes lookup_quicktest data and script from S3 bucket, and drops the keyspace with all data
-./4_clean_cloud.sh
+# Full test cycle
+./test.sh quick cloud s3 one
 ```
 
 To watch the script running in the UI, visit `http://your_bastion_ip_address`.
