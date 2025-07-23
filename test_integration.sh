@@ -35,7 +35,9 @@ if [[ "$short_or_long_or_s3_or_all" = "short" || "$short_or_long_or_s3_or_all" =
 	popd
 
 	pushd ./test/code/tag_and_denormalize
+	# 22 s
 	./test.sh https one
+	# 22 s
 	./test.sh https multi
 	popd
 fi
