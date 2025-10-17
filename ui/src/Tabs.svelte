@@ -8,14 +8,14 @@
   <ul>
   {#each items as item}
 	  <li class={activeTabValue === item.value ? 'active' : ''}>
-		  <span onclick={handleClick(item.value)}>{item.label}</span>
+		  <span role="link" tabindex="0" onclick={handleClick(item.value)}>{item.label}</span>
 	  </li>
   {/each}
   </ul>
   {#each items as item}
 	  {#if activeTabValue == item.value}
 	  <div class="box">
-		  <item.component/>
+		  {@render item.component()}
 	  </div>
 	  {/if}
   {/each}

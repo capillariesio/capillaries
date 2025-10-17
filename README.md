@@ -24,7 +24,7 @@ This is a GitHub readme. More details and a blog at https://capillaries.io.
 
 ## Getting started
 
-On Mac, WSL or Linux, run in bash shell:
+On Mac, WSL or Linux, run in bash shell (make sure to copy data files **before** starting containers):
 
 ```
 git clone https://github.com/capillariesio/capillaries.git
