@@ -345,8 +345,8 @@ variable "rabbitmq_erlang_version_arm64" {
 
 variable "rabbitmq_server_version_arm64" {
 	type        = string
-	description = "Older RabbitMQ server, because newer versions require newer Erlang 27 not supported on arm64 by RabbitMQ team"
-	default     = "3.13.7-1ubuntu1"
+	description = "Older RabbitMQ server, because newer versions require newer Erlang not supported on arm64 by RabbitMQ team (3.13 requires 26, 4.0 requires 27)"
+	default     = "3.12.1-1ubuntu1"
 }
 
 

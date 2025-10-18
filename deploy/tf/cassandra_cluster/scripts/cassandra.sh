@@ -189,7 +189,7 @@ fi
 
 
 cd /home/$SSH_USER
-curl -LOs https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/$JMX_EXPORTER_VERSION/jmx_prometheus_javaagent-$JMX_EXPORTER_VERSION.jar
+curl -LOs https://github.com/prometheus/jmx_exporter/releases/download/$JMX_EXPORTER_VERSION/jmx_prometheus_javaagent-$JMX_EXPORTER_VERSION.jar
 if [ "$?" -ne "0" ]; then
     echo Cannot download JMX exporter, exiting
     exit $?
