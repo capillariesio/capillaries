@@ -123,11 +123,10 @@ variable "webapi_gogc" {
     default     = "100"
 }
 
-# TODO: replace it with 1.3.0
 variable "jmx_exporter_version" {
 	type        = string
-	description = "1.0.1"
-	default     = "1.0.1"
+	description = "1.5.0"
+	default     = "1.5.0"
 }
 
 variable "cassandra_initial_tokens_map" {
@@ -329,13 +328,13 @@ variable "s3_log_url" {
 variable "rabbitmq_erlang_version_amd64" {
 	type        = string
 	description = "Latest Erlang from RabbitMQ team"
-	default     = "1:27.2-1"
+	default     = "1:27.3.4.2-1"
 }
 
 variable "rabbitmq_server_version_amd64" {
 	type        = string
 	description = "Latest RabbitMQ server from RabbitMQ team"
-	default     = "4.0.5-1"
+	default     = "4.1.4-1"
 }
 
 variable "rabbitmq_erlang_version_arm64" {
@@ -346,7 +345,7 @@ variable "rabbitmq_erlang_version_arm64" {
 
 variable "rabbitmq_server_version_arm64" {
 	type        = string
-	description = "Older RabbitMQ server, because newer versions require newer Erlang"
+	description = "Older RabbitMQ server, because newer versions require newer Erlang not supported on arm64 by RabbitMQ team (3.13 requires 26, 4.0 requires 27)"
 	default     = "3.12.1-1ubuntu1"
 }
 
@@ -378,7 +377,7 @@ variable "prometheus_node_exporter_version" {
 
 variable "prometheus_server_version" {
 	type        = string
-	default     = "3.2.1"
+	default     = "3.7.0"
 }
 
 variable "daemon_thread_pool_factor" {

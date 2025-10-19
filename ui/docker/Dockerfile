@@ -1,4 +1,4 @@
-FROM node:23.10.0-alpine
+FROM node:24.10.0-alpine
 
 WORKDIR /usr/src/capillaries
 

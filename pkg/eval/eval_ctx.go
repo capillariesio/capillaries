@@ -435,13 +435,13 @@ func (eCtx *EvalCtx) EvalBinaryStringToBool(valLeftVolatile any, op token.Token,
 	if !ok {
 		return false, fmt.Errorf("cannot evaluate binary string expression %v with '%v(%T)' on the left", op, valLeftVolatile, valLeftVolatile)
 	}
-	valLeft = strings.Replace(strings.Trim(valLeft, "\""), `\"`, `\`, -1)
+	valLeft = strings.ReplaceAll(strings.Trim(valLeft, "\""), `\"`, `\`)
 
 	valRight, ok := valRightVolatile.(string)
 	if !ok {
 		return false, fmt.Errorf("cannot evaluate binary decimal2 expression '%v(%T) %v %v(%T)', invalid right arg", valLeft, valLeft, op, valRightVolatile, valRightVolatile)
 	}
-	valRight = strings.Replace(strings.Trim(valRight, "\""), `\"`, `"`, -1)
+	valRight = strings.ReplaceAll(strings.Trim(valRight, "\""), `\"`, `"`)
 
 	if !isCompareOp(op) {
 		return false, fmt.Errorf("cannot perform bool op %v against string %v and string %v", op, valLeft, valRight)

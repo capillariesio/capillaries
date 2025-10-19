@@ -146,14 +146,14 @@ func startRun(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 	// RabbitMQ boilerplate
 	amqpConnection, err := amqp.Dial(envConfig.Amqp.URL)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, fmt.Sprintf("cannot dial RabbitMQ at %s, will reconnect: %s\n", envConfig.Amqp.URL, err.Error()))
+		fmt.Fprintf(os.Stderr, "cannot dial RabbitMQ at %s, will reconnect: %s\n", envConfig.Amqp.URL, err.Error())
 		return 1
 	}
 	defer amqpConnection.Close()
 
 	amqpChannel, err := amqpConnection.Channel()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, fmt.Sprintf("cannot create amqp channel, will reconnect: %s\n", err.Error()))
+		fmt.Fprintf(os.Stderr, "cannot create amqp channel, will reconnect: %s\n", err.Error())
 		return 1
 	}
 	defer amqpChannel.Close()
@@ -489,7 +489,7 @@ func protoFileReaderCreator() int {
 	var fieldSettingsRemover *regexp.Regexp
 	if *fileType == "csv" {
 		guessedFields, errGuess = storage.CsvGuessFields(*filePath, *csvHeaderLine, *csvFirstDataLine, *csvSeparator)
-		if errGuess != nil && (guessedFields == nil || len(guessedFields) == 0) {
+		if errGuess != nil && len(guessedFields) == 0 {
 			fmt.Fprintln(os.Stderr, errGuess.Error())
 			return 1
 		}
@@ -527,7 +527,7 @@ func protoFileReaderCreator() int {
 		fieldSettingsRemover = regexp.MustCompile(`,*[ \t\n]*"parquet":[ \t\n]*{[^}]*}`)
 	} else {
 		guessedFields, errGuess = storage.ParquetGuessFields(*filePath)
-		if errGuess != nil && (guessedFields == nil || len(guessedFields) == 0) {
+		if errGuess != nil && len(guessedFields) == 0 {
 			fmt.Fprintln(os.Stderr, errGuess.Error())
 			return 1
 		}

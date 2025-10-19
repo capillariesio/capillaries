@@ -147,6 +147,15 @@
 		return result;
 	}
 
+	function trimZeroAndHundred(val){
+		if (val > 0 && val < 1.0){
+			return 1.0;
+		} else if (val > 99 && val < 100){
+			return 99.0;
+		}
+		else return val;
+	}
+
 	function calculateElapsed(batch_history) {
 		if (batch_history.length == 0) {
 			return;
@@ -184,15 +193,14 @@
 		let nonStartedBatchesArray = [...Array(batch_history[0].batches_total).keys()].filter(
 			(i) => !(i in batchStartMap)
 		);
-		nonStartedBatchesPercent =
-			(nonStartedBatchesArray.length.toString() / batch_history[0].batches_total.toString()) * 100;
+		nonStartedBatchesPercent = trimZeroAndHundred((nonStartedBatchesArray.length.toString() / batch_history[0].batches_total.toString()) * 100);
 		nonStartedBatchesRatio =
 			nonStartedBatchesArray.length.toString() + '/' + batch_history[0].batches_total.toString();
 		nonStartedBatches = arrayToReadable(nonStartedBatchesArray);
 
 		let startedBatchesArray = Array.from(Object.keys(batchStartMap));
-		startedBatchesPercent =
-			(startedBatchesArray.length.toString() / batch_history[0].batches_total.toString()) * 100;
+		startedBatchesPercent = trimZeroAndHundred(
+			(startedBatchesArray.length.toString() / batch_history[0].batches_total.toString()) * 100);
 		startedBatchesRatio =
 			startedBatchesArray.length.toString() + '/' + batch_history[0].batches_total.toString();
 		startedBatches = arrayToReadable(startedBatchesArray);
@@ -200,15 +208,15 @@
 		let runningBatchesArray = Array.from(runningBatchSet).sort(function (a, b) {
 			return a - b;
 		});
-		runningBatchesPercent =
-			(runningBatchesArray.length.toString() / batch_history[0].batches_total.toString()) * 100;
+		runningBatchesPercent = trimZeroAndHundred(
+			(runningBatchesArray.length.toString() / batch_history[0].batches_total.toString()) * 100);
 		runningBatchesRatio =
 			runningBatchesArray.length.toString() + '/' + batch_history[0].batches_total.toString();
 		runningBatches = arrayToReadable(runningBatchesArray);
 
 		let finishedBatchesArray = Array.from(Object.keys(batchEndMap));
-		finishedBatchesPercent =
-			(finishedBatchesArray.length.toString() / batch_history[0].batches_total.toString()) * 100;
+		finishedBatchesPercent = trimZeroAndHundred(
+			(finishedBatchesArray.length.toString() / batch_history[0].batches_total.toString()) * 100);
 		finishedBatchesRatio =
 			finishedBatchesArray.length.toString() + '/' + batch_history[0].batches_total.toString();
 		finishedBatches = arrayToReadable(finishedBatchesArray);
@@ -307,46 +315,48 @@
 <table>
 	<tbody>
 		<tr>
-			<td>Elapsed total:</td>
-			<td>{nodeElapsed}s</td>
+			<td style="width:250px">Elapsed total:</td>
+			<td style="width:150px; text-align: right;">{nodeElapsed}s</td>
 			<td colspan="2">(not very useful, usually skewed by other nodes/runs/scripts)</td>
 		</tr>
 		<tr>
 			<td>Elapsed average:</td>
-			<td colspan="3">{elapsedAverage.toFixed(1)}s</td>
+			<td style="text-align: right;">{elapsedAverage.toFixed(1)}s</td>
+			<td colspan="2"></td>
 		</tr>
 		<tr>
 			<td>Elapsed standard deviation and CV:</td>
-			<td style="text-wrap-mode: nowrap;">{elapsedStandardDeviation.toFixed(2)}s ({elapsedCVPercent.toFixed(1)}%)</td>
+			<td style="text-wrap-mode: nowrap;text-align: right;">{elapsedStandardDeviation.toFixed(2)}s ({elapsedCVPercent.toFixed(1)}%)</td>
 			<td colspan="2">(small SD means no data skew and even distribution of the CPU load)</td>
 		</tr>
 		<tr>
 			<td>Elapsed median:</td>
-			<td colspan="3">{elapsedMedian.toFixed(1)}s</td>
+			<td style="text-align: right;">{elapsedMedian.toFixed(1)}s</td>
+			<td colspan="2"></td>
 		</tr>
 		<tr>
 			<td>Batches not started:</td>
-			<td style="text-align: right; width:1%;">{nonStartedBatchesPercent.toFixed(0)}%</td>
-			<td style="text-align: right; width:1%;">{nonStartedBatchesRatio}</td>
-			<td>{nonStartedBatches}</td>
+			<td style="text-align: right;">{nonStartedBatchesPercent.toFixed(0)}%</td>
+			<td style="text-align: right; width:100px;">{nonStartedBatchesRatio}</td>
+			<td style="text-align: right; ">{nonStartedBatches}</td>
 		</tr>
 		<tr>
 			<td>Batches started:</td>
-			<td style="text-align: right; width:1%;">{startedBatchesPercent.toFixed(0)}%</td>
-			<td style="text-align: right; width:1%;">{startedBatchesRatio}</td>
-			<td>{startedBatches}</td>
+			<td style="text-align: right;">{startedBatchesPercent.toFixed(0)}%</td>
+			<td style="text-align: right;">{startedBatchesRatio}</td>
+			<td style="text-align: right;">{startedBatches}</td>
 		</tr>
 		<tr>
 			<td>Batches running:</td>
-			<td style="text-align: right; width:1%;">{runningBatchesPercent.toFixed(0)}%</td>
-			<td style="text-align: right; width:1%;">{runningBatchesRatio}</td>
-			<td>{runningBatches}</td>
+			<td style="text-align: right;">{runningBatchesPercent.toFixed(0)}%</td>
+			<td style="text-align: right;">{runningBatchesRatio}</td>
+			<td style="text-align: right;">{runningBatches}</td>
 		</tr>
 		<tr>
 			<td>Batches finished:</td>
-			<td style="text-align: right; width:1%;">{finishedBatchesPercent.toFixed(0)}%</td>
-			<td style="text-align: right; width:1%;">{finishedBatchesRatio}</td>
-			<td>{finishedBatches}</td>
+			<td style="text-align: right;">{finishedBatchesPercent.toFixed(0)}%</td>
+			<td style="text-align: right;">{finishedBatchesRatio}</td>
+			<td style="text-align: right;">{finishedBatches}</td>
 		</tr>
 	</tbody>
 </table>
@@ -405,6 +415,9 @@
 <style>
 	th {
 		white-space: nowrap;
+	}
+	td {
+		padding: 2px;
 	}
 	img {
 		width: 20px;

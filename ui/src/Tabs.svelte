@@ -8,20 +8,21 @@
   <ul>
   {#each items as item}
 	  <li class={activeTabValue === item.value ? 'active' : ''}>
-		  <span onclick={handleClick(item.value)}>{item.label}</span>
+		  <button onclick={handleClick(item.value)}>{item.label}</button>
+
 	  </li>
   {/each}
   </ul>
   {#each items as item}
 	  {#if activeTabValue == item.value}
 	  <div class="box">
-		  <item.component/>
+		  {@render item.component()}
 	  </div>
 	  {/if}
   {/each}
   <style>
 	  .box {
-		width:100%;
+			width:100%;
 		  margin-bottom: 10px;
 		  padding-top: 10px;
 		  display: inline-block;
@@ -38,20 +39,26 @@
 		  margin-bottom: -1px;
 	  }
   
-	span {
+	button {
 	  border: 1px solid transparent;
 	  border-top-left-radius: 0.25rem;
 	  border-top-right-radius: 0.25rem;
+	  border-bottom-left-radius: 0;
+	  border-bottom-right-radius: 0;
 	  display: block;
 	  padding: 0.5rem 1rem;
 	  cursor: pointer;
 	}
   
-	span:hover {
+	button:hover {
 	  border-color: #e9ecef #e9ecef #dee2e6;
 	}
+
+	button:focus{
+		text-decoration: underline;
+	}
   
-	li.active > span {
+	li.active > button {
 	  color: #495057;
 	  background-color: #fff;
 	  border-color: #dee2e6 #dee2e6 #fff;

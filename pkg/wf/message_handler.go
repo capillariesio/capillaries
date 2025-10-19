@@ -271,6 +271,8 @@ func UpdateNodeStatusFromBatches(logger *l.CapiLogger, pCtx *ctx.MessageProcessi
 			comment = "completed with some failed batches - check batch history"
 		case wfmodel.NodeBatchRunStopReceived:
 			comment = "run was stopped,check run and batch history"
+		default:
+			return wfmodel.NodeBatchNone, false, fmt.Errorf("unexpected totalNodeStatus %v", totalNodeStatus)
 		}
 
 		isApplied, err := wfdb.SetNodeStatus(logger, pCtx, totalNodeStatus, comment)
@@ -557,6 +559,9 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msgTs i
 		NodeDependencyGoCounter.Inc()
 	case sc.NodeNogo:
 		NodeDependencyNogoCounter.Inc()
+	default:
+		logger.ErrorCtx(pCtx, "unexpected nodeReady %v", nodeReady)
+		return ProcessDeliveryAckWithError
 	}
 
 	if processDeliveryResult := checkDependencyNogoOrWait(logger, pCtx, nodeReady); processDeliveryResult != ProcessDeliveryOK {

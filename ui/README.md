@@ -6,7 +6,7 @@ It uses [Svelte](https://svelte.dev/) for building UI components. Serves at 8080
 
 ## Requirements
 
-[Node.js + npm](https://www.npmjs.com/)
+Node.js + npm
 
 ## Building
 
