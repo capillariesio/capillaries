@@ -334,9 +334,9 @@ There is no need to perform any setup steps beyond specifying RabbitMQ [url](bin
 There is no need to perform any setup steps beyond specifying [Cassandra connectivity settings](binconfig.md#cassandra) in [Toolbelt and Daemon configuration](binconfig.md). [Toolbelt](#toolbelt) and [Daemon](#daemon) will create [keyspaces](#keyspace) and [tables](#table) on the fly. Below is a sample cqlsh session after [lookup integration test](../test/code/lookup/README.md) completed 2 [runs](#run) by executing
 
 ```
-cd ./test/code/lookup/quicktest_local_fs
-./1_create_data.sh
-./2_two_runs.sh
+cd ./test/code/lookup
+./1_create_data.sh quick fs
+./2_run.sh quick local fs one
 ```
 
 ![sequence](../doc/cassandra-tables.png)
