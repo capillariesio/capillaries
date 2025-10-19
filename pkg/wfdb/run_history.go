@@ -20,12 +20,12 @@ func GetCurrentRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContex
 	fields := []string{"ts", "status"}
 	qb := cql.QueryBuilder{}
 	q := qb.
-		Keyspace(pCtx.BatchInfo.DataKeyspace).
-		Cond("run_id", "=", pCtx.BatchInfo.RunId).
+		Keyspace(pCtx.Msg.DataKeyspace).
+		Cond("run_id", "=", pCtx.Msg.RunId).
 		Select(wfmodel.TableNameRunHistory, fields)
 	rows, err := pCtx.CqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		return wfmodel.RunNone, db.WrapDbErrorWithQuery(fmt.Sprintf("cannot query run status for %s", pCtx.BatchInfo.FullBatchId()), q, err)
+		return wfmodel.RunNone, db.WrapDbErrorWithQuery(fmt.Sprintf("cannot query run status for %s", pCtx.Msg.FullBatchId()), q, err)
 	}
 
 	lastStatus := wfmodel.RunNone
@@ -42,7 +42,7 @@ func GetCurrentRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContex
 		}
 	}
 
-	logger.DebugCtx(pCtx, "batch %s, run status %s", pCtx.BatchInfo.FullBatchId(), lastStatus.ToString())
+	logger.DebugCtx(pCtx, "batch %s, run status %s", pCtx.Msg.FullBatchId(), lastStatus.ToString())
 	return lastStatus, nil
 }
 

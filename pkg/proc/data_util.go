@@ -82,7 +82,7 @@ func selectBatchFromDataTablePaged(logger *l.CapiLogger,
 
 	qb := cql.QueryBuilder{}
 	q := qb.
-		Keyspace(pCtx.BatchInfo.DataKeyspace).
+		Keyspace(pCtx.Msg.DataKeyspace).
 		CondInPrepared("rowid"). // This is a right-side lookup table, select by rowid
 		SelectRun(tableName, lookupNodeRunId, *rs.GetFieldNames())
 
@@ -151,7 +151,7 @@ func selectBatchPagedAllRowids(logger *l.CapiLogger,
 
 	qb := cql.QueryBuilder{}
 	q := qb.
-		Keyspace(pCtx.BatchInfo.DataKeyspace).
+		Keyspace(pCtx.Msg.DataKeyspace).
 		SelectRun(tableName, lookupNodeRunId, *rs.GetFieldNames())
 
 	iter := pCtx.CqlSession.Query(q).PageSize(batchSize).PageState(pageState).Iter()
@@ -203,7 +203,7 @@ func selectBatchFromIdxTablePaged(logger *l.CapiLogger,
 	}
 
 	qb := cql.QueryBuilder{}
-	q := qb.Keyspace(pCtx.BatchInfo.DataKeyspace).
+	q := qb.Keyspace(pCtx.Msg.DataKeyspace).
 		CondInPrepared("key"). // This is an index table, select only selected keys
 		SelectRun(tableName, lookupNodeRunId, *rs.GetFieldNames())
 
@@ -251,7 +251,7 @@ func selectBatchFromTableByToken(logger *l.CapiLogger,
 	}
 
 	qb := cql.QueryBuilder{}
-	q := qb.Keyspace(pCtx.BatchInfo.DataKeyspace).
+	q := qb.Keyspace(pCtx.Msg.DataKeyspace).
 		Limit(batchSize).
 		CondPrepared("token(rowid)", ">=").
 		CondPrepared("token(rowid)", "<=").
@@ -287,7 +287,7 @@ func selectBatchFromTableByToken(logger *l.CapiLogger,
 		if retryCount >= maxRetries-1 {
 			return 0, db.WrapDbErrorWithQuery(fmt.Sprintf("cannot close iterator after %d attempts and %dms, still getting timeouts", retryCount+1, cql.SumOfExpBackoffDelaysMs(operationTimedOutPauseMillis, int64(expBackoffFactorMultiplier), retryCount)), q, err)
 		}
-		logger.WarnCtx(pCtx, "cluster overloaded (%s), will wait for %dms before closing iterator %s again, retry count %d", err.Error(), operationTimedOutPauseMillis*curDataExpBackoffFactor, fmt.Sprintf("%s%s", tableName, cql.RunIdSuffix(pCtx.BatchInfo.RunId)), retryCount)
+		logger.WarnCtx(pCtx, "cluster overloaded (%s), will wait for %dms before closing iterator %s again, retry count %d", err.Error(), operationTimedOutPauseMillis*curDataExpBackoffFactor, fmt.Sprintf("%s%s", tableName, cql.RunIdSuffix(pCtx.Msg.RunId)), retryCount)
 		time.Sleep(time.Duration(operationTimedOutPauseMillis*curDataExpBackoffFactor) * time.Millisecond)
 		curDataExpBackoffFactor *= expBackoffFactorMultiplier
 	}
@@ -329,9 +329,9 @@ func deleteDataRecordByRowid(pCtx *ctx.MessageProcessingContext, rowids []int64)
 		for i, rowid := range rowids {
 			sb.WriteString(
 				(&cql.QueryBuilder{}).
-					Keyspace(pCtx.BatchInfo.DataKeyspace).
+					Keyspace(pCtx.Msg.DataKeyspace).
 					Cond("rowid", "=", rowid).
-					DeleteRun(pCtx.CurrentScriptNode.TableCreator.Name, pCtx.BatchInfo.RunId))
+					DeleteRun(pCtx.CurrentScriptNode.TableCreator.Name, pCtx.Msg.RunId))
 			sb.WriteString(";")
 			if (i+1)%MaxAmazonKeyspacesBatchLen == 0 || i == len(rowids)-1 {
 				batchStmt := "BEGIN UNLOGGED BATCH " + sb.String() + " APPLY BATCH"
@@ -343,9 +343,9 @@ func deleteDataRecordByRowid(pCtx *ctx.MessageProcessingContext, rowids []int64)
 		}
 	} else {
 		q := (&cql.QueryBuilder{}).
-			Keyspace(pCtx.BatchInfo.DataKeyspace).
+			Keyspace(pCtx.Msg.DataKeyspace).
 			CondInInt("rowid", rowids).
-			DeleteRun(pCtx.CurrentScriptNode.TableCreator.Name, pCtx.BatchInfo.RunId)
+			DeleteRun(pCtx.CurrentScriptNode.TableCreator.Name, pCtx.Msg.RunId)
 		if err := pCtx.CqlSession.Query(q).Exec(); err != nil {
 			return db.WrapDbErrorWithQuery("cannot delete from data table", q, err)
 		}
@@ -360,9 +360,9 @@ func deleteIdxRecordByKey(pCtx *ctx.MessageProcessingContext, idxName string, ke
 		for i, key := range keys {
 			sb.WriteString(
 				(&cql.QueryBuilder{}).
-					Keyspace(pCtx.BatchInfo.DataKeyspace).
+					Keyspace(pCtx.Msg.DataKeyspace).
 					Cond("key", "=", key).
-					DeleteRun(pCtx.CurrentScriptNode.TableCreator.Name, pCtx.BatchInfo.RunId))
+					DeleteRun(pCtx.CurrentScriptNode.TableCreator.Name, pCtx.Msg.RunId))
 			sb.WriteString(";")
 			if (i+1)%MaxAmazonKeyspacesBatchLen == 0 || i == len(key)-1 {
 				batchStmt := "BEGIN UNLOGGED BATCH " + sb.String() + " APPLY BATCH"
@@ -374,9 +374,9 @@ func deleteIdxRecordByKey(pCtx *ctx.MessageProcessingContext, idxName string, ke
 		}
 	} else {
 		q := (&cql.QueryBuilder{}).
-			Keyspace(pCtx.BatchInfo.DataKeyspace).
+			Keyspace(pCtx.Msg.DataKeyspace).
 			CondInString("key", keys).
-			DeleteRun(idxName, pCtx.BatchInfo.RunId)
+			DeleteRun(idxName, pCtx.Msg.RunId)
 		if err := pCtx.CqlSession.Query(q).Exec(); err != nil {
 			return db.WrapDbErrorWithQuery("cannot delete from idx table", q, err)
 		}
@@ -392,11 +392,11 @@ func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.Messag
 	defer logger.PopF()
 
 	if !pCtx.CurrentScriptNode.HasTableCreator() {
-		logger.InfoCtx(pCtx, "no table creator, nothing to delete for %s", pCtx.BatchInfo.FullBatchId())
+		logger.InfoCtx(pCtx, "no table creator, nothing to delete for %s", pCtx.Msg.FullBatchId())
 		return nil
 	}
 
-	logger.DebugCtx(pCtx, "deleting data records for %s...", pCtx.BatchInfo.FullBatchId())
+	logger.DebugCtx(pCtx, "deleting data records for %s...", pCtx.Msg.FullBatchId())
 
 	deleteStartTime := time.Now()
 
@@ -416,7 +416,7 @@ func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.Messag
 			pCtx,
 			rs,
 			pCtx.CurrentScriptNode.TableCreator.Name,
-			pCtx.BatchInfo.RunId,
+			pCtx.Msg.RunId,
 			HarvestForDeleteRowsetSize,
 			pageState)
 		if err != nil {
@@ -436,7 +436,7 @@ func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.Messag
 			batchIdx := int16(*((*rs.Rows[rowIdx])[rs.FieldsByFieldName["batch_idx"]].(*int64)))
 
 			// Harvest only rowids with batchIdx we are interested in (specific batch_idx), also harvest keys
-			if batchIdx != pCtx.BatchInfo.BatchIdx {
+			if batchIdx != pCtx.Msg.BatchIdx {
 				continue
 			}
 
@@ -465,17 +465,17 @@ func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.Messag
 			rowIdsToDelete = rowIdsToDelete[:rowIdsToDeleteCount]
 
 			// Delete data records by rowid
-			logger.DebugCtx(pCtx, "deleting %d data records from %s: %v", len(rowIdsToDelete), pCtx.BatchInfo.FullBatchId(), rowIdsToDelete)
+			logger.DebugCtx(pCtx, "deleting %d data records from %s: %v", len(rowIdsToDelete), pCtx.Msg.FullBatchId(), rowIdsToDelete)
 			if err := deleteDataRecordByRowid(pCtx, rowIdsToDelete); err != nil {
 				return err
 			}
 
 			// Delete index records by key
-			logger.InfoCtx(pCtx, "deleted %d records from data table for %s, now will delete from %d indexes", len(rowIdsToDelete), pCtx.BatchInfo.FullBatchId(), len(uniqueKeysToDeleteMap))
+			logger.InfoCtx(pCtx, "deleted %d records from data table for %s, now will delete from %d indexes", len(rowIdsToDelete), pCtx.Msg.FullBatchId(), len(uniqueKeysToDeleteMap))
 			for idxName, idxKeysToDelete := range uniqueKeysToDeleteMap {
 				// Trim unused empty key slots
 				trimmedIdxKeysToDelete := idxKeysToDelete[:rowIdsToDeleteCount]
-				logger.DebugCtx(pCtx, "deleting %d idx %s records from %d/%s idx %s for batch_idx %d: '%s'", len(rowIdsToDelete), idxName, pCtx.BatchInfo.RunId, pCtx.BatchInfo.TargetNodeName, idxName, pCtx.BatchInfo.BatchIdx, strings.Join(trimmedIdxKeysToDelete, `','`))
+				logger.DebugCtx(pCtx, "deleting %d idx %s records from %d/%s idx %s for batch_idx %d: '%s'", len(rowIdsToDelete), idxName, pCtx.Msg.RunId, pCtx.Msg.TargetNodeName, idxName, pCtx.Msg.BatchIdx, strings.Join(trimmedIdxKeysToDelete, `','`))
 				if err := deleteIdxRecordByKey(pCtx, idxName, trimmedIdxKeysToDelete); err != nil {
 					return err
 				}
@@ -492,7 +492,7 @@ func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.Messag
 		}
 	}
 
-	logger.DebugCtx(pCtx, "deleted data records for %s, elapsed %v", pCtx.BatchInfo.FullBatchId(), time.Since(deleteStartTime))
+	logger.DebugCtx(pCtx, "deleted data records for %s, elapsed %v", pCtx.Msg.FullBatchId(), time.Since(deleteStartTime))
 
 	return nil
 }

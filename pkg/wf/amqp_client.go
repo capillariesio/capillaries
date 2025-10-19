@@ -75,20 +75,7 @@ func processDelivery(envConfig *env.EnvConfig, logger *l.CapiLogger, delivery *a
 		return ProcessDeliveryAckWithError
 	}
 
-	switch msgIn.MessageType {
-	case wfmodel.MessageTypeDataBatch:
-		dataBatchInfo, ok := msgIn.Payload.(wfmodel.MessagePayloadDataBatch)
-		if !ok {
-			logger.Error("unexpected type of data batch payload: %T", msgIn.Payload)
-			return ProcessDeliveryAckWithError
-		}
-		return ProcessDataBatchMsg(envConfig, logger, msgIn.Ts, &dataBatchInfo)
-
-	// TODO: other commands like debug level or shutdown go here
-	default:
-		logger.Error("unexpected message type %d", msgIn.MessageType)
-		return ProcessDeliveryAckWithError
-	}
+	return ProcessDataBatchMsg(envConfig, logger, &msgIn)
 }
 
 func AmqpFullReconnectCycle(envConfig *env.EnvConfig, logger *l.CapiLogger, osSignalChannel chan os.Signal) DaemonCmdType {

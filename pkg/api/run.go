@@ -121,19 +121,19 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp.
 		msgs := make([]*wfmodel.Message, len(intervals))
 		handlerExeTypes := make([]string, len(intervals))
 		for msgIdx := 0; msgIdx < len(intervals); msgIdx++ {
+			now := time.Now().UnixMilli()
 			msgs[msgIdx] = &wfmodel.Message{
-				Ts:          time.Now().UnixMilli(),
-				MessageType: wfmodel.MessageTypeDataBatch,
-				Payload: wfmodel.MessagePayloadDataBatch{
-					ScriptURL:       scriptFilePath,
-					ScriptParamsURL: paramsFilePath,
-					DataKeyspace:    keyspace,
-					RunId:           runId,
-					TargetNodeName:  affectedNodeName,
-					FirstToken:      intervals[msgIdx][0],
-					LastToken:       intervals[msgIdx][1],
-					BatchIdx:        int16(msgIdx),
-					BatchesTotal:    int16(len(intervals))}}
+				Ts:              now,
+				DeliverAfter:    now,
+				ScriptURL:       scriptFilePath,
+				ScriptParamsURL: paramsFilePath,
+				DataKeyspace:    keyspace,
+				RunId:           runId,
+				TargetNodeName:  affectedNodeName,
+				FirstToken:      intervals[msgIdx][0],
+				LastToken:       intervals[msgIdx][1],
+				BatchIdx:        int16(msgIdx),
+				BatchesTotal:    int16(len(intervals))}
 			handlerExeTypes[msgIdx] = affectedNode.HandlerExeType
 		}
 		allMsgs = append(allMsgs, msgs...)
@@ -243,9 +243,11 @@ func RunNode(envConfig *env.EnvConfig, logger *l.CapiLogger, nodeName string, ru
 	logger.Info("created %d tables, creating messages to send for run %d...", tablesCreated, runId)
 
 	for i := 0; i < len(intervals); i++ {
-		batchStartTs := time.Now()
+		now := time.Now()
 		logger.Info("BatchStarted: [%d,%d]...", intervals[i][0], intervals[i][1])
-		dataBatchInfo := wfmodel.MessagePayloadDataBatch{
+		msg := wfmodel.Message{
+			Ts:              now.UnixMilli(),
+			DeliverAfter:    now.UnixMilli(),
 			ScriptURL:       scriptFilePath,
 			ScriptParamsURL: paramsFilePath,
 			DataKeyspace:    keyspace,
@@ -256,10 +258,10 @@ func RunNode(envConfig *env.EnvConfig, logger *l.CapiLogger, nodeName string, ru
 			BatchIdx:        int16(i),
 			BatchesTotal:    int16(len(intervals))}
 
-		if processDeliveryResult := wf.ProcessDataBatchMsg(envConfig, logger, batchStartTs.UnixMilli(), &dataBatchInfo); processDeliveryResult != wf.ProcessDeliveryAckSuccess {
+		if processDeliveryResult := wf.ProcessDataBatchMsg(envConfig, logger, &msg); processDeliveryResult != wf.ProcessDeliveryAckSuccess {
 			return 0, fmt.Errorf("processor returned processDeliveryResult %d, assuming failure, check the logs", processDeliveryResult)
 		}
-		logger.Info("BatchComplete: [%d,%d], %.3fs", intervals[i][0], intervals[i][1], time.Since(batchStartTs).Seconds())
+		logger.Info("BatchComplete: [%d,%d], %.3fs", intervals[i][0], intervals[i][1], time.Since(now).Seconds())
 	}
 	if err := wfdb.SetRunStatus(logger, cqlSession, keyspace, runId, wfmodel.RunComplete, fmt.Sprintf("Toolbelt RunNode(%s), run successful", nodeName), cql.IgnoreIfExists); err != nil {
 		return 0, err

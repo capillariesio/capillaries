@@ -10,8 +10,7 @@ import (
 )
 
 type MessageProcessingContext struct {
-	MsgTs             int64
-	BatchInfo         wfmodel.MessagePayloadDataBatch
+	Msg               wfmodel.Message
 	CqlSession        *gocql.Session
 	Script            *sc.ScriptDef
 	CurrentScriptNode *sc.ScriptNodeDef
@@ -25,7 +24,7 @@ type MessageProcessingContext struct {
 
 func (pCtx *MessageProcessingContext) DbConnect(envConfig *env.EnvConfig) error {
 	var err error
-	if pCtx.CqlSession, pCtx.CassandraEngine, err = db.NewSession(envConfig, pCtx.BatchInfo.DataKeyspace, db.DoNotCreateKeyspaceOnConnect); err != nil {
+	if pCtx.CqlSession, pCtx.CassandraEngine, err = db.NewSession(envConfig, pCtx.Msg.DataKeyspace, db.DoNotCreateKeyspaceOnConnect); err != nil {
 		return err
 	}
 	// rnd := rand.New(rand.NewSource(time.Now().UnixMilli()))

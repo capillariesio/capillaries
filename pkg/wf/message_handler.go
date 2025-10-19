@@ -95,7 +95,7 @@ func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 	defer logger.PopF()
 
 	// Before reading state db, check our cache
-	nodeDependencyReadynessCacheKey := pCtx.BatchInfo.FullNodeId()
+	nodeDependencyReadynessCacheKey := pCtx.Msg.FullNodeId()
 	if NodeDependencyReadynessCache != nil {
 		cachedState, ok := NodeDependencyReadynessCache.Get(nodeDependencyReadynessCacheKey)
 		if ok {
@@ -161,7 +161,7 @@ func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 	dependencyRunIds := make([]int16, len(depNodeNames))
 	for nodeIdx, depNodeName := range depNodeNames {
 		if len(nodeEventListMap[depNodeName]) == 0 {
-			return sc.NodeNogo, 0, 0, fmt.Errorf("target node %s, dep node %s not started yet, whoever started this run, failed to specify %s (or at least one of its dependencies) as start node", pCtx.BatchInfo.TargetNodeName, depNodeName, depNodeName)
+			return sc.NodeNogo, 0, 0, fmt.Errorf("target node %s, dep node %s not started yet, whoever started this run, failed to specify %s (or at least one of its dependencies) as start node", pCtx.Msg.TargetNodeName, depNodeName, depNodeName)
 		}
 		var checkerLogMsg string
 		dependencyNodeCmds[nodeIdx], dependencyRunIds[nodeIdx], checkerLogMsg, err = dpc.CheckDependencyPolicyAgainstNodeEventList(pCtx.CurrentScriptNode.DepPolDef, nodeEventListMap[depNodeName])
@@ -171,7 +171,7 @@ func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 		if err != nil {
 			return sc.NodeNone, 0, 0, err
 		}
-		logger.DebugCtx(pCtx, "target node %s, dep node %s returned %s", pCtx.BatchInfo.TargetNodeName, depNodeName, dependencyNodeCmds[nodeIdx])
+		logger.DebugCtx(pCtx, "target node %s, dep node %s returned %s", pCtx.Msg.TargetNodeName, depNodeName, dependencyNodeCmds[nodeIdx])
 	}
 
 	finalCmd := dependencyNodeCmds[0]
@@ -189,9 +189,9 @@ func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 	}
 
 	if finalCmd == sc.NodeNogo || finalCmd == sc.NodeGo {
-		logger.InfoCtx(pCtx, "checked all dependency nodes for %s, commands are %v, run ids are %v, finalCmd is %s", pCtx.BatchInfo.TargetNodeName, dependencyNodeCmds, dependencyRunIds, finalCmd)
+		logger.InfoCtx(pCtx, "checked all dependency nodes for %s, commands are %v, run ids are %v, finalCmd is %s", pCtx.Msg.TargetNodeName, dependencyNodeCmds, dependencyRunIds, finalCmd)
 	} else {
-		logger.DebugCtx(pCtx, "checked all dependency nodes for %s, commands are %v, run ids are %v, finalCmd is wait", pCtx.BatchInfo.TargetNodeName, dependencyNodeCmds, dependencyRunIds)
+		logger.DebugCtx(pCtx, "checked all dependency nodes for %s, commands are %v, run ids are %v, finalCmd is wait", pCtx.Msg.TargetNodeName, dependencyNodeCmds, dependencyRunIds)
 	}
 
 	NodeDependencyReadynessGetDuration.Observe(float64(time.Since(startTime).Seconds()))
@@ -213,38 +213,38 @@ func SafeProcessBatch(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.
 
 	switch pCtx.CurrentScriptNode.Type {
 	case sc.NodeTypeFileTable:
-		if pCtx.BatchInfo.FirstToken != pCtx.BatchInfo.LastToken || pCtx.BatchInfo.FirstToken < 0 || pCtx.BatchInfo.FirstToken >= int64(len(pCtx.CurrentScriptNode.FileReader.SrcFileUrls)) {
+		if pCtx.Msg.FirstToken != pCtx.Msg.LastToken || pCtx.Msg.FirstToken < 0 || pCtx.Msg.FirstToken >= int64(len(pCtx.CurrentScriptNode.FileReader.SrcFileUrls)) {
 			err = fmt.Errorf(
 				"startToken %d must equal endToken %d must be smaller than the number of files specified by file reader %d",
-				pCtx.BatchInfo.FirstToken,
-				pCtx.BatchInfo.LastToken,
+				pCtx.Msg.FirstToken,
+				pCtx.Msg.LastToken,
 				len(pCtx.CurrentScriptNode.FileReader.SrcFileUrls))
 		} else {
-			bs, err = proc.RunReadFileForBatch(envConfig, logger, pCtx, int(pCtx.BatchInfo.FirstToken))
+			bs, err = proc.RunReadFileForBatch(envConfig, logger, pCtx, int(pCtx.Msg.FirstToken))
 		}
 
 	case sc.NodeTypeTableTable:
-		bs, err = proc.RunCreateTableForBatch(envConfig, logger, pCtx, readerNodeRunId, pCtx.BatchInfo.FirstToken, pCtx.BatchInfo.LastToken)
+		bs, err = proc.RunCreateTableForBatch(envConfig, logger, pCtx, readerNodeRunId, pCtx.Msg.FirstToken, pCtx.Msg.LastToken)
 
 	case sc.NodeTypeDistinctTable:
-		bs, err = proc.RunCreateDistinctTableForBatch(envConfig, logger, pCtx, readerNodeRunId, pCtx.BatchInfo.FirstToken, pCtx.BatchInfo.LastToken)
+		bs, err = proc.RunCreateDistinctTableForBatch(envConfig, logger, pCtx, readerNodeRunId, pCtx.Msg.FirstToken, pCtx.Msg.LastToken)
 
 	case sc.NodeTypeTableLookupTable:
-		bs, err = proc.RunCreateTableRelForBatch(envConfig, logger, pCtx, readerNodeRunId, lookupNodeRunId, pCtx.BatchInfo.FirstToken, pCtx.BatchInfo.LastToken)
+		bs, err = proc.RunCreateTableRelForBatch(envConfig, logger, pCtx, readerNodeRunId, lookupNodeRunId, pCtx.Msg.FirstToken, pCtx.Msg.LastToken)
 
 	case sc.NodeTypeTableFile:
-		bs, err = proc.RunCreateFile(envConfig, logger, pCtx, readerNodeRunId, pCtx.BatchInfo.FirstToken, pCtx.BatchInfo.LastToken)
+		bs, err = proc.RunCreateFile(envConfig, logger, pCtx, readerNodeRunId, pCtx.Msg.FirstToken, pCtx.Msg.LastToken)
 
 	case sc.NodeTypeTableCustomTfmTable:
-		bs, err = proc.RunCreateTableForCustomProcessorForBatch(envConfig, logger, pCtx, readerNodeRunId, pCtx.BatchInfo.FirstToken, pCtx.BatchInfo.LastToken)
+		bs, err = proc.RunCreateTableForCustomProcessorForBatch(envConfig, logger, pCtx, readerNodeRunId, pCtx.Msg.FirstToken, pCtx.Msg.LastToken)
 
 	default:
-		err = fmt.Errorf("unsupported node %s type %s", pCtx.BatchInfo.TargetNodeName, pCtx.CurrentScriptNode.Type)
+		err = fmt.Errorf("unsupported node %s type %s", pCtx.Msg.TargetNodeName, pCtx.CurrentScriptNode.Type)
 	}
 
 	if err != nil {
 		logger.DebugCtx(pCtx, "batch processed, error: %s", err.Error())
-		return wfmodel.NodeBatchFail, bs, fmt.Errorf("error running node %s of type %s in the script [%s]: [%s]", pCtx.BatchInfo.TargetNodeName, pCtx.CurrentScriptNode.Type, pCtx.BatchInfo.ScriptURL, err.Error())
+		return wfmodel.NodeBatchFail, bs, fmt.Errorf("error running node %s of type %s in the script [%s]: [%s]", pCtx.Msg.TargetNodeName, pCtx.CurrentScriptNode.Type, pCtx.Msg.ScriptURL, err.Error())
 	}
 	logger.DebugCtx(pCtx, "batch processed ok")
 
@@ -291,7 +291,7 @@ func UpdateRunStatusFromNodes(logger *l.CapiLogger, pCtx *ctx.MessageProcessingC
 	defer logger.PopF()
 
 	// Let's see if this run is complete
-	affectedNodes, err := wfdb.GetRunAffectedNodes(logger, pCtx.CqlSession, pCtx.BatchInfo.DataKeyspace, pCtx.BatchInfo.RunId)
+	affectedNodes, err := wfdb.GetRunAffectedNodes(logger, pCtx.CqlSession, pCtx.Msg.DataKeyspace, pCtx.Msg.RunId)
 	if err != nil {
 		return err
 	}
@@ -302,7 +302,7 @@ func UpdateRunStatusFromNodes(logger *l.CapiLogger, pCtx *ctx.MessageProcessingC
 
 	if combinedNodeStatus == wfmodel.NodeBatchSuccess || combinedNodeStatus == wfmodel.NodeBatchFail {
 		// Mark run as complete
-		if err := wfdb.SetRunStatus(logger, pCtx.CqlSession, pCtx.BatchInfo.DataKeyspace, pCtx.BatchInfo.RunId, wfmodel.RunComplete, nodeStatusString, cql.IgnoreIfExists); err != nil {
+		if err := wfdb.SetRunStatus(logger, pCtx.CqlSession, pCtx.Msg.DataKeyspace, pCtx.Msg.RunId, wfmodel.RunComplete, nodeStatusString, cql.IgnoreIfExists); err != nil {
 			return err
 		}
 	}
@@ -332,34 +332,34 @@ func refreshNodeAndRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingCo
 	return nil
 }
 
-func initCtxScript(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, caPath string, privateKeys map[string]string, dataBatchInfo *wfmodel.MessagePayloadDataBatch, customProcFactory sc.CustomProcessorDefFactory, customProcSettings map[string]json.RawMessage) ProcessDeliveryResultType {
+func initCtxScript(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, caPath string, privateKeys map[string]string, msg *wfmodel.Message, customProcFactory sc.CustomProcessorDefFactory, customProcSettings map[string]json.RawMessage) ProcessDeliveryResultType {
 	var initProblem sc.ScriptInitProblemType
 	var err error
 
-	pCtx.Script, initProblem, err = sc.NewScriptFromFiles(caPath, privateKeys, dataBatchInfo.ScriptURL, dataBatchInfo.ScriptParamsURL, customProcFactory, customProcSettings)
+	pCtx.Script, initProblem, err = sc.NewScriptFromFiles(caPath, privateKeys, msg.ScriptURL, msg.ScriptParamsURL, customProcFactory, customProcSettings)
 	if initProblem == sc.ScriptInitNoProblem {
 		return ProcessDeliveryOK
 	}
 
 	switch initProblem {
 	case sc.ScriptInitUrlProblem:
-		logger.Error("cannot init script because of URL problem, will not let other workers handle it, giving up with msg %s: %s", dataBatchInfo.ToString(), err.Error())
+		logger.Error("cannot init script because of URL problem, will not let other workers handle it, giving up with msg %s: %s", msg.ToString(), err.Error())
 		return ProcessDeliveryAckWithError
 	case sc.ScriptInitContentProblem:
-		logger.Error("cannot init script because of content problem, will not let other workers handle it, giving up with msg %s: %s", dataBatchInfo.ToString(), err.Error())
+		logger.Error("cannot init script because of content problem, will not let other workers handle it, giving up with msg %s: %s", msg.ToString(), err.Error())
 		return ProcessDeliveryAckWithError
 	case sc.ScriptInitConnectivityProblem:
-		logger.Error("cannot init script because of connectivity problem, will let other workers handle it, giving up with msg %s: %s", dataBatchInfo.ToString(), err.Error())
+		logger.Error("cannot init script because of connectivity problem, will let other workers handle it, giving up with msg %s: %s", msg.ToString(), err.Error())
 		return ProcessDeliveryRejectAndRetryLater
 	default:
-		logger.Error("unexpected: cannot init script for unknown reason %d, will let other workers handle it, giving up with msg %s: %s", initProblem, dataBatchInfo.ToString(), err.Error())
+		logger.Error("unexpected: cannot init script for unknown reason %d, will let other workers handle it, giving up with msg %s: %s", initProblem, msg.ToString(), err.Error())
 		return ProcessDeliveryRejectAndRetryLater
 	}
 }
 
-func checkRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, dataBatchInfo *wfmodel.MessagePayloadDataBatch, runStatus wfmodel.RunStatusType) ProcessDeliveryResultType {
+func checkRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, msg *wfmodel.Message, runStatus wfmodel.RunStatusType) ProcessDeliveryResultType {
 	if runStatus == wfmodel.RunNone {
-		comment := fmt.Sprintf("run history status for batch %s is empty, looks like this run %d was never started", dataBatchInfo.FullBatchId(), pCtx.BatchInfo.RunId)
+		comment := fmt.Sprintf("run history status for batch %s is empty, looks like this run %d was never started", msg.FullBatchId(), pCtx.Msg.RunId)
 		logger.ErrorCtx(pCtx, "%s", comment)
 		if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeBatchFail, comment); err != nil {
 			if db.IsDbConnError(err) {
@@ -378,7 +378,7 @@ func checkRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, da
 
 	// If the user signaled stop to this proc, all results of the run are invalidated
 	if runStatus == wfmodel.RunStop {
-		comment := fmt.Sprintf("run stopped, batch %s marked %s", dataBatchInfo.FullBatchId(), wfmodel.NodeBatchRunStopReceived.ToString())
+		comment := fmt.Sprintf("run stopped, batch %s marked %s", msg.FullBatchId(), wfmodel.NodeBatchRunStopReceived.ToString())
 		if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeBatchRunStopReceived, comment); err != nil {
 			logger.ErrorCtx(pCtx, "%s, cannot set batch status: %s", comment, err.Error())
 			if db.IsDbConnError(err) {
@@ -398,16 +398,16 @@ func checkRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, da
 		logger.DebugCtx(pCtx, "%s, status successfully refreshed", comment)
 		return ProcessDeliveryAckSuccess
 	} else if runStatus != wfmodel.RunStart {
-		logger.ErrorCtx(pCtx, "cannot process batch %s, run already has unexpected status %d", dataBatchInfo.FullBatchId(), runStatus)
+		logger.ErrorCtx(pCtx, "cannot process batch %s, run already has unexpected status %d", msg.FullBatchId(), runStatus)
 		return ProcessDeliveryAckWithError
 	}
 
 	return ProcessDeliveryOK
 }
 
-func checkLastBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, dataBatchInfo *wfmodel.MessagePayloadDataBatch, lastBatchStatus wfmodel.NodeBatchStatusType) ProcessDeliveryResultType {
+func checkLastBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, msg *wfmodel.Message, lastBatchStatus wfmodel.NodeBatchStatusType) ProcessDeliveryResultType {
 	if lastBatchStatus == wfmodel.NodeBatchFail || lastBatchStatus == wfmodel.NodeBatchSuccess {
-		logger.InfoCtx(pCtx, "will not process batch %s, it has been already processed (processor crashed after processing it and before marking as success/fail?) with status %d", dataBatchInfo.FullBatchId(), lastBatchStatus)
+		logger.InfoCtx(pCtx, "will not process batch %s, it has been already processed (processor crashed after processing it and before marking as success/fail?) with status %d", msg.FullBatchId(), lastBatchStatus)
 		if err := refreshNodeAndRunStatus(logger, pCtx); err != nil {
 			if db.IsDbConnError(err) {
 				return ProcessDeliveryReconnectDb
@@ -419,7 +419,7 @@ func checkLastBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingConte
 		// This run/node/batch has been picked up by another crashed processor (processor crashed before marking success/fail)
 		if pCtx.CurrentScriptNode.RerunPolicy == sc.NodeRerun {
 			if deleteErr := proc.DeleteDataAndUniqueIndexesByBatchIdx(logger, pCtx); deleteErr != nil {
-				comment := fmt.Sprintf("cannot clean up leftovers of the previous processing of batch %s: %s", pCtx.BatchInfo.FullBatchId(), deleteErr.Error())
+				comment := fmt.Sprintf("cannot clean up leftovers of the previous processing of batch %s: %s", pCtx.Msg.FullBatchId(), deleteErr.Error())
 				logger.ErrorCtx(pCtx, "%s", comment)
 				setBatchStatusErr := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeFail, comment)
 				if setBatchStatusErr != nil {
@@ -433,7 +433,7 @@ func checkLastBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingConte
 			}
 			// Clean up successful, process this node
 		} else if pCtx.CurrentScriptNode.RerunPolicy == sc.NodeFail {
-			logger.ErrorCtx(pCtx, "will not rerun %s, rerun policy says we have to fail", pCtx.BatchInfo.FullBatchId())
+			logger.ErrorCtx(pCtx, "will not rerun %s, rerun policy says we have to fail", pCtx.Msg.FullBatchId())
 			return ProcessDeliveryAckWithError
 		} else {
 			logger.ErrorCtx(pCtx, "unexpected rerun policy %s, looks like dev error", pCtx.CurrentScriptNode.RerunPolicy)
@@ -443,7 +443,7 @@ func checkLastBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingConte
 		// Stop was signaled, do not try to handle this batch anymore, call it a success
 		return ProcessDeliveryAckWithError
 	} else if lastBatchStatus != wfmodel.NodeBatchNone {
-		logger.ErrorCtx(pCtx, "unexpected batch %s status %d, expected None, looks like dev error.", pCtx.BatchInfo.FullBatchId(), lastBatchStatus)
+		logger.ErrorCtx(pCtx, "unexpected batch %s status %d, expected None, looks like dev error.", pCtx.Msg.FullBatchId(), lastBatchStatus)
 		return ProcessDeliveryAckWithError
 	}
 	return ProcessDeliveryOK
@@ -452,7 +452,7 @@ func checkLastBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingConte
 func checkDependencyNogoOrWait(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, nodeReady sc.ReadyToRunNodeCmdType) ProcessDeliveryResultType {
 	switch nodeReady {
 	case sc.NodeNogo:
-		comment := fmt.Sprintf("some dependency nodes for %s are in bad state, or runs executing dependency nodes were stopped/invalidated, will not run this node; for details, check rules in dependency_policies and previous runs history", pCtx.BatchInfo.FullBatchId())
+		comment := fmt.Sprintf("some dependency nodes for %s are in bad state, or runs executing dependency nodes were stopped/invalidated, will not run this node; for details, check rules in dependency_policies and previous runs history", pCtx.Msg.FullBatchId())
 		logger.InfoCtx(pCtx, "%s", comment)
 		if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeFail, comment); err != nil {
 			if db.IsDbConnError(err) {
@@ -469,27 +469,26 @@ func checkDependencyNogoOrWait(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 		return ProcessDeliveryAckWithError
 
 	case sc.NodeWait:
-		logger.InfoCtx(pCtx, "some dependency nodes for %s are not ready, will wait", pCtx.BatchInfo.FullBatchId())
+		logger.InfoCtx(pCtx, "some dependency nodes for %s are not ready, will wait", pCtx.Msg.FullBatchId())
 		return ProcessDeliveryRejectAndRetryLater
 	default:
 		return ProcessDeliveryOK
 	}
 }
 
-func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msgTs int64, dataBatchInfo *wfmodel.MessagePayloadDataBatch) ProcessDeliveryResultType {
+func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wfmodel.Message) ProcessDeliveryResultType {
 	logger.PushF("wf.ProcessDataBatchMsg")
 	defer logger.PopF()
 
 	ReceivedMsgCounter.Inc()
 
 	pCtx := &ctx.MessageProcessingContext{
-		MsgTs:           msgTs,
-		BatchInfo:       *dataBatchInfo,
-		ZapDataKeyspace: zap.String("ks", dataBatchInfo.DataKeyspace),
-		ZapRun:          zap.Int16("run", dataBatchInfo.RunId),
-		ZapNode:         zap.String("node", dataBatchInfo.TargetNodeName),
-		ZapBatchIdx:     zap.Int16("bi", dataBatchInfo.BatchIdx),
-		ZapMsgAgeMillis: zap.Int64("age", time.Now().UnixMilli()-msgTs)}
+		Msg:             *msg,
+		ZapDataKeyspace: zap.String("ks", msg.DataKeyspace),
+		ZapRun:          zap.Int16("run", msg.RunId),
+		ZapNode:         zap.String("node", msg.TargetNodeName),
+		ZapBatchIdx:     zap.Int16("bi", msg.BatchIdx),
+		ZapMsgAgeMillis: zap.Int64("age", time.Now().UnixMilli()-msg.Ts)}
 
 	// Check run status first. If it's stopped, don't even bother getting the script etc. If we try to get the script first,
 	// and it's not available, we may end up handling this batch forever even after the run is stopped by the operator
@@ -501,7 +500,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msgTs i
 
 	runStatus, err := wfdb.GetCurrentRunStatus(logger, pCtx)
 	if err != nil {
-		logger.ErrorCtx(pCtx, "cannot get current run status for batch %s: %s", dataBatchInfo.FullBatchId(), err.Error())
+		logger.ErrorCtx(pCtx, "cannot get current run status for batch %s: %s", msg.FullBatchId(), err.Error())
 		if db.IsDbConnError(err) {
 			return ProcessDeliveryReconnectDb
 		}
@@ -509,22 +508,22 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msgTs i
 	}
 
 	// Check current run is valid
-	if processDeliveryResult := checkRunStatus(logger, pCtx, dataBatchInfo, runStatus); processDeliveryResult != ProcessDeliveryOK {
+	if processDeliveryResult := checkRunStatus(logger, pCtx, msg, runStatus); processDeliveryResult != ProcessDeliveryOK {
 		return processDeliveryResult
 	}
 
-	if processDeliveryResult := initCtxScript(logger, pCtx, envConfig.CaPath, envConfig.PrivateKeys, dataBatchInfo, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings); processDeliveryResult != ProcessDeliveryOK {
+	if processDeliveryResult := initCtxScript(logger, pCtx, envConfig.CaPath, envConfig.PrivateKeys, msg, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings); processDeliveryResult != ProcessDeliveryOK {
 		return processDeliveryResult
 	}
 
 	var ok bool
-	pCtx.CurrentScriptNode, ok = pCtx.Script.ScriptNodes[dataBatchInfo.TargetNodeName]
+	pCtx.CurrentScriptNode, ok = pCtx.Script.ScriptNodes[msg.TargetNodeName]
 	if !ok {
-		logger.Error("cannot find node %s in the script [%s], giving up with %s, returning ProcessDeliveryAckWithError, will not let other workers handle it", pCtx.BatchInfo.TargetNodeName, pCtx.BatchInfo.ScriptURL, dataBatchInfo.ToString())
+		logger.Error("cannot find node %s in the script [%s], giving up with %s, returning ProcessDeliveryAckWithError, will not let other workers handle it", pCtx.Msg.TargetNodeName, pCtx.Msg.ScriptURL, msg.ToString())
 		return ProcessDeliveryAckWithError
 	}
 
-	logger.DebugCtx(pCtx, "started processing batch %s", dataBatchInfo.FullBatchId())
+	logger.DebugCtx(pCtx, "started processing batch %s", msg.FullBatchId())
 
 	lastBatchStatus, err := wfdb.HarvestLastStatusForBatch(logger, pCtx)
 	if err != nil {
@@ -535,7 +534,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msgTs i
 	}
 
 	// Check if this run/node/batch has been handled already
-	if processDeliveryResult := checkLastBatchStatus(logger, pCtx, dataBatchInfo, lastBatchStatus); processDeliveryResult != ProcessDeliveryOK {
+	if processDeliveryResult := checkLastBatchStatus(logger, pCtx, msg, lastBatchStatus); processDeliveryResult != ProcessDeliveryOK {
 		return processDeliveryResult
 	}
 
@@ -543,7 +542,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msgTs i
 
 	nodeReady, readerNodeRunId, lookupNodeRunId, err := checkDependencyNodesReady(logger, pCtx)
 	if err != nil {
-		logger.ErrorCtx(pCtx, "cannot verify dependency nodes status for %s: %s", pCtx.BatchInfo.FullBatchId(), err.Error())
+		logger.ErrorCtx(pCtx, "cannot verify dependency nodes status for %s: %s", pCtx.Msg.FullBatchId(), err.Error())
 		if db.IsDbConnError(err) {
 			return ProcessDeliveryReconnectDb
 		}

@@ -66,7 +66,7 @@ func HarvestRunIdsByAffectedNodes(logger *l.CapiLogger, pCtx *ctx.MessageProcess
 
 	fields := []string{"run_id", "affected_nodes"}
 	q := (&cql.QueryBuilder{}).
-		Keyspace(pCtx.BatchInfo.DataKeyspace).
+		Keyspace(pCtx.Msg.DataKeyspace).
 		Select(wfmodel.TableNameRunAffectedNodes, fields)
 	rows, err := pCtx.CqlSession.Query(q).Iter().SliceMap()
 	if err != nil {

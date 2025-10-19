@@ -96,7 +96,7 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *c
 	}
 
 	bs.Src = filePath
-	bs.Dst = node.TableCreator.Name + cql.RunIdSuffix(pCtx.BatchInfo.RunId)
+	bs.Dst = node.TableCreator.Name + cql.RunIdSuffix(pCtx.Msg.RunId)
 
 	var localSrcFile *os.File
 	var fileReader io.Reader
