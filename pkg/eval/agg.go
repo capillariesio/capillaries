@@ -28,29 +28,17 @@ const (
 
 func StringToAggFunc(testString string) AggFuncType {
 	switch testString {
-	case string(AggStringAgg):
+	case string(AggStringAgg), string(AggStringAggIf):
 		return AggStringAgg
-	case string(AggStringAggIf):
-		return AggStringAgg
-	case string(AggSum):
+	case string(AggSum), string(AggSumIf):
 		return AggSum
-	case string(AggSumIf):
-		return AggSum
-	case string(AggCount):
+	case string(AggCount), string(AggCountIf):
 		return AggCount
-	case string(AggCountIf):
-		return AggCount
-	case string(AggAvg):
+	case string(AggAvg), string(AggAvgIf):
 		return AggAvg
-	case string(AggAvgIf):
-		return AggAvg
-	case string(AggMin):
+	case string(AggMin), string(AggMinIf):
 		return AggMin
-	case string(AggMinIf):
-		return AggMin
-	case string(AggMax):
-		return AggMax
-	case string(AggMaxIf):
+	case string(AggMax), string(AggMaxIf):
 		return AggMax
 	default:
 		return AggUnknown

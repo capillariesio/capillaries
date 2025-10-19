@@ -314,10 +314,8 @@ func (scriptDef *ScriptDef) addChildrenToManual(rootNode *ScriptNodeDef, manualS
 	_, isRootInManual := manualSet[rootNode.Name]
 	_, isRootInStart := startSet[rootNode.Name]
 	for _, node := range scriptDef.ScriptNodes {
-		if rootNode.HasTableCreator() && node.HasTableReader() && rootNode.TableCreator.Name == node.TableReader.TableName && (isRootInManual && !isRootInStart || node.StartPolicy == NodeStartManual) {
-			manualSet[node.Name] = struct{}{}
-			scriptDef.addChildrenToManual(node, manualSet, startSet)
-		} else if rootNode.HasTableCreator() && node.HasLookup() && rootNode.TableCreator.Name == node.Lookup.TableCreator.Name && (isRootInManual && !isRootInStart || node.StartPolicy == NodeStartManual) {
+		if rootNode.HasTableCreator() && node.HasTableReader() && rootNode.TableCreator.Name == node.TableReader.TableName && (isRootInManual && !isRootInStart || node.StartPolicy == NodeStartManual) ||
+			rootNode.HasTableCreator() && node.HasLookup() && rootNode.TableCreator.Name == node.Lookup.TableCreator.Name && (isRootInManual && !isRootInStart || node.StartPolicy == NodeStartManual) {
 			manualSet[node.Name] = struct{}{}
 			scriptDef.addChildrenToManual(node, manualSet, startSet)
 		}
@@ -327,10 +325,8 @@ func (scriptDef *ScriptDef) addChildrenToManual(rootNode *ScriptNodeDef, manualS
 func (scriptDef *ScriptDef) addChildrenToAffected(rootNode *ScriptNodeDef, affectedSet map[string]struct{}, manualSet map[string]struct{}) {
 	for _, node := range scriptDef.ScriptNodes {
 		_, isCurrentInManual := manualSet[node.Name]
-		if rootNode.HasTableCreator() && node.HasTableReader() && rootNode.TableCreator.Name == node.TableReader.TableName && !isCurrentInManual {
-			affectedSet[node.Name] = struct{}{}
-			scriptDef.addChildrenToAffected(node, affectedSet, manualSet)
-		} else if rootNode.HasTableCreator() && node.HasLookup() && rootNode.TableCreator.Name == node.Lookup.TableCreator.Name && !isCurrentInManual {
+		if rootNode.HasTableCreator() && node.HasTableReader() && rootNode.TableCreator.Name == node.TableReader.TableName && !isCurrentInManual ||
+			rootNode.HasTableCreator() && node.HasLookup() && rootNode.TableCreator.Name == node.Lookup.TableCreator.Name && !isCurrentInManual {
 			affectedSet[node.Name] = struct{}{}
 			scriptDef.addChildrenToAffected(node, affectedSet, manualSet)
 		}

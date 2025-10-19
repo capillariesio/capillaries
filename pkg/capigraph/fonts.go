@@ -11,8 +11,6 @@ func FontWeightToString(w FontWeight) string {
 	switch w {
 	case FontWeightBold:
 		return "bold"
-	case FontWeightNormal:
-		return "normal"
 	default:
 		return "normal"
 	}
@@ -30,8 +28,6 @@ func FontTypefaceToString(tf FontTypeface) string {
 	switch tf {
 	case FontTypefaceArial:
 		return "arial"
-	case FontTypefaceCourier:
-		return "courier"
 	case FontTypefaceVerdana:
 		return "verdana"
 	default:

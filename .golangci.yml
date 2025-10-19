@@ -1,171 +1,135 @@
 # https://golangci-lint.run/usage/configuration/#config-file
 # ~/go/bin/golangci-lint run ./pkg/...
 # gofmt -s -w ./pkg
-linters:
-  disable-all: true
-  enable:
-#    - goerr113 WIP
-    - errcheck
+
+version: "2"
+formtters:
     - goimports
-    - revive
+
+linters:
+  default: none
+  enable:
+    - errcheck
     - staticcheck
+    - revive
     - govet
     - forbidigo
-linters-settings:
-  errcheck:
-     severity: error
-     confidence: 0.8
-     rules:
-       - name: unhandled-error
-         arguments:
-           - "*"
+  settings:  
+    revive:
+      severity: error
+      confidence: 0.8
+      enable-all-rules: true
+      rules:
+        # Disabled rules
+        - name: confusing-results
+          disabled: true
+        - name: add-constant
+          disabled: true
+        - name: argument-limit
+          disabled: true
+        - name: empty-lines
+          disabled: true
+        - name: exported
+          disabled: true
+        - name: function-length
+          disabled: true
+        - name: line-length-limit
+          disabled: true
+        - name: max-public-structs
+          disabled: true
+        - name: unused-receiver
+          disabled: true
+        - name: var-naming
+          disabled: true
+        - name: flag-parameter
+          disabled: true
 
-  revive:
-     severity: error
-     confidence: 0.8
-     enable-all-rules: true
-     rules:
-       # Disabled rules
-       - name: confusing-results
-         disabled: true
-       - name: add-constant
-         disabled: true
-       - name: argument-limit
-         disabled: true
-       - name: empty-lines
-         disabled: true
-       - name: exported
-         disabled: true
-       - name: function-length
-         disabled: true
-       - name: line-length-limit
-         disabled: true
-       - name: max-public-structs
-         disabled: true
-       - name: unused-receiver
-         disabled: true
-       - name: var-naming
-         disabled: true
-       - name: flag-parameter
-         disabled: true
+        # Rule tuning
+        - name: max-control-nesting
+          arguments:
+            - 8
+        - name: cognitive-complexity
+          arguments:
+            - 50
+        - name: cyclomatic
+          arguments:
+            - 30
+        - name: function-result-limit
+          arguments:
+            - 4
+        - name: unhandled-error
+          arguments:
+            - "fmt.*"
+            - "bytes.Buffer.*"
+            - "strings.Builder.*"
+            - "os.File.Close"
+            - "io.Closer.Close"
+            - "zap.Logger.Sync"
+            - "net.Conn.Close"
 
-       # Rule tuning
-       - name: max-control-nesting
-         arguments:
-           - 8
-       - name: cognitive-complexity
-         arguments:
-           - 50
-       - name: cyclomatic
-         arguments:
-           - 30
-       - name: function-result-limit
-         arguments:
-           - 4
-       - name: unhandled-error
-         arguments:
-           - "fmt.*"
-           - "bytes.Buffer.*"
-           - "strings.Builder.*"
-           - "os.File.Close"
-           - "io.Closer.Close"
-           - "zap.Logger.Sync"
-           - "net.Conn.Close"
-issues:
-  exclude-dirs:
-    - ^ui
-    - ^build
-    - ^doc
-    - ^.git
-  exclude-rules:
-    - path: pkg\/eval\/agg\.go
-      text: "function [^ ]+callAgg(Min|Max)Internal has cognitive complexity" # 58 > 50
-      linters:
-        - revive
-    - path: pkg\/proc\/proc_file_creator\.go
-      text: "unchecked-type-assertion: type cast result is unchecked in [^ ]+FileRecordHeapItem"
-      linters:
-        - revive
-    - path: ^tests\/.+\.go
-      text: cyclomatic|cognitive
-      linters:
-        - revive
-    - path: .+\.go
-      text: Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Sync|.*Flush|os\.Remove(All)?|.*print(f|ln)?|os\.(Un)?Setenv). is not checked
-      linters:
-        - errcheck
-    - path: pkg\/xfer\/ssh\.go
-      text: "SA1019: x509.IsEncryptedPEMBlock|SA1019: x509.DecryptPEMBlock"
-      linters:
-        - staticcheck
-    - path: pkg\/storage\/parquet\.go
-      text: "SA5001: should check returned error before deferring f.Close()"
-      linters:
-        - staticcheck
-    - path: pkg\/proc\/file_read_csv\.go
-      text: function readCsv has cognitive complexity
-      linters:
-        - revive
-    - path: pkg\/proc\/proc_table_creator\.go
-      text: function RunCreateTableRelForBatch has (cyclomatic|cognitive) complexity
-      linters:
-        - revive
-    - path: pkg\/proc\/proc_table_creator\.go
-      text: function RunReadFileForBatch has cognitive complexity
-      linters:
-        - revive
-    - path: pkg\/eval\/eval_ctx\.go
-      text: EvalFunc has cyclomatic complexity
-      linters:
-        - revive
-    - path: pkg\/wf\/amqp_client\.go
-      text: function amqpConnectAndSelect has cognitive complexity
-      linters:
-        - revive
-    - path: pkg\/exe\/toolbelt\/.+\.go
-      text: use of `fmt.Print(|f|ln)` forbidden by pattern
-      linters:
-        - forbidigo
-    - path: pkg\/capigraph\/svg_test\.go
-      text: use of `fmt.Print(|f|ln)` forbidden by pattern
-      linters:
-        - forbidigo
-    - path: pkg\/capigraph\/layering\.go
-      text: function buildLayerMap has cognitive complexity
-      linters:
-        - revive
-    - path: pkg\/capigraph\/layer_permutator\.go
-      text: function \(\*LayerPermutator\)\.swapPermutationByIdx has cognitive complexity
-      linters:
-        - revive
-    - text: struct literal uses unkeyed fields
-      linters:
-        - govet
-    - path: pkg\/api\/capigraph\.go
-      text: function GetCapigraphDiagram has (cognitive|cyclomatic) complexity
-      linters:
-        - revive
-    - path: pkg\/proc\/table_inserter\.go
-      text: insertDataRecordWithRowid has cognitive complexity
-      linters:
-        - revive
-    - path: pkg\/capigraph\/svg\.go
-      text: maximum number of return results per function exceeded
-      linters:
-        - revive
-    - path: pkg\/capigraph\/viz_node_hierarchy\.go
-      text: maximum number of return results per function exceeded
-      linters:
-        - revive
-    - path: pkg\/sc\/script_def_loader.donotcover\.go
-      text: Filename script_def_loader.donotcover.go is not of the format
-      linters:
-        - revive
-    - path: pkg\/custom\/tag_and_denormalize\/tag_and_denormalize.donotcover\.go
-      text: Filename tag_and_denormalize.donotcover.go is not of the format
-      linters:
-        - revive
-    - path: pkg\/custom\/py_calc\/py_calc.donotcover\.go
-      text: Filename py_calc.donotcover.go is not of the format
-      linters:
-        - revive
+
+  exclusions:
+    warn-unused: true
+    presets:
+      - std-error-handling
+      - common-false-positives
+    rules:
+
+      - path: .+\.go
+        text: "(QF1003: could use tagged switch)|(QF1001: could apply De Morgan)"
+        linters: [ staticcheck ]
+      - path: pkg\/xfer\/ssh\.go
+        text: "SA1019: x509.IsEncryptedPEMBlock|SA1019: x509.DecryptPEMBlock"
+        linters: [ staticcheck ]
+
+      - path: .+\.go
+        text: Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Sync|.*Flush|os\.Remove(All)?|.*print(f|ln)?|os\.(Un)?Setenv). is not checked
+        linters: [ errcheck ]
+
+      - path: pkg\/exe\/toolbelt\/.+\.go
+        text: use of `fmt.Print(|f|ln)` forbidden by pattern
+        linters: [ forbidigo]
+      - path: pkg\/capigraph\/svg_test\.go
+        text: use of `fmt.Print(|f|ln)` forbidden by pattern
+        linters: [ forbidigo]
+
+      - path: .+\.go
+        text: struct literal uses unkeyed fields
+        linters: [ govet ]
+
+      - path: .+\.go
+        text: should have a package comment
+        linters: [ revive ]
+      - path: .+\.go
+        text: should be
+        linters: [ revive ]
+      - path: pkg\/proc\/proc_table_creator\.go
+        text: function RunCreateTableRelForBatch has (cyclomatic|cognitive) complexity
+        linters: [ revive ]
+      - path: pkg\/eval\/eval_ctx\.go
+        text: EvalFunc has cyclomatic complexity
+        linters: [ revive ]
+      - path: pkg\/capigraph\/layering\.go
+        text: function buildLayerMap has cognitive complexity
+        linters: [ revive ]
+      - path: pkg\/api\/capigraph\.go
+        text: function GetCapigraphDiagram has (cognitive|cyclomatic) complexity
+        linters: [ revive ]
+      - path: pkg\/capigraph\/svg\.go
+        text: maximum number of return results per function exceeded
+        linters: [ revive ]
+      - path: pkg\/capigraph\/viz_node_hierarchy\.go
+        text: maximum number of return results per function exceeded
+        linters: [ revive ]
+      - path: pkg\/sc\/script_def_loader.donotcover\.go
+        text: Filename script_def_loader.donotcover.go is not of the format
+        linters: [ revive ]
+      - path: pkg\/custom\/tag_and_denormalize\/tag_and_denormalize.donotcover\.go
+        text: Filename tag_and_denormalize.donotcover.go is not of the format
+        linters: [ revive ]
+      - path: pkg\/custom\/py_calc\/py_calc.donotcover\.go
+        text: Filename py_calc.donotcover.go is not of the format
+        linters: [ revive ]
+      - path: pkg\/proc\/proc_file_creator\.go
+        text: "unchecked-type-assertion: type cast result is unchecked in [^ ]+FileRecordHeapItem"
+        linters: [ revive ]

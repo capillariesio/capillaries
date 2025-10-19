@@ -317,7 +317,7 @@ func checkPythonFuncDefAvailability(usedPythonFunctionSignatures map[string]stru
 		for defSig := range availableDefSigs {
 			defs.WriteString(fmt.Sprintf("%s; ", defSig))
 		}
-		return fmt.Errorf("Python function defs availability check failed, the following functions are not defined: [%s]. Full list of available Python function definitions: %s", foundErrors.String(), defs.String())
+		return fmt.Errorf("python function defs availability check failed, the following functions are not defined: [%s]. Full list of available Python function definitions: %s", foundErrors.String(), defs.String())
 	}
 
 	return nil
@@ -362,7 +362,7 @@ func kahn(depMap map[string][]string) ([]string, error) {
 
 	for _, inDegree := range inDegreeMap {
 		if inDegree > 0 {
-			return []string{}, errors.New("Formula expressions have cycle(s)")
+			return []string{}, errors.New("formula expressions have cycle(s)")
 		}
 	}
 
