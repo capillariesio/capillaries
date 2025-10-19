@@ -1,4 +1,6 @@
-This is a sample Terraform AWS deployment for Capillaries
+This is a sample Terraform AWS deployment for Capillaries.
+
+WARNING: please keep in mind that without setting read/write capacity units, Amazon Keyspaces may be extremely slow, and with those capacity units specified - extremely expensive; exercise extreme caution when setting them.
 
 # Prerequisites
 
@@ -107,7 +109,7 @@ ssh -o StrictHostKeyChecking=no -i ~/.ssh/your_keypair_private_key -J $BASTION_I
 
 To run a simple lookup test, use:
 ```
-cd test/code/lookup/quicktest_s3
+cd test/code/lookup
 
 # We store data and script here
 export CAPILLARIES_AWS_TESTBUCKET=capillaries-testbucket
@@ -120,16 +122,16 @@ export EXTERNAL_WEBAPI_PORT=6544
 source ~/UserAccessCapillariesTestbucket.rc
 
 # This creates source data and copies it together with lookup_quicktest script to the S3 bucket
-./1_create_data.sh
+./1_create_data.sh quick s3
 
 # This calls WebAPI on the bastion instance to start the script, and waits until it's complete
-./2_one_run_cloud.sh
+./2_run.sh quick cloud s3 multi
 
 # This downloads result data files from S3 bucket and compares them to the golden copy
-./3_compare_results.sh
+./3_compare_results.sh quick s3
 
 # This removes lookup_quicktest data and script from S3 bucket, and drops the keyspace with all data
-./4_clean_cloud.sh
+./4_clean.sh quick cloud s3 multi
 ```
 
 To watch the script running in the UI, visit `http://your_bastion_ip_address`.
