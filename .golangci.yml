@@ -3,7 +3,8 @@
 # gofmt -s -w ./pkg
 
 version: "2"
-formtters:
+formatters:
+  enable:
     - goimports
 
 linters:
