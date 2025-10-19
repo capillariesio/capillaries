@@ -25,7 +25,7 @@ jobs:
       run: go build -v ./...
 
     - name: golangci-lint
-      uses: golangci/golangci-lint-action@v3
+      uses: golangci/golangci-lint-action@v8
       with:
         version: v2.5.0
         args: --verbose --timeout 10m --fix=false --config=.golangci.yml ./pkg/...
