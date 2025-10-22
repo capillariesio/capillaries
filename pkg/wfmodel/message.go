@@ -13,9 +13,11 @@ Message - carries data and signals to processors/nodes
 4. Timestamps are int (not uint) because Unix epoch is int
 */
 type Message struct {
-	Ts              int64  `json:"ts"`            // Used only for statustivs, see logging age
-	Id              int64  `json:"id"`            // Assigned by CapiMQ on creation
-	DeliverAfter    int64  `json:"deliver_after"` // Used for postponing messages for nodes that are not ready yet
+	Ts              int64  `json:"ts"`            // Used only for statistics, see logging age
+	Id              uint64 `json:"id"`            // Assigned by CapiMQ on creation, used by workers when communicating to CapiMQ and internally by CapiMQ
+	DeliverAfter    int64  `json:"deliver_after"` // Used by CapiMQ for postponing messages for nodes that are not ready yet
+	Heartbeat       int64  `json:"heartbeat"`     // Used by CapiMQ for returning wip messages back to q
+	ClaimComment    string `json:"claim_comment"` // Used by CapiMQ for logging only
 	ScriptURL       string `json:"script_url"`
 	ScriptParamsURL string `json:"script_params_url"`
 	DataKeyspace    string `json:"ks"`
@@ -27,6 +29,14 @@ type Message struct {
 	BatchesTotal    int16  `json:"batches_total"`
 }
 
+func (msg *Message) DeliverEarlierThan(laterMsg *Message) bool {
+	if msg.DeliverAfter != laterMsg.DeliverAfter {
+		return msg.DeliverAfter < laterMsg.DeliverAfter
+	}
+	// Assume earlier msg has smaller id
+	return msg.Id < laterMsg.Id
+}
+
 func (msg *Message) FullBatchId() string {
 	return fmt.Sprintf("%s/%d/%s/%d", msg.DataKeyspace, msg.RunId, msg.TargetNodeName, msg.BatchIdx)
 }
@@ -36,8 +46,8 @@ func (msg *Message) FullNodeId() string {
 }
 
 func (msg *Message) ToString() string {
-	return fmt.Sprintf("Ts: %d, DeliverAfter: %d, ScriptURL:%s,ScriptParamsURL:%s, DataKeyspace:%s, RunId:%d, TargetNodeName:%s, FirstToken:%d, LastToken:%d, BatchIdx:%d, BatchesTotal:%d. ",
-		msg.Ts, msg.DeliverAfter, msg.ScriptURL, msg.ScriptParamsURL, msg.DataKeyspace, msg.RunId, msg.TargetNodeName, msg.FirstToken, msg.LastToken, msg.BatchIdx, msg.BatchesTotal)
+	return fmt.Sprintf("Ts: %d, DeliverAfter: %d, Heartbeat: %d, ScriptURL:%s,ScriptParamsURL:%s, DataKeyspace:%s, RunId:%d, TargetNodeName:%s, FirstToken:%d, LastToken:%d, BatchIdx:%d, BatchesTotal:%d. ",
+		msg.Ts, msg.DeliverAfter, msg.Heartbeat, msg.ScriptURL, msg.ScriptParamsURL, msg.DataKeyspace, msg.RunId, msg.TargetNodeName, msg.FirstToken, msg.LastToken, msg.BatchIdx, msg.BatchesTotal)
 }
 
 func (msg *Message) Deserialize(jsonBytes []byte) error {

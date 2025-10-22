@@ -20,6 +20,7 @@ type EnvConfig struct {
 	PrivateKeys                       map[string]string            `json:"private_keys" env:"CAPI_PRIVATE_KEYS, overwrite"` // Used for SFTP only
 	Daemon                            DaemonConfig                 `json:"daemon,omitempty"`
 	Webapi                            WebapiConfig                 `json:"webapi,omitempty"`
+	Mq                                MqConfig                     `json:"mq,omitempty"`
 	CustomProcessorsSettings          map[string]json.RawMessage   `json:"custom_processors"`
 	CustomProcessorDefFactoryInstance sc.CustomProcessorDefFactory `json:"-"`
 	// ZapConfig                      zap.Config                   `json:"zap_config"`
@@ -42,7 +43,19 @@ func (ec *EnvConfig) Deserialize(ctx context.Context, jsonBytes []byte) error {
 	}
 
 	if ec.Daemon.DeadLetterTtl < 100 || ec.Daemon.DeadLetterTtl > 3600000 { // [100ms,1hr]
-		ec.Daemon.DeadLetterTtl = 10000
+		ec.Daemon.DeadLetterTtl = 10000 // 10s
+	}
+
+	if ec.Mq.DeadAfterNoHeartbeatTimeout <= 100 || ec.Mq.DeadAfterNoHeartbeatTimeout > 3600000 { // [100ms,1hr]
+		ec.Mq.DeadAfterNoHeartbeatTimeout = 60000 // 1m
+	}
+
+	if ec.Mq.ReturnedDeliveryDelay < 100 || ec.Mq.ReturnedDeliveryDelay > 60000 { // [100ms,1m]}
+		ec.Mq.ReturnedDeliveryDelay = 1000 // 1s
+	}
+
+	if ec.Mq.MaxMessages <= 1000 || ec.Mq.MaxMessages > 1000000000 { // 1000, 1bn]
+		ec.Mq.ReturnedDeliveryDelay = 10000000 // 10m
 	}
 
 	return nil
