@@ -10,13 +10,14 @@ import (
 	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/l"
+	"github.com/capillariesio/capillaries/pkg/mq"
 	"github.com/capillariesio/capillaries/pkg/proc"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/wf"
 	"github.com/capillariesio/capillaries/pkg/wfdb"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/gocql/gocql"
-	amqp "github.com/rabbitmq/amqp091-go"
+	amqp091 "github.com/rabbitmq/amqp091-go"
 )
 
 // Used by Webapi and Toolbelt (stop_run command)
@@ -33,7 +34,7 @@ func StopRun(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, r
 
 // Used by Webapi and Toolbelt (start_run command). This is the way to start Capillaries processing.
 // startNodes parameter contains names of the script nodes to be executed right upon run start.
-func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp.Channel, scriptFilePath string, paramsFilePath string, cqlSession *gocql.Session, cassandraEngine db.CassandraEngineType, keyspace string, startNodes []string, desc string) (int16, error) {
+func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp091.Channel, mqSender mq.MqProducer, scriptFilePath string, paramsFilePath string, cqlSession *gocql.Session, cassandraEngine db.CassandraEngineType, keyspace string, startNodes []string, desc string) (int16, error) {
 	logger.PushF("api.StartRun")
 	defer logger.PopF()
 
@@ -154,20 +155,23 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp.
 	// Send one msg after another
 	// TODO: there easily may be hundreds of messages, can we send them in a single shot?
 	for msgIdx := 0; msgIdx < len(allMsgs); msgIdx++ {
-		msgOutBytes, errMsgOut := allMsgs[msgIdx].Serialize()
-		if errMsgOut != nil {
-			return 0, fmt.Errorf("cannot serialize outgoing message %d %v. %v", msgIdx, allMsgs[msgIdx].ToString(), errMsgOut)
-		}
+		// msgOutBytes, errMsgOut := allMsgs[msgIdx].Serialize()
+		// if errMsgOut != nil {
+		// 	return 0, fmt.Errorf("cannot serialize outgoing message %d %v. %v", msgIdx, allMsgs[msgIdx].ToString(), errMsgOut)
+		// }
 
-		errSend := amqpChannel.PublishWithContext(
-			ctx,
-			envConfig.Amqp.Exchange,    // exchange
-			allHandlerExeTypes[msgIdx], // routing key / hander exe type
-			false,                      // mandatory
-			false,                      // immediate
-			amqp.Publishing{ContentType: "text/plain", Body: msgOutBytes})
-		if errSend != nil {
-			// Reconnect required
+		// errSend := amqpChannel.PublishWithContext(
+		// 	ctx,
+		// 	envConfig.Amqp.Exchange,    // exchange
+		// 	allHandlerExeTypes[msgIdx], // routing key / hander exe type
+		// 	false,                      // mandatory
+		// 	false,                      // immediate
+		// 	amqp.Publishing{ContentType: "text/plain", Body: msgOutBytes})
+		// if errSend != nil {
+		// 	// Reconnect required
+		// 	return 0, fmt.Errorf("failed to send next message %d: %s", msgIdx, errSend.Error())
+		// }
+		if errSend := mqSender.Send(ctx, allMsgs[msgIdx]); errSend != nil {
 			return 0, fmt.Errorf("failed to send next message %d: %s", msgIdx, errSend.Error())
 		}
 	}

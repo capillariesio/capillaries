@@ -9,23 +9,37 @@ networks:
 
 services:
 
-  rabbitmq:
-    container_name: capillaries_rabbitmq
-    image: rabbitmq:4-management
-    depends_on:
-      - fluentd
+  activemq:
+    container_name: capillaries_activemq
+    image: apache/activemq-artemis:latest-alpine
     networks:
       capinet:
         ipv4_address: 10.5.0.5
     ports:
-      - 15672:15672
-      - 5672:5672
-    logging:
-      driver: fluentd
-      options:
-        fluentd-address: 10.5.0.7:24224
-        fluentd-async: "true"
-        tag: rabbitmq
+      - 8161:8161 # admin console
+      - 5672:5672 # amqp port
+    post_start: # Requires moder version of compose, use sudo apt-get install docker-compose-plugin
+      - command: sleep 5
+      - command: sed -i "s~<redelivery-delay>0</redelivery-delay>~<redelivery-delay>1000</redelivery-delay>~2" /var/lib/artemis-instance/etc/broker.xml
+      - command: /opt/activemq-artemis/bin/artemis queue create --name capillaries --address capillaries --auto-create-address --anycast --user artemis --password artemis --no-durable --preserve-on-no-consumers
+
+  # rabbitmq:
+  #   container_name: capillaries_rabbitmq
+  #   image: rabbitmq:4-management
+  #   depends_on:
+  #     - fluentd
+  #   networks:
+  #     capinet:
+  #       ipv4_address: 10.5.0.5
+  #   ports:
+  #     - 15672:15672
+  #     - 5672:5672
+  #   logging:
+  #     driver: fluentd
+  #     options:
+  #       fluentd-address: 10.5.0.7:24224
+  #       fluentd-async: "true"
+  #       tag: rabbitmq
 
   cassandra1:
     container_name: capillaries_cassandra1
@@ -95,100 +109,100 @@ services:
         fluentd-async: "true"
         tag: prometheus
 
-  daemon1:
-    container_name: capillaries_daemon1
-    depends_on:
-      - fluentd
-    build:
-      context: .
-      dockerfile: ./pkg/exe/daemon/docker/Dockerfile
-    volumes:
-      - /tmp/capi_cfg:/tmp/capi_cfg:ro
-      - /tmp/capi_in:/tmp/capi_in:ro
-      - /tmp/capi_out:/tmp/capi_out
-    environment:
-      CAPI_AMQP091_URL: amqp://guest:guest@10.5.0.5/
-      CAPI_CASSANDRA_HOSTS: 10.5.0.11
-      CAPI_CASSANDRA_WRITER_WORKERS: 4
-      CAPI_PYCALC_INTERPRETER_PATH: python3
-      CAPI_DEAD_LETTER_TTL: 5000
-      CAPI_PROMETHEUS_EXPORTER_PORT: 9201
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
-    networks:
-      capinet:
-        ipv4_address: 10.5.0.101
-    logging:
-      driver: "fluentd"
-      options:
-        fluentd-address: 10.5.0.7:24224
-        fluentd-async: "true"
-        tag: daemon
+  # daemon1:
+  #   container_name: capillaries_daemon1
+  #   depends_on:
+  #     - fluentd
+  #   build:
+  #     context: .
+  #     dockerfile: ./pkg/exe/daemon/docker/Dockerfile
+  #   volumes:
+  #     - /tmp/capi_cfg:/tmp/capi_cfg:ro
+  #     - /tmp/capi_in:/tmp/capi_in:ro
+  #     - /tmp/capi_out:/tmp/capi_out
+  #   environment:
+  #     CAPI_AMQP091_URL: amqp://guest:guest@10.5.0.5/
+  #     CAPI_CASSANDRA_HOSTS: 10.5.0.11
+  #     CAPI_CASSANDRA_WRITER_WORKERS: 4
+  #     CAPI_PYCALC_INTERPRETER_PATH: python3
+  #     CAPI_DEAD_LETTER_TTL: 5000
+  #     CAPI_PROMETHEUS_EXPORTER_PORT: 9201
+  #     AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+  #     AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+  #     AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
+  #   networks:
+  #     capinet:
+  #       ipv4_address: 10.5.0.101
+  #   logging:
+  #     driver: "fluentd"
+  #     options:
+  #       fluentd-address: 10.5.0.7:24224
+  #       fluentd-async: "true"
+  #       tag: daemon
 
-  daemon2:
-    container_name: capillaries_daemon2
-    depends_on:
-      - fluentd
-    build:
-      context: .
-      dockerfile: ./pkg/exe/daemon/docker/Dockerfile
-    volumes:
-      - /tmp/capi_cfg:/tmp/capi_cfg:ro
-      - /tmp/capi_in:/tmp/capi_in:ro
-      - /tmp/capi_out:/tmp/capi_out
-    environment:
-      CAPI_AMQP091_URL: amqp://guest:guest@10.5.0.5/
-      CAPI_CASSANDRA_HOSTS: 10.5.0.11
-      CAPI_CASSANDRA_WRITER_WORKERS: 4
-      CAPI_DEAD_LETTER_TTL: 5000
-      CAPI_PROMETHEUS_EXPORTER_PORT: 9202
-      CAPI_PYCALC_INTERPRETER_PATH: python3
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
-    networks:
-      capinet:
-        ipv4_address: 10.5.0.102
-    logging:
-      driver: "fluentd"
-      options:
-        fluentd-address: 10.5.0.7:24224
-        fluentd-async: "true"
-        tag: daemon
+  # daemon2:
+  #   container_name: capillaries_daemon2
+  #   depends_on:
+  #     - fluentd
+  #   build:
+  #     context: .
+  #     dockerfile: ./pkg/exe/daemon/docker/Dockerfile
+  #   volumes:
+  #     - /tmp/capi_cfg:/tmp/capi_cfg:ro
+  #     - /tmp/capi_in:/tmp/capi_in:ro
+  #     - /tmp/capi_out:/tmp/capi_out
+  #   environment:
+  #     CAPI_AMQP091_URL: amqp://guest:guest@10.5.0.5/
+  #     CAPI_CASSANDRA_HOSTS: 10.5.0.11
+  #     CAPI_CASSANDRA_WRITER_WORKERS: 4
+  #     CAPI_DEAD_LETTER_TTL: 5000
+  #     CAPI_PROMETHEUS_EXPORTER_PORT: 9202
+  #     CAPI_PYCALC_INTERPRETER_PATH: python3
+  #     AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+  #     AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+  #     AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
+  #   networks:
+  #     capinet:
+  #       ipv4_address: 10.5.0.102
+  #   logging:
+  #     driver: "fluentd"
+  #     options:
+  #       fluentd-address: 10.5.0.7:24224
+  #       fluentd-async: "true"
+  #       tag: daemon
 
-  webapi:
-    container_name: capillaries_webapi
-    depends_on:
-      - fluentd
-    build:
-      context: .
-      dockerfile: ./pkg/exe/webapi/docker/Dockerfile
-    volumes:
-      - /tmp/capi_cfg:/tmp/capi_cfg:ro
-      - /tmp/capi_in:/tmp/capi_in:ro
-      - /tmp/capi_out:/tmp/capi_out
-    environment:
-      CAPI_AMQP091_URL: amqp://guest:guest@10.5.0.5/
-      CAPI_CASSANDRA_HOSTS: 10.5.0.11
-      CAPI_WEBAPI_PORT: 6543
-      CAPI_WEBAPI_ACCESS_CONTROL_ALLOW_ORIGIN: http://localhost:8080,http://127.0.0.1:8080
-      CAPI_PROMETHEUS_EXPORTER_PORT: 9200
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
-      CAPI_LOG_LEVEL: info
-    ports:
-      - 6543:6543      
-    networks:
-      capinet:
-        ipv4_address: 10.5.0.20
-    logging:
-      driver: fluentd
-      options:
-        fluentd-address: 10.5.0.7:24224
-        fluentd-async: "true"
-        tag: webapi
+  # webapi:
+  #   container_name: capillaries_webapi
+  #   depends_on:
+  #     - fluentd
+  #   build:
+  #     context: .
+  #     dockerfile: ./pkg/exe/webapi/docker/Dockerfile
+  #   volumes:
+  #     - /tmp/capi_cfg:/tmp/capi_cfg:ro
+  #     - /tmp/capi_in:/tmp/capi_in:ro
+  #     - /tmp/capi_out:/tmp/capi_out
+  #   environment:
+  #     CAPI_AMQP091_URL: amqp://guest:guest@10.5.0.5/
+  #     CAPI_CASSANDRA_HOSTS: 10.5.0.11
+  #     CAPI_WEBAPI_PORT: 6543
+  #     CAPI_WEBAPI_ACCESS_CONTROL_ALLOW_ORIGIN: http://localhost:8080,http://127.0.0.1:8080
+  #     CAPI_PROMETHEUS_EXPORTER_PORT: 9200
+  #     AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+  #     AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+  #     AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
+  #     CAPI_LOG_LEVEL: info
+  #   ports:
+  #     - 6543:6543      
+  #   networks:
+  #     capinet:
+  #       ipv4_address: 10.5.0.20
+  #   logging:
+  #     driver: fluentd
+  #     options:
+  #       fluentd-address: 10.5.0.7:24224
+  #       fluentd-async: "true"
+  #       tag: webapi
     
   ui:
     container_name: capillaries_ui
@@ -243,3 +257,7 @@ services:
 
 # Build one image
 # docker compose -p "test_capillaries_containers" build cassandra1
+
+# curl -s -w "\n" -d '{"script_url":"/tmp/capi_cfg/lookup_quicktest/script_quick.yaml", "script_params_url":"/tmp/capi_cfg/lookup_quicktest/script_params_quick_fs_one.yaml", "start_nodes":"read_orders,read_order_items"}' -H "Content-Type: application/json" -X POST "http://localhost:6543/ks/testks1/run"
+# /opt/activemq-artemis/bin/artemis queue create --name capillaries --address capillaries --auto-create-address --anycast --user artemis --password artemis --no-durable --preserve-on-no-consumers
+# /opt/activemq-artemis/bin/artemis queue delete --name capillaries --user artemis --password artemis

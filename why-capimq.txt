@@ -1,0 +1,25 @@
+Product lock-in. We are lucky RabbitMQ is sponsored by Broadcom. Who knows Erlang these days? RabbitMQ people leaving Broadcom (Bakken, Kyrilosky) 
+
+Protocol lock-in. AMQP 0.91 support by other message brokers: not really growing. AMQP 1.0: support is growing, but the protocol does not seem to suit our simple (but somewhat specific) needs
+
+Client complexity - re-connects make our code ugly and error-prone. Need a simpler pull model for client, no need to mask HTTP behind the session/connection abstractions. HTTP connection pool is all we need.
+
+None of the stock message brokers I am aware of solve the problem of 1000 batches hitting workers while the node is not ready, we need a smarter message broker that knows how to delay all messages for a specific node when needed.
+
+On one hand, message broker is and will be the most critical component that is not allowed to fail. On the other hand, one-server MB deployment covers even very powerful capillaries setups, so no need to scale. So, probably, no need to have a distributed fail-safe mb, a solid one-machine solution is fine.
+
+Need better queue mgmt capabilities - admins may want to see/delete messages by ks, run id and node. In the queue and in the wip.
+
+RabbitMQ setup is relatively straightforward, but requires Erlang, and RabbitMQ team supports Erlang amd64 and arm64 in a no-so-coherent way, making cloud deployment unnecessary cumbersome
+
+Accept the fact that exactly-once message delivery is a myth.
+
+Against:
+
+Is high-availability a must? How many RabbitMQ clusters are there in the wild anyways?
+RabbitMQ (or AMQP) can be outsourced to cloud, relatively cheap but (hopefully) reliable
+
+Maybe a plugin? 0.91, 1.0, CapiMQ?
+
+
+

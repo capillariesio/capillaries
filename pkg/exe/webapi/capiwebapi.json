@@ -17,6 +17,10 @@
       "prefetch_count": 20,
       "prefetch_size": 0
     },
+    "amqp10":{
+      "url": "amqp://artemis:artemis@127.0.0.1:5672/",
+      "address": "capillaries"
+    },
     "webapi": {
       "webapi_port": 6543,
       "access_control_allow_origin": "http://localhost:8080,http://127.0.0.1:8080"

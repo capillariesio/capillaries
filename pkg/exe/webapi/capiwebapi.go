@@ -22,6 +22,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/l"
+	"github.com/capillariesio/capillaries/pkg/mq"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/wf"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
@@ -30,7 +31,6 @@ import (
 	"github.com/hashicorp/golang-lru/v2/expirable"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type StandardWebapiProcessorDefFactory struct {
@@ -625,20 +625,29 @@ func (h *UrlHandler) ksStartRun(w http.ResponseWriter, r *http.Request) {
 	h.L.Info("start run in %s, db session creation took %.2fs", keyspace, time.Since(dbStartTime).Seconds())
 
 	amqpStartTime := time.Now()
-	amqpConnection, err := amqp.Dial(h.Env.Amqp.URL)
-	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot dial RabbitMQ at %v, will reconnect: %v", h.Env.Amqp.URL, err), http.StatusInternalServerError)
-		return
-	}
-	defer amqpConnection.Close()
+	// amqpConnection, err := amqp091.Dial(h.Env.Amqp.URL)
+	// if err != nil {
+	// 	WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot dial RabbitMQ at %v, will reconnect: %v", h.Env.Amqp.URL, err), http.StatusInternalServerError)
+	// 	return
+	// }
+	// defer amqpConnection.Close()
 
-	amqpChannel, err := amqpConnection.Channel()
+	// amqpChannel, err := amqpConnection.Channel()
+	// if err != nil {
+	// 	WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot create amqp channel: %v", err), http.StatusInternalServerError)
+	// 	return
+	// }
+	// defer amqpChannel.Close()
+	// h.L.Info("start runin %s, amqp connect took %.2fs", keyspace, time.Since(amqpStartTime).Seconds())
+
+	mqSender := mq.Amqp10Producer{}
+	err = mqSender.Open(context.TODO(), h.Env.Amqp10.URL, h.Env.Amqp10.Address)
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot create amqp channel: %v", err), http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot open mq: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	defer amqpChannel.Close()
-	h.L.Info("start runin %s, amqp connect took %.2fs", keyspace, time.Since(amqpStartTime).Seconds())
+	defer mqSender.Close(context.TODO())
+	h.L.Info("start runing %s, mq connect took %.2fs", keyspace, time.Since(amqpStartTime).Seconds())
 
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -652,7 +661,8 @@ func (h *UrlHandler) ksStartRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	runId, err := api.StartRun(h.Env, h.L, amqpChannel, runProps.ScriptUrl, runProps.ScriptParamsUrl, cqlSession, cassandraEngine, keyspace, strings.Split(runProps.StartNodes, ","), runProps.RunDescription)
+	//runId, err := api.StartRun(h.Env, h.L, amqpChannel, mqSender, runProps.ScriptUrl, runProps.ScriptParamsUrl, cqlSession, cassandraEngine, keyspace, strings.Split(runProps.StartNodes, ","), runProps.RunDescription)
+	runId, err := api.StartRun(h.Env, h.L, nil, &mqSender, runProps.ScriptUrl, runProps.ScriptParamsUrl, cqlSession, cassandraEngine, keyspace, strings.Split(runProps.StartNodes, ","), runProps.RunDescription)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return

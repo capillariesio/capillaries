@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -19,8 +21,10 @@ import (
 	"github.com/capillariesio/capillaries/pkg/custom/tag_and_denormalize"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/l"
+	"github.com/capillariesio/capillaries/pkg/mq"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/wf"
+	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/capillariesio/capillaries/pkg/xfer"
 )
 
@@ -53,6 +57,112 @@ func (f *StandardDaemonProcessorDefFactory) Create(processorType string) (sc.Cus
 var version string
 
 func main() {
+
+	amqpConsumerReceiver := mq.Amqp10Consumer{}
+	amqpConsumerAcknowledger := mq.Amqp10Consumer{}
+
+	initCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	if err := amqpConsumerReceiver.Open(initCtx, "amqp://artemis:artemis@127.0.0.1:5672/", "capillaries"); err != nil {
+		panic(err.Error())
+	}
+	cancel()
+
+	initCtx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+	if err := amqpConsumerAcknowledger.Open(initCtx, "amqp://artemis:artemis@127.0.0.1:5672/", "capillaries"); err != nil {
+		panic(err.Error())
+	}
+	cancel()
+
+	for {
+		ctxReceive, cancelReceive := context.WithTimeout(context.Background(), 1*time.Second)
+		msg, err := amqpConsumerReceiver.Receive(ctxReceive)
+		cancelReceive()
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				fmt.Printf("nothing to receive\n")
+				continue
+				//} else if errors.Is(err, amqp10.ConnError) || errors.Is(err, amqp10.SessionError) {
+			} else {
+				panic(err.Error())
+			}
+		}
+		var m wfmodel.Message
+		err = json.Unmarshal(msg.Data[0], &m)
+		if err != nil {
+			panic(err.Error())
+		}
+		fmt.Printf("%s\n", m.FullBatchId())
+
+		// Do not ack or release, just ignore!
+		// ctxAck, cancelAck := context.WithTimeout(context.Background(), 1*time.Second)
+		// if m.BatchIdx == 0 {
+		// 	err = amqpConsumerAcknowledger.ReleaseForRetry(ctxAck, msg)
+		// } else {
+		// 	err = amqpConsumerAcknowledger.Ack(ctxAck, msg)
+		// }
+		// cancelAck()
+		// if err == context.DeadlineExceeded {
+		// 	fmt.Printf("ack timeout\n")
+		// }
+		// if err != nil {
+		// 	panic(err.Error())
+		// }
+	}
+}
+
+func main1() {
+
+	amqpConsumerReceiver := mq.Amqp10Consumer{}
+	amqpConsumerAcknowledger := mq.Amqp10Consumer{}
+
+	initCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	if err := amqpConsumerReceiver.Open(initCtx, "amqp://artemis:artemis@127.0.0.1:5672/", "capillaries"); err != nil {
+		panic(err.Error())
+	}
+	cancel()
+
+	initCtx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+	if err := amqpConsumerAcknowledger.Open(initCtx, "amqp://artemis:artemis@127.0.0.1:5672/", "capillaries"); err != nil {
+		panic(err.Error())
+	}
+	cancel()
+
+	for {
+		ctxReceive, cancelReceive := context.WithTimeout(context.Background(), 1*time.Second)
+		msg, err := amqpConsumerReceiver.Receive(ctxReceive)
+		cancelReceive()
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				fmt.Printf("nothing to receive\n")
+				continue
+				//} else if errors.Is(err, amqp10.ConnError) || errors.Is(err, amqp10.SessionError) {
+			} else {
+				panic(err.Error())
+			}
+		}
+		var m wfmodel.Message
+		err = json.Unmarshal(msg.Data[0], &m)
+		if err != nil {
+			panic(err.Error())
+		}
+		fmt.Printf("%s\n", m.FullBatchId())
+		ctxAck, cancelAck := context.WithTimeout(context.Background(), 1*time.Second)
+		if m.BatchIdx == 0 {
+			err = amqpConsumerAcknowledger.ReleaseForRetry(ctxAck, msg)
+		} else {
+			err = amqpConsumerAcknowledger.Ack(ctxAck, msg)
+		}
+		cancelAck()
+		if err == context.DeadlineExceeded {
+			fmt.Printf("ack timeout\n")
+		}
+		if err != nil {
+			panic(err.Error())
+		}
+	}
+}
+
+func mainOld() {
 	// defer profile.Start(profile.MemProfile).Stop()
 	// go func() {
 	// 	http.ListenAndServe("localhost:8081", nil)
