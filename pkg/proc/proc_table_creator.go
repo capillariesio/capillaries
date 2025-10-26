@@ -273,6 +273,7 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 				instr.add(tableRecord, indexKeyMap)
 				bs.RowsWritten++
 			}
+			instr.PCtx.SendHeartbeat()
 		}
 
 		instr.doneSending()
@@ -309,6 +310,7 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 		if rsIn.RowCount < leftBatchSize {
 			break
 		}
+		instr.PCtx.SendHeartbeat()
 	} // for each source table batch
 
 	bs.Elapsed = time.Since(totalStartTime)
@@ -427,6 +429,7 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 		if rsIn.RowCount < leftBatchSize {
 			break
 		}
+		instr.PCtx.SendHeartbeat()
 	} // for each source table batch
 
 	instr.doneSending()
@@ -565,6 +568,7 @@ func RunCreateDistinctTableForBatch(envConfig *env.EnvConfig,
 		if rsIn.RowCount < leftBatchSize {
 			break
 		}
+		instr.PCtx.SendHeartbeat()
 	} // for each source table batch
 
 	instr.doneSending()
@@ -1145,6 +1149,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 			break
 		}
 		leftPageIdx++
+		instr.PCtx.SendHeartbeat()
 	} // for each source table batch
 
 	instr.doneSending()

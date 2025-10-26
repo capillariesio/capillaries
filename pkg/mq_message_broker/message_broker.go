@@ -1,4 +1,4 @@
-package mq
+package mq_message_broker
 
 import (
 	"fmt"
@@ -51,20 +51,18 @@ func StringToQueueReadType(headOrTail string) (QueueReadType, error) {
 }
 
 type MessageBroker struct {
-	Q          []*wfmodel.Message
-	Wip        map[uint64]*wfmodel.Message
-	MsgCounter uint64
-	QMutex     sync.RWMutex
-	WipMutex   sync.RWMutex
+	Q        []*wfmodel.Message
+	Wip      map[string]*wfmodel.Message
+	QMutex   sync.RWMutex
+	WipMutex sync.RWMutex
 }
 
 func NewMessageBroker() *MessageBroker {
 	mb := MessageBroker{
-		Q:          make([]*wfmodel.Message, 0),
-		Wip:        map[uint64]*wfmodel.Message{},
-		MsgCounter: 0,
-		QMutex:     sync.RWMutex{},
-		WipMutex:   sync.RWMutex{},
+		Q:        make([]*wfmodel.Message, 0),
+		Wip:      map[string]*wfmodel.Message{},
+		QMutex:   sync.RWMutex{},
+		WipMutex: sync.RWMutex{},
 	}
 	return &mb
 }
@@ -113,8 +111,6 @@ func (mb *MessageBroker) QBulk(msgs []*wfmodel.Message, maxMessages int) error {
 	}
 
 	for _, msg := range msgs {
-		mb.MsgCounter++
-		msg.Id = mb.MsgCounter
 		msg.Ts = ts
 		msg.DeliverAfter = ts
 		msg.Heartbeat = ts
@@ -156,12 +152,12 @@ func (mb *MessageBroker) Claim(claimComment string) (*wfmodel.Message, error) {
 	return msg, nil
 }
 
-func (mb *MessageBroker) Ack(id uint64) error {
+func (mb *MessageBroker) Ack(id string) error {
 	mb.WipMutex.Lock()
 	_, ok := mb.Wip[id]
 	if !ok {
 		mb.WipMutex.Unlock()
-		return fmt.Errorf("cannot ack, message with id %d not found in wip", id)
+		return fmt.Errorf("cannot ack, message with id %s not found in wip", id)
 	}
 	delete(mb.Wip, id)
 	mb.WipMutex.Unlock()
@@ -169,12 +165,12 @@ func (mb *MessageBroker) Ack(id uint64) error {
 	return nil
 }
 
-func (mb *MessageBroker) Heartbeat(id uint64) error {
+func (mb *MessageBroker) Heartbeat(id string) error {
 	mb.WipMutex.Lock()
 	msg, ok := mb.Wip[id]
 	if !ok {
 		mb.WipMutex.Unlock()
-		return fmt.Errorf("cannot heartbeat, message with id %d not found in wip", id)
+		return fmt.Errorf("cannot heartbeat, message with id %s not found in wip", id)
 	}
 	msg.Heartbeat = time.Now().UnixMilli()
 	mb.WipMutex.Unlock()
@@ -182,12 +178,12 @@ func (mb *MessageBroker) Heartbeat(id uint64) error {
 	return nil
 }
 
-func (mb *MessageBroker) Return(id uint64, delay int64) error {
+func (mb *MessageBroker) Return(id string, delay int64) error {
 	mb.WipMutex.Lock()
 	msg, ok := mb.Wip[id]
 	if !ok {
 		mb.WipMutex.Unlock()
-		return fmt.Errorf("cannot return, message with id %d not found in wip", id)
+		return fmt.Errorf("cannot return, message with id %s not found in wip", id)
 	}
 	delete(mb.Wip, id)
 	mb.WipMutex.Unlock()
@@ -278,7 +274,7 @@ func (mb *MessageBroker) Delete(heapType HeapType, ks string, runId int16, nodeN
 		mb.QMutex.Unlock()
 		return count
 	case HeapTypeWip:
-		idsToDelete := make([]uint64, 0)
+		idsToDelete := make([]string, 0)
 		mb.WipMutex.Lock()
 		for id, msg := range mb.Wip {
 			if (ks == "" || ks == msg.DataKeyspace) && (nodeName == "" || nodeName == msg.TargetNodeName) && (runId == 0 || runId == msg.RunId) {

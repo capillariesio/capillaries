@@ -14,7 +14,7 @@ import (
 
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/l"
-	"github.com/capillariesio/capillaries/pkg/mq"
+	"github.com/capillariesio/capillaries/pkg/mq_message_broker"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/capillariesio/capillaries/pkg/xfer"
@@ -25,7 +25,7 @@ import (
 type UrlHandlerInstance struct {
 	Env *env.EnvConfig
 	L   *l.CapiLogger
-	Mb  *mq.MessageBroker
+	Mb  *mq_message_broker.MessageBroker
 }
 
 type ctxKey struct {
@@ -86,7 +86,7 @@ type ApiResponse struct {
 	Error ApiResponseError `json:"error"`
 }
 
-func pickAccessControlAllowOrigin(wc *env.MqConfig, r *http.Request) string {
+func pickAccessControlAllowOrigin(wc *env.CapiMqBrokerConfig, r *http.Request) string {
 	if wc.AccessControlAllowOrigin == "*" {
 		return "*"
 	}
@@ -105,7 +105,7 @@ func pickAccessControlAllowOrigin(wc *env.MqConfig, r *http.Request) string {
 	return "no-allowed-origins"
 }
 
-func WriteApiError(logger *l.CapiLogger, wc *env.MqConfig, r *http.Request, w http.ResponseWriter, urlPath string, err error, httpStatus int) {
+func WriteApiError(logger *l.CapiLogger, wc *env.CapiMqBrokerConfig, r *http.Request, w http.ResponseWriter, urlPath string, err error, httpStatus int) {
 	logger.PushF("WriteApiError")
 	defer logger.PopF()
 
@@ -119,7 +119,7 @@ func WriteApiError(logger *l.CapiLogger, wc *env.MqConfig, r *http.Request, w ht
 	}
 }
 
-func WriteApiSuccess(logger *l.CapiLogger, wc *env.MqConfig, r *http.Request, w http.ResponseWriter, data any) {
+func WriteApiSuccess(logger *l.CapiLogger, wc *env.CapiMqBrokerConfig, r *http.Request, w http.ResponseWriter, data any) {
 	logger.PushF("WriteApiSuccess")
 	defer logger.PopF()
 
@@ -139,27 +139,27 @@ func WriteApiSuccess(logger *l.CapiLogger, wc *env.MqConfig, r *http.Request, w 
 func (h *UrlHandlerInstance) qBulk(w http.ResponseWriter, r *http.Request) {
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Mq, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.CapiMqBroker, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
 	var msgs []*wfmodel.Message
 	if err = json.Unmarshal(bodyBytes, &msgs); err != nil {
-		WriteApiError(h.L, &h.Env.Mq, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.CapiMqBroker, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
-	if err := h.Mb.QBulk(msgs, h.Env.Mq.MaxMessages); err != nil {
-		WriteApiError(h.L, &h.Env.Mq, r, w, r.URL.Path, err, http.StatusInternalServerError)
+	if err := h.Mb.QBulk(msgs, h.Env.CapiMqBroker.MaxMessages); err != nil {
+		WriteApiError(h.L, &h.Env.CapiMqBroker, r, w, r.URL.Path, err, http.StatusInternalServerError)
 	}
 
-	WriteApiSuccess(h.L, &h.Env.Mq, r, w, nil)
+	WriteApiSuccess(h.L, &h.Env.CapiMqBroker, r, w, nil)
 }
 
 func (h *UrlHandlerInstance) qClaim(w http.ResponseWriter, r *http.Request) {
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Mq, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.CapiMqBroker, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
@@ -167,98 +167,91 @@ func (h *UrlHandlerInstance) qClaim(w http.ResponseWriter, r *http.Request) {
 
 	msg, err := h.Mb.Claim(claimComment)
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Mq, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.CapiMqBroker, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
-	WriteApiSuccess(h.L, &h.Env.Mq, r, w, msg)
+	WriteApiSuccess(h.L, &h.Env.CapiMqBroker, r, w, msg)
 }
 
 func (h *UrlHandlerInstance) wipAck(w http.ResponseWriter, r *http.Request) {
 	id, err := getIdFromRequest(r, 0)
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Mq, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.CapiMqBroker, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
 	if err := h.Mb.Ack(id); err != nil {
-		WriteApiError(h.L, &h.Env.Mq, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.CapiMqBroker, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
-	WriteApiSuccess(h.L, &h.Env.Mq, r, w, nil)
+	WriteApiSuccess(h.L, &h.Env.CapiMqBroker, r, w, nil)
 }
 
 func (h *UrlHandlerInstance) wipHeartbeat(w http.ResponseWriter, r *http.Request) {
 	id, err := getIdFromRequest(r, 0)
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Mq, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.CapiMqBroker, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
 	if err := h.Mb.Heartbeat(id); err != nil {
-		WriteApiError(h.L, &h.Env.Mq, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.CapiMqBroker, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
-	WriteApiSuccess(h.L, &h.Env.Mq, r, w, nil)
+	WriteApiSuccess(h.L, &h.Env.CapiMqBroker, r, w, nil)
 }
 
 func (h *UrlHandlerInstance) wipReturn(w http.ResponseWriter, r *http.Request) {
 	id, err := getIdFromRequest(r, 0)
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Mq, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.CapiMqBroker, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
-	if err := h.Mb.Return(id, int64(h.Env.Mq.ReturnedDeliveryDelay)); err != nil {
-		WriteApiError(h.L, &h.Env.Mq, r, w, r.URL.Path, err, http.StatusInternalServerError)
+	if err := h.Mb.Return(id, int64(h.Env.CapiMqBroker.ReturnedDeliveryDelay)); err != nil {
+		WriteApiError(h.L, &h.Env.CapiMqBroker, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
-	WriteApiSuccess(h.L, &h.Env.Mq, r, w, nil)
+	WriteApiSuccess(h.L, &h.Env.CapiMqBroker, r, w, nil)
 }
 
 func (h *UrlHandlerInstance) ks(w http.ResponseWriter, r *http.Request) {
-	WriteApiSuccess(h.L, &h.Env.Mq, r, w, h.Mb.Ks())
+	WriteApiSuccess(h.L, &h.Env.CapiMqBroker, r, w, h.Mb.Ks())
 }
 
-func getHeapTypeFromRequest(r *http.Request) (mq.HeapType, error) {
+func getHeapTypeFromRequest(r *http.Request) (mq_message_broker.HeapType, error) {
 	qOrWip, err := getFieldByIndexFromRequest(r, 0)
 	if err != nil {
-		return mq.HeapTypeUnknown, err
+		return mq_message_broker.HeapTypeUnknown, err
 	}
 
-	return mq.StringToHeapType(qOrWip)
+	return mq_message_broker.StringToHeapType(qOrWip)
 }
 
-func getQueueStartFromRequest(r *http.Request) (mq.QueueReadType, error) {
+func getQueueStartFromRequest(r *http.Request) (mq_message_broker.QueueReadType, error) {
 	headOrTail, err := getFieldByIndexFromRequest(r, 1)
 	if err != nil {
-		return mq.QueueReadUnknown, err
+		return mq_message_broker.QueueReadUnknown, err
 	}
 
-	return mq.StringToQueueReadType(headOrTail)
+	return mq_message_broker.StringToQueueReadType(headOrTail)
 }
 
-func getIdFromRequest(r *http.Request, idx int) (uint64, error) {
-	id_string, err := getFieldByIndexFromRequest(r, idx)
+func getIdFromRequest(r *http.Request, idx int) (string, error) {
+	id, err := getFieldByIndexFromRequest(r, idx)
 	if err != nil {
-		return 0, err
-	}
-	id := int64(0)
-	if len(id_string) > 0 {
-		id, err = strconv.ParseInt(id_string, 10, 64)
-		if err != nil {
-			return 0, fmt.Errorf("invalid id parameter %s", id_string)
-		}
+		return "", err
 	}
 
-	if id <= 0 {
-		return 0, fmt.Errorf("meaningless id parameter %s", id_string)
+	if len(id) == 0 {
+		return "", fmt.Errorf("meaningless id parameter %s", id)
 	}
 
-	return uint64(id), nil
+	return id, nil
 }
 
 func getMsgParamsFromQuery(r *http.Request) (string, int16, string, error) {
@@ -300,57 +293,57 @@ func getFromCountParamsFromQuery(r *http.Request) (int, int, error) {
 func (h *UrlHandlerInstance) count(w http.ResponseWriter, r *http.Request) {
 	heapType, err := getHeapTypeFromRequest(r)
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Mq, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.CapiMqBroker, r, w, r.URL.Path, err, http.StatusInternalServerError)
 	}
 
 	ks, runId, nodeName, err := getMsgParamsFromQuery(r)
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Mq, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.CapiMqBroker, r, w, r.URL.Path, err, http.StatusInternalServerError)
 	}
 
-	WriteApiSuccess(h.L, &h.Env.Mq, r, w, h.Mb.Count(heapType, ks, runId, nodeName))
+	WriteApiSuccess(h.L, &h.Env.CapiMqBroker, r, w, h.Mb.Count(heapType, ks, runId, nodeName))
 }
 
 func (h *UrlHandlerInstance) delete(w http.ResponseWriter, r *http.Request) {
 	heapType, err := getHeapTypeFromRequest(r)
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Mq, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.CapiMqBroker, r, w, r.URL.Path, err, http.StatusInternalServerError)
 	}
 
 	ks, runId, nodeName, err := getMsgParamsFromQuery(r)
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Mq, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.CapiMqBroker, r, w, r.URL.Path, err, http.StatusInternalServerError)
 	}
 
-	WriteApiSuccess(h.L, &h.Env.Mq, r, w, h.Mb.Delete(heapType, ks, runId, nodeName))
+	WriteApiSuccess(h.L, &h.Env.CapiMqBroker, r, w, h.Mb.Delete(heapType, ks, runId, nodeName))
 }
 
 func (h *UrlHandlerInstance) headTailFilter(w http.ResponseWriter, r *http.Request) {
 	heapType, err := getHeapTypeFromRequest(r)
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Mq, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.CapiMqBroker, r, w, r.URL.Path, err, http.StatusInternalServerError)
 	}
 
 	queueRead, err := getQueueStartFromRequest(r)
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Mq, r, w, r.URL.Path, err, http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.CapiMqBroker, r, w, r.URL.Path, err, http.StatusInternalServerError)
 	}
 
 	switch queueRead {
-	case mq.QueueReadHead, mq.QueueReadTail:
+	case mq_message_broker.QueueReadHead, mq_message_broker.QueueReadTail:
 		from, count, err := getFromCountParamsFromQuery(r)
 		if err != nil {
-			WriteApiError(h.L, &h.Env.Mq, r, w, r.URL.Path, err, http.StatusInternalServerError)
+			WriteApiError(h.L, &h.Env.CapiMqBroker, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		}
-		WriteApiSuccess(h.L, &h.Env.Mq, r, w, h.Mb.HeadTail(heapType, queueRead, from, count))
-	case mq.QueueReadFilter:
+		WriteApiSuccess(h.L, &h.Env.CapiMqBroker, r, w, h.Mb.HeadTail(heapType, queueRead, from, count))
+	case mq_message_broker.QueueReadFilter:
 		ks, runId, nodeName, err := getMsgParamsFromQuery(r)
 		if err != nil {
-			WriteApiError(h.L, &h.Env.Mq, r, w, r.URL.Path, err, http.StatusInternalServerError)
+			WriteApiError(h.L, &h.Env.CapiMqBroker, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		}
-		WriteApiSuccess(h.L, &h.Env.Mq, r, w, h.Mb.Filter(heapType, ks, runId, nodeName))
+		WriteApiSuccess(h.L, &h.Env.CapiMqBroker, r, w, h.Mb.Filter(heapType, ks, runId, nodeName))
 	default:
-		WriteApiError(h.L, &h.Env.Mq, r, w, r.URL.Path, fmt.Errorf("unexpected queueRead %s", queueRead), http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.CapiMqBroker, r, w, r.URL.Path, fmt.Errorf("unexpected queueRead %s", queueRead), http.StatusInternalServerError)
 	}
 }
 
@@ -376,14 +369,14 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	h := UrlHandlerInstance{Env: envConfig, L: logger, Mb: mq.NewMessageBroker()}
+	h := UrlHandlerInstance{Env: envConfig, L: logger, Mb: mq_message_broker.NewMessageBroker()}
 
 	routes = []route{
 		newRoute("POST", "/q/bulk[/]*", h.qBulk),
 		newRoute("POST", "/q/claim[/]*", h.qClaim),
-		newRoute("DELETE", "/wip/ack/([0-9]+)[/]*", h.wipAck),
-		newRoute("POST", "/wip/hearbeat/([0-9]+)[/]*", h.wipHeartbeat),
-		newRoute("POST", "/wip/return/([0-9]+)[/]*", h.wipReturn),
+		newRoute("DELETE", "/wip/ack/([A-Fa-f0-9-]+)[/]*", h.wipAck),
+		newRoute("POST", "/wip/hearbeat/([A-Fa-f0-9-]+)[/]*", h.wipHeartbeat),
+		newRoute("POST", "/wip/return/([A-Fa-f0-9-]+)[/]*", h.wipReturn),
 
 		newRoute("GET", "/ks[/]*", h.ks),
 		newRoute("GET", "/(q|wip)/count[/]*", h.count),
@@ -404,8 +397,8 @@ func main() {
 		}()
 	}
 
-	logger.Info("listening on %d...", h.Env.Mq.Port)
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", h.Env.Mq.Port), mux); err != nil {
+	logger.Info("listening on %d...", h.Env.CapiMqBroker.Port)
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", h.Env.CapiMqBroker.Port), mux); err != nil {
 		log.Fatalf("%s", err.Error())
 	}
 }

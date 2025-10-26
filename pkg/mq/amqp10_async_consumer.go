@@ -1,0 +1,291 @@
+package mq
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"slices"
+	"sync"
+	"time"
+
+	amqp10 "github.com/Azure/go-amqp"
+	"github.com/capillariesio/capillaries/pkg/l"
+	"github.com/capillariesio/capillaries/pkg/wfmodel"
+)
+
+const ListenerOpenTimeout time.Duration = 2000
+const ListenerReceiveTimeout time.Duration = 2000
+const ListenerAckTimeout time.Duration = 2000
+const ListenerCloseTimeout time.Duration = 2000
+const ListenerReconnectTimeout time.Duration = 2000
+const ListenerTotalTimeout time.Duration = ListenerOpenTimeout + ListenerReceiveTimeout + ListenerAckTimeout + ListenerCloseTimeout + ListenerReconnectTimeout + 1000
+
+const AcknowledgerOpenTimeout time.Duration = 2000
+const AcknowledgerAckTimeout time.Duration = 2000
+const AcknowledgerCloseTimeout time.Duration = 2000
+const AcknowledgerReconnectTimeout time.Duration = 2000
+const AcknowledgerTotalTimeout time.Duration = AcknowledgerOpenTimeout + AcknowledgerAckTimeout + AcknowledgerCloseTimeout + AcknowledgerReconnectTimeout + 1000
+
+const FullListenerChannelTimeout time.Duration = 1000
+
+// The idea behind this async consumer is to Receive AMQP messages with one go-amqp receiver (we call it listener),
+// and Ack/Retry AMQP messages with another go-amqp receiver (we call it acknoledger). This way,
+// we do not need to introduce any multi-thread protection for the Open/Close code.
+// It uses amqpMessagesInHandlingMutex for protecting the helper map, which is cheap.
+// To work properly, and gracefully close async consumer, the caller should do this:
+// asyncConsumer.Start(listenerChannel, acknowledgerChannel)
+// ... caller reads messages from listenerChannel, passes them to processors that write to acknowledgerChannel
+// asyncConsumer.StopListener()
+// close(listenerChannel)
+// waitForAllProcessorsToCompleteSoTheyDoNotWriteToAcknowledgerChannel
+// asyncConsumer.StopAcknowledger()
+// close(acknowledgerChannel)
+// The size of listenerChannel should correlate with the number of processor threads
+// The size of acknowledgerChannel is between 1 and any reasonale value <= number of processor threads
+type Amqp10AsyncConsumer struct {
+	url                         string
+	address                     string
+	credit                      int32
+	listener                    Amqp10Consumer
+	acknowledger                Amqp10Consumer
+	listenerStopping            bool
+	acknowledgerStopping        bool
+	amqpMessagesInHandling      map[string]*amqp10.Message
+	amqpMessagesInHandlingMutex sync.RWMutex
+}
+
+func NewAmqp10Consumer(url string, address string, credit int32) *Amqp10AsyncConsumer {
+	return &Amqp10AsyncConsumer{
+		url:                         url,
+		address:                     address,
+		credit:                      credit,
+		listener:                    Amqp10Consumer{},
+		acknowledger:                Amqp10Consumer{},
+		listenerStopping:            false,
+		acknowledgerStopping:        false,
+		amqpMessagesInHandling:      map[string]*amqp10.Message{},
+		amqpMessagesInHandlingMutex: sync.RWMutex{},
+	}
+}
+
+func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChannel chan *wfmodel.Message) {
+	logger.PushF("Amqp10AsyncConsumer.listenerWorker")
+	defer logger.PopF()
+
+	for !dc.listenerStopping {
+		// Do not be greedy, do not claim that extra message that you are not ready to handle yet anyways
+		if len(listenerChannel) == cap(listenerChannel) {
+			time.Sleep(FullListenerChannelTimeout * time.Millisecond)
+			continue
+		}
+		if !dc.listener.isOpen() {
+			openCtx, openCancel := context.WithTimeout(context.Background(), ListenerOpenTimeout*time.Millisecond)
+			if err := dc.listener.open(openCtx, dc.url, dc.address, dc.credit); err != nil {
+				logger.Error("cannot reconnect to %s, address %s, credit %d: %s", dc.url, dc.address, dc.credit, err.Error())
+				time.Sleep(ListenerReconnectTimeout * time.Millisecond)
+			}
+			openCancel()
+		}
+
+		if dc.listener.isOpen() {
+			recCtx, recCancel := context.WithTimeout(context.Background(), ListenerReceiveTimeout*time.Millisecond)
+			amqpMsg, recErr := dc.listener.receiver.Receive(recCtx, nil)
+			recCancel()
+			if recErr == nil {
+				var wfmodelMsg wfmodel.Message
+				if err := json.Unmarshal(slices.Concat(amqpMsg.Data...), &wfmodelMsg); err != nil {
+					logger.Error("cannot unmarshal wfmodel.Message, will ack this mq message: %s, %v", err.Error(), amqpMsg)
+					ackCtx, ackCancel := context.WithTimeout(context.Background(), ListenerAckTimeout*time.Millisecond)
+					if err = dc.listener.receiver.AcceptMessage(ackCtx, amqpMsg); err != nil {
+						logger.Error("cannot ack unmarshaled mq message, will abandon it: %s", err.Error())
+					}
+					ackCancel()
+				} else {
+					dc.amqpMessagesInHandlingMutex.Lock()
+					dc.amqpMessagesInHandling[wfmodelMsg.Id] = amqpMsg
+					mapSize := len(dc.amqpMessagesInHandling)
+					dc.amqpMessagesInHandlingMutex.Unlock()
+					// Safeguard, dev error: we do not expect a 1000-powerful processor thread pool
+					if mapSize > int(dc.credit) && mapSize%1000 == 0 {
+						logger.Warn("unexpected: listener map size is too big (%d), max expected %d", mapSize, dc.credit)
+					}
+					// WARNING: make sure the caller does not close listenerChannel before listenerWorker() completes
+					listenerChannel <- &wfmodelMsg
+
+				}
+			} else {
+				connError := &amqp10.ConnError{}
+				sessionError := &amqp10.SessionError{}
+				linkError := &amqp10.LinkError{}
+				if errors.As(recErr, &connError) || errors.As(recErr, &sessionError) || errors.As(recErr, &linkError) {
+					// Biz as usual, do not bother logging here, open() call above will log an error if any
+					closeCtx, closeCancel := context.WithTimeout(context.Background(), ListenerCloseTimeout*time.Millisecond)
+					if err := dc.listener.close(closeCtx); err != nil {
+						logger.Error("cannot properly close after failed receive: %s", err.Error())
+					}
+					closeCancel()
+				} else if recErr != context.DeadlineExceeded {
+					logger.Error("cannot receive, unknown error, will not reconnect: %s", recErr.Error())
+				}
+			}
+		}
+	}
+
+	// Cleanup on exit
+	if dc.listener.isOpen() {
+		closeCtx, closeCancel := context.WithTimeout(context.Background(), ListenerCloseTimeout*time.Millisecond)
+		if err := dc.listener.close(closeCtx); err != nil {
+			logger.Error("cannot properly close on exit: %s", err.Error())
+		}
+		closeCancel()
+	}
+
+	// Signal that listener is done
+	dc.listener.done <- true
+}
+
+func (dc *Amqp10AsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowledgerChannel chan AknowledgerToken) {
+	logger.PushF("Amqp10AsyncConsumer.aknowledgerWorker")
+	defer logger.PopF()
+
+	for !dc.acknowledgerStopping {
+		timeoutChannel := make(chan bool, 1)
+		go func() {
+			time.Sleep(1 * time.Second)
+			timeoutChannel <- true
+		}()
+		select {
+		// WARNING: make sure the caller does not close acknowledgerChannel before acknowledgerWorker() completes
+		case token := <-acknowledgerChannel:
+			if !dc.acknowledger.isOpen() {
+				// We intentionally set acknowledger.receiver's linkCredit to -1 because go-amqp implementation
+				// reacts to it with autoSendFlow=false, effectively setting AMQP prefetch to zero,
+				// so acknowledger.receiver never prefetches any AMQP messages from the broker
+				// (and it should not, because it only has to Ack and Retry). An attempt to run acknowledger.receiver
+				// with autoSendFlow=true may result in messages stuck in limbo state - they are prefetched for
+				// acknowledger.receiver, but never claimed by acknowledger.receiver.Receive().
+				// Fun fact: go-amqp receiver.Receive() with linkCredit=-1 returns context.DeadlineExceeded,
+				// not amqp:link:transfer-limit-exceeded or resource-limit-exceeded.
+				openCtx, openCancel := context.WithTimeout(context.Background(), AcknowledgerOpenTimeout*time.Millisecond)
+				if err := dc.acknowledger.open(openCtx, dc.url, dc.address, -1); err != nil {
+					logger.Error("cannot reconnect to %s, address %s: %s", dc.url, dc.address, err.Error())
+					time.Sleep(AcknowledgerReconnectTimeout * time.Millisecond)
+				}
+				openCancel()
+			}
+			if dc.acknowledger.isOpen() {
+				dc.amqpMessagesInHandlingMutex.RLock()
+				amqpMsg, ok := dc.amqpMessagesInHandling[token.MsgId]
+				dc.amqpMessagesInHandlingMutex.RUnlock()
+				if ok {
+					dc.amqpMessagesInHandlingMutex.Lock()
+					delete(dc.amqpMessagesInHandling, token.MsgId)
+					dc.amqpMessagesInHandlingMutex.Unlock()
+					ackCtx, ackCancel := context.WithTimeout(context.Background(), AcknowledgerAckTimeout*time.Millisecond)
+					var ackError error
+					switch token.Cmd {
+					case AcknowledgerCmdAck:
+						if ackError = dc.acknowledger.receiver.AcceptMessage(ackCtx, amqpMsg); ackError != nil {
+							logger.Error("cannot ack, expect some daemon instance to perform DeleteDataAndUniqueIndexesByBatchIdx for %s: %s", token.MsgId, ackError.Error())
+						}
+					case AcknowledgerCmdRetry:
+						if ackError = dc.acknowledger.receiver.ReleaseMessage(ackCtx, amqpMsg); ackError != nil {
+							logger.Error("cannot release for retry, expect some daemon instance to perform DeleteDataAndUniqueIndexesByBatchIdx for %s: %s", token.MsgId, ackError.Error())
+						}
+					case AcknowledgerCmdHeartbeat:
+						logger.Error("unexpected acknowledger hearbeat cmd, it is not supported by AMQP message brokers")
+					default:
+						logger.Error("unexpected acknowledger cmd %d", token.Cmd)
+					}
+					ackCancel()
+
+					if ackError != nil {
+						connError := &amqp10.ConnError{}
+						sessionError := &amqp10.SessionError{}
+						linkError := &amqp10.LinkError{}
+						if errors.As(ackError, &connError) || errors.As(ackError, &sessionError) || errors.As(ackError, &linkError) {
+							// Biz as usual, do not bother logging here, open() call above will log an error if any
+							closeCtx, closeCancel := context.WithTimeout(context.Background(), AcknowledgerCloseTimeout*time.Millisecond)
+							if err := dc.acknowledger.close(closeCtx); err != nil {
+								logger.Error("cannot properly close after failed ack/release: %s", err.Error())
+							}
+							closeCancel()
+						} else if ackError != context.DeadlineExceeded {
+							logger.Error("cannot ack/retry, unknown error, will not reconnect: %s", ackError.Error())
+						}
+					}
+				}
+			}
+		case <-timeoutChannel:
+			// Biz as usual, check for acknowledgerStopping and select again if still in the loop
+		}
+
+	}
+
+	// Cleanup on exit
+	if dc.acknowledger.isOpen() {
+		closeCtx, closeCancel := context.WithTimeout(context.Background(), AcknowledgerCloseTimeout*time.Millisecond)
+		if err := dc.acknowledger.close(closeCtx); err != nil {
+			logger.Error("cannot properly close on exit: %s", err.Error())
+		}
+		closeCancel()
+	}
+
+	// Signal that Acknowledger is done
+	dc.acknowledger.done <- true
+}
+
+func (dc *Amqp10AsyncConsumer) Start(logger *l.CapiLogger, listenerChannel chan *wfmodel.Message, acknowledgerChannel chan AknowledgerToken) error {
+	listenerLogger, err := l.NewLoggerFromLogger(logger)
+	if err != nil {
+		return err
+	}
+	go dc.listenerWorker(listenerLogger, listenerChannel)
+
+	acknowledgererLogger, err := l.NewLoggerFromLogger(logger)
+	if err != nil {
+		return err
+	}
+	go dc.acknowledgerWorker(acknowledgererLogger, acknowledgerChannel)
+
+	return nil
+}
+
+func (dc *Amqp10AsyncConsumer) StopListener(logger *l.CapiLogger) error {
+	dc.listenerStopping = true
+
+	timeoutChannel := make(chan bool, 1)
+	go func() {
+		time.Sleep(ListenerTotalTimeout * time.Second)
+		timeoutChannel <- true
+	}()
+	select {
+	case <-dc.listener.done:
+		// Happy path, the caller can close the listener channel
+		return nil
+	case <-timeoutChannel:
+		return fmt.Errorf("cannot stop Listener gracefully, caller closing Listener channel may result in panic")
+	}
+}
+
+func (dc *Amqp10AsyncConsumer) StopAcknowledger(logger *l.CapiLogger) error {
+	dc.acknowledgerStopping = true
+
+	timeoutChannel := make(chan bool, 1)
+	go func() {
+		time.Sleep(AcknowledgerTotalTimeout * time.Second)
+		timeoutChannel <- true
+	}()
+	select {
+	case <-dc.acknowledger.done:
+		// Happy path, the caller can close the Acknowledger channel
+		return nil
+	case <-timeoutChannel:
+		return fmt.Errorf("cannot stop Acknowledger gracefully, caller closing Acknowledger channel may result in panic")
+	}
+}
+
+func (dc *Amqp10AsyncConsumer) SupportsHearbeat() bool {
+	return false
+}

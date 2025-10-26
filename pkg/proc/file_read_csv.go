@@ -88,6 +88,7 @@ func readCsv(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessagePr
 			bs.RowsRead++
 		}
 		lineIdx++
+		instr.PCtx.SendHeartbeat()
 	}
 
 	instr.doneSending()

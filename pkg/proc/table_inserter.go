@@ -625,7 +625,7 @@ func (instr *TableInserter) insertIdxRecordWithRowid(logger *l.CapiLogger, idxNa
 			if !isApplied {
 				if existingIdxRow["key"] != idxKey || existingIdxRow["rowid"] != curRowid {
 					// We screwed up, a record with this key and different rowid is already there, report everything we can
-					errorToReturn = fmt.Errorf("cannot write duplicate index key [%s] with %s,%d on retry %d, existing record [%v], rowid is different, throwing werror %w", pq.Query, idxKey, curRowid, retryCount, existingIdxRow, ErrDuplicateKey)
+					errorToReturn = fmt.Errorf("cannot write duplicate index key [%s] with %s,%d on retry %d, existing record [%v], rowid is different, throwing error %w", pq.Query, idxKey, curRowid, retryCount, existingIdxRow, ErrDuplicateKey)
 					break
 				}
 				if retryCount == 0 {

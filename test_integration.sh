@@ -56,12 +56,12 @@ if [[ "$short_or_long_or_s3_or_all" = "long" || "$short_or_long_or_s3_or_all" = 
 	popd
 
 	pushd ./test/code/fannie_mae
-	# one 181 s
+	# one 181 s, multi 20+32+2+34+103=191
 	./test.sh quick local fs multi
 	popd
 
 	pushd ./test/code/global_affairs
-	# one 44 s
+	# one 44 (55) s multi 39
 	./test.sh quick local fs multi
 	popd
 fi

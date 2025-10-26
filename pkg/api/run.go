@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/env"
@@ -122,10 +124,9 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp0
 		msgs := make([]*wfmodel.Message, len(intervals))
 		handlerExeTypes := make([]string, len(intervals))
 		for msgIdx := 0; msgIdx < len(intervals); msgIdx++ {
-			now := time.Now().UnixMilli()
 			msgs[msgIdx] = &wfmodel.Message{
-				Ts:              now,
-				DeliverAfter:    now,
+				Id:              uuid.NewString(),
+				Ts:              time.Now().UnixMilli(),
 				ScriptURL:       scriptFilePath,
 				ScriptParamsURL: paramsFilePath,
 				DataKeyspace:    keyspace,
@@ -250,8 +251,8 @@ func RunNode(envConfig *env.EnvConfig, logger *l.CapiLogger, nodeName string, ru
 		now := time.Now()
 		logger.Info("BatchStarted: [%d,%d]...", intervals[i][0], intervals[i][1])
 		msg := wfmodel.Message{
+			Id:              uuid.NewString(),
 			Ts:              now.UnixMilli(),
-			DeliverAfter:    now.UnixMilli(),
 			ScriptURL:       scriptFilePath,
 			ScriptParamsURL: paramsFilePath,
 			DataKeyspace:    keyspace,
@@ -262,8 +263,8 @@ func RunNode(envConfig *env.EnvConfig, logger *l.CapiLogger, nodeName string, ru
 			BatchIdx:        int16(i),
 			BatchesTotal:    int16(len(intervals))}
 
-		if processDeliveryResult := wf.ProcessDataBatchMsg(envConfig, logger, &msg); processDeliveryResult != wf.ProcessDeliveryAckSuccess {
-			return 0, fmt.Errorf("processor returned processDeliveryResult %d, assuming failure, check the logs", processDeliveryResult)
+		if acknowledgerCmd := wf.ProcessDataBatchMsgNew(envConfig, logger, &msg, 0, nil); acknowledgerCmd != mq.AcknowledgerCmdAck {
+			return 0, fmt.Errorf("processor returned acknowledgerCmd %d, assuming failure, check the logs", acknowledgerCmd)
 		}
 		logger.Info("BatchComplete: [%d,%d], %.3fs", intervals[i][0], intervals[i][1], time.Since(now).Seconds())
 	}

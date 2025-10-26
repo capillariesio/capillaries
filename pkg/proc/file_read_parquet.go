@@ -178,6 +178,7 @@ func readParquet(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.Messa
 			bs.RowsWritten++
 		}
 		bs.RowsRead++
+		instr.PCtx.SendHeartbeat()
 	}
 
 	instr.doneSending()

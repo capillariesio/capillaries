@@ -21,7 +21,8 @@ type EnvConfig struct {
 	PrivateKeys                       map[string]string            `json:"private_keys" env:"CAPI_PRIVATE_KEYS, overwrite"` // Used for SFTP only
 	Daemon                            DaemonConfig                 `json:"daemon,omitempty"`
 	Webapi                            WebapiConfig                 `json:"webapi,omitempty"`
-	Mq                                MqConfig                     `json:"mq,omitempty"`
+	CapiMqDaemon                      CapiMqDaemonConfig           `json:"capimq_daemon,omitempty"`
+	CapiMqBroker                      CapiMqBrokerConfig           `json:"capimq_broker,omitempty"`
 	CustomProcessorsSettings          map[string]json.RawMessage   `json:"custom_processors"`
 	CustomProcessorDefFactoryInstance sc.CustomProcessorDefFactory `json:"-"`
 	// ZapConfig                      zap.Config                   `json:"zap_config"`
@@ -47,16 +48,20 @@ func (ec *EnvConfig) Deserialize(ctx context.Context, jsonBytes []byte) error {
 		ec.Daemon.DeadLetterTtl = 10000 // 10s
 	}
 
-	if ec.Mq.DeadAfterNoHeartbeatTimeout <= 100 || ec.Mq.DeadAfterNoHeartbeatTimeout > 3600000 { // [100ms,1hr]
-		ec.Mq.DeadAfterNoHeartbeatTimeout = 60000 // 1m
+	if ec.CapiMqBroker.DeadAfterNoHeartbeatTimeout <= 100 || ec.CapiMqBroker.DeadAfterNoHeartbeatTimeout > 3600000 { // [100ms,1hr]
+		ec.CapiMqBroker.DeadAfterNoHeartbeatTimeout = 60000 // 1m
 	}
 
-	if ec.Mq.ReturnedDeliveryDelay < 100 || ec.Mq.ReturnedDeliveryDelay > 60000 { // [100ms,1m]}
-		ec.Mq.ReturnedDeliveryDelay = 1000 // 1s
+	if ec.CapiMqBroker.ReturnedDeliveryDelay < 100 || ec.CapiMqBroker.ReturnedDeliveryDelay > 3600000 { // [100ms,1hr]
+		ec.CapiMqBroker.ReturnedDeliveryDelay = 1000 // 1s
 	}
 
-	if ec.Mq.MaxMessages <= 1000 || ec.Mq.MaxMessages > 1000000000 { // 1000, 1bn]
-		ec.Mq.ReturnedDeliveryDelay = 10000000 // 10m
+	if ec.CapiMqBroker.MaxMessages <= 1000 || ec.CapiMqBroker.MaxMessages > 1000000000 { // 1000, 1bn]
+		ec.CapiMqBroker.MaxMessages = 10000000 // 10m
+	}
+
+	if (ec.CapiMqDaemon.HeartbeatInterval != 0 && ec.CapiMqDaemon.HeartbeatInterval <= 100) || ec.CapiMqDaemon.HeartbeatInterval > 60000 { // [1ms,1m] 0 means no heartbeat
+		ec.CapiMqDaemon.HeartbeatInterval = 1000 // 1s
 	}
 
 	return nil

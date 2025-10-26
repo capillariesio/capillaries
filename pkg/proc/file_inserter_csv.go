@@ -131,5 +131,6 @@ func (instr *FileInserter) csvFileInserterWorker(logger *l.CapiLogger) {
 		} else {
 			instr.RecordWrittenStatuses <- fmt.Errorf("cannot sync file %s(temp %s): [%s]", instr.FinalFileUrl, instr.TempFilePath, err.Error())
 		}
+		instr.PCtx.SendHeartbeat()
 	} // next batch
 }
