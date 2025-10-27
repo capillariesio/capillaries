@@ -43,6 +43,10 @@ func (p *Amqp10Producer) Open(ctx context.Context, url string, address string) e
 	return nil
 }
 
+func (p *Amqp10Producer) SendBulk(ctx context.Context, msgs []*wfmodel.Message) error {
+	return errors.New("SendBulk not supported")
+}
+
 func (p *Amqp10Producer) Send(ctx context.Context, msg *wfmodel.Message) error {
 	if p.sender == nil {
 		return fmt.Errorf("cannot send, nil sender")
@@ -89,4 +93,8 @@ func (p *Amqp10Producer) Close(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (p *Amqp10Producer) SupportsSendBulk() bool {
+	return false
 }

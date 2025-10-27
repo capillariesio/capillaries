@@ -13,8 +13,7 @@ import (
 	"strings"
 	"time"
 
-	amqp "github.com/rabbitmq/amqp091-go"
-
+	"github.com/Azure/go-amqp"
 	"github.com/capillariesio/capillaries/pkg/api"
 	"github.com/capillariesio/capillaries/pkg/custom/py_calc"
 	"github.com/capillariesio/capillaries/pkg/custom/tag_and_denormalize"
@@ -144,21 +143,6 @@ func startRun(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 		return 1
 	}
 
-	// // RabbitMQ boilerplate
-	// amqpConnection, err := amqp.Dial(envConfig.Amqp.URL)
-	// if err != nil {
-	// 	fmt.Fprintf(os.Stderr, "cannot dial RabbitMQ at %s, will reconnect: %s\n", envConfig.Amqp.URL, err.Error())
-	// 	return 1
-	// }
-	// defer amqpConnection.Close()
-
-	// amqpChannel, err := amqpConnection.Channel()
-	// if err != nil {
-	// 	fmt.Fprintf(os.Stderr, "cannot create amqp channel, will reconnect: %s\n", err.Error())
-	// 	return 1
-	// }
-	// defer amqpChannel.Close()
-
 	mqSender := mq.Amqp10Producer{}
 	err = mqSender.Open(context.TODO(), envConfig.Amqp10.URL, envConfig.Amqp10.Address)
 	if err != nil {
@@ -167,7 +151,7 @@ func startRun(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 	}
 	defer mqSender.Close(context.TODO())
 
-	runId, err := api.StartRun(envConfig, logger, nil, &mqSender, *scriptFilePath, *paramsFilePath, cqlSession, cassandraEngine, *keyspace, startNodes, "started by Toolbelt")
+	runId, err := api.StartRun(envConfig, logger, &mqSender, *scriptFilePath, *paramsFilePath, cqlSession, cassandraEngine, *keyspace, startNodes, "started by Toolbelt")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1

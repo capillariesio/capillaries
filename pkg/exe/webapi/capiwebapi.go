@@ -640,6 +640,7 @@ func (h *UrlHandler) ksStartRun(w http.ResponseWriter, r *http.Request) {
 	// defer amqpChannel.Close()
 	// h.L.Info("start runin %s, amqp connect took %.2fs", keyspace, time.Since(amqpStartTime).Seconds())
 
+	// TODO: proper context and CapiMQ support
 	mqSender := mq.Amqp10Producer{}
 	err = mqSender.Open(context.TODO(), h.Env.Amqp10.URL, h.Env.Amqp10.Address)
 	if err != nil {
@@ -662,7 +663,7 @@ func (h *UrlHandler) ksStartRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//runId, err := api.StartRun(h.Env, h.L, amqpChannel, mqSender, runProps.ScriptUrl, runProps.ScriptParamsUrl, cqlSession, cassandraEngine, keyspace, strings.Split(runProps.StartNodes, ","), runProps.RunDescription)
-	runId, err := api.StartRun(h.Env, h.L, nil, &mqSender, runProps.ScriptUrl, runProps.ScriptParamsUrl, cqlSession, cassandraEngine, keyspace, strings.Split(runProps.StartNodes, ","), runProps.RunDescription)
+	runId, err := api.StartRun(h.Env, h.L, &mqSender, runProps.ScriptUrl, runProps.ScriptParamsUrl, cqlSession, cassandraEngine, keyspace, strings.Split(runProps.StartNodes, ","), runProps.RunDescription)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return

@@ -14,20 +14,20 @@ import (
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
-const ListenerOpenTimeout time.Duration = 2000
-const ListenerReceiveTimeout time.Duration = 2000
-const ListenerAckTimeout time.Duration = 2000
-const ListenerCloseTimeout time.Duration = 2000
-const ListenerReconnectTimeout time.Duration = 2000
-const ListenerTotalTimeout time.Duration = ListenerOpenTimeout + ListenerReceiveTimeout + ListenerAckTimeout + ListenerCloseTimeout + ListenerReconnectTimeout + 1000
+const Amqp10ListenerOpenTimeout time.Duration = 2000
+const Amqp10ListenerReceiveTimeout time.Duration = 2000
+const Amqp10ListenerAckTimeout time.Duration = 2000
+const Amqp10ListenerCloseTimeout time.Duration = 2000
+const Amqp10ListenerReconnectTimeout time.Duration = 2000
+const Amqp10ListenerTotalTimeout time.Duration = Amqp10ListenerOpenTimeout + Amqp10ListenerReceiveTimeout + Amqp10ListenerAckTimeout + Amqp10ListenerCloseTimeout + Amqp10ListenerReconnectTimeout + 1000
 
-const AcknowledgerOpenTimeout time.Duration = 2000
-const AcknowledgerAckTimeout time.Duration = 2000
-const AcknowledgerCloseTimeout time.Duration = 2000
-const AcknowledgerReconnectTimeout time.Duration = 2000
-const AcknowledgerTotalTimeout time.Duration = AcknowledgerOpenTimeout + AcknowledgerAckTimeout + AcknowledgerCloseTimeout + AcknowledgerReconnectTimeout + 1000
+const Amqp10AcknowledgerOpenTimeout time.Duration = 2000
+const Amqp10AcknowledgerAckTimeout time.Duration = 2000
+const Amqp10AcknowledgerCloseTimeout time.Duration = 2000
+const Amqp10AcknowledgerReconnectTimeout time.Duration = 2000
+const Amqp10AcknowledgerTotalTimeout time.Duration = Amqp10AcknowledgerOpenTimeout + Amqp10AcknowledgerAckTimeout + Amqp10AcknowledgerCloseTimeout + Amqp10AcknowledgerReconnectTimeout + 1000
 
-const FullListenerChannelTimeout time.Duration = 1000
+const Amqp10FullListenerChannelTimeout time.Duration = 1000
 
 // The idea behind this async consumer is to Receive AMQP messages with one go-amqp receiver (we call it listener),
 // and Ack/Retry AMQP messages with another go-amqp receiver (we call it acknoledger). This way,
@@ -76,27 +76,27 @@ func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 	for !dc.listenerStopping {
 		// Do not be greedy, do not claim that extra message that you are not ready to handle yet anyways
 		if len(listenerChannel) == cap(listenerChannel) {
-			time.Sleep(FullListenerChannelTimeout * time.Millisecond)
+			time.Sleep(Amqp10FullListenerChannelTimeout * time.Millisecond)
 			continue
 		}
 		if !dc.listener.isOpen() {
-			openCtx, openCancel := context.WithTimeout(context.Background(), ListenerOpenTimeout*time.Millisecond)
+			openCtx, openCancel := context.WithTimeout(context.Background(), Amqp10ListenerOpenTimeout*time.Millisecond)
 			if err := dc.listener.open(openCtx, dc.url, dc.address, dc.credit); err != nil {
 				logger.Error("cannot reconnect to %s, address %s, credit %d: %s", dc.url, dc.address, dc.credit, err.Error())
-				time.Sleep(ListenerReconnectTimeout * time.Millisecond)
+				time.Sleep(Amqp10ListenerReconnectTimeout * time.Millisecond)
 			}
 			openCancel()
 		}
 
 		if dc.listener.isOpen() {
-			recCtx, recCancel := context.WithTimeout(context.Background(), ListenerReceiveTimeout*time.Millisecond)
+			recCtx, recCancel := context.WithTimeout(context.Background(), Amqp10ListenerReceiveTimeout*time.Millisecond)
 			amqpMsg, recErr := dc.listener.receiver.Receive(recCtx, nil)
 			recCancel()
 			if recErr == nil {
 				var wfmodelMsg wfmodel.Message
 				if err := json.Unmarshal(slices.Concat(amqpMsg.Data...), &wfmodelMsg); err != nil {
 					logger.Error("cannot unmarshal wfmodel.Message, will ack this mq message: %s, %v", err.Error(), amqpMsg)
-					ackCtx, ackCancel := context.WithTimeout(context.Background(), ListenerAckTimeout*time.Millisecond)
+					ackCtx, ackCancel := context.WithTimeout(context.Background(), Amqp10ListenerAckTimeout*time.Millisecond)
 					if err = dc.listener.receiver.AcceptMessage(ackCtx, amqpMsg); err != nil {
 						logger.Error("cannot ack unmarshaled mq message, will abandon it: %s", err.Error())
 					}
@@ -120,7 +120,7 @@ func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 				linkError := &amqp10.LinkError{}
 				if errors.As(recErr, &connError) || errors.As(recErr, &sessionError) || errors.As(recErr, &linkError) {
 					// Biz as usual, do not bother logging here, open() call above will log an error if any
-					closeCtx, closeCancel := context.WithTimeout(context.Background(), ListenerCloseTimeout*time.Millisecond)
+					closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ListenerCloseTimeout*time.Millisecond)
 					if err := dc.listener.close(closeCtx); err != nil {
 						logger.Error("cannot properly close after failed receive: %s", err.Error())
 					}
@@ -134,7 +134,7 @@ func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 
 	// Cleanup on exit
 	if dc.listener.isOpen() {
-		closeCtx, closeCancel := context.WithTimeout(context.Background(), ListenerCloseTimeout*time.Millisecond)
+		closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ListenerCloseTimeout*time.Millisecond)
 		if err := dc.listener.close(closeCtx); err != nil {
 			logger.Error("cannot properly close on exit: %s", err.Error())
 		}
@@ -167,10 +167,10 @@ func (dc *Amqp10AsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 				// acknowledger.receiver, but never claimed by acknowledger.receiver.Receive().
 				// Fun fact: go-amqp receiver.Receive() with linkCredit=-1 returns context.DeadlineExceeded,
 				// not amqp:link:transfer-limit-exceeded or resource-limit-exceeded.
-				openCtx, openCancel := context.WithTimeout(context.Background(), AcknowledgerOpenTimeout*time.Millisecond)
+				openCtx, openCancel := context.WithTimeout(context.Background(), Amqp10AcknowledgerOpenTimeout*time.Millisecond)
 				if err := dc.acknowledger.open(openCtx, dc.url, dc.address, -1); err != nil {
 					logger.Error("cannot reconnect to %s, address %s: %s", dc.url, dc.address, err.Error())
-					time.Sleep(AcknowledgerReconnectTimeout * time.Millisecond)
+					time.Sleep(Amqp10AcknowledgerReconnectTimeout * time.Millisecond)
 				}
 				openCancel()
 			}
@@ -182,7 +182,7 @@ func (dc *Amqp10AsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 					dc.amqpMessagesInHandlingMutex.Lock()
 					delete(dc.amqpMessagesInHandling, token.MsgId)
 					dc.amqpMessagesInHandlingMutex.Unlock()
-					ackCtx, ackCancel := context.WithTimeout(context.Background(), AcknowledgerAckTimeout*time.Millisecond)
+					ackCtx, ackCancel := context.WithTimeout(context.Background(), Amqp10AcknowledgerAckTimeout*time.Millisecond)
 					var ackError error
 					switch token.Cmd {
 					case AcknowledgerCmdAck:
@@ -206,7 +206,7 @@ func (dc *Amqp10AsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 						linkError := &amqp10.LinkError{}
 						if errors.As(ackError, &connError) || errors.As(ackError, &sessionError) || errors.As(ackError, &linkError) {
 							// Biz as usual, do not bother logging here, open() call above will log an error if any
-							closeCtx, closeCancel := context.WithTimeout(context.Background(), AcknowledgerCloseTimeout*time.Millisecond)
+							closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10AcknowledgerCloseTimeout*time.Millisecond)
 							if err := dc.acknowledger.close(closeCtx); err != nil {
 								logger.Error("cannot properly close after failed ack/release: %s", err.Error())
 							}
@@ -225,7 +225,7 @@ func (dc *Amqp10AsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 
 	// Cleanup on exit
 	if dc.acknowledger.isOpen() {
-		closeCtx, closeCancel := context.WithTimeout(context.Background(), AcknowledgerCloseTimeout*time.Millisecond)
+		closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10AcknowledgerCloseTimeout*time.Millisecond)
 		if err := dc.acknowledger.close(closeCtx); err != nil {
 			logger.Error("cannot properly close on exit: %s", err.Error())
 		}
@@ -257,7 +257,7 @@ func (dc *Amqp10AsyncConsumer) StopListener(logger *l.CapiLogger) error {
 
 	timeoutChannel := make(chan bool, 1)
 	go func() {
-		time.Sleep(ListenerTotalTimeout * time.Second)
+		time.Sleep(Amqp10ListenerTotalTimeout * time.Second)
 		timeoutChannel <- true
 	}()
 	select {
@@ -274,7 +274,7 @@ func (dc *Amqp10AsyncConsumer) StopAcknowledger(logger *l.CapiLogger) error {
 
 	timeoutChannel := make(chan bool, 1)
 	go func() {
-		time.Sleep(AcknowledgerTotalTimeout * time.Second)
+		time.Sleep(Amqp10AcknowledgerTotalTimeout * time.Second)
 		timeoutChannel <- true
 	}()
 	select {

@@ -19,7 +19,6 @@ import (
 	"github.com/capillariesio/capillaries/pkg/wfdb"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/gocql/gocql"
-	amqp091 "github.com/rabbitmq/amqp091-go"
 )
 
 // Used by Webapi and Toolbelt (stop_run command)
@@ -36,7 +35,7 @@ func StopRun(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, r
 
 // Used by Webapi and Toolbelt (start_run command). This is the way to start Capillaries processing.
 // startNodes parameter contains names of the script nodes to be executed right upon run start.
-func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp091.Channel, mqSender mq.MqProducer, scriptFilePath string, paramsFilePath string, cqlSession *gocql.Session, cassandraEngine db.CassandraEngineType, keyspace string, startNodes []string, desc string) (int16, error) {
+func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, mqSender mq.MqProducer, scriptFilePath string, paramsFilePath string, cqlSession *gocql.Session, cassandraEngine db.CassandraEngineType, keyspace string, startNodes []string, desc string) (int16, error) {
 	logger.PushF("api.StartRun")
 	defer logger.PopF()
 
@@ -111,7 +110,6 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp0
 	logger.Info("created %d tables [%s] in %.2fs, creating messages to send for run %d...", len(tableNames), strings.Join(tableNames, ","), time.Since(createTablesStartTime).Seconds(), runId)
 
 	allMsgs := make([]*wfmodel.Message, 0)
-	allHandlerExeTypes := make([]string, 0)
 	for _, affectedNodeName := range affectedNodes {
 		affectedNode, ok := script.ScriptNodes[affectedNodeName]
 		if !ok {
@@ -122,7 +120,6 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp0
 			return 0, err
 		}
 		msgs := make([]*wfmodel.Message, len(intervals))
-		handlerExeTypes := make([]string, len(intervals))
 		for msgIdx := 0; msgIdx < len(intervals); msgIdx++ {
 			msgs[msgIdx] = &wfmodel.Message{
 				Id:              uuid.NewString(),
@@ -136,10 +133,8 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp0
 				LastToken:       intervals[msgIdx][1],
 				BatchIdx:        int16(msgIdx),
 				BatchesTotal:    int16(len(intervals))}
-			handlerExeTypes[msgIdx] = affectedNode.HandlerExeType
 		}
 		allMsgs = append(allMsgs, msgs...)
-		allHandlerExeTypes = append(allHandlerExeTypes, handlerExeTypes...)
 	}
 
 	// Write status 'start', fail if a record for run_id is already there (too many operators)
@@ -150,30 +145,22 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, amqpChannel *amqp0
 	logger.Info("sending %d messages for run %d...", len(allMsgs), runId)
 	sendMsgStartTime := time.Now()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	if mqSender.SupportsSendBulk() {
+		ctxSend, cancelSend := context.WithTimeout(context.Background(), 5*time.Second)
+		errSend := mqSender.SendBulk(ctxSend, allMsgs)
+		cancelSend()
+		if errSend != nil {
+			return 0, fmt.Errorf("failed to send %d messages: %s", len(allMsgs), errSend.Error())
+		}
 
-	// Send one msg after another
-	// TODO: there easily may be hundreds of messages, can we send them in a single shot?
-	for msgIdx := 0; msgIdx < len(allMsgs); msgIdx++ {
-		// msgOutBytes, errMsgOut := allMsgs[msgIdx].Serialize()
-		// if errMsgOut != nil {
-		// 	return 0, fmt.Errorf("cannot serialize outgoing message %d %v. %v", msgIdx, allMsgs[msgIdx].ToString(), errMsgOut)
-		// }
-
-		// errSend := amqpChannel.PublishWithContext(
-		// 	ctx,
-		// 	envConfig.Amqp.Exchange,    // exchange
-		// 	allHandlerExeTypes[msgIdx], // routing key / hander exe type
-		// 	false,                      // mandatory
-		// 	false,                      // immediate
-		// 	amqp.Publishing{ContentType: "text/plain", Body: msgOutBytes})
-		// if errSend != nil {
-		// 	// Reconnect required
-		// 	return 0, fmt.Errorf("failed to send next message %d: %s", msgIdx, errSend.Error())
-		// }
-		if errSend := mqSender.Send(ctx, allMsgs[msgIdx]); errSend != nil {
-			return 0, fmt.Errorf("failed to send next message %d: %s", msgIdx, errSend.Error())
+	} else {
+		for msgIdx := 0; msgIdx < len(allMsgs); msgIdx++ {
+			ctxSend, cancelSend := context.WithTimeout(context.Background(), 5*time.Second)
+			errSend := mqSender.Send(ctxSend, allMsgs[msgIdx])
+			cancelSend()
+			if errSend != nil {
+				return 0, fmt.Errorf("failed to send next message %d: %s", msgIdx, errSend.Error())
+			}
 		}
 	}
 	logger.Info("sent %d msgs in %.2fs for run %d", len(allMsgs), time.Since(sendMsgStartTime).Seconds(), runId)
