@@ -10,4 +10,5 @@ scrape_configs:
     scrape_interval: 5s
     static_configs:
       # webapi and daemons run on the same box, so ports must be different; not a problem when webapi and daemons run on different VMs
-      - targets: ['10.5.0.20:9200','10.5.0.101:9201','10.5.0.102:9202']
+      # 10.5.0.5:9203 is for capimq if present
+      - targets: ['10.5.0.20:9200','10.5.0.101:9201','10.5.0.102:9202','10.5.0.5:9203']

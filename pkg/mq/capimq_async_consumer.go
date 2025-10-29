@@ -4,18 +4,21 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
-const CapimqListenerReceiveTimeout time.Duration = 2000
-const CapimqListenerAckTimeout time.Duration = 2000
-const CapimqListenerTotalTimeout time.Duration = CapimqListenerReceiveTimeout + CapimqListenerAckTimeout + 1000
+const CapimqListenerReceiveTimeout time.Duration = 500
+const CapimqListenerNothingToClaimTimeout time.Duration = 500
+const CapimqListenerConnErrorTimeout time.Duration = 2000
+const CapimqListenerTotalTimeout time.Duration = CapimqListenerReceiveTimeout + CapimqListenerNothingToClaimTimeout + 1000
 
 const CapimqAcknowledgerAckTimeout time.Duration = 2000
 const CapimqAcknowledgerTotalTimeout time.Duration = CapimqAcknowledgerAckTimeout + 1000
@@ -56,13 +59,12 @@ func (dc *CapimqAsyncConsumer) claim(ctx context.Context) (*wfmodel.Message, err
 	if respErr != nil {
 		return nil, respErr
 	}
-
-	var wfmodelMsg wfmodel.Message
-	if err := json.Unmarshal(respBody, &wfmodelMsg); err != nil {
-		return nil, err
+	var claimResponse CapimqApiClaimResponse
+	if err := json.Unmarshal(respBody, &claimResponse); err != nil {
+		return nil, fmt.Errorf("cannot unmarshal CapimqApiClaimResponse, error [%s], body: %s", err.Error(), string(respBody))
 	}
 
-	return &wfmodelMsg, nil
+	return claimResponse.Data, nil
 }
 
 func (dc *CapimqAsyncConsumer) ack(ctx context.Context, msgId string) error {
@@ -128,13 +130,15 @@ func (dc *CapimqAsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 		wfmodelMsg, claimErr := dc.claim(claimCtx)
 		claimCancel()
 		if claimErr != nil {
-			logger.Error("cannot claim, will ack: %s", claimErr.Error())
-			ackCtx, ackCancel := context.WithTimeout(context.Background(), CapimqListenerAckTimeout*time.Millisecond)
-			ackErr := dc.ack(ackCtx, wfmodelMsg.Id)
-			ackCancel()
-			if ackErr != nil {
-				logger.Error("cannot ack the claimed message, it will be orphaned: %s", ackErr.Error())
+			logger.Error("cannot claim: %s", claimErr.Error())
+			urlErr := &url.Error{}
+			if errors.As(claimErr, &urlErr) {
+				time.Sleep(CapimqListenerConnErrorTimeout * time.Millisecond)
 			}
+			continue
+		} else if wfmodelMsg == nil {
+			// Nothing to claim
+			time.Sleep(CapimqListenerNothingToClaimTimeout * time.Millisecond)
 			continue
 		}
 

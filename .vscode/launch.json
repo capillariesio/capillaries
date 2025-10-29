@@ -108,7 +108,7 @@
             "args": []
         },
         {
-            "name": "Mq",
+            "name": "CapiMqBroker",
             "type": "go",
             "request": "launch",
             "mode": "debug",

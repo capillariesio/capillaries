@@ -118,6 +118,7 @@ const CapillariesIcons100x100 = `
   </g>
 </g>`
 
+// Used by Webapi and Toolbelt
 func NodeBatchStatusToCapigraphColor(status wfmodel.NodeBatchStatusType) int32 {
 	switch status {
 	case wfmodel.NodeBatchNone:
@@ -254,6 +255,7 @@ func nodeTypeIcon(node *sc.ScriptNodeDef) string {
 	}
 }
 
+// Used by Webapi and Toolbelt
 func GetCapigraphDiagram(scriptDef *sc.ScriptDef, showIdx bool, showFields bool, useRootPalette bool, nodeStringColorMap map[string]int32) string {
 	nodeDefs := make([]capigraph.NodeDef, len(scriptDef.ScriptNodes)+1)
 	nodeDefs[0] = capigraph.NodeDef{0, "", capigraph.EdgeDef{}, []capigraph.EdgeDef{}, "", 0, false}

@@ -14,6 +14,25 @@ import (
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
+type AckMethodType string
+
+const (
+	AckMethodRelease AckMethodType = "release"
+	AckMethodReject  AckMethodType = "reject"
+	AckMethodUnknown AckMethodType = "unknown"
+)
+
+func StringToAckMethod(s string) (AckMethodType, error) {
+	switch s {
+	case string(AckMethodReject):
+		return AckMethodReject, nil
+	case string(AckMethodRelease):
+		return AckMethodRelease, nil
+	default:
+		return AckMethodUnknown, fmt.Errorf("unknown ack method '%s'", s)
+	}
+}
+
 const Amqp10ListenerOpenTimeout time.Duration = 2000
 const Amqp10ListenerReceiveTimeout time.Duration = 2000
 const Amqp10ListenerAckTimeout time.Duration = 2000
@@ -46,6 +65,7 @@ const Amqp10FullListenerChannelTimeout time.Duration = 1000
 type Amqp10AsyncConsumer struct {
 	url                         string
 	address                     string
+	ackMethod                   AckMethodType
 	credit                      int32
 	listener                    Amqp10Consumer
 	acknowledger                Amqp10Consumer
@@ -55,10 +75,11 @@ type Amqp10AsyncConsumer struct {
 	amqpMessagesInHandlingMutex sync.RWMutex
 }
 
-func NewAmqp10Consumer(url string, address string, credit int32) *Amqp10AsyncConsumer {
+func NewAmqp10Consumer(url string, address string, credit int32, ackMethod AckMethodType) *Amqp10AsyncConsumer {
 	return &Amqp10AsyncConsumer{
 		url:                         url,
 		address:                     address,
+		ackMethod:                   ackMethod,
 		credit:                      credit,
 		listener:                    Amqp10Consumer{},
 		acknowledger:                Amqp10Consumer{},
@@ -115,19 +136,23 @@ func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 
 				}
 			} else {
-				connError := &amqp10.ConnError{}
-				sessionError := &amqp10.SessionError{}
-				linkError := &amqp10.LinkError{}
-				if errors.As(recErr, &connError) || errors.As(recErr, &sessionError) || errors.As(recErr, &linkError) {
-					// Biz as usual, do not bother logging here, open() call above will log an error if any
+				if recErr != context.DeadlineExceeded {
+					connError := &amqp10.ConnError{}
+					sessionError := &amqp10.SessionError{}
+					linkError := &amqp10.LinkError{}
+					if errors.As(recErr, &connError) || errors.As(recErr, &sessionError) || errors.As(recErr, &linkError) {
+						// Connectivity error or RabbitMQ complaining about queue not found (linkError)
+						logger.Error("cannot receive, connectivity error: %s", recErr.Error())
+					} else {
+						logger.Error("cannot receive, unknown error: %s", recErr.Error())
+					}
 					closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ListenerCloseTimeout*time.Millisecond)
 					if err := dc.listener.close(closeCtx); err != nil {
 						logger.Error("cannot properly close after failed receive: %s", err.Error())
 					}
 					closeCancel()
-				} else if recErr != context.DeadlineExceeded {
-					logger.Error("cannot receive, unknown error, will not reconnect: %s", recErr.Error())
 				}
+				time.Sleep(Amqp10FullListenerChannelTimeout * time.Millisecond)
 			}
 		}
 	}
@@ -190,8 +215,14 @@ func (dc *Amqp10AsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 							logger.Error("cannot ack, expect some daemon instance to perform DeleteDataAndUniqueIndexesByBatchIdx for %s: %s", token.MsgId, ackError.Error())
 						}
 					case AcknowledgerCmdRetry:
+						// ActiveMQ: with Reject, there are disappearing and duplicated messages (I am just using redelivery-delay and do not set up DLQ), works well with Release
+						// RabbitMQ: Release does not trigger the dead letter queue process (see RabbitMQ config in docker-compose.yml),
+						// and works properly only with Reject, see some details About Release/Reject at https://www.rabbitmq.com/docs/amqp
+						// For now, use Reject for both. If any problems with ActiveMQ - introduce a new setting for env config Amqp10: "ack": "release/reject"
+						// and call ReleaseMessage here if  ack == release.
 						if ackError = dc.acknowledger.receiver.ReleaseMessage(ackCtx, amqpMsg); ackError != nil {
-							logger.Error("cannot release for retry, expect some daemon instance to perform DeleteDataAndUniqueIndexesByBatchIdx for %s: %s", token.MsgId, ackError.Error())
+							//if ackError = dc.acknowledger.receiver.RejectMessage(ackCtx, amqpMsg, &amqp10.Error{Condition: amqp10.ErrCondInternalError, Description: fmt.Sprintf("capidaemon %s asked to retry", logger.ZapMachine.String)}); ackError != nil {
+							logger.Error("cannot retry, expect some daemon instance to perform DeleteDataAndUniqueIndexesByBatchIdx for %s: %s", token.MsgId, ackError.Error())
 						}
 					case AcknowledgerCmdHeartbeat:
 						logger.Error("unexpected acknowledger hearbeat cmd, it is not supported by AMQP message brokers")

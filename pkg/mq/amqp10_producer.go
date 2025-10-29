@@ -6,34 +6,55 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	amqp10 "github.com/Azure/go-amqp"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
+const Amqp10ProducerOpenTimeout time.Duration = 2000
+const Amqp10ProducerCloseTimeout time.Duration = 2000
+const Amqp10ProducerSendTimeout time.Duration = 2000
+
 type Amqp10Producer struct {
+	url     string
+	address string
 	conn    *amqp10.Conn
 	session *amqp10.Session
 	sender  *amqp10.Sender
 }
 
-func (p *Amqp10Producer) Open(ctx context.Context, url string, address string) error {
+func NewAmqp10Producer(url string, address string) *Amqp10Producer {
+	return &Amqp10Producer{
+		url:     url,
+		address: address,
+	}
+}
+
+func (p *Amqp10Producer) Open() error {
 	var err error
-	p.conn, err = amqp10.Dial(ctx, url, nil)
+	openCtx, openCancel := context.WithTimeout(context.Background(), Amqp10ProducerOpenTimeout*time.Millisecond)
+	p.conn, err = amqp10.Dial(openCtx, p.url, nil)
+	openCancel()
 	if err != nil {
 		return err
 	}
 
-	p.session, err = p.conn.NewSession(ctx, nil)
+	openCtx, openCancel = context.WithTimeout(context.Background(), Amqp10ProducerOpenTimeout*time.Millisecond)
+	p.session, err = p.conn.NewSession(openCtx, nil)
+	openCancel()
 	if err != nil {
 		p.conn.Close()
 		p.conn = nil
 		return err
 	}
-
-	p.sender, err = p.session.NewSender(ctx, address, nil)
+	openCtx, openCancel = context.WithTimeout(context.Background(), Amqp10ProducerOpenTimeout*time.Millisecond)
+	p.sender, err = p.session.NewSender(openCtx, p.address, nil)
+	openCancel()
 	if err != nil {
-		p.session.Close(ctx)
+		closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ProducerCloseTimeout*time.Millisecond)
+		p.session.Close(closeCtx)
+		closeCancel()
 		p.session = nil
 		p.conn.Close()
 		p.conn = nil
@@ -43,11 +64,11 @@ func (p *Amqp10Producer) Open(ctx context.Context, url string, address string) e
 	return nil
 }
 
-func (p *Amqp10Producer) SendBulk(ctx context.Context, msgs []*wfmodel.Message) error {
+func (p *Amqp10Producer) SendBulk(msgs []*wfmodel.Message) error {
 	return errors.New("SendBulk not supported")
 }
 
-func (p *Amqp10Producer) Send(ctx context.Context, msg *wfmodel.Message) error {
+func (p *Amqp10Producer) Send(msg *wfmodel.Message) error {
 	if p.sender == nil {
 		return fmt.Errorf("cannot send, nil sender")
 	}
@@ -57,7 +78,9 @@ func (p *Amqp10Producer) Send(ctx context.Context, msg *wfmodel.Message) error {
 		return fmt.Errorf("cannot send, error when serializing msg: %s", err.Error())
 	}
 
-	err = p.sender.Send(ctx, amqp10.NewMessage(msgBytes), nil)
+	sendCtx, sendCancel := context.WithTimeout(context.Background(), Amqp10ProducerSendTimeout*time.Millisecond)
+	err = p.sender.Send(sendCtx, amqp10.NewMessage(msgBytes), nil)
+	sendCancel()
 	if err != nil {
 		return fmt.Errorf("cannot send: %s", err.Error())
 	}
@@ -65,19 +88,23 @@ func (p *Amqp10Producer) Send(ctx context.Context, msg *wfmodel.Message) error {
 	return nil
 }
 
-func (p *Amqp10Producer) Close(ctx context.Context) error {
+func (p *Amqp10Producer) Close() error {
 	sb := strings.Builder{}
 	if p.sender != nil {
-		if err := p.sender.Close(ctx); err != nil {
+		closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ProducerCloseTimeout*time.Millisecond)
+		if err := p.sender.Close(closeCtx); err != nil {
 			sb.WriteString(err.Error() + "; ")
 		}
+		closeCancel()
 	}
 	p.sender = nil
 
 	if p.session != nil {
-		if err := p.session.Close(ctx); err != nil {
+		closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ProducerCloseTimeout*time.Millisecond)
+		if err := p.session.Close(closeCtx); err != nil {
 			sb.WriteString(err.Error() + "; ")
 		}
+		closeCancel()
 	}
 	p.session = nil
 

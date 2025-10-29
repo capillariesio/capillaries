@@ -11,16 +11,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/capillariesio/capillaries/pkg/api"
 	"github.com/capillariesio/capillaries/pkg/custom/py_calc"
 	"github.com/capillariesio/capillaries/pkg/custom/tag_and_denormalize"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/mq"
 	"github.com/capillariesio/capillaries/pkg/sc"
-	"github.com/capillariesio/capillaries/pkg/wf"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/capillariesio/capillaries/pkg/xfer"
-	"github.com/hashicorp/golang-lru/v2/expirable"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -73,7 +72,7 @@ func main() {
 	if envConfig.Log.PrometheusExporterPort > 0 {
 		prometheus.MustRegister(xfer.SftpFileGetGetDuration, xfer.HttpFileGetGetDuration, xfer.S3FileGetGetDuration)
 		prometheus.MustRegister(sc.ScriptDefCacheHitCounter, sc.ScriptDefCacheMissCounter)
-		prometheus.MustRegister(wf.NodeDependencyReadynessHitCounter, wf.NodeDependencyReadynessMissCounter, wf.NodeDependencyReadynessGetDuration, wf.NodeDependencyNoneCounter, wf.NodeDependencyWaitCounter, wf.NodeDependencyGoCounter, wf.NodeDependencyNogoCounter, wf.ReceivedMsgCounter)
+		prometheus.MustRegister(api.NodeDependencyReadynessHitCounter, api.NodeDependencyReadynessMissCounter, api.NodeDependencyReadynessGetDuration, api.NodeDependencyNoneCounter, api.NodeDependencyWaitCounter, api.NodeDependencyGoCounter, api.NodeDependencyNogoCounter, api.ReceivedMsgCounter)
 		go func() {
 			http.Handle("/metrics", promhttp.Handler())
 			if err := http.ListenAndServe(fmt.Sprintf(":%d", envConfig.Log.PrometheusExporterPort), nil); err != nil {
@@ -98,16 +97,20 @@ func main() {
 	osSignalChannel := make(chan os.Signal, 1)
 	signal.Notify(osSignalChannel, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	sc.ScriptDefCache = expirable.NewLRU[string, sc.ScriptInitResult](50, nil, time.Minute*1)
-	wf.NodeDependencyReadynessCache = expirable.NewLRU[string, string](1000, nil, time.Second*2)
+	sc.ScriptDefCache = sc.NewScriptDefCache()
+	api.NodeDependencyReadynessCache = api.NewNodeDependencyReadynessCache()
 
 	var heartbeatInterval int64
 	var asyncConsumer mq.MqAsyncConsumer
 	if envConfig.Amqp10.URL != "" && envConfig.Amqp10.Address != "" {
-		asyncConsumer = mq.NewAmqp10Consumer(envConfig.Amqp10.URL, envConfig.Amqp10.Address, int32(envConfig.Daemon.ThreadPoolSize))
-	} else if envConfig.CapiMqDaemon.URL != "" {
-		asyncConsumer = mq.NewCapimqConsumer(envConfig.CapiMqDaemon.URL)
-		heartbeatInterval = envConfig.CapiMqDaemon.HeartbeatInterval
+		ackMethod, err := mq.StringToAckMethod(envConfig.Amqp10.AckMethod)
+		if err != nil {
+			log.Fatalf("no ack method for Amqp10 configured, expected %s or %s ", mq.AckMethodRelease, mq.AckMethodReject)
+		}
+		asyncConsumer = mq.NewAmqp10Consumer(envConfig.Amqp10.URL, envConfig.Amqp10.Address, int32(envConfig.Daemon.ThreadPoolSize), ackMethod)
+	} else if envConfig.CapiMqClient.URL != "" {
+		asyncConsumer = mq.NewCapimqConsumer(envConfig.CapiMqClient.URL, logger.ZapMachine.String)
+		heartbeatInterval = envConfig.CapiMqClient.HeartbeatInterval
 	} else {
 		log.Fatalf("%s", "no mq broker configured")
 	}
@@ -164,7 +167,7 @@ func main() {
 				}
 				acknowledgerChannel <- mq.AknowledgerToken{
 					MsgId: wfmodelMsg.Id,
-					Cmd:   wf.ProcessDataBatchMsgNew(envConfig, logger, wfmodelMsg, heartbeatInterval, heartbeatCallback)}
+					Cmd:   api.ProcessDataBatchMsg(envConfig, logger, wfmodelMsg, heartbeatInterval, heartbeatCallback)}
 
 				// Unlock semaphore slot
 				<-sem
@@ -229,79 +232,3 @@ func main() {
 	}
 }
 */
-
-// func mainOld() {
-// 	// defer profile.Start(profile.MemProfile).Stop()
-// 	// go func() {
-// 	// 	http.ListenAndServe("localhost:8081", nil)
-// 	// }()
-
-// 	// curl http://localhost:8081/debug/pprof/heap > heap.01.pprof
-// 	// aws s3 cp heap.01.pprof s3://capillaries-testbucket/log/
-
-// 	initCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-// 	defer cancel()
-
-// 	envConfig, err := env.ReadEnvConfigFile(initCtx, "capidaemon.json")
-// 	if err != nil {
-// 		log.Fatalf("%s", err.Error())
-// 	}
-// 	envConfig.CustomProcessorDefFactoryInstance = &StandardDaemonProcessorDefFactory{}
-
-// 	if envConfig.Log.PrometheusExporterPort > 0 {
-// 		prometheus.MustRegister(xfer.SftpFileGetGetDuration, xfer.HttpFileGetGetDuration, xfer.S3FileGetGetDuration)
-// 		prometheus.MustRegister(sc.ScriptDefCacheHitCounter, sc.ScriptDefCacheMissCounter)
-// 		prometheus.MustRegister(wf.NodeDependencyReadynessHitCounter, wf.NodeDependencyReadynessMissCounter, wf.NodeDependencyReadynessGetDuration, wf.NodeDependencyNoneCounter, wf.NodeDependencyWaitCounter, wf.NodeDependencyGoCounter, wf.NodeDependencyNogoCounter, wf.ReceivedMsgCounter)
-// 		go func() {
-// 			http.Handle("/metrics", promhttp.Handler())
-// 			if err := http.ListenAndServe(fmt.Sprintf(":%d", envConfig.Log.PrometheusExporterPort), nil); err != nil {
-// 				log.Fatalf("%s", err.Error())
-// 			}
-// 		}()
-// 	}
-
-// 	logger, err := l.NewLoggerFromEnvConfig(envConfig)
-// 	if err != nil {
-// 		log.Fatalf("%s", err.Error())
-// 	}
-// 	defer logger.Close()
-
-// 	logger.PushF("daemon.main")
-// 	defer logger.PopF()
-
-// 	logger.Info("Capillaries daemon %s", version)
-// 	logger.Info("env config: %s", envConfig.String())
-// 	logger.Info("S3 config status: %s", xfer.GetS3ConfigStatus(initCtx).String())
-
-// 	osSignalChannel := make(chan os.Signal, 1)
-// 	signal.Notify(osSignalChannel, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-
-// 	sc.ScriptDefCache = expirable.NewLRU[string, sc.ScriptInitResult](50, nil, time.Minute*1)
-// 	wf.NodeDependencyReadynessCache = expirable.NewLRU[string, string](1000, nil, time.Second*2)
-
-// 	for {
-// 		daemonCmd := wf.AmqpFullReconnectCycle(envConfig, logger, osSignalChannel)
-// 		if daemonCmd == wf.DaemonCmdQuit {
-// 			logger.Info("got quit cmd, shut down is supposed to be complete by now")
-// 			os.Exit(0)
-// 		}
-// 		logger.Info("got %d, waiting before reconnect...", daemonCmd)
-
-// 		// Read from osSignalChannel with timeout
-// 		timeoutChannel := make(chan bool, 1)
-// 		go func() {
-// 			time.Sleep(10 * time.Second)
-// 			timeoutChannel <- true
-// 		}()
-// 		select {
-// 		case osSignal := <-osSignalChannel:
-// 			if osSignal == os.Interrupt || osSignal == os.Kill {
-// 				logger.Info("received os signal %v while reconnecting to mq, quitting...", osSignal)
-// 				os.Exit(0)
-// 			}
-// 		case <-timeoutChannel:
-// 			logger.Info("timeout while reconnecting to mq, will try to reconnect again")
-// 			continue
-// 		}
-// 	}
-// }

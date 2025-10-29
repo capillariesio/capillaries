@@ -14,6 +14,7 @@ import (
 
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/l"
+	"github.com/capillariesio/capillaries/pkg/mq"
 	"github.com/capillariesio/capillaries/pkg/mq_message_broker"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
@@ -77,15 +78,6 @@ func newRoute(method, pattern string, handler http.HandlerFunc) route {
 	return route{method, regexp.MustCompile("^" + pattern + "$"), handler}
 }
 
-type ApiResponseError struct {
-	Msg string `json:"msg"`
-}
-
-type ApiResponse struct {
-	Data  any              `json:"data"`
-	Error ApiResponseError `json:"error"`
-}
-
 func pickAccessControlAllowOrigin(wc *env.CapiMqBrokerConfig, r *http.Request) string {
 	if wc.AccessControlAllowOrigin == "*" {
 		return "*"
@@ -111,7 +103,7 @@ func WriteApiError(logger *l.CapiLogger, wc *env.CapiMqBrokerConfig, r *http.Req
 
 	w.Header().Set("Access-Control-Allow-Origin", pickAccessControlAllowOrigin(wc, r))
 	logger.Error("cannot process %s: %s", urlPath, err.Error())
-	respJson, err := json.Marshal(ApiResponse{Error: ApiResponseError{Msg: err.Error()}})
+	respJson, err := json.Marshal(mq.CapimqApiGenericResponse{Error: err.Error()})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("unexpected: cannot serialize error response %s", err.Error()), httpStatus)
 	} else {
@@ -126,7 +118,7 @@ func WriteApiSuccess(logger *l.CapiLogger, wc *env.CapiMqBrokerConfig, r *http.R
 	logger.Debug("%s: OK", r.URL.Path)
 
 	w.Header().Set("Access-Control-Allow-Origin", pickAccessControlAllowOrigin(wc, r))
-	respJson, err := json.Marshal(ApiResponse{Data: data})
+	respJson, err := json.Marshal(mq.CapimqApiGenericResponse{Data: data})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("cannot serialize success response: %s", err.Error()), http.StatusInternalServerError)
 	} else {

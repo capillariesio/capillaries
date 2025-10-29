@@ -1,4 +1,4 @@
-package wf
+package api
 
 import (
 	"encoding/json"
@@ -16,83 +16,11 @@ import (
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/wfdb"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
-	"github.com/hashicorp/golang-lru/v2/expirable"
-	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 )
 
-type ProcessDeliveryResultType int8
-
-const (
-	ProcessDeliveryOK                    ProcessDeliveryResultType = 0 // OK
-	ProcessDeliveryAckSuccess            ProcessDeliveryResultType = 2 // Best case
-	ProcessDeliveryRejectAndRetryLater   ProcessDeliveryResultType = 3 // Node dependencies are not ready, wait with processing this node
-	ProcessDeliveryReconnectDb           ProcessDeliveryResultType = 4 // Db workflow error, try to reconnect
-	ProcessDeliveryAckWithError          ProcessDeliveryResultType = 6 // There was a processing error: either some serious biz logic re-trying will not help, or it was a data table error (we consider it persistent), so ack it
-	ProcessDeliveryReconnectQueueNotUsed ProcessDeliveryResultType = 7 // Queue error, try to reconnect
-)
-
-func (result ProcessDeliveryResultType) ToString() string {
-	switch result {
-	case ProcessDeliveryOK:
-		return "ok"
-	case ProcessDeliveryAckSuccess:
-		return "success"
-	case ProcessDeliveryRejectAndRetryLater:
-		return "reject_and_retry"
-	case ProcessDeliveryReconnectDb:
-		return "reconnect_db"
-	case ProcessDeliveryAckWithError:
-		return "ack_with_error"
-	case ProcessDeliveryReconnectQueueNotUsed:
-		return "reconnect_queue"
-	default:
-		return "unknown"
-	}
-}
-
-const CachedNodeStateFormat string = "%s %d %d"
-
-var (
-	NodeDependencyReadynessHitCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "capi_node_dep_ready_cache_hit_count",
-		Help: "Capillaries node dependencies readiness cache hits",
-	})
-	NodeDependencyReadynessMissCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "capi_node_dep_ready_cache_miss_count",
-		Help: "Capillaries node dependencies readiness cache misses",
-	})
-	NodeDependencyReadynessGetDuration = prometheus.NewHistogram(prometheus.HistogramOpts{
-		Name:    "capi_node_dep_ready_get_duration",
-		Help:    "Duration of checkDependencyNodesReady",
-		Buckets: prometheus.ExponentialBuckets(0.001, 10.0, 4),
-	})
-	NodeDependencyNoneCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "capi_node_dep_none_count",
-		Help: "Capillaries node dependencies NodeNone count",
-	})
-	NodeDependencyWaitCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "capi_node_dep_wait_count",
-		Help: "Capillaries node dependencies NodeWait count",
-	})
-	NodeDependencyGoCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "capi_node_dep_go_count",
-		Help: "Capillaries node dependencies NodeGo count",
-	})
-	NodeDependencyNogoCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "capi_node_dep_nogo_count",
-		Help: "Capillaries node dependencies NodeNogo count",
-	})
-	ReceivedMsgCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "capi_received_msg_count",
-		Help: "Capillaries RabbitMQ received msg count",
-	})
-)
-
-var NodeDependencyReadynessCache *expirable.LRU[string, string]
-
 func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) (sc.ReadyToRunNodeCmdType, int16, int16, error) {
-	logger.PushF("wf.checkDependencyNodesReady")
+	logger.PushF("api.checkDependencyNodesReady")
 	defer logger.PopF()
 
 	// Before reading state db, check our cache
@@ -205,7 +133,7 @@ func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 	return finalCmd, finalRunIdReader, finalRunIdLookup, nil
 }
 
-func SafeProcessBatch(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, readerNodeRunId int16, lookupNodeRunId int16) (wfmodel.NodeBatchStatusType, proc.BatchStats, error) {
+func safeProcessBatch(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, readerNodeRunId int16, lookupNodeRunId int16) (wfmodel.NodeBatchStatusType, proc.BatchStats, error) {
 	logger.PushF("wf.SafeProcessBatch")
 	defer logger.PopF()
 
@@ -252,7 +180,7 @@ func SafeProcessBatch(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.
 	return wfmodel.NodeBatchSuccess, bs, nil
 }
 
-func UpdateNodeStatusFromBatches(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) (wfmodel.NodeBatchStatusType, bool, error) {
+func updateNodeStatusFromBatches(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) (wfmodel.NodeBatchStatusType, bool, error) {
 	logger.PushF("wf.UpdateNodeStatusFromBatches")
 	defer logger.PopF()
 
@@ -287,7 +215,7 @@ func UpdateNodeStatusFromBatches(logger *l.CapiLogger, pCtx *ctx.MessageProcessi
 	return totalNodeStatus, false, nil
 }
 
-func UpdateRunStatusFromNodes(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) error {
+func updateRunStatusFromNodes(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) error {
 	logger.PushF("wf.UpdateRunStatusFromNodes")
 	defer logger.PopF()
 
@@ -315,7 +243,7 @@ func refreshNodeAndRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingCo
 	logger.PushF("wf.refreshNodeAndRunStatus")
 	defer logger.PopF()
 
-	_, _, err := UpdateNodeStatusFromBatches(logger, pCtx)
+	_, _, err := updateNodeStatusFromBatches(logger, pCtx)
 	if err != nil {
 		logger.ErrorCtx(pCtx, "cannot refresh run/node status: %s", err.Error())
 		return err
@@ -324,7 +252,7 @@ func refreshNodeAndRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingCo
 	// Ideally, we should run the code below only if isApplied signaled something changed. But, there is a possibility
 	// that on the previous attempt, node status was updated and the daemon crashed right after that.
 	// We need to pick it up from there and refresh run status anyways.
-	err = UpdateRunStatusFromNodes(logger, pCtx)
+	err = updateRunStatusFromNodes(logger, pCtx)
 	if err != nil {
 		logger.ErrorCtx(pCtx, "cannot refresh run status: %s", err.Error())
 		return err
@@ -483,8 +411,9 @@ func checkDependencyNogoOrWait(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 	}
 }
 
-func ProcessDataBatchMsgNew(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wfmodel.Message, heartbeatInterval int64, heartbeatCallback ctx.HeartbeatCallbackFunc) mq.AcknowledgerCmd {
-	logger.PushF("wf.ProcessDataBatchMsg")
+// Used by Daemon and Toolbelt
+func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wfmodel.Message, heartbeatInterval int64, heartbeatCallback ctx.HeartbeatCallbackFunc) mq.AcknowledgerCmd {
+	logger.PushF("api.ProcessDataBatchMsg")
 	defer logger.PopF()
 
 	ReceivedMsgCounter.Inc()
@@ -612,7 +541,7 @@ func ProcessDataBatchMsgNew(envConfig *env.EnvConfig, logger *l.CapiLogger, msg 
 		return mq.AcknowledgerCmdAck
 	}
 
-	batchStatus, batchStats, batchErr := SafeProcessBatch(envConfig, logger, pCtx, readerNodeRunId, lookupNodeRunId)
+	batchStatus, batchStats, batchErr := safeProcessBatch(envConfig, logger, pCtx, readerNodeRunId, lookupNodeRunId)
 
 	// TODO: test only!!!
 	// if pCtx.BatchInfo.TargetNodeName == "order_item_date_inner" && pCtx.BatchInfo.BatchIdx == 3 {
@@ -656,153 +585,3 @@ func ProcessDataBatchMsgNew(envConfig *env.EnvConfig, logger *l.CapiLogger, msg 
 	// Here: batch was processed with some non-db error, or successfully. Either way - ack
 	return mq.AcknowledgerCmdAck
 }
-
-// func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wfmodel.Message) ProcessDeliveryResultType {
-// 	logger.PushF("wf.ProcessDataBatchMsg")
-// 	defer logger.PopF()
-
-// 	ReceivedMsgCounter.Inc()
-
-// 	pCtx := &ctx.MessageProcessingContext{
-// 		Msg:             *msg,
-// 		ZapMsgId:        zap.String("id", msg.Id),
-// 		ZapDataKeyspace: zap.String("ks", msg.DataKeyspace),
-// 		ZapRun:          zap.Int16("run", msg.RunId),
-// 		ZapNode:         zap.String("node", msg.TargetNodeName),
-// 		ZapBatchIdx:     zap.Int16("bi", msg.BatchIdx),
-// 		ZapMsgAgeMillis: zap.Int64("age", time.Now().UnixMilli()-msg.Ts)}
-
-// 	// Check run status first. If it's stopped, don't even bother getting the script etc. If we try to get the script first,
-// 	// and it's not available, we may end up handling this batch forever even after the run is stopped by the operator
-// 	if err := pCtx.DbConnect(envConfig); err != nil {
-// 		logger.Error("cannot connect to db: %s", err.Error())
-// 		return ProcessDeliveryReconnectDb
-// 	}
-// 	defer pCtx.DbClose()
-
-// 	runStatus, err := wfdb.GetCurrentRunStatus(logger, pCtx)
-// 	if err != nil {
-// 		logger.ErrorCtx(pCtx, "cannot get current run status for batch %s: %s", msg.FullBatchId(), err.Error())
-// 		if db.IsDbConnError(err) {
-// 			return ProcessDeliveryReconnectDb
-// 		}
-// 		return ProcessDeliveryAckWithError
-// 	}
-
-// 	// Check current run is valid
-// 	if processDeliveryResult := checkRunStatus(logger, pCtx, msg, runStatus); processDeliveryResult != ProcessDeliveryOK {
-// 		return processDeliveryResult
-// 	}
-
-// 	if processDeliveryResult := initCtxScript(logger, pCtx, envConfig.CaPath, envConfig.PrivateKeys, msg, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings); processDeliveryResult != ProcessDeliveryOK {
-// 		return processDeliveryResult
-// 	}
-
-// 	var ok bool
-// 	pCtx.CurrentScriptNode, ok = pCtx.Script.ScriptNodes[msg.TargetNodeName]
-// 	if !ok {
-// 		logger.Error("cannot find node %s in the script [%s], giving up with %s, returning ProcessDeliveryAckWithError, will not let other workers handle it", pCtx.Msg.TargetNodeName, pCtx.Msg.ScriptURL, msg.ToString())
-// 		return ProcessDeliveryAckWithError
-// 	}
-
-// 	logger.DebugCtx(pCtx, "started processing batch %s", msg.FullBatchId())
-
-// 	lastBatchStatus, err := wfdb.HarvestLastStatusForBatch(logger, pCtx)
-// 	if err != nil {
-// 		if db.IsDbConnError(err) {
-// 			return ProcessDeliveryReconnectDb
-// 		}
-// 		return ProcessDeliveryAckWithError
-// 	}
-
-// 	// Check if this run/node/batch has been handled already
-// 	if processDeliveryResult := checkLastBatchStatus(logger, pCtx, msg, lastBatchStatus); processDeliveryResult != ProcessDeliveryOK {
-// 		return processDeliveryResult
-// 	}
-
-// 	// At this point, we are assuming this batch processing either never started or was started and then abandoned
-
-// 	nodeReady, readerNodeRunId, lookupNodeRunId, err := checkDependencyNodesReady(logger, pCtx)
-// 	if err != nil {
-// 		logger.ErrorCtx(pCtx, "cannot verify dependency nodes status for %s: %s", pCtx.Msg.FullBatchId(), err.Error())
-// 		if db.IsDbConnError(err) {
-// 			return ProcessDeliveryReconnectDb
-// 		}
-// 		return ProcessDeliveryAckWithError
-// 	}
-
-// 	switch nodeReady {
-// 	case sc.NodeNone:
-// 		NodeDependencyNoneCounter.Inc()
-// 	case sc.NodeWait:
-// 		NodeDependencyWaitCounter.Inc()
-// 	case sc.NodeGo:
-// 		NodeDependencyGoCounter.Inc()
-// 	case sc.NodeNogo:
-// 		NodeDependencyNogoCounter.Inc()
-// 	default:
-// 		logger.ErrorCtx(pCtx, "unexpected nodeReady %v", nodeReady)
-// 		return ProcessDeliveryAckWithError
-// 	}
-
-// 	if processDeliveryResult := checkDependencyNogoOrWait(logger, pCtx, nodeReady); processDeliveryResult != ProcessDeliveryOK {
-// 		return processDeliveryResult
-// 	}
-
-// 	// At this point, we are ready to actually process the node
-
-// 	if _, err := wfdb.SetNodeStatus(logger, pCtx, wfmodel.NodeStart, "started"); err != nil {
-// 		if db.IsDbConnError(err) {
-// 			return ProcessDeliveryReconnectDb
-// 		}
-// 		return ProcessDeliveryAckWithError
-// 	}
-
-// 	if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeStart, ""); err != nil {
-// 		if db.IsDbConnError(err) {
-// 			return ProcessDeliveryReconnectDb
-// 		}
-// 		return ProcessDeliveryAckWithError
-// 	}
-
-// 	batchStatus, batchStats, batchErr := SafeProcessBatch(envConfig, logger, pCtx, readerNodeRunId, lookupNodeRunId)
-
-// 	// TODO: test only!!!
-// 	// if pCtx.BatchInfo.TargetNodeName == "order_item_date_inner" && pCtx.BatchInfo.BatchIdx == 3 {
-// 	// 	rnd := rand.New(rand.NewSource(time.Now().UnixMilli()))
-// 	// 	if rnd.Float32() < .5 {
-// 	// 		logger.InfoCtx(pCtx, "ProcessBatchWithStatus: test error")
-// 	// 		return ProcessDeliveryRejectAndRetryLater
-// 	// 	}
-// 	// }
-
-// 	if batchErr != nil {
-// 		logger.ErrorCtx(pCtx, "ProcessBatchWithStatus: %s", batchErr.Error())
-// 		if db.IsDbConnError(batchErr) {
-// 			return ProcessDeliveryReconnectDb
-// 		}
-// 		if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeBatchFail, batchErr.Error()); err != nil {
-// 			if db.IsDbConnError(err) {
-// 				return ProcessDeliveryReconnectDb
-// 			}
-// 			return ProcessDeliveryAckWithError
-// 		}
-// 	} else {
-// 		logger.InfoCtx(pCtx, "ProcessBatchWithStatus: success")
-// 		if err := wfdb.SetBatchStatus(logger, pCtx, batchStatus, batchStats.ToString()); err != nil {
-// 			if db.IsDbConnError(err) {
-// 				return ProcessDeliveryReconnectDb
-// 			}
-// 			return ProcessDeliveryAckWithError
-// 		}
-// 	}
-
-// 	if err := refreshNodeAndRunStatus(logger, pCtx); err != nil {
-// 		if db.IsDbConnError(err) {
-// 			return ProcessDeliveryReconnectDb
-// 		}
-// 		return ProcessDeliveryAckWithError
-// 	}
-
-// 	return ProcessDeliveryAckSuccess
-// }

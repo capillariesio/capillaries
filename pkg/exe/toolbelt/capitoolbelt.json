@@ -1,30 +1,38 @@
 {
-    "handler_executable_type":"capi_toolbelt",
-    "cassandra":{
-      "hosts": ["127.0.0.1"],
-      "port": 9042,
-      "username": "cassandra",
-      "password": "cassandra",
-      "keyspace_replication_config": "{ 'class' : 'NetworkTopologyStrategy', 'datacenter1' : 1 }",
-      "writer_workers": 4,
-      "num_conns": 2,
-      "timeout": 5000,
-      "connect_timeout": 1000
+  "handler_executable_type": "capi_toolbelt",
+  "cassandra": {
+    "hosts": [
+      "127.0.0.1"
+    ],
+    "port": 9042,
+    "username": "cassandra",
+    "password": "cassandra",
+    "keyspace_replication_config": "{ 'class' : 'NetworkTopologyStrategy', 'datacenter1' : 1 }",
+    "writer_workers": 4,
+    "num_conns": 2,
+    "timeout": 5000,
+    "connect_timeout": 1000
+  },
+  "amqp10_for_rabbitmq4": {
+    "url": "amqp://guest:guest@127.0.0.1:5672/",
+    "address": "/queues/capidaemon"
+  },
+  "amqp10_for_activemq_artemis": {
+    "url": "amqp://artemis:artemis@127.0.0.1:5672/",
+    "address": "capillaries"
+  },
+  "amqp10": {
+    "url": "amqp://artemis:artemis@127.0.0.1:5672/",
+    "address": "capillaries"
+  },
+  "thread_pool_size": 1,
+  "custom_processors": {
+    "py_calc": {
+      "python_interpreter_path": "some_non_empty_python_path"
     },
-    "amqp091":{
-      "url": "amqp://guest:guest@127.0.0.1/",
-      "exchange": "capillaries",
-      "prefetch_count": 20,
-      "prefetch_size": 0
-    },
-    "thread_pool_size": 1,
-    "custom_processors":{
-      "py_calc":{
-        "python_interpreter_path":"some_non_empty_python_path"
-      },
-      "tag_and_denormalize":{}
-    },
-    "log":{
-          "level": "debug"
-      }
+    "tag_and_denormalize": {}
+  },
+  "log": {
+    "level": "debug"
   }
+}

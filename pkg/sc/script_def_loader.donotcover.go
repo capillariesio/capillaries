@@ -5,8 +5,6 @@ import (
 	"fmt"
 
 	"github.com/capillariesio/capillaries/pkg/xfer"
-	"github.com/hashicorp/golang-lru/v2/expirable"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 type ScriptInitResult struct {
@@ -14,20 +12,6 @@ type ScriptInitResult struct {
 	InitProblem ScriptInitProblemType
 	Err         error
 }
-
-// WARING: deserialized ScriptDef can take megabytes (big python scripts, big tag maps), so keep an eye on memory consumption
-// If bad comes to worse, implement file-based caching (will require implementing take/restore ScriptDef snapshot code)
-var ScriptDefCache *expirable.LRU[string, ScriptInitResult]
-var (
-	ScriptDefCacheHitCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "capi_script_def_cache_hit_count",
-		Help: "Capillaries script def cache hits",
-	})
-	ScriptDefCacheMissCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "capi_script_def_cache_miss_count",
-		Help: "Capillaries script def cache miss",
-	})
-)
 
 func NewScriptFromFiles(caPath string, privateKeys map[string]string, scriptUrl string, scriptParamsUrl string, customProcessorDefFactoryInstance CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage) (*ScriptDef, ScriptInitProblemType, error) {
 

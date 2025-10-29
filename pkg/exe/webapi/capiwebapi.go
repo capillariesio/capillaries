@@ -24,11 +24,9 @@ import (
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/mq"
 	"github.com/capillariesio/capillaries/pkg/sc"
-	"github.com/capillariesio/capillaries/pkg/wf"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/capillariesio/capillaries/pkg/xfer"
 	"github.com/gocql/gocql"
-	"github.com/hashicorp/golang-lru/v2/expirable"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -625,29 +623,23 @@ func (h *UrlHandler) ksStartRun(w http.ResponseWriter, r *http.Request) {
 	h.L.Info("start run in %s, db session creation took %.2fs", keyspace, time.Since(dbStartTime).Seconds())
 
 	amqpStartTime := time.Now()
-	// amqpConnection, err := amqp091.Dial(h.Env.Amqp.URL)
-	// if err != nil {
-	// 	WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot dial RabbitMQ at %v, will reconnect: %v", h.Env.Amqp.URL, err), http.StatusInternalServerError)
-	// 	return
-	// }
-	// defer amqpConnection.Close()
 
-	// amqpChannel, err := amqpConnection.Channel()
-	// if err != nil {
-	// 	WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot create amqp channel: %v", err), http.StatusInternalServerError)
-	// 	return
-	// }
-	// defer amqpChannel.Close()
-	// h.L.Info("start runin %s, amqp connect took %.2fs", keyspace, time.Since(amqpStartTime).Seconds())
+	var mqProducer mq.MqProducer
+	if h.Env.Amqp10.URL != "" && h.Env.Amqp10.Address != "" {
+		mqProducer = mq.NewAmqp10Producer(h.Env.Amqp10.URL, h.Env.Amqp10.Address)
+	} else if h.Env.CapiMqClient.URL != "" {
+		mqProducer = mq.NewCapimqProducer(h.Env.CapiMqClient.URL)
+	} else {
+		log.Fatalf("%s", "no mq broker configured")
+	}
 
-	// TODO: proper context and CapiMQ support
-	mqSender := mq.Amqp10Producer{}
-	err = mqSender.Open(context.TODO(), h.Env.Amqp10.URL, h.Env.Amqp10.Address)
+	err = mqProducer.Open()
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot open mq: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	defer mqSender.Close(context.TODO())
+	defer mqProducer.Close()
+
 	h.L.Info("start runing %s, mq connect took %.2fs", keyspace, time.Since(amqpStartTime).Seconds())
 
 	bodyBytes, err := io.ReadAll(r.Body)
@@ -663,7 +655,7 @@ func (h *UrlHandler) ksStartRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//runId, err := api.StartRun(h.Env, h.L, amqpChannel, mqSender, runProps.ScriptUrl, runProps.ScriptParamsUrl, cqlSession, cassandraEngine, keyspace, strings.Split(runProps.StartNodes, ","), runProps.RunDescription)
-	runId, err := api.StartRun(h.Env, h.L, &mqSender, runProps.ScriptUrl, runProps.ScriptParamsUrl, cqlSession, cassandraEngine, keyspace, strings.Split(runProps.StartNodes, ","), runProps.RunDescription)
+	runId, err := api.StartRun(h.Env, h.L, mqProducer, runProps.ScriptUrl, runProps.ScriptParamsUrl, cqlSession, cassandraEngine, keyspace, strings.Split(runProps.StartNodes, ","), runProps.RunDescription)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -839,8 +831,8 @@ func main() {
 
 	mux.Handle("/", h)
 
-	sc.ScriptDefCache = expirable.NewLRU[string, sc.ScriptInitResult](50, nil, time.Minute*1)
-	wf.NodeDependencyReadynessCache = expirable.NewLRU[string, string](1000, nil, time.Second*2)
+	sc.ScriptDefCache = sc.NewScriptDefCache()
+	api.NodeDependencyReadynessCache = api.NewNodeDependencyReadynessCache()
 
 	if envConfig.Log.PrometheusExporterPort > 0 {
 		prometheus.MustRegister(xfer.SftpFileGetGetDuration, xfer.HttpFileGetGetDuration, xfer.S3FileGetGetDuration)

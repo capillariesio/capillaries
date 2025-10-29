@@ -1,7 +1,7 @@
 {
     "handler_executable_type":"capi_mq",
-    "mq": {
-      "mq_port": 7654,
+    "capimq_broker": {
+      "port": 7654,
       "access_control_allow_origin": "http://localhost:8080,http://127.0.0.1:8080",
       "max_messages": 10000000,
       "returned_delivery_delay": 1000,
@@ -9,6 +9,6 @@
     },
     "log":{
       "level": "info",
-      "prometheus_exporter_port": 9200
+      "prometheus_exporter_port": 9203
     }
 }

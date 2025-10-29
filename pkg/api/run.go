@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -15,7 +14,6 @@ import (
 	"github.com/capillariesio/capillaries/pkg/mq"
 	"github.com/capillariesio/capillaries/pkg/proc"
 	"github.com/capillariesio/capillaries/pkg/sc"
-	"github.com/capillariesio/capillaries/pkg/wf"
 	"github.com/capillariesio/capillaries/pkg/wfdb"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/gocql/gocql"
@@ -146,117 +144,19 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, mqSender mq.MqProd
 	sendMsgStartTime := time.Now()
 
 	if mqSender.SupportsSendBulk() {
-		ctxSend, cancelSend := context.WithTimeout(context.Background(), 5*time.Second)
-		errSend := mqSender.SendBulk(ctxSend, allMsgs)
-		cancelSend()
+		errSend := mqSender.SendBulk(allMsgs)
 		if errSend != nil {
 			return 0, fmt.Errorf("failed to send %d messages: %s", len(allMsgs), errSend.Error())
 		}
-
+		logger.Info("sent %d msgs in bulk in %.2fs for run %d", len(allMsgs), time.Since(sendMsgStartTime).Seconds(), runId)
 	} else {
 		for msgIdx := 0; msgIdx < len(allMsgs); msgIdx++ {
-			ctxSend, cancelSend := context.WithTimeout(context.Background(), 5*time.Second)
-			errSend := mqSender.Send(ctxSend, allMsgs[msgIdx])
-			cancelSend()
+			errSend := mqSender.Send(allMsgs[msgIdx])
 			if errSend != nil {
 				return 0, fmt.Errorf("failed to send next message %d: %s", msgIdx, errSend.Error())
 			}
 		}
-	}
-	logger.Info("sent %d msgs in %.2fs for run %d", len(allMsgs), time.Since(sendMsgStartTime).Seconds(), runId)
-
-	return runId, nil
-}
-
-// Used by Toolbelt (exec_node command), can be used for testing Capillaries node execution without RabbitMQ wokflow
-func RunNode(envConfig *env.EnvConfig, logger *l.CapiLogger, nodeName string, runId int16, scriptFilePath string, paramsFilePath string, cqlSession *gocql.Session, keyspace string) (int16, error) {
-	logger.PushF("api.RunNode")
-	defer logger.PopF()
-
-	script, _, err := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, scriptFilePath, paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
-	if err != nil {
-		return 0, err
-	}
-	// Get new run_id if needed
-	if runId == 0 {
-		runId, err = wfdb.GetNextRunCounter(logger, cqlSession, keyspace)
-		if err != nil {
-			return 0, err
-		}
-		logger.Info("incremented run_id to %d", runId)
-	}
-
-	// Calculate intervals for this node
-	node, ok := script.ScriptNodes[nodeName]
-	if !ok {
-		return 0, fmt.Errorf("cannot find node to start with: %s in the script %s", nodeName, scriptFilePath)
-	}
-
-	intervals, err := node.GetTokenIntervalsByNumberOfBatches()
-	if err != nil {
-		return 0, err
-	}
-
-	// Write affected nodes
-	affectedNodes := script.GetAffectedNodes([]string{nodeName})
-	if err := wfdb.WriteRunProperties(cqlSession, keyspace, runId, []string{nodeName}, affectedNodes, scriptFilePath, paramsFilePath, "started by Toolbelt direct RunNode"); err != nil {
-		return 0, err
-	}
-
-	// Write status 'start', fail if a record for run_id is already there (too many operators)
-	if err := wfdb.SetRunStatus(logger, cqlSession, keyspace, runId, wfmodel.RunStart, fmt.Sprintf("Toolbelt RunNode(%s)", nodeName), cql.ThrowIfExists); err != nil {
-		return 0, err
-	}
-
-	logger.Info("creating data and idx tables for run %d...", runId)
-
-	// Create all run-specific tables, do not create them in daemon on the fly to avoid INCOMPATIBLE_SCHEMA error
-	// (apparently, thrown if we try to insert immediately after creating a table)
-	tablesCreated := 0
-	for _, nodeName := range affectedNodes {
-		node, ok := script.ScriptNodes[nodeName]
-		if !ok || !node.HasTableCreator() {
-			continue
-		}
-		q := proc.CreateDataTableCql(keyspace, runId, &node.TableCreator)
-		if err := cqlSession.Query(q).Exec(); err != nil {
-			return 0, db.WrapDbErrorWithQuery("cannot create data table", q, err)
-		}
-		tablesCreated++
-		for idxName, idxDef := range node.TableCreator.Indexes {
-			q = proc.CreateIdxTableCql(keyspace, runId, idxName, idxDef, &node.TableCreator)
-			if err := cqlSession.Query(q).Exec(); err != nil {
-				return 0, db.WrapDbErrorWithQuery("cannot create idx table", q, err)
-			}
-			tablesCreated++
-		}
-	}
-
-	logger.Info("created %d tables, creating messages to send for run %d...", tablesCreated, runId)
-
-	for i := 0; i < len(intervals); i++ {
-		now := time.Now()
-		logger.Info("BatchStarted: [%d,%d]...", intervals[i][0], intervals[i][1])
-		msg := wfmodel.Message{
-			Id:              uuid.NewString(),
-			Ts:              now.UnixMilli(),
-			ScriptURL:       scriptFilePath,
-			ScriptParamsURL: paramsFilePath,
-			DataKeyspace:    keyspace,
-			RunId:           runId,
-			TargetNodeName:  nodeName,
-			FirstToken:      intervals[i][0],
-			LastToken:       intervals[i][1],
-			BatchIdx:        int16(i),
-			BatchesTotal:    int16(len(intervals))}
-
-		if acknowledgerCmd := wf.ProcessDataBatchMsgNew(envConfig, logger, &msg, 0, nil); acknowledgerCmd != mq.AcknowledgerCmdAck {
-			return 0, fmt.Errorf("processor returned acknowledgerCmd %d, assuming failure, check the logs", acknowledgerCmd)
-		}
-		logger.Info("BatchComplete: [%d,%d], %.3fs", intervals[i][0], intervals[i][1], time.Since(now).Seconds())
-	}
-	if err := wfdb.SetRunStatus(logger, cqlSession, keyspace, runId, wfmodel.RunComplete, fmt.Sprintf("Toolbelt RunNode(%s), run successful", nodeName), cql.IgnoreIfExists); err != nil {
-		return 0, err
+		logger.Info("sent %d msgs one by one %.2fs for run %d", len(allMsgs), time.Since(sendMsgStartTime).Seconds(), runId)
 	}
 
 	return runId, nil
