@@ -92,17 +92,16 @@ func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 		if len(nodeEventListMap[depNodeName]) == 0 {
 			return sc.NodeNogo, 0, 0, fmt.Errorf("target node %s, dep node %s not started yet, whoever started this run, failed to specify %s (or at least one of its dependencies) as start node", pCtx.Msg.TargetNodeName, depNodeName, depNodeName)
 		}
-		var checkerLogMsg string
-		dependencyNodeCmds[nodeIdx], dependencyRunIds[nodeIdx], checkerLogMsg, err = dpc.CheckDependencyPolicyAgainstNodeEventList(pCtx.CurrentScriptNode.DepPolDef, nodeEventListMap[depNodeName])
-		if len(checkerLogMsg) > 0 {
-			logger.Debug("%s", checkerLogMsg)
-		}
+		var matchedRuleIdx int
+		dependencyNodeCmds[nodeIdx], dependencyRunIds[nodeIdx], matchedRuleIdx, err = dpc.CheckDependencyPolicyAgainstNodeEventList(logger, pCtx.Msg.FullBatchId(), pCtx.CurrentScriptNode.DepPolDef, nodeEventListMap[depNodeName])
 		if err != nil {
-			return sc.NodeNone, 0, 0, err
+			return sc.NodeNone, 0, 0, fmt.Errorf("cannot check dependencis for dependency node %s: %s", depNodeName, err.Error())
 		}
-		logger.DebugCtx(pCtx, "target node %s, dep node %s returned %s", pCtx.Msg.TargetNodeName, depNodeName, dependencyNodeCmds[nodeIdx])
+		logger.DebugCtx(pCtx, "target node %s, dep node %s returned %s, matched rule %d", pCtx.Msg.TargetNodeName, depNodeName, dependencyNodeCmds[nodeIdx], matchedRuleIdx)
 	}
 
+	// depNodeNames can have size 1 or 2. If 2, we are guaranteed that [0] is the reader, and [1] is the lookup,
+	// see pCtx.CurrentScriptNode.HasTableReader() and pCtx.CurrentScriptNode.HasLookup() above
 	finalCmd := dependencyNodeCmds[0]
 	finalRunIdReader := dependencyRunIds[0]
 	finalRunIdLookup := int16(0)
@@ -341,7 +340,7 @@ func checkRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, ms
 func checkLastBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, msg *wfmodel.Message, lastBatchStatus wfmodel.NodeBatchStatusType) FurtherProcessingCmd {
 	switch lastBatchStatus {
 	case wfmodel.NodeBatchFail, wfmodel.NodeBatchSuccess:
-		logger.InfoCtx(pCtx, "will not process batch %s, it has been already processed (processor crashed after processing it and before marking as success/fail?) with status %d", msg.FullBatchId(), lastBatchStatus)
+		logger.InfoCtx(pCtx, "will not process batch %s, it has been already processed (processor crashed after processing it and before marking as success/fail?) with status %d(%s)", msg.FullBatchId(), lastBatchStatus, wfmodel.NodeBatchStatusToString(lastBatchStatus))
 		if err := refreshNodeAndRunStatus(logger, pCtx); err != nil && db.IsDbConnError(err) {
 			return FurtherProcessingRetry
 		}
@@ -415,8 +414,6 @@ func checkDependencyNogoOrWait(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wfmodel.Message, heartbeatInterval int64, heartbeatCallback ctx.HeartbeatCallbackFunc) mq.AcknowledgerCmd {
 	logger.PushF("api.ProcessDataBatchMsg")
 	defer logger.PopF()
-
-	ReceivedMsgCounter.Inc()
 
 	pCtx := &ctx.MessageProcessingContext{
 		Msg:                     *msg,

@@ -178,7 +178,9 @@ func readParquet(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.Messa
 			bs.RowsWritten++
 		}
 		bs.RowsRead++
-		instr.PCtx.SendHeartbeat()
+		if bs.RowsRead%1000 == 0 {
+			instr.PCtx.SendHeartbeat()
+		}
 	}
 
 	instr.doneSending()

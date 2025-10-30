@@ -46,7 +46,7 @@ const Amqp10AcknowledgerCloseTimeout time.Duration = 2000
 const Amqp10AcknowledgerReconnectTimeout time.Duration = 2000
 const Amqp10AcknowledgerTotalTimeout time.Duration = Amqp10AcknowledgerOpenTimeout + Amqp10AcknowledgerAckTimeout + Amqp10AcknowledgerCloseTimeout + Amqp10AcknowledgerReconnectTimeout + 1000
 
-const Amqp10FullListenerChannelTimeout time.Duration = 1000
+const Amqp10FullListenerChannelTimeout time.Duration = 100
 
 // The idea behind this async consumer is to Receive AMQP messages with one go-amqp receiver (we call it listener),
 // and Ack/Retry AMQP messages with another go-amqp receiver (we call it acknoledger). This way,
@@ -95,7 +95,11 @@ func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 	defer logger.PopF()
 
 	for !dc.listenerStopping {
-		// Do not be greedy, do not claim that extra message that you are not ready to handle yet anyways
+		// listenerChannel is essentially a buffer of size 1. Ideally, we do not want any items there
+		// because they may get a chance to be processed by other daemon instances instead.
+		// So don't even claim a msg if there is no room for it in the buffer.
+		// Ideally, we should not even claim when the buffer is empty, but all processors are busy,
+		// but that would be a sensitive code (keeping rec vs ack/retry balance precisely)
 		if len(listenerChannel) == cap(listenerChannel) {
 			time.Sleep(Amqp10FullListenerChannelTimeout * time.Millisecond)
 			continue

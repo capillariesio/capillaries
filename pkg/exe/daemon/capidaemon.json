@@ -23,6 +23,8 @@
     "address": "capillaries",
     "ack_method": "release"
   },
+  "amqp10": {
+  },
   "capimq_client":{
     "url":"http://localhost:7654",
     "heartbeat_interval": 1000

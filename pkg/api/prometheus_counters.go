@@ -6,36 +6,35 @@ import (
 
 var (
 	NodeDependencyReadynessHitCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "capi_node_dep_ready_cache_hit_count",
+		Name: "capi_daemon_node_dep_ready_cache_hit_count",
 		Help: "Capillaries node dependencies readiness cache hits",
 	})
 	NodeDependencyReadynessMissCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "capi_node_dep_ready_cache_miss_count",
+		Name: "capi_daemon_node_dep_ready_cache_miss_count",
 		Help: "Capillaries node dependencies readiness cache misses",
 	})
 	NodeDependencyReadynessGetDuration = prometheus.NewHistogram(prometheus.HistogramOpts{
-		Name:    "capi_node_dep_ready_get_duration",
+		Name:    "capi_daemon_node_dep_ready_get_duration",
 		Help:    "Duration of checkDependencyNodesReady",
 		Buckets: prometheus.ExponentialBuckets(0.001, 10.0, 4),
 	})
+)
+
+var (
 	NodeDependencyNoneCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "capi_node_dep_none_count",
+		Name: "capi_daemon_node_dep_none_count",
 		Help: "Capillaries node dependencies NodeNone count",
 	})
 	NodeDependencyWaitCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "capi_node_dep_wait_count",
+		Name: "capi_daemon_node_dep_wait_count",
 		Help: "Capillaries node dependencies NodeWait count",
 	})
 	NodeDependencyGoCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "capi_node_dep_go_count",
+		Name: "capi_daemon_node_dep_go_count",
 		Help: "Capillaries node dependencies NodeGo count",
 	})
 	NodeDependencyNogoCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "capi_node_dep_nogo_count",
+		Name: "capi_daemon_node_dep_nogo_count",
 		Help: "Capillaries node dependencies NodeNogo count",
-	})
-	ReceivedMsgCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "capi_received_msg_count",
-		Help: "Capillaries RabbitMQ received msg count",
 	})
 )

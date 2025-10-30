@@ -71,7 +71,7 @@ func (mb *MessageBroker) sortQ() {
 	sort.Slice(mb.Q, func(i int, j int) bool { return mb.Q[i].DeliverEarlierThan(mb.Q[j]) })
 }
 
-func (mb *MessageBroker) ReturnDead(deadTimeoutMillis int64) int {
+func (mb *MessageBroker) ReturnDead(deadTimeoutMillis int64) []string {
 	latestAllowedHearbit := time.Now().UnixMilli() - deadTimeoutMillis
 	msgs := make([]*wfmodel.Message, 0)
 
@@ -88,7 +88,7 @@ func (mb *MessageBroker) ReturnDead(deadTimeoutMillis int64) int {
 	mb.WipMutex.Unlock()
 
 	if len(msgs) == 0 {
-		return 0
+		return []string{}
 	}
 
 	mb.QMutex.Lock()
@@ -96,7 +96,13 @@ func (mb *MessageBroker) ReturnDead(deadTimeoutMillis int64) int {
 	mb.sortQ()
 	mb.QMutex.Unlock()
 
-	return len(msgs)
+	msgDescs := make([]string, len(msgs))
+	for i, msg := range msgs {
+		// id,ks/run/node/batch,overstayMillis
+		msgDescs[i] = fmt.Sprintf("%s %s %d", msg.Id, msg.FullBatchId(), latestAllowedHearbit-msg.Heartbeat)
+	}
+
+	return msgDescs
 }
 
 func (mb *MessageBroker) QBulk(msgs []*wfmodel.Message, maxMessages int) error {
@@ -143,6 +149,7 @@ func (mb *MessageBroker) Claim(claimComment string) (*wfmodel.Message, error) {
 	mb.Q = mb.Q[1:]
 	mb.QMutex.Unlock()
 
+	msg.Heartbeat = now
 	msg.ClaimComment = claimComment
 
 	mb.WipMutex.Lock()

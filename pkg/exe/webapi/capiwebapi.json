@@ -15,11 +15,15 @@
   },
   "amqp10_for_rabbitmq4": {
     "url": "amqp://guest:guest@127.0.0.1:5672/",
-    "address": "/queues/capidaemon"
+    "address": "/queues/capidaemon",
+    "ack_method": "reject"
   },
   "amqp10_for_activemq_artemis": {
     "url": "amqp://artemis:artemis@127.0.0.1:5672/",
-    "address": "capillaries"
+    "address": "capillaries",
+    "ack_method": "release"
+  },
+  "amqp10": {
   },
   "capimq_client":{
     "url":"http://localhost:7654",

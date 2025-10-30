@@ -7,18 +7,20 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/mq"
 	"github.com/capillariesio/capillaries/pkg/mq_message_broker"
-	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
-	"github.com/capillariesio/capillaries/pkg/xfer"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -101,6 +103,8 @@ func WriteApiError(logger *l.CapiLogger, wc *env.CapiMqBrokerConfig, r *http.Req
 	logger.PushF("WriteApiError")
 	defer logger.PopF()
 
+	ApiErrorHitCounter.Inc()
+
 	w.Header().Set("Access-Control-Allow-Origin", pickAccessControlAllowOrigin(wc, r))
 	logger.Error("cannot process %s: %s", urlPath, err.Error())
 	respJson, err := json.Marshal(mq.CapimqApiGenericResponse{Error: err.Error()})
@@ -114,6 +118,8 @@ func WriteApiError(logger *l.CapiLogger, wc *env.CapiMqBrokerConfig, r *http.Req
 func WriteApiSuccess(logger *l.CapiLogger, wc *env.CapiMqBrokerConfig, r *http.Request, w http.ResponseWriter, data any) {
 	logger.PushF("WriteApiSuccess")
 	defer logger.PopF()
+
+	ApiSuccessHitCounter.Inc()
 
 	logger.Debug("%s: OK", r.URL.Path)
 
@@ -192,7 +198,6 @@ func (h *UrlHandlerInstance) wipHeartbeat(w http.ResponseWriter, r *http.Request
 		WriteApiError(h.L, &h.Env.CapiMqBroker, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
-
 	WriteApiSuccess(h.L, &h.Env.CapiMqBroker, r, w, nil)
 }
 
@@ -339,6 +344,21 @@ func (h *UrlHandlerInstance) headTailFilter(w http.ResponseWriter, r *http.Reque
 	}
 }
 
+var (
+	ApiSuccessHitCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "capi_mq_api_success_hit_count",
+		Help: "Capillaries CapiMq API success hit count",
+	})
+	ApiErrorHitCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "capi_mq_api_error_hit_count",
+		Help: "Capillaries CapiMq API error hit count",
+	})
+	ReturnDeadTimeoutCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "capi_mq_return_dead_timeout_count",
+		Help: "Capillaries CapiMq count of messages returned from wip back to queue because of timeout",
+	})
+)
+
 var version string
 
 func main() {
@@ -374,24 +394,81 @@ func main() {
 		newRoute("GET", "/(q|wip)/count[/]*", h.count),
 		newRoute("DELETE", "/(q|wip)[/]*", h.delete),
 		newRoute("GET", "/(q|wip)/(head|tail|filter)[/]*", h.headTailFilter),
+		newRoute("GET", "/(q|wip)/(head|tail|filter)[/]*", h.headTailFilter),
 	}
 
 	mux.Handle("/", h)
+	//mux. = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	//})
 
+	waitGroup := &sync.WaitGroup{}
+
+	waitGroup.Add(1)
+	returnDeadStopping := false
+	go func() {
+		defer waitGroup.Done()
+
+		for !returnDeadStopping {
+			returnedToQueue := h.Mb.ReturnDead(int64(h.Env.CapiMqBroker.DeadAfterNoHeartbeatTimeout))
+			if len(returnedToQueue) > 0 {
+				ReturnDeadTimeoutCounter.Add(float64(len(returnedToQueue)))
+				logger.Warn("returned %d stall messages from wip to queue: %s", len(returnedToQueue), strings.Join(returnedToQueue, ";"))
+			}
+			time.Sleep(1000 * time.Millisecond)
+		}
+	}()
+
+	var prometheusServer *http.Server
 	if envConfig.Log.PrometheusExporterPort > 0 {
-		prometheus.MustRegister(xfer.SftpFileGetGetDuration, xfer.HttpFileGetGetDuration, xfer.S3FileGetGetDuration)
-		prometheus.MustRegister(sc.ScriptDefCacheHitCounter, sc.ScriptDefCacheMissCounter)
+		logger.Info("listening Prometheus on %d...", envConfig.Log.PrometheusExporterPort)
+		prometheus.MustRegister(ApiSuccessHitCounter, ReturnDeadTimeoutCounter)
+		prometheusServer = &http.Server{Addr: fmt.Sprintf(":%d", envConfig.Log.PrometheusExporterPort)}
+		waitGroup.Add(1)
 		go func() {
+			defer waitGroup.Done()
+
 			http.Handle("/metrics", promhttp.Handler())
-			if err := http.ListenAndServe(fmt.Sprintf(":%d", envConfig.Log.PrometheusExporterPort), nil); err != nil {
+			if err := prometheusServer.ListenAndServe(); err != nil {
 				log.Fatalf("%s", err.Error())
 			}
 		}()
 	}
 
-	logger.Info("listening on %d...", h.Env.CapiMqBroker.Port)
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", h.Env.CapiMqBroker.Port), mux); err != nil {
-		log.Fatalf("%s", err.Error())
+	logger.Info("listening API on %d...", h.Env.CapiMqBroker.Port)
+
+	apiServer := &http.Server{Addr: fmt.Sprintf(":%d", h.Env.CapiMqBroker.Port), Handler: h}
+	waitGroup.Add(1)
+	go func() {
+		defer waitGroup.Done()
+		if err := apiServer.ListenAndServe(); err != nil {
+			log.Fatalf("%s", err.Error())
+		}
+	}()
+
+	// Wait for shutdown signal
+
+	osSignalChannel := make(chan os.Signal, 1)
+	signal.Notify(osSignalChannel, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	for {
+		osSignal := <-osSignalChannel
+		if osSignal == os.Interrupt || osSignal == os.Kill {
+			logger.Info("shutting down...")
+			returnDeadStopping = true
+			closeApiCtx, closeApiCancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
+			if err := apiServer.Shutdown(closeApiCtx); err != nil {
+				logger.Error("cannot shutdown API server gracefully: %s", err.Error())
+			}
+			closeApiCancel()
+			if prometheusServer != nil {
+				closePrometheusCtx, closePrometheusCancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
+				if err := prometheusServer.Shutdown(closePrometheusCtx); err != nil {
+					logger.Error("cannot shutdown Prometheus server gracefully: %s", err.Error())
+				}
+				closePrometheusCancel()
+			}
+			logger.Info("shutdown complete")
+			os.Exit(0)
+		}
 	}
 }
 

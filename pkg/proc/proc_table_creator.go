@@ -273,7 +273,6 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 				instr.add(tableRecord, indexKeyMap)
 				bs.RowsWritten++
 			}
-			instr.PCtx.SendHeartbeat()
 		}
 
 		instr.doneSending()

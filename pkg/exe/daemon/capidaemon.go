@@ -52,6 +52,21 @@ func (f *StandardDaemonProcessorDefFactory) Create(processorType string) (sc.Cus
 
 var version string
 
+var (
+	MsgAckCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "capi_daemon_msg_ack_count",
+		Help: "Capillaries acknowledged msg count",
+	})
+	MsgRetryCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "capi_daemon_msg_retry_count",
+		Help: "Capillaries msg retry count",
+	})
+	MsgHeartbeatCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "capi_daemon_msg_heartbeat_count",
+		Help: "Capillaries heartbeat count",
+	})
+)
+
 func main() {
 	// defer profile.Start(profile.MemProfile).Stop()
 	// go func() {
@@ -72,7 +87,8 @@ func main() {
 	if envConfig.Log.PrometheusExporterPort > 0 {
 		prometheus.MustRegister(xfer.SftpFileGetGetDuration, xfer.HttpFileGetGetDuration, xfer.S3FileGetGetDuration)
 		prometheus.MustRegister(sc.ScriptDefCacheHitCounter, sc.ScriptDefCacheMissCounter)
-		prometheus.MustRegister(api.NodeDependencyReadynessHitCounter, api.NodeDependencyReadynessMissCounter, api.NodeDependencyReadynessGetDuration, api.NodeDependencyNoneCounter, api.NodeDependencyWaitCounter, api.NodeDependencyGoCounter, api.NodeDependencyNogoCounter, api.ReceivedMsgCounter)
+		prometheus.MustRegister(api.NodeDependencyReadynessHitCounter, api.NodeDependencyReadynessMissCounter, api.NodeDependencyReadynessGetDuration, api.NodeDependencyNoneCounter, api.NodeDependencyWaitCounter, api.NodeDependencyGoCounter, api.NodeDependencyNogoCounter)
+		prometheus.MustRegister(MsgAckCounter, MsgRetryCounter, MsgHeartbeatCounter)
 		go func() {
 			http.Handle("/metrics", promhttp.Handler())
 			if err := http.ListenAndServe(fmt.Sprintf(":%d", envConfig.Log.PrometheusExporterPort), nil); err != nil {
@@ -109,14 +125,14 @@ func main() {
 		}
 		asyncConsumer = mq.NewAmqp10Consumer(envConfig.Amqp10.URL, envConfig.Amqp10.Address, int32(envConfig.Daemon.ThreadPoolSize), ackMethod)
 	} else if envConfig.CapiMqClient.URL != "" {
-		asyncConsumer = mq.NewCapimqConsumer(envConfig.CapiMqClient.URL, logger.ZapMachine.String)
+		asyncConsumer = mq.NewCapimqConsumer(envConfig.CapiMqClient.URL, logger.ZapMachine.String, envConfig.Daemon.ThreadPoolSize)
 		heartbeatInterval = envConfig.CapiMqClient.HeartbeatInterval
 	} else {
 		log.Fatalf("%s", "no mq broker configured")
 	}
 
-	listenerChannel := make(chan *wfmodel.Message, envConfig.Daemon.ThreadPoolSize)
-	acknowledgerChannel := make(chan mq.AknowledgerToken, max(1, envConfig.Daemon.ThreadPoolSize/2)) // empirical
+	listenerChannel := make(chan *wfmodel.Message, 1)        // This is essentially a buffer of size one, and we do not want msgs to spend time in the buffer, so make it minimal
+	acknowledgerChannel := make(chan mq.AknowledgerToken, 1) // The size of this buffer does not matter that much
 	var sem = make(chan int, envConfig.Daemon.ThreadPoolSize)
 
 	if err := asyncConsumer.Start(logger, listenerChannel, acknowledgerChannel); err != nil {
@@ -163,14 +179,21 @@ func main() {
 				if asyncConsumer.SupportsHearbeat() {
 					heartbeatCallback = func(wfmodelMsgId string) {
 						acknowledgerChannel <- mq.AknowledgerToken{MsgId: wfmodelMsgId, Cmd: mq.AcknowledgerCmdHeartbeat}
+						MsgHeartbeatCounter.Inc()
 					}
 				}
-				acknowledgerChannel <- mq.AknowledgerToken{
-					MsgId: wfmodelMsg.Id,
-					Cmd:   api.ProcessDataBatchMsg(envConfig, logger, wfmodelMsg, heartbeatInterval, heartbeatCallback)}
+				acknowledgerCmd := api.ProcessDataBatchMsg(envConfig, logger, wfmodelMsg, heartbeatInterval, heartbeatCallback)
+				acknowledgerChannel <- mq.AknowledgerToken{MsgId: wfmodelMsg.Id, Cmd: acknowledgerCmd}
 
 				// Unlock semaphore slot
 				<-sem
+
+				switch acknowledgerCmd {
+				case mq.AcknowledgerCmdAck:
+					MsgAckCounter.Inc()
+				case mq.AcknowledgerCmdRetry:
+					MsgRetryCounter.Inc()
+				}
 
 			}(threadLogger, wfmodelMsg, acknowledgerChannel)
 

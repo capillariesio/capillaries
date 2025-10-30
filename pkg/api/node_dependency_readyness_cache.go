@@ -8,7 +8,7 @@ import (
 
 const CachedNodeStateFormat string = "%s %d %d"
 const NodeDependencyReadynessCacheMaxElements int = 1000
-const NodeDependencyReadynessCacheElementLife time.Duration = 2
+const NodeDependencyReadynessCacheElementLife time.Duration = 1
 
 var NodeDependencyReadynessCache *expirable.LRU[string, string]
 

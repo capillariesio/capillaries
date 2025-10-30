@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sync/atomic"
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/l"
@@ -23,21 +24,24 @@ const CapimqListenerTotalTimeout time.Duration = CapimqListenerReceiveTimeout + 
 const CapimqAcknowledgerAckTimeout time.Duration = 2000
 const CapimqAcknowledgerTotalTimeout time.Duration = CapimqAcknowledgerAckTimeout + 1000
 
-const CapimqFullListenerChannelTimeout time.Duration = 1000
+const CapimqAllProcessorsBusyTimeout time.Duration = 100
 
 type CapimqAsyncConsumer struct {
 	url                  string
 	clientName           string
+	maxProcessors        int
+	activeProcessors     atomic.Int64
 	listenerStopping     bool
 	acknowledgerStopping bool
 	listenerDone         chan bool
 	acknowledgerDone     chan bool
 }
 
-func NewCapimqConsumer(url string, clientName string) *CapimqAsyncConsumer {
+func NewCapimqConsumer(url string, clientName string, maxProcessors int) *CapimqAsyncConsumer {
 	return &CapimqAsyncConsumer{
 		url:                  url,
 		clientName:           clientName,
+		maxProcessors:        maxProcessors,
 		listenerStopping:     false,
 		acknowledgerStopping: false,
 	}
@@ -121,8 +125,8 @@ func (dc *CapimqAsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 
 	for !dc.listenerStopping {
 		// Do not be greedy, do not claim that extra message that you are not ready to handle yet anyways
-		if len(listenerChannel) == cap(listenerChannel) {
-			time.Sleep(CapimqFullListenerChannelTimeout * time.Millisecond)
+		if int(dc.activeProcessors.Load()) == dc.maxProcessors {
+			time.Sleep(CapimqAllProcessorsBusyTimeout * time.Millisecond)
 			continue
 		}
 
@@ -142,6 +146,7 @@ func (dc *CapimqAsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 			continue
 		}
 
+		dc.activeProcessors.Add(1)
 		listenerChannel <- wfmodelMsg
 	}
 
@@ -164,6 +169,7 @@ func (dc *CapimqAsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 		case token := <-acknowledgerChannel:
 			switch token.Cmd {
 			case AcknowledgerCmdAck:
+				dc.activeProcessors.Add(-1)
 				ackCtx, ackCancel := context.WithTimeout(context.Background(), CapimqAcknowledgerAckTimeout*time.Millisecond)
 				ackErr := dc.ack(ackCtx, token.MsgId)
 				ackCancel()
@@ -172,6 +178,7 @@ func (dc *CapimqAsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 					continue
 				}
 			case AcknowledgerCmdRetry:
+				dc.activeProcessors.Add(-1)
 				ackCtx, ackCancel := context.WithTimeout(context.Background(), CapimqAcknowledgerAckTimeout*time.Millisecond)
 				ackErr := dc.retry(ackCtx, token.MsgId)
 				ackCancel()

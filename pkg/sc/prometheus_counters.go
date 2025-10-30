@@ -2,6 +2,7 @@ package sc
 
 import "github.com/prometheus/client_golang/prometheus"
 
+// Used by Daemon and Webapi
 var (
 	ScriptDefCacheHitCounter = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "capi_script_def_cache_hit_count",
