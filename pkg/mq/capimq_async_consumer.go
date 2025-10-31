@@ -48,74 +48,87 @@ func NewCapimqConsumer(url string, clientName string, maxProcessors int) *Capimq
 }
 
 func (dc *CapimqAsyncConsumer) claim(ctx context.Context) (*wfmodel.Message, error) {
-	claimRequest, claimReqErr := http.NewRequest(http.MethodPost, dc.url+"/q/claim", bytes.NewReader([]byte(dc.clientName)))
-	if claimReqErr != nil {
-		return nil, claimReqErr
+	req, reqErr := http.NewRequest(http.MethodPost, dc.url+"/q/claim", bytes.NewReader([]byte(dc.clientName)))
+	if reqErr != nil {
+		return nil, reqErr
 	}
-	claimRequest.Header.Set("content-type", "plain/text")
+	req.Header.Set("content-type", "plain/text")
 
-	claimResp, claimErr := http.DefaultClient.Do(claimRequest.WithContext(ctx))
-	if claimErr != nil {
-		return nil, claimErr
+	resp, bodyErr := http.DefaultClient.Do(req.WithContext(ctx))
+	if bodyErr != nil {
+		return nil, bodyErr
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, bodyErr := io.ReadAll(resp.Body)
+	if bodyErr != nil {
+		return nil, bodyErr
 	}
 
-	respBody, respErr := io.ReadAll(claimResp.Body)
-	if respErr != nil {
-		return nil, respErr
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("cannot claim, HTTP response %d: %s", resp.StatusCode, string(bodyBytes))
 	}
+
 	var claimResponse CapimqApiClaimResponse
-	if err := json.Unmarshal(respBody, &claimResponse); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal CapimqApiClaimResponse, error [%s], body: %s", err.Error(), string(respBody))
+	if err := json.Unmarshal(bodyBytes, &claimResponse); err != nil {
+		return nil, fmt.Errorf("cannot unmarshal CapimqApiClaimResponse, error [%s], body: %s", err.Error(), string(bodyBytes))
 	}
 
 	return claimResponse.Data, nil
 }
 
 func (dc *CapimqAsyncConsumer) ack(ctx context.Context, msgId string) error {
-	ackRequest, ackReqErr := http.NewRequest(http.MethodDelete, dc.url+fmt.Sprintf("/wip/ack/%s", msgId), nil)
-	if ackReqErr != nil {
-		return ackReqErr
+	req, reqErr := http.NewRequest(http.MethodDelete, dc.url+fmt.Sprintf("/wip/ack/%s", msgId), nil)
+	if reqErr != nil {
+		return reqErr
 	}
-	ackResp, ackErr := http.DefaultClient.Do(ackRequest.WithContext(ctx))
-	if ackErr != nil {
-		return ackErr
+	resp, respErr := http.DefaultClient.Do(req.WithContext(ctx))
+	if respErr != nil {
+		return respErr
 	}
-	_, ackRespErr := io.ReadAll(ackResp.Body)
-	if ackRespErr != nil {
-		return ackRespErr
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("cannot send ack, HTTP response %d: %s", resp.StatusCode, string(bodyBytes))
 	}
 	return nil
 }
 
 func (dc *CapimqAsyncConsumer) retry(ctx context.Context, msgId string) error {
-	ackRequest, ackReqErr := http.NewRequest(http.MethodPost, dc.url+fmt.Sprintf("/wip/return/%s", msgId), nil)
-	if ackReqErr != nil {
-		return ackReqErr
+	req, reqErr := http.NewRequest(http.MethodPost, dc.url+fmt.Sprintf("/wip/return/%s", msgId), nil)
+	if reqErr != nil {
+		return reqErr
 	}
-	ackResp, ackErr := http.DefaultClient.Do(ackRequest.WithContext(ctx))
-	if ackErr != nil {
-		return ackErr
+	resp, respErr := http.DefaultClient.Do(req.WithContext(ctx))
+	if respErr != nil {
+		return respErr
 	}
-	_, ackRespErr := io.ReadAll(ackResp.Body)
-	if ackRespErr != nil {
-		return ackRespErr
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("cannot send retry, HTTP response %d: %s", resp.StatusCode, string(bodyBytes))
 	}
 	return nil
 }
 
 func (dc *CapimqAsyncConsumer) heartbeat(ctx context.Context, msgId string) error {
-	ackRequest, ackReqErr := http.NewRequest(http.MethodPost, dc.url+fmt.Sprintf("/wip/heartbeat/%s", msgId), nil)
-	if ackReqErr != nil {
-		return ackReqErr
+	req, reqErr := http.NewRequest(http.MethodPost, dc.url+fmt.Sprintf("/wip/heartbeat/%s", msgId), nil)
+	if reqErr != nil {
+		return reqErr
 	}
-	ackResp, ackErr := http.DefaultClient.Do(ackRequest.WithContext(ctx))
-	if ackErr != nil {
-		return ackErr
+	resp, respErr := http.DefaultClient.Do(req.WithContext(ctx))
+	if respErr != nil {
+		return respErr
 	}
-	_, ackRespErr := io.ReadAll(ackResp.Body)
-	if ackRespErr != nil {
-		return ackRespErr
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("cannot send heartbeat, HTTP response %d: %s", resp.StatusCode, string(bodyBytes))
 	}
+
 	return nil
 }
 
@@ -124,7 +137,9 @@ func (dc *CapimqAsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 	defer logger.PopF()
 
 	for !dc.listenerStopping {
-		// Do not be greedy, do not claim that extra message that you are not ready to handle yet anyways
+		// Do not claim until at least one procesor is ready, otherwise we risk a msg sitting
+		// in the channel without sending heartbits, so by the time a processor start handling it,
+		// CapiMQ already may consider it dead
 		if int(dc.activeProcessors.Load()) == dc.maxProcessors {
 			time.Sleep(CapimqAllProcessorsBusyTimeout * time.Millisecond)
 			continue
@@ -174,7 +189,7 @@ func (dc *CapimqAsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 				ackErr := dc.ack(ackCtx, token.MsgId)
 				ackCancel()
 				if ackErr != nil {
-					// TODO:
+					logger.Error("cannot send ack, msg %s: %s", token.MsgId, ackErr.Error())
 					continue
 				}
 			case AcknowledgerCmdRetry:
@@ -183,7 +198,7 @@ func (dc *CapimqAsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 				ackErr := dc.retry(ackCtx, token.MsgId)
 				ackCancel()
 				if ackErr != nil {
-					// TODO:
+					logger.Error("cannot send retry, msg %s: %s", token.MsgId, ackErr.Error())
 					continue
 				}
 			case AcknowledgerCmdHeartbeat:
@@ -191,7 +206,7 @@ func (dc *CapimqAsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 				ackErr := dc.heartbeat(ackCtx, token.MsgId)
 				ackCancel()
 				if ackErr != nil {
-					// TODO:
+					logger.Error("cannot send heartbeat, msg %s: %s", token.MsgId, ackErr.Error())
 					continue
 				}
 			}

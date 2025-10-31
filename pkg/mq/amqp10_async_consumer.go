@@ -229,7 +229,7 @@ func (dc *Amqp10AsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 							logger.Error("cannot retry, expect some daemon instance to perform DeleteDataAndUniqueIndexesByBatchIdx for %s: %s", token.MsgId, ackError.Error())
 						}
 					case AcknowledgerCmdHeartbeat:
-						logger.Error("unexpected acknowledger hearbeat cmd, it is not supported by AMQP message brokers")
+						logger.Error("unexpected acknowledger heartbeat cmd, it is not supported by AMQP message brokers")
 					default:
 						logger.Error("unexpected acknowledger cmd %d", token.Cmd)
 					}

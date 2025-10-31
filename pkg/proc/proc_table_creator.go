@@ -1077,6 +1077,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 					}
 
 					rightDataAttemptIdx++
+					instr.PCtx.SendHeartbeat() // Hopefully, calling heartbeat this often is enough
 				} // for each data page
 
 				// For Cassandra, we can rely on rsIdx.RowCount. But for Amazon Keyspaces, gocql returns only a fraction of records page after page, until page state is empty
@@ -1148,7 +1149,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 			break
 		}
 		leftPageIdx++
-		instr.PCtx.SendHeartbeat()
+		// instr.PCtx.SendHeartbeat() - this may be not enough, processing may take longer, send hearbeats inside
 	} // for each source table batch
 
 	instr.doneSending()

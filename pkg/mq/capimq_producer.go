@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -27,53 +28,45 @@ func (p *CapimqProducer) Open() error {
 	return nil
 }
 
+func (p *CapimqProducer) sendBulkBytes(msgBytes []byte) error {
+	req, reqErr := http.NewRequest(http.MethodPost, p.url+"/q/bulk", bytes.NewReader(msgBytes))
+	if reqErr != nil {
+		return reqErr
+	}
+
+	req.Header.Set("content-type", "application/json")
+
+	sendCtx, sendCancel := context.WithTimeout(context.Background(), CapimqProducerSendTimeout*time.Millisecond)
+	resp, respErr := http.DefaultClient.Do(req.WithContext(sendCtx))
+	sendCancel()
+	if respErr != nil {
+		return respErr
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("cannot send bulk bytes, HTTP response %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+	return nil
+}
+
 func (p *CapimqProducer) Send(msg *wfmodel.Message) error {
 	msgs := make([]*wfmodel.Message, 1)
 	msgs[0] = msg
-
 	msgsBytes, marshalErr := json.Marshal(msgs)
 	if marshalErr != nil {
-		return fmt.Errorf("cannot send, error when serializing msg: %s", marshalErr.Error())
+		return fmt.Errorf("cannot send one, error when serializing msg: %s", marshalErr.Error())
 	}
-
-	bulkRequest, bulkReqErr := http.NewRequest(http.MethodPost, p.url+"/q/bulk", bytes.NewReader(msgsBytes))
-	if bulkReqErr != nil {
-		return bulkReqErr
-	}
-
-	bulkRequest.Header.Set("content-type", "application/json")
-
-	sendCtx, sendCancel := context.WithTimeout(context.Background(), CapimqProducerSendTimeout*time.Millisecond)
-	bulkRequest = bulkRequest.WithContext(sendCtx)
-	_, claimErr := http.DefaultClient.Do(bulkRequest)
-	sendCancel()
-	if claimErr != nil {
-		return claimErr
-	}
-	return nil
+	return p.sendBulkBytes(msgsBytes)
 }
 
 func (p *CapimqProducer) SendBulk(msgs []*wfmodel.Message) error {
 	msgsBytes, marshalErr := json.Marshal(msgs)
 	if marshalErr != nil {
-		return fmt.Errorf("cannot send, error when serializing msgs: %s", marshalErr.Error())
+		return fmt.Errorf("cannot send bulk, error when serializing msgs: %s", marshalErr.Error())
 	}
-
-	bulkRequest, bulkReqErr := http.NewRequest(http.MethodPost, p.url+"/q/bulk", bytes.NewReader(msgsBytes))
-	if bulkReqErr != nil {
-		return bulkReqErr
-	}
-
-	bulkRequest.Header.Set("content-type", "application/json")
-
-	sendCtx, sendCancel := context.WithTimeout(context.Background(), CapimqProducerSendTimeout*time.Millisecond)
-	bulkRequest = bulkRequest.WithContext(sendCtx)
-	_, sendErr := http.DefaultClient.Do(bulkRequest)
-	sendCancel()
-	if sendErr != nil {
-		return sendErr
-	}
-	return nil
+	return p.sendBulkBytes(msgsBytes)
 }
 
 func (p *CapimqProducer) Close() error {

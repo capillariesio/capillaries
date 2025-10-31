@@ -340,7 +340,7 @@ func checkRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, ms
 func checkLastBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, msg *wfmodel.Message, lastBatchStatus wfmodel.NodeBatchStatusType) FurtherProcessingCmd {
 	switch lastBatchStatus {
 	case wfmodel.NodeBatchFail, wfmodel.NodeBatchSuccess:
-		logger.InfoCtx(pCtx, "will not process batch %s, it has been already processed (processor crashed after processing it and before marking as success/fail?) with status %d(%s)", msg.FullBatchId(), lastBatchStatus, wfmodel.NodeBatchStatusToString(lastBatchStatus))
+		logger.WarnCtx(pCtx, "will not process batch %s, it has been already processed (processor crashed after processing it and before marking as success/fail?) with status %d(%s)", msg.FullBatchId(), lastBatchStatus, wfmodel.NodeBatchStatusToString(lastBatchStatus))
 		if err := refreshNodeAndRunStatus(logger, pCtx); err != nil && db.IsDbConnError(err) {
 			return FurtherProcessingRetry
 		}
@@ -423,7 +423,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wf
 		ZapNode:                 zap.String("node", msg.TargetNodeName),
 		ZapBatchIdx:             zap.Int16("bi", msg.BatchIdx),
 		ZapMsgAgeMillis:         zap.Int64("age", time.Now().UnixMilli()-msg.Ts),
-		LastHeartbeatTs:         time.Now().UnixMilli(),
+		LastHeartbeatSentTs:     0, // And this is true
 		HeartbeatIntervalMillis: heartbeatInterval,
 		HeartbeatCallback:       heartbeatCallback}
 

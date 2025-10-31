@@ -25,7 +25,7 @@ type MessageProcessingContext struct {
 	ZapBatchIdx             zapcore.Field
 	ZapMsgAgeMillis         zapcore.Field
 	CassandraEngine         db.CassandraEngineType
-	LastHeartbeatTs         int64
+	LastHeartbeatSentTs     int64
 	HeartbeatIntervalMillis int64
 	HeartbeatCallback       HeartbeatCallbackFunc
 }
@@ -45,8 +45,8 @@ func (pCtx *MessageProcessingContext) DbConnect(envConfig *env.EnvConfig) error 
 func (pCtx *MessageProcessingContext) SendHeartbeat() {
 	if pCtx.HeartbeatCallback != nil && pCtx.HeartbeatIntervalMillis > 0 {
 		now := time.Now().UnixMilli()
-		if pCtx.LastHeartbeatTs+pCtx.HeartbeatIntervalMillis < now {
-			pCtx.LastHeartbeatTs = now
+		if pCtx.LastHeartbeatSentTs+pCtx.HeartbeatIntervalMillis < now {
+			pCtx.LastHeartbeatSentTs = now
 			pCtx.HeartbeatCallback(pCtx.Msg.Id)
 		}
 	}

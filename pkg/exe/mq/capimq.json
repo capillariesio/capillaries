@@ -5,7 +5,7 @@
       "access_control_allow_origin": "http://localhost:8080,http://127.0.0.1:8080",
       "max_messages": 10000000,
       "returned_delivery_delay": 1000,
-      "dead_after_no_heartbeat_timeout": 60000
+      "dead_after_no_heartbeat_timeout": 10000
     },
     "log":{
       "level": "info",

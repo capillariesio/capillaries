@@ -131,8 +131,8 @@ func main() {
 		log.Fatalf("%s", "no mq broker configured")
 	}
 
-	listenerChannel := make(chan *wfmodel.Message, 1)        // This is essentially a buffer of size one, and we do not want msgs to spend time in the buffer, so make it minimal
-	acknowledgerChannel := make(chan mq.AknowledgerToken, 1) // The size of this buffer does not matter that much
+	listenerChannel := make(chan *wfmodel.Message, 1)                                      // This is essentially a buffer of size one, and we do not want msgs to spend time in the buffer, so make it minimal
+	acknowledgerChannel := make(chan mq.AknowledgerToken, envConfig.Daemon.ThreadPoolSize) // [1, any_reasonable_value], make it > 1 so processors do not get stuck when sending heartbeats
 	var sem = make(chan int, envConfig.Daemon.ThreadPoolSize)
 
 	if err := asyncConsumer.Start(logger, listenerChannel, acknowledgerChannel); err != nil {

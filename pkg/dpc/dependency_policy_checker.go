@@ -65,5 +65,7 @@ func CheckDependencyPolicyAgainstNodeEventList(logger *l.CapiLogger, fullBatchId
 	if logger != nil {
 		logger.Warn("assuming wait for batch %s, no rules matched against events %s", fullBatchId, events.ToString())
 	}
+
+	// In two words: we do not know what is going on exactly, we assume that if we wait, the db will come to some coherent state
 	return sc.NodeWait, events[0].RunId, -1, nil
 }

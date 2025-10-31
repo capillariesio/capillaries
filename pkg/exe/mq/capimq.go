@@ -387,7 +387,7 @@ func main() {
 		newRoute("POST", "/q/bulk[/]*", h.qBulk),
 		newRoute("POST", "/q/claim[/]*", h.qClaim),
 		newRoute("DELETE", "/wip/ack/([A-Fa-f0-9-]+)[/]*", h.wipAck),
-		newRoute("POST", "/wip/hearbeat/([A-Fa-f0-9-]+)[/]*", h.wipHeartbeat),
+		newRoute("POST", "/wip/heartbeat/([A-Fa-f0-9-]+)[/]*", h.wipHeartbeat),
 		newRoute("POST", "/wip/return/([A-Fa-f0-9-]+)[/]*", h.wipReturn),
 
 		newRoute("GET", "/ks[/]*", h.ks),
