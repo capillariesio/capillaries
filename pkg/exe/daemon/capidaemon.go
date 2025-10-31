@@ -123,7 +123,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("no ack method for Amqp10 configured, expected %s or %s ", mq.AckMethodRelease, mq.AckMethodReject)
 		}
-		asyncConsumer = mq.NewAmqp10Consumer(envConfig.Amqp10.URL, envConfig.Amqp10.Address, int32(envConfig.Daemon.ThreadPoolSize), ackMethod)
+		asyncConsumer = mq.NewAmqp10Consumer(envConfig.Amqp10.URL, envConfig.Amqp10.Address, int32(envConfig.Daemon.ThreadPoolSize), ackMethod, envConfig.Daemon.ThreadPoolSize)
 	} else if envConfig.CapiMqClient.URL != "" {
 		asyncConsumer = mq.NewCapimqConsumer(envConfig.CapiMqClient.URL, logger.ZapMachine.String, envConfig.Daemon.ThreadPoolSize)
 		heartbeatInterval = envConfig.CapiMqClient.HeartbeatInterval

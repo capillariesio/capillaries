@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	amqp10 "github.com/Azure/go-amqp"
@@ -46,7 +47,7 @@ const Amqp10AcknowledgerCloseTimeout time.Duration = 2000
 const Amqp10AcknowledgerReconnectTimeout time.Duration = 2000
 const Amqp10AcknowledgerTotalTimeout time.Duration = Amqp10AcknowledgerOpenTimeout + Amqp10AcknowledgerAckTimeout + Amqp10AcknowledgerCloseTimeout + Amqp10AcknowledgerReconnectTimeout + 1000
 
-const Amqp10FullListenerChannelTimeout time.Duration = 100
+const Amqp10FullListenerChannelTimeout time.Duration = 50
 
 // The idea behind this async consumer is to Receive AMQP messages with one go-amqp receiver (we call it listener),
 // and Ack/Retry AMQP messages with another go-amqp receiver (we call it acknoledger). This way,
@@ -67,6 +68,8 @@ type Amqp10AsyncConsumer struct {
 	address                     string
 	ackMethod                   AckMethodType
 	credit                      int32
+	maxProcessors               int
+	activeProcessors            atomic.Int64
 	listener                    Amqp10Consumer
 	acknowledger                Amqp10Consumer
 	listenerStopping            bool
@@ -75,12 +78,13 @@ type Amqp10AsyncConsumer struct {
 	amqpMessagesInHandlingMutex sync.RWMutex
 }
 
-func NewAmqp10Consumer(url string, address string, credit int32, ackMethod AckMethodType) *Amqp10AsyncConsumer {
+func NewAmqp10Consumer(url string, address string, credit int32, ackMethod AckMethodType, maxProcessors int) *Amqp10AsyncConsumer {
 	return &Amqp10AsyncConsumer{
 		url:                         url,
 		address:                     address,
 		ackMethod:                   ackMethod,
 		credit:                      credit,
+		maxProcessors:               maxProcessors,
 		listener:                    Amqp10Consumer{},
 		acknowledger:                Amqp10Consumer{},
 		listenerStopping:            false,
@@ -95,12 +99,10 @@ func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 	defer logger.PopF()
 
 	for !dc.listenerStopping {
-		// listenerChannel is essentially a buffer of size 1. Ideally, we do not want any items there
-		// because they may get a chance to be processed by other daemon instances instead.
-		// So don't even claim a msg if there is no room for it in the buffer.
-		// Ideally, we should not even claim when the buffer is empty, but all processors are busy,
-		// but that would be a sensitive code (keeping rec vs ack/retry balance precisely)
-		if len(listenerChannel) == cap(listenerChannel) {
+		// Do not claim until at least one procesor is ready, otherwise we risk a msg sitting
+		// in the channel without sending heartbits, so by the time a processor start handling it,
+		// CapiMQ already may consider it dead
+		if int(dc.activeProcessors.Load()) == dc.maxProcessors {
 			time.Sleep(Amqp10FullListenerChannelTimeout * time.Millisecond)
 			continue
 		}
@@ -137,6 +139,7 @@ func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 					}
 					// WARNING: make sure the caller does not close listenerChannel before listenerWorker() completes
 					listenerChannel <- &wfmodelMsg
+					dc.activeProcessors.Add(1)
 
 				}
 			} else {
@@ -215,6 +218,7 @@ func (dc *Amqp10AsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 					var ackError error
 					switch token.Cmd {
 					case AcknowledgerCmdAck:
+						dc.activeProcessors.Add(-1)
 						if ackError = dc.acknowledger.receiver.AcceptMessage(ackCtx, amqpMsg); ackError != nil {
 							logger.Error("cannot ack, expect some daemon instance to perform DeleteDataAndUniqueIndexesByBatchIdx for %s: %s", token.MsgId, ackError.Error())
 						}
@@ -224,6 +228,7 @@ func (dc *Amqp10AsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 						// and works properly only with Reject, see some details About Release/Reject at https://www.rabbitmq.com/docs/amqp
 						// For now, use Reject for both. If any problems with ActiveMQ - introduce a new setting for env config Amqp10: "ack": "release/reject"
 						// and call ReleaseMessage here if  ack == release.
+						dc.activeProcessors.Add(-1)
 						if ackError = dc.acknowledger.receiver.ReleaseMessage(ackCtx, amqpMsg); ackError != nil {
 							//if ackError = dc.acknowledger.receiver.RejectMessage(ackCtx, amqpMsg, &amqp10.Error{Condition: amqp10.ErrCondInternalError, Description: fmt.Sprintf("capidaemon %s asked to retry", logger.ZapMachine.String)}); ackError != nil {
 							logger.Error("cannot retry, expect some daemon instance to perform DeleteDataAndUniqueIndexesByBatchIdx for %s: %s", token.MsgId, ackError.Error())
