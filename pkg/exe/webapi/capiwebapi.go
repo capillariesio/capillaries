@@ -58,13 +58,9 @@ func newRoute(method, pattern string, handler http.HandlerFunc) route {
 	return route{method, regexp.MustCompile("^" + pattern + "$"), handler}
 }
 
-type ApiResponseError struct {
-	Msg string `json:"msg"`
-}
-
 type ApiResponse struct {
-	Data  any              `json:"data"`
-	Error ApiResponseError `json:"error"`
+	Data  any    `json:"data"`
+	Error string `json:"error"` // If need more, consider re-introducing ApiResponseError struct, and watch client side responseJson
 }
 
 func pickAccessControlAllowOrigin(wc *env.WebapiConfig, r *http.Request) string {
@@ -92,7 +88,7 @@ func WriteApiError(logger *l.CapiLogger, wc *env.WebapiConfig, r *http.Request, 
 
 	w.Header().Set("Access-Control-Allow-Origin", pickAccessControlAllowOrigin(wc, r))
 	logger.Error("cannot process %s: %s", urlPath, err.Error())
-	respJson, err := json.Marshal(ApiResponse{Error: ApiResponseError{Msg: err.Error()}})
+	respJson, err := json.Marshal(ApiResponse{Error: err.Error()})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("unexpected: cannot serialize error response %s", err.Error()), httpStatus)
 	} else {

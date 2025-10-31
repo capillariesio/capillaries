@@ -11,9 +11,9 @@
 		return webapiUrlEnvVar ? webapiUrlEnvVar : 'http://localhost:6543';
 	}
 	export function handleResponse(responseJson, setWebapiDataFunc) {
-		if (responseJson.error.msg) {
-			console.log(responseJson.error.msg);
-			setWebapiDataFunc(null, responseJson.error.msg);
+		if (responseJson.error) {
+			console.log(responseJson.error);
+			setWebapiDataFunc(null, responseJson.error);
 		} else {
 			setWebapiDataFunc(responseJson.data, null);
 		}
