@@ -23,14 +23,19 @@
     "address": "capillaries",
     "ack_method": "release"
   },
+  "amqp10_for_activemq_classic": {
+    "url": "amqp://guest:guest@127.0.0.1:5672/",
+    "address": "capillaries",
+    "ack_method": "reject"
+  },
   "capimq_client_for_capimq_experimental":{
     "url":"http://localhost:7654",
     "heartbeat_interval": 1000
   },
   "amqp10": {
-    "url": "amqp://artemis:artemis@127.0.0.1:5672/",
+    "url": "amqp://guest:guest@127.0.0.1:5672/",
     "address": "capillaries",
-    "ack_method": "release"
+    "ack_method": "reject"
   },
   "capimq_client":{
   },

@@ -11,7 +11,7 @@ if [[ "$short_or_long_or_s3_or_all" = "short" || "$short_or_long_or_s3_or_all" =
 	pushd ./test/code/lookup
 	# 13 s
 	./test.sh quick local fs one
-	# 10 s
+	# 1+9=10 s
 	./test.sh quick local fs multi
 	popd
 
@@ -56,7 +56,7 @@ if [[ "$short_or_long_or_s3_or_all" = "long" || "$short_or_long_or_s3_or_all" = 
 	popd
 
 	pushd ./test/code/fannie_mae
-	# one 181 s, multi 20+32+2+34+103=191 capimq 40+32+4+36+109 (expensive hearbeats?)
+	# one 181 s, multi 21+34+2+37+98=192
 	./test.sh quick local fs multi
 	popd
 

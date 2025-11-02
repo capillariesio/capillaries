@@ -223,15 +223,30 @@ func (dc *Amqp10AsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 							logger.Error("cannot ack, expect some daemon instance to perform DeleteDataAndUniqueIndexesByBatchIdx for %s: %s", token.MsgId, ackError.Error())
 						}
 					case AcknowledgerCmdRetry:
-						// ActiveMQ: with Reject, there are disappearing and duplicated messages (I am just using redelivery-delay and do not set up DLQ), works well with Release
-						// RabbitMQ: Release does not trigger the dead letter queue process (see RabbitMQ config in docker-compose.yml),
-						// and works properly only with Reject, see some details About Release/Reject at https://www.rabbitmq.com/docs/amqp
-						// For now, use Reject for both. If any problems with ActiveMQ - introduce a new setting for env config Amqp10: "ack": "release/reject"
-						// and call ReleaseMessage here if  ack == release.
+						// ActiveMQ Artemis:
+						// - Reject makes Artemis put the msg to DLQ without honoring redelivery-delay or discard it (if no DLQ configured) regardless of other settings
+						// - Release works
+						// For troubleshooting, whatch for Artemis warnings:
+						// - AMQ222149: Sending message ... to Dead Letter Address DLQ from ...
+						// - AMQ222150: Sending message ... to Dead Letter Address, but there is no Dead Letter Address configured for queue ... so dropping it
+						// ActiveMQ classic:
+						// - Reject works
+						// - Release does not trigger configured redeliveryPlugin (see ./test/docker/activemq/classic/activemq.xml)
+						// RabbitMQ 4:
+						// - Reject works, see some details About Release/Reject at https://www.rabbitmq.com/docs/amqp
+						// - Release does not trigger the dead letter queue process configured in docker-compose.yml
 						dc.activeProcessors.Add(-1)
-						if ackError = dc.acknowledger.receiver.ReleaseMessage(ackCtx, amqpMsg); ackError != nil {
-							//if ackError = dc.acknowledger.receiver.RejectMessage(ackCtx, amqpMsg, &amqp10.Error{Condition: amqp10.ErrCondInternalError, Description: fmt.Sprintf("capidaemon %s asked to retry", logger.ZapMachine.String)}); ackError != nil {
-							logger.Error("cannot retry, expect some daemon instance to perform DeleteDataAndUniqueIndexesByBatchIdx for %s: %s", token.MsgId, ackError.Error())
+						switch dc.ackMethod {
+						case AckMethodReject:
+							if ackError = dc.acknowledger.receiver.RejectMessage(ackCtx, amqpMsg, &amqp10.Error{Condition: amqp10.ErrCondInternalError, Description: fmt.Sprintf("capidaemon %s asked to retry", logger.ZapMachine.String)}); ackError != nil {
+								logger.Error("cannot retry(reject), expect some daemon instance to perform DeleteDataAndUniqueIndexesByBatchIdx for %s: %s", token.MsgId, ackError.Error())
+							}
+						case AckMethodRelease:
+							if ackError = dc.acknowledger.receiver.ReleaseMessage(ackCtx, amqpMsg); ackError != nil {
+								logger.Error("cannot retry(release), expect some daemon instance to perform DeleteDataAndUniqueIndexesByBatchIdx for %s: %s", token.MsgId, ackError.Error())
+							}
+						default:
+							logger.Error("invalid ack_method configuration: %s", dc.ackMethod)
 						}
 					case AcknowledgerCmdHeartbeat:
 						logger.Error("unexpected acknowledger heartbeat cmd, it is not supported by AMQP message brokers")

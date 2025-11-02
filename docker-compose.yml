@@ -8,10 +8,13 @@ networks:
         - subnet: 10.5.0.0/16
 
 services:
+  # amqp+ssl://b-5e7d2f37-760e-45ea-ab5b-be0620c3273e-1.mq.us-east-1.amazonaws.com:5671
 
-  activemq:
-    container_name: capillaries_activemq
-    image: apache/activemq-artemis:latest-alpine
+  mq:
+    container_name: capillaries_activemq_classic
+    build:
+      context: .
+      dockerfile: ./test/docker/activemq/classic/Dockerfile
     depends_on:
       - fluentd
     networks:
@@ -20,28 +23,36 @@ services:
     ports:
       - 8161:8161 # admin console
       - 5672:5672 # amqp port
-    post_start: # Requires modern version of compose, use sudo apt-get install docker-compose-plugin
-      - command: sleep 10 # Let it start
-      #- command: echo 'printf "#!/bin/ash\nuntil [ -s /var/lib/artemis-instance/etc/broker.xml ]; do sleep 1; done" > ./wait-for-broker.sh'
-      # - command: 'printf "#!/bin/ash\nuntil [ -s /var/lib/artemis-instance/etc/broker.xml ]; do sleep 1; done" > ./wait-for-broker.sh'
-      # - command: chmod 700 ./wait-for-broker.sh
-      # - command: ["./wait-for-broker.sh"]
-      # - command: rm ./wait-for-broker.sh
-      # While ActiveMQ also supports dead letter queue (https://activemq.apache.org/components/classic/documentation/message-redelivery-and-dlq-handling)
-      # it seems to meet our simple needs with just redelivery-delay setting. If, for some reason, it stops working, set up the DLQ.
-      - command: sed -i -e 's~<redelivery-delay>[0-9]*</redelivery-delay>~<redelivery-delay>5000</redelivery-delay>~g' /var/lib/artemis-instance/etc/broker.xml # 1000 is aggressive, 5000 is reasonable
-      - command: sed -i -e 's~<address-setting match="#">\n~<address-setting match="#"><management-message-attribute-size-limit>1024</management-message-attribute-size-limit>~g' /var/lib/artemis-instance/etc/broker.xml # Easier troubleshooting
-      - command: /opt/activemq-artemis/bin/artemis queue create --name capillaries --address capillaries --auto-create-address --anycast --user artemis --password artemis --no-durable --preserve-on-no-consumers # This is THE queue
     logging:
       driver: fluentd
       options:
         fluentd-address: 10.5.0.7:24224
         fluentd-async: "true"
-        tag: activemq
+        tag: activemq_classic
 
-  # rabbitmq:
-  #   container_name: capillaries_rabbitmq
-  #   image: rabbitmq:4-management
+  # mq:
+  #   container_name: capillaries_activemq_artemis
+  #   build:
+  #     context: .
+  #     dockerfile: ./test/docker/activemq/artemis/Dockerfile
+  #   depends_on:
+  #     - fluentd
+  #   networks:
+  #     capinet:
+  #       ipv4_address: 10.5.0.5
+  #   ports:
+  #     - 8161:8161 # admin console
+  #     - 5672:5672 # amqp port
+  #   logging:
+  #     driver: fluentd
+  #     options:
+  #       fluentd-address: 10.5.0.7:24224
+  #       fluentd-async: "true"
+  #       tag: activemq_artemis
+
+  # mq:
+  #   container_name: capillaries_rabbitmq4
+  #   image: rabbitmq:4.2.0-management-alpine
   #   depends_on:
   #     - fluentd
   #   networks:
@@ -70,10 +81,10 @@ services:
   #     options:
   #       fluentd-address: 10.5.0.7:24224
   #       fluentd-async: "true"
-  #       tag: rabbitmq
+  #       tag: rabbitmq4
 
   # mq:
-  #   container_name: capillaries_mq
+  #   container_name: capillaries_capimq
   #   depends_on:
   #     - fluentd
   #   build:
@@ -177,8 +188,13 @@ services:
       - /tmp/capi_in:/tmp/capi_in:ro
       - /tmp/capi_out:/tmp/capi_out
     environment:
-      CAPI_AMQP10_URL: amqp://artemis:artemis@10.5.0.5:5672/
-      #CAPI_CAPIMQ_CLIENT_URL: http://10.5.0.5:7654
+      # ActiveMQ and RabbitMQ
+      CAPI_AMQP10_URL: amqp://guest:guest@10.5.0.5:5672/
+      # RabbitMQ only
+      #CAPI_AMQP10_ADDRESS: /queues/capidaemon
+      #CAPI_AMQP10_ACK_METHOD: reject
+      # Capimq
+      CAPI_CAPIMQ_CLIENT_URL: http://10.5.0.5:7654
       CAPI_CASSANDRA_HOSTS: 10.5.0.11
       CAPI_CASSANDRA_WRITER_WORKERS: 4
       CAPI_PYCALC_INTERPRETER_PATH: python3
@@ -208,8 +224,13 @@ services:
       - /tmp/capi_in:/tmp/capi_in:ro
       - /tmp/capi_out:/tmp/capi_out
     environment:
-      CAPI_AMQP10_URL: amqp://artemis:artemis@10.5.0.5:5672/
-      #CAPI_CAPIMQ_CLIENT_URL: http://10.5.0.5:7654
+      # ActiveMQ and RabbitMQ
+      CAPI_AMQP10_URL: amqp://guest:guest@10.5.0.5:5672/
+      # RabbitMQ only
+      #CAPI_AMQP10_ADDRESS: /queues/capidaemon
+      #CAPI_AMQP10_ACK_METHOD: reject
+      # Capimq
+      CAPI_CAPIMQ_CLIENT_URL: http://10.5.0.5:7654
       CAPI_CASSANDRA_HOSTS: 10.5.0.11
       CAPI_CASSANDRA_WRITER_WORKERS: 4
       CAPI_PROMETHEUS_EXPORTER_PORT: 9202
@@ -239,8 +260,13 @@ services:
       - /tmp/capi_in:/tmp/capi_in:ro
       - /tmp/capi_out:/tmp/capi_out
     environment:
-      CAPI_AMQP10_URL: amqp://artemis:artemis@10.5.0.5:5672/
-      #CAPI_CAPIMQ_CLIENT_URL: http://10.5.0.5:7654
+      # ActiveMQ and RabbitMQ
+      CAPI_AMQP10_URL: amqp://guest:guest@10.5.0.5:5672/
+      # RabbitMQ only
+      #CAPI_AMQP10_ADDRESS: /queues/capidaemon
+      #CAPI_AMQP10_ACK_METHOD: reject
+      # Capimq
+      CAPI_CAPIMQ_CLIENT_URL: http://10.5.0.5:7654
       CAPI_CASSANDRA_HOSTS: 10.5.0.11
       CAPI_WEBAPI_PORT: 6543
       CAPI_WEBAPI_ACCESS_CONTROL_ALLOW_ORIGIN: http://localhost:8080,http://127.0.0.1:8080
