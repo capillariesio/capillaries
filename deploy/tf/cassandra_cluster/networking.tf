@@ -90,8 +90,8 @@ resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_bastion_prometheu
   to_port           = 9200
 }
 
-resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_bastion_rabbitmq_api" {
-  description = "RabbitMQ API"
+resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_bastion_activemq_api" {
+  description = "ActiveMQ API"
   security_group_id = aws_security_group.capillaries_securitygroup_bastion.id
   cidr_ipv4         = aws_vpc.main_vpc.cidr_block
   from_port         = 5672
@@ -99,13 +99,13 @@ resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_bastion_rabbitmq_
   to_port           = 5672
 }
 
-resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_bastion_rabbitmq_console_external" {
-  description = "RabbitMQ console (external)"
+resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_bastion_activemq_console_external" {
+  description = "ActiveMQ console (external)"
   security_group_id = aws_security_group.capillaries_securitygroup_bastion.id
   cidr_ipv4         = "0.0.0.0/0"
-  from_port         = var.external_rabbitmq_console_port
+  from_port         = var.external_activemq_console_port
   ip_protocol       = "tcp"
-  to_port           = var.external_rabbitmq_console_port
+  to_port           = var.external_activemq_console_port
 }
 
 resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_bastion_prometheus_console_external" {

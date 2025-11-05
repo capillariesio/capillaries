@@ -159,7 +159,7 @@ services:
 
   prometheus:
     container_name: capillaries_prometheus
-    image: prom/prometheus
+    image: prom/prometheus:v3.7.3
     depends_on:
       - fluentd
     networks:

@@ -1,4 +1,4 @@
-FROM cassandra:5.0.5
+FROM cassandra:5.0.6
 
 ARG JMX_EXPORTER_VERSION=1.5.0
 

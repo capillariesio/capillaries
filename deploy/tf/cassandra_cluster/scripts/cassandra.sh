@@ -153,8 +153,8 @@ fi
 
 
 
-
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-8-jdk openjdk-8-jre
+# Anything above 8 gives "the security manager is deprecated and will be removed in a future release" error
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-8-jdk
 if [ "$?" -ne "0" ]; then
     echo openjdk install error, exiting
     exit $?
@@ -260,6 +260,9 @@ rules:
 endmsgmarker
 sudo mv jmx_exporter.yml /etc/cassandra/
 sudo chown cassandra /etc/cassandra/jmx_exporter.yml
+
+# Disable security mgr to avoid "The Security Manager is deprecated and will be removed in a future release" for Java above 8
+# echo 'JVM_OPTS="$JVM_OPTS -J-DTopSecurityManager.disable=true"' | sudo tee -a /etc/cassandra/cassandra-env.sh
 
 # Let Cassandra know about JMX Exporter and config
 echo 'JVM_OPTS="$JVM_OPTS -javaagent:/usr/share/cassandra/lib/jmx_prometheus_javaagent-'$JMX_EXPORTER_VERSION'.jar=7070:/etc/cassandra/jmx_exporter.yml"' | sudo tee -a /etc/cassandra/cassandra-env.sh

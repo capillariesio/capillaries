@@ -310,9 +310,9 @@ variable "external_webapi_port" {
 	default = "6544"
 }
 
-variable "external_rabbitmq_console_port" {
+variable "external_activemq_console_port" {
 	type    = string
-	default = "15673"
+	default = "8162"
 }
 
 variable "external_prometheus_console_port" {
@@ -325,47 +325,28 @@ variable "s3_log_url" {
 	default = "s3://capillaries-testbucket/log"
 }
 
-variable "rabbitmq_erlang_version_amd64" {
+variable "activemq_server_version" {
 	type        = string
-	description = "Latest Erlang from RabbitMQ team"
-	default     = "1:27.3.4.2-1"
+	description = "Artemis version"
+	default     = "2.44.0"
 }
 
-variable "rabbitmq_server_version_amd64" {
-	type        = string
-	description = "Latest RabbitMQ server from RabbitMQ team"
-	default     = "4.1.4-1"
-}
-
-variable "rabbitmq_erlang_version_arm64" {
-	type        = string
-	description = "Ideally, Erlang version should match amd64 releases, but RabbitMQ team is late with arm64 for some reason. Watch RabbitMQ team changing this sometimes as of 2024-2025: 1ubuntu4, 1ubuntu4.1, 1ubuntu4.2."
-	default     = "1:25.3.2.8+dfsg-1ubuntu4"
-}
-
-variable "rabbitmq_server_version_arm64" {
-	type        = string
-	description = "Older RabbitMQ server, because newer versions require newer Erlang not supported on arm64 by RabbitMQ team (3.13 requires 26, 4.0 requires 27)"
-	default     = "3.12.1-1ubuntu1"
-}
-
-
-variable "rabbitmq_admin_name"{
+variable "activemq_admin_name"{
 	type        = string
 	default     = "radmin"
 }
 
-variable "rabbitmq_admin_pass"{
+variable "activemq_admin_pass"{
 	type        = string
 	default     = "rpass"
 }
 
-variable "rabbitmq_user_name"{
+variable "activemq_user_name"{
 	type        = string
 	default     = "capiuser"
 }
 
-variable "rabbitmq_user_pass"{
+variable "activemq_user_pass"{
 	type        = string
 	default     = "capipass"
 }
@@ -395,7 +376,7 @@ variable "daemon_writer_workers" {
 locals {
 	cassandra_hosts            = join(",", [ for i in range(var.number_of_cassandra_hosts) : format("10.5.0.%02s", i+11) ])
     cassandra_initial_tokens   = var.cassandra_initial_tokens_map[var.number_of_cassandra_hosts]
-	rabbitmq_url               = join("",  ["amqp://", var.rabbitmq_user_name, ":", var.rabbitmq_user_pass, "@10.5.1.10/"])
+	activemq_url               = join("",  ["amqp://", var.activemq_user_name, ":", var.activemq_user_pass, "@10.5.1.10:5672/"])
     prometheus_node_targets    = join(",",concat( # "\'localhost:9100\',\'10.5.1.10:9100\'"
 										["'localhost:9100'"], // bastion node exporter
 										[ for i in range(var.number_of_cassandra_hosts) : format("'10.5.0.%02s:9100'", i+11) ], // cassandra node exporters
