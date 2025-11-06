@@ -49,6 +49,10 @@ const Amqp10AcknowledgerTotalTimeout time.Duration = Amqp10AcknowledgerOpenTimeo
 
 const Amqp10FullListenerChannelTimeout time.Duration = 50
 
+// All messages in the setup should fit into AmqpCreditWindow/2,
+// otherwise Artemis keeps sending those rejected/released instead of those that we really need
+const AmqpCreditWindow uint32 = 10000000
+
 // The idea behind this async consumer is to Receive AMQP messages with one go-amqp receiver (we call it listener),
 // and Ack/Retry AMQP messages with another go-amqp receiver (we call it acknoledger). This way,
 // we do not need to introduce any multi-thread protection for the Open/Close code.
@@ -64,10 +68,10 @@ const Amqp10FullListenerChannelTimeout time.Duration = 50
 // The size of listenerChannel should correlate with the number of processor threads
 // The size of acknowledgerChannel is between 1 and any reasonale value <= number of processor threads
 type Amqp10AsyncConsumer struct {
-	url                         string
-	address                     string
-	ackMethod                   AckMethodType
-	credit                      int32
+	url       string
+	address   string
+	ackMethod AckMethodType
+	// credit                      int32
 	maxProcessors               int
 	activeProcessors            atomic.Int64
 	listener                    Amqp10Consumer
@@ -76,14 +80,15 @@ type Amqp10AsyncConsumer struct {
 	acknowledgerStopping        bool
 	amqpMessagesInHandling      map[string]*amqp10.Message
 	amqpMessagesInHandlingMutex sync.RWMutex
+	listenerCreditTracker       uint32
 }
 
 func NewAmqp10Consumer(url string, address string, credit int32, ackMethod AckMethodType, maxProcessors int) *Amqp10AsyncConsumer {
 	return &Amqp10AsyncConsumer{
-		url:                         url,
-		address:                     address,
-		ackMethod:                   ackMethod,
-		credit:                      credit,
+		url:       url,
+		address:   address,
+		ackMethod: ackMethod,
+		// credit:                      credit,
 		maxProcessors:               maxProcessors,
 		listener:                    Amqp10Consumer{},
 		acknowledger:                Amqp10Consumer{},
@@ -91,6 +96,7 @@ func NewAmqp10Consumer(url string, address string, credit int32, ackMethod AckMe
 		acknowledgerStopping:        false,
 		amqpMessagesInHandling:      map[string]*amqp10.Message{},
 		amqpMessagesInHandlingMutex: sync.RWMutex{},
+		listenerCreditTracker:       0,
 	}
 }
 
@@ -108,11 +114,26 @@ func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 		}
 		if !dc.listener.isOpen() {
 			openCtx, openCancel := context.WithTimeout(context.Background(), Amqp10ListenerOpenTimeout*time.Millisecond)
-			if err := dc.listener.open(openCtx, dc.url, dc.address, dc.credit); err != nil {
-				logger.Error("cannot reconnect to %s, address %s, credit %d: %s", dc.url, dc.address, dc.credit, err.Error())
-				time.Sleep(Amqp10ListenerReconnectTimeout * time.Millisecond)
-			}
+			// We control listener flow ourselves via IssueCredit, so set link credits to -1
+			openErr := dc.listener.open(openCtx, dc.url, dc.address, -1)
 			openCancel()
+			if openErr != nil {
+				logger.Error("cannot reconnect to %s, address %s, credit %d: %s", dc.url, dc.address, -1, err.Error())
+				time.Sleep(Amqp10ListenerReconnectTimeout * time.Millisecond)
+			} else {
+				issueErr := dc.listener.receiver.IssueCredit(AmqpCreditWindow)
+				if issueErr != nil {
+					logger.Error("cannot issue credit to listener after open: %s", issueErr.Error())
+					// We cannot proceed without topping-up the credit, so reconnect
+					closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ListenerCloseTimeout*time.Millisecond)
+					if err := dc.listener.close(closeCtx); err != nil {
+						logger.Error("cannot properly close after failed issueCredit after open: %s", err.Error())
+					}
+					closeCancel()
+				} else {
+					dc.listenerCreditTracker = AmqpCreditWindow
+				}
+			}
 		}
 
 		if dc.listener.isOpen() {
@@ -131,16 +152,27 @@ func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 				} else {
 					dc.amqpMessagesInHandlingMutex.Lock()
 					dc.amqpMessagesInHandling[wfmodelMsg.Id] = amqpMsg
-					mapSize := len(dc.amqpMessagesInHandling)
 					dc.amqpMessagesInHandlingMutex.Unlock()
-					// Safeguard, dev error: we do not expect a 1000-powerful processor thread pool
-					if mapSize > int(dc.credit) && mapSize%1000 == 0 {
-						logger.Warn("unexpected: listener map size is too big (%d), max expected %d", mapSize, dc.credit)
-					}
 					// WARNING: make sure the caller does not close listenerChannel before listenerWorker() completes
 					listenerChannel <- &wfmodelMsg
 					dc.activeProcessors.Add(1)
-
+				}
+				// Done with the message (or receive/accept error), check our AMQP1.0 flow
+				// Top-up early to avoid situation when the credit is low, and the consumer cannot receive because not all of the messages within that low credit  were processed
+				dc.listenerCreditTracker--
+				if dc.listenerCreditTracker == AmqpCreditWindow/2 {
+					issueErr := dc.listener.receiver.IssueCredit(AmqpCreditWindow / 2)
+					if issueErr != nil {
+						logger.Error("cannot issue credit to listener after receive: %s", issueErr.Error())
+						// We cannot proceed without topping-up the credit, so reconnect
+						closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ListenerCloseTimeout*time.Millisecond)
+						if err := dc.listener.close(closeCtx); err != nil {
+							logger.Error("cannot properly close after failed issueCredit after receive: %s", err.Error())
+						}
+						closeCancel()
+					} else {
+						dc.listenerCreditTracker = AmqpCreditWindow
+					}
 				}
 			} else {
 				if recErr != context.DeadlineExceeded {
@@ -211,14 +243,13 @@ func (dc *Amqp10AsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 				amqpMsg, ok := dc.amqpMessagesInHandling[token.MsgId]
 				dc.amqpMessagesInHandlingMutex.RUnlock()
 				if ok {
-					dc.amqpMessagesInHandlingMutex.Lock()
-					delete(dc.amqpMessagesInHandling, token.MsgId)
-					dc.amqpMessagesInHandlingMutex.Unlock()
 					ackCtx, ackCancel := context.WithTimeout(context.Background(), Amqp10AcknowledgerAckTimeout*time.Millisecond)
 					var ackError error
 					switch token.Cmd {
 					case AcknowledgerCmdAck:
-						dc.activeProcessors.Add(-1)
+						dc.amqpMessagesInHandlingMutex.Lock()
+						delete(dc.amqpMessagesInHandling, token.MsgId)
+						dc.amqpMessagesInHandlingMutex.Unlock()
 						if ackError = dc.acknowledger.receiver.AcceptMessage(ackCtx, amqpMsg); ackError != nil {
 							logger.Error("cannot ack, expect some daemon instance to perform DeleteDataAndUniqueIndexesByBatchIdx for %s: %s", token.MsgId, ackError.Error())
 						}
@@ -235,7 +266,9 @@ func (dc *Amqp10AsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 						// RabbitMQ 4:
 						// - Reject works, see some details About Release/Reject at https://www.rabbitmq.com/docs/amqp
 						// - Release does not trigger the dead letter queue process configured in docker-compose.yml
-						dc.activeProcessors.Add(-1)
+						dc.amqpMessagesInHandlingMutex.Lock()
+						delete(dc.amqpMessagesInHandling, token.MsgId)
+						dc.amqpMessagesInHandlingMutex.Unlock()
 						switch dc.ackMethod {
 						case AckMethodReject:
 							if ackError = dc.acknowledger.receiver.RejectMessage(ackCtx, amqpMsg, &amqp10.Error{Condition: amqp10.ErrCondInternalError, Description: fmt.Sprintf("capidaemon %s asked to retry", logger.ZapMachine.String)}); ackError != nil {
@@ -270,6 +303,8 @@ func (dc *Amqp10AsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 							logger.Error("cannot ack/retry, unknown error, will not reconnect: %s", ackError.Error())
 						}
 					}
+				} else {
+					logger.Error("aknowledger cannot find message: %s", token.MsgId)
 				}
 			}
 		case <-timeoutChannel:
@@ -343,4 +378,8 @@ func (dc *Amqp10AsyncConsumer) StopAcknowledger(logger *l.CapiLogger) error {
 
 func (dc *Amqp10AsyncConsumer) SupportsHearbeat() bool {
 	return false
+}
+
+func (dc *Amqp10AsyncConsumer) DecrementActiveProcessors() {
+	dc.activeProcessors.Add(-1)
 }

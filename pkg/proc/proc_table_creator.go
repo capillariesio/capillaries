@@ -236,9 +236,9 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 	}
 	defer instr.closeInserter(logger, pCtx)
 
-	flushVarsArray := func(varsArray []*eval.VarValuesMap, varsArrayCount int) error {
-		logger.PushF("proc.flushRowset")
-		defer logger.PopF()
+	flushVarsArray := func(flushLogger *l.CapiLogger, varsArray []*eval.VarValuesMap, varsArrayCount int) error {
+		flushLogger.PushF("proc.flushRowset")
+		defer flushLogger.PopF()
 
 		instr.startDrainer()
 
@@ -253,21 +253,21 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 			tableRecord, err = node.TableCreator.CalculateTableRecordFromSrcVars(false, *vars)
 			if err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot populate table record from [%v], node %s: [%s]", vars, node.Name, err.Error()))
-				return instr.waitForDrainer(logger, pCtx)
+				return instr.waitForDrainer(flushLogger, pCtx)
 			}
 
 			// Check table creator having
 			inResult, err = node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
 			if err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot check having condition [%s], node %s, table record [%v]: [%s]", node.TableCreator.RawHaving, node.Name, tableRecord, err.Error()))
-				return instr.waitForDrainer(logger, pCtx)
+				return instr.waitForDrainer(flushLogger, pCtx)
 			}
 
 			if inResult {
 				err = instr.buildIndexKeys(tableRecord, indexKeyMap)
 				if err != nil {
 					instr.cancelDrainer(fmt.Errorf("cannot build index keys for table %s: [%s]", node.TableCreator.Name, err.Error()))
-					return instr.waitForDrainer(logger, pCtx)
+					return instr.waitForDrainer(flushLogger, pCtx)
 				}
 
 				instr.add(tableRecord, indexKeyMap)
@@ -276,7 +276,7 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 		}
 
 		instr.doneSending()
-		return instr.waitForDrainer(logger, pCtx)
+		return instr.waitForDrainer(flushLogger, pCtx)
 	}
 
 	for {

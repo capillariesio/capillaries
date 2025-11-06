@@ -23,4 +23,5 @@ type MqAsyncConsumer interface {
 	StopListener(logger *l.CapiLogger) error
 	StopAcknowledger(logger *l.CapiLogger) error
 	SupportsHearbeat() bool
+	DecrementActiveProcessors()
 }

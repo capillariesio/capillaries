@@ -253,7 +253,7 @@
 			svgSummary += '</svg>';
 		} else {
 			svgSummary = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 400 50" width="400px" height="50px">\n`;
-			svgSummary += `<text x="50" y="15" font-size="15">No timeline chart: no data yet</text>`;
+			svgSummary += `<text x="50" y="15" font-size="15">No timeline chart: no completed batches yet</text>`;
 			svgSummary += `<text x="10" y="35" font-size="15">or the number of batches does not exceed 1</text>`;
 			svgSummary += '</svg>';
 		}

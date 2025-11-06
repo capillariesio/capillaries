@@ -33,7 +33,7 @@
     "heartbeat_interval": 1000
   },
   "amqp10": {
-    "url": "amqp://guest:guest@127.0.0.1:5672/",
+    "url": "amqp://artemis:artemis@127.0.0.1:5672/",
     "address": "capillaries",
     "ack_method": "release"
   },
@@ -50,8 +50,7 @@
     "tag_and_denormalize": {}
   },
   "daemon": {
-    "thread_pool_size": 1,
-    "dead_letter_ttl": 5000
+    "thread_pool_size": 4
   },
   "log": {
     "level": "info",

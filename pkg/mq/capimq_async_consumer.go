@@ -184,7 +184,6 @@ func (dc *CapimqAsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 		case token := <-acknowledgerChannel:
 			switch token.Cmd {
 			case AcknowledgerCmdAck:
-				dc.activeProcessors.Add(-1)
 				ackCtx, ackCancel := context.WithTimeout(context.Background(), CapimqAcknowledgerAckTimeout*time.Millisecond)
 				ackErr := dc.ack(ackCtx, token.MsgId)
 				ackCancel()
@@ -193,7 +192,6 @@ func (dc *CapimqAsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 					continue
 				}
 			case AcknowledgerCmdRetry:
-				dc.activeProcessors.Add(-1)
 				ackCtx, ackCancel := context.WithTimeout(context.Background(), CapimqAcknowledgerAckTimeout*time.Millisecond)
 				ackErr := dc.retry(ackCtx, token.MsgId)
 				ackCancel()
@@ -275,4 +273,8 @@ func (dc *CapimqAsyncConsumer) StopAcknowledger(logger *l.CapiLogger) error {
 
 func (dc *CapimqAsyncConsumer) SupportsHearbeat() bool {
 	return true
+}
+
+func (dc *CapimqAsyncConsumer) DecrementActiveProcessors() {
+	dc.activeProcessors.Add(-1)
 }

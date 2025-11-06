@@ -35,7 +35,7 @@
   "amqp10": {
     "url": "amqp://guest:guest@127.0.0.1:5672/",
     "address": "capillaries",
-    "ack_method": "reject"
+    "ack_method": "release"
   },
   "capimq_client":{
   },
