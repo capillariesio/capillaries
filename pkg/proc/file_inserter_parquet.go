@@ -94,7 +94,7 @@ func (instr *FileInserter) generateMapToAdd(batch *WriteFileBatch, rowIdx int) (
 
 func (instr *FileInserter) parquetFileInserterWorker(logger *l.CapiLogger, codec sc.ParquetCodecType) {
 	logger.PushF("proc.parquetFileInserterWorker")
-	defer logger.PopF()
+	defer logger.Close()
 
 	var localFilePath string
 	if instr.TempFilePath != "" {

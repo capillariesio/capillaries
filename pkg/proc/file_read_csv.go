@@ -45,12 +45,12 @@ func readCsv(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessagePr
 		}
 		if err != nil {
 			instr.cancelDrainer(fmt.Errorf("cannot read csv file [%s]: [%s]", filePath, err.Error()))
-			return bs, instr.waitForDrainer(logger, pCtx)
+			return bs, instr.waitForDrainer()
 		}
 		if node.FileReader.Csv.ColumnIndexingMode == sc.FileColumnIndexingName && int64(node.FileReader.Csv.SrcFileHdrLineIdx) == lineIdx {
 			if err := node.FileReader.ResolveCsvColumnIndexesFromNames(line); err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot parse column headers of csv file [%s]: [%s]", filePath, err.Error()))
-				return bs, instr.waitForDrainer(logger, pCtx)
+				return bs, instr.waitForDrainer()
 			}
 		} else if lineIdx >= int64(node.FileReader.Csv.SrcFileFirstDataLineIdx) {
 
@@ -58,28 +58,28 @@ func readCsv(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessagePr
 			clear(colVars)
 			if err := node.FileReader.ReadCsvLineToValuesMap(&line, colVars); err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot read values from csv file [%s], line %d: [%s]", filePath, lineIdx, err.Error()))
-				return bs, instr.waitForDrainer(logger, pCtx)
+				return bs, instr.waitForDrainer()
 			}
 
 			// TableCreator: evaluate table column expressions
 			tableRecord, err = node.TableCreator.CalculateTableRecordFromSrcVars(false, colVars)
 			if err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot populate table record from csv file [%s], line %d: [%s]", filePath, lineIdx, err.Error()))
-				return bs, instr.waitForDrainer(logger, pCtx)
+				return bs, instr.waitForDrainer()
 			}
 
 			// Check table creator having
 			inResult, err = node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
 			if err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot check having condition [%s], csv file [%s] line %d, table record [%v]: [%s]", node.TableCreator.RawHaving, filePath, lineIdx, tableRecord, err.Error()))
-				return bs, instr.waitForDrainer(logger, pCtx)
+				return bs, instr.waitForDrainer()
 			}
 
 			if inResult {
 				err = instr.buildIndexKeys(tableRecord, indexKeyMap)
 				if err != nil {
 					instr.cancelDrainer(fmt.Errorf("cannot build index keys for table %s, csv file [%s] line %d: [%s]", node.TableCreator.Name, filePath, lineIdx, err.Error()))
-					return bs, instr.waitForDrainer(logger, pCtx)
+					return bs, instr.waitForDrainer()
 				}
 
 				instr.add(tableRecord, indexKeyMap)
@@ -94,7 +94,7 @@ func readCsv(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessagePr
 	}
 
 	instr.doneSending()
-	if err := instr.waitForDrainer(logger, pCtx); err != nil {
+	if err := instr.waitForDrainer(); err != nil {
 		return bs, err
 	}
 

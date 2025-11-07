@@ -50,7 +50,7 @@
     "tag_and_denormalize": {}
   },
   "daemon": {
-    "thread_pool_size": 4
+    "thread_pool_size": 2
   },
   "log": {
     "level": "info",

@@ -65,7 +65,7 @@ func (instr *FileInserter) createCsvFileAndStartWorker(logger *l.CapiLogger, u *
 
 func (instr *FileInserter) csvFileInserterWorker(logger *l.CapiLogger) {
 	logger.PushF("proc.csvFileInserterWorker")
-	defer logger.PopF()
+	defer logger.Close()
 
 	var localFilePath string
 	if instr.TempFilePath != "" {

@@ -236,12 +236,12 @@ func (instr *TableInserter) cancelDrainer(err error) {
 	instr.DrainerCancelSignal <- err
 }
 
-func (instr *TableInserter) waitForDrainer(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) error {
+func (instr *TableInserter) waitForDrainer() error {
 	err := <-instr.DrainerCompleteSignal // This error will hold the result of all harvested writers
 	if err != nil {
-		logger.ErrorCtx(pCtx, "error(s) while waiting for workers to drain RecordsIn: %s", err.Error())
+		return fmt.Errorf("error(s) while waiting for workers to drain RecordsIn: %s", err.Error())
 	}
-	return err
+	return nil
 }
 
 func (instr *TableInserter) closeInserter(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) {
@@ -736,7 +736,7 @@ func (instr *TableInserter) insertIdxRecordsForIndexes(logger *l.CapiLogger, wri
 
 func (instr *TableInserter) tableInserterWorker(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) {
 	logger.PushF("proc.tableInserterWorker")
-	defer logger.PopF()
+	defer logger.Close()
 
 	// Each writer thread has its own rand, so we do not have to critsec it.
 	// Assuming machine hashes are different for all daemon machines!

@@ -49,9 +49,11 @@ const Amqp10AcknowledgerTotalTimeout time.Duration = Amqp10AcknowledgerOpenTimeo
 
 const Amqp10FullListenerChannelTimeout time.Duration = 50
 
-// All messages in the setup should fit into AmqpCreditWindow/2,
-// otherwise Artemis keeps sending those rejected/released instead of those that we really need
-const AmqpCreditWindow uint32 = 10000000
+// Absolute min for this value is ThredPoolSize otherwise some threads will be idle. Also, this number should be large enough
+// to avoid often IssueCredit calls when the daemon has to handle a wave of messages that result in "wait, this node is noready yet" status.
+// While IssueCredit is cheap by itself, it triggers an AMQP 1.0 "flow" command, which definitely takes resources.
+// Provided that the max thread pool size is about 256 (number of CPUs*2), 1000 sounds like a reasonable minimum for this this const.
+const AmqpCreditWindowMin uint32 = 1000
 
 // The idea behind this async consumer is to Receive AMQP messages with one go-amqp receiver (we call it listener),
 // and Ack/Retry AMQP messages with another go-amqp receiver (we call it acknoledger). This way,
@@ -102,7 +104,7 @@ func NewAmqp10Consumer(url string, address string, credit int32, ackMethod AckMe
 
 func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChannel chan *wfmodel.Message) {
 	logger.PushF("Amqp10AsyncConsumer.listenerWorker")
-	defer logger.PopF()
+	defer logger.Close()
 
 	for !dc.listenerStopping {
 		// Do not claim until at least one procesor is ready, otherwise we risk a msg sitting
@@ -118,10 +120,10 @@ func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 			openErr := dc.listener.open(openCtx, dc.url, dc.address, -1)
 			openCancel()
 			if openErr != nil {
-				logger.Error("cannot reconnect to %s, address %s, credit %d: %s", dc.url, dc.address, -1, err.Error())
+				logger.Error("cannot reconnect to %s, address %s, credit %d: %s", dc.url, dc.address, -1, openErr.Error())
 				time.Sleep(Amqp10ListenerReconnectTimeout * time.Millisecond)
 			} else {
-				issueErr := dc.listener.receiver.IssueCredit(AmqpCreditWindow)
+				issueErr := dc.listener.receiver.IssueCredit(AmqpCreditWindowMin * 2)
 				if issueErr != nil {
 					logger.Error("cannot issue credit to listener after open: %s", issueErr.Error())
 					// We cannot proceed without topping-up the credit, so reconnect
@@ -131,7 +133,7 @@ func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 					}
 					closeCancel()
 				} else {
-					dc.listenerCreditTracker = AmqpCreditWindow
+					dc.listenerCreditTracker = AmqpCreditWindowMin * 2
 				}
 			}
 		}
@@ -160,8 +162,8 @@ func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 				// Done with the message (or receive/accept error), check our AMQP1.0 flow
 				// Top-up early to avoid situation when the credit is low, and the consumer cannot receive because not all of the messages within that low credit  were processed
 				dc.listenerCreditTracker--
-				if dc.listenerCreditTracker == AmqpCreditWindow/2 {
-					issueErr := dc.listener.receiver.IssueCredit(AmqpCreditWindow / 2)
+				if dc.listenerCreditTracker == AmqpCreditWindowMin {
+					issueErr := dc.listener.receiver.IssueCredit(AmqpCreditWindowMin)
 					if issueErr != nil {
 						logger.Error("cannot issue credit to listener after receive: %s", issueErr.Error())
 						// We cannot proceed without topping-up the credit, so reconnect
@@ -171,7 +173,8 @@ func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 						}
 						closeCancel()
 					} else {
-						dc.listenerCreditTracker = AmqpCreditWindow
+						logger.Info("successfully issued listener credit of %d", AmqpCreditWindowMin)
+						dc.listenerCreditTracker = AmqpCreditWindowMin * 2
 					}
 				}
 			} else {
@@ -211,7 +214,7 @@ func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 
 func (dc *Amqp10AsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowledgerChannel chan AknowledgerToken) {
 	logger.PushF("Amqp10AsyncConsumer.aknowledgerWorker")
-	defer logger.PopF()
+	defer logger.Close()
 
 	for !dc.acknowledgerStopping {
 		timeoutChannel := make(chan bool, 1)
@@ -333,11 +336,11 @@ func (dc *Amqp10AsyncConsumer) Start(logger *l.CapiLogger, listenerChannel chan 
 	}
 	go dc.listenerWorker(listenerLogger, listenerChannel)
 
-	acknowledgererLogger, err := l.NewLoggerFromLogger(logger)
+	acknowledgerLogger, err := l.NewLoggerFromLogger(logger)
 	if err != nil {
 		return err
 	}
-	go dc.acknowledgerWorker(acknowledgererLogger, acknowledgerChannel)
+	go dc.acknowledgerWorker(acknowledgerLogger, acknowledgerChannel)
 
 	return nil
 }

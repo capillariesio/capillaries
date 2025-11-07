@@ -176,77 +176,77 @@ services:
         fluentd-async: "true"
         tag: prometheus
 
-  # daemon1:
-  #   container_name: capillaries_daemon1
-  #   depends_on:
-  #     - fluentd
-  #   build:
-  #     context: .
-  #     dockerfile: ./pkg/exe/daemon/docker/Dockerfile
-  #   volumes:
-  #     - /tmp/capi_cfg:/tmp/capi_cfg:ro
-  #     - /tmp/capi_in:/tmp/capi_in:ro
-  #     - /tmp/capi_out:/tmp/capi_out
-  #   environment:
-  #     # ActiveMQ and RabbitMQ
-  #     CAPI_AMQP10_URL: amqp://guest:guest@10.5.0.5:5672/
-  #     # RabbitMQ only
-  #     #CAPI_AMQP10_ADDRESS: /queues/capidaemon
-  #     #CAPI_AMQP10_ACK_METHOD: reject
-  #     # Capimq
-  #     CAPI_CAPIMQ_CLIENT_URL: http://10.5.0.5:7654
-  #     CAPI_CASSANDRA_HOSTS: 10.5.0.11
-  #     CAPI_CASSANDRA_WRITER_WORKERS: 4
-  #     CAPI_PYCALC_INTERPRETER_PATH: python3
-  #     CAPI_PROMETHEUS_EXPORTER_PORT: 9201
-  #     AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-  #     AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-  #     AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
-  #   networks:
-  #     capinet:
-  #       ipv4_address: 10.5.0.101
-  #   logging:
-  #     driver: "fluentd"
-  #     options:
-  #       fluentd-address: 10.5.0.7:24224
-  #       fluentd-async: "true"
-  #       tag: daemon
+  daemon1:
+    container_name: capillaries_daemon1
+    depends_on:
+      - fluentd
+    build:
+      context: .
+      dockerfile: ./pkg/exe/daemon/docker/Dockerfile
+    volumes:
+      - /tmp/capi_cfg:/tmp/capi_cfg:ro
+      - /tmp/capi_in:/tmp/capi_in:ro
+      - /tmp/capi_out:/tmp/capi_out
+    environment:
+      # ActiveMQ and RabbitMQ
+      CAPI_AMQP10_URL: amqp://guest:guest@10.5.0.5:5672/
+      # RabbitMQ only
+      #CAPI_AMQP10_ADDRESS: /queues/capidaemon
+      #CAPI_AMQP10_ACK_METHOD: reject
+      # Capimq
+      CAPI_CAPIMQ_CLIENT_URL: http://10.5.0.5:7654
+      CAPI_CASSANDRA_HOSTS: 10.5.0.11
+      CAPI_CASSANDRA_WRITER_WORKERS: 4
+      CAPI_PYCALC_INTERPRETER_PATH: python3
+      CAPI_PROMETHEUS_EXPORTER_PORT: 9201
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
+    networks:
+      capinet:
+        ipv4_address: 10.5.0.101
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: 10.5.0.7:24224
+        fluentd-async: "true"
+        tag: daemon
 
-  # daemon2:
-  #   container_name: capillaries_daemon2
-  #   depends_on:
-  #     - fluentd
-  #   build:
-  #     context: .
-  #     dockerfile: ./pkg/exe/daemon/docker/Dockerfile
-  #   volumes:
-  #     - /tmp/capi_cfg:/tmp/capi_cfg:ro
-  #     - /tmp/capi_in:/tmp/capi_in:ro
-  #     - /tmp/capi_out:/tmp/capi_out
-  #   environment:
-  #     # ActiveMQ and RabbitMQ
-  #     CAPI_AMQP10_URL: amqp://guest:guest@10.5.0.5:5672/
-  #     # RabbitMQ only
-  #     #CAPI_AMQP10_ADDRESS: /queues/capidaemon
-  #     #CAPI_AMQP10_ACK_METHOD: reject
-  #     # Capimq
-  #     CAPI_CAPIMQ_CLIENT_URL: http://10.5.0.5:7654
-  #     CAPI_CASSANDRA_HOSTS: 10.5.0.11
-  #     CAPI_CASSANDRA_WRITER_WORKERS: 4
-  #     CAPI_PROMETHEUS_EXPORTER_PORT: 9202
-  #     CAPI_PYCALC_INTERPRETER_PATH: python3
-  #     AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-  #     AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-  #     AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
-  #   networks:
-  #     capinet:
-  #       ipv4_address: 10.5.0.102
-  #   logging:
-  #     driver: "fluentd"
-  #     options:
-  #       fluentd-address: 10.5.0.7:24224
-  #       fluentd-async: "true"
-  #       tag: daemon
+  daemon2:
+    container_name: capillaries_daemon2
+    depends_on:
+      - fluentd
+    build:
+      context: .
+      dockerfile: ./pkg/exe/daemon/docker/Dockerfile
+    volumes:
+      - /tmp/capi_cfg:/tmp/capi_cfg:ro
+      - /tmp/capi_in:/tmp/capi_in:ro
+      - /tmp/capi_out:/tmp/capi_out
+    environment:
+      # ActiveMQ and RabbitMQ
+      CAPI_AMQP10_URL: amqp://guest:guest@10.5.0.5:5672/
+      # RabbitMQ only
+      #CAPI_AMQP10_ADDRESS: /queues/capidaemon
+      #CAPI_AMQP10_ACK_METHOD: reject
+      # Capimq
+      CAPI_CAPIMQ_CLIENT_URL: http://10.5.0.5:7654
+      CAPI_CASSANDRA_HOSTS: 10.5.0.11
+      CAPI_CASSANDRA_WRITER_WORKERS: 4
+      CAPI_PROMETHEUS_EXPORTER_PORT: 9202
+      CAPI_PYCALC_INTERPRETER_PATH: python3
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
+    networks:
+      capinet:
+        ipv4_address: 10.5.0.102
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: 10.5.0.7:24224
+        fluentd-async: "true"
+        tag: daemon
 
   webapi:
     container_name: capillaries_webapi

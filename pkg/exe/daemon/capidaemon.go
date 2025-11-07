@@ -140,6 +140,13 @@ func main() {
 		log.Fatalf("%s", err.Error())
 	}
 
+	deliveryHandlerLogger, err := l.NewLoggerFromLogger(logger)
+	if err != nil {
+		logger.Error("cannot create logger for delivery handler thread: %s", err.Error())
+		log.Fatalf("%s", err.Error())
+	}
+	defer deliveryHandlerLogger.Close()
+
 	for {
 		select {
 		case osSignal := <-osSignalChannel:
@@ -165,17 +172,11 @@ func main() {
 				os.Exit(0)
 			}
 		case wfmodelMsg := <-listenerChannel:
-			threadLogger, err := l.NewLoggerFromLogger(logger)
-			if err != nil {
-				logger.Error("cannot create logger for delivery handler thread: %s", err.Error())
-				log.Fatalf("%s", err.Error())
-			}
-
 			// Lock one slot in the semaphore
 			sem <- 1
 
 			// envConfig.ThreadPoolSize goroutines run simultaneously
-			go func(threadLogger *l.CapiLogger, wfmodelMsg *wfmodel.Message, acknowledgerChannel chan mq.AknowledgerToken) {
+			go func(innerLogger *l.CapiLogger, wfmodelMsg *wfmodel.Message, acknowledgerChannel chan mq.AknowledgerToken) {
 				var heartbeatCallback func(wfmodelMsgId string)
 				if asyncConsumer.SupportsHearbeat() {
 					heartbeatCallback = func(wfmodelMsgId string) {
@@ -183,7 +184,7 @@ func main() {
 						MsgHeartbeatCounter.Inc()
 					}
 				}
-				acknowledgerCmd := api.ProcessDataBatchMsg(envConfig, logger, wfmodelMsg, heartbeatInterval, heartbeatCallback)
+				acknowledgerCmd := api.ProcessDataBatchMsg(envConfig, innerLogger, wfmodelMsg, heartbeatInterval, heartbeatCallback)
 				asyncConsumer.DecrementActiveProcessors()
 				acknowledgerChannel <- mq.AknowledgerToken{MsgId: wfmodelMsg.Id, Cmd: acknowledgerCmd}
 
@@ -197,7 +198,7 @@ func main() {
 					MsgRetryCounter.Inc()
 				}
 
-			}(threadLogger, wfmodelMsg, acknowledgerChannel)
+			}(deliveryHandlerLogger, wfmodelMsg, acknowledgerChannel)
 
 		}
 

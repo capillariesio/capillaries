@@ -405,18 +405,24 @@ func main() {
 
 	waitGroup.Add(1)
 	returnDeadStopping := false
-	go func() {
+	returnedDeadStoppingLogger, err := l.NewLoggerFromLogger(logger)
+	if err != nil {
+		log.Fatalf("%s", err.Error())
+	}
+	defer returnedDeadStoppingLogger.Close()
+
+	go func(innerLogger *l.CapiLogger) {
 		defer waitGroup.Done()
 
 		for !returnDeadStopping {
 			returnedToQueue := h.Mb.ReturnDead(int64(h.Env.CapiMqBroker.DeadAfterNoHeartbeatTimeout))
 			if len(returnedToQueue) > 0 {
 				ReturnDeadTimeoutCounter.Add(float64(len(returnedToQueue)))
-				logger.Warn("returned %d stall messages from wip to queue: %s", len(returnedToQueue), strings.Join(returnedToQueue, ";"))
+				innerLogger.Warn("returned %d stall messages from wip to queue: %s", len(returnedToQueue), strings.Join(returnedToQueue, ";"))
 			}
 			time.Sleep(1000 * time.Millisecond)
 		}
-	}()
+	}(returnedDeadStoppingLogger)
 
 	var prometheusServer *http.Server
 	if envConfig.Log.PrometheusExporterPort > 0 {

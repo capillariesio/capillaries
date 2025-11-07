@@ -134,7 +134,7 @@ func (dc *CapimqAsyncConsumer) heartbeat(ctx context.Context, msgId string) erro
 
 func (dc *CapimqAsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChannel chan *wfmodel.Message) {
 	logger.PushF("CapimqAsyncConsumer.listenerWorker")
-	defer logger.PopF()
+	defer logger.Close()
 
 	for !dc.listenerStopping {
 		// Do not claim until at least one procesor is ready, otherwise we risk a msg sitting
@@ -171,7 +171,7 @@ func (dc *CapimqAsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 
 func (dc *CapimqAsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowledgerChannel chan AknowledgerToken) {
 	logger.PushF("CapimqAsyncConsumer.aknowledgerWorker")
-	defer logger.PopF()
+	defer logger.Close()
 
 	for !dc.acknowledgerStopping {
 		timeoutChannel := make(chan bool, 1)
@@ -225,11 +225,11 @@ func (dc *CapimqAsyncConsumer) Start(logger *l.CapiLogger, listenerChannel chan 
 	}
 	go dc.listenerWorker(listenerLogger, listenerChannel)
 
-	acknowledgererLogger, err := l.NewLoggerFromLogger(logger)
+	acknowledgerLogger, err := l.NewLoggerFromLogger(logger)
 	if err != nil {
 		return err
 	}
-	go dc.acknowledgerWorker(acknowledgererLogger, acknowledgerChannel)
+	go dc.acknowledgerWorker(acknowledgerLogger, acknowledgerChannel)
 
 	return nil
 

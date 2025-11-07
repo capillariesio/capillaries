@@ -236,9 +236,7 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 	}
 	defer instr.closeInserter(logger, pCtx)
 
-	flushVarsArray := func(flushLogger *l.CapiLogger, varsArray []*eval.VarValuesMap, varsArrayCount int) error {
-		flushLogger.PushF("proc.flushRowset")
-		defer flushLogger.PopF()
+	flushVarsArrayCallback := func(varsArray []*eval.VarValuesMap, varsArrayCount int) error {
 
 		instr.startDrainer()
 
@@ -253,21 +251,21 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 			tableRecord, err = node.TableCreator.CalculateTableRecordFromSrcVars(false, *vars)
 			if err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot populate table record from [%v], node %s: [%s]", vars, node.Name, err.Error()))
-				return instr.waitForDrainer(flushLogger, pCtx)
+				return instr.waitForDrainer()
 			}
 
 			// Check table creator having
 			inResult, err = node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
 			if err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot check having condition [%s], node %s, table record [%v]: [%s]", node.TableCreator.RawHaving, node.Name, tableRecord, err.Error()))
-				return instr.waitForDrainer(flushLogger, pCtx)
+				return instr.waitForDrainer()
 			}
 
 			if inResult {
 				err = instr.buildIndexKeys(tableRecord, indexKeyMap)
 				if err != nil {
 					instr.cancelDrainer(fmt.Errorf("cannot build index keys for table %s: [%s]", node.TableCreator.Name, err.Error()))
-					return instr.waitForDrainer(flushLogger, pCtx)
+					return instr.waitForDrainer()
 				}
 
 				instr.add(tableRecord, indexKeyMap)
@@ -276,7 +274,7 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 		}
 
 		instr.doneSending()
-		return instr.waitForDrainer(flushLogger, pCtx)
+		return instr.waitForDrainer()
 	}
 
 	for {
@@ -298,7 +296,7 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 		}
 		customProcBatchStartTime := time.Now()
 
-		if err = node.CustomProcessor.(CustomProcessorRunner).Run(logger, pCtx, rsIn, flushVarsArray); err != nil {
+		if err = node.CustomProcessor.(CustomProcessorRunner).Run(logger, pCtx, rsIn, flushVarsArrayCallback); err != nil {
 			return bs, err
 		}
 
@@ -376,7 +374,7 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 			endLeftToken)
 		if err != nil {
 			instr.cancelDrainer(fmt.Errorf("cannot select batch from source table, node %s: %s", node.Name, err.Error()))
-			return bs, instr.waitForDrainer(logger, pCtx)
+			return bs, instr.waitForDrainer()
 		}
 		curStartLeftToken = lastRetrievedLeftToken + 1
 
@@ -395,20 +393,20 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 			clear(vars)
 			if err := rsIn.ExportToVars(outRowIdx, &vars); err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot export to vars from source table, node %s: %s", node.Name, err.Error()))
-				return bs, instr.waitForDrainer(logger, pCtx)
+				return bs, instr.waitForDrainer()
 			}
 
 			tableRecord, err = node.TableCreator.CalculateTableRecordFromSrcVars(false, vars)
 			if err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot populate table record from [%v], node %s: [%s]", vars, node.Name, err.Error()))
-				return bs, instr.waitForDrainer(logger, pCtx)
+				return bs, instr.waitForDrainer()
 			}
 
 			// Check table creator having
 			inResult, err = node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
 			if err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot check having condition [%s], table record [%v], node %s: [%s]", node.TableCreator.RawHaving, tableRecord, node.Name, err.Error()))
-				return bs, instr.waitForDrainer(logger, pCtx)
+				return bs, instr.waitForDrainer()
 			}
 
 			// Write batch if needed
@@ -416,7 +414,7 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 				err = instr.buildIndexKeys(tableRecord, indexKeyMap)
 				if err != nil {
 					instr.cancelDrainer(fmt.Errorf("cannot build index keys for table %s: [%s]", node.TableCreator.Name, err.Error()))
-					return bs, instr.waitForDrainer(logger, pCtx)
+					return bs, instr.waitForDrainer()
 				}
 
 				instr.add(tableRecord, indexKeyMap)
@@ -432,7 +430,7 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 	} // for each source table batch
 
 	instr.doneSending()
-	if err := instr.waitForDrainer(logger, pCtx); err != nil {
+	if err := instr.waitForDrainer(); err != nil {
 		return bs, err
 	}
 
@@ -513,7 +511,7 @@ func RunCreateDistinctTableForBatch(envConfig *env.EnvConfig,
 			endLeftToken)
 		if err != nil {
 			instr.cancelDrainer(fmt.Errorf("cannot select batch from source table, node %s: %s", node.Name, err.Error()))
-			return bs, instr.waitForDrainer(logger, pCtx)
+			return bs, instr.waitForDrainer()
 		}
 		curStartLeftToken = lastRetrievedLeftToken + 1
 
@@ -531,19 +529,19 @@ func RunCreateDistinctTableForBatch(envConfig *env.EnvConfig,
 			clear(vars)
 			if err = rsIn.ExportToVars(outRowIdx, &vars); err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot export to vars from source table, node %s: %s", node.Name, err.Error()))
-				return bs, instr.waitForDrainer(logger, pCtx)
+				return bs, instr.waitForDrainer()
 			}
 
 			tableRecord, err = node.TableCreator.CalculateTableRecordFromSrcVars(false, vars)
 			if err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot populate table record from [%v], node %s: [%s]", vars, node.Name, err.Error()))
-				return bs, instr.waitForDrainer(logger, pCtx)
+				return bs, instr.waitForDrainer()
 			}
 
 			err = instr.buildIndexKeys(tableRecord, indexKeyMap)
 			if err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot build index keys for table %s: [%s]", node.TableCreator.Name, err.Error()))
-				return bs, instr.waitForDrainer(logger, pCtx)
+				return bs, instr.waitForDrainer()
 			}
 
 			uniqueDistinctKey := indexKeyMap[distinctIdxName]
@@ -571,7 +569,7 @@ func RunCreateDistinctTableForBatch(envConfig *env.EnvConfig,
 	} // for each source table batch
 
 	instr.doneSending()
-	if err := instr.waitForDrainer(logger, pCtx); err != nil {
+	if err := instr.waitForDrainer(); err != nil {
 		return bs, err
 	}
 
@@ -907,7 +905,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 			endLeftToken)
 		if err != nil {
 			instr.cancelDrainer(fmt.Errorf("cannot select batch from source table, node %s: %s", node.Name, err.Error()))
-			return bs, instr.waitForDrainer(logger, pCtx)
+			return bs, instr.waitForDrainer()
 		}
 
 		logger.DebugCtx(pCtx, "selectBatchFromTableByToken: leftPageIdx %d, queried tokens from %d to %d in %.3fs, retrieved %d rows", leftPageIdx, curStartLeftToken, endLeftToken, time.Since(selectLeftBatchByTokenStartTime).Seconds(), rsLeft.RowCount)
@@ -923,7 +921,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 		eCtxMap, err := setupEvalCtxForGroup(node, rsLeft)
 		if err != nil {
 			instr.cancelDrainer(fmt.Errorf("cannot setup eval ctx, node %s: %s", node.Name, err.Error()))
-			return bs, instr.waitForDrainer(logger, pCtx)
+			return bs, instr.waitForDrainer()
 		}
 
 		// Array that says if a left row has any right counterparts
@@ -936,7 +934,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 		allKeysToFind, keyToLeftRowIdxMap, err := buildKeysToFindInTheLookupIndex(rsLeft, node.Lookup)
 		if err != nil {
 			instr.cancelDrainer(fmt.Errorf("cannot build keys for the left-side rowset, node %s: %s", node.Name, err.Error()))
-			return bs, instr.waitForDrainer(logger, pCtx)
+			return bs, instr.waitForDrainer()
 		}
 
 		lookupFieldRefs := sc.FieldRefs{}
@@ -965,7 +963,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 					&keysToFind)
 				if err != nil {
 					instr.cancelDrainer(fmt.Errorf("cannot select batch from idx table, node %s: %s", node.Name, err.Error()))
-					return bs, instr.waitForDrainer(logger, pCtx)
+					return bs, instr.waitForDrainer()
 				}
 
 				if rsIdx.RowCount == 0 {
@@ -1001,7 +999,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 						getFirstIntsFromSet(rightRowidsToFind, MaxAmazonKeyspacesInElements)) // Amazon Keyspaces allows max 100 IN elements
 					if err != nil {
 						instr.cancelDrainer(fmt.Errorf("cannot select batch from right-side table, node %s: %s", node.Name, err.Error()))
-						return bs, instr.waitForDrainer(logger, pCtx)
+						return bs, instr.waitForDrainer()
 					}
 
 					logger.DebugCtx(pCtx, "selectBatchFromDataTablePaged: leftPageIdx %d, rightIdxPageIdx %d, rightDataAttemptIdx %d, queried %d rowids in %.3fs, retrieved %d rowids", leftPageIdx, rightIdxPageIdx, rightDataAttemptIdx, len(rightRowidsToFind), time.Since(selectBatchStartTime).Seconds(), rsRight.RowCount)
@@ -1028,7 +1026,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 						lookupFilterOk, err := checkLookupFilter(&node.Lookup, rsRight, rightRowIdx)
 						if err != nil {
 							instr.cancelDrainer(fmt.Errorf("cannot check lookup filter, node %s: %s", node.Name, err.Error()))
-							return bs, instr.waitForDrainer(logger, pCtx)
+							return bs, instr.waitForDrainer()
 						}
 
 						if !lookupFilterOk {
@@ -1045,7 +1043,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 								leftRowFoundRightLookup[leftRowIdx] = true
 								if err := evalRowGroupedFields(node.TableCreator.Fields, rsLeft, leftRowIdx, rsRight, rightRowIdx, eCtxMap); err != nil {
 									instr.cancelDrainer(fmt.Errorf("cannot eval grouped fields, node %s: %s", node.Name, err.Error()))
-									return bs, instr.waitForDrainer(logger, pCtx)
+									return bs, instr.waitForDrainer()
 								}
 							}
 						} else {
@@ -1058,12 +1056,12 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 								tableRecord, err = produceNonGroupedTableRecordForLeftWithChildren(node, rsLeft, leftRowIdx, rsRight, rightRowIdx)
 								if err != nil {
 									instr.cancelDrainer(fmt.Errorf("cannot produceNonGroupedTableRecordForLeftWithChildren, node %s: %s", node.Name, err.Error()))
-									return bs, instr.waitForDrainer(logger, pCtx)
+									return bs, instr.waitForDrainer()
 								}
 
 								if err = checkHavingAddRecordAndSaveBatchIfNeeded(logger, node, tableRecord, indexKeyMap, instr); err != nil {
 									instr.cancelDrainer(fmt.Errorf("cannot checkHavingAddRecordAndSaveBatchIfNeeded, node %s: %s", node.Name, err.Error()))
-									return bs, instr.waitForDrainer(logger, pCtx)
+									return bs, instr.waitForDrainer()
 								}
 								bs.RowsWritten++
 
@@ -1101,7 +1099,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 				tableRecord, err = produceGroupedTableRecord(node, rsLeft, leftRowIdx, leftRowFoundRightLookup, eCtxMap)
 				if err != nil {
 					instr.cancelDrainer(fmt.Errorf("cannot produceGroupedTableRecord, node %s: %s", node.Name, err.Error()))
-					return bs, instr.waitForDrainer(logger, pCtx)
+					return bs, instr.waitForDrainer()
 				}
 				if tableRecord == nil {
 					// No record generated, it's ok (inner join and no right rows)
@@ -1110,7 +1108,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 
 				if err = checkHavingAddRecordAndSaveBatchIfNeeded(logger, node, tableRecord, indexKeyMap, instr); err != nil {
 					instr.cancelDrainer(fmt.Errorf("cannot Group checkHavingAddRecordAndSaveBatchIfNeeded, node %s: %s", node.Name, err.Error()))
-					return bs, instr.waitForDrainer(logger, pCtx)
+					return bs, instr.waitForDrainer()
 				}
 				bs.RowsWritten++
 			}
@@ -1132,12 +1130,12 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 				tableRecord, err = produceNonGroupedTableRecordForCheldlessLeft(node, rsLeft, leftRowIdx)
 				if err != nil {
 					instr.cancelDrainer(fmt.Errorf("cannot JoinLeft produceNonGroupedTableRecordForCheldlessLeft, node %s: %s", node.Name, err.Error()))
-					return bs, instr.waitForDrainer(logger, pCtx)
+					return bs, instr.waitForDrainer()
 				}
 
 				if err = checkHavingAddRecordAndSaveBatchIfNeeded(logger, node, tableRecord, indexKeyMap, instr); err != nil {
 					instr.cancelDrainer(fmt.Errorf("cannot JoinLeft checkHavingAddRecordAndSaveBatchIfNeeded, node %s: %s", node.Name, err.Error()))
-					return bs, instr.waitForDrainer(logger, pCtx)
+					return bs, instr.waitForDrainer()
 				}
 				bs.RowsWritten++
 			}
@@ -1153,7 +1151,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 	} // for each source table batch
 
 	instr.doneSending()
-	if err := instr.waitForDrainer(logger, pCtx); err != nil {
+	if err := instr.waitForDrainer(); err != nil {
 		return bs, err
 	}
 

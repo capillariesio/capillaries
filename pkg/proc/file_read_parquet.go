@@ -144,34 +144,34 @@ func readParquet(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.Messa
 		}
 		if err != nil {
 			instr.cancelDrainer(fmt.Errorf("cannot get parquet [%s] row %d: %s", filePath, bs.RowsRead, err.Error()))
-			return bs, instr.waitForDrainer(logger, pCtx)
+			return bs, instr.waitForDrainer()
 		}
 
 		clear(colVars)
 		if err := readParquetRowToValuesMap(d, bs.RowsRead, requestedParquetColumnNames, parquetToCapiFieldNameMap, parquetToCapiTypeMap, schemaElementMap, colVars); err != nil {
 			instr.cancelDrainer(fmt.Errorf("cannot read values from parquet [%s] row %d: %s", filePath, bs.RowsRead, err.Error()))
-			return bs, instr.waitForDrainer(logger, pCtx)
+			return bs, instr.waitForDrainer()
 		}
 
 		// TableCreator: evaluate table column expressions
 		tableRecord, err = node.TableCreator.CalculateTableRecordFromSrcVars(false, colVars)
 		if err != nil {
 			instr.cancelDrainer(fmt.Errorf("cannot populate table record from parquet [%s] row %d: [%s]", filePath, bs.RowsRead, err.Error()))
-			return bs, instr.waitForDrainer(logger, pCtx)
+			return bs, instr.waitForDrainer()
 		}
 
 		// Check table creator having
 		inResult, err = node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
 		if err != nil {
 			instr.cancelDrainer(fmt.Errorf("cannot check having condition [%s] from parquet [%s] row %d, table record [%v]: [%s]", node.TableCreator.RawHaving, filePath, bs.RowsRead, tableRecord, err.Error()))
-			return bs, instr.waitForDrainer(logger, pCtx)
+			return bs, instr.waitForDrainer()
 		}
 
 		if inResult {
 			err = instr.buildIndexKeys(tableRecord, indexKeyMap)
 			if err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot build index keys for table %s from parquet [%s] row %d: [%s]", node.TableCreator.Name, filePath, bs.RowsRead, err.Error()))
-				return bs, instr.waitForDrainer(logger, pCtx)
+				return bs, instr.waitForDrainer()
 			}
 
 			instr.add(tableRecord, indexKeyMap)
@@ -184,7 +184,7 @@ func readParquet(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.Messa
 	}
 
 	instr.doneSending()
-	if err := instr.waitForDrainer(logger, pCtx); err != nil {
+	if err := instr.waitForDrainer(); err != nil {
 		return bs, err
 	}
 
