@@ -2,6 +2,7 @@ package mq_message_broker
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -38,6 +39,16 @@ func TestClaimReturnAck(t *testing.T) {
 	mb := NewMessageBroker()
 	assert.Nil(t, mb.QBulk(msgs, 1000))
 
+	keyspaces := mb.Ks()
+	assert.Equal(t, 1, len(keyspaces))
+	assert.Equal(t, msg.DataKeyspace, keyspaces[0])
+
+	assert.Equal(t, 10, mb.Count(HeapTypeQ, msg.DataKeyspace, msg.RunId, "node2"))
+	assert.Equal(t, 20, mb.Count(HeapTypeQ, msg.DataKeyspace, msg.RunId, ""))
+
+	assert.Equal(t, 1, len(keyspaces))
+	assert.Equal(t, msg.DataKeyspace, keyspaces[0])
+
 	msgsHead := mb.HeadTail(HeapTypeQ, QueueReadHead, 0, 20)
 	assert.Equal(t, 20, len(msgsHead))
 	assert.Equal(t, fmt.Sprintf("%05d", 1), msgsHead[0].Id)
@@ -57,6 +68,7 @@ func TestClaimReturnAck(t *testing.T) {
 	}
 
 	// Check wip 20
+	assert.Equal(t, 20, mb.Count(HeapTypeWip, msg.DataKeyspace, msg.RunId, ""))
 	msgsHead = mb.HeadTail(HeapTypeWip, QueueReadHead, 0, 20)
 	assert.Equal(t, 20, len(msgsHead))
 
@@ -109,6 +121,19 @@ func TestClaimReturnAck(t *testing.T) {
 	// Check wip size 16
 	msgsHead = mb.HeadTail(HeapTypeWip, QueueReadHead, 0, 20)
 	assert.Equal(t, 16, len(msgsHead))
+
+	// Filter q
+	assert.Equal(t, 1, len(mb.Filter(HeapTypeQ, msg.DataKeyspace, msg.RunId, "node1")))
+
+	// Filter wip
+	assert.Equal(t, 8, len(mb.Filter(HeapTypeWip, msg.DataKeyspace, msg.RunId, "node1")))
+
+	// Delete q
+	assert.Equal(t, 1, mb.Delete(HeapTypeQ, msg.DataKeyspace, msg.RunId, "node1"))
+
+	// Delete wip
+	assert.Equal(t, 8, mb.Delete(HeapTypeWip, msg.DataKeyspace, msg.RunId, "node1"))
+
 }
 
 func TestHeartbeat(t *testing.T) {
@@ -121,6 +146,7 @@ func TestHeartbeat(t *testing.T) {
 	msgs := make([]*wfmodel.Message, 0)
 	for i := range int16(3) {
 		msgs = append(msgs, &wfmodel.Message{
+			Id:             fmt.Sprintf("%05d", len(msgs)+1),
 			DataKeyspace:   msg.DataKeyspace,
 			RunId:          msg.RunId,
 			TargetNodeName: msg.TargetNodeName,
@@ -142,13 +168,15 @@ func TestHeartbeat(t *testing.T) {
 	time.Sleep(time.Duration(200) * time.Millisecond)
 
 	// Bad heartbeat
-	assert.Contains(t, mb.Heartbeat(fmt.Sprintf("%05d", 100)).Error(), "cannot heartbeat, message with id 100 not found in wip")
+	assert.Contains(t, mb.Heartbeat(fmt.Sprintf("%05d", 100)).Error(), "cannot heartbeat, message with id 00100 not found in wip")
 
 	// Hertbeat 2, but not 1
 	assert.Nil(t, mb.Heartbeat(fmt.Sprintf("%05d", 2)))
 
 	// Return count 1 (msg id 1)
-	assert.Equal(t, 1, mb.ReturnDead(150))
+	deadMessages := mb.ReturnDead(150)
+	assert.Equal(t, 1, len(deadMessages))
+	assert.True(t, strings.HasPrefix(deadMessages[0], "00001 ks1/1/node1/0"))
 
 	// Check 1 (returned) and 3 (never claimed) in q
 	msgsHead := mb.HeadTail(HeapTypeQ, QueueReadHead, 0, 10)

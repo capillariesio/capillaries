@@ -38,6 +38,8 @@
     "ack_method": "release"
   },
   "capimq_client":{
+    "url":"http://localhost:7654",
+    "heartbeat_interval": 1000
   },
   "custom_processors": {
     "py_calc": {

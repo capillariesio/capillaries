@@ -8,8 +8,6 @@ networks:
         - subnet: 10.5.0.0/16
 
 services:
-  # amqp+ssl://b-5e7d2f37-760e-45ea-ab5b-be0620c3273e-1.mq.us-east-1.amazonaws.com:5671
-
   # mq:
   #   container_name: capillaries_activemq_classic
   #   build:
@@ -192,6 +190,7 @@ services:
       CAPI_AMQP10_URL: amqp://guest:guest@10.5.0.5:5672/
       # RabbitMQ only
       #CAPI_AMQP10_ADDRESS: /queues/capidaemon
+      # RabbitMQ and ActiveMQ Classic
       #CAPI_AMQP10_ACK_METHOD: reject
       # Capimq
       CAPI_CAPIMQ_CLIENT_URL: http://10.5.0.5:7654
@@ -228,6 +227,7 @@ services:
       CAPI_AMQP10_URL: amqp://guest:guest@10.5.0.5:5672/
       # RabbitMQ only
       #CAPI_AMQP10_ADDRESS: /queues/capidaemon
+      # RabbitMQ and ActiveMQ Classic
       #CAPI_AMQP10_ACK_METHOD: reject
       # Capimq
       CAPI_CAPIMQ_CLIENT_URL: http://10.5.0.5:7654
@@ -264,6 +264,7 @@ services:
       CAPI_AMQP10_URL: amqp://guest:guest@10.5.0.5:5672/
       # RabbitMQ only
       #CAPI_AMQP10_ADDRESS: /queues/capidaemon
+      # RabbitMQ and ActiveMQ Classic
       #CAPI_AMQP10_ACK_METHOD: reject
       # Capimq
       CAPI_CAPIMQ_CLIENT_URL: http://10.5.0.5:7654
