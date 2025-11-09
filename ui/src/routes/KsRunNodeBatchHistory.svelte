@@ -103,6 +103,8 @@
 
 	let svgSummary = $state('');
 	let executionDetailsVisible = $state(false);
+	let earliestDatetime = $state('');
+	let latestDatetime = $state('');
 
 	function findMedian(arr) {
 		arr.sort((a, b) => a - b);
@@ -189,6 +191,9 @@
 				runningBatchSet.delete(e.batch_idx);
 			}
 		}
+
+		earliestDatetime = earliestTs;
+		latestDatetime = latestTs;
 
 		let nonStartedBatchesArray = [...Array(batch_history[0].batches_total).keys()].filter(
 			(i) => !(i in batchStartMap)
@@ -364,6 +369,10 @@
 <div style="width:100%">
 	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 	{@html svgSummary}
+
+	<div style="float: left;">{dayjs(earliestDatetime).format('MMM D, YYYY HH:mm:ss.SSS Z')}</div>
+	<div style="float: right;">{dayjs(latestDatetime).format('MMM D, YYYY HH:mm:ss.SSS Z')}</div>
+	
 </div>
 {/snippet}
 

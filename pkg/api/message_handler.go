@@ -544,13 +544,13 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wf
 	// if pCtx.BatchInfo.TargetNodeName == "order_item_date_inner" && pCtx.BatchInfo.BatchIdx == 3 {
 	// 	rnd := rand.New(rand.NewSource(time.Now().UnixMilli()))
 	// 	if rnd.Float32() < .5 {
-	// 		logger.InfoCtx(pCtx, "ProcessBatchWithStatus: test error")
+	// 		logger.InfoCtx(pCtx, "safeProcessBatch: test error")
 	// 		return mq.AcknowledgerCmdRetry
 	// 	}
 	// }
 
 	if batchErr != nil {
-		logger.ErrorCtx(pCtx, "ProcessBatchWithStatus: %s", batchErr.Error())
+		logger.ErrorCtx(pCtx, "safeProcessBatch: %s", batchErr.Error())
 		if db.IsDbConnError(batchErr) {
 			return mq.AcknowledgerCmdRetry
 		}
@@ -563,7 +563,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wf
 		}
 		// Here: batch was processed with some non-db error
 	} else {
-		logger.InfoCtx(pCtx, "ProcessBatchWithStatus: success")
+		logger.InfoCtx(pCtx, "safeProcessBatch: success")
 		if err := wfdb.SetBatchStatus(logger, pCtx, batchStatus, batchStats.ToString()); err != nil {
 			if db.IsDbConnError(err) {
 				return mq.AcknowledgerCmdRetry

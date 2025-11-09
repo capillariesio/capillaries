@@ -527,7 +527,6 @@ sudo tee $ACTIVEMQ_BROKERXML_FILE <<EOF
 				<management-message-attribute-size-limit>1024</management-message-attribute-size-limit>
 				<default-purge-on-no-consumers>false</default-purge-on-no-consumers>
 				<redelivery-delay>5000</redelivery-delay>
-				<redelivery-collision-avoidance-factor>0.1</redelivery-collision-avoidance-factor>
 				<max-delivery-attempts>-1</max-delivery-attempts>
 			</address-setting>
 			<address-setting match="activemq.management.#">
