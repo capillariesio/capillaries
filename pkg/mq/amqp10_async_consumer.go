@@ -67,14 +67,18 @@ type Amqp10AsyncConsumer struct {
 	url       string
 	address   string
 	ackMethod AckMethodType
+	// https://www.rabbitmq.com/blog/2024/09/02/amqp-flow-control:
+	// Granting link credit is not cumulative. When the receiver sends a flow frame with link-credit = N, the receiver sets the
+	// current credit to N instead of adding N more credits. For example, if a receiver sends two flow frames with link-credit = 50
+	// without any messages being transferred in between, the receiver will have 50 credits, not 100.
 	// Absolute min for this value is ThredPoolSize otherwise some threads will be idle. Also, this number should be large enough
 	// to avoid often IssueCredit calls when the daemon has to handle a wave of messages that result in "wait, this node is noready yet" status.
 	// While IssueCredit is cheap by itself, it triggers an AMQP 1.0 "flow" command, which definitely takes resources.
-	// Provided that the max thread pool size is about 256 (number of CPUs*2), 1000 sounds like a reasonable minimum for this this const.
-	// But. For runs with a few thousand batches, ActiveMQ Artemis **seems** to re-deliver the same messages that were already released BEFORE
-	// trying new messages. So, a much bigger value is practical here, a number comparable with the number of **all** batches,
-	// from all runs and keysaces in the setup. So, we are talking about millions here potentially.
+	// A flow value (maxCreditWindow) too high (apparently) leads to a scenario when a machine prefetches a lot of "heavy" batches,
+	// while other machines are quickly handling "light" batches and end up idling until the "heavy-batch" machine finishes a Capillaries node
+	// and batches for the next node are allowed to be handled by all machines.
 	minCreditWindow             uint32
+	maxCreditWindow             uint32
 	maxProcessors               int
 	activeProcessors            atomic.Int64
 	listener                    Amqp10Consumer
@@ -92,6 +96,7 @@ func NewAmqp10Consumer(url string, address string, ackMethod AckMethodType, maxP
 		address:                     address,
 		ackMethod:                   ackMethod,
 		minCreditWindow:             minCreditWindow,
+		maxCreditWindow:             minCreditWindow + minCreditWindow/2,
 		maxProcessors:               maxProcessors,
 		listener:                    Amqp10Consumer{},
 		acknowledger:                Amqp10Consumer{},
@@ -124,9 +129,9 @@ func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 				logger.Error("cannot reconnect to %s, address %s, credit %d: %s", dc.url, dc.address, -1, openErr.Error())
 				time.Sleep(Amqp10ListenerReconnectTimeout * time.Millisecond)
 			} else {
-				issueErr := dc.listener.receiver.IssueCredit(dc.minCreditWindow * 2)
+				issueErr := dc.listener.receiver.IssueCredit(dc.maxCreditWindow)
 				if issueErr != nil {
-					logger.Error("cannot issue credit %d to listener after open: %s", dc.minCreditWindow*2, issueErr.Error())
+					logger.Error("cannot issue credit %d to listener after open: %s", dc.maxCreditWindow, issueErr.Error())
 					// We cannot proceed without topping-up the credit, so reconnect
 					closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ListenerCloseTimeout*time.Millisecond)
 					if err := dc.listener.close(closeCtx); err != nil {
@@ -134,8 +139,8 @@ func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 					}
 					closeCancel()
 				} else {
-					logger.Info("successfully issued initial listener credit of %d", dc.minCreditWindow*2)
-					dc.listenerCreditTracker = dc.minCreditWindow * 2
+					logger.Info("successfully issued initial listener credit of %d", dc.maxCreditWindow)
+					dc.listenerCreditTracker = dc.maxCreditWindow
 				}
 			}
 		}
@@ -165,7 +170,7 @@ func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 				// Top-up early to avoid situation when the credit is low, and the consumer cannot receive because not all of the messages within that low credit  were processed
 				dc.listenerCreditTracker--
 				if dc.listenerCreditTracker == dc.minCreditWindow {
-					issueErr := dc.listener.receiver.IssueCredit(dc.minCreditWindow)
+					issueErr := dc.listener.receiver.IssueCredit(dc.maxCreditWindow)
 					if issueErr != nil {
 						logger.Error("cannot issue credit to listener after receive: %s", issueErr.Error())
 						// We cannot proceed without topping-up the credit, so reconnect
@@ -175,8 +180,8 @@ func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 						}
 						closeCancel()
 					} else {
-						logger.Info("successfully issued listener credit of %d", dc.minCreditWindow)
-						dc.listenerCreditTracker += dc.minCreditWindow
+						logger.Info("successfully issued listener credit of %d", dc.maxCreditWindow)
+						dc.listenerCreditTracker = dc.maxCreditWindow
 					}
 				}
 			} else {

@@ -91,7 +91,7 @@ if [ "$ACTIVEMQ_ADMIN_PASS" = "" ]; then
   exit 1
 fi
 if [ "$ACTIVEMQ_SERVER_VERSION" = "" ]; then
-  echo Error, missing: ACTIVEMQ_SERVER_VERSION=2.43.0
+  echo Error, missing: ACTIVEMQ_SERVER_VERSION=2.44.0
   exit 1
 fi
 if [ "$PROMETHEUS_NODE_EXPORTER_VERSION" = "" ]; then
@@ -408,7 +408,151 @@ GOMEMLIMIT="$WEBAPI_GOMEMLIMIT_GB"GiB GOGC=$WEBAPI_GOGC AWS_DEFAULT_REGION=$AWSR
 
 
 
-# Install ActiveMQ
+
+# Install ActiveMQ Classic
+
+
+# cd /home/$SSH_USER
+
+# sudo DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-17-jdk
+# if [ "$?" -ne "0" ]; then
+#     echo openjdk install error, exiting
+#     exit $?
+# fi
+
+# # Painfully slow
+# #curl -LOs http://archive.apache.org/dist/activemq/$ACTIVEMQ_SERVER_VERSION/apache-activemq-$ACTIVEMQ_SERVER_VERSION-bin.tar.gz
+# curl -LOs $CAPILLARIES_RELEASE_URL/apache-activemq-$ACTIVEMQ_SERVER_VERSION-bin.tar.gz
+# if [ "$?" -ne "0" ]; then
+#     echo activemq download error, exiting
+#     exit $?
+# fi
+
+# sudo tar -xzf apache-activemq-$ACTIVEMQ_SERVER_VERSION-bin.tar.gz
+# sudo mkdir /opt/activemq
+# sudo mv apache-activemq-$ACTIVEMQ_SERVER_VERSION/* /opt/activemq
+
+# sudo addgroup --system activemq
+# sudo adduser --system --ingroup activemq --no-create-home --disabled-password activemq
+# sudo chown -R activemq:activemq /opt/activemq
+
+
+# ACTIVEMQ_SERVICE_FILE=/etc/systemd/system/activemq.service
+# sudo rm -f $ACTIVEMQ_SERVICE_FILE
+# sudo tee $ACTIVEMQ_SERVICE_FILE <<EOF
+# [Unit]
+# Description=Apache ActiveMQ
+# After=network.target
+# [Service]
+# Type=forking
+# User=activemq
+# Group=activemq
+# ExecStart=/opt/activemq/bin/activemq start
+# ExecStop=/opt/activemq/bin/activemq stop
+# [Install]
+# WantedBy=multi-user.target
+# EOF
+
+# sudo sed -i -e 's~<property name="host" value="127.0.0.1"/>~<property name="host" value="0.0.0.0"/>~g' /opt/activemq/conf/jetty.xml
+
+# sudo systemctl daemon-reload
+# sudo systemctl enable activemq
+# sudo systemctl start activemq
+
+# ACTIVEMQXML_FILE=/opt/activemq/conf/activemq.xml
+# sudo rm -f $ACTIVEMQXML_FILE
+# sudo tee $ACTIVEMQXML_FILE <<EOF
+# <beans xmlns="http://www.springframework.org/schema/beans"
+# 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+# 						http://activemq.apache.org/schema/core http://activemq.apache.org/schema/core/activemq-core.xsd">
+# 	<bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+# 		<property name="locations">
+# 			<value>file:\${activemq.conf}/credentials.properties</value>
+# 		</property>
+# 	</bean>
+# 	<broker xmlns="http://activemq.apache.org/schema/core" brokerName="localhost" dataDirectory="\${activemq.data}" schedulerSupport="true">
+# 		<destinationPolicy>
+# 			<policyMap>
+# 				<policyEntries>
+# 					<policyEntry topic=">">
+# 						<pendingMessageLimitStrategy>
+# 							<constantPendingMessageLimitStrategy limit="1000" />
+# 						</pendingMessageLimitStrategy>
+# 					</policyEntry>
+# 				</policyEntries>
+# 			</policyMap>
+# 		</destinationPolicy>
+# 		<managementContext>
+# 			<managementContext createConnector="false" />
+# 		</managementContext>
+# 		<persistenceAdapter>
+# 			<kahaDB directory="\${activemq.data}/kahadb" />
+# 		</persistenceAdapter>
+# 		<systemUsage>
+# 			<systemUsage>
+# 				<memoryUsage>
+# 					<memoryUsage percentOfJvmHeap="70" />
+# 				</memoryUsage>
+# 				<storeUsage>
+# 					<storeUsage limit="100 gb" />
+# 				</storeUsage>
+# 				<tempUsage>
+# 					<tempUsage limit="50 gb" />
+# 				</tempUsage>
+# 			</systemUsage>
+# 		</systemUsage>
+# 		<transportConnectors>
+# 			<transportConnector name="openwire" uri="tcp://0.0.0.0:61616?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600" />
+# 			<transportConnector name="amqp" uri="amqp://0.0.0.0:5672?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600" />
+# 			<transportConnector name="stomp" uri="stomp://0.0.0.0:61613?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600" />
+# 			<transportConnector name="mqtt" uri="mqtt://0.0.0.0:1883?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600" />
+# 			<transportConnector name="ws" uri="ws://0.0.0.0:61614?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600" />
+# 		</transportConnectors>
+# 		<shutdownHooks>
+# 			<bean xmlns="http://www.springframework.org/schema/beans" class="org.apache.activemq.hooks.SpringContextHook" />
+# 		</shutdownHooks>
+# 		<plugins>
+# 			<!-- added -->
+# 			<redeliveryPlugin>
+# 				<redeliveryPolicyMap>
+# 					<redeliveryPolicyMap>
+# 						<redeliveryPolicyEntries>
+# 							<redeliveryPolicy queue="capillaries" maximumRedeliveries="-1" initialRedeliveryDelay="5000" redeliveryDelay="5000" />
+# 						</redeliveryPolicyEntries>
+# 						<defaultEntry>
+# 							<redeliveryPolicy maximumRedeliveries="-1" initialRedeliveryDelay="5000" redeliveryDelay="5000" />
+# 						</defaultEntry>
+# 					</redeliveryPolicyMap>
+# 				</redeliveryPolicyMap>
+# 			</redeliveryPlugin>
+# 			<simpleAuthenticationPlugin anonymousAccessAllowed="false">
+# 				<users>
+# 					<authenticationUser username="$ACTIVEMQ_USER_NAME" password="$ACTIVEMQ_USER_PASS" groups="users"/>
+# 				</users>
+# 			</simpleAuthenticationPlugin>
+# 		</plugins>
+# 	</broker>
+# 	<import resource="jetty.xml" />
+# </beans>
+# EOF
+
+# sudo tee /opt/activemq/conf/users.properties <<EOF
+# $ACTIVEMQ_ADMIN_NAME=$ACTIVEMQ_ADMIN_PASS
+# $ACTIVEMQ_USER_NAME=$ACTIVEMQ_USER_PASS
+# EOF
+
+# sudo tee /opt/activemq/conf/groups.properties <<EOF
+# admins=$ACTIVEMQ_ADMIN_NAME
+# users=$ACTIVEMQ_USER_NAME
+# EOF
+
+# sudo systemctl stop activemq
+# sudo systemctl start activemq
+
+
+
+
+# Install ActiveMQ Artemis
 
 
 cd /home/$SSH_USER
@@ -419,8 +563,9 @@ if [ "$?" -ne "0" ]; then
     exit $?
 fi
 
-
-curl -LOs  https://archive.apache.org/dist/activemq/activemq-artemis/$ACTIVEMQ_SERVER_VERSION/apache-artemis-$ACTIVEMQ_SERVER_VERSION-bin.tar.gz
+# Too slow
+# curl -LOs https://archive.apache.org/dist/activemq/activemq-artemis/$ACTIVEMQ_SERVER_VERSION/apache-artemis-$ACTIVEMQ_SERVER_VERSION-bin.tar.gz
+curl -LOs $CAPILLARIES_RELEASE_URL/apache-artemis-$ACTIVEMQ_SERVER_VERSION-bin.tar.gz
 if [ "$?" -ne "0" ]; then
     echo activemq download error, exiting
     exit $?
@@ -521,12 +666,15 @@ sudo tee $ACTIVEMQ_BROKERXML_FILE <<EOF
 			<!-- added, we want to mimic: -->
 			<!-- /opt/activemq-artemis/bin/artemis queue create &#45&#45name capillaries &#45&#45address capillaries &#45&#45auto-create-address &#45&#45anycast &#45&#45user artemis &#45&#45password artemis &#45&#45no-durable &#45&#45preserve-on-no-consumers -->
 			<!-- Do not involve DLQ, see max-delivery-attempts=-1 and dead-letter-address="" -->
+      <!-- sum([3*pow(1.003,p) for p in range(200)]) = 820 seconds -->
 			<address-setting match="capillaries">
 				<auto-create-addresses>true</auto-create-addresses>
 				<default-address-routing-type>ANYCAST</default-address-routing-type>
 				<management-message-attribute-size-limit>1024</management-message-attribute-size-limit>
 				<default-purge-on-no-consumers>false</default-purge-on-no-consumers>
-				<redelivery-delay>5000</redelivery-delay>
+				<redelivery-delay>3000</redelivery-delay>
+				<redelivery-delay-multiplier>1.003</redelivery-delay-multiplier>
+				<max-redelivery-delay>6000</max-redelivery-delay>
 				<max-delivery-attempts>-1</max-delivery-attempts>
 			</address-setting>
 			<address-setting match="activemq.management.#">

@@ -44,24 +44,24 @@ fi
 
 if [[ "$short_or_long_or_s3_or_all" = "long" || "$short_or_long_or_s3_or_all" = "all" ]]; then
 	pushd ./test/code/lookup
-	# 4 threads total: 123 s
+	# 4 threads total: 116 s
 	./test.sh big local fs one
-	# 4 threads total: 33+78=111
+	# 4 threads total: 28+79=107
 	./test.sh big local fs multi
 	popd
 
 	pushd ./test/code/portfolio
-	# 4 threads total: one 92 s multi 58+9+32=99
+	# 4 threads total: one 97 s multi 57+5+27=89
 	./test.sh quick local fs multi
 	popd
 
 	pushd ./test/code/fannie_mae
-	# 4 threads total: one 167 s, multi 21+21+1+25+74=142
+	# 4 threads total: one 149 s, multi 19+22+2+25+72=140
 	./test.sh quick local fs multi
 	popd
 
 	pushd ./test/code/global_affairs
-	# 4 threads total: one 37 s multi 0+0+1+2+28=31
+	# 4 threads total: one 46 s multi 0+0+1+2+29=32
 	./test.sh quick local fs multi
 	popd
 fi

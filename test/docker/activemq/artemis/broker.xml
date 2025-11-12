@@ -88,12 +88,15 @@
 			<!-- added, we want to mimic: -->
 			<!-- /opt/activemq-artemis/bin/artemis queue create &#45&#45name capillaries &#45&#45address capillaries &#45&#45auto-create-address &#45&#45anycast &#45&#45user artemis &#45&#45password artemis &#45&#45no-durable &#45&#45preserve-on-no-consumers -->
 			<!-- Do not involve DLQ, see max-delivery-attempts=-1 and dead-letter-address="" -->
+			<!-- sum([3*pow(1.003,p) for p in range(200)]) = 820 seconds -->
 			<address-setting match="capillaries">
 				<auto-create-addresses>true</auto-create-addresses>
 				<default-address-routing-type>ANYCAST</default-address-routing-type>
 				<management-message-attribute-size-limit>1024</management-message-attribute-size-limit>
 				<default-purge-on-no-consumers>false</default-purge-on-no-consumers>
-				<redelivery-delay>5000</redelivery-delay>
+				<redelivery-delay>3000</redelivery-delay>
+				<redelivery-delay-multiplier>1.003</redelivery-delay-multiplier>
+				<max-redelivery-delay>6000</max-redelivery-delay>
 				<max-delivery-attempts>-1</max-delivery-attempts>
 			</address-setting>
 			<address-setting match="activemq.management.#">

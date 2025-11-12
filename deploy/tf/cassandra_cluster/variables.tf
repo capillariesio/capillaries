@@ -327,8 +327,14 @@ variable "s3_log_url" {
 
 variable "activemq_server_version" {
 	type        = string
-	description = "Artemis version"
+	description = "Classic 6.1.8 or Artemis 2.44.0 version"
 	default     = "2.44.0"
+}
+
+variable "amqp10_ack_method" {
+	type        = string
+	description = "CAPI_AMQP10_ACK_METHOD: reject for Classic and RabbitMQ, release for Artemis"
+	default     = "release"
 }
 
 variable "activemq_admin_name"{

@@ -123,6 +123,9 @@ func main() {
 		if err != nil {
 			log.Fatalf("no ack method for Amqp10 configured, expected %s or %s ", mq.AckMethodRelease, mq.AckMethodReject)
 		}
+		if envConfig.Amqp10.MinCreditWindow == 0 {
+			envConfig.Amqp10.MinCreditWindow = uint32(envConfig.Daemon.ThreadPoolSize)
+		}
 		asyncConsumer = mq.NewAmqp10Consumer(envConfig.Amqp10.URL, envConfig.Amqp10.Address, ackMethod, envConfig.Daemon.ThreadPoolSize, envConfig.Amqp10.MinCreditWindow)
 	} else if envConfig.CapiMqClient.URL != "" {
 		asyncConsumer = mq.NewCapimqConsumer(envConfig.CapiMqClient.URL, logger.ZapMachine.String, envConfig.Daemon.ThreadPoolSize)

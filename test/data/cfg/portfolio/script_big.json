@@ -606,7 +606,7 @@
             "start_policy": "{manual_if_multi}",
             "r": {
                 "table": "accounts",
-                "expected_batches_total": 1000
+                "expected_batches_total": 500
             },
             "l": {
                 "index_name": "idx_txns_account_id",
@@ -643,7 +643,17 @@
                     "{dir_in}/holdings_006.parquet",
                     "{dir_in}/holdings_007.parquet",
                     "{dir_in}/holdings_008.parquet",
-                    "{dir_in}/holdings_009.parquet"
+                    "{dir_in}/holdings_009.parquet",
+                    "{dir_in}/holdings_010.parquet",
+                    "{dir_in}/holdings_011.parquet",
+                    "{dir_in}/holdings_012.parquet",
+                    "{dir_in}/holdings_013.parquet",
+                    "{dir_in}/holdings_014.parquet",
+                    "{dir_in}/holdings_015.parquet",
+                    "{dir_in}/holdings_016.parquet",
+                    "{dir_in}/holdings_017.parquet",
+                    "{dir_in}/holdings_018.parquet",
+                    "{dir_in}/holdings_019.parquet"
                 ],
                 "columns": {
                     "col_eod": {
@@ -702,7 +712,7 @@
             "start_policy": "{manual_if_multi}",
             "r": {
                 "table": "accounts",
-                "expected_batches_total": 100
+                "expected_batches_total": 50
             },
             "l": {
                 "index_name": "idx_period_holdings_account_id",
@@ -734,7 +744,7 @@
             "start_policy": "{manual_if_multi}",
             "r": {
                 "table": "account_txns",
-                "expected_batches_total": 100
+                "expected_batches_total": 10
             },
             "l": {
                 "index_name": "idx_account_period_holdings_account_id",
@@ -767,8 +777,7 @@
             "desc": "Apply Python-based calculations to account holdings and txns",
             "r": {
                 "table": "account_period_activity",
-                "expected_batches_total": 500
-            },
+                "expected_batches_total": 500            },
             "p": {
                 "python_code_urls": [
                     "{dir_py}/portfolio_test_company_info_provider.py",
@@ -803,7 +812,7 @@
             "desc": "Tag accounts by period name",
             "r": {
                 "table": "account_period_perf",
-                "expected_batches_total": 100
+                "expected_batches_total": 10
             },
             "p": {
                 "tag_field_name": "period",
@@ -845,7 +854,7 @@
             "desc": "Tag accounts by sector",
             "r": {
                 "table": "account_period_perf_by_period",
-                "expected_batches_total": 100
+                "expected_batches_total": 10
             },
             "p": {
                 "tag_field_name": "sector",

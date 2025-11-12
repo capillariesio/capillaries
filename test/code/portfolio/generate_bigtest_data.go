@@ -463,7 +463,7 @@ func generateAccounts(fileInAccountsPath string, quickAccountsMap map[string]str
 
 const SOURCE_TXNS int = 88459
 const SOURCE_HOLDINGS int = 4300
-const HOLDING_FILES_TOTAL int = 10
+const HOLDING_FILES_TOTAL int = 20
 const TXN_FILES_TOTAL int = 500 // For perf testing purposes, this better be > total_number_of_daemon_cores
 
 func main() {

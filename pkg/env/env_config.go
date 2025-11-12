@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -43,10 +42,6 @@ func (ec *EnvConfig) Deserialize(ctx context.Context, jsonBytes []byte) error {
 
 	if ec.Daemon.ThreadPoolSize <= 0 || ec.Daemon.ThreadPoolSize > 100 {
 		ec.Daemon.ThreadPoolSize = 5
-	}
-
-	if ec.Amqp10.MinCreditWindow <= 1000 || ec.Amqp10.MinCreditWindow > math.MaxUint32/2 {
-		ec.Amqp10.MinCreditWindow = 100000
 	}
 
 	if ec.CapiMqBroker.DeadAfterNoHeartbeatTimeout <= 100 || ec.CapiMqBroker.DeadAfterNoHeartbeatTimeout > 3600000 { // [100ms,1hr]

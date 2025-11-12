@@ -40,16 +40,6 @@ func (c *Amqp10Consumer) open(ctx context.Context, url string, address string, c
 		return err
 	}
 
-	// err = c.receiver.IssueCredit(32)
-	// if err != nil {
-	// 	c.receiver.Close(ctx)
-	// 	c.receiver = nil
-	// 	c.session.Close(ctx)
-	// 	c.session = nil
-	// 	c.conn.Close()
-	// 	c.conn = nil
-	// 	return err
-	// }
 	return nil
 }
 

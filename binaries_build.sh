@@ -1,11 +1,15 @@
 #!/bin/bash
 
-DIR_BUILD_LINUX_AMD64=./build/linux/amd64
-DIR_BUILD_LINUX_ARM64=./build/linux/arm64
+DIR_BUILD_LINUX=./build/linux
+DIR_BUILD_LINUX_AMD64=$DIR_BUILD_LINUX/amd64
+DIR_BUILD_LINUX_ARM64=$DIR_BUILD_LINUX/arm64
 DIR_BUILD_CA=./build/ca
 DIR_BUILD_WEBUI=./build/webui
 
-rm -fR ./build
+rm -fR $DIR_BUILD_CA
+rm -fR $DIR_BUILD_LINUX
+rm -fR $DIR_BUILD_WEBUI
+
 mkdir -p $DIR_BUILD_LINUX_AMD64
 mkdir -p $DIR_BUILD_LINUX_ARM64
 mkdir -p $DIR_BUILD_CA
