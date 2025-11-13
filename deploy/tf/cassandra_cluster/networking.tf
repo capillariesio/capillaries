@@ -108,6 +108,15 @@ resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_bastion_activemq_
   to_port           = var.external_activemq_console_port
 }
 
+resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_bastion_rabbitmqmq_console_external" {
+  description = "RabbitMQ console (external)"
+  security_group_id = aws_security_group.capillaries_securitygroup_bastion.id
+  cidr_ipv4         = "0.0.0.0/0"
+  from_port         = var.external_rabbitmq_console_port
+  ip_protocol       = "tcp"
+  to_port           = var.external_rabbitmq_console_port
+}
+
 resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_bastion_prometheus_console_external" {
   description = "Prometheus console (external)"
   security_group_id = aws_security_group.capillaries_securitygroup_bastion.id

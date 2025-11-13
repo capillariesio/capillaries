@@ -315,6 +315,11 @@ variable "external_activemq_console_port" {
 	default = "8162"
 }
 
+variable "external_rabbitmq_console_port" {
+	type    = string
+	default = "15673"
+}
+
 variable "external_prometheus_console_port" {
 	type    = string
 	default = "9091"
@@ -325,36 +330,74 @@ variable "s3_log_url" {
 	default = "s3://capillaries-testbucket/log"
 }
 
-variable "activemq_server_version" {
+variable "amqp10_server_flavor" {
 	type        = string
-	description = "Classic 6.1.8 or Artemis 2.44.0 version"
-	default     = "2.44.0"
+	description = "rabbitmq, artemis, classic"
+	default     = "rabbitmq"
+	validation  {
+		condition = contains (["rabbitmq", "activemq-classic", "activemq-artemis"], var.amqp10_server_flavor)
+		error_message = "amqp10_server_flavor must be rabbitmq, activemq-classic, activemq-artemis"
+	}
 }
 
-variable "amqp10_ack_method" {
-	type        = string
-	description = "CAPI_AMQP10_ACK_METHOD: reject for Classic and RabbitMQ, release for Artemis"
-	default     = "release"
+variable "amqp10_flavor_version_map" {
+  type = map(string)
+  default = {
+	"rabbitmq"            = "4.2.0-1"
+	"activemq-classic"    = "6.1.8"
+	"activemq-artemis"    = "2.44.0"
+  }
 }
 
-variable "activemq_admin_name"{
-	type        = string
-	default     = "radmin"
+variable "amqp10_flavor_address_map" {
+  type = map(string)
+  default = {
+	"rabbitmq"            = "/queues/capidaemon" # Do not change, RabbitMQ installer in bastion.sh makes assumptions
+	"activemq-classic"    = "capillaries"
+	"activemq-artemis"    = "capillaries"
+  }
 }
 
-variable "activemq_admin_pass"{
-	type        = string
-	default     = "rpass"
+# Do not change
+variable "amqp10_flavor_ack_method_map" {
+  type = map(string)
+  default = {
+	"rabbitmq"            = "reject"
+	"activemq-classic"    = "reject"
+	"activemq-artemis"    = "release"
+  }
 }
 
-variable "activemq_user_name"{
+variable "rabbitmq_erlang_version_amd64" {
+	type        = string
+	description = "Erlang from cloudamqp"
+	default     = "27.3.4-1"
+}
+
+variable "rabbitmq_erlang_version_arm64" {
+	type        = string
+	description = "Erlang from cloudamqp"
+	default     = "27.3.4-1"
+}
+
+variable "amqp10_admin_name"{
+	type        = string
+	default     = "capiadmin"
+}
+
+variable "amqp10_admin_pass"{
+	type        = string
+	default     = "capiadminpass"
+}
+
+variable "amqp10_user_name"{
 	type        = string
 	default     = "capiuser"
 }
 
-variable "activemq_user_pass"{
+variable "amqp10_user_pass"{
 	type        = string
-	default     = "capipass"
+	default     = "capiuserpass"
 }
 
 variable "prometheus_node_exporter_version" {
@@ -382,7 +425,8 @@ variable "daemon_writer_workers" {
 locals {
 	cassandra_hosts            = join(",", [ for i in range(var.number_of_cassandra_hosts) : format("10.5.0.%02s", i+11) ])
     cassandra_initial_tokens   = var.cassandra_initial_tokens_map[var.number_of_cassandra_hosts]
-	activemq_url               = join("",  ["amqp://", var.activemq_user_name, ":", var.activemq_user_pass, "@10.5.1.10:5672/"])
+	activemq_url               = join("",  ["amqp://", var.amqp10_user_name, ":", var.amqp10_user_pass, "@10.5.1.10:5672/"])
+	amqp10_ack_method	       = var.amqp10_flavor_ack_method_map[var.amqp10_server_flavor] 
     prometheus_node_targets    = join(",",concat( # "\'localhost:9100\',\'10.5.1.10:9100\'"
 										["'localhost:9100'"], // bastion node exporter
 										[ for i in range(var.number_of_cassandra_hosts) : format("'10.5.0.%02s:9100'", i+11) ], // cassandra node exporters

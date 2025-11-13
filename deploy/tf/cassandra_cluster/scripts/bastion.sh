@@ -42,6 +42,10 @@ if [ "$EXTERNAL_ACTIVEMQ_CONSOLE_PORT" = "" ]; then
   echo Error, missing: EXTERNAL_ACTIVEMQ_CONSOLE_PORT=8162
   exit 1
 fi
+if [ "$EXTERNAL_RABBITMQ_CONSOLE_PORT" = "" ]; then
+  echo Error, missing: EXTERNAL_RABBITMQ_CONSOLE_PORT=15673
+  exit 1
+fi
 if [ "$EXTERNAL_PROMETHEUS_CONSOLE_PORT" = "" ]; then
   echo Error, missing: EXTERNAL_PROMETHEUS_CONSOLE_PORT=9091
   exit 1
@@ -70,28 +74,52 @@ if [ "$CASSANDRA_PASSWORD" = "" ]; then
   echo Error, missing: CASSANDRA_PASSWORD=cassandra
   exit 1
 fi
-if [ "$ACTIVEMQ_URL" = "" ]; then
-  echo Error, missing: ACTIVEMQ_URL=amqps://capiuser:capipass@10.5.1.10/
+if [ "$AMQP10_URL" = "" ]; then
+  echo Error, missing: AMQP10_URL=amqps://capiuser:capiuserpass@10.5.1.10/
   exit 1
 fi
-if [ "$ACTIVEMQ_USER_NAME" = "" ]; then
-  echo Error, missing: ACTIVEMQ_USER_NAME=capiuser
+if [ "$AMQP10_ADDRESS" = "" ]; then
+  echo Error, missing: AMQP10_ADDRESS=/queue/capidaemon
   exit 1
 fi
-if [ "$ACTIVEMQ_USER_PASS" = "" ]; then
-  echo Error, missing: ACTIVEMQ_USER_PASS=capipass
+if [ "$AMQP10_USER_NAME" = "" ]; then
+  echo Error, missing: AMQP10_USER_NAME=capiuser
   exit 1
 fi
-if [ "$ACTIVEMQ_ADMIN_NAME" = "" ]; then
-  echo Error, missing: ACTIVEMQ_ADMIN_NAME=radmin
+if [ "$AMQP10_USER_PASS" = "" ]; then
+  echo Error, missing: AMQP10_USER_PASS=capuseripass
   exit 1
 fi
-if [ "$ACTIVEMQ_ADMIN_PASS" = "" ]; then
-  echo Error, missing: ACTIVEMQ_ADMIN_PASS=rpass
+if [ "$AMQP10_ADMIN_NAME" = "" ]; then
+  echo Error, missing: AMQP10_ADMIN_NAME=capiadmin
   exit 1
 fi
-if [ "$ACTIVEMQ_SERVER_VERSION" = "" ]; then
-  echo Error, missing: ACTIVEMQ_SERVER_VERSION=2.44.0
+if [ "$AMQP10_ADMIN_PASS" = "" ]; then
+  echo Error, missing: AMQP10_ADMIN_PASS=capiadminpass
+  exit 1
+fi
+if [ "$AMQP10_SERVER_FLAVOR" = "" ]; then
+  echo Error, missing: AMQP10_SERVER_FLAVOR=rabbitmq
+  exit 1
+fi
+if [ "$AMQP10_SERVER_VERSION" = "" ]; then
+  echo Error, missing: AMQP10_SERVER_VERSION=2.44.0
+  exit 1
+fi
+if [ "$RABBITMQ_ERLANG_VERSION_AMD64" = "" ]; then
+  echo Error, missing: RABBITMQ_ERLANG_VERSION_AMD64=27.3.4-1
+  exit 1
+fi
+if [ "$RABBITMQ_ERLANG_VERSION_ARM64" = "" ]; then
+  echo Error, missing: RABBITMQ_ERLANG_VERSION_ARM64=27.3.4-1
+  exit 1
+fi
+if [ "$RABBITMQ_SERVER_VERSION_AMD64" = "" ]; then
+  echo Error, missing: RABBITMQ_SERVER_VERSION_AMD64=4.2.0-1
+  exit 1
+fi
+if [ "$RABBITMQ_SERVER_VERSION_ARM64" = "" ]; then
+  echo Error, missing: RABBITMQ_SERVER_VERSION_ARM64=4.2.0-1
   exit 1
 fi
 if [ "$PROMETHEUS_NODE_EXPORTER_VERSION" = "" ]; then
@@ -114,9 +142,15 @@ if [ "$PROMETHEUS_GO_TARGETS" = "" ]; then
   echo Error, missing: PROMETHEUS_GO_TARGETS="'10.5.1.101:9200','10.5.1.102:9200'"
   exit 1
 fi
-
-sudo DEBIAN_FRONTEND=noninteractive apt-get update -y
-
+if [ "$(uname -p)" == "x86_64" ]; then
+  ARCH=amd64
+  ERLANG_VER=$RABBITMQ_ERLANG_VERSION_AMD64
+  RABBITMQ_VER=$RABBITMQ_SERVER_VERSION_AMD64
+else
+  ARCH=arm64
+  ERLANG_VER=$RABBITMQ_ERLANG_VERSION_ARM64
+  RABBITMQ_VER=$RABBITMQ_SERVER_VERSION_ARM64
+fi
 
 # Use $SSH_USER
 
@@ -291,6 +325,7 @@ if [ "$?" -ne "0" ]; then
 fi
 
 # ActiveMQ reverse proxy
+
 ACTIVEMQ_CONFIG_FILE=/etc/nginx/sites-available/activemq
 if [ -f "$ACTIVEMQ_CONFIG_FILE" ]; then
   sudo rm -f $ACTIVEMQ_CONFIG_FILE
@@ -314,6 +349,34 @@ fi
 sudo nginx -t
 if [ "$?" -ne "0" ]; then
     echo nginx activemq reverse proxy config error, exiting
+    exit $?
+fi
+
+# RabbitMQ reverse proxy
+
+RABBITMQ_CONFIG_FILE=/etc/nginx/sites-available/rabbitmq
+if [ -f "$RABBITMQ_CONFIG_FILE" ]; then
+  sudo rm -f $RABBITMQ_CONFIG_FILE
+fi
+
+sudo tee $RABBITMQ_CONFIG_FILE <<EOF
+server {
+    listen $EXTERNAL_RABBITMQ_CONSOLE_PORT;
+    location / {
+        proxy_pass http://localhost:15672;
+        include proxy_params;
+        include includes/allowed_ips.conf;
+    }
+}
+EOF
+
+if [ ! -L "/etc/nginx/sites-enabled/rabbitmq" ]; then
+  sudo ln -s $RABBITMQ_CONFIG_FILE /etc/nginx/sites-enabled/
+fi
+
+sudo nginx -t
+if [ "$?" -ne "0" ]; then
+    echo nginx rabbitmq reverse proxy config error, exiting
     exit $?
 fi
 
@@ -401,161 +464,159 @@ sudo chown -R $SSH_USER /home/$SSH_USER
 
 # If we ever use https and/or domain names, or use other port than 80, revisit this piece.
 # AWS region is required because S3 bucket pointer is a URI, not a URL
-echo Running webapi with GOMEMLIMIT="$WEBAPI_GOMEMLIMIT_GB"GiB GOGC=$WEBAPI_GOGC AWS_DEFAULT_REGION=$AWSREGION CAPI_PROMETHEUS_EXPORTER_PORT=9200 CAPI_WEBAPI_ACCESS_CONTROL_ALLOW_ORIGIN="http://$BASTION_EXTERNAL_IP_ADDRESS" CAPI_WEBAPI_PORT=$INTERNAL_WEBAPI_PORT CAPI_CASSANDRA_HOSTS="$CASSANDRA_HOSTS" CAPI_CASSANDRA_PORT=$CASSANDRA_PORT CAPI_CASSANDRA_USERNAME="$CASSANDRA_USERNAME" CAPI_CASSANDRA_PASSWORD="$CASSANDRA_PASSWORD" CAPI_CASSANDRA_ENABLE_HOST_VERIFICATION=false CAPI_CASSANDRA_KEYSPACE_REPLICATION_CONFIG="{ 'class' : 'NetworkTopologyStrategy', 'datacenter1' : 1 }" CAPI_CASSANDRA_CONSISTENCY=LOCAL_QUORUM CAPI_AMQP10_URL="$ACTIVEMQ_URL" CAPI_CASSANDRA_TIMEOUT=15000 CAPI_LOG_LEVEL=info CAPI_LOG_FILE="/var/log/capillaries/capiwebapi.log"
+echo Running webapi with GOMEMLIMIT="$WEBAPI_GOMEMLIMIT_GB"GiB GOGC=$WEBAPI_GOGC AWS_DEFAULT_REGION=$AWSREGION CAPI_PROMETHEUS_EXPORTER_PORT=9200 CAPI_WEBAPI_ACCESS_CONTROL_ALLOW_ORIGIN="http://$BASTION_EXTERNAL_IP_ADDRESS" CAPI_WEBAPI_PORT=$INTERNAL_WEBAPI_PORT CAPI_CASSANDRA_HOSTS="$CASSANDRA_HOSTS" CAPI_CASSANDRA_PORT=$CASSANDRA_PORT CAPI_CASSANDRA_USERNAME="$CASSANDRA_USERNAME" CAPI_CASSANDRA_PASSWORD="$CASSANDRA_PASSWORD" CAPI_CASSANDRA_ENABLE_HOST_VERIFICATION=false CAPI_CASSANDRA_KEYSPACE_REPLICATION_CONFIG="{ 'class' : 'NetworkTopologyStrategy', 'datacenter1' : 1 }" CAPI_CASSANDRA_CONSISTENCY=LOCAL_QUORUM CAPI_AMQP10_URL="$AMQP10_URL" CAPI_AMQP10_ADDRESS="$AMQP10_ADDRESS" CAPI_CASSANDRA_TIMEOUT=15000 CAPI_LOG_LEVEL=info CAPI_LOG_FILE="/var/log/capillaries/capiwebapi.log"
 echo To stop it: 'kill -9 $(ps aux |grep capiwebapi | grep bin | awk '"'"'{print $2}'"'"')'
-GOMEMLIMIT="$WEBAPI_GOMEMLIMIT_GB"GiB GOGC=$WEBAPI_GOGC AWS_DEFAULT_REGION=$AWSREGION CAPI_PROMETHEUS_EXPORTER_PORT=9200 CAPI_WEBAPI_ACCESS_CONTROL_ALLOW_ORIGIN="http://$BASTION_EXTERNAL_IP_ADDRESS" CAPI_WEBAPI_PORT=$INTERNAL_WEBAPI_PORT CAPI_CASSANDRA_HOSTS="$CASSANDRA_HOSTS" CAPI_CASSANDRA_PORT=$CASSANDRA_PORT CAPI_CASSANDRA_USERNAME="$CASSANDRA_USERNAME" CAPI_CASSANDRA_PASSWORD="$CASSANDRA_PASSWORD" CAPI_CASSANDRA_ENABLE_HOST_VERIFICATION=false CAPI_CASSANDRA_KEYSPACE_REPLICATION_CONFIG="{ 'class' : 'NetworkTopologyStrategy', 'datacenter1' : 1 }" CAPI_CASSANDRA_CONSISTENCY=LOCAL_QUORUM CAPI_AMQP10_URL="$ACTIVEMQ_URL" CAPI_CASSANDRA_TIMEOUT=15000 CAPI_LOG_LEVEL=info CAPI_LOG_FILE="/var/log/capillaries/capiwebapi.log" /home/$SSH_USER/bin/capiwebapi &>/dev/null &
+GOMEMLIMIT="$WEBAPI_GOMEMLIMIT_GB"GiB GOGC=$WEBAPI_GOGC AWS_DEFAULT_REGION=$AWSREGION CAPI_PROMETHEUS_EXPORTER_PORT=9200 CAPI_WEBAPI_ACCESS_CONTROL_ALLOW_ORIGIN="http://$BASTION_EXTERNAL_IP_ADDRESS" CAPI_WEBAPI_PORT=$INTERNAL_WEBAPI_PORT CAPI_CASSANDRA_HOSTS="$CASSANDRA_HOSTS" CAPI_CASSANDRA_PORT=$CASSANDRA_PORT CAPI_CASSANDRA_USERNAME="$CASSANDRA_USERNAME" CAPI_CASSANDRA_PASSWORD="$CASSANDRA_PASSWORD" CAPI_CASSANDRA_ENABLE_HOST_VERIFICATION=false CAPI_CASSANDRA_KEYSPACE_REPLICATION_CONFIG="{ 'class' : 'NetworkTopologyStrategy', 'datacenter1' : 1 }" CAPI_CASSANDRA_CONSISTENCY=LOCAL_QUORUM CAPI_AMQP10_URL="$AMQP10_URL" CAPI_AMQP10_ADDRESS="$AMQP10_ADDRESS" CAPI_CASSANDRA_TIMEOUT=15000 CAPI_LOG_LEVEL=info CAPI_LOG_FILE="/var/log/capillaries/capiwebapi.log" /home/$SSH_USER/bin/capiwebapi &>/dev/null &
 
 
 
 
 
-# Install ActiveMQ Classic
-
-
-# cd /home/$SSH_USER
-
-# sudo DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-17-jdk
-# if [ "$?" -ne "0" ]; then
-#     echo openjdk install error, exiting
-#     exit $?
-# fi
-
-# # Painfully slow
-# #curl -LOs http://archive.apache.org/dist/activemq/$ACTIVEMQ_SERVER_VERSION/apache-activemq-$ACTIVEMQ_SERVER_VERSION-bin.tar.gz
-# curl -LOs $CAPILLARIES_RELEASE_URL/apache-activemq-$ACTIVEMQ_SERVER_VERSION-bin.tar.gz
-# if [ "$?" -ne "0" ]; then
-#     echo activemq download error, exiting
-#     exit $?
-# fi
-
-# sudo tar -xzf apache-activemq-$ACTIVEMQ_SERVER_VERSION-bin.tar.gz
-# sudo mkdir /opt/activemq
-# sudo mv apache-activemq-$ACTIVEMQ_SERVER_VERSION/* /opt/activemq
-
-# sudo addgroup --system activemq
-# sudo adduser --system --ingroup activemq --no-create-home --disabled-password activemq
-# sudo chown -R activemq:activemq /opt/activemq
-
-
-# ACTIVEMQ_SERVICE_FILE=/etc/systemd/system/activemq.service
-# sudo rm -f $ACTIVEMQ_SERVICE_FILE
-# sudo tee $ACTIVEMQ_SERVICE_FILE <<EOF
-# [Unit]
-# Description=Apache ActiveMQ
-# After=network.target
-# [Service]
-# Type=forking
-# User=activemq
-# Group=activemq
-# ExecStart=/opt/activemq/bin/activemq start
-# ExecStop=/opt/activemq/bin/activemq stop
-# [Install]
-# WantedBy=multi-user.target
-# EOF
-
-# sudo sed -i -e 's~<property name="host" value="127.0.0.1"/>~<property name="host" value="0.0.0.0"/>~g' /opt/activemq/conf/jetty.xml
-
-# sudo systemctl daemon-reload
-# sudo systemctl enable activemq
-# sudo systemctl start activemq
-
-# ACTIVEMQXML_FILE=/opt/activemq/conf/activemq.xml
-# sudo rm -f $ACTIVEMQXML_FILE
-# sudo tee $ACTIVEMQXML_FILE <<EOF
-# <beans xmlns="http://www.springframework.org/schema/beans"
-# 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
-# 						http://activemq.apache.org/schema/core http://activemq.apache.org/schema/core/activemq-core.xsd">
-# 	<bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
-# 		<property name="locations">
-# 			<value>file:\${activemq.conf}/credentials.properties</value>
-# 		</property>
-# 	</bean>
-# 	<broker xmlns="http://activemq.apache.org/schema/core" brokerName="localhost" dataDirectory="\${activemq.data}" schedulerSupport="true">
-# 		<destinationPolicy>
-# 			<policyMap>
-# 				<policyEntries>
-# 					<policyEntry topic=">">
-# 						<pendingMessageLimitStrategy>
-# 							<constantPendingMessageLimitStrategy limit="1000" />
-# 						</pendingMessageLimitStrategy>
-# 					</policyEntry>
-# 				</policyEntries>
-# 			</policyMap>
-# 		</destinationPolicy>
-# 		<managementContext>
-# 			<managementContext createConnector="false" />
-# 		</managementContext>
-# 		<persistenceAdapter>
-# 			<kahaDB directory="\${activemq.data}/kahadb" />
-# 		</persistenceAdapter>
-# 		<systemUsage>
-# 			<systemUsage>
-# 				<memoryUsage>
-# 					<memoryUsage percentOfJvmHeap="70" />
-# 				</memoryUsage>
-# 				<storeUsage>
-# 					<storeUsage limit="100 gb" />
-# 				</storeUsage>
-# 				<tempUsage>
-# 					<tempUsage limit="50 gb" />
-# 				</tempUsage>
-# 			</systemUsage>
-# 		</systemUsage>
-# 		<transportConnectors>
-# 			<transportConnector name="openwire" uri="tcp://0.0.0.0:61616?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600" />
-# 			<transportConnector name="amqp" uri="amqp://0.0.0.0:5672?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600" />
-# 			<transportConnector name="stomp" uri="stomp://0.0.0.0:61613?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600" />
-# 			<transportConnector name="mqtt" uri="mqtt://0.0.0.0:1883?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600" />
-# 			<transportConnector name="ws" uri="ws://0.0.0.0:61614?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600" />
-# 		</transportConnectors>
-# 		<shutdownHooks>
-# 			<bean xmlns="http://www.springframework.org/schema/beans" class="org.apache.activemq.hooks.SpringContextHook" />
-# 		</shutdownHooks>
-# 		<plugins>
-# 			<!-- added -->
-# 			<redeliveryPlugin>
-# 				<redeliveryPolicyMap>
-# 					<redeliveryPolicyMap>
-# 						<redeliveryPolicyEntries>
-# 							<redeliveryPolicy queue="capillaries" maximumRedeliveries="-1" initialRedeliveryDelay="5000" redeliveryDelay="5000" />
-# 						</redeliveryPolicyEntries>
-# 						<defaultEntry>
-# 							<redeliveryPolicy maximumRedeliveries="-1" initialRedeliveryDelay="5000" redeliveryDelay="5000" />
-# 						</defaultEntry>
-# 					</redeliveryPolicyMap>
-# 				</redeliveryPolicyMap>
-# 			</redeliveryPlugin>
-# 			<simpleAuthenticationPlugin anonymousAccessAllowed="false">
-# 				<users>
-# 					<authenticationUser username="$ACTIVEMQ_USER_NAME" password="$ACTIVEMQ_USER_PASS" groups="users"/>
-# 				</users>
-# 			</simpleAuthenticationPlugin>
-# 		</plugins>
-# 	</broker>
-# 	<import resource="jetty.xml" />
-# </beans>
-# EOF
-
-# sudo tee /opt/activemq/conf/users.properties <<EOF
-# $ACTIVEMQ_ADMIN_NAME=$ACTIVEMQ_ADMIN_PASS
-# $ACTIVEMQ_USER_NAME=$ACTIVEMQ_USER_PASS
-# EOF
-
-# sudo tee /opt/activemq/conf/groups.properties <<EOF
-# admins=$ACTIVEMQ_ADMIN_NAME
-# users=$ACTIVEMQ_USER_NAME
-# EOF
-
-# sudo systemctl stop activemq
-# sudo systemctl start activemq
-
-
-
-
-# Install ActiveMQ Artemis
-
+# Install AMQP10 server
 
 cd /home/$SSH_USER
+
+
+
+
+if [ "$AMQP10_SERVER_FLAVOR" = "activemq-classic" ]; then
+
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-17-jdk
+if [ "$?" -ne "0" ]; then
+    echo openjdk install error, exiting
+    exit $?
+fi
+
+# Painfully slow
+#curl -LOs http://archive.apache.org/dist/activemq/$AMQP10_SERVER_VERSION/apache-activemq-$AMQP10_SERVER_VERSION-bin.tar.gz
+curl -LOs $CAPILLARIES_RELEASE_URL/apache-activemq-$AMQP10_SERVER_VERSION-bin.tar.gz
+if [ "$?" -ne "0" ]; then
+    echo activemq download error, exiting
+    exit $?
+fi
+
+sudo tar -xzf apache-activemq-$AMQP10_SERVER_VERSION-bin.tar.gz
+sudo mkdir /opt/activemq
+sudo mv apache-activemq-$AMQP10_SERVER_VERSION/* /opt/activemq
+
+sudo addgroup --system activemq
+sudo adduser --system --ingroup activemq --no-create-home --disabled-password activemq
+sudo chown -R activemq:activemq /opt/activemq
+
+
+ACTIVEMQ_SERVICE_FILE=/etc/systemd/system/activemq.service
+sudo rm -f $ACTIVEMQ_SERVICE_FILE
+sudo tee $ACTIVEMQ_SERVICE_FILE <<EOF
+[Unit]
+Description=Apache ActiveMQ
+After=network.target
+[Service]
+Type=forking
+User=activemq
+Group=activemq
+ExecStart=/opt/activemq/bin/activemq start
+ExecStop=/opt/activemq/bin/activemq stop
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo sed -i -e 's~<property name="host" value="127.0.0.1"/>~<property name="host" value="0.0.0.0"/>~g' /opt/activemq/conf/jetty.xml
+
+sudo systemctl daemon-reload
+sudo systemctl enable activemq
+sudo systemctl start activemq
+
+ACTIVEMQXML_FILE=/opt/activemq/conf/activemq.xml
+sudo rm -f $ACTIVEMQXML_FILE
+sudo tee $ACTIVEMQXML_FILE <<EOF
+<beans xmlns="http://www.springframework.org/schema/beans"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+            http://activemq.apache.org/schema/core http://activemq.apache.org/schema/core/activemq-core.xsd">
+  <bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+    <property name="locations">
+      <value>file:\${activemq.conf}/credentials.properties</value>
+    </property>
+  </bean>
+  <broker xmlns="http://activemq.apache.org/schema/core" brokerName="localhost" dataDirectory="\${activemq.data}" schedulerSupport="true">
+    <destinationPolicy>
+      <policyMap>
+        <policyEntries>
+          <policyEntry topic=">">
+            <pendingMessageLimitStrategy>
+              <constantPendingMessageLimitStrategy limit="1000" />
+            </pendingMessageLimitStrategy>
+          </policyEntry>
+        </policyEntries>
+      </policyMap>
+    </destinationPolicy>
+    <managementContext>
+      <managementContext createConnector="false" />
+    </managementContext>
+    <persistenceAdapter>
+      <kahaDB directory="\${activemq.data}/kahadb" />
+    </persistenceAdapter>
+    <systemUsage>
+      <systemUsage>
+        <memoryUsage>
+          <memoryUsage percentOfJvmHeap="70" />
+        </memoryUsage>
+        <storeUsage>
+          <storeUsage limit="100 gb" />
+        </storeUsage>
+        <tempUsage>
+          <tempUsage limit="50 gb" />
+        </tempUsage>
+      </systemUsage>
+    </systemUsage>
+    <transportConnectors>
+      <transportConnector name="openwire" uri="tcp://0.0.0.0:61616?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600" />
+      <transportConnector name="amqp" uri="amqp://0.0.0.0:5672?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600" />
+      <transportConnector name="stomp" uri="stomp://0.0.0.0:61613?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600" />
+      <transportConnector name="mqtt" uri="mqtt://0.0.0.0:1883?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600" />
+      <transportConnector name="ws" uri="ws://0.0.0.0:61614?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600" />
+    </transportConnectors>
+    <shutdownHooks>
+      <bean xmlns="http://www.springframework.org/schema/beans" class="org.apache.activemq.hooks.SpringContextHook" />
+    </shutdownHooks>
+    <plugins>
+      <!-- added -->
+      <redeliveryPlugin>
+        <redeliveryPolicyMap>
+          <redeliveryPolicyMap>
+            <redeliveryPolicyEntries>
+              <redeliveryPolicy queue="capillaries" maximumRedeliveries="-1" initialRedeliveryDelay="5000" redeliveryDelay="5000" />
+            </redeliveryPolicyEntries>
+            <defaultEntry>
+              <redeliveryPolicy maximumRedeliveries="-1" initialRedeliveryDelay="5000" redeliveryDelay="5000" />
+            </defaultEntry>
+          </redeliveryPolicyMap>
+        </redeliveryPolicyMap>
+      </redeliveryPlugin>
+      <simpleAuthenticationPlugin anonymousAccessAllowed="false">
+        <users>
+          <authenticationUser username="$AMQP10_USER_NAME" password="$AMQP10_USER_PASS" groups="users"/>
+        </users>
+      </simpleAuthenticationPlugin>
+    </plugins>
+  </broker>
+  <import resource="jetty.xml" />
+</beans>
+EOF
+
+sudo tee /opt/activemq/conf/users.properties <<EOF
+$AMQP10_ADMIN_NAME=$AMQP10_ADMIN_PASS
+$AMQP10_USER_NAME=$AMQP10_USER_PASS
+EOF
+
+sudo tee /opt/activemq/conf/groups.properties <<EOF
+admins=$AMQP10_ADMIN_NAME
+users=$AMQP10_USER_NAME
+EOF
+
+sudo systemctl stop activemq
+sudo systemctl start activemq
+
+elif [ "$AMQP10_SERVER_FLAVOR" = "activemq-artemis" ]; then
 
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-21-jdk
 if [ "$?" -ne "0" ]; then
@@ -564,15 +625,15 @@ if [ "$?" -ne "0" ]; then
 fi
 
 # Too slow
-# curl -LOs https://archive.apache.org/dist/activemq/activemq-artemis/$ACTIVEMQ_SERVER_VERSION/apache-artemis-$ACTIVEMQ_SERVER_VERSION-bin.tar.gz
-curl -LOs $CAPILLARIES_RELEASE_URL/apache-artemis-$ACTIVEMQ_SERVER_VERSION-bin.tar.gz
+# curl -LOs https://archive.apache.org/dist/activemq/activemq-artemis/$AMQP10_SERVER_VERSION/apache-artemis-$AMQP10_SERVER_VERSION-bin.tar.gz
+curl -LOs $CAPILLARIES_RELEASE_URL/apache-artemis-$AMQP10_SERVER_VERSION-bin.tar.gz
 if [ "$?" -ne "0" ]; then
     echo activemq download error, exiting
     exit $?
 fi
 
-sudo tar -xzf apache-artemis-$ACTIVEMQ_SERVER_VERSION-bin.tar.gz -C /opt/
-sudo mv /opt/apache-artemis-$ACTIVEMQ_SERVER_VERSION /opt/activemq-artemis
+sudo tar -xzf apache-artemis-$AMQP10_SERVER_VERSION-bin.tar.gz -C /opt/
+sudo mv /opt/apache-artemis-$AMQP10_SERVER_VERSION /opt/activemq-artemis
 
 sudo addgroup --system activemq
 sudo adduser --system --ingroup activemq --no-create-home --disabled-password activemq
@@ -582,7 +643,7 @@ sudo chown -R activemq:activemq /opt/activemq-artemis
 cd /opt/activemq-artemis/bin
 sudo mkdir /var/lib/activemq-artemis-broker
 sudo chown -R activemq:activemq /var/lib/activemq-artemis-broker
-sudo -u activemq ./artemis create /var/lib/activemq-artemis-broker --user $ACTIVEMQ_ADMIN_NAME --password $ACTIVEMQ_ADMIN_PASS --allow-anonymous --relax-jolokia
+sudo -u activemq ./artemis create /var/lib/activemq-artemis-broker --user $AMQP10_ADMIN_NAME --password $AMQP10_ADMIN_PASS --allow-anonymous --relax-jolokia
 
 # TODO: add JMX exporter for ActiveMQ
 
@@ -612,138 +673,219 @@ sudo rm -f $ACTIVEMQ_BROKERXML_FILE
 sudo tee $ACTIVEMQ_BROKERXML_FILE <<EOF
 <?xml version='1.0'?>
 <configuration xmlns="urn:activemq"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xmlns:xi="http://www.w3.org/2001/XInclude" xsi:schemaLocation="urn:activemq /schema/artemis-configuration.xsd">
-	<core xmlns="urn:activemq:core"
-		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:activemq:core ">
-		<name>0.0.0.0</name>
-		<persistence-enabled>true</persistence-enabled>
-		<max-redelivery-records>1</max-redelivery-records>
-		<journal-type>NIO</journal-type>
-		<purge-page-folders>false</purge-page-folders>
-		<paging-directory>data/paging</paging-directory>
-		<bindings-directory>data/bindings</bindings-directory>
-		<journal-directory>data/journal</journal-directory>
-		<large-messages-directory>data/large-messages</large-messages-directory>
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xi="http://www.w3.org/2001/XInclude" xsi:schemaLocation="urn:activemq /schema/artemis-configuration.xsd">
+  <core xmlns="urn:activemq:core"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:activemq:core ">
+    <name>0.0.0.0</name>
+    <persistence-enabled>true</persistence-enabled>
+    <max-redelivery-records>1</max-redelivery-records>
+    <journal-type>NIO</journal-type>
+    <purge-page-folders>false</purge-page-folders>
+    <paging-directory>data/paging</paging-directory>
+    <bindings-directory>data/bindings</bindings-directory>
+    <journal-directory>data/journal</journal-directory>
+    <large-messages-directory>data/large-messages</large-messages-directory>
     <journal-retention-directory period="7" unit="DAYS" storage-limit="10G">data/retention</journal-retention-directory>
-		<journal-datasync>true</journal-datasync>
-		<journal-min-files>2</journal-min-files>
-		<journal-pool-files>10</journal-pool-files>
-		<journal-device-block-size>4096</journal-device-block-size>
-		<journal-file-size>10M</journal-file-size>
-		<journal-buffer-timeout>344000</journal-buffer-timeout>
-		<journal-max-io>1</journal-max-io>
-		<disk-scan-period>5000</disk-scan-period>
-		<max-disk-usage>90</max-disk-usage>
-		<critical-analyzer>true</critical-analyzer>
-		<critical-analyzer-timeout>120000</critical-analyzer-timeout>
-		<critical-analyzer-check-period>60000</critical-analyzer-check-period>
-		<critical-analyzer-policy>HALT</critical-analyzer-policy>
-		<page-sync-timeout>344000</page-sync-timeout>
-		<global-max-messages>-1</global-max-messages>
-		<acceptors>
-			<acceptor name="artemis"> tcp://0.0.0.0:61616?tcpSendBufferSize=1048576;tcpReceiveBufferSize=1048576;amqpMinLargeMessageSize=102400;protocols=CORE,AMQP,STOMP,HORNETQ,MQTT,OPENWIRE;useEpoll=true;amqpCredits=1000;amqpLowCredits=300;amqpDuplicateDetection=true;supportAdvisory=false;suppressInternalManagementObjects=false</acceptor>
-			<acceptor name="amqp"> tcp://0.0.0.0:5672?tcpSendBufferSize=1048576;tcpReceiveBufferSize=1048576;protocols=AMQP;useEpoll=true;amqpCredits=1000;amqpLowCredits=300;amqpMinLargeMessageSize=102400;amqpDuplicateDetection=true</acceptor>
-			<acceptor name="stomp"> tcp://0.0.0.0:61613?tcpSendBufferSize=1048576;tcpReceiveBufferSize=1048576;protocols=STOMP;useEpoll=true</acceptor>
-			<acceptor name="hornetq"> tcp://0.0.0.0:5445?anycastPrefix=jms.queue.;multicastPrefix=jms.topic.;protocols=HORNETQ,STOMP;useEpoll=true</acceptor>
-			<acceptor name="mqtt"> tcp://0.0.0.0:1883?tcpSendBufferSize=1048576;tcpReceiveBufferSize=1048576;protocols=MQTT;useEpoll=true</acceptor>
-		</acceptors>
- 	  <security-settings>
-			<security-setting match="#">
-				<permission type="createNonDurableQueue" roles="amq" />
-				<permission type="deleteNonDurableQueue" roles="amq" />
-				<permission type="createDurableQueue" roles="amq" />
-				<permission type="deleteDurableQueue" roles="amq" />
-				<permission type="createAddress" roles="amq" />
-				<permission type="deleteAddress" roles="amq" />
-				<permission type="consume" roles="amq" />
-				<permission type="browse" roles="amq" />
-				<permission type="send" roles="amq" />
-				<permission type="manage" roles="amq" />
-			</security-setting>
-		</security-settings>
-		<address-settings>
-			<!-- added, we want to mimic: -->
-			<!-- /opt/activemq-artemis/bin/artemis queue create &#45&#45name capillaries &#45&#45address capillaries &#45&#45auto-create-address &#45&#45anycast &#45&#45user artemis &#45&#45password artemis &#45&#45no-durable &#45&#45preserve-on-no-consumers -->
-			<!-- Do not involve DLQ, see max-delivery-attempts=-1 and dead-letter-address="" -->
+    <journal-datasync>true</journal-datasync>
+    <journal-min-files>2</journal-min-files>
+    <journal-pool-files>10</journal-pool-files>
+    <journal-device-block-size>4096</journal-device-block-size>
+    <journal-file-size>10M</journal-file-size>
+    <journal-buffer-timeout>344000</journal-buffer-timeout>
+    <journal-max-io>1</journal-max-io>
+    <disk-scan-period>5000</disk-scan-period>
+    <max-disk-usage>90</max-disk-usage>
+    <critical-analyzer>true</critical-analyzer>
+    <critical-analyzer-timeout>120000</critical-analyzer-timeout>
+    <critical-analyzer-check-period>60000</critical-analyzer-check-period>
+    <critical-analyzer-policy>HALT</critical-analyzer-policy>
+    <page-sync-timeout>344000</page-sync-timeout>
+    <global-max-messages>-1</global-max-messages>
+    <acceptors>
+      <acceptor name="artemis"> tcp://0.0.0.0:61616?tcpSendBufferSize=1048576;tcpReceiveBufferSize=1048576;amqpMinLargeMessageSize=102400;protocols=CORE,AMQP,STOMP,HORNETQ,MQTT,OPENWIRE;useEpoll=true;amqpCredits=1000;amqpLowCredits=300;amqpDuplicateDetection=true;supportAdvisory=false;suppressInternalManagementObjects=false</acceptor>
+      <acceptor name="amqp"> tcp://0.0.0.0:5672?tcpSendBufferSize=1048576;tcpReceiveBufferSize=1048576;protocols=AMQP;useEpoll=true;amqpCredits=1000;amqpLowCredits=300;amqpMinLargeMessageSize=102400;amqpDuplicateDetection=true</acceptor>
+      <acceptor name="stomp"> tcp://0.0.0.0:61613?tcpSendBufferSize=1048576;tcpReceiveBufferSize=1048576;protocols=STOMP;useEpoll=true</acceptor>
+      <acceptor name="hornetq"> tcp://0.0.0.0:5445?anycastPrefix=jms.queue.;multicastPrefix=jms.topic.;protocols=HORNETQ,STOMP;useEpoll=true</acceptor>
+      <acceptor name="mqtt"> tcp://0.0.0.0:1883?tcpSendBufferSize=1048576;tcpReceiveBufferSize=1048576;protocols=MQTT;useEpoll=true</acceptor>
+    </acceptors>
+    <security-settings>
+      <security-setting match="#">
+        <permission type="createNonDurableQueue" roles="amq" />
+        <permission type="deleteNonDurableQueue" roles="amq" />
+        <permission type="createDurableQueue" roles="amq" />
+        <permission type="deleteDurableQueue" roles="amq" />
+        <permission type="createAddress" roles="amq" />
+        <permission type="deleteAddress" roles="amq" />
+        <permission type="consume" roles="amq" />
+        <permission type="browse" roles="amq" />
+        <permission type="send" roles="amq" />
+        <permission type="manage" roles="amq" />
+      </security-setting>
+    </security-settings>
+    <address-settings>
+      <!-- added, we want to mimic: -->
+      <!-- /opt/activemq-artemis/bin/artemis queue create &#45&#45name capillaries &#45&#45address capillaries &#45&#45auto-create-address &#45&#45anycast &#45&#45user artemis &#45&#45password artemis &#45&#45no-durable &#45&#45preserve-on-no-consumers -->
+      <!-- Do not involve DLQ, see max-delivery-attempts=-1 and dead-letter-address="" -->
       <!-- sum([3*pow(1.003,p) for p in range(200)]) = 820 seconds -->
-			<address-setting match="capillaries">
-				<auto-create-addresses>true</auto-create-addresses>
-				<default-address-routing-type>ANYCAST</default-address-routing-type>
-				<management-message-attribute-size-limit>1024</management-message-attribute-size-limit>
-				<default-purge-on-no-consumers>false</default-purge-on-no-consumers>
-				<redelivery-delay>3000</redelivery-delay>
-				<redelivery-delay-multiplier>1.003</redelivery-delay-multiplier>
-				<max-redelivery-delay>6000</max-redelivery-delay>
-				<max-delivery-attempts>-1</max-delivery-attempts>
-			</address-setting>
-			<address-setting match="activemq.management.#">
-				<dead-letter-address>DLQ</dead-letter-address>
-				<expiry-address>ExpiryQueue</expiry-address>
-				<redelivery-delay>0</redelivery-delay>
-				<max-size-bytes>-1</max-size-bytes>
-				<message-counter-history-day-limit>10</message-counter-history-day-limit>
-				<address-full-policy>PAGE</address-full-policy>
-				<auto-create-queues>true</auto-create-queues>
-				<auto-create-addresses>true</auto-create-addresses>
-			</address-setting>
-			<address-setting match="#">
-				<dead-letter-address>DLQ</dead-letter-address>
-				<expiry-address>ExpiryQueue</expiry-address>
-				<redelivery-delay>0</redelivery-delay>
-				<message-counter-history-day-limit>10</message-counter-history-day-limit>
-				<address-full-policy>PAGE</address-full-policy>
-				<auto-create-queues>true</auto-create-queues>
-				<auto-create-addresses>true</auto-create-addresses>
-				<auto-delete-queues>false</auto-delete-queues>
-				<auto-delete-addresses>false</auto-delete-addresses>
-				<page-size-bytes>10M</page-size-bytes>
-				<max-size-bytes>-1</max-size-bytes>
- 			  <max-size-messages>-1</max-size-messages>
-				<max-read-page-messages>-1</max-read-page-messages>
-				<max-read-page-bytes>20M</max-read-page-bytes>
-				<page-limit-bytes>-1</page-limit-bytes>
-				<page-limit-messages>-1</page-limit-messages>
-			</address-setting>
-		</address-settings>
-		<addresses>
-			<address name="DLQ">
-				<anycast>
-					<queue name="DLQ" />
-				</anycast>
-			</address>
-			<address name="ExpiryQueue">
-				<anycast>
-					<queue name="ExpiryQueue" />
-				</anycast>
-			</address>
-			<!-- added, we want to mimic: -->
-			<!-- /opt/activemq-artemis/bin/artemis queue create &#45&#45name capillaries &#45&#45address capillaries &#45&#45auto-create-address &#45&#45anycast &#45&#45user artemis &#45&#45password artemis &#45&#45no-durable &#45&#45preserve-on-no-consumers -->
-			<address name="capillaries">
-				<anycast>
-					<queue name="capillaries">
-						<durable>false</durable>
-					</queue>
-				</anycast>
-			</address>
-		</addresses>
-	</core>
+      <address-setting match="capillaries">
+        <auto-create-addresses>true</auto-create-addresses>
+        <default-address-routing-type>ANYCAST</default-address-routing-type>
+        <management-message-attribute-size-limit>1024</management-message-attribute-size-limit>
+        <default-purge-on-no-consumers>false</default-purge-on-no-consumers>
+        <redelivery-delay>3000</redelivery-delay>
+        <redelivery-delay-multiplier>1.003</redelivery-delay-multiplier>
+        <max-redelivery-delay>6000</max-redelivery-delay>
+        <max-delivery-attempts>-1</max-delivery-attempts>
+      </address-setting>
+      <address-setting match="activemq.management.#">
+        <dead-letter-address>DLQ</dead-letter-address>
+        <expiry-address>ExpiryQueue</expiry-address>
+        <redelivery-delay>0</redelivery-delay>
+        <max-size-bytes>-1</max-size-bytes>
+        <message-counter-history-day-limit>10</message-counter-history-day-limit>
+        <address-full-policy>PAGE</address-full-policy>
+        <auto-create-queues>true</auto-create-queues>
+        <auto-create-addresses>true</auto-create-addresses>
+      </address-setting>
+      <address-setting match="#">
+        <dead-letter-address>DLQ</dead-letter-address>
+        <expiry-address>ExpiryQueue</expiry-address>
+        <redelivery-delay>0</redelivery-delay>
+        <message-counter-history-day-limit>10</message-counter-history-day-limit>
+        <address-full-policy>PAGE</address-full-policy>
+        <auto-create-queues>true</auto-create-queues>
+        <auto-create-addresses>true</auto-create-addresses>
+        <auto-delete-queues>false</auto-delete-queues>
+        <auto-delete-addresses>false</auto-delete-addresses>
+        <page-size-bytes>10M</page-size-bytes>
+        <max-size-bytes>-1</max-size-bytes>
+        <max-size-messages>-1</max-size-messages>
+        <max-read-page-messages>-1</max-read-page-messages>
+        <max-read-page-bytes>20M</max-read-page-bytes>
+        <page-limit-bytes>-1</page-limit-bytes>
+        <page-limit-messages>-1</page-limit-messages>
+      </address-setting>
+    </address-settings>
+    <addresses>
+      <address name="DLQ">
+        <anycast>
+          <queue name="DLQ" />
+        </anycast>
+      </address>
+      <address name="ExpiryQueue">
+        <anycast>
+          <queue name="ExpiryQueue" />
+        </anycast>
+      </address>
+      <!-- added, we want to mimic: -->
+      <!-- /opt/activemq-artemis/bin/artemis queue create &#45&#45name capillaries &#45&#45address capillaries &#45&#45auto-create-address &#45&#45anycast &#45&#45user artemis &#45&#45password artemis &#45&#45no-durable &#45&#45preserve-on-no-consumers -->
+      <address name="capillaries">
+        <anycast>
+          <queue name="capillaries">
+            <durable>false</durable>
+          </queue>
+        </anycast>
+      </address>
+    </addresses>
+  </core>
 </configuration>
 EOF
 
 sudo tee /var/lib/activemq-artemis-broker/etc/artemis-users.properties <<EOF
-$ACTIVEMQ_ADMIN_NAME=$ACTIVEMQ_ADMIN_PASS
-$ACTIVEMQ_USER_NAME=$ACTIVEMQ_USER_PASS
+$AMQP10_ADMIN_NAME=$AMQP10_ADMIN_PASS
+$AMQP10_USER_NAME=$AMQP10_USER_PASS
 EOF
 
 sudo tee /var/lib/activemq-artemis-broker/etc/artemis-roles.properties <<EOF
-amq=$ACTIVEMQ_ADMIN_NAME,$ACTIVEMQ_USER_NAME
+amq=$AMQP10_ADMIN_NAME,$AMQP10_USER_NAME
 EOF
 
 # Not needed, but just in case
 sudo systemctl restart activemq-artemis
 
+elif [ "$AMQP10_SERVER_FLAVOR" = "rabbitmq" ]; then
 
+curl -LOs $CAPILLARIES_RELEASE_URL/esl-erlang_${ERLANG_VER}_${ARCH}.deb
+sudo DEBIAN_FRONTEND=noninteractive apt install -y ./esl-erlang_${ERLANG_VER}_${ARCH}.deb
+if [ "$?" -ne "0" ]; then
+    echo erlang install error, exiting
+    exit $?
+fi
+
+curl -LOs $CAPILLARIES_RELEASE_URL/rabbitmq-server_${RABBITMQ_VER}_all.deb
+sudo DEBIAN_FRONTEND=noninteractive apt install -y ./rabbitmq-server_${RABBITMQ_VER}_all.deb
+if [ "$?" -ne "0" ]; then
+    echo rabbitmq install error, exiting
+    exit $?
+fi
+
+# Configure RabbitMQ
+
+# Make sure it's stopped
+sudo systemctl stop rabbitmq-server
+
+sudo tee /etc/rabbitmq/rabbitmq.conf <<EOF
+# log.file=/var/log/rabbitmq/rabbit.log
+# log.file.level=info
+# log.file.formatter=json
+log.file.rotation.date = \$D0
+log.file.rotation.count = 5
+log.file.rotation.compress = true
+EOF
+
+sudo chown rabbitmq /etc/rabbitmq/rabbitmq.conf
+sudo chmod 644 /etc/rabbitmq/rabbitmq.conf
+
+# Make sure it's started
+sudo systemctl start rabbitmq-server
+
+# Enable mgmt console
+sudo rabbitmq-plugins list
+sudo rabbitmq-plugins enable rabbitmq_management
+
+# Console user mgmt
+sudo rabbitmqctl add_user $AMQP10_ADMIN_NAME $AMQP10_ADMIN_PASS
+sudo rabbitmqctl set_user_tags $AMQP10_ADMIN_NAME administrator
+sudo rabbitmqctl set_permissions -p / $AMQP10_ADMIN_NAME ".*" ".*" ".*"
+
+# Delete default guest user
+sudo rabbitmqctl list_users
+sudo rabbitmqctl delete_user guest
+
+# Capillaries daemon and webapi use this account
+sudo rabbitmqctl add_user $AMQP10_USER_NAME $AMQP10_USER_PASS
+sudo rabbitmqctl set_permissions -p / $AMQP10_USER_NAME ".*" ".*" ".*"
+
+# Install rabbitmqadmin v1 (Python script)
+sudo rabbitmq-plugins enable rabbitmq_management
+sudo curl -Lo /usr/local/bin/rabbitmqadmin https://raw.githubusercontent.com/rabbitmq/rabbitmq-management/v3.7.8/bin/rabbitmqadmin
+sudo sed -i -e "s~env python~env python3~g" /usr/local/bin/rabbitmqadmin
+sudo chmod 777 /usr/local/bin/rabbitmqadmin
+
+# The following commands set up RabbitMQ dead letter queue infrastructure (no ActiveMQ-style redelivery-delay shortcut in RabbitMQ). Very fragile.
+# The only parameter you may want to play with is x-message-ttl.
+# Please note that this setup assumes that Capillaries Amqp10.address setting is set to "/queues/capidaemon" 
+# Some AMQP 1.0 details (like, why "/queues/capidaemon" and not just "my_simple_capillaries_queue") at https://www.rabbitmq.com/docs/amqp
+# Dead letter exchange circle of life explained at https://www.cloudamqp.com/blog/when-and-how-to-use-the-rabbitmq-dead-letter-exchange.html
+sudo rabbitmqadmin declare exchange --vhost=/ name=capillaries type=direct durable=false -u capiadmin -p capiadminpass
+sudo rabbitmqadmin declare exchange --vhost=/ name=capillaries.dlx type=direct durable=false -u capiadmin -p capiadminpass
+sudo rabbitmqadmin declare queue --vhost=/ name=capidaemon durable=false arguments='{"x-dead-letter-exchange":"capillaries.dlx", "x-dead-letter-routing-key":"capidaemon.dlq"}' -u capiadmin -p capiadminpass
+sudo rabbitmqadmin declare queue --vhost=/ name=capidaemon.dlq durable=false arguments='{"x-message-ttl":5000, "x-dead-letter-exchange":"capillaries", "x-dead-letter-routing-key":"capidaemon"}' -u capiadmin -p capiadminpass
+sudo rabbitmqadmin --vhost=/ declare binding source="capillaries" destination_type="queue" destination="capidaemon" routing_key="capidaemon" -u capiadmin -p capiadminpass
+sudo rabbitmqadmin --vhost=/ declare binding source="capillaries.dlx" destination_type="queue" destination="capidaemon.dlq" routing_key="capidaemon.dlq" -u capiadmin -p capiadminpass
+
+curl -s http://localhost:15672
+if [ "$?" -ne "0" ]; then
+    echo Cannot check localhost:15672
+    exit $?
+fi
+
+
+else 
+  echo Invalid AMQP10_SERVER_FLAVOR: $AMQP10_SERVER_FLAVOR
+  exit 1
+fi
 
 
 
@@ -754,12 +896,6 @@ sudo systemctl restart activemq-artemis
 
 
 sudo useradd --no-create-home --shell /bin/false node_exporter
-
-if [ "$(uname -p)" == "x86_64" ]; then
-  ARCH=amd64
-else
-  ARCH=arm64
-fi
 
 # Download node exporter
 EXPORTER_DL_FILE=node_exporter-$PROMETHEUS_NODE_EXPORTER_VERSION.linux-$ARCH
@@ -832,12 +968,6 @@ sudo mkdir /var/lib/prometheus
 sudo chown prometheus:prometheus /etc/prometheus
 sudo chown prometheus:prometheus /var/lib/prometheus
 
-if [ "$(uname -p)" == "x86_64" ]; then
-  ARCH=amd64
-else
-  ARCH=arm64
-fi
-
 # Downloading Prometheus
 PROMETHEUS_DL_FILE=prometheus-$PROMETHEUS_SERVER_VERSION.linux-$ARCH
 cd /home/$SSH_USER
@@ -881,7 +1011,7 @@ rm -rf $PROMETHEUS_DL_FILE.tar.gz $PROMETHEUS_DL_FILE
 # Prometheus server (assuming node exporter also running on it)
 # https://www.digitalocean.com/community/tutorials/how-to-install-prometheus-on-ubuntu-16-04
 
-sudo systemctl stop prometheus
+#sudo systemctl stop prometheus
 
 PROMETHEUS_YAML_FILE=/etc/prometheus/prometheus.yml
 

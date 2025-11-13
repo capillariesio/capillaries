@@ -68,7 +68,7 @@ Sensitive TF variables can be set from environment variables as follows:
 
 ```
 export TF_VAR_BASTION_ALLOWED_IPS="123.234.0.0/16,111.222.0.5"
-export TF_VAR_RABBITMQ_URL="amqps://capiuser:capipass@d-12345678-1234-1234-1234-123456781234.mq.us-east-1.on.aws:5671"
+export TF_VAR_RABBITMQ_URL="amqps://capiuser:capiuserpass@d-12345678-1234-1234-1234-123456781234.mq.us-east-1.on.aws:5671"
 export TF_VAR_CASSANDRA_USERNAME="UserAccessCapillariesKeyspaces-at-XXXXXXXX"
 export TF_VAR_CASSANDRA_PASSWORD="..."
 ```
