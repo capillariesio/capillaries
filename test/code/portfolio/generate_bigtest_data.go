@@ -463,8 +463,8 @@ func generateAccounts(fileInAccountsPath string, quickAccountsMap map[string]str
 
 const SOURCE_TXNS int = 88459
 const SOURCE_HOLDINGS int = 4300
-const HOLDING_FILES_TOTAL int = 20
-const TXN_FILES_TOTAL int = 500 // For perf testing purposes, this better be > total_number_of_daemon_cores
+const HOLDING_FILES_TOTAL int = 50
+const TXN_FILES_TOTAL int = 1000 // For perf testing purposes, this better be > total_number_of_daemon_cores
 
 func main() {
 	quicktestIn := flag.String("quicktest_in", "/someunknowndir", "Root dir for in quicktest files to be used as a template")

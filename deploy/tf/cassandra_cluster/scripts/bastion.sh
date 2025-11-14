@@ -900,8 +900,9 @@ sudo useradd --no-create-home --shell /bin/false node_exporter
 # Download node exporter
 EXPORTER_DL_FILE=node_exporter-$PROMETHEUS_NODE_EXPORTER_VERSION.linux-$ARCH
 cd /home/$SSH_USER
-echo Downloading https://github.com/prometheus/node_exporter/releases/download/v$PROMETHEUS_NODE_EXPORTER_VERSION/$EXPORTER_DL_FILE.tar.gz ...
-curl -LOs https://github.com/prometheus/node_exporter/releases/download/v$PROMETHEUS_NODE_EXPORTER_VERSION/$EXPORTER_DL_FILE.tar.gz
+# Unreliable
+# curl -LOs https://github.com/prometheus/node_exporter/releases/download/v$PROMETHEUS_NODE_EXPORTER_VERSION/$EXPORTER_DL_FILE.tar.gz
+curl -LOs $CAPILLARIES_RELEASE_URL/$EXPORTER_DL_FILE.tar.gz
 if [ "$?" -ne "0" ]; then
     echo Cannot download, exiting
     exit $?

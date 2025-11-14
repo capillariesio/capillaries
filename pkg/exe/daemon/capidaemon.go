@@ -126,7 +126,7 @@ func main() {
 		if envConfig.Amqp10.MinCreditWindow == 0 {
 			envConfig.Amqp10.MinCreditWindow = uint32(envConfig.Daemon.ThreadPoolSize)
 		}
-		asyncConsumer = mq.NewAmqp10Consumer(envConfig.Amqp10.URL, envConfig.Amqp10.Address, ackMethod, envConfig.Daemon.ThreadPoolSize, envConfig.Amqp10.MinCreditWindow)
+		asyncConsumer = mq.NewAmqp10Consumer(envConfig.Amqp10.URL, envConfig.Amqp10.Address, ackMethod, envConfig.Daemon.ThreadPoolSize, envConfig.Amqp10.MinCreditWindow, false)
 	} else if envConfig.CapiMqClient.URL != "" {
 		asyncConsumer = mq.NewCapimqConsumer(envConfig.CapiMqClient.URL, logger.ZapMachine.String, envConfig.Daemon.ThreadPoolSize)
 		heartbeatInterval = envConfig.CapiMqClient.HeartbeatInterval
@@ -141,13 +141,6 @@ func main() {
 	if err := asyncConsumer.Start(logger, listenerChannel, acknowledgerChannel); err != nil {
 		log.Fatalf("%s", err.Error())
 	}
-
-	deliveryHandlerLogger, err := l.NewLoggerFromLogger(logger)
-	if err != nil {
-		logger.Error("cannot create logger for delivery handler thread: %s", err.Error())
-		log.Fatalf("%s", err.Error())
-	}
-	defer deliveryHandlerLogger.Close()
 
 	for {
 		select {
@@ -177,6 +170,12 @@ func main() {
 			// Lock one slot in the semaphore
 			sem <- 1
 
+			deliveryHandlerLogger, err := l.NewLoggerFromLogger(logger)
+			if err != nil {
+				logger.Error("cannot create logger for delivery handler thread: %s", err.Error())
+				log.Fatalf("%s", err.Error())
+			}
+
 			// envConfig.ThreadPoolSize goroutines run simultaneously
 			go func(innerLogger *l.CapiLogger, wfmodelMsg *wfmodel.Message, acknowledgerChannel chan mq.AknowledgerToken) {
 				var heartbeatCallback func(wfmodelMsgId string)
@@ -200,6 +199,7 @@ func main() {
 					MsgRetryCounter.Inc()
 				}
 
+				innerLogger.Close()
 			}(deliveryHandlerLogger, wfmodelMsg, acknowledgerChannel)
 
 		}
