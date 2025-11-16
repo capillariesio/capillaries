@@ -1,3 +1,6 @@
+2025: this config is obsolete starting Capillaries 1.1 (it now uses AMQP 1.0).
+Use it as a reference to create a working config.
+
 This is a POC demonstrating Capillaries running in a Kubernetes cluster.
 
  It assumes that:

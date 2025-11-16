@@ -9,8 +9,9 @@ resource "aws_network_interface" "daemon_internal_ip" {
   }
 }
 
+# Make sure it matched the list of expected variables in daemon.sh
 locals {
-  daemon_provisioner_vars = "DAEMON_GOMEMLIMIT_GB=${local.daemon_gomemlimit_gb} DAEMON_GOGC=${var.daemon_gogc} AWSREGION=${var.awsregion} SSH_USER=${var.ssh_user} OS_ARCH=${var.os_arch} CAPILLARIES_RELEASE_URL=${var.capillaries_release_url} S3_LOG_URL=${var.s3_log_url} CASSANDRA_HOSTS=${local.cassandra_hosts} CASSANDRA_PORT=${var.cassandra_port} CASSANDRA_USERNAME=${var.cassandra_username} CASSANDRA_PASSWORD=${var.cassandra_password} AMQP10_URL=${local.activemq_url} AMQP10_ADDRESS=${var.amqp10_flavor_address_map[var.amqp10_server_flavor]} AMQP10_ACK_METHOD=${local.amqp10_ack_method} AMQP10_USER_NAME=${var.amqp10_user_name} AMQP10_USER_PASS=${var.amqp10_user_pass} PROMETHEUS_NODE_EXPORTER_VERSION=${var.prometheus_node_exporter_version} WRITER_WORKERS=${var.daemon_writer_workers} THREAD_POOL_SIZE=${local.daemon_thread_pool_size}"
+  daemon_provisioner_vars = "DAEMON_GOMEMLIMIT_GB=${local.daemon_gomemlimit_gb} DAEMON_GOGC=${var.daemon_gogc} AWSREGION=${var.awsregion} SSH_USER=${var.ssh_user} OS_ARCH=${local.os_arch} CAPILLARIES_RELEASE_URL=${var.capillaries_release_url} S3_LOG_URL=${var.s3_log_url} CASSANDRA_HOSTS=${local.cassandra_hosts} CASSANDRA_PORT=${var.cassandra_port} CASSANDRA_USERNAME=${var.cassandra_username} CASSANDRA_PASSWORD=${var.cassandra_password} AMQP10_URL=${local.activemq_url} AMQP10_ADDRESS=${var.amqp10_flavor_address_map[var.amqp10_server_flavor]} AMQP10_ACK_METHOD=${local.amqp10_ack_method} PROMETHEUS_NODE_EXPORTER_FILENAME=${local.prometheus_node_exporter_filename} WRITER_WORKERS=${var.daemon_writer_workers} THREAD_POOL_SIZE=${local.daemon_thread_pool_size}"
 }
 
 resource "aws_instance" "daemon" {
@@ -27,9 +28,10 @@ resource "aws_instance" "daemon" {
   iam_instance_profile = aws_iam_instance_profile.capillaries_instance_profile.name
   
   user_data              = templatefile("./daemon.sh.tpl", {
-    os_arch                                = var.os_arch
+    os_arch                                = local.os_arch
     ssh_user                               = var.ssh_user
     capillaries_instance_profile           = aws_iam_instance_profile.capillaries_instance_profile.name
+    # Used in daemon.sh.tpl
     daemon_provisioner_vars                = local.daemon_provisioner_vars
     capillaries_tf_deploy_temp_bucket_name = var.capillaries_tf_deploy_temp_bucket_name
   })  

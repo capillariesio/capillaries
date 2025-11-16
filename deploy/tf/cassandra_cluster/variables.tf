@@ -1,3 +1,132 @@
+# Deployment parameters
+
+
+variable "arch" {
+	type        = string
+	description = "arm64 or amd64, matches the AMI"
+    default     = "arm64"
+}
+
+variable "bastion_instance_type" {
+	type        = string
+    default     = "c7g.large"
+}
+
+variable "daemon_instance_type" {
+	type        = string
+    default     = "c7g.large"
+}
+
+variable "number_of_daemons" {
+	type        = number
+	default     = 4
+}
+
+variable "cassandra_instance_type" {
+	type        = string
+	description = "Make sure it's in the nvme_regex_map list"
+    default     = "c7gd.2xlarge"
+}
+
+variable "number_of_cassandra_hosts" {
+	type        = number
+	description = "90 max, because IP address starts with 11, and 101 is a daemon"
+	default     = 4
+}
+
+variable "amqp10_server_flavor" {
+	type        = string
+	description = "rabbitmq, artemis, classic"
+	default     = "activemq-artemis"
+	validation  {
+		condition = contains (["rabbitmq", "activemq-classic", "activemq-artemis"], var.amqp10_server_flavor)
+		error_message = "amqp10_server_flavor must be rabbitmq, activemq-classic, activemq-artemis"
+	}
+}
+
+
+
+
+# Versions
+
+
+
+variable "bastion_ami_name" {
+	type        = string
+	description = "arm64: ami-04474687c34a061cf Expires 2026-12-18 ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-20241218; amd64: ami-079cb33ef719a7b78 Expires 2026-12-18 ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20241218 // ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20240606"
+    default     =  "ami-04474687c34a061cf"
+}
+
+variable "daemon_ami_name" {
+	type        = string
+	description = "arm64: ami-04474687c34a061cf Expires 2026-12-18 ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-20241218; amd64: ami-079cb33ef719a7b78 Expires 2026-12-18 ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20241218 // ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20240606"
+    default     =  "ami-04474687c34a061cf"
+}
+
+variable "cassandra_ami_name" {
+	type        = string
+	description = "arm64: ami-04474687c34a061cf Expires 2026-12-18 ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-20241218; amd64: ami-079cb33ef719a7b78 Expires 2026-12-18 ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20241218 // ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20240606"
+    default     = "ami-04474687c34a061cf"
+}
+
+# When changing, make sure to also change in binaries_upload.sh
+variable "amqp10_flavor_version_map" {
+  type = map(string)
+  default = {
+	"rabbitmq"            = "4.2.0-1"
+	"activemq-classic"    = "6.1.8"
+	"activemq-artemis"    = "2.44.0"
+  }
+}
+
+# When changing, make sure to also change in binaries_upload.sh
+variable "rabbitmq_erlang_version" {
+	type        = string
+	description = "Erlang from cloudamqp"
+	default     = "27.3.4-1"
+}
+
+variable "prometheus_node_exporter_version" {
+	type        = string
+	default     = "1.9.1"
+}
+
+# When changing, make sure to also change in binaries_upload.sh
+variable "prometheus_server_version" {
+	type        = string
+	default     = "3.7.0"
+}
+
+variable "prometheus_jmx_exporter_version" {
+	type        = string
+	description = "1.5.0"
+	default     = "1.5.0"
+}
+
+variable "cassandra_version" {
+	type        = string
+	description = "4 or 5"
+	default     = "50x"
+}
+
+
+
+# Rarely changes
+
+
+
+
+variable "capillaries_release_url" {
+	type        = string
+	description = "Download Capillaries binaries here"
+    default     = "https://capillaries-release.s3.us-east-1.amazonaws.com/latest"
+}
+
+variable "s3_log_url" {
+	type    = string
+	default = "s3://capillaries-testbucket/log"
+}
+
 variable "awsregion" {
 	type    = string
 	default = "us-east-1"
@@ -8,140 +137,13 @@ variable "awsavailabilityzone" {
 	default = "us-east-1a"
 }
 
-variable "internal_bastion_ip" {
-    type        = string
-    description = "Bastion IP in the VPC"
-    default     = "10.5.1.10"
-}
-
-variable "capillaries_release_url" {
-	type        = string
-	description = "Download Capillaries binaries here"
-    default     = "https://capillaries-release.s3.us-east-1.amazonaws.com/latest"
-}
-
-variable "os_arch" {
-	type        = string
-	description = "linux/arm64 or linux/amd64, matches the AMI"
-    default     = "linux/arm64"
-}
-
-variable "ssh_user" {
-	type    = string
-	default = "ubuntu"
-}
-
 variable "ssh_keypair_name" {
 	type        = string
 	description = "Name of the AWS keypair to use for SSH access to instances"
     default     = "sampledeployment005-root-key"
 }
 
-variable "capillaries_tf_deploy_temp_bucket_name" {
-	type = string
-	default = "capillaries-tf-deploy-temp-bucket"
-}
-
-variable "bastion_instance_type" {
-	type        = string
-    default     = "c7g.large"
-}
-
-variable "bastion_ami_name" {
-	type        = string
-	description = "arm64: ami-04474687c34a061cf Expires 2026-12-18 ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-20241218; amd64: ami-079cb33ef719a7b78 Expires 2026-12-18 ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20241218 // ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20240606"
-    default     =  "ami-04474687c34a061cf"
-}
-
-variable "number_of_daemons" {
-	type        = number
-	default     = 4
-}
-
-variable "daemon_instance_type" {
-	type        = string
-    default     = "c7g.large"
-}
-
-variable "daemon_ami_name" {
-	type        = string
-	description = "arm64: ami-04474687c34a061cf Expires 2026-12-18 ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-20241218; amd64: ami-079cb33ef719a7b78 Expires 2026-12-18 ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20241218 // ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20240606"
-    default     =  "ami-04474687c34a061cf"
-}
-
-variable "daemon_gogc" {
-	type        = string
-	description = "GOGC env var for daemon, usually 100"
-    default     = "100"
-}
-
-variable "number_of_cassandra_hosts" {
-	type        = number
-	description = "90 max, because IP address starts with 11, and 101 is a daemon"
-	default     = 4
-}
-
-variable "cassandra_port" {
-	type        = string
-	description = "Default Cassandra port"
-	default     = "9042"
-}
-
-variable "cassandra_username" {
-	type        = string
-	description = "Default Cassandra username"
-	default     = "cassandra"
-}
-
-variable "cassandra_password" {
-	type        = string
-	description = "Default Cassandra password"
-	default     = "cassandra"
-}
-
-variable "cassandra_instance_type" {
-	type        = string
-	description = "Make sure it's in the nvme_regex_map list"
-    default     = "c7gd.2xlarge"
-}
-
-variable "cassandra_ami_name" {
-	type        = string
-	description = "arm64: ami-04474687c34a061cf Expires 2026-12-18 ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-20241218; amd64: ami-079cb33ef719a7b78 Expires 2026-12-18 ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20241218 // ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20240606"
-    default     = "ami-04474687c34a061cf"
-}
-
-variable "cassandra_version" {
-	type        = string
-	description = "4 or 5"
-	default     = "50x"
-}
-
-variable "webapi_gogc" {
-	type        = string
-	description = "GOGC env var for webapi, usually 100"
-    default     = "100"
-}
-
-variable "jmx_exporter_version" {
-	type        = string
-	description = "1.5.0"
-	default     = "1.5.0"
-}
-
-variable "cassandra_initial_tokens_map" {
-	type = map(list(string))
-	default = {
-		"1"  = ["-9223372036854775808"]
-		"2"  = ["-9223372036854775808", "0"]
-		"3"  = ["-9223372036854775808", "-3074457345618258603", "3074457345618258602"]
-		"4"  = ["-9223372036854775808", "-4611686018427387904", "0", "4611686018427387904"]
-		"8"  = ["-9223372036854775808", "-6917529027641081856", "-4611686018427387904", "-2305843009213693952", "0", "2305843009213693952", "4611686018427387904", "6917529027641081856"]
-		"16" = ["-9223372036854775808","-8070450532247928832","-6917529027641081856","-5764607523034234880","-4611686018427387904","-3458764513820540928","-2305843009213693952","-1152921504606846976","0","1152921504606846976","2305843009213693952","3458764513820540928","4611686018427387904","5764607523034234880","6917529027641081856","8070450532247928832"]
-		"32" = ["-9223372036854775808","-8646911284551352320","-8070450532247928832","-7493989779944505344","-6917529027641081856","-6341068275337658368","-5764607523034234880","-5188146770730811392","-4611686018427387904","-4035225266123964416","-3458764513820540928","-2882303761517117440","-2305843009213693952","-1729382256910270464","-1152921504606846976","-576460752303423488","0","576460752303423488","1152921504606846976","1729382256910270464","2305843009213693952","2882303761517117440","3458764513820540928","4035225266123964416","4611686018427387904","5188146770730811392","5764607523034234880","6341068275337658368","6917529027641081856","7493989779944505344","8070450532247928832","8646911284551352320"]
-	}
-}
-
+# For info purposes only, update once very couple years?
 variable "instance_hourly_cost" {
 	type = map(number)
 	description = "As of June 2025"
@@ -208,6 +210,77 @@ variable "instance_hourly_cost" {
 		"c8gd.16xlarge" = 3.13536		
 	}
 }
+
+
+
+# Almost never changes
+
+
+
+
+variable "internal_bastion_ip" {
+    type        = string
+    description = "Bastion IP in the VPC"
+    default     = "10.5.1.10"
+}
+
+locals {
+	os_arch = format("linux/%s", var.arch)
+}
+
+variable "ssh_user" {
+	type    = string
+	default = "ubuntu"
+}
+
+variable "capillaries_tf_deploy_temp_bucket_name" {
+	type = string
+	default = "capillaries-tf-deploy-temp-bucket"
+}
+
+variable "daemon_gogc" {
+	type        = string
+	description = "GOGC env var for daemon, usually 100"
+    default     = "100"
+}
+
+variable "cassandra_port" {
+	type        = string
+	description = "Default Cassandra port"
+	default     = "9042"
+}
+
+variable "cassandra_username" {
+	type        = string
+	description = "Default Cassandra username"
+	default     = "cassandra"
+}
+
+variable "cassandra_password" {
+	type        = string
+	description = "Default Cassandra password"
+	default     = "cassandra"
+}
+
+variable "webapi_gogc" {
+	type        = string
+	description = "GOGC env var for webapi, usually 100"
+    default     = "100"
+}
+
+variable "cassandra_initial_tokens_map" {
+	type = map(list(string))
+	default = {
+		"1"  = ["-9223372036854775808"]
+		"2"  = ["-9223372036854775808", "0"]
+		"3"  = ["-9223372036854775808", "-3074457345618258603", "3074457345618258602"]
+		"4"  = ["-9223372036854775808", "-4611686018427387904", "0", "4611686018427387904"]
+		"8"  = ["-9223372036854775808", "-6917529027641081856", "-4611686018427387904", "-2305843009213693952", "0", "2305843009213693952", "4611686018427387904", "6917529027641081856"]
+		"16" = ["-9223372036854775808","-8070450532247928832","-6917529027641081856","-5764607523034234880","-4611686018427387904","-3458764513820540928","-2305843009213693952","-1152921504606846976","0","1152921504606846976","2305843009213693952","3458764513820540928","4611686018427387904","5764607523034234880","6917529027641081856","8070450532247928832"]
+		"32" = ["-9223372036854775808","-8646911284551352320","-8070450532247928832","-7493989779944505344","-6917529027641081856","-6341068275337658368","-5764607523034234880","-5188146770730811392","-4611686018427387904","-4035225266123964416","-3458764513820540928","-2882303761517117440","-2305843009213693952","-1729382256910270464","-1152921504606846976","-576460752303423488","0","576460752303423488","1152921504606846976","1729382256910270464","2305843009213693952","2882303761517117440","3458764513820540928","4035225266123964416","4611686018427387904","5188146770730811392","5764607523034234880","6341068275337658368","6917529027641081856","7493989779944505344","8070450532247928832","8646911284551352320"]
+	}
+}
+
 variable "cpu_count_map" {
   type = map(number)
   default = {
@@ -325,30 +398,6 @@ variable "external_prometheus_console_port" {
 	default = "9091"
 }
 
-variable "s3_log_url" {
-	type    = string
-	default = "s3://capillaries-testbucket/log"
-}
-
-variable "amqp10_server_flavor" {
-	type        = string
-	description = "rabbitmq, artemis, classic"
-	default     = "rabbitmq"
-	validation  {
-		condition = contains (["rabbitmq", "activemq-classic", "activemq-artemis"], var.amqp10_server_flavor)
-		error_message = "amqp10_server_flavor must be rabbitmq, activemq-classic, activemq-artemis"
-	}
-}
-
-variable "amqp10_flavor_version_map" {
-  type = map(string)
-  default = {
-	"rabbitmq"            = "4.2.0-1"
-	"activemq-classic"    = "6.1.8"
-	"activemq-artemis"    = "2.44.0"
-  }
-}
-
 variable "amqp10_flavor_address_map" {
   type = map(string)
   default = {
@@ -366,18 +415,6 @@ variable "amqp10_flavor_ack_method_map" {
 	"activemq-classic"    = "reject"
 	"activemq-artemis"    = "release"
   }
-}
-
-variable "rabbitmq_erlang_version_amd64" {
-	type        = string
-	description = "Erlang from cloudamqp"
-	default     = "27.3.4-1"
-}
-
-variable "rabbitmq_erlang_version_arm64" {
-	type        = string
-	description = "Erlang from cloudamqp"
-	default     = "27.3.4-1"
 }
 
 variable "amqp10_admin_name"{
@@ -400,25 +437,15 @@ variable "amqp10_user_pass"{
 	default     = "capiuserpass"
 }
 
-variable "prometheus_node_exporter_version" {
-	type        = string
-	default     = "1.9.1"
-}
-
-variable "prometheus_server_version" {
-	type        = string
-	default     = "3.7.0"
-}
-
 variable "daemon_thread_pool_factor" {
 	type        = number
-	description= "Worker threads per Daemon CPU: 1.0 very conservative, 2.5 pretty aggressive"
+	description= "Worker threads per Daemon CPU: 1.0 very conservative, 3 pretty aggressive - good for benchmarking"
 	default     = 3
 }
 
 variable "daemon_writer_workers" {
 	type        = number
-	description= "stick with 6 for now"
+	description= "12 is good for benchmarking, probably lower for production"
 	default     = 12
 }
 
@@ -438,67 +465,27 @@ locals {
 	webapi_gomemlimit_gb       = ceil(var.instance_memory_map[var.bastion_instance_type] / 2 )
 } 
 
+# These should match names in upload_dependencies.sh
+locals {
+	prometheus_node_exporter_filename  = format("node_exporter-%s.linux-%s.tar.gz", var.prometheus_node_exporter_version, var.arch)
+	prometheus_node_exporter_url       = format("%s/%s", var.capillaries_release_url, local.prometheus_node_exporter_filename)
+	prometheus_jmx_exporter_filename   = format("jmx_prometheus_javaagent-%s.jar", var.prometheus_jmx_exporter_version)
+	prometheus_jmx_exporter_url        = format("%s/%s", var.capillaries_release_url, local.prometheus_jmx_exporter_filename)
+	prometheus_server_filename         = format("prometheus-%s.linux-%s.tar.gz", var.prometheus_server_version, var.arch)
+	prometheus_server_url              = format("%s/%s", var.capillaries_release_url, local.prometheus_server_filename)
+	rabbitmq_server_filename           = format("rabbitmq-server_%s_all.deb", var.amqp10_flavor_version_map["rabbitmq"])
+	rabbitmq_server_url                = format("%s/%s", var.capillaries_release_url, local.rabbitmq_server_filename)
+	activemq_classic_server_filename   = format("apache-activemq-%s-bin.tar.gz", var.amqp10_flavor_version_map["activemq-classic"])
+	activemq_classic_server_url        = format("%s/%s", var.capillaries_release_url, local.activemq_classic_server_filename)
+	activemq_artemis_server_filename   = format("apache-artemis-%s-bin.tar.gz", var.amqp10_flavor_version_map["activemq-artemis"])
+	activemq_artemis_server_url        = format("%s/%s", var.capillaries_release_url, local.activemq_artemis_server_filename)
+	rabbitmq_erlang_filename           = format("esl-erlang_%s_%s.deb", var.rabbitmq_erlang_version, var.arch)
+	rabbitmq_erlang_url                = format("%s/%s", var.capillaries_release_url, local.rabbitmq_erlang_filename)
+}
+
 # Env variables TF_VAR_
 
 variable "BASTION_ALLOWED_IPS" {
 	type        = string
 	description = "Comma-separated list of IP addresses and cidr blocks allowed to access bastion from the outside"
-}
-
-# Output
-
-
-output "output_bastion_public_ip" {
-  value = aws_eip.bastion_public_ip.public_ip
-}
-
-output "output_daemon_cpus" {
-  value = format("%d cpus ($%f/hr)", var.cpu_count_map[var.daemon_instance_type], var.instance_hourly_cost[var.daemon_instance_type])
-}
-
-output "output_daemon_instances" {
-  value = var.number_of_daemons
-}
-
-output "output_daemon_total_cpus" {
-  value = var.cpu_count_map[var.daemon_instance_type]*var.number_of_daemons
-}
-
-output "output_cassandra_cpus" {
-  value = format("%d cpus ($%f/hr)", var.cpu_count_map[var.cassandra_instance_type], var.instance_hourly_cost[var.cassandra_instance_type])
-}
-
-output "output_cassandra_hosts" {
-  value = var.number_of_cassandra_hosts
-}
-
-output "output_cassandra_total_cpus" {
-  value = var.cpu_count_map[var.cassandra_instance_type]*var.number_of_cassandra_hosts
-}
-
-output "output_daemon_thread_pool_size" {
-  value = local.daemon_thread_pool_size
-}
-
-output "output_daemon_writer_workers" {
-  value = var.daemon_writer_workers
-}
-
-output "output_daemon_writers_per_cassandra_cpu" {
-  value = local.daemon_thread_pool_size * var.daemon_writer_workers * var.number_of_daemons / (var.cpu_count_map[var.cassandra_instance_type]*var.number_of_cassandra_hosts)
-}
-
-output "output_total_ec2_hourly_cost" {
-  value = format("$%f/hr",var.instance_hourly_cost[var.cassandra_instance_type]*var.number_of_cassandra_hosts + var.instance_hourly_cost[var.daemon_instance_type]*var.number_of_daemons + var.instance_hourly_cost[var.bastion_instance_type])
-}
-
-output "output_vars_bastion_provisioner_static_vars" {
-  value = local.bastion_provisioner_static_vars
-}
-output "output_vars_cassandra_provisioner_vars" {
-  value = local.cassandra_provisioner_vars
-}
-
-output "output_vars_daemon_provisioner_vars" {
-  value = local.daemon_provisioner_vars
 }

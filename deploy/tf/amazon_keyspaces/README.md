@@ -1,3 +1,6 @@
+2025: this configuration is not maintained. Use it as a reference to create your own working config.
+
+
 This is a sample Terraform AWS deployment for Capillaries.
 
 WARNING: please keep in mind that without setting read/write capacity units, Amazon Keyspaces may be extremely slow, and with those capacity units specified - extremely expensive; exercise extreme caution when setting them.

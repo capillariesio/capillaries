@@ -126,7 +126,7 @@ func main() {
 		if envConfig.Amqp10.MinCreditWindow == 0 {
 			envConfig.Amqp10.MinCreditWindow = uint32(envConfig.Daemon.ThreadPoolSize)
 		}
-		asyncConsumer = mq.NewAmqp10Consumer(envConfig.Amqp10.URL, envConfig.Amqp10.Address, ackMethod, envConfig.Daemon.ThreadPoolSize, envConfig.Amqp10.MinCreditWindow, false)
+		asyncConsumer = mq.NewAmqp10Consumer(envConfig.Amqp10.URL, envConfig.Amqp10.Address, ackMethod, envConfig.Daemon.ThreadPoolSize, envConfig.Amqp10.MinCreditWindow, true)
 	} else if envConfig.CapiMqClient.URL != "" {
 		asyncConsumer = mq.NewCapimqConsumer(envConfig.CapiMqClient.URL, logger.ZapMachine.String, envConfig.Daemon.ThreadPoolSize)
 		heartbeatInterval = envConfig.CapiMqClient.HeartbeatInterval

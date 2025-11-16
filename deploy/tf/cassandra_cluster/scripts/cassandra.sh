@@ -6,24 +6,28 @@ if [ "$SSH_USER" = "" ]; then
   echo Error, missing: SSH_USER=ubuntu
   exit 1
 fi
-if [ "$PROMETHEUS_NODE_EXPORTER_VERSION" = "" ]; then
-  echo Error, missing: PROMETHEUS_NODE_EXPORTER_VERSION=1.2.3
+if [ "$S3_LOG_URL" = "" ]; then
+  echo Error, missing: S3_LOG_URL=s3://capillaries-testbucket/log
   exit 1
 fi
-if [ "$JMX_EXPORTER_VERSION" = "" ]; then
-  echo Error, missing: JMX_EXPORTER_VERSION=1.0.1
+if [ "$PROMETHEUS_JMX_EXPORTER_FILENAME" = "" ]; then
+  echo Error, missing: PROMETHEUS_JMX_EXPORTER_FILENAME=jmx_prometheus_javaagent-1.5.0.jar
+  exit 1
+fi
+if [ "$PROMETHEUS_NODE_EXPORTER_FILENAME" = "" ]; then
+  echo Error, missing: PROMETHEUS_NODE_EXPORTER_FILENAME=node_exporter-1.9.1.linux-amd64.tar.gz
   exit 1
 fi
 if [ "$CASSANDRA_VERSION" = "" ]; then
   echo Error, missing: CASSANDRA_VERSION=50x
   exit 1
 fi
-if [ "$S3_LOG_URL" = "" ]; then
-  echo Error, missing: S3_LOG_URL=s3://capillaries-testbucket/log
-  exit 1
-fi
 if [ "$CASSANDRA_HOSTS" = "" ]; then
   echo Error, missing: CASSANDRA_HOSTS=10.5.0.11,10.5.0.12
+  exit 1
+fi
+if [ "$CAPILLARIES_RELEASE_URL" = "" ]; then
+  echo Error, missing: CAPILLARIES_RELEASE_URL=https://capillaries-release.s3.us-east-1.amazonaws.com/latest
   exit 1
 fi
 if [ "$CASSANDRA_INTERNAL_IP" = "" ]; then
@@ -39,11 +43,7 @@ if [ "$CASSANDRA_NVME_REGEX" = "" ]; then
   exit 1
 fi
 
-sudo DEBIAN_FRONTEND=noninteractive apt-get update -y
-
-
 # Use $SSH_USER
-
 if [ ! -d /home/$SSH_USER ]; then
   mkdir -p /home/$SSH_USER
 fi
@@ -52,50 +52,23 @@ sudo chmod 755 /home/$SSH_USER
 
 
 
-# Install Prometheus node exporter
-
-
+# Download and config node exporter, this section is common for all instances
 
 
 sudo useradd --no-create-home --shell /bin/false node_exporter
-
-if [ "$(uname -p)" == "x86_64" ]; then
-  ARCH=amd64
-else
-  ARCH=arm64
-fi
-
-# Download node exporter
-EXPORTER_DL_FILE=node_exporter-$PROMETHEUS_NODE_EXPORTER_VERSION.linux-$ARCH
 cd /home/$SSH_USER
-echo Downloading https://github.com/prometheus/node_exporter/releases/download/v$PROMETHEUS_NODE_EXPORTER_VERSION/$EXPORTER_DL_FILE.tar.gz ...
-curl -LOs https://github.com/prometheus/node_exporter/releases/download/v$PROMETHEUS_NODE_EXPORTER_VERSION/$EXPORTER_DL_FILE.tar.gz
+curl -LOs $CAPILLARIES_RELEASE_URL/$PROMETHEUS_NODE_EXPORTER_FILENAME
 if [ "$?" -ne "0" ]; then
     echo Cannot download, exiting
     exit $?
 fi
-tar xvf $EXPORTER_DL_FILE.tar.gz
-
-sudo cp $EXPORTER_DL_FILE/node_exporter /usr/local/bin
+tar xvf $PROMETHEUS_NODE_EXPORTER_FILENAME
+PROMETHEUS_NODE_EXPORTER_DIR=$(basename $PROMETHEUS_NODE_EXPORTER_FILENAME .tar.gz)
+sudo cp $PROMETHEUS_NODE_EXPORTER_DIR/node_exporter /usr/local/bin
 sudo chown node_exporter:node_exporter /usr/local/bin/node_exporter
-
-rm -rf $EXPORTER_DL_FILE.tar.gz $EXPORTER_DL_FILE
-
-
-
-# Configure Prometheus node exporter
-
-
-
-# Make it as idempotent as possible, it can be called over and over
-
-# Prometheus node exporter
-# https://www.digitalocean.com/community/tutorials/how-to-install-prometheus-on-ubuntu-16-04
-
+rm -fR $PROMETHEUS_NODE_EXPORTER_FILENAME $PROMETHEUS_NODE_EXPORTER_DIR
 PROMETHEUS_NODE_EXPORTER_SERVICE_FILE=/etc/systemd/system/node_exporter.service
-
 sudo rm -f $PROMETHEUS_NODE_EXPORTER_SERVICE_FILE
-
 sudo tee $PROMETHEUS_NODE_EXPORTER_SERVICE_FILE <<EOF
 [Unit]
 Description=Prometheus Node Exporter
@@ -109,9 +82,7 @@ ExecStart=/usr/local/bin/node_exporter
 [Install]
 WantedBy=multi-user.target
 EOF
-
 sudo systemctl daemon-reload
-
 sudo systemctl start node_exporter
 sudo systemctl status node_exporter
 
@@ -189,16 +160,14 @@ fi
 
 
 cd /home/$SSH_USER
-curl -LOs https://github.com/prometheus/jmx_exporter/releases/download/$JMX_EXPORTER_VERSION/jmx_prometheus_javaagent-$JMX_EXPORTER_VERSION.jar
+curl -LOs $CAPILLARIES_RELEASE_URL/$PROMETHEUS_JMX_EXPORTER_FILENAME
 if [ "$?" -ne "0" ]; then
     echo Cannot download JMX exporter, exiting
     exit $?
 fi
-sudo mv jmx_prometheus_javaagent-$JMX_EXPORTER_VERSION.jar /usr/share/cassandra/lib/
-sudo chown cassandra /usr/share/cassandra/lib/jmx_prometheus_javaagent-$JMX_EXPORTER_VERSION.jar
-
-# JMX Exporter config
-cat > jmx_exporter.yml << 'endmsgmarker'
+sudo mv $PROMETHEUS_JMX_EXPORTER_FILENAME /usr/share/cassandra/lib/
+sudo chown cassandra /usr/share/cassandra/lib/$PROMETHEUS_JMX_EXPORTER_FILENAME
+at > jmx_exporter.yml << 'endmsgmarker'
 lowercaseOutputLabelNames: true
 lowercaseOutputName: true
 whitelistObjectNames: ["org.apache.cassandra.metrics:*"]
@@ -212,7 +181,6 @@ rules:
   labels:
     "$1": "$4"
     "$2": "$3"
-
 #
 # Emulate Prometheus 'Summary' metrics for the exported 'Histogram's.
 # TotalLatency is the sum of all latencies since server start
@@ -225,21 +193,18 @@ rules:
     "$2": "$3"
   # Convert microseconds to seconds
   valueFactor: 0.000001
-
 - pattern: org.apache.cassandra.metrics<type=(\S*)(?:, ((?!scope)\S*)=(\S*))?(?:, scope=(\S*))?, name=((?:.+)?(?:Latency))><>Count
   name: cassandra_$1_$5_seconds_count
   type: UNTYPED
   labels:
     "$1": "$4"
     "$2": "$3"
-
 - pattern: org.apache.cassandra.metrics<type=(\S*)(?:, ((?!scope)\S*)=(\S*))?(?:, scope=(\S*))?, name=(.+)><>Count
   name: cassandra_$1_$5_count
   type: UNTYPED
   labels:
     "$1": "$4"
     "$2": "$3"
-
 - pattern: org.apache.cassandra.metrics<type=(\S*)(?:, ((?!scope)\S*)=(\S*))?(?:, scope=(\S*))?, name=((?:.+)?(?:Latency))><>(\d+)thPercentile
   name: cassandra_$1_$5_seconds
   type: GAUGE
@@ -249,7 +214,6 @@ rules:
     quantile: "0.$6"
   # Convert microseconds to seconds
   valueFactor: 0.000001
-
 - pattern: org.apache.cassandra.metrics<type=(\S*)(?:, ((?!scope)\S*)=(\S*))?(?:, scope=(\S*))?, name=(.+)><>(\d+)thPercentile
   name: cassandra_$1_$5
   type: GAUGE
@@ -261,11 +225,13 @@ endmsgmarker
 sudo mv jmx_exporter.yml /etc/cassandra/
 sudo chown cassandra /etc/cassandra/jmx_exporter.yml
 
+
+
 # Disable security mgr to avoid "The Security Manager is deprecated and will be removed in a future release" for Java above 8
 # echo 'JVM_OPTS="$JVM_OPTS -J-DTopSecurityManager.disable=true"' | sudo tee -a /etc/cassandra/cassandra-env.sh
 
 # Let Cassandra know about JMX Exporter and config
-echo 'JVM_OPTS="$JVM_OPTS -javaagent:/usr/share/cassandra/lib/jmx_prometheus_javaagent-'$JMX_EXPORTER_VERSION'.jar=7070:/etc/cassandra/jmx_exporter.yml"' | sudo tee -a /etc/cassandra/cassandra-env.sh
+echo 'JVM_OPTS="$JVM_OPTS -javaagent:/usr/share/cassandra/lib/'$PROMETHEUS_JMX_EXPORTER_FILENAME'=7070:/etc/cassandra/jmx_exporter.yml"' | sudo tee -a /etc/cassandra/cassandra-env.sh
 
 
 

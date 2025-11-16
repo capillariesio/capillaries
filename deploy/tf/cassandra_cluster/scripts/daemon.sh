@@ -10,20 +10,20 @@ if [ "$DAEMON_GOGC" = "" ]; then
   echo Error, missing: DAEMON_GOGC=100
   exit 1
 fi
-if [ "$SSH_USER" = "" ]; then
-  echo Error, missing: SSH_USER=ubuntu
-  exit 1
-fi
 if [ "$AWSREGION" = "" ]; then
   echo Error, missing: AWSREGION=us-east-1
   exit 1
 fi
-if [ "$CAPILLARIES_RELEASE_URL" = "" ]; then
-  echo Error, missing: CAPILLARIES_RELEASE_URL=https://capillaries-release.s3.us-east-1.amazonaws.com/latest
+if [ "$SSH_USER" = "" ]; then
+  echo Error, missing: SSH_USER=ubuntu
   exit 1
 fi
 if [ "$OS_ARCH" = "" ]; then
   echo Error, missing: OS_ARCH=linux/arm64
+  exit 1
+fi
+if [ "$CAPILLARIES_RELEASE_URL" = "" ]; then
+  echo Error, missing: CAPILLARIES_RELEASE_URL=https://capillaries-release.s3.us-east-1.amazonaws.com/latest
   exit 1
 fi
 if [ "$S3_LOG_URL" = "" ]; then
@@ -58,8 +58,8 @@ if [ "$AMQP10_ACK_METHOD" = "" ]; then
   echo Error, missing: AMQP10_ACK_METHOD=release
   exit 1
 fi
-if [ "$PROMETHEUS_NODE_EXPORTER_VERSION" = "" ]; then
-  echo Error, missing: PROMETHEUS_NODE_EXPORTER_VERSION=1.2.3
+if [ "$PROMETHEUS_NODE_EXPORTER_FILENAME" = "" ]; then
+  echo Error, missing: PROMETHEUS_NODE_EXPORTER_FILENAME=node_exporter-1.9.1.linux-amd64.tar.gz
   exit 1
 fi
 if [ "$WRITER_WORKERS" = "" ]; then
@@ -71,11 +71,7 @@ if [ "$THREAD_POOL_SIZE" = "" ]; then
   exit 1
 fi
 
-sudo DEBIAN_FRONTEND=noninteractive apt-get update -y
-
-
 # Use $SSH_USER
-
 if [ ! -d /home/$SSH_USER ]; then
   mkdir -p /home/$SSH_USER
 fi
@@ -93,51 +89,23 @@ sudo DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get install -y python
 
 
 
-# Install Prometheus node exporter
-
-
+# Download and config node exporter, this section is common for all instances
 
 
 sudo useradd --no-create-home --shell /bin/false node_exporter
-
-if [ "$(uname -p)" == "x86_64" ]; then
-  ARCH=amd64
-else
-  ARCH=arm64
-fi
-
-# Download node exporter
-EXPORTER_DL_FILE=node_exporter-$PROMETHEUS_NODE_EXPORTER_VERSION.linux-$ARCH
 cd /home/$SSH_USER
-echo Downloading https://github.com/prometheus/node_exporter/releases/download/v$PROMETHEUS_NODE_EXPORTER_VERSION/$EXPORTER_DL_FILE.tar.gz ...
-curl -LOs https://github.com/prometheus/node_exporter/releases/download/v$PROMETHEUS_NODE_EXPORTER_VERSION/$EXPORTER_DL_FILE.tar.gz
+curl -LOs $CAPILLARIES_RELEASE_URL/$PROMETHEUS_NODE_EXPORTER_FILENAME
 if [ "$?" -ne "0" ]; then
     echo Cannot download, exiting
     exit $?
 fi
-tar xvf $EXPORTER_DL_FILE.tar.gz
-
-
-sudo cp $EXPORTER_DL_FILE/node_exporter /usr/local/bin
+tar xvf $PROMETHEUS_NODE_EXPORTER_FILENAME
+PROMETHEUS_NODE_EXPORTER_DIR=$(basename $PROMETHEUS_NODE_EXPORTER_FILENAME .tar.gz)
+sudo cp $PROMETHEUS_NODE_EXPORTER_DIR/node_exporter /usr/local/bin
 sudo chown node_exporter:node_exporter /usr/local/bin/node_exporter
-
-rm -rf $EXPORTER_DL_FILE.tar.gz $EXPORTER_DL_FILE
-
-
-
-# Configure Prometheus node exporter
-
-
-
-# Make it as idempotent as possible, it can be called over and over
-
-# Prometheus node exporter
-# https://www.digitalocean.com/community/tutorials/how-to-install-prometheus-on-ubuntu-16-04
-
+rm -fR $PROMETHEUS_NODE_EXPORTER_FILENAME $PROMETHEUS_NODE_EXPORTER_DIR
 PROMETHEUS_NODE_EXPORTER_SERVICE_FILE=/etc/systemd/system/node_exporter.service
-
 sudo rm -f $PROMETHEUS_NODE_EXPORTER_SERVICE_FILE
-
 sudo tee $PROMETHEUS_NODE_EXPORTER_SERVICE_FILE <<EOF
 [Unit]
 Description=Prometheus Node Exporter
@@ -151,9 +119,7 @@ ExecStart=/usr/local/bin/node_exporter
 [Install]
 WantedBy=multi-user.target
 EOF
-
 sudo systemctl daemon-reload
-
 sudo systemctl start node_exporter
 sudo systemctl status node_exporter
 

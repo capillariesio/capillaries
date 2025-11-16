@@ -10,20 +10,20 @@ if [ "$WEBAPI_GOGC" = "" ]; then
   echo Error, missing: WEBAPI_GOGC=100
   exit 1
 fi
-if [ "$SSH_USER" = "" ]; then
-  echo Error, missing: SSH_USER=ubuntu
-  exit 1
-fi
 if [ "$AWSREGION" = "" ]; then
   echo Error, missing: AWSREGION=us-east-1
   exit 1
 fi
-if [ "$CAPILLARIES_RELEASE_URL" = "" ]; then
-  echo Error, missing: CAPILLARIES_RELEASE_URL=https://capillaries-release.s3.us-east-1.amazonaws.com/latest
+if [ "$SSH_USER" = "" ]; then
+  echo Error, missing: SSH_USER=ubuntu
   exit 1
 fi
-if [ "$BASTION_EXTERNAL_IP_ADDRESS" = "" ]; then
-  echo Error, missing: BASTION_EXTERNAL_IP_ADDRESS=...
+if [ "$OS_ARCH" = "" ]; then
+  echo Error, missing: OS_ARCH=linux/arm64
+  exit 1
+fi
+if [ "$CAPILLARIES_RELEASE_URL" = "" ]; then
+  echo Error, missing: CAPILLARIES_RELEASE_URL=https://capillaries-release.s3.us-east-1.amazonaws.com/latest
   exit 1
 fi
 if [ "$EXTERNAL_WEBAPI_PORT" = "" ]; then
@@ -34,16 +34,12 @@ if [ "$INTERNAL_WEBAPI_PORT" = "" ]; then
   echo Error, missing: INTERNAL_WEBAPI_PORT=6543
   exit 1
 fi
-if [ "$OS_ARCH" = "" ]; then
-  echo Error, missing: OS_ARCH=linux/arm64
+if [ "$EXTERNAL_RABBITMQ_CONSOLE_PORT" = "" ]; then
+  echo Error, missing: EXTERNAL_RABBITMQ_CONSOLE_PORT=15673
   exit 1
 fi
 if [ "$EXTERNAL_ACTIVEMQ_CONSOLE_PORT" = "" ]; then
   echo Error, missing: EXTERNAL_ACTIVEMQ_CONSOLE_PORT=8162
-  exit 1
-fi
-if [ "$EXTERNAL_RABBITMQ_CONSOLE_PORT" = "" ]; then
-  echo Error, missing: EXTERNAL_RABBITMQ_CONSOLE_PORT=15673
   exit 1
 fi
 if [ "$EXTERNAL_PROMETHEUS_CONSOLE_PORT" = "" ]; then
@@ -102,32 +98,12 @@ if [ "$AMQP10_SERVER_FLAVOR" = "" ]; then
   echo Error, missing: AMQP10_SERVER_FLAVOR=rabbitmq
   exit 1
 fi
-if [ "$AMQP10_SERVER_VERSION" = "" ]; then
-  echo Error, missing: AMQP10_SERVER_VERSION=2.44.0
+if [ "$PROMETHEUS_NODE_EXPORTER_FILENAME" = "" ]; then
+  echo Error, missing: PROMETHEUS_NODE_EXPORTER_FILENAME=node_exporter-1.9.1.linux-amd64.tar.gz
   exit 1
 fi
-if [ "$RABBITMQ_ERLANG_VERSION_AMD64" = "" ]; then
-  echo Error, missing: RABBITMQ_ERLANG_VERSION_AMD64=27.3.4-1
-  exit 1
-fi
-if [ "$RABBITMQ_ERLANG_VERSION_ARM64" = "" ]; then
-  echo Error, missing: RABBITMQ_ERLANG_VERSION_ARM64=27.3.4-1
-  exit 1
-fi
-if [ "$RABBITMQ_SERVER_VERSION_AMD64" = "" ]; then
-  echo Error, missing: RABBITMQ_SERVER_VERSION_AMD64=4.2.0-1
-  exit 1
-fi
-if [ "$RABBITMQ_SERVER_VERSION_ARM64" = "" ]; then
-  echo Error, missing: RABBITMQ_SERVER_VERSION_ARM64=4.2.0-1
-  exit 1
-fi
-if [ "$PROMETHEUS_NODE_EXPORTER_VERSION" = "" ]; then
-  echo Error, missing: PROMETHEUS_NODE_EXPORTER_VERSION=1.2.3
-  exit 1
-fi
-if [ "$PROMETHEUS_SERVER_VERSION" = "" ]; then
-  echo Error, missing: PROMETHEUS_SERVER_VERSION=1.2.3
+if [ "$PROMETHEUS_SERVER_FILENAME" = "" ]; then
+  echo Error, missing: PROMETHEUS_SERVER_FILENAME=prometheus-3.7.0.linux-arm64.tar.gz
   exit 1
 fi
 if [ "$PROMETHEUS_NODE_TARGETS" = "" ]; then
@@ -142,18 +118,28 @@ if [ "$PROMETHEUS_GO_TARGETS" = "" ]; then
   echo Error, missing: PROMETHEUS_GO_TARGETS="'10.5.1.101:9200','10.5.1.102:9200'"
   exit 1
 fi
-if [ "$(uname -p)" == "x86_64" ]; then
-  ARCH=amd64
-  ERLANG_VER=$RABBITMQ_ERLANG_VERSION_AMD64
-  RABBITMQ_VER=$RABBITMQ_SERVER_VERSION_AMD64
-else
-  ARCH=arm64
-  ERLANG_VER=$RABBITMQ_ERLANG_VERSION_ARM64
-  RABBITMQ_VER=$RABBITMQ_SERVER_VERSION_ARM64
+if [ "$RABBITMQ_ERLANG_FILENAME" = "" ]; then
+  echo Error, missing: RABBITMQ_ERLANG_FILENAME=esl-erlang_27.3.4-1_arm64.deb
+  exit 1
+fi
+if [ "$RABBITMQ_SERVER_FILENAME" = "" ]; then
+  echo Error, missing: RABBITMQ_SERVER_FILENAME=rabbitmq-server_4.2.0-1_all.deb
+  exit 1
+fi
+if [ "$ACTIVEMQ_CLASSIC_SERVER_FILENAME" = "" ]; then
+  echo Error, missing: ACTIVEMQ_CLASSIC_SERVER_FILENAME=apache-activemq-6.1.8-bin.tar.gz
+  exit 1
+fi
+if [ "$ACTIVEMQ_ARTEMIS_SERVER_FILENAME" = "" ]; then
+  echo Error, missing: ACTIVEMQ_ARTEMIS_SERVER_FILENAME=apache-artemis-2.44.0-bin.tar.gz
+  exit 1
+fi
+if [ "$BASTION_EXTERNAL_IP_ADDRESS" = "" ]; then
+  echo Error, missing: BASTION_EXTERNAL_IP_ADDRESS=...
+  exit 1
 fi
 
 # Use $SSH_USER
-
 if [ ! -d /home/$SSH_USER ]; then
   mkdir -p /home/$SSH_USER
 fi
@@ -381,6 +367,7 @@ if [ "$?" -ne "0" ]; then
 fi
 
 # Prometheus reverse proxy
+
 PROMETHEUS_CONFIG_FILE=/etc/nginx/sites-available/prometheus
 if [ -f "$PROMETHEUS_CONFIG_FILE" ]; then
   sudo rm -f $PROMETHEUS_CONFIG_FILE
@@ -487,17 +474,17 @@ if [ "$?" -ne "0" ]; then
     exit $?
 fi
 
-# Painfully slow
-#curl -LOs http://archive.apache.org/dist/activemq/$AMQP10_SERVER_VERSION/apache-activemq-$AMQP10_SERVER_VERSION-bin.tar.gz
-curl -LOs $CAPILLARIES_RELEASE_URL/apache-activemq-$AMQP10_SERVER_VERSION-bin.tar.gz
+curl -LOs $CAPILLARIES_RELEASE_URL/$ACTIVEMQ_CLASSIC_SERVER_FILENAME
 if [ "$?" -ne "0" ]; then
     echo activemq download error, exiting
     exit $?
 fi
 
-sudo tar -xzf apache-activemq-$AMQP10_SERVER_VERSION-bin.tar.gz
+sudo tar -xzf $ACTIVEMQ_CLASSIC_SERVER_FILENAME
+ACTIVEMQ_CLASSIC_SERVER_DIR=$(basename $ACTIVEMQ_CLASSIC_SERVER_FILENAME "-bin.tar.gz")
+
 sudo mkdir /opt/activemq
-sudo mv apache-activemq-$AMQP10_SERVER_VERSION/* /opt/activemq
+sudo mv ACTIVEMQ_CLASSIC_SERVER_DIR/* /opt/activemq
 
 sudo addgroup --system activemq
 sudo adduser --system --ingroup activemq --no-create-home --disabled-password activemq
@@ -624,16 +611,16 @@ if [ "$?" -ne "0" ]; then
     exit $?
 fi
 
-# Too slow
-# curl -LOs https://archive.apache.org/dist/activemq/activemq-artemis/$AMQP10_SERVER_VERSION/apache-artemis-$AMQP10_SERVER_VERSION-bin.tar.gz
-curl -LOs $CAPILLARIES_RELEASE_URL/apache-artemis-$AMQP10_SERVER_VERSION-bin.tar.gz
+curl -LOs $CAPILLARIES_RELEASE_URL/$ACTIVEMQ_ARTEMIS_SERVER_FILENAME
 if [ "$?" -ne "0" ]; then
     echo activemq download error, exiting
     exit $?
 fi
 
-sudo tar -xzf apache-artemis-$AMQP10_SERVER_VERSION-bin.tar.gz -C /opt/
-sudo mv /opt/apache-artemis-$AMQP10_SERVER_VERSION /opt/activemq-artemis
+sudo tar -xzf $ACTIVEMQ_ARTEMIS_SERVER_FILENAME -C /opt/
+ACTIVEMQ_ARTEMIS_SERVER_DIR=$(basename $ACTIVEMQ_ARTEMIS_SERVER_FILENAME "-bin.tar.gz")
+
+sudo mv /opt/ACTIVEMQ_ARTEMIS_SERVER_DIR /opt/activemq-artemis
 
 sudo addgroup --system activemq
 sudo adduser --system --ingroup activemq --no-create-home --disabled-password activemq
@@ -806,15 +793,15 @@ sudo systemctl restart activemq-artemis
 
 elif [ "$AMQP10_SERVER_FLAVOR" = "rabbitmq" ]; then
 
-curl -LOs $CAPILLARIES_RELEASE_URL/esl-erlang_${ERLANG_VER}_${ARCH}.deb
-sudo DEBIAN_FRONTEND=noninteractive apt install -y ./esl-erlang_${ERLANG_VER}_${ARCH}.deb
+curl -LOs $CAPILLARIES_RELEASE_URL/$ERLANG_FILENAME
+sudo DEBIAN_FRONTEND=noninteractive apt install -y ./$ERLANG_FILENAME
 if [ "$?" -ne "0" ]; then
     echo erlang install error, exiting
     exit $?
 fi
 
-curl -LOs $CAPILLARIES_RELEASE_URL/rabbitmq-server_${RABBITMQ_VER}_all.deb
-sudo DEBIAN_FRONTEND=noninteractive apt install -y ./rabbitmq-server_${RABBITMQ_VER}_all.deb
+curl -LOs $CAPILLARIES_RELEASE_URL/$RABBITMQ_SERVER_FILENAME
+sudo DEBIAN_FRONTEND=noninteractive apt install -y ./$RABBITMQ_SERVER_FILENAME
 if [ "$?" -ne "0" ]; then
     echo rabbitmq install error, exiting
     exit $?
@@ -890,45 +877,23 @@ fi
 
 
 
-# Install Prometheus node exporter
-
-
+# Download and config node exporter, this section is common for all instances
 
 
 sudo useradd --no-create-home --shell /bin/false node_exporter
-
-# Download node exporter
-EXPORTER_DL_FILE=node_exporter-$PROMETHEUS_NODE_EXPORTER_VERSION.linux-$ARCH
 cd /home/$SSH_USER
-# Unreliable
-# curl -LOs https://github.com/prometheus/node_exporter/releases/download/v$PROMETHEUS_NODE_EXPORTER_VERSION/$EXPORTER_DL_FILE.tar.gz
-curl -LOs $CAPILLARIES_RELEASE_URL/$EXPORTER_DL_FILE.tar.gz
+curl -LOs $CAPILLARIES_RELEASE_URL/$PROMETHEUS_NODE_EXPORTER_FILENAME
 if [ "$?" -ne "0" ]; then
     echo Cannot download, exiting
     exit $?
 fi
-tar xvf $EXPORTER_DL_FILE.tar.gz
-
-sudo cp $EXPORTER_DL_FILE/node_exporter /usr/local/bin
+tar xvf $PROMETHEUS_NODE_EXPORTER_FILENAME
+PROMETHEUS_NODE_EXPORTER_DIR=$(basename $PROMETHEUS_NODE_EXPORTER_FILENAME .tar.gz)
+sudo cp $PROMETHEUS_NODE_EXPORTER_DIR/node_exporter /usr/local/bin
 sudo chown node_exporter:node_exporter /usr/local/bin/node_exporter
-
-rm -rf $EXPORTER_DL_FILE.tar.gz $EXPORTER_DL_FILE
-
-
-
-# Configure Prometheus node exporter
-
-
-
-# Make it as idempotent as possible, it can be called over and over
-
-# Prometheus node exporter
-# https://www.digitalocean.com/community/tutorials/how-to-install-prometheus-on-ubuntu-16-04
-
+rm -fR $PROMETHEUS_NODE_EXPORTER_FILENAME $PROMETHEUS_NODE_EXPORTER_DIR
 PROMETHEUS_NODE_EXPORTER_SERVICE_FILE=/etc/systemd/system/node_exporter.service
-
 sudo rm -f $PROMETHEUS_NODE_EXPORTER_SERVICE_FILE
-
 sudo tee $PROMETHEUS_NODE_EXPORTER_SERVICE_FILE <<EOF
 [Unit]
 Description=Prometheus Node Exporter
@@ -942,9 +907,7 @@ ExecStart=/usr/local/bin/node_exporter
 [Install]
 WantedBy=multi-user.target
 EOF
-
 sudo systemctl daemon-reload
-
 sudo systemctl start node_exporter
 sudo systemctl status node_exporter
 
@@ -969,38 +932,28 @@ sudo mkdir /var/lib/prometheus
 sudo chown prometheus:prometheus /etc/prometheus
 sudo chown prometheus:prometheus /var/lib/prometheus
 
+
 # Downloading Prometheus
-PROMETHEUS_DL_FILE=prometheus-$PROMETHEUS_SERVER_VERSION.linux-$ARCH
+
 cd /home/$SSH_USER
-echo Downloading https://github.com/prometheus/prometheus/releases/download/v$PROMETHEUS_SERVER_VERSION/$PROMETHEUS_DL_FILE.tar.gz
-curl -LOs https://github.com/prometheus/prometheus/releases/download/v$PROMETHEUS_SERVER_VERSION/$PROMETHEUS_DL_FILE.tar.gz
+curl -LOs $CAPILLARIES_RELEASE_URL/$PROMETHEUS_SERVER_FILENAME
 if [ "$?" -ne "0" ]; then
     echo Cannot download, exiting
     exit $?
 fi
-tar xvf $PROMETHEUS_DL_FILE.tar.gz
+tar xvf $PROMETHEUS_SERVER_FILENAME
+PROMETHEUS_SERVER_DIR=$(basename $PROMETHEUS_SERVER_FILENAME .tar.gz)
 
 # Copy the two binaries to the /usr/local/bin directory.
 
-sudo cp $PROMETHEUS_DL_FILE/prometheus /usr/local/bin/
-sudo cp $PROMETHEUS_DL_FILE/promtool /usr/local/bin/
+sudo cp $PROMETHEUS_SERVER_DIR/prometheus /usr/local/bin/
+sudo cp $PROMETHEUS_SERVER_DIR/promtool /usr/local/bin/
 
 # Set the user and group ownership on the binaries to the prometheus user created in Step 1.
 sudo chown prometheus:prometheus /usr/local/bin/prometheus
 sudo chown prometheus:prometheus /usr/local/bin/promtool
 
-# Copy the consoles and console_libraries directories to /etc/prometheus.
-# Not in 3.2.1
-#sudo cp -r $PROMETHEUS_DL_FILE/consoles /etc/prometheus
-#sudo cp -r $PROMETHEUS_DL_FILE/console_libraries /etc/prometheus
-
-# Set the user and group ownership on the directories to the prometheus user. Using the -R flag will ensure that ownership is set on the files inside the directory as well.
-# Not in 3.2.1
-#sudo chown -R prometheus:prometheus /etc/prometheus/consoles
-#sudo chown -R prometheus:prometheus /etc/prometheus/console_libraries
-
-# Lastly, remove the leftover files from your home directory as they are no longer needed.
-rm -rf $PROMETHEUS_DL_FILE.tar.gz $PROMETHEUS_DL_FILE
+rm -rf $PROMETHEUS_SERVER_FILENAME $PROMETHEUS_SERVER_DIR
 
 
 

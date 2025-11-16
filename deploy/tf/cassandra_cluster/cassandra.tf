@@ -10,7 +10,8 @@ resource "aws_network_interface" "cassandra_internal_ip" {
 }
 
 locals {
-  cassandra_provisioner_common_vars = "SSH_USER=${var.ssh_user} S3_LOG_URL=${var.s3_log_url} JMX_EXPORTER_VERSION=${var.jmx_exporter_version} PROMETHEUS_NODE_EXPORTER_VERSION=${var.prometheus_node_exporter_version} CASSANDRA_VERSION=${var.cassandra_version} CASSANDRA_HOSTS=${local.cassandra_hosts}"
+  # Make sure it matched the list of expected variables in cassandra.sh (cassandra_internal_ip_map, cassandra_initial_token_map, cassandra_nvme_regex_map add to it too)
+  cassandra_provisioner_common_vars = "SSH_USER=${var.ssh_user} S3_LOG_URL=${var.s3_log_url} PROMETHEUS_JMX_EXPORTER_FILENAME=${local.prometheus_jmx_exporter_filename} PROMETHEUS_NODE_EXPORTER_FILENAME=${local.prometheus_node_exporter_filename} CASSANDRA_VERSION=${var.cassandra_version} CASSANDRA_HOSTS=${local.cassandra_hosts} CAPILLARIES_RELEASE_URL=${var.capillaries_release_url}"
   cassandra_internal_ip_map   = { for i in range(var.number_of_cassandra_hosts): i => format("CASSANDRA_INTERNAL_IP=10.5.0.%02s", i+11) }
   cassandra_initial_token_map = { for i in range(var.number_of_cassandra_hosts): i => format("CASSANDRA_INITIAL_TOKEN=%s", local.cassandra_initial_tokens[i]) }
   cassandra_nvme_regex_map    = { for i in range(var.number_of_cassandra_hosts): i => format("CASSANDRA_NVME_REGEX=\"%s\"", var.nvme_regex_map[var.cassandra_instance_type]) }
@@ -34,9 +35,10 @@ resource "aws_instance" "cassandra" {
   iam_instance_profile = aws_iam_instance_profile.capillaries_instance_profile.name
 
   user_data              = templatefile("./cassandra.sh.tpl", {
-    os_arch                                = var.os_arch
+    os_arch                                = local.os_arch
     ssh_user                               = var.ssh_user
     capillaries_instance_profile           = aws_iam_instance_profile.capillaries_instance_profile.name
+    # Used in cassandra.sh.tpl
     cassandra_provisioner_vars             = local.cassandra_provisioner_vars[count.index]
     capillaries_tf_deploy_temp_bucket_name = var.capillaries_tf_deploy_temp_bucket_name
   })  

@@ -89,11 +89,11 @@ type Amqp10AsyncConsumer struct {
 	amqpMessagesInHandling      map[string]*amqp10.Message
 	amqpMessagesInHandlingMutex sync.RWMutex
 	listenerCreditTracker       uint32
-	retryTracker                atomic.Uint32
-	useManualFlow               bool
+	// retryTracker                atomic.Uint32
+	// useManualFlow               bool
 }
 
-func NewAmqp10Consumer(url string, address string, ackMethod AckMethodType, maxProcessors int, minCreditWindow uint32, useManualFlow bool) *Amqp10AsyncConsumer {
+func NewAmqp10Consumer(url string, address string, ackMethod AckMethodType, maxProcessors int, minCreditWindow uint32, _useManualFlow bool) *Amqp10AsyncConsumer {
 	return &Amqp10AsyncConsumer{
 		url:                         url,
 		address:                     address,
@@ -107,10 +107,164 @@ func NewAmqp10Consumer(url string, address string, ackMethod AckMethodType, maxP
 		acknowledgerStopping:        false,
 		amqpMessagesInHandling:      map[string]*amqp10.Message{},
 		amqpMessagesInHandlingMutex: sync.RWMutex{},
-		listenerCreditTracker:       0,
-		useManualFlow:               useManualFlow,
+		//listenerCreditTracker:       0,
+		//useManualFlow:               useManualFlow,
 	}
 }
+
+// func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChannel chan *wfmodel.Message) {
+// 	logger.PushF("Amqp10AsyncConsumer.listenerWorker")
+// 	defer logger.Close()
+
+// 	for !dc.listenerStopping {
+// 		// Do not claim until at least one procesor is ready, otherwise we risk a msg sitting
+// 		// in the channel without sending heartbits, so by the time a processor start handling it,
+// 		// CapiMQ already may consider it dead
+// 		if int(dc.activeProcessors.Load()) == dc.maxProcessors {
+// 			time.Sleep(Amqp10FullListenerChannelTimeout * time.Millisecond)
+// 			continue
+// 		}
+// 		if !dc.listener.isOpen() {
+// 			openCtx, openCancel := context.WithTimeout(context.Background(), Amqp10ListenerOpenTimeout*time.Millisecond)
+// 			// dc.useManualFlow: we control listener flow ourselves via IssueCredit, so set link credits to -1
+// 			linkCredit := int32(10000000) // Yes, we are desperate
+// 			if dc.useManualFlow {
+// 				linkCredit = -1
+// 			}
+// 			openErr := dc.listener.open(openCtx, dc.url, dc.address, linkCredit)
+// 			openCancel()
+// 			if openErr != nil {
+// 				logger.Error("cannot reconnect to %s, address %s, credit %d: %s", dc.url, dc.address, linkCredit, openErr.Error())
+// 				time.Sleep(Amqp10ListenerReconnectTimeout * time.Millisecond)
+// 			} else {
+// 				if dc.useManualFlow {
+// 					issueErr := dc.listener.receiver.IssueCredit(dc.maxCreditWindow)
+// 					if issueErr != nil {
+// 						logger.Error("cannot issue credit %d to listener after open: %s", dc.maxCreditWindow, issueErr.Error())
+// 						// We cannot proceed without topping-up the credit, so reconnect
+// 						closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ListenerCloseTimeout*time.Millisecond)
+// 						if err := dc.listener.close(closeCtx); err != nil {
+// 							logger.Error("cannot properly close after failed issueCredit after open: %s", err.Error())
+// 						}
+// 						closeCancel()
+// 					} else {
+// 						logger.Info("successfully issued initial listener credit of %d after open", dc.maxCreditWindow)
+// 						dc.listenerCreditTracker = dc.maxCreditWindow
+// 						dc.retryTracker.Store(0)
+// 					}
+// 				}
+// 			}
+// 		}
+
+// 		if dc.useManualFlow && dc.listener.isOpen() && dc.retryTracker.Load() == dc.maxCreditWindow {
+// 			// This consumer is stuck processing msgs that are kept being postponed. Message broker somehow decided that.
+// 			// Try a "soft reset" by draining credit and getting a new one.
+// 			logger.Warn("%d consecutive msgs were retried, assuming msg pollution, will drain...", dc.maxCreditWindow)
+// 			drainCtx, drainCancel := context.WithTimeout(context.Background(), Amqp10ListenerDrainTimeout*time.Millisecond)
+// 			drainErr := dc.listener.receiver.DrainCredit(drainCtx, nil)
+// 			drainCancel()
+// 			dc.retryTracker.Store(0)
+// 			if drainErr != nil {
+// 				logger.Error("cannot drain listener: %s", drainErr.Error())
+// 				closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ListenerCloseTimeout*time.Millisecond)
+// 				if err := dc.listener.close(closeCtx); err != nil {
+// 					logger.Error("cannot properly close after failed drain: %s", err.Error())
+// 				}
+// 				closeCancel()
+// 			} else {
+// 				// Drain was successful, issue new credit
+// 				issueErr := dc.listener.receiver.IssueCredit(dc.maxCreditWindow)
+// 				if issueErr != nil {
+// 					logger.Error("cannot issue credit to listener after drain: %s", issueErr.Error())
+// 					// We cannot proceed without the credit, so reconnect
+// 					closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ListenerCloseTimeout*time.Millisecond)
+// 					if err := dc.listener.close(closeCtx); err != nil {
+// 						logger.Error("cannot properly close after failed issueCredit after receive: %s", err.Error())
+// 					}
+// 					closeCancel()
+// 				} else {
+// 					logger.Info("successfully issued listener credit of %d after drain", dc.maxCreditWindow)
+// 					dc.listenerCreditTracker = dc.maxCreditWindow
+// 				}
+// 			}
+// 		}
+
+// 		if dc.listener.isOpen() {
+// 			recCtx, recCancel := context.WithTimeout(context.Background(), Amqp10ListenerReceiveTimeout*time.Millisecond)
+// 			amqpMsg, recErr := dc.listener.receiver.Receive(recCtx, nil)
+// 			recCancel()
+// 			if recErr == nil {
+// 				var wfmodelMsg wfmodel.Message
+// 				if err := json.Unmarshal(slices.Concat(amqpMsg.Data...), &wfmodelMsg); err != nil {
+// 					logger.Error("cannot unmarshal wfmodel.Message, will ack this mq message: %s, %v", err.Error(), amqpMsg)
+// 					ackCtx, ackCancel := context.WithTimeout(context.Background(), Amqp10ListenerAckTimeout*time.Millisecond)
+// 					if err = dc.listener.receiver.AcceptMessage(ackCtx, amqpMsg); err != nil {
+// 						logger.Error("cannot ack unmarshaled mq message, will abandon it: %s", err.Error())
+// 					}
+// 					ackCancel()
+// 				} else {
+// 					dc.amqpMessagesInHandlingMutex.Lock()
+// 					dc.amqpMessagesInHandling[wfmodelMsg.Id] = amqpMsg
+// 					dc.amqpMessagesInHandlingMutex.Unlock()
+// 					// WARNING: make sure the caller does not close listenerChannel before listenerWorker() completes
+// 					listenerChannel <- &wfmodelMsg
+// 					dc.activeProcessors.Add(1)
+// 				}
+
+// 				if dc.useManualFlow {
+// 					// Done with the message (or receive/accept error), check our AMQP1.0 flow
+// 					// Top-up early to avoid situation when the credit is low, and the consumer cannot receive because not all of the messages within that low credit  were processed
+// 					dc.listenerCreditTracker--
+// 					if dc.listenerCreditTracker == dc.minCreditWindow {
+// 						issueErr := dc.listener.receiver.IssueCredit(dc.maxCreditWindow)
+// 						if issueErr != nil {
+// 							logger.Error("cannot issue credit to listener after receive: %s", issueErr.Error())
+// 							// We cannot proceed without topping-up the credit, so reconnect
+// 							closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ListenerCloseTimeout*time.Millisecond)
+// 							if err := dc.listener.close(closeCtx); err != nil {
+// 								logger.Error("cannot properly close after failed issueCredit after receive: %s", err.Error())
+// 							}
+// 							closeCancel()
+// 						} else {
+// 							logger.Info("successfully issued listener credit of %d after receive", dc.maxCreditWindow)
+// 							dc.listenerCreditTracker = dc.maxCreditWindow
+// 						}
+// 					}
+// 				}
+// 			} else {
+// 				if recErr != context.DeadlineExceeded {
+// 					connError := &amqp10.ConnError{}
+// 					sessionError := &amqp10.SessionError{}
+// 					linkError := &amqp10.LinkError{}
+// 					if errors.As(recErr, &connError) || errors.As(recErr, &sessionError) || errors.As(recErr, &linkError) {
+// 						// Connectivity error or RabbitMQ complaining about queue not found (linkError)
+// 						logger.Error("cannot receive, connectivity error: %s", recErr.Error())
+// 					} else {
+// 						logger.Error("cannot receive, unknown error: %s", recErr.Error())
+// 					}
+// 					closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ListenerCloseTimeout*time.Millisecond)
+// 					if err := dc.listener.close(closeCtx); err != nil {
+// 						logger.Error("cannot properly close after failed receive: %s", err.Error())
+// 					}
+// 					closeCancel()
+// 				}
+// 				time.Sleep(Amqp10FullListenerChannelTimeout * time.Millisecond)
+// 			}
+// 		}
+// 	}
+
+// 	// Cleanup on exit
+// 	if dc.listener.isOpen() {
+// 		closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ListenerCloseTimeout*time.Millisecond)
+// 		if err := dc.listener.close(closeCtx); err != nil {
+// 			logger.Error("cannot properly close on exit: %s", err.Error())
+// 		}
+// 		closeCancel()
+// 	}
+
+// 	// Signal that listener is done
+// 	dc.listener.done <- true
+// }
 
 func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChannel chan *wfmodel.Message) {
 	logger.PushF("Amqp10AsyncConsumer.listenerWorker")
@@ -126,129 +280,65 @@ func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 		}
 		if !dc.listener.isOpen() {
 			openCtx, openCancel := context.WithTimeout(context.Background(), Amqp10ListenerOpenTimeout*time.Millisecond)
-			// dc.useManualFlow: we control listener flow ourselves via IssueCredit, so set link credits to -1
-			linkCredit := int32(10000000) // Yes, we are desperate
-			if dc.useManualFlow {
-				linkCredit = -1
-			}
-			openErr := dc.listener.open(openCtx, dc.url, dc.address, linkCredit)
+			openErr := dc.listener.open(openCtx, dc.url, dc.address, -1)
 			openCancel()
 			if openErr != nil {
-				logger.Error("cannot reconnect to %s, address %s, credit %d: %s", dc.url, dc.address, linkCredit, openErr.Error())
+				logger.Error("cannot reconnect to %s, address %s, credit %d: %s", dc.url, dc.address, -1, openErr.Error())
 				time.Sleep(Amqp10ListenerReconnectTimeout * time.Millisecond)
-			} else {
-				if dc.useManualFlow {
-					issueErr := dc.listener.receiver.IssueCredit(dc.maxCreditWindow)
-					if issueErr != nil {
-						logger.Error("cannot issue credit %d to listener after open: %s", dc.maxCreditWindow, issueErr.Error())
-						// We cannot proceed without topping-up the credit, so reconnect
-						closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ListenerCloseTimeout*time.Millisecond)
-						if err := dc.listener.close(closeCtx); err != nil {
-							logger.Error("cannot properly close after failed issueCredit after open: %s", err.Error())
-						}
-						closeCancel()
-					} else {
-						logger.Info("successfully issued initial listener credit of %d after open", dc.maxCreditWindow)
-						dc.listenerCreditTracker = dc.maxCreditWindow
-						dc.retryTracker.Store(0)
-					}
-				}
-			}
-		}
-
-		if dc.useManualFlow && dc.listener.isOpen() && dc.retryTracker.Load() == dc.maxCreditWindow {
-			// This consumer is stuck processing msgs that are kept being postponed. Message broker somehow decided that.
-			// Try a "soft reset" by draining credit and getting a new one.
-			logger.Warn("%d consecutive msgs were retried, assuming msg pollution, will drain...", dc.maxCreditWindow)
-			drainCtx, drainCancel := context.WithTimeout(context.Background(), Amqp10ListenerDrainTimeout*time.Millisecond)
-			drainErr := dc.listener.receiver.DrainCredit(drainCtx, nil)
-			drainCancel()
-			dc.retryTracker.Store(0)
-			if drainErr != nil {
-				logger.Error("cannot drain listener: %s", drainErr.Error())
-				closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ListenerCloseTimeout*time.Millisecond)
-				if err := dc.listener.close(closeCtx); err != nil {
-					logger.Error("cannot properly close after failed drain: %s", err.Error())
-				}
-				closeCancel()
-			} else {
-				// Drain was successful, issue new credit
-				issueErr := dc.listener.receiver.IssueCredit(dc.maxCreditWindow)
-				if issueErr != nil {
-					logger.Error("cannot issue credit to listener after drain: %s", issueErr.Error())
-					// We cannot proceed without the credit, so reconnect
-					closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ListenerCloseTimeout*time.Millisecond)
-					if err := dc.listener.close(closeCtx); err != nil {
-						logger.Error("cannot properly close after failed issueCredit after receive: %s", err.Error())
-					}
-					closeCancel()
-				} else {
-					logger.Info("successfully issued listener credit of %d after drain", dc.maxCreditWindow)
-					dc.listenerCreditTracker = dc.maxCreditWindow
-				}
 			}
 		}
 
 		if dc.listener.isOpen() {
-			recCtx, recCancel := context.WithTimeout(context.Background(), Amqp10ListenerReceiveTimeout*time.Millisecond)
-			amqpMsg, recErr := dc.listener.receiver.Receive(recCtx, nil)
-			recCancel()
-			if recErr == nil {
-				var wfmodelMsg wfmodel.Message
-				if err := json.Unmarshal(slices.Concat(amqpMsg.Data...), &wfmodelMsg); err != nil {
-					logger.Error("cannot unmarshal wfmodel.Message, will ack this mq message: %s, %v", err.Error(), amqpMsg)
-					ackCtx, ackCancel := context.WithTimeout(context.Background(), Amqp10ListenerAckTimeout*time.Millisecond)
-					if err = dc.listener.receiver.AcceptMessage(ackCtx, amqpMsg); err != nil {
-						logger.Error("cannot ack unmarshaled mq message, will abandon it: %s", err.Error())
-					}
-					ackCancel()
-				} else {
-					dc.amqpMessagesInHandlingMutex.Lock()
-					dc.amqpMessagesInHandling[wfmodelMsg.Id] = amqpMsg
-					dc.amqpMessagesInHandlingMutex.Unlock()
-					// WARNING: make sure the caller does not close listenerChannel before listenerWorker() completes
-					listenerChannel <- &wfmodelMsg
-					dc.activeProcessors.Add(1)
+			issueErr := dc.listener.receiver.IssueCredit(1)
+			if issueErr != nil {
+				logger.Error("cannot issue credit to listener before receive: %s", issueErr.Error())
+				// We cannot proceed without topping-up the credit, so reconnect
+				closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ListenerCloseTimeout*time.Millisecond)
+				if err := dc.listener.close(closeCtx); err != nil {
+					logger.Error("cannot properly close after failed issueCredit before receive: %s", err.Error())
 				}
-
-				if dc.useManualFlow {
-					// Done with the message (or receive/accept error), check our AMQP1.0 flow
-					// Top-up early to avoid situation when the credit is low, and the consumer cannot receive because not all of the messages within that low credit  were processed
-					dc.listenerCreditTracker--
-					if dc.listenerCreditTracker == dc.minCreditWindow {
-						issueErr := dc.listener.receiver.IssueCredit(dc.maxCreditWindow)
-						if issueErr != nil {
-							logger.Error("cannot issue credit to listener after receive: %s", issueErr.Error())
-							// We cannot proceed without topping-up the credit, so reconnect
-							closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ListenerCloseTimeout*time.Millisecond)
-							if err := dc.listener.close(closeCtx); err != nil {
-								logger.Error("cannot properly close after failed issueCredit after receive: %s", err.Error())
-							}
-							closeCancel()
-						} else {
-							logger.Info("successfully issued listener credit of %d after receive", dc.maxCreditWindow)
-							dc.listenerCreditTracker = dc.maxCreditWindow
-						}
-					}
-				}
+				closeCancel()
 			} else {
-				if recErr != context.DeadlineExceeded {
-					connError := &amqp10.ConnError{}
-					sessionError := &amqp10.SessionError{}
-					linkError := &amqp10.LinkError{}
-					if errors.As(recErr, &connError) || errors.As(recErr, &sessionError) || errors.As(recErr, &linkError) {
-						// Connectivity error or RabbitMQ complaining about queue not found (linkError)
-						logger.Error("cannot receive, connectivity error: %s", recErr.Error())
+				recCtx, recCancel := context.WithTimeout(context.Background(), Amqp10ListenerReceiveTimeout*time.Millisecond)
+				amqpMsg, recErr := dc.listener.receiver.Receive(recCtx, nil)
+				recCancel()
+				if recErr == nil {
+					var wfmodelMsg wfmodel.Message
+					if err := json.Unmarshal(slices.Concat(amqpMsg.Data...), &wfmodelMsg); err != nil {
+						logger.Error("cannot unmarshal wfmodel.Message, will ack this mq message: %s, %v", err.Error(), amqpMsg)
+						ackCtx, ackCancel := context.WithTimeout(context.Background(), Amqp10ListenerAckTimeout*time.Millisecond)
+						if err = dc.listener.receiver.AcceptMessage(ackCtx, amqpMsg); err != nil {
+							logger.Error("cannot ack unmarshaled mq message, will abandon it: %s", err.Error())
+						}
+						ackCancel()
 					} else {
-						logger.Error("cannot receive, unknown error: %s", recErr.Error())
+						dc.amqpMessagesInHandlingMutex.Lock()
+						dc.amqpMessagesInHandling[wfmodelMsg.Id] = amqpMsg
+						dc.amqpMessagesInHandlingMutex.Unlock()
+						// WARNING: make sure the caller does not close listenerChannel before listenerWorker() completes
+						listenerChannel <- &wfmodelMsg
+						dc.activeProcessors.Add(1)
 					}
-					closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ListenerCloseTimeout*time.Millisecond)
-					if err := dc.listener.close(closeCtx); err != nil {
-						logger.Error("cannot properly close after failed receive: %s", err.Error())
+
+				} else {
+					if recErr != context.DeadlineExceeded {
+						connError := &amqp10.ConnError{}
+						sessionError := &amqp10.SessionError{}
+						linkError := &amqp10.LinkError{}
+						if errors.As(recErr, &connError) || errors.As(recErr, &sessionError) || errors.As(recErr, &linkError) {
+							// Connectivity error or RabbitMQ complaining about queue not found (linkError)
+							logger.Error("cannot receive, connectivity error: %s", recErr.Error())
+						} else {
+							logger.Error("cannot receive, unknown error: %s", recErr.Error())
+						}
+						closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ListenerCloseTimeout*time.Millisecond)
+						if err := dc.listener.close(closeCtx); err != nil {
+							logger.Error("cannot properly close after failed receive: %s", err.Error())
+						}
+						closeCancel()
 					}
-					closeCancel()
+					time.Sleep(Amqp10FullListenerChannelTimeout * time.Millisecond)
 				}
-				time.Sleep(Amqp10FullListenerChannelTimeout * time.Millisecond)
 			}
 		}
 	}
@@ -304,7 +394,7 @@ func (dc *Amqp10AsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 					var ackError error
 					switch token.Cmd {
 					case AcknowledgerCmdAck:
-						dc.retryTracker.Store(0)
+						// dc.retryTracker.Store(0)
 						dc.amqpMessagesInHandlingMutex.Lock()
 						delete(dc.amqpMessagesInHandling, token.MsgId)
 						dc.amqpMessagesInHandlingMutex.Unlock()
@@ -312,7 +402,7 @@ func (dc *Amqp10AsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 							logger.Error("cannot ack, expect some daemon instance to perform DeleteDataAndUniqueIndexesByBatchIdx for %s: %s", token.MsgId, ackError.Error())
 						}
 					case AcknowledgerCmdRetry:
-						dc.retryTracker.Add(1)
+						//dc.retryTracker.Add(1)
 						// ActiveMQ Artemis:
 						// - Reject makes Artemis put the msg to DLQ without honoring redelivery-delay or discard it (if no DLQ configured) regardless of other settings
 						// - Release works
