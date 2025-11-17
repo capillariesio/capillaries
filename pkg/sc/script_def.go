@@ -335,7 +335,7 @@ func (scriptDef *ScriptDef) addChildrenToAffected(rootNode *ScriptNodeDef, affec
 	}
 }
 
-// Returns all nodes that will receive RabbitMQ messages when a run is started with startNodeNames
+// Returns all nodes that will receive RabbitMQ/ActiveMQ messages when a run is started with startNodeNames
 // The tricky part is not to include nodes that have "manual" nodes between them and the start nodes (see addChildrenToManual)
 func (scriptDef *ScriptDef) GetAffectedNodes(startNodeNames []string) []string {
 	startSet := map[string]struct{}{}

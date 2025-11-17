@@ -15,22 +15,22 @@ import (
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
-type AckMethodType string
+type RetryMethodType string
 
 const (
-	AckMethodRelease AckMethodType = "release"
-	AckMethodReject  AckMethodType = "reject"
-	AckMethodUnknown AckMethodType = "unknown"
+	RetryMethodRelease RetryMethodType = "release"
+	RetryMethodReject  RetryMethodType = "reject"
+	RetryMethodUnknown RetryMethodType = "unknown"
 )
 
-func StringToAckMethod(s string) (AckMethodType, error) {
+func StringToRetryMethod(s string) (RetryMethodType, error) {
 	switch s {
-	case string(AckMethodReject):
-		return AckMethodReject, nil
-	case string(AckMethodRelease):
-		return AckMethodRelease, nil
+	case string(RetryMethodReject):
+		return RetryMethodReject, nil
+	case string(RetryMethodRelease):
+		return RetryMethodRelease, nil
 	default:
-		return AckMethodUnknown, fmt.Errorf("unknown ack method '%s'", s)
+		return RetryMethodUnknown, fmt.Errorf("unknown ack method '%s'", s)
 	}
 }
 
@@ -67,7 +67,7 @@ const Amqp10FullListenerChannelTimeout time.Duration = 50
 type Amqp10AsyncConsumer struct {
 	url       string
 	address   string
-	ackMethod AckMethodType
+	ackMethod RetryMethodType
 	// https://www.rabbitmq.com/blog/2024/09/02/amqp-flow-control:
 	// Granting link credit is not cumulative. When the receiver sends a flow frame with link-credit = N, the receiver sets the
 	// current credit to N instead of adding N more credits. For example, if a receiver sends two flow frames with link-credit = 50
@@ -93,7 +93,7 @@ type Amqp10AsyncConsumer struct {
 	// useManualFlow               bool
 }
 
-func NewAmqp10Consumer(url string, address string, ackMethod AckMethodType, maxProcessors int, minCreditWindow uint32, _useManualFlow bool) *Amqp10AsyncConsumer {
+func NewAmqp10Consumer(url string, address string, ackMethod RetryMethodType, maxProcessors int, minCreditWindow uint32, _useManualFlow bool) *Amqp10AsyncConsumer {
 	return &Amqp10AsyncConsumer{
 		url:                         url,
 		address:                     address,
@@ -419,16 +419,16 @@ func (dc *Amqp10AsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 						delete(dc.amqpMessagesInHandling, token.MsgId)
 						dc.amqpMessagesInHandlingMutex.Unlock()
 						switch dc.ackMethod {
-						case AckMethodReject:
+						case RetryMethodReject:
 							if ackError = dc.acknowledger.receiver.RejectMessage(ackCtx, amqpMsg, &amqp10.Error{Condition: amqp10.ErrCondInternalError, Description: fmt.Sprintf("capidaemon %s asked to retry", logger.ZapMachine.String)}); ackError != nil {
 								logger.Error("cannot retry(reject), expect some daemon instance to perform DeleteDataAndUniqueIndexesByBatchIdx for %s: %s", token.MsgId, ackError.Error())
 							}
-						case AckMethodRelease:
+						case RetryMethodRelease:
 							if ackError = dc.acknowledger.receiver.ReleaseMessage(ackCtx, amqpMsg); ackError != nil {
 								logger.Error("cannot retry(release), expect some daemon instance to perform DeleteDataAndUniqueIndexesByBatchIdx for %s: %s", token.MsgId, ackError.Error())
 							}
 						default:
-							logger.Error("invalid ack_method configuration: %s", dc.ackMethod)
+							logger.Error("invalid retry_method configuration: %s", dc.ackMethod)
 						}
 					case AcknowledgerCmdHeartbeat:
 						logger.Error("unexpected acknowledger heartbeat cmd, it is not supported by AMQP message brokers")

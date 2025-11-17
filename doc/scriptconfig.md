@@ -59,7 +59,7 @@ Default: dependency policy marked as [is_default](#is_default)
 - rerun: let the daemon (same instance or another) execute this batch again (default)
 - fail: give up and mark this node as failed
 
-With policy set to "rerun", batch re-run happens automatically when the binary handling the message loses connection to the message broker (RabbitMQ) after a message is consumed, but before it is acknowledged. In such a case, the message broker re-routes the message again, and it ends up being consumed by another (or by the same) message handler binary. In this scenario, the handler that handles the re-routed message needs to make sure that there are no leftovers of the first message handler activity in [data tables](glossary.md#data-table) and [index tables](glossary.md#index-table).
+With policy set to "rerun", batch re-run happens automatically when the binary handling the message loses connection to the message broker after a message is consumed, but before it is acknowledged. In such a case, the message broker re-routes the message again, and it ends up being consumed by another (or by the same) message handler binary. In this scenario, the handler that handles the re-routed message needs to make sure that there are no leftovers of the first message handler activity in [data tables](glossary.md#data-table) and [index tables](glossary.md#index-table).
 
 The following part discusses re-runs in detail and requires a good understanding of Capillaries data/index table structure and Cassandra data modeling principles.
 

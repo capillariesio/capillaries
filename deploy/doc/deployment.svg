@@ -53,6 +53,14 @@
 		<g id="icon-rabbitmq" transform="scale(0.4) translate(0,0)">
 			<path fill="#FF6600" d="M93.5,39H62.3c-2.1,0-3.9-1.7-3.9-3.9c0,0,0,0,0,0V3.9c0-2.1-1.7-3.9-3.9-3.9c0,0,0,0,0,0H42.8   c-2.1,0-3.9,1.7-3.9,3.9c0,0,0,0,0,0v31.2c0,2.1-1.7,3.9-3.9,3.9c0,0,0,0,0,0H23.4c-2.1,0-3.9-1.7-3.9-3.9c0,0,0,0,0,0V3.9   c0-2.1-1.7-3.9-3.9-3.9c0,0,0,0,0,0H3.9C1.7,0,0,1.7,0,3.9c0,0,0,0,0,0v89.6c0,2.1,1.7,3.9,3.9,3.9c0,0,0,0,0,0h89.6   c2.1,0,3.9-1.7,3.9-3.9c0,0,0,0,0,0V42.9c0.1-2.1-1.6-3.9-3.8-4C93.6,39,93.5,39,93.5,39z M77.8,72c0,3.2-2.6,5.8-5.8,5.9   c0,0,0,0,0,0h-7.8c-3.2,0-5.8-2.6-5.8-5.8c0,0,0,0,0,0v-7.8c0-3.2,2.6-5.8,5.8-5.9c0,0,0,0,0,0H72c3.2,0,5.8,2.6,5.8,5.8   c0,0,0,0,0,0V72z"></path>
 		</g>
+		<g id="icon-amqp" transform="scale(0.45) translate(0,0)">
+			<polygon points="72.72 52.57 39.81 52.57 39.81 78.22 99.28 78.22 72.72 52.91 72.72 52.57" fill="#002585" stroke-width="0"/>
+			<polygon points="105.62 85.15 39.94 85.15 39.94 110.79 132.19 110.79 105.62 85.48 105.62 85.15" stroke-width="0"/>
+			<polygon points="39.94 45.81 66.51 45.81 39.94 20 39.94 45.81" stroke-width="0"/>
+			<polygon points="99.28 78.22 72.72 52.91 72.72 20 99.28 20 99.28 78.22" fill="#a2b0d9" stroke-width="0"/>
+			<polygon points="132.19 110.79 105.62 85.48 105.62 20 132.19 20 132.19 110.79" fill="#caccce" stroke-width="0"/>
+			<polygon points="66.51 45.81 66.51 45.81 39.94 20 66.51 20 66.51 45.81" fill="#caccce" stroke-width="0"/>
+		</g>
 		<g id="icon-nginx" transform="scale(0.675) translate(5,0)">
 			<style>.cls-1{fill:#009639;}.cls-2{fill:#fff;}.cls-3{fill:#999;}</style>
 			<path class="cls-1" d="M.50272,54.721a3.637,3.637,0,0,0,1.36641,1.35593L29.82192,72.21549l.00087-.00087a3.66793,3.66793,0,0,0,3.71529,0L61.49175,56.07606a3.66568,3.66568,0,0,0,1.85677-3.21619V20.58275l-.00087-.00087A3.66685,3.66685,0,0,0,61.49,17.36481L33.53634,1.22625V1.22538a3.66313,3.66313,0,0,0-3.71268,0v.00087L1.87087,17.36481A3.6653,3.6653,0,0,0,.01235,20.58188l-.00087.00087V52.85987A3.64426,3.64426,0,0,0,.50185,54.721" />
@@ -251,9 +259,10 @@
 			<text x="60" y="10" class="extra-small" fill="#8c4fff">VPC</text>
 		</g>
 
-		<g id="rabbitmq">
-			<use x="0" y="0" xlink:href="#icon-rabbitmq" />
-			<text x="60" y="3" class="small" fill="#000">RabbitMQ</text>
+		<g id="message_queue">
+			<use x="0" y="10" xlink:href="#icon-amqp" />
+			<text x="70" y="0" class="small" fill="#000">Message</text>
+			<text x="90" y="40" class="small" fill="#000">Queue</text>
 		</g>
 
 		<g id="prometheus">
@@ -265,7 +274,7 @@
 		<g id="bastion_instance">
 			<rect x="0" y="0" width="1070" height="660" stroke="#d86613" stroke-width="2" fill="#fff"/>
 			<use x="0" y="0" transform="scale(0.5)" xlink:href="#dio-instance" />
-			<text x="60" y="10" class="extra-small" fill="#d86613">EC2 Bastion//RabbitMQ/Prometheus instance</text>
+			<text x="60" y="10" class="extra-small" fill="#d86613">EC2 Bastion/MQ/Prometheus instance</text>
 
 			<text x="890" y="10" class="extra-small" fill="#f58534">Elastic IP</text>
 			<use x="920" y="15" xlink:href="#dio-elasticip" />
@@ -290,7 +299,7 @@
 
 		    <use x="390" y="480" xlink:href="#arrow_down_75" />
 
-			<use x="310" y="565" xlink:href="#rabbitmq" />
+			<use x="260" y="565" xlink:href="#message_queue" />
 		</g>
 
 		<g id="public_subnet">

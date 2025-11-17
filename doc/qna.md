@@ -46,22 +46,22 @@ Re-running single batches: no. Capillaries [data tables](glossary.md#data-table)
 
 ## dead-letter-exchange
 
-Q. When a run is started, I can see RabbitMQ messages created immediately for every batch, and every node affected by the run. And those messages linger in the queue for a while until the node is ready for processing. Why doesn't Capillaries send RabbitMQ messages to a node only after dependency node processing is complete?
+Q. When a run is started, I can see AMQP messages created immediately for every batch, and every node affected by the run. And those messages linger in the queue for a while until the node is ready for processing. Why doesn't Capillaries send RabbitMQ messages to a node only after dependency node processing is complete?
 
 A. Because it would be extremely hard (if even possible) to guarantee the atomicity/idempotency of batch handling by code that:
 - modifies [data tables](glossary.md#data-table)
 - modifies [workflow tables](glossary.md#workflow-table)
-- generates the next set of RabbitMQ messages
+- generates the next set of AMQP messages
 
-The trickiest part would be to guarantee that only one copy of a batch message for a specific node is created and handled. The approach that Capillaries takes (creating a set of messages in one shot at the run start) guarantees it. If a node is not ready to process the batch message, it goes to the the dead letter exchange where it waits for [dead_letter_ttl](binconfig.md#dead_letter_ttl) milliseconds and re-routed to the [queue](glossary.md#processor-queue) again.
+The trickiest part would be to guarantee that only one copy of a batch message for a specific node is created and handled. The approach that Capillaries takes (creating a set of messages in one shot at the run start) guarantees it. If a node is not ready to process the batch message, it either goes to the the dead letter exchange (RabbitMQ) to be re-routed to the [queue](glossary.md#processor-queue) again, or it is being redelivered (ActiveMQ). 
 
 [This article](https://www.cloudamqp.com/blog/when-and-how-to-use-the-rabbitmq-dead-letter-exchange.html) explains RabbitMQ dead letter exchange use.
 
-## RabbitMQ failures
+## Message queue failures
 
-Q. Can Capilaries survive RabbitMQ service disruption?
+Q. Can Capilaries survive message queue service disruption?
 
-A. No. Guaranteed delivery of RabbitMQ messages for each Capillaries [batch](glossary.md#data-batch) is one of the cornerstones of Capillaries architecture.
+A. No. Guaranteed delivery of messages for each Capillaries [batch](glossary.md#data-batch) is one of the cornerstones of Capillaries architecture.
 
 ## Cassandra only?
 
@@ -87,11 +87,11 @@ Also please note that [Toolbelt](glossary.md#toolbelt) can produce visual diagra
 
 Yes. See Capillaries [100% Docker-based demo](started.md#run-100-dockerized-capillaries-demo).
 
-## RabbitMQ in the cloud?
+## Message queue in the cloud?
 
-Q. Can I run Capillaries with RabbitMQ hosted in the cloud?
+Q. Can I run Capillaries with a cloud-based message queue?
 
-A. Yes. Capillaries were successfully tested agains AWS RabbitMQ broker.
+A. Yes, as long as this message queue support AMQP 1.0 and delayed redelivery. As of 2025, AWS supports RabbitMQ and ActiveMQ brokers that meet this criteria, and Azure Service Bus does not support delayed redelivery. 
 
 ## Cassandra in the cloud?
 
@@ -125,7 +125,7 @@ A. Here are some, in no particular order:
 
 5. Python formulas. (a) Need a strategy to mitigate potential security threats introduced by py_calc. SELinux/AppArmor? (b) Consider generic lambda functions?
 
-6. Keep an eye on Azure/AWS/GCP progress with Cassandra-compatible databases (latency!) and RabbitMQ offerings. Update 2025: version 1.1.25 works with Amazon RabbitMQ broker and Amazon Keyspaces.
+6. Keep an eye on Azure/AWS/GCP progress with Cassandra-compatible databases (latency!) and message queue offerings. Update 2025: version 1.1.25 works with Amazon RabbitMQ AMQP 0.9.1 broker and Amazon Keyspaces. Update 2025: Capillaries 1.2 drops support for AMQP 0.9.1 and adds support for AMQP 1.0. 
 
 7. Select distinct field values from a table: it can be implemented easily using a set, but it will not scale and it will be limited by the size of the map. Alternatively, it can be implemented using Cassandra features, but it will require Capillaries to support tables without [rowid](glossary.md#rowid) (so the unique values are stored in a partitioning key field). Update March 2024: done, see [distinct_table](./glossary.md#distinct_table) node.
 

@@ -29,7 +29,7 @@ docker compose -p "test_capillaries_containers" up
 ```
 
 This command will create bridge network `capinet`, and will create and start the following containers:
-- RabbitMQ (more about RabbitMQ setup [here](binconfig.md#amqp) and [here](glossary.md#rabbitmq-setup))
+- Message queue (more [here](binconfig.md#amqp10) and [here](glossary.md#message-queue-setup))
 - Cassandra (more about Cassandra setup [here](binconfig.md#cassandra) and [here](glossary.md#cassandra-setup))
 - [Daemon](glossary.md#daemon) container (performs actual data transformations)
 - [Webapi](glossary.md#webapi) container (backend for Capillaries-UI) 
@@ -115,13 +115,13 @@ You may also want to make sure you have cqlsh tool installed, it may be helpful 
 
 This section may help you get started with [lookup integration test](../test/code/lookup/README.md).
 
-All settings in pkg/exe/daemon/capidaemon.json and pkg/exe/toolbelt/capitoolbelt.json use default RabbitMQ and Cassandra settings. If you have changed your Cassandra or RabbitMQ setup, modify both JSON files accordingly. More about database and queue settings:
+All settings in pkg/exe/daemon/capidaemon.json and pkg/exe/toolbelt/capitoolbelt.json use default RabbitMQ/ActiveMQ and Cassandra settings. If you have changed your Cassandra or RabbitMQ/ActiveMQ setup, modify both JSON files accordingly. More about database and queue settings:
 - Cassandra [settings](binconfig.md#cassandra), general Cassandra setup [considerations](glossary.md#cassandra-setup)
-- RabbitMQ [settings](binconfig.md#amqp), general RabbitMQ setup [considerations](glossary.md#rabbitmq-setup)
+- RabbitMQ/ActiveMQ [settings](binconfig.md#amqp10), general RabbitMQ/ActiveMQ setup [considerations](glossary.md#message-queue-setup)
 
 ### 1. Direct node execution
 
-Start with the test that executes [script nodes](glossary.md#script-node) directly, without involving RabbitMQ or Capillaries [Daemon](glossary.md#daemon):
+Start with the test that executes [script nodes](glossary.md#script-node) directly, without involving message queue or Capillaries [Daemon](glossary.md#daemon):
 
 ```
 cd test/code/lookup
@@ -137,7 +137,7 @@ cd pkg/exe/daemon
 go run capidaemon.go
 ```
 
-Check out its stdout- make sure it successfully connected to RabbitMQ.
+Check out its stdout- make sure it successfully connected to the message queue.
 
 In another command line session, run the test in a single run:
 

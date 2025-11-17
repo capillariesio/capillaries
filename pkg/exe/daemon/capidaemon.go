@@ -119,9 +119,9 @@ func main() {
 	var heartbeatInterval int64
 	var asyncConsumer mq.MqAsyncConsumer
 	if envConfig.Amqp10.URL != "" && envConfig.Amqp10.Address != "" {
-		ackMethod, err := mq.StringToAckMethod(envConfig.Amqp10.AckMethod)
+		ackMethod, err := mq.StringToRetryMethod(envConfig.Amqp10.RetryMethod)
 		if err != nil {
-			log.Fatalf("no ack method for Amqp10 configured, expected %s or %s ", mq.AckMethodRelease, mq.AckMethodReject)
+			log.Fatalf("no ack method for Amqp10 configured, expected %s or %s ", mq.RetryMethodRelease, mq.RetryMethodReject)
 		}
 		if envConfig.Amqp10.MinCreditWindow == 0 {
 			envConfig.Amqp10.MinCreditWindow = uint32(envConfig.Daemon.ThreadPoolSize)

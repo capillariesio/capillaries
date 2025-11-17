@@ -661,7 +661,7 @@ func protoFileReaderCreator() int {
 	return 0
 }
 
-// Used by Toolbelt (exec_node command), can be used for testing Capillaries node execution without RabbitMQ wokflow
+// Used by Toolbelt (exec_node command), can be used for testing Capillaries node execution without message queue wokflow
 func runNode(envConfig *env.EnvConfig, logger *l.CapiLogger, nodeName string, runId int16, scriptFilePath string, paramsFilePath string, cqlSession *gocql.Session, keyspace string) (int16, error) {
 	logger.PushF("api.RunNode")
 	defer logger.PopF()

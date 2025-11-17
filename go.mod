@@ -13,7 +13,6 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/pkg/sftp v1.13.9
 	github.com/prometheus/client_golang v1.23.2
-	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/sethvargo/go-envconfig v1.3.0
 	github.com/shopspring/decimal v1.4.0
 	github.com/stretchr/testify v1.11.1

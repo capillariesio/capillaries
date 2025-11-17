@@ -143,7 +143,7 @@ At the moment, Capillaries supports only a limited subset of the standard Go lib
 
 ## Processor queue
 
-RabbitMQ queue containing messages for a [processor](#processor). The name of the queue is given by the [handler_executable_type](binconfig.md#handler_executable_type) setting.
+Message queue containing messages for a [processor](#processor)
 
 ## Toolbelt
 A command-line executable that performs common Capillaries operations by:
@@ -173,9 +173,7 @@ capideploly is not part of Capillaries framework. It's a command line tool that 
 ## Daemon
 An executable that implements one or more [processors](#processor). Capillaries source code comes with a stock daemon that implements all supported [processor types](#processor-types), including [py_calc processor](#py_calc-processor) implemented as a [custom processor](#table_custom_tfm_table).
 
-The daemon consumes all messages from the [processor queue](#processor-queue) specified by the [handler_executable_type](binconfig.md#handler_executable_type) setting.
-
-After processing all batches for a [node](#script-node), the daemon sends batch messages to dependant nodes, using RabbitMQ exchange specified by 
+The daemon consumes all messages from the [processor queue](#processor-queue).
 
 For example, the stock daemon coming as part of the Capillaries source code uses:
 - queue name ([handler_executable_type](binconfig.md#handler_executable_type)): "capi_daemon"
@@ -323,9 +321,9 @@ All index, sorting and dependency policy event_priority_order logic implemented 
 
 The mechanism for complementing a data row from the primary source table with matching data in the secondary (lookup) source table. Capillaries support two types of SQL-style lookups: inner and left outer (see [Join operations](#join-operations)).
 
-## RabbitMQ setup
+## Message Queue setup
 
-There is no need to perform any setup steps beyond specifying RabbitMQ [url](binconfig.md#url) in [Toolbelt and Daemon configuration](binconfig.md). [Toolbelt](#toolbelt) and [Daemon](#daemon) will create all required exchanges and queues on the fly. Below is a sample view of [RabbitMQ Management Plugin](https://www.rabbitmq.com/management.html) after Toolbelt/Daemon has successfully initialized RabbitMQ:
+There is no need to perform any setup steps beyond specifying message queue [AMQP 1.0 paramaters](binconfig.md#amqp10) in [Toolbelt and Daemon configuration](binconfig.md). [Toolbelt](#toolbelt) and [Daemon](#daemon) will create all required exchanges and queues on the fly. Below is a sample view of [RabbitMQ Management Plugin](https://www.rabbitmq.com/management.html) after Toolbelt/Daemon has successfully initialized RabbitMQ:
 
 ![sequence](../doc/rabbitmq-setup.png)
 

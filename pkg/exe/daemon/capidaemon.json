@@ -16,17 +16,17 @@
   "amqp10_for_rabbitmq4": {
     "url": "amqp://guest:guest@127.0.0.1:5672/",
     "address": "/queues/capidaemon",
-    "ack_method": "reject"
+    "retry_method": "reject"
   },
   "amqp10_for_activemq_artemis": {
     "url": "amqp://artemis:artemis@127.0.0.1:5672/",
     "address": "capillaries",
-    "ack_method": "release"
+    "retry_method": "release"
   },
   "amqp10_for_activemq_classic": {
     "url": "amqp://guest:guest@127.0.0.1:5672/",
     "address": "capillaries",
-    "ack_method": "reject"
+    "retry_method": "reject"
   },
   "capimq_client_for_capimq_experimental":{
     "url":"http://localhost:7654",
@@ -35,7 +35,7 @@
   "amqp10": {
     "url": "amqp://artemis:artemis@127.0.0.1:5672/",
     "address": "capillaries",
-    "ack_method": "release"
+    "retry_method": "release"
   },
   "capimq_client":{
     "url":"http://localhost:7654",

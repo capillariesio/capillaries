@@ -1,6 +1,6 @@
 # Capillaries-UI
 
-Capillaries-UI is a simple [SPA](https://en.wikipedia.org/wiki/Single-page_application) that provides user access to Capillaries environment (RabbitMQ queues and Cassandra storage) using [Webapi](#webapi)
+Capillaries-UI is a simple [SPA](https://en.wikipedia.org/wiki/Single-page_application) that provides user access to Capillaries environment (message queue and Cassandra storage) using [Webapi](#webapi)
 
 It uses [Svelte](https://svelte.dev/) for building UI components. Serves at 8080 in dev mode. In production environment, consider using some production-grade web server.
 
