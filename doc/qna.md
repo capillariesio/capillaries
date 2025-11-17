@@ -105,7 +105,7 @@ A. Update 2025: version 1.1.25 adds support for Amazon Keyspaces. As of 2025, th
 - Amazon Keyspaces only supports up to 30 unconditional INSERT, UPDATE, or DELETE commands in unlogged batches
 - Amazon Keyspaces supports only up to 100 values in the IN operator
 - [Amazon Keyspaces pagination](https://docs.aws.amazon.com/keyspaces/latest/devguide/paginating-results.html) may return fewer records than requested, so Capillaries should watch pagestate closely
-For a sample Amazon Keyspaces configuration, see [Amazon Keyspaces POC TerraForm deployment scripts](../deploy/tf/amazon_keyspaces/README.md).
+For a sample Amazon Keyspaces configuration, see [Amazon Keyspaces POC TerraForm deployment scripts](https://github.com/capillariesio/capillaries-experimental/tree/main/amazon_keyspaces).
 
 WARNING: please keep in mind that without setting read/write capacity units, Amazon Keyspaces may be extremely slow, and with those capacity units specified - extremely expensive; exercise extreme caution when setting them. In general, Amazon Keyspaces database has a chance be more cost-efficient for longer-term data storage (months), and low read/write traffic. Cassandra cluster can be more cost-efficient for short-lived data (hours) and high rate of reads and writes. Capillaries definitely falls into the latter cathegory.   
 

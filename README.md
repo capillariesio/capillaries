@@ -91,11 +91,11 @@ For more details about getting started, see [Getting started](doc/started.md).
 
 #### Container-based deployments
 
-Capillaries binaries are intended to be container-friendly. Check out the `docker-compose.yml` and [Kubernetes deployment POC](./deploy/k8s/README.md), these test projects may be a good starting point for creating your full-scale container-based deployment.
+Capillaries binaries are intended to be container-friendly. Check out the `docker-compose.yml`, it may be a good starting point for creating your full-scale container-based deployment.
 
 #### VM-based deployment
 
-See [Terraform script](./deploy/tf/cassandra_cluster/README.md) that creates Capillaries deployment in AWS.
+See [Terraform script](./deploy/README.md) that creates Capillaries deployment in AWS.
 
 ## Capillaries in depth
 

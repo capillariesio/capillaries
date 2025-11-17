@@ -20,11 +20,11 @@ TF variables: `ssh_keypair_name`
 
 ## S3 bucket
 
-Make sure you have an S3 bucket as explained [Capillaries S3 doc](../../../doc/s3.md). Most likely, you will need to set up a user [UserAccessCapillariesTestbucket](../../../doc/s3.md#iam-user-useraccesscapillariestestbucket), otherwise you will not be able to upload source data and configuration files to the bucket from your devops machine. Make sure this user has full access to the bucket as the doc says.
+Make sure you have an S3 bucket as explained [Capillaries S3 doc](../doc/s3.md). Most likely, you will need to set up a user [UserAccessCapillariesTestbucket](../doc/s3.md#iam-user-useraccesscapillariestestbucket), otherwise you will not be able to upload source data and configuration files to the bucket from your devops machine. Make sure this user has full access to the bucket as the doc says.
 
 EC2 instances of this deployment do NOT need UserAccessCapillariesTestbucket credentials, the instances use AssumeRole mechanism to access S3 bucket.
 
-This example writes [Webapi](../../../doc/glossary.md#webapi) and [Daemon](../../../doc/glossary.md#daemon) log files to the `log` directory in your bucket.
+This example writes [Webapi](../doc/glossary.md#webapi) and [Daemon](../doc/glossary.md#daemon) log files to the `log` directory in your bucket.
 
 TF variables: `s3_log_url`
 
@@ -94,7 +94,7 @@ export CAPILLARIES_AWS_TESTBUCKET=capillaries-testbucket
 export BASTION_IP=your_bastion_ip_address
 export EXTERNAL_WEBAPI_PORT=6544
 
-# Remember UserAccessCapillariesTestbucket introduced in ../../../doc/s3.md ?
+# Remember UserAccessCapillariesTestbucket introduced in ../doc/s3.md ?
 source ~/UserAccessCapillariesTestbucket.rc
 
 # Full test cycle
