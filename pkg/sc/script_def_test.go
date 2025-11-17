@@ -328,6 +328,341 @@ const trickyAffectedScriptJson string = `
 	}
 }`
 
+const affectedPortfolioScriptJson string = `
+{
+    "nodes": {
+        "1_read_accounts": {
+            "type": "file_table",
+            "desc": "Load accounts from csv",
+            "r": {
+                "urls": ["aaa"],
+                "csv": {
+                    "hdr_line_idx": 0,
+                    "first_data_line_idx": 1
+                },
+                "columns": {
+                    "col_account_id": {
+                        "csv": {
+                            "col_hdr": "account_id"
+                        },
+                        "col_type": "string"
+                    },
+                    "col_earliest_period_start": {
+                        "csv": {
+                            "col_hdr": "earliest_period_start"
+                        },
+                        "col_type": "string"
+                    }
+                }
+            },
+            "w": {
+                "name": "accounts",
+                "fields": {
+                    "account_id": {
+                        "expression": "r.col_account_id",
+                        "type": "string"
+                    },
+                    "earliest_period_start": {
+                        "expression": "r.col_earliest_period_start",
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "1_read_txns": {
+            "type": "file_table",
+            "desc": "Load txns from csv",
+            "r": {
+                "urls": ["aaa"],
+                "csv": {
+                    "hdr_line_idx": 0,
+                    "first_data_line_idx": 1
+                },
+                "columns": {
+                    "col_ts": {
+                        "csv": {
+                            "col_hdr": "ts"
+                        },
+                        "col_type": "string"
+                    },
+                    "col_account_id": {
+                        "csv": {
+                            "col_hdr": "account_id"
+                        },
+                        "col_type": "string"
+                    },
+                    "col_ticker": {
+                        "csv": {
+                            "col_hdr": "ticker"
+                        },
+                        "col_type": "string"
+                    },
+                    "col_qty": {
+                        "csv": {
+                            "col_hdr": "qty",
+                            "col_format": "%d"
+                        },
+                        "col_type": "int"
+                    },
+                    "col_price": {
+                        "csv": {
+                            "col_hdr": "price",
+                            "col_format": "%f"
+                        },
+                        "col_type": "float"
+                    }
+                }
+            },
+            "w": {
+                "name": "txns",
+                "fields": {
+                    "account_id": {
+                        "expression": "r.col_account_id",
+                        "type": "string"
+                    },
+                    "ts": {
+                        "expression": "r.col_ts",
+                        "type": "string"
+                    },
+                    "txn_json": {
+                        "expression": "r.col_account_id",
+                        "type": "string"
+                    }
+                },
+                "indexes": {
+                    "idx_txns_account_id": "non_unique(account_id)"
+                }
+            }
+        },
+        "2_account_txns_outer": {
+            "type": "table_lookup_table",
+            "desc": "For each account, merge all txns into single json string",
+            "start_policy": "manual",
+            "r": {
+                "table": "accounts",
+                "expected_batches_total": 10
+            },
+            "l": {
+                "index_name": "idx_txns_account_id",
+                "join_on": "r.account_id",
+                "group": true,
+                "join_type": "left"
+            },
+            "w": {
+                "name": "account_txns",
+                "fields": {
+                    "account_id": {
+                        "expression": "r.account_id",
+                        "type": "string"
+                    },
+                    "txns_json": {
+                        "expression": "string_agg(l.txn_json,\",\")",
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "1_read_period_holdings": {
+            "type": "file_table",
+            "desc": "Load holdings from csv",
+            "r": {
+                "urls": ["aaa"],
+                "csv": {
+                    "hdr_line_idx": 0,
+                    "first_data_line_idx": 1
+                },
+                "columns": {
+                    "col_eod": {
+                        "csv": {
+                            "col_hdr": "d"
+                        },
+                        "col_type": "string"
+                    },
+                    "col_account_id": {
+                        "csv": {
+                            "col_hdr": "account_id"
+                        },
+                        "col_type": "string"
+                    },
+                    "col_ticker": {
+                        "csv": {
+                            "col_hdr": "ticker"
+                        },
+                        "col_type": "string"
+                    },
+                    "col_qty": {
+                        "csv": {
+                            "col_hdr": "qty",
+                            "col_format": "%d"
+                        },
+                        "col_type": "int"
+                    }
+                }
+            },
+            "w": {
+                "name": "period_holdings",
+                "fields": {
+                    "account_id": {
+                        "expression": "r.col_account_id",
+                        "type": "string"
+                    },
+                    "eod": {
+                        "expression": "r.col_eod",
+                        "type": "string"
+                    },
+                    "holding_json": {
+                        "expression": "r.col_account_id",
+                        "type": "string"
+                    }
+                },
+                "indexes": {
+                    "idx_period_holdings_account_id": "non_unique(account_id)"
+                }
+            }
+        },
+        "2_account_period_holdings_outer": {
+            "type": "table_lookup_table",
+            "desc": "For each account, merge all holdings into single json string",
+            "start_policy": "manual",
+            "r": {
+                "table": "accounts",
+                "expected_batches_total": 10
+            },
+            "l": {
+                "index_name": "idx_period_holdings_account_id",
+                "join_on": "r.account_id",
+                "group": true,
+                "join_type": "left"
+            },
+            "w": {
+                "name": "account_period_holdings",
+                "fields": {
+                    "account_id": {
+                        "expression": "r.account_id",
+                        "type": "string"
+                    },
+                    "holdings_json": {
+                        "expression": "string_agg(l.holding_json,\",\")",
+                        "type": "string"
+                    }
+                },
+                "indexes": {
+                    "idx_account_period_holdings_account_id": "unique(account_id)"
+                }
+            }
+        },
+        "3_build_account_period_activity": {
+            "type": "table_lookup_table",
+            "desc": "For each account, merge holdings and txns",
+            "start_policy": "manual",
+            "r": {
+                "table": "account_txns",
+                "expected_batches_total": 10
+            },
+            "l": {
+                "index_name": "idx_account_period_holdings_account_id",
+                "join_on": "r.account_id",
+                "group": false,
+                "join_type": "left"
+            },
+            "w": {
+                "name": "account_period_activity",
+                "fields": {
+                    "account_id": {
+                        "expression": "r.account_id",
+                        "type": "string"
+                    },
+                    "txns_json": {
+                        "expression": " \"[\" + r.txns_json + \"]\" ",
+                        "type": "string"
+                    },
+                    "holdings_json": {
+                        "expression": " \"[\" + l.holdings_json + \"]\" ",
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "4_calc_account_period_perf": {
+            "type": "table_table",
+            "r": {
+                "table": "account_period_activity",
+                "expected_batches_total": 10
+            },
+            "w": {
+                "name": "account_period_perf",
+                "fields": {
+                    "account_id": {
+                        "expression": "r.account_id",
+                        "type": "string"
+                    },
+                    "perf_json": {
+                        "expression": "r.txns_json",
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "5_tag_by_period": {
+            "type": "table_table",
+            "start_policy": "manual",
+            "r": {
+                "table": "account_period_perf",
+                "expected_batches_total": 10
+            },
+            "w": {
+                "name": "account_period_perf_by_period",
+                "fields": {
+                    "period": {
+                        "expression": "\"aaa\"",
+                        "type": "string"
+                    },
+                    "account_id": {
+                        "expression": "r.account_id",
+                        "type": "string"
+                    },
+                    "perf_json": {
+                        "expression": "r.perf_json",
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "5_tag_by_sector": {
+            "type": "table_table",
+            "r": {
+                "table": "account_period_perf_by_period",
+                "expected_batches_total": 10
+            },
+            "w": {
+                "name": "account_period_perf_by_period_sector",
+                "fields": {
+                    "period": {
+                        "expression": "r.period",
+                        "type": "string"
+                    },
+                    "sector": {
+                        "expression": "\"bbb\"",
+                        "type": "string"
+                    },
+                    "account_id": {
+                        "expression": "r.account_id",
+                        "type": "string"
+                    },
+                    "perf_json": {
+                        "expression": "r.perf_json",
+                        "type": "string"
+                    }
+                }
+            }
+        }
+	},
+	"dependency_policies": {
+		"current_active_first_stopped_nogo":` + DefaultPolicyCheckerConfJson +
+	`		
+	}
+}`
+
 func jsonToYamlToScriptDef(t *testing.T) *ScriptDef {
 	var jsonDeserializedAsMap map[string]any
 	err := json.Unmarshal([]byte(plainScriptJson), &jsonDeserializedAsMap)
@@ -799,6 +1134,32 @@ func TestTrickyAffectedNodesJson2(t *testing.T) {
 	assert.Contains(t, affectedNodes, "read_table1")
 	assert.Contains(t, affectedNodes, "distinct_table1")
 	assert.Contains(t, affectedNodes, "join_table1_table1")
+}
+
+func TestAffectedPortfolioScriptJson(t *testing.T) {
+	scriptDef := &ScriptDef{}
+	assert.Nil(t, scriptDef.Deserialize([]byte(affectedPortfolioScriptJson), ScriptJson, nil, nil, "", nil))
+
+	affectedNodes := scriptDef.GetAffectedNodes([]string{"1_read_accounts", "1_read_txns", "1_read_period_holdings"})
+	assert.Equal(t, 3, len(affectedNodes))
+	assert.Contains(t, affectedNodes, "1_read_accounts")
+	assert.Contains(t, affectedNodes, "1_read_txns")
+	assert.Contains(t, affectedNodes, "1_read_period_holdings")
+
+	affectedNodes = scriptDef.GetAffectedNodes([]string{"2_account_txns_outer", "2_account_period_holdings_outer"})
+	assert.Equal(t, 2, len(affectedNodes))
+	assert.Contains(t, affectedNodes, "2_account_txns_outer")
+	assert.Contains(t, affectedNodes, "2_account_period_holdings_outer")
+
+	affectedNodes = scriptDef.GetAffectedNodes([]string{"3_build_account_period_activity"})
+	assert.Equal(t, 2, len(affectedNodes))
+	assert.Contains(t, affectedNodes, "3_build_account_period_activity")
+	assert.Contains(t, affectedNodes, "4_calc_account_period_perf")
+
+	affectedNodes = scriptDef.GetAffectedNodes([]string{"5_tag_by_period"})
+	assert.Equal(t, 2, len(affectedNodes))
+	assert.Contains(t, affectedNodes, "5_tag_by_period")
+	assert.Contains(t, affectedNodes, "5_tag_by_sector")
 }
 
 func TestUnusedIndex(t *testing.T) {

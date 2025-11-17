@@ -484,7 +484,7 @@ sudo tar -xzf $ACTIVEMQ_CLASSIC_SERVER_FILENAME
 ACTIVEMQ_CLASSIC_SERVER_DIR=$(basename $ACTIVEMQ_CLASSIC_SERVER_FILENAME "-bin.tar.gz")
 
 sudo mkdir /opt/activemq
-sudo mv ACTIVEMQ_CLASSIC_SERVER_DIR/* /opt/activemq
+sudo mv $ACTIVEMQ_CLASSIC_SERVER_DIR/* /opt/activemq
 
 sudo addgroup --system activemq
 sudo adduser --system --ingroup activemq --no-create-home --disabled-password activemq
@@ -620,7 +620,7 @@ fi
 sudo tar -xzf $ACTIVEMQ_ARTEMIS_SERVER_FILENAME -C /opt/
 ACTIVEMQ_ARTEMIS_SERVER_DIR=$(basename $ACTIVEMQ_ARTEMIS_SERVER_FILENAME "-bin.tar.gz")
 
-sudo mv /opt/ACTIVEMQ_ARTEMIS_SERVER_DIR /opt/activemq-artemis
+sudo mv /opt/$ACTIVEMQ_ARTEMIS_SERVER_DIR /opt/activemq-artemis
 
 sudo addgroup --system activemq
 sudo adduser --system --ingroup activemq --no-create-home --disabled-password activemq
@@ -953,7 +953,7 @@ sudo cp $PROMETHEUS_SERVER_DIR/promtool /usr/local/bin/
 sudo chown prometheus:prometheus /usr/local/bin/prometheus
 sudo chown prometheus:prometheus /usr/local/bin/promtool
 
-rm -rf $PROMETHEUS_SERVER_FILENAME $PROMETHEUS_SERVER_DIR
+rm -fR $PROMETHEUS_SERVER_FILENAME $PROMETHEUS_SERVER_DIR
 
 
 

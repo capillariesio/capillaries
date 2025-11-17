@@ -37,7 +37,7 @@ variable "number_of_cassandra_hosts" {
 variable "amqp10_server_flavor" {
 	type        = string
 	description = "rabbitmq, artemis, classic"
-	default     = "activemq-artemis"
+	default     = "rabbitmq"
 	validation  {
 		condition = contains (["rabbitmq", "activemq-classic", "activemq-artemis"], var.amqp10_server_flavor)
 		error_message = "amqp10_server_flavor must be rabbitmq, activemq-classic, activemq-artemis"

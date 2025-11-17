@@ -319,9 +319,13 @@ func (node *ScriptNodeDef) evalCreatorAndLookupExpressionsAndCheckType() error {
 			// If no grouping is used, no agg calls allowed
 			if node.HasLookup() && !node.Lookup.IsGroup || !node.HasLookup() {
 				v := AggFinderVisitor{}
-				ast.Walk(&v, tgtFieldDef.ParsedExpression)
-				if v.Error != nil {
-					foundErrors = append(foundErrors, fmt.Sprintf("cannot use agg functions in [%s], lookup group flag is not set or no lookups used: [%s]", tgtFieldDef.RawExpression, v.Error.Error()))
+				if tgtFieldDef.ParsedExpression == nil {
+					foundErrors = append(foundErrors, fmt.Sprintf("cannot parse node %s, target field %s expression [%s] was not parsed successfully", node.Name, tgtFieldName, tgtFieldDef.RawExpression))
+				} else {
+					ast.Walk(&v, tgtFieldDef.ParsedExpression)
+					if v.Error != nil {
+						foundErrors = append(foundErrors, fmt.Sprintf("cannot use agg functions in [%s], lookup group flag is not set or no lookups used: [%s]", tgtFieldDef.RawExpression, v.Error.Error()))
+					}
 				}
 			}
 

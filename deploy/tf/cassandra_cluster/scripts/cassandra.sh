@@ -167,7 +167,7 @@ if [ "$?" -ne "0" ]; then
 fi
 sudo mv $PROMETHEUS_JMX_EXPORTER_FILENAME /usr/share/cassandra/lib/
 sudo chown cassandra /usr/share/cassandra/lib/$PROMETHEUS_JMX_EXPORTER_FILENAME
-at > jmx_exporter.yml << 'endmsgmarker'
+cat > jmx_exporter.yml << 'endmsgmarker'
 lowercaseOutputLabelNames: true
 lowercaseOutputName: true
 whitelistObjectNames: ["org.apache.cassandra.metrics:*"]

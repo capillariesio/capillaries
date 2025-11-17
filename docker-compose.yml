@@ -186,14 +186,12 @@ services:
       - /tmp/capi_in:/tmp/capi_in:ro
       - /tmp/capi_out:/tmp/capi_out
     environment:
-      # ActiveMQ and RabbitMQ
-      CAPI_AMQP10_URL: amqp://guest:guest@10.5.0.5:5672/
-      # RabbitMQ only
-      CAPI_AMQP10_ADDRESS: /queues/capidaemon
-      # RabbitMQ and ActiveMQ Classic
-      CAPI_AMQP10_ACK_METHOD: reject
-      # Capimq
-      CAPI_CAPIMQ_CLIENT_URL: http://10.5.0.5:7654
+      CAPI_AMQP10_URL: amqp://guest:guest@10.5.0.5:5672/ # RabbitMQ, Classic, Artemis
+      #CAPI_AMQP10_ADDRESS: capillaries # Classic, Artemis
+      CAPI_AMQP10_ADDRESS: /queues/capidaemon # RabbitMQ
+      #CAPI_AMQP10_ACK_METHOD: release # Artemis
+      CAPI_AMQP10_ACK_METHOD: reject # RabbitMQ, Classic
+      #CAPI_CAPIMQ_CLIENT_URL: http://10.5.0.5:7654 # Capimq
       CAPI_CASSANDRA_HOSTS: 10.5.0.11
       CAPI_CASSANDRA_WRITER_WORKERS: 4
       CAPI_PYCALC_INTERPRETER_PATH: python3
@@ -223,14 +221,12 @@ services:
       - /tmp/capi_in:/tmp/capi_in:ro
       - /tmp/capi_out:/tmp/capi_out
     environment:
-      # ActiveMQ and RabbitMQ
-      CAPI_AMQP10_URL: amqp://guest:guest@10.5.0.5:5672/
-      # RabbitMQ only
-      CAPI_AMQP10_ADDRESS: /queues/capidaemon
-      # RabbitMQ and ActiveMQ Classic
-      CAPI_AMQP10_ACK_METHOD: reject
-      # Capimq
-      CAPI_CAPIMQ_CLIENT_URL: http://10.5.0.5:7654
+      CAPI_AMQP10_URL: amqp://guest:guest@10.5.0.5:5672/ # RabbitMQ, Classic, Artemis
+      #CAPI_AMQP10_ADDRESS: capillaries # Classic, Artemis
+      CAPI_AMQP10_ADDRESS: /queues/capidaemon # RabbitMQ
+      #CAPI_AMQP10_ACK_METHOD: release # Artemis
+      CAPI_AMQP10_ACK_METHOD: reject # RabbitMQ, Classic
+      #CAPI_CAPIMQ_CLIENT_URL: http://10.5.0.5:7654 # Capimq
       CAPI_CASSANDRA_HOSTS: 10.5.0.11
       CAPI_CASSANDRA_WRITER_WORKERS: 4
       CAPI_PROMETHEUS_EXPORTER_PORT: 9202
@@ -260,14 +256,12 @@ services:
       - /tmp/capi_in:/tmp/capi_in:ro
       - /tmp/capi_out:/tmp/capi_out
     environment:
-      # ActiveMQ and RabbitMQ
-      CAPI_AMQP10_URL: amqp://guest:guest@10.5.0.5:5672/
-      # RabbitMQ only
-      CAPI_AMQP10_ADDRESS: /queues/capidaemon
-      # RabbitMQ and ActiveMQ Classic
-      CAPI_AMQP10_ACK_METHOD: reject
-      # Capimq
-      CAPI_CAPIMQ_CLIENT_URL: http://10.5.0.5:7654
+      CAPI_AMQP10_URL: amqp://guest:guest@10.5.0.5:5672/ # RabbitMQ, Classic, Artemis
+      #CAPI_AMQP10_ADDRESS: capillaries # Classic, Artemis
+      CAPI_AMQP10_ADDRESS: /queues/capidaemon # RabbitMQ
+      #CAPI_AMQP10_ACK_METHOD: release # Artemis
+      CAPI_AMQP10_ACK_METHOD: reject # RabbitMQ, Classic
+      #CAPI_CAPIMQ_CLIENT_URL: http://10.5.0.5:7654 # Capimq
       CAPI_CASSANDRA_HOSTS: 10.5.0.11
       CAPI_WEBAPI_PORT: 6543
       CAPI_WEBAPI_ACCESS_CONTROL_ALLOW_ORIGIN: http://localhost:8080,http://127.0.0.1:8080

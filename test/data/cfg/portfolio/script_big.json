@@ -1340,6 +1340,7 @@
             "type": "table_custom_tfm_table",
             "custom_proc_type": "tag_and_denormalize",
             "desc": "Tag accounts by period name",
+            "start_policy": "{manual_if_multi}",
             "r": {
                 "table": "account_period_perf",
                 "expected_batches_total": 10
