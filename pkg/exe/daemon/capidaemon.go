@@ -126,7 +126,7 @@ func main() {
 		if envConfig.Amqp10.MinCreditWindow == 0 {
 			envConfig.Amqp10.MinCreditWindow = uint32(envConfig.Daemon.ThreadPoolSize)
 		}
-		asyncConsumer = mq.NewAmqp10Consumer(envConfig.Amqp10.URL, envConfig.Amqp10.Address, ackMethod, envConfig.Daemon.ThreadPoolSize, envConfig.Amqp10.MinCreditWindow, true)
+		asyncConsumer = mq.NewAmqp10Consumer(envConfig.Amqp10.URL, envConfig.Amqp10.Address, ackMethod, envConfig.Daemon.ThreadPoolSize)
 	} else if envConfig.CapiMqClient.URL != "" {
 		asyncConsumer = mq.NewCapimqConsumer(envConfig.CapiMqClient.URL, logger.ZapMachine.String, envConfig.Daemon.ThreadPoolSize)
 		heartbeatInterval = envConfig.CapiMqClient.HeartbeatInterval
@@ -134,8 +134,10 @@ func main() {
 		log.Fatalf("%s", "no mq broker configured")
 	}
 
-	listenerChannel := make(chan *wfmodel.Message, 1)                                      // This is essentially a buffer of size one, and we do not want msgs to spend time in the buffer, so make it minimal
-	acknowledgerChannel := make(chan mq.AknowledgerToken, envConfig.Daemon.ThreadPoolSize) // [1, any_reasonable_value], make it > 1 so processors do not get stuck when sending heartbeats
+	// This is essentially a buffer of size one, and we do not want msgs to spend time in the buffer (remember: no prefetch!), so make it minimal
+	listenerChannel := make(chan *wfmodel.Message, 1)
+	// [1, any_reasonable_value], make it > 1 so processors do not get stuck when sending (many) heartbeats
+	acknowledgerChannel := make(chan mq.AknowledgerToken, envConfig.Daemon.ThreadPoolSize)
 	var sem = make(chan int, envConfig.Daemon.ThreadPoolSize)
 
 	if err := asyncConsumer.Start(logger, listenerChannel, acknowledgerChannel); err != nil {
@@ -206,57 +208,3 @@ func main() {
 
 	}
 }
-
-/*
-func main() {
-
-	amqpConsumerReceiver := mq.Amqp10Consumer{}
-	amqpConsumerAcknowledger := mq.Amqp10Consumer{}
-
-	initCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	if err := amqpConsumerReceiver.Open(initCtx, "amqp://artemis:artemis@127.0.0.1:5672/", "capillaries"); err != nil {
-		panic(err.Error())
-	}
-	cancel()
-
-	initCtx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-	if err := amqpConsumerAcknowledger.Open(initCtx, "amqp://artemis:artemis@127.0.0.1:5672/", "capillaries"); err != nil {
-		panic(err.Error())
-	}
-	cancel()
-
-	for {
-		ctxReceive, cancelReceive := context.WithTimeout(context.Background(), 1*time.Second)
-		msg, err := amqpConsumerReceiver.Receiver().Receive(ctxReceive, nil)
-		cancelReceive()
-		if err != nil {
-			if errors.Is(err, context.DeadlineExceeded) {
-				fmt.Printf("nothing to receive\n")
-				continue
-				//} else if errors.Is(err, amqp10.ConnError) || errors.Is(err, amqp10.SessionError) {
-			} else {
-				panic(err.Error())
-			}
-		}
-		var m wfmodel.Message
-		err = json.Unmarshal(msg.Data[0], &m)
-		if err != nil {
-			panic(err.Error())
-		}
-		fmt.Printf("%s\n", m.FullBatchId())
-		// ctxAck, cancelAck := context.WithTimeout(context.Background(), 1*time.Second)
-		// if m.BatchIdx > 100 {
-		// 	err = amqpConsumerAcknowledger.Receiver().ReleaseMessage(ctxAck, msg)
-		// } else {
-		// 	err = amqpConsumerAcknowledger.Receiver().AcceptMessage(ctxAck, msg)
-		// }
-		// cancelAck()
-		// if err == context.DeadlineExceeded {
-		// 	fmt.Printf("ack timeout\n")
-		// }
-		// if err != nil {
-		// 	panic(err.Error())
-		// }
-	}
-}
-*/
