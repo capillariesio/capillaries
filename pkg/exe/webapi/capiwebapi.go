@@ -621,12 +621,10 @@ func (h *UrlHandler) ksStartRun(w http.ResponseWriter, r *http.Request) {
 	amqpStartTime := time.Now()
 
 	var mqProducer mq.MqProducer
-	if h.Env.Amqp10.URL != "" && h.Env.Amqp10.Address != "" {
-		mqProducer = mq.NewAmqp10Producer(h.Env.Amqp10.URL, h.Env.Amqp10.Address)
-	} else if h.Env.CapiMqClient.URL != "" {
+	if h.Env.MqType == string(mq.MqClientCapimq) {
 		mqProducer = mq.NewCapimqProducer(h.Env.CapiMqClient.URL)
 	} else {
-		log.Fatalf("%s", "no mq broker configured")
+		mqProducer = mq.NewAmqp10Producer(h.Env.Amqp10.URL, h.Env.Amqp10.Address)
 	}
 
 	err = mqProducer.Open()

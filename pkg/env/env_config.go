@@ -21,10 +21,11 @@ type EnvConfig struct {
 	PrivateKeys                       map[string]string            `json:"private_keys" env:"CAPI_PRIVATE_KEYS, overwrite"` // Used for SFTP only
 	Daemon                            DaemonConfig                 `json:"daemon,omitempty"`
 	Webapi                            WebapiConfig                 `json:"webapi,omitempty"`
-	CapiMqClient                      CapiMqClientConfig           `json:"capimq_client,omitempty"`
-	CapiMqBroker                      CapiMqBrokerConfig           `json:"capimq_broker,omitempty"`
 	CustomProcessorsSettings          map[string]json.RawMessage   `json:"custom_processors"`
 	CustomProcessorDefFactoryInstance sc.CustomProcessorDefFactory `json:"-"`
+	MqType                            string                       `json:"mq_type,omitempty" env:"CAPI_MQ_TYPE, overwrite"`
+	CapiMqClient                      CapiMqClientConfig           `json:"capimq_client,omitempty"`
+	CapiMqBroker                      CapiMqBrokerConfig           `json:"capimq_broker,omitempty"`
 	// ZapConfig                      zap.Config                   `json:"zap_config"`
 }
 

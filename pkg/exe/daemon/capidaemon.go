@@ -118,7 +118,10 @@ func main() {
 
 	var heartbeatInterval int64
 	var asyncConsumer mq.MqAsyncConsumer
-	if envConfig.Amqp10.URL != "" && envConfig.Amqp10.Address != "" {
+	if envConfig.MqType == string(mq.MqClientCapimq) {
+		asyncConsumer = mq.NewCapimqConsumer(envConfig.CapiMqClient.URL, logger.ZapMachine.String, envConfig.Daemon.ThreadPoolSize)
+		heartbeatInterval = envConfig.CapiMqClient.HeartbeatInterval
+	} else {
 		ackMethod, err := mq.StringToRetryMethod(envConfig.Amqp10.RetryMethod)
 		if err != nil {
 			log.Fatalf("no ack method for Amqp10 configured, expected %s or %s ", mq.RetryMethodRelease, mq.RetryMethodReject)
@@ -127,11 +130,6 @@ func main() {
 			envConfig.Amqp10.MinCreditWindow = uint32(envConfig.Daemon.ThreadPoolSize)
 		}
 		asyncConsumer = mq.NewAmqp10Consumer(envConfig.Amqp10.URL, envConfig.Amqp10.Address, ackMethod, envConfig.Daemon.ThreadPoolSize)
-	} else if envConfig.CapiMqClient.URL != "" {
-		asyncConsumer = mq.NewCapimqConsumer(envConfig.CapiMqClient.URL, logger.ZapMachine.String, envConfig.Daemon.ThreadPoolSize)
-		heartbeatInterval = envConfig.CapiMqClient.HeartbeatInterval
-	} else {
-		log.Fatalf("%s", "no mq broker configured")
 	}
 
 	// This is essentially a buffer of size one, and we do not want msgs to spend time in the buffer (remember: no prefetch!), so make it minimal
