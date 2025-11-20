@@ -181,13 +181,13 @@ func main() {
 				var heartbeatCallback func(string, string)
 				if asyncConsumer.SupportsHearbeat() {
 					heartbeatCallback = func(wfmodelMsgId string, wfmodelMsgWaitRetryGroup string) {
-						acknowledgerChannel <- mq.AknowledgerToken{MsgId: wfmodelMsgId, MsgWaitRetryGroup: wfmodelMsgWaitRetryGroup, Cmd: mq.AcknowledgerCmdHeartbeat}
+						acknowledgerChannel <- mq.AknowledgerToken{MsgId: wfmodelMsgId, Cmd: mq.AcknowledgerCmdHeartbeat}
 						MsgHeartbeatCounter.Inc()
 					}
 				}
 				acknowledgerCmd := api.ProcessDataBatchMsg(envConfig, innerLogger, wfmodelMsg, heartbeatInterval, heartbeatCallback)
 				asyncConsumer.DecrementActiveProcessors()
-				acknowledgerChannel <- mq.AknowledgerToken{MsgId: wfmodelMsg.Id, MsgWaitRetryGroup: wfmodelMsg.CapimqWaitRetryGroup, Cmd: acknowledgerCmd}
+				acknowledgerChannel <- mq.AknowledgerToken{MsgId: wfmodelMsg.Id, Cmd: acknowledgerCmd}
 
 				// Unlock semaphore slot
 				<-sem

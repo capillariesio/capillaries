@@ -14,9 +14,8 @@ const (
 )
 
 type AknowledgerToken struct {
-	MsgId             string
-	MsgWaitRetryGroup string
-	Cmd               AcknowledgerCmd
+	MsgId string
+	Cmd   AcknowledgerCmd
 }
 
 type MqAsyncConsumer interface {

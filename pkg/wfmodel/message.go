@@ -13,18 +13,17 @@ Message - carries data and signals to processors/nodes
 4. Timestamps are int (not uint) because Unix epoch is int
 */
 type Message struct {
-	Ts                   int64  `json:"ts"` // Assigned by sender on creation, used only for daemon statistics, see logging age
-	Id                   string `json:"id"` // Assigned by sender on creation, used by workers when communicating to CapiMQ/ActiveMQ and its capimq counterpart in CapimqInternalMessage - internally by CapiMQ
-	CapimqWaitRetryGroup string // capimq only, asigned by sender on creation, used by workers when communicating to CapiMQ and its capimq counterpart in CapimqInternalMessage - internally by CapiMQ; not used with AMQP 1.0
-	ScriptURL            string `json:"script_url"`
-	ScriptParamsURL      string `json:"script_params_url"`
-	DataKeyspace         string `json:"ks"`
-	RunId                int16  `json:"run_id"`
-	TargetNodeName       string `json:"target_node"`
-	FirstToken           int64  `json:"first_token"`
-	LastToken            int64  `json:"last_token"`
-	BatchIdx             int16  `json:"batch_idx"`
-	BatchesTotal         int16  `json:"batches_total"`
+	Ts              int64  `json:"ts"` // Assigned by sender on creation, used only for daemon statistics, see logging age
+	Id              string `json:"id"` // Assigned by sender on creation, used by workers when communicating to CapiMQ/ActiveMQ and its capimq counterpart in CapimqInternalMessage - internally by CapiMQ
+	ScriptURL       string `json:"script_url"`
+	ScriptParamsURL string `json:"script_params_url"`
+	DataKeyspace    string `json:"ks"`
+	RunId           int16  `json:"run_id"`
+	TargetNodeName  string `json:"target_node"`
+	FirstToken      int64  `json:"first_token"`
+	LastToken       int64  `json:"last_token"`
+	BatchIdx        int16  `json:"batch_idx"`
+	BatchesTotal    int16  `json:"batches_total"`
 }
 
 func (msg *Message) FullBatchId() string {

@@ -80,9 +80,8 @@ func (dc *CapimqAsyncConsumer) claim(ctx context.Context) (*wfmodel.Message, err
 		return nil, fmt.Errorf("cannot unmarshal CapimqApiClaimResponse.Msg.Data, error [%s], body: %s", err.Error(), string(claimResponse.Msg.Data))
 	}
 
-	// Copy id and retry group from whatever CapiMQ passed to us, do not make assumptions
+	// Copy id just in case capimq broker overrode it (it should not!)
 	wfmodelMsg.Id = claimResponse.Msg.Id
-	wfmodelMsg.CapimqWaitRetryGroup = claimResponse.Msg.CapimqWaitRetryGroup
 
 	return &wfmodelMsg, nil
 }
@@ -105,8 +104,8 @@ func (dc *CapimqAsyncConsumer) ack(ctx context.Context, msgId string) error {
 	return nil
 }
 
-func (dc *CapimqAsyncConsumer) retry(ctx context.Context, msgId string, capimqWaitRetryGroup string) error {
-	req, reqErr := http.NewRequest(http.MethodPost, dc.url+fmt.Sprintf("/wip/return/%s", msgId), bytes.NewReader([]byte(capimqWaitRetryGroup)))
+func (dc *CapimqAsyncConsumer) retry(ctx context.Context, msgId string) error {
+	req, reqErr := http.NewRequest(http.MethodPost, dc.url+fmt.Sprintf("/wip/return/%s", msgId), nil)
 	if reqErr != nil {
 		return reqErr
 	}
@@ -203,7 +202,7 @@ func (dc *CapimqAsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 				}
 			case AcknowledgerCmdRetry:
 				ackCtx, ackCancel := context.WithTimeout(context.Background(), CapimqAcknowledgerAckTimeout*time.Millisecond)
-				ackErr := dc.retry(ackCtx, token.MsgId, token.MsgWaitRetryGroup)
+				ackErr := dc.retry(ackCtx, token.MsgId)
 				ackCancel()
 				if ackErr != nil {
 					logger.Error("cannot send retry, msg %s: %s", token.MsgId, ackErr.Error())

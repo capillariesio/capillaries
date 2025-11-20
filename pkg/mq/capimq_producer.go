@@ -55,7 +55,7 @@ func (p *CapimqProducer) sendBulkBytes(msgBytes []byte) error {
 func (p *CapimqProducer) Send(wfmodelMsg *wfmodel.Message) error {
 	var marshalErr error
 	msgs := make([]*capimq_message_broker.CapimqMessage, 1)
-	msgs[0] = &capimq_message_broker.CapimqMessage{Id: wfmodelMsg.Id, CapimqWaitRetryGroup: wfmodelMsg.CapimqWaitRetryGroup}
+	msgs[0] = &capimq_message_broker.CapimqMessage{Id: wfmodelMsg.Id, CapimqWaitRetryGroup: wfmodelMsg.FullNodeId()}
 	msgs[0].Data, marshalErr = json.Marshal(wfmodelMsg)
 	if marshalErr != nil {
 		return fmt.Errorf("cannot send one, error when serializing wfmodel msg: %s", marshalErr.Error())
@@ -71,7 +71,7 @@ func (p *CapimqProducer) SendBulk(wfmodelMsgs []*wfmodel.Message) error {
 	var marshalErr error
 	msgs := make([]*capimq_message_broker.CapimqMessage, len(wfmodelMsgs))
 	for i, wfmodelMsg := range wfmodelMsgs {
-		msgs[i] = &capimq_message_broker.CapimqMessage{Id: wfmodelMsg.Id, CapimqWaitRetryGroup: wfmodelMsg.CapimqWaitRetryGroup}
+		msgs[i] = &capimq_message_broker.CapimqMessage{Id: wfmodelMsg.Id, CapimqWaitRetryGroup: wfmodelMsg.FullNodeId()}
 		msgs[i].Data, marshalErr = json.Marshal(wfmodelMsg)
 		if marshalErr != nil {
 			return fmt.Errorf("cannot send one, error when serializing wfmodel msg: %s", marshalErr.Error())

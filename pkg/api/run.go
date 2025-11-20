@@ -131,7 +131,6 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, mqSender mq.MqProd
 				LastToken:       intervals[msgIdx][1],
 				BatchIdx:        int16(msgIdx),
 				BatchesTotal:    int16(len(intervals))}
-			msgs[msgIdx].CapimqWaitRetryGroup = msgs[msgIdx].FullNodeId() // CapiMQ retry group is ks/run/node
 		}
 		allMsgs = append(allMsgs, msgs...)
 	}

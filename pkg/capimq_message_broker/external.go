@@ -7,7 +7,7 @@ type CapimqApiGenericResponse struct {
 
 type CapimqMessage struct {
 	Id                   string `json:"id"`
-	CapimqWaitRetryGroup string `json:"capimq_wait_retry_group"`
+	CapimqWaitRetryGroup string `json:"capimq_wait_retry_group"` // Used by producer
 	Data                 []byte `json:"data"`
 }
 
