@@ -36,11 +36,11 @@ variable "number_of_cassandra_hosts" {
 
 variable "amqp10_server_flavor" {
 	type        = string
-	description = "rabbitmq, artemis, classic"
+	description = "rabbitmq, artemis, classic, capimq"
 	default     = "rabbitmq"
 	validation  {
-		condition = contains (["rabbitmq", "activemq-classic", "activemq-artemis"], var.amqp10_server_flavor)
-		error_message = "amqp10_server_flavor must be rabbitmq, activemq-classic, activemq-artemis"
+		condition = contains (["rabbitmq", "activemq-classic", "activemq-artemis", "capimq"], var.amqp10_server_flavor)
+		error_message = "amqp10_server_flavor must be rabbitmq, activemq-classic, activemq-artemis, capimq"
 	}
 }
 
@@ -216,7 +216,40 @@ variable "instance_hourly_cost" {
 # Almost never changes
 
 
+variable "mq_type" {
+	type        = string
+	description = "capimq, amqp10"
+	default     = "capimq"
+}
 
+variable "internal_capimq_broker_port" {
+	type        = string
+	default     = "7654"
+}
+
+variable "external_capimq_broker_port" {
+	type        = string
+	default     = "7655"
+}
+
+variable "capimq_broker_max_messages" {
+	type        = number
+	default     = 10000000
+}
+
+variable "capimq_broker_returned_delivery_delay" {
+	type        = number
+	default     = 500
+}
+variable "capimq_broker_dead_after_no_heartbeat_timeout" {
+	type        = number
+	default     = 10000
+}
+
+variable "capimq_client_heartbeat_interval" {
+	type        = number
+	default     = 1000
+}
 
 variable "internal_bastion_ip" {
     type        = string
@@ -404,6 +437,7 @@ variable "amqp10_flavor_address_map" {
 	"rabbitmq"            = "/queues/capidaemon" # Do not change, RabbitMQ installer in bastion.sh makes assumptions
 	"activemq-classic"    = "capillaries"
 	"activemq-artemis"    = "capillaries"
+	"capimq"              = "none"
   }
 }
 
@@ -414,6 +448,7 @@ variable "amqp10_flavor_ack_method_map" {
 	"rabbitmq"            = "reject"
 	"activemq-classic"    = "reject"
 	"activemq-artemis"    = "release"
+	"capimq"              = "none"
   }
 }
 
@@ -453,6 +488,7 @@ locals {
 	cassandra_hosts            = join(",", [ for i in range(var.number_of_cassandra_hosts) : format("10.5.0.%02s", i+11) ])
     cassandra_initial_tokens   = var.cassandra_initial_tokens_map[var.number_of_cassandra_hosts]
 	activemq_url               = join("",  ["amqp://", var.amqp10_user_name, ":", var.amqp10_user_pass, "@10.5.1.10:5672/"])
+	capimq_url                 = format("http://10.5.1.10:%s", var.internal_capimq_broker_port)
 	amqp10_ack_method	       = var.amqp10_flavor_ack_method_map[var.amqp10_server_flavor] 
     prometheus_node_targets    = join(",",concat( # "\'localhost:9100\',\'10.5.1.10:9100\'"
 										["'localhost:9100'"], // bastion node exporter

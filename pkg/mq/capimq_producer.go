@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/capillariesio/capillaries/pkg/capimq_message_broker"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
@@ -51,20 +52,34 @@ func (p *CapimqProducer) sendBulkBytes(msgBytes []byte) error {
 	return nil
 }
 
-func (p *CapimqProducer) Send(msg *wfmodel.Message) error {
-	msgs := make([]*wfmodel.Message, 1)
-	msgs[0] = msg
+func (p *CapimqProducer) Send(wfmodelMsg *wfmodel.Message) error {
+	var marshalErr error
+	msgs := make([]*capimq_message_broker.CapimqMessage, 1)
+	msgs[0] = &capimq_message_broker.CapimqMessage{Id: wfmodelMsg.Id, CapimqWaitRetryGroup: wfmodelMsg.CapimqWaitRetryGroup}
+	msgs[0].Data, marshalErr = json.Marshal(wfmodelMsg)
+	if marshalErr != nil {
+		return fmt.Errorf("cannot send one, error when serializing wfmodel msg: %s", marshalErr.Error())
+	}
 	msgsBytes, marshalErr := json.Marshal(msgs)
 	if marshalErr != nil {
-		return fmt.Errorf("cannot send one, error when serializing msg: %s", marshalErr.Error())
+		return fmt.Errorf("cannot send one, error when serializing CapiMQ msgs: %s", marshalErr.Error())
 	}
 	return p.sendBulkBytes(msgsBytes)
 }
 
-func (p *CapimqProducer) SendBulk(msgs []*wfmodel.Message) error {
+func (p *CapimqProducer) SendBulk(wfmodelMsgs []*wfmodel.Message) error {
+	var marshalErr error
+	msgs := make([]*capimq_message_broker.CapimqMessage, len(wfmodelMsgs))
+	for i, wfmodelMsg := range wfmodelMsgs {
+		msgs[i] = &capimq_message_broker.CapimqMessage{Id: wfmodelMsg.Id, CapimqWaitRetryGroup: wfmodelMsg.CapimqWaitRetryGroup}
+		msgs[i].Data, marshalErr = json.Marshal(wfmodelMsg)
+		if marshalErr != nil {
+			return fmt.Errorf("cannot send one, error when serializing wfmodel msg: %s", marshalErr.Error())
+		}
+	}
 	msgsBytes, marshalErr := json.Marshal(msgs)
 	if marshalErr != nil {
-		return fmt.Errorf("cannot send bulk, error when serializing msgs: %s", marshalErr.Error())
+		return fmt.Errorf("cannot send bulk, error when serializing CapiMQ msgs: %s", marshalErr.Error())
 	}
 	return p.sendBulkBytes(msgsBytes)
 }

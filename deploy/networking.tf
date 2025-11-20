@@ -90,8 +90,26 @@ resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_bastion_prometheu
   to_port           = 9200
 }
 
-resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_bastion_activemq_api" {
-  description = "ActiveMQ API"
+resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_bastion_capimq_broker_internal" {
+  description = "CapiMQ API port (internal)"
+  security_group_id = aws_security_group.capillaries_securitygroup_bastion.id
+  cidr_ipv4         = "0.0.0.0/0"
+  from_port         = var.internal_capimq_broker_port
+  ip_protocol       = "tcp"
+  to_port           = var.internal_capimq_broker_port
+}
+
+resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_bastion_capimq_broker_external" {
+  description = "CapiMQ API port (external)"
+  security_group_id = aws_security_group.capillaries_securitygroup_bastion.id
+  cidr_ipv4         = "0.0.0.0/0"
+  from_port         = var.external_capimq_broker_port
+  ip_protocol       = "tcp"
+  to_port           = var.external_capimq_broker_port
+}
+
+resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_bastion_amqp10_api" {
+  description = "ActiveMQ/RabbitMQ API"
   security_group_id = aws_security_group.capillaries_securitygroup_bastion.id
   cidr_ipv4         = aws_vpc.main_vpc.cidr_block
   from_port         = 5672

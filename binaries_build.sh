@@ -49,6 +49,12 @@ gzip -f -k $DIR_BUILD_LINUX_AMD64/capitoolbelt
 GOOS=linux GOARCH=amd64 go build -o $DIR_BUILD_LINUX_AMD64/capiparquet -ldflags="-s -w -X main.version=$(git describe --tags --always)" ./test/code/parquet/capiparquet.go
 gzip -f -k $DIR_BUILD_LINUX_AMD64/capiparquet
 
+GOOS=linux GOARCH=arm64 go build -o $DIR_BUILD_LINUX_AMD64/capimq -ldflags="-s -w -X main.version=$(git describe --tags --always)" ./pkg/exe/mq/capimq.go
+cp ./pkg/exe/mq/capimq.json $DIR_BUILD_LINUX_AMD64
+gzip -f -k $DIR_BUILD_LINUX_AMD64/capimq
+
+
+
 echo "Building "$DIR_BUILD_LINUX_ARM64
 
 GOOS=linux GOARCH=arm64 go build -o $DIR_BUILD_LINUX_ARM64/capidaemon -ldflags="-s -w -X main.version=$(git describe --tags --always)" ./pkg/exe/daemon/capidaemon.go
@@ -65,3 +71,7 @@ gzip -f -k $DIR_BUILD_LINUX_ARM64/capitoolbelt
 
 GOOS=linux GOARCH=arm64 go build -o $DIR_BUILD_LINUX_ARM64/capiparquet -ldflags="-s -w -X main.version=$(git describe --tags --always)" ./test/code/parquet/capiparquet.go
 gzip -f -k $DIR_BUILD_LINUX_ARM64/capiparquet
+
+GOOS=linux GOARCH=arm64 go build -o $DIR_BUILD_LINUX_ARM64/capimq -ldflags="-s -w -X main.version=$(git describe --tags --always)" ./pkg/exe/mq/capimq.go
+cp ./pkg/exe/mq/capimq.json $DIR_BUILD_LINUX_ARM64
+gzip -f -k $DIR_BUILD_LINUX_ARM64/capimq

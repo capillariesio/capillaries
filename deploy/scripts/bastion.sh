@@ -70,6 +70,14 @@ if [ "$CASSANDRA_PASSWORD" = "" ]; then
   echo Error, missing: CASSANDRA_PASSWORD=cassandra
   exit 1
 fi
+if [ "$MQ_TYPE" = "" ]; then
+  echo Error, missing: MQ_TYPE=amqp10
+  exit 1
+fi
+if [ "$CAPIMQ_CLIENT_URL" = "" ]; then
+  echo Error, missing: CAPIMQ_CLIENT_URL=http://10.5.1.10:7654
+  exit 1
+fi
 if [ "$AMQP10_URL" = "" ]; then
   echo Error, missing: AMQP10_URL=amqps://capiuser:capiuserpass@10.5.1.10/
   exit 1
@@ -134,6 +142,28 @@ if [ "$ACTIVEMQ_ARTEMIS_SERVER_FILENAME" = "" ]; then
   echo Error, missing: ACTIVEMQ_ARTEMIS_SERVER_FILENAME=apache-artemis-2.44.0-bin.tar.gz
   exit 1
 fi
+
+if [ "$INTERNAL_CAPIMQ_BROKER_PORT" = "" ]; then
+  echo Error, missing: INTERNAL_CAPIMQ_BROKER_PORT=7654
+  exit 1
+fi
+if [ "$EXTERNAL_CAPIMQ_BROKER_PORT" = "" ]; then
+  echo Error, missing: EXTERNAL_CAPIMQ_BROKER_PORT=7655
+  exit 1
+fi
+if [ "$CAPIMQ_BROKER_MAX_MESSAGES" = "" ]; then
+  echo Error, missing: CAPIMQ_BROKER_MAX_MESSAGES=10000000
+  exit 1
+fi
+if [ "$CAPIMQ_BROKER_RETURNED_DELIVERY_DELAY" = "" ]; then
+  echo Error, missing: CAPIMQ_BROKER_RETURNED_DELIVERY_DELAY=500
+  exit 1
+fi
+if [ "$CAPIMQ_BROKER_DEAD_AFTER_NO_HEARTBEAT_TIMEOUT" = "" ]; then
+  echo Error, missing: CAPIMQ_BROKER_DEAD_AFTER_NO_HEARTBEAT_TIMEOUT=10000
+  exit 1
+fi
+
 if [ "$BASTION_EXTERNAL_IP_ADDRESS" = "" ]; then
   echo Error, missing: BASTION_EXTERNAL_IP_ADDRESS=...
   exit 1
@@ -145,6 +175,13 @@ if [ ! -d /home/$SSH_USER ]; then
 fi
 sudo chmod 755 /home/$SSH_USER
 
+if [ ! -d /home/$SSH_USER/bin ]; then
+  mkdir -p /home/$SSH_USER/bin
+fi
+sudo chmod 755 /home/$SSH_USER/bin
+
+sudo mkdir /var/log/capillaries
+sudo chown $SSH_USER /var/log/capillaries
 
 
 # Install nginx
@@ -227,10 +264,6 @@ sed -i -e 's~localhost:6543~'$BASTION_EXTERNAL_IP_ADDRESS':'$EXTERNAL_WEBAPI_POR
 
 CAPI_BINARY=capiwebapi
 
-if [ ! -d /home/$SSH_USER/bin ]; then
-  mkdir -p /home/$SSH_USER/bin
-fi
-sudo chmod 755 /home/$SSH_USER/bin
 cd /home/$SSH_USER/bin
 
 curl -LOs $CAPILLARIES_RELEASE_URL/$OS_ARCH/$CAPI_BINARY.gz
@@ -245,10 +278,6 @@ if [ "$?" -ne "0" ]; then
 fi
 gzip -d -f $CAPI_BINARY.gz
 sudo chmod 744 $CAPI_BINARY
-
-sudo mkdir /var/log/capillaries
-sudo chown $SSH_USER /var/log/capillaries
-
 
 
 # Reverse proxies and servers
@@ -366,6 +395,33 @@ if [ "$?" -ne "0" ]; then
     exit $?
 fi
 
+# capimq reverse proxy
+CAPIMQ_CONFIG_FILE=/etc/nginx/sites-available/capimq
+if [ -f "$CAPIMQ_CONFIG_FILE" ]; then
+  sudo rm -f $CAPIMQ_CONFIG_FILE
+fi
+
+sudo tee $CAPIMQ_CONFIG_FILE <<EOF
+server {
+    listen $EXTERNAL_CAPIMQ_BROKER_PORT;
+    location / {
+        proxy_pass http://localhost:$INTERNAL_CAPIMQ_BROKER_PORT;
+        include proxy_params;
+        include includes/allowed_ips.conf;
+    }
+}
+EOF
+
+if [ ! -L "/etc/nginx/sites-enabled/capimq" ]; then
+  sudo ln -s $CAPIMQ_CONFIG_FILE /etc/nginx/sites-enabled/
+fi
+
+sudo nginx -t
+if [ "$?" -ne "0" ]; then
+    echo nginx capimq reverse proxy config error, exiting
+    exit $?
+fi
+
 # Prometheus reverse proxy
 
 PROMETHEUS_CONFIG_FILE=/etc/nginx/sites-available/prometheus
@@ -421,23 +477,26 @@ aws s3 ls $S3_LOG_URL/
 SEND_LOGS_FILE=/home/$SSH_USER/sendlogs.sh
 sudo tee $SEND_LOGS_FILE <<EOF
 #!/bin/bash
+# Send SIGHUP to the running binary, it will rotate the log using Lumberjack
 if [ -s /var/log/capillaries/capiwebapi.log ]; then
-  # Send SIGHUP to the running binary, it will rotate the log using Lumberjack
   ps axf | grep capiwebapi | grep -v grep | awk '{print "kill -s 1 " \$1}' | sh
-  for f in /var/log/capillaries/*.gz;do
-    if [[ -e \$f && \$f=~^capi* ]]; then
-      # Lumberjack produces: capiwebapi-2025-05-03T21-37-01.283.log.gz
-      # Add hostname to it: capiwebapi-2025-05-03T21-37-01.283.ip-10-5-1-10.log.gz
-      fname=\$(basename -- "\$f")
-      fnamedatetime=\$(echo \$fname|cut -d'.' -f1)
-      fnamemillis=\$(echo \$fname|cut -d'.' -f2)
-      newfilepath=/var/log/capillaries/\$fnamedatetime.\$fnamemillis.\$HOSTNAME.log.gz
-      mv \$f \$newfilepath
-      aws s3 cp \$newfilepath $S3_LOG_URL/
-      rm \$newfilepath
-    fi
-  done
 fi
+if [ -s /var/log/capillaries/capimq.log ]; then
+  ps axf | grep capimq | grep -v grep | awk '{print "kill -s 1 " \$1}' | sh
+fi
+for f in /var/log/capillaries/*.gz;do
+  if [[ -e \$f && \$f=~^capi* ]]; then
+    # Lumberjack produces: capiwebapi-2025-05-03T21-37-01.283.log.gz
+    # Add hostname to it: capiwebapi-2025-05-03T21-37-01.283.ip-10-5-1-10.log.gz
+    fname=\$(basename -- "\$f")
+    fnamedatetime=\$(echo \$fname|cut -d'.' -f1)
+    fnamemillis=\$(echo \$fname|cut -d'.' -f2)
+    newfilepath=/var/log/capillaries/\$fnamedatetime.\$fnamemillis.\$HOSTNAME.log.gz
+    mv \$f \$newfilepath
+    aws s3 cp \$newfilepath $S3_LOG_URL/
+    rm \$newfilepath
+  fi
+done
 EOF
 sudo chmod 744 $SEND_LOGS_FILE
 sudo su $SSH_USER -c "echo \"*/5 * * * * $SEND_LOGS_FILE\" | crontab -"
@@ -451,9 +510,9 @@ sudo chown -R $SSH_USER /home/$SSH_USER
 
 # If we ever use https and/or domain names, or use other port than 80, revisit this piece.
 # AWS region is required because S3 bucket pointer is a URI, not a URL
-echo Running webapi with GOMEMLIMIT="$WEBAPI_GOMEMLIMIT_GB"GiB GOGC=$WEBAPI_GOGC AWS_DEFAULT_REGION=$AWSREGION CAPI_PROMETHEUS_EXPORTER_PORT=9200 CAPI_WEBAPI_ACCESS_CONTROL_ALLOW_ORIGIN="http://$BASTION_EXTERNAL_IP_ADDRESS" CAPI_WEBAPI_PORT=$INTERNAL_WEBAPI_PORT CAPI_CASSANDRA_HOSTS="$CASSANDRA_HOSTS" CAPI_CASSANDRA_PORT=$CASSANDRA_PORT CAPI_CASSANDRA_USERNAME="$CASSANDRA_USERNAME" CAPI_CASSANDRA_PASSWORD="$CASSANDRA_PASSWORD" CAPI_CASSANDRA_ENABLE_HOST_VERIFICATION=false CAPI_CASSANDRA_KEYSPACE_REPLICATION_CONFIG="{ 'class' : 'NetworkTopologyStrategy', 'datacenter1' : 1 }" CAPI_CASSANDRA_CONSISTENCY=LOCAL_QUORUM CAPI_AMQP10_URL="$AMQP10_URL" CAPI_AMQP10_ADDRESS="$AMQP10_ADDRESS" CAPI_CASSANDRA_TIMEOUT=15000 CAPI_LOG_LEVEL=info CAPI_LOG_FILE="/var/log/capillaries/capiwebapi.log"
+echo Running webapi with GOMEMLIMIT="$WEBAPI_GOMEMLIMIT_GB"GiB GOGC=$WEBAPI_GOGC AWS_DEFAULT_REGION=$AWSREGION CAPI_PROMETHEUS_EXPORTER_PORT=9200 CAPI_WEBAPI_ACCESS_CONTROL_ALLOW_ORIGIN="http://$BASTION_EXTERNAL_IP_ADDRESS" CAPI_WEBAPI_PORT=$INTERNAL_WEBAPI_PORT CAPI_CASSANDRA_HOSTS="$CASSANDRA_HOSTS" CAPI_CASSANDRA_PORT=$CASSANDRA_PORT CAPI_CASSANDRA_USERNAME="$CASSANDRA_USERNAME" CAPI_CASSANDRA_PASSWORD="$CASSANDRA_PASSWORD" CAPI_CASSANDRA_ENABLE_HOST_VERIFICATION=false CAPI_CASSANDRA_KEYSPACE_REPLICATION_CONFIG="{ 'class' : 'NetworkTopologyStrategy', 'datacenter1' : 1 }" CAPI_CASSANDRA_CONSISTENCY=LOCAL_QUORUM CAPI_MQ_TYPE=$MQ_TYPE CAPI_CAPIMQ_CLIENT_URL=$CAPIMQ_CLIENT_URL CAPI_AMQP10_URL="$AMQP10_URL" CAPI_AMQP10_ADDRESS="$AMQP10_ADDRESS" CAPI_CASSANDRA_TIMEOUT=15000 CAPI_LOG_LEVEL=info CAPI_LOG_FILE="/var/log/capillaries/capiwebapi.log"
 echo To stop it: 'kill -9 $(ps aux |grep capiwebapi | grep bin | awk '"'"'{print $2}'"'"')'
-GOMEMLIMIT="$WEBAPI_GOMEMLIMIT_GB"GiB GOGC=$WEBAPI_GOGC AWS_DEFAULT_REGION=$AWSREGION CAPI_PROMETHEUS_EXPORTER_PORT=9200 CAPI_WEBAPI_ACCESS_CONTROL_ALLOW_ORIGIN="http://$BASTION_EXTERNAL_IP_ADDRESS" CAPI_WEBAPI_PORT=$INTERNAL_WEBAPI_PORT CAPI_CASSANDRA_HOSTS="$CASSANDRA_HOSTS" CAPI_CASSANDRA_PORT=$CASSANDRA_PORT CAPI_CASSANDRA_USERNAME="$CASSANDRA_USERNAME" CAPI_CASSANDRA_PASSWORD="$CASSANDRA_PASSWORD" CAPI_CASSANDRA_ENABLE_HOST_VERIFICATION=false CAPI_CASSANDRA_KEYSPACE_REPLICATION_CONFIG="{ 'class' : 'NetworkTopologyStrategy', 'datacenter1' : 1 }" CAPI_CASSANDRA_CONSISTENCY=LOCAL_QUORUM CAPI_AMQP10_URL="$AMQP10_URL" CAPI_AMQP10_ADDRESS="$AMQP10_ADDRESS" CAPI_CASSANDRA_TIMEOUT=15000 CAPI_LOG_LEVEL=info CAPI_LOG_FILE="/var/log/capillaries/capiwebapi.log" /home/$SSH_USER/bin/capiwebapi &>/dev/null &
+GOMEMLIMIT="$WEBAPI_GOMEMLIMIT_GB"GiB GOGC=$WEBAPI_GOGC AWS_DEFAULT_REGION=$AWSREGION CAPI_PROMETHEUS_EXPORTER_PORT=9200 CAPI_WEBAPI_ACCESS_CONTROL_ALLOW_ORIGIN="http://$BASTION_EXTERNAL_IP_ADDRESS" CAPI_WEBAPI_PORT=$INTERNAL_WEBAPI_PORT CAPI_CASSANDRA_HOSTS="$CASSANDRA_HOSTS" CAPI_CASSANDRA_PORT=$CASSANDRA_PORT CAPI_CASSANDRA_USERNAME="$CASSANDRA_USERNAME" CAPI_CASSANDRA_PASSWORD="$CASSANDRA_PASSWORD" CAPI_CASSANDRA_ENABLE_HOST_VERIFICATION=false CAPI_CASSANDRA_KEYSPACE_REPLICATION_CONFIG="{ 'class' : 'NetworkTopologyStrategy', 'datacenter1' : 1 }" CAPI_CASSANDRA_CONSISTENCY=LOCAL_QUORUM CAPI_MQ_TYPE=$MQ_TYPE CAPI_CAPIMQ_CLIENT_URL=$CAPIMQ_CLIENT_URL CAPI_AMQP10_URL="$AMQP10_URL" CAPI_AMQP10_ADDRESS="$AMQP10_ADDRESS" CAPI_CASSANDRA_TIMEOUT=15000 CAPI_LOG_LEVEL=info CAPI_LOG_FILE="/var/log/capillaries/capiwebapi.log" /home/$SSH_USER/bin/capiwebapi &>/dev/null &
 
 
 
@@ -465,8 +524,30 @@ cd /home/$SSH_USER
 
 
 
+if [ "$MQ_TYPE" = "capimq" ]; then
 
-if [ "$AMQP10_SERVER_FLAVOR" = "activemq-classic" ]; then
+CAPI_BINARY=capimq
+
+cd /home/$SSH_USER/bin
+
+curl -LOs $CAPILLARIES_RELEASE_URL/$OS_ARCH/$CAPI_BINARY.gz
+if [ "$?" -ne "0" ]; then
+    echo "Cannot download $CAPILLARIES_RELEASE_URL/$OS_ARCH/$CAPI_BINARY.gz to /home/$SSH_USER/bin"
+    exit $?
+fi
+curl -LOs $CAPILLARIES_RELEASE_URL/$OS_ARCH/$CAPI_BINARY.json
+if [ "$?" -ne "0" ]; then
+    echo "Cannot download from $CAPILLARIES_RELEASE_URL/$OS_ARCH/$CAPI_BINARY.json to /home/$SSH_USER/bin"
+    exit $?
+fi
+gzip -d -f $CAPI_BINARY.gz
+sudo chmod 744 $CAPI_BINARY
+
+echo Running capimq with CAPI_CAPIMQ_BROKER_ACCESS_CONTROL_ALLOW_ORIGIN=none CAPI_CAPIMQ_BROKER_PORT=$INTERNAL_CAPIMQ_PORT CAPI_CAPIMQ_BROKER_RETURNED_DELIVERY_DELAY=$CAPIMQ_BROKER_RETURNED_DELIVERY_DELAY CAPI_CAPIMQ_BROKER_MAX_MESSAGES=$CAPIMQ_BROKER_MAX_MESSAGES CAPI_CAPIMQ_BROKER_DEAD_AFTER_NO_HEARTBEAT_TIMEOUT=$CAPIMQ_BROKER_DEAD_AFTER_NO_HEARTBEAT_TIMEOUT CAPI_LOG_LEVEL=info CAPI_LOG_FILE="/var/log/capillaries/capimq.log"
+echo To stop it: 'kill -9 $(ps aux |grep capimq | grep bin | awk '"'"'{print $2}'"'"')'
+CAPI_CAPIMQ_BROKER_ACCESS_CONTROL_ALLOW_ORIGIN=none CAPI_CAPIMQ_BROKER_PORT=$INTERNAL_CAPIMQ_BROKER_PORT CAPI_CAPIMQ_BROKER_RETURNED_DELIVERY_DELAY=$CAPIMQ_BROKER_RETURNED_DELIVERY_DELAY CAPI_CAPIMQ_BROKER_MAX_MESSAGES=$CAPIMQ_BROKER_MAX_MESSAGES CAPI_CAPIMQ_BROKER_DEAD_AFTER_NO_HEARTBEAT_TIMEOUT=$CAPIMQ_BROKER_DEAD_AFTER_NO_HEARTBEAT_TIMEOUT CAPI_LOG_LEVEL=info CAPI_LOG_FILE="/var/log/capillaries/capimq.log" /home/$SSH_USER/bin/capimq &>/dev/null &
+
+elif [ "$AMQP10_SERVER_FLAVOR" = "activemq-classic" ]; then
 
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-17-jdk
 if [ "$?" -ne "0" ]; then
@@ -867,7 +948,6 @@ if [ "$?" -ne "0" ]; then
     echo Cannot check localhost:15672
     exit $?
 fi
-
 
 else 
   echo Invalid AMQP10_SERVER_FLAVOR: $AMQP10_SERVER_FLAVOR

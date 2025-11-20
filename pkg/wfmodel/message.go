@@ -13,28 +13,18 @@ Message - carries data and signals to processors/nodes
 4. Timestamps are int (not uint) because Unix epoch is int
 */
 type Message struct {
-	Ts              int64  `json:"ts"`            // Used only for statistics, see logging age
-	Id              string `json:"id"`            // Assigned by sender on creation, used by workers when communicating to CapiMQ/ActiveMQ and internally by CapiMQ
-	DeliverAfter    int64  `json:"deliver_after"` // Initialized and used by CapiMQ for postponing messages for nodes that are not ready yet
-	Heartbeat       int64  `json:"heartbeat"`     // Initialized and used by CapiMQ for returning wip messages back to q
-	ClaimComment    string `json:"claim_comment"` // Used by CapiMQ for logging only
-	ScriptURL       string `json:"script_url"`
-	ScriptParamsURL string `json:"script_params_url"`
-	DataKeyspace    string `json:"ks"`
-	RunId           int16  `json:"run_id"`
-	TargetNodeName  string `json:"target_node"`
-	FirstToken      int64  `json:"first_token"`
-	LastToken       int64  `json:"last_token"`
-	BatchIdx        int16  `json:"batch_idx"`
-	BatchesTotal    int16  `json:"batches_total"`
-}
-
-func (msg *Message) DeliverEarlierThan(laterMsg *Message) bool {
-	if msg.DeliverAfter != laterMsg.DeliverAfter {
-		return msg.DeliverAfter < laterMsg.DeliverAfter
-	}
-	// Assume earlier msg has smaller id
-	return msg.Id < laterMsg.Id
+	Ts                   int64  `json:"ts"` // Assigned by sender on creation, used only for daemon statistics, see logging age
+	Id                   string `json:"id"` // Assigned by sender on creation, used by workers when communicating to CapiMQ/ActiveMQ and its capimq counterpart in CapimqInternalMessage - internally by CapiMQ
+	CapimqWaitRetryGroup string // capimq only, asigned by sender on creation, used by workers when communicating to CapiMQ and its capimq counterpart in CapimqInternalMessage - internally by CapiMQ; not used with AMQP 1.0
+	ScriptURL            string `json:"script_url"`
+	ScriptParamsURL      string `json:"script_params_url"`
+	DataKeyspace         string `json:"ks"`
+	RunId                int16  `json:"run_id"`
+	TargetNodeName       string `json:"target_node"`
+	FirstToken           int64  `json:"first_token"`
+	LastToken            int64  `json:"last_token"`
+	BatchIdx             int16  `json:"batch_idx"`
+	BatchesTotal         int16  `json:"batches_total"`
 }
 
 func (msg *Message) FullBatchId() string {
@@ -46,8 +36,8 @@ func (msg *Message) FullNodeId() string {
 }
 
 func (msg *Message) ToString() string {
-	return fmt.Sprintf("Ts: %d, Id:%s DeliverAfter: %d, Heartbeat: %d, ScriptURL:%s,ScriptParamsURL:%s, DataKeyspace:%s, RunId:%d, TargetNodeName:%s, FirstToken:%d, LastToken:%d, BatchIdx:%d, BatchesTotal:%d. ",
-		msg.Ts, msg.Id, msg.DeliverAfter, msg.Heartbeat, msg.ScriptURL, msg.ScriptParamsURL, msg.DataKeyspace, msg.RunId, msg.TargetNodeName, msg.FirstToken, msg.LastToken, msg.BatchIdx, msg.BatchesTotal)
+	return fmt.Sprintf("Ts: %d, Id:%s ScriptURL:%s,ScriptParamsURL:%s, DataKeyspace:%s, RunId:%d, TargetNodeName:%s, FirstToken:%d, LastToken:%d, BatchIdx:%d, BatchesTotal:%d. ",
+		msg.Ts, msg.Id, msg.ScriptURL, msg.ScriptParamsURL, msg.DataKeyspace, msg.RunId, msg.TargetNodeName, msg.FirstToken, msg.LastToken, msg.BatchIdx, msg.BatchesTotal)
 }
 
 func (msg *Message) Deserialize(jsonBytes []byte) error {

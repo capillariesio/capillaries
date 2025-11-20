@@ -120,7 +120,7 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, mqSender mq.MqProd
 		msgs := make([]*wfmodel.Message, len(intervals))
 		for msgIdx := 0; msgIdx < len(intervals); msgIdx++ {
 			msgs[msgIdx] = &wfmodel.Message{
-				Id:              uuid.NewString(),
+				Id:              fmt.Sprintf("%06d-%s", msgIdx, uuid.NewString()), // Add idx prefix, so CapiMQ can use it for sorting
 				Ts:              time.Now().UnixMilli(),
 				ScriptURL:       scriptFilePath,
 				ScriptParamsURL: paramsFilePath,
@@ -131,6 +131,7 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, mqSender mq.MqProd
 				LastToken:       intervals[msgIdx][1],
 				BatchIdx:        int16(msgIdx),
 				BatchesTotal:    int16(len(intervals))}
+			msgs[msgIdx].CapimqWaitRetryGroup = msgs[msgIdx].FullNodeId() // CapiMQ retry group is ks/run/node
 		}
 		allMsgs = append(allMsgs, msgs...)
 	}

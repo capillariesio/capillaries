@@ -1,4 +1,4 @@
-package mq_message_broker
+package capimq_message_broker
 
 import (
 	"fmt"
@@ -6,59 +6,45 @@ import (
 	"testing"
 	"time"
 
-	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestClaimReturnAck(t *testing.T) {
-	msg := wfmodel.Message{
-		DataKeyspace: "ks1",
-		RunId:        1,
+	msg := CapimqInternalMessage{
+		CapimqWaitRetryGroup: "ks1/1",
 	}
 
-	msgs := make([]*wfmodel.Message, 0)
+	msgs := make([]*CapimqInternalMessage, 0)
 	for i := range int16(10) {
-		msgs = append(msgs, &wfmodel.Message{
-			Id:             fmt.Sprintf("%05d", len(msgs)+1),
-			DataKeyspace:   msg.DataKeyspace,
-			RunId:          msg.RunId,
-			TargetNodeName: "node1",
-			BatchIdx:       i,
-		})
-	}
-	for i := range int16(10) {
-		msgs = append(msgs, &wfmodel.Message{
-			Id:             fmt.Sprintf("%05d", len(msgs)+1),
-			DataKeyspace:   msg.DataKeyspace,
-			RunId:          msg.RunId,
-			TargetNodeName: "node2",
-			BatchIdx:       i,
+		msgs = append(msgs, &CapimqInternalMessage{
+			Id:                   fmt.Sprintf("%05d", i+1),
+			CapimqWaitRetryGroup: msg.CapimqWaitRetryGroup + "/node1",
 		})
 	}
 
-	mb := NewMessageBroker()
-	assert.Nil(t, mb.QBulk(msgs, 1000))
+	for i := range int16(10) {
+		msgs = append(msgs, &CapimqInternalMessage{
+			Id:                   fmt.Sprintf("%05d", 10+i+1),
+			CapimqWaitRetryGroup: msg.CapimqWaitRetryGroup + "/node2",
+		})
+	}
 
-	keyspaces := mb.Ks()
-	assert.Equal(t, 1, len(keyspaces))
-	assert.Equal(t, msg.DataKeyspace, keyspaces[0])
+	mb := NewMessageBroker(1000)
+	assert.Nil(t, mb.QBulk(msgs))
 
-	assert.Equal(t, 10, mb.Count(HeapTypeQ, msg.DataKeyspace, msg.RunId, "node2"))
-	assert.Equal(t, 20, mb.Count(HeapTypeQ, msg.DataKeyspace, msg.RunId, ""))
-
-	assert.Equal(t, 1, len(keyspaces))
-	assert.Equal(t, msg.DataKeyspace, keyspaces[0])
+	assert.Equal(t, 10, mb.Count(HeapTypeQ, msg.CapimqWaitRetryGroup+"/node2"))
+	assert.Equal(t, 20, mb.Count(HeapTypeQ, msg.CapimqWaitRetryGroup))
 
 	msgsHead := mb.HeadTail(HeapTypeQ, QueueReadHead, 0, 20)
 	assert.Equal(t, 20, len(msgsHead))
 	assert.Equal(t, fmt.Sprintf("%05d", 1), msgsHead[0].Id)
-	assert.Equal(t, "node1", msgsHead[0].TargetNodeName)
+	assert.Equal(t, msg.CapimqWaitRetryGroup+"/node1", msgsHead[0].CapimqWaitRetryGroup)
 	assert.Equal(t, fmt.Sprintf("%05d", 10), msgsHead[9].Id)
-	assert.Equal(t, "node1", msgsHead[9].TargetNodeName)
+	assert.Equal(t, msg.CapimqWaitRetryGroup+"/node1", msgsHead[9].CapimqWaitRetryGroup)
 	assert.Equal(t, fmt.Sprintf("%05d", 11), msgsHead[10].Id)
-	assert.Equal(t, "node2", msgsHead[10].TargetNodeName)
+	assert.Equal(t, msg.CapimqWaitRetryGroup+"/node2", msgsHead[10].CapimqWaitRetryGroup)
 	assert.Equal(t, fmt.Sprintf("%05d", 20), msgsHead[19].Id)
-	assert.Equal(t, "node2", msgsHead[19].TargetNodeName)
+	assert.Equal(t, msg.CapimqWaitRetryGroup+"/node2", msgsHead[19].CapimqWaitRetryGroup)
 
 	// Claim all
 	for i := range 20 {
@@ -68,7 +54,7 @@ func TestClaimReturnAck(t *testing.T) {
 	}
 
 	// Check wip 20
-	assert.Equal(t, 20, mb.Count(HeapTypeWip, msg.DataKeyspace, msg.RunId, ""))
+	assert.Equal(t, 20, mb.Count(HeapTypeWip, msg.CapimqWaitRetryGroup))
 	msgsHead = mb.HeadTail(HeapTypeWip, QueueReadHead, 0, 20)
 	assert.Equal(t, 20, len(msgsHead))
 
@@ -123,39 +109,34 @@ func TestClaimReturnAck(t *testing.T) {
 	assert.Equal(t, 16, len(msgsHead))
 
 	// Filter q
-	assert.Equal(t, 1, len(mb.Filter(HeapTypeQ, msg.DataKeyspace, msg.RunId, "node1")))
+	assert.Equal(t, 1, len(mb.Filter(HeapTypeQ, msg.CapimqWaitRetryGroup+"/node1")))
 
 	// Filter wip
-	assert.Equal(t, 8, len(mb.Filter(HeapTypeWip, msg.DataKeyspace, msg.RunId, "node1")))
+	assert.Equal(t, 8, len(mb.Filter(HeapTypeWip, msg.CapimqWaitRetryGroup+"/node1")))
 
 	// Delete q
-	assert.Equal(t, 1, mb.Delete(HeapTypeQ, msg.DataKeyspace, msg.RunId, "node1"))
+	assert.Equal(t, 1, mb.Delete(HeapTypeQ, msg.CapimqWaitRetryGroup+"/node1"))
 
 	// Delete wip
-	assert.Equal(t, 8, mb.Delete(HeapTypeWip, msg.DataKeyspace, msg.RunId, "node1"))
+	assert.Equal(t, 8, mb.Delete(HeapTypeWip, msg.CapimqWaitRetryGroup+"/node1"))
 
 }
 
 func TestHeartbeat(t *testing.T) {
-	msg := wfmodel.Message{
-		DataKeyspace:   "ks1",
-		RunId:          1,
-		TargetNodeName: "node1",
+	msg := CapimqInternalMessage{
+		CapimqWaitRetryGroup: "ks1/1/node1",
 	}
 
-	msgs := make([]*wfmodel.Message, 0)
+	msgs := make([]*CapimqInternalMessage, 0)
 	for i := range int16(3) {
-		msgs = append(msgs, &wfmodel.Message{
-			Id:             fmt.Sprintf("%05d", len(msgs)+1),
-			DataKeyspace:   msg.DataKeyspace,
-			RunId:          msg.RunId,
-			TargetNodeName: msg.TargetNodeName,
-			BatchIdx:       i,
+		msgs = append(msgs, &CapimqInternalMessage{
+			Id:                   fmt.Sprintf("%05d", i+1),
+			CapimqWaitRetryGroup: msg.CapimqWaitRetryGroup,
 		})
 	}
 
-	mb := NewMessageBroker()
-	assert.Nil(t, mb.QBulk(msgs, 1000))
+	mb := NewMessageBroker(1000)
+	assert.Nil(t, mb.QBulk(msgs))
 
 	// Claim 1 and 2
 	claimedMsg, err := mb.Claim("test worker")
@@ -176,7 +157,7 @@ func TestHeartbeat(t *testing.T) {
 	// Return count 1 (msg id 1)
 	deadMessages := mb.ReturnDead(150)
 	assert.Equal(t, 1, len(deadMessages))
-	assert.True(t, strings.HasPrefix(deadMessages[0], "00001 ks1/1/node1/0"))
+	assert.True(t, strings.HasPrefix(deadMessages[0], "00001 ks1/1/node1"))
 
 	// Check 1 (returned) and 3 (never claimed) in q
 	msgsHead := mb.HeadTail(HeapTypeQ, QueueReadHead, 0, 10)

@@ -1,13 +1,42 @@
-package mq_message_broker
+package capimq_message_broker
 
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
-
-	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
+
+type CapimqInternalMessage struct {
+	Id                   string
+	CapimqWaitRetryGroup string
+	Ts                   int64
+	DeliverAfter         int64
+	Heartbeat            int64
+	ClaimComment         string
+	Data                 []byte
+}
+
+func (im *CapimqInternalMessage) ToCapimqMessage() *CapimqMessage {
+	return &CapimqMessage{im.Id, im.CapimqWaitRetryGroup, im.Data}
+}
+
+func ToCapimqMessages(internalMsgs []*CapimqInternalMessage) []*CapimqMessage {
+	externalMsgs := make([]*CapimqMessage, len(internalMsgs))
+	for i := range len(internalMsgs) {
+		externalMsgs[i] = internalMsgs[i].ToCapimqMessage()
+	}
+	return externalMsgs
+}
+
+func (msg *CapimqInternalMessage) DeliverEarlierThan(laterMsg *CapimqInternalMessage) bool {
+	if msg.DeliverAfter != laterMsg.DeliverAfter {
+		return msg.DeliverAfter < laterMsg.DeliverAfter
+	}
+	// Assume earlier msg has smaller id
+	return msg.Id < laterMsg.Id
+}
 
 type HeapType string
 
@@ -51,18 +80,20 @@ func StringToQueueReadType(headOrTail string) (QueueReadType, error) {
 }
 
 type MessageBroker struct {
-	Q        []*wfmodel.Message
-	Wip      map[string]*wfmodel.Message
-	QMutex   sync.RWMutex
-	WipMutex sync.RWMutex
+	Q           []*CapimqInternalMessage
+	Wip         map[string]*CapimqInternalMessage
+	QMutex      sync.RWMutex
+	WipMutex    sync.RWMutex
+	MaxMessages int
 }
 
-func NewMessageBroker() *MessageBroker {
+func NewMessageBroker(maxMessages int) *MessageBroker {
 	mb := MessageBroker{
-		Q:        make([]*wfmodel.Message, 0),
-		Wip:      map[string]*wfmodel.Message{},
-		QMutex:   sync.RWMutex{},
-		WipMutex: sync.RWMutex{},
+		Q:           make([]*CapimqInternalMessage, 0),
+		Wip:         map[string]*CapimqInternalMessage{},
+		QMutex:      sync.RWMutex{},
+		WipMutex:    sync.RWMutex{},
+		MaxMessages: maxMessages,
 	}
 	return &mb
 }
@@ -73,7 +104,7 @@ func (mb *MessageBroker) sortQ() {
 
 func (mb *MessageBroker) ReturnDead(deadTimeoutMillis int64) []string {
 	latestAllowedHearbit := time.Now().UnixMilli() - deadTimeoutMillis
-	msgs := make([]*wfmodel.Message, 0)
+	msgs := make([]*CapimqInternalMessage, 0)
 
 	mb.WipMutex.Lock()
 	for _, msg := range mb.Wip {
@@ -99,21 +130,21 @@ func (mb *MessageBroker) ReturnDead(deadTimeoutMillis int64) []string {
 	msgDescs := make([]string, len(msgs))
 	for i, msg := range msgs {
 		// id,ks/run/node/batch,overstayMillis
-		msgDescs[i] = fmt.Sprintf("%s %s %d", msg.Id, msg.FullBatchId(), latestAllowedHearbit-msg.Heartbeat)
+		msgDescs[i] = fmt.Sprintf("%s %s %d", msg.Id, msg.CapimqWaitRetryGroup, latestAllowedHearbit-msg.Heartbeat)
 	}
 
 	return msgDescs
 }
 
-func (mb *MessageBroker) QBulk(msgs []*wfmodel.Message, maxMessages int) error {
+func (mb *MessageBroker) QBulk(msgs []*CapimqInternalMessage) error {
 	ts := time.Now().UnixMilli()
 
 	mb.QMutex.Lock()
 
 	curLen := len(mb.Q)
-	if len(msgs)+curLen > maxMessages {
+	if len(msgs)+curLen > mb.MaxMessages {
 		mb.QMutex.Unlock()
-		return fmt.Errorf("max_messages %d exceeded: already in queue %d, adding %d", maxMessages, curLen, len(msgs))
+		return fmt.Errorf("max_messages %d exceeded: already in queue %d, adding %d", mb.MaxMessages, curLen, len(msgs))
 	}
 
 	for _, msg := range msgs {
@@ -131,7 +162,7 @@ func (mb *MessageBroker) QBulk(msgs []*wfmodel.Message, maxMessages int) error {
 	return nil
 }
 
-func (mb *MessageBroker) Claim(claimComment string) (*wfmodel.Message, error) {
+func (mb *MessageBroker) Claim(claimComment string) (*CapimqInternalMessage, error) {
 	now := time.Now().UnixMilli()
 	mb.QMutex.Lock()
 	if len(mb.Q) == 0 {
@@ -187,7 +218,7 @@ func (mb *MessageBroker) Heartbeat(id string) error {
 
 func (mb *MessageBroker) Return(id string, delay int64) error {
 	mb.WipMutex.Lock()
-	msg, ok := mb.Wip[id]
+	returnedMsg, ok := mb.Wip[id]
 	if !ok {
 		mb.WipMutex.Unlock()
 		return fmt.Errorf("cannot return, message with id %s not found in wip", id)
@@ -195,56 +226,31 @@ func (mb *MessageBroker) Return(id string, delay int64) error {
 	delete(mb.Wip, id)
 	mb.WipMutex.Unlock()
 
-	ks := msg.DataKeyspace
-	runId := msg.RunId
-	nodeName := msg.TargetNodeName
-	newDeliverAfter := time.Now().UnixMilli() + delay
+	returnedMsg.ClaimComment = ""
 
-	msg.ClaimComment = ""
-
-	mb.QMutex.Lock()
-	mb.Q = append(mb.Q, msg)
-	for _, msg := range mb.Q {
-		if msg.DataKeyspace == ks && msg.RunId == runId && msg.TargetNodeName == nodeName {
-			msg.DeliverAfter = newDeliverAfter
+	if len(returnedMsg.CapimqWaitRetryGroup) > 0 {
+		newDeliverAfter := time.Now().UnixMilli() + delay
+		mb.QMutex.Lock()
+		mb.Q = append(mb.Q, returnedMsg)
+		for _, msg := range mb.Q {
+			if msg.CapimqWaitRetryGroup == returnedMsg.CapimqWaitRetryGroup {
+				msg.DeliverAfter = newDeliverAfter
+			}
 		}
+		mb.sortQ()
+		mb.QMutex.Unlock()
 	}
-	mb.sortQ()
-	mb.QMutex.Unlock()
 
 	return nil
 }
 
-func (mb *MessageBroker) Ks() []string {
-	ksMap := map[string]struct{}{}
-
-	mb.QMutex.RLock()
-
-	for _, msg := range mb.Q {
-		ksMap[msg.DataKeyspace] = struct{}{}
-	}
-
-	mb.QMutex.RUnlock()
-
-	result := make([]string, len(ksMap))
-	ksCount := 0
-	for ks := range ksMap {
-		result[ksCount] = ks
-		ksCount++
-	}
-
-	sort.Slice(result, func(i, j int) bool { return result[i] < result[j] })
-
-	return result
-}
-
-func (mb *MessageBroker) Count(heapType HeapType, ks string, runId int16, nodeName string) int {
+func (mb *MessageBroker) Count(heapType HeapType, waitRetryGroupPrefix string) int {
 	count := 0
 	switch heapType {
 	case HeapTypeQ:
 		mb.QMutex.RLock()
 		for _, msg := range mb.Q {
-			if (ks == "" || ks == msg.DataKeyspace) && (nodeName == "" || nodeName == msg.TargetNodeName) && (runId == 0 || runId == msg.RunId) {
+			if waitRetryGroupPrefix == "" || strings.HasPrefix(msg.CapimqWaitRetryGroup, waitRetryGroupPrefix) {
 				count++
 			}
 		}
@@ -253,7 +259,7 @@ func (mb *MessageBroker) Count(heapType HeapType, ks string, runId int16, nodeNa
 	case HeapTypeWip:
 		mb.WipMutex.RLock()
 		for _, msg := range mb.Wip {
-			if (ks == "" || ks == msg.DataKeyspace) && (nodeName == "" || nodeName == msg.TargetNodeName) && (runId == 0 || runId == msg.RunId) {
+			if waitRetryGroupPrefix == "" || strings.HasPrefix(msg.CapimqWaitRetryGroup, waitRetryGroupPrefix) {
 				count++
 			}
 		}
@@ -264,14 +270,14 @@ func (mb *MessageBroker) Count(heapType HeapType, ks string, runId int16, nodeNa
 	}
 }
 
-func (mb *MessageBroker) Delete(heapType HeapType, ks string, runId int16, nodeName string) int {
+func (mb *MessageBroker) Delete(heapType HeapType, waitRetryGroupPrefix string) int {
 	switch heapType {
 	case HeapTypeQ:
 		count := 0
 		mb.QMutex.Lock()
 		i := 0
 		for i < len(mb.Q) {
-			if (ks == "" || ks == mb.Q[i].DataKeyspace) && (nodeName == "" || nodeName == mb.Q[i].TargetNodeName) && (runId == 0 || runId == mb.Q[i].RunId) {
+			if waitRetryGroupPrefix == "" || strings.HasPrefix(mb.Q[i].CapimqWaitRetryGroup, waitRetryGroupPrefix) {
 				count++
 				mb.Q[i] = nil
 				mb.Q = append(mb.Q[:i], mb.Q[i+1:]...)
@@ -284,7 +290,7 @@ func (mb *MessageBroker) Delete(heapType HeapType, ks string, runId int16, nodeN
 		idsToDelete := make([]string, 0)
 		mb.WipMutex.Lock()
 		for id, msg := range mb.Wip {
-			if (ks == "" || ks == msg.DataKeyspace) && (nodeName == "" || nodeName == msg.TargetNodeName) && (runId == 0 || runId == msg.RunId) {
+			if waitRetryGroupPrefix == "" || strings.HasPrefix(msg.CapimqWaitRetryGroup, waitRetryGroupPrefix) {
 				idsToDelete = append(idsToDelete, id)
 			}
 		}
@@ -298,8 +304,8 @@ func (mb *MessageBroker) Delete(heapType HeapType, ks string, runId int16, nodeN
 	}
 }
 
-func (mb *MessageBroker) HeadTail(heapType HeapType, queueRead QueueReadType, from int, count int) []*wfmodel.Message {
-	msgs := make([]*wfmodel.Message, 0)
+func (mb *MessageBroker) HeadTail(heapType HeapType, queueRead QueueReadType, from int, count int) []*CapimqInternalMessage {
+	msgs := make([]*CapimqInternalMessage, 0)
 	switch heapType {
 	case HeapTypeQ:
 		mb.QMutex.RLock()
@@ -318,7 +324,7 @@ func (mb *MessageBroker) HeadTail(heapType HeapType, queueRead QueueReadType, fr
 		}
 		mb.QMutex.RUnlock()
 	case HeapTypeWip:
-		allMsgs := make([]*wfmodel.Message, 0)
+		allMsgs := make([]*CapimqInternalMessage, 0)
 		mb.WipMutex.RLock()
 		for _, msg := range mb.Wip {
 			allMsgs = append(allMsgs, msg)
@@ -345,27 +351,32 @@ func (mb *MessageBroker) HeadTail(heapType HeapType, queueRead QueueReadType, fr
 	return msgs
 }
 
-func (mb *MessageBroker) Filter(heapType HeapType, ks string, runId int16, nodeName string) []*wfmodel.Message {
-	msgs := make([]*wfmodel.Message, 0)
+func (mb *MessageBroker) Filter(heapType HeapType, waitRetryGroupPrefix string) []*CapimqInternalMessage {
+	msgs := make([]*CapimqInternalMessage, 0)
 	switch heapType {
 	case HeapTypeQ:
-		mb.QMutex.RLock()
-		for _, msg := range mb.Q {
-			// Empty ks not accepted - will result in too many msgs
-			if ks == msg.DataKeyspace && (nodeName == "" || nodeName == msg.TargetNodeName) && (runId == 0 || runId == msg.RunId) {
-				msgs = append(msgs, msg)
+		// Empty prefix not accepted - too many msgs
+		if waitRetryGroupPrefix != "" {
+			mb.QMutex.RLock()
+			for _, msg := range mb.Q {
+				// Empty ks not accepted - will result in too many msgs
+				if strings.HasPrefix(msg.CapimqWaitRetryGroup, waitRetryGroupPrefix) {
+					msgs = append(msgs, msg)
+				}
 			}
+			mb.QMutex.RUnlock()
 		}
-		mb.QMutex.RUnlock()
 	case HeapTypeWip:
-		mb.WipMutex.RLock()
-		for _, msg := range mb.Wip {
-			// Empty ks not accepted - will result in too many msgs
-			if ks == msg.DataKeyspace && (nodeName == "" || nodeName == msg.TargetNodeName) && (runId == 0 || runId == msg.RunId) {
-				msgs = append(msgs, msg)
+		// Empty prefix not accepted - too many msgs
+		if waitRetryGroupPrefix != "" {
+			mb.WipMutex.RLock()
+			for _, msg := range mb.Wip {
+				if strings.HasPrefix(msg.CapimqWaitRetryGroup, waitRetryGroupPrefix) {
+					msgs = append(msgs, msg)
+				}
 			}
+			mb.WipMutex.RUnlock()
 		}
-		mb.WipMutex.RUnlock()
 	}
 
 	return msgs
