@@ -88,7 +88,7 @@ func readCsv(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessagePr
 			bs.RowsRead++
 		}
 		lineIdx++
-		if bs.RowsRead%1000 == 0 {
+		if bs.RowsRead%100 == 0 {
 			instr.PCtx.SendHeartbeat()
 		}
 	}

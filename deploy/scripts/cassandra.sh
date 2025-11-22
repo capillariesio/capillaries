@@ -367,7 +367,7 @@ done
 echo Checking access to $S3_LOG_URL...
 aws s3 ls $S3_LOG_URL/
 
-# Add hostname to the log file names and send them to S3 every 5 min
+# Add hostname to the log file names and send them to S3 every 1 min (crontab)
 SEND_LOGS_FILE=/home/$SSH_USER/sendlogs.sh
 sudo tee $SEND_LOGS_FILE <<EOF
 #!/bin/bash
@@ -393,7 +393,7 @@ for f in /var/log/cassandra/debug.log.*.gz; do
 done
 EOF
 sudo chmod 744 $SEND_LOGS_FILE
-sudo su $SSH_USER -c "echo \"*/5 * * * * $SEND_LOGS_FILE\" | crontab -"
+sudo su $SSH_USER -c "echo \"*/1 * * * * $SEND_LOGS_FILE\" | crontab -"
 
 
 # Everything in ~ should belong to ssh user

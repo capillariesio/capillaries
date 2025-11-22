@@ -303,11 +303,12 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 		custProcDur := time.Since(customProcBatchStartTime)
 		logger.InfoCtx(pCtx, "CustomProcessor: %d items in %v (%.0f items/s)", rsIn.RowCount, custProcDur, float64(rsIn.RowCount)/custProcDur.Seconds())
 
+		instr.PCtx.SendHeartbeat()
+
 		bs.RowsRead += rsIn.RowCount
 		if rsIn.RowCount < leftBatchSize {
 			break
 		}
-		instr.PCtx.SendHeartbeat()
 	} // for each source table batch
 
 	bs.Elapsed = time.Since(totalStartTime)
@@ -1147,7 +1148,7 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 			break
 		}
 		leftPageIdx++
-		// instr.PCtx.SendHeartbeat() - this may be not enough, processing may take longer, send hearbeats inside
+		// instr.PCtx.SendHeartbeat() - this may be not enough, processing may take longer, send heartbeats inside
 	} // for each source table batch
 
 	instr.doneSending()

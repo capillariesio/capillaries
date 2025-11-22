@@ -344,7 +344,7 @@ func (dc *Amqp10AsyncConsumer) StopAcknowledger(logger *l.CapiLogger) error {
 	}
 }
 
-func (dc *Amqp10AsyncConsumer) SupportsHearbeat() bool {
+func (dc *Amqp10AsyncConsumer) SupportsHeartbeat() bool {
 	return false
 }
 

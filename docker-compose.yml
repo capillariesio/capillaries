@@ -48,63 +48,64 @@ services:
   #       fluentd-async: "true"
   #       tag: activemq_artemis
 
-  mq:
-    container_name: capillaries_rabbitmq4
-    image: rabbitmq:4.2.0-management-alpine
-    depends_on:
-      - fluentd
-    networks:
-      capinet:
-        ipv4_address: 10.5.0.5
-    ports:
-      - 15672:15672
-      - 5672:5672
-    post_start:
-      - command: sleep 5 # Wait a bit before even running rabbitmqctl to avoid some obscure erlang cookie error
-      - command: rabbitmqctl wait --pid 1 --timeout 60 # With Docker, the pid of main process is always 1
-      - command: rabbitmqctl set_permissions -p / guest ".*" ".*" ".*" # Set permissions for vhost /
-      # The following commands set up RabbitMQ dead letter queue infrastructure (no ActiveMQ-style redelivery-delay shortcut in RabbitMQ). Very fragile.
-      # The only paramater you may want to play with is x-message-ttl.
-      # Please note that this setup assumes that Capillaries Amqp10.address setting is set to "/queues/capidaemon" 
-      # Some AMQP 1.0 details (like, why "/queues/capidaemon" and not just "my_simple_capillaries_queue") at https://www.rabbitmq.com/docs/amqp
-      # Dead letter exchange circle of life explained at https://www.cloudamqp.com/blog/when-and-how-to-use-the-rabbitmq-dead-letter-exchange.html
-      - command: rabbitmqadmin declare exchange --vhost=/ name=capillaries type=direct durable=false
-      - command: rabbitmqadmin declare exchange --vhost=/ name=capillaries.dlx type=direct durable=false
-      - command: rabbitmqadmin declare queue --vhost=/ name=capidaemon durable=false arguments='{"x-dead-letter-exchange":"capillaries.dlx", "x-dead-letter-routing-key":"capidaemon.dlq"}'
-      - command: rabbitmqadmin declare queue --vhost=/ name=capidaemon.dlq durable=false arguments='{"x-message-ttl":5000, "x-dead-letter-exchange":"capillaries", "x-dead-letter-routing-key":"capidaemon"}'
-      - command: rabbitmqadmin --vhost=/ declare binding source="capillaries" destination_type="queue" destination="capidaemon" routing_key="capidaemon"
-      - command: rabbitmqadmin --vhost=/ declare binding source="capillaries.dlx" destination_type="queue" destination="capidaemon.dlq" routing_key="capidaemon.dlq"
-    logging:
-      driver: fluentd
-      options:
-        fluentd-address: 10.5.0.7:24224
-        fluentd-async: "true"
-        tag: rabbitmq4
-
   # mq:
-  #   container_name: capillaries_capimq
+  #   container_name: capillaries_rabbitmq4
+  #   image: rabbitmq:4.2.0-management-alpine
   #   depends_on:
   #     - fluentd
-  #   build:
-  #     context: .
-  #     dockerfile: ./pkg/exe/mq/docker/Dockerfile
-  #   environment:
-  #     CAPI_CAPIMQ_BROKER_PORT: 7654
-  #     CAPI_CAPIMQ_BROKER_ACCESS_CONTROL_ALLOW_ORIGIN: webapi_is_the_only_caller_and_it_doesnt_care
-  #     CAPI_CAPIMQ_BROKER_RETURNED_DELIVERY_DELAY: 500
-  #     CAPI_CAPIMQ_BROKER_DEAD_AFTER_NO_HEARTBEAT_TIMEOUT: 10000
-  #     CAPI_LOG_LEVEL: info
-  #   ports:
-  #     - 7654:7654      
   #   networks:
   #     capinet:
   #       ipv4_address: 10.5.0.5
+  #   ports:
+  #     - 15672:15672
+  #     - 5672:5672
+  #   post_start:
+  #     - command: sleep 5 # Wait a bit before even running rabbitmqctl to avoid some obscure erlang cookie error
+  #     - command: rabbitmqctl wait --pid 1 --timeout 60 # With Docker, the pid of main process is always 1
+  #     - command: rabbitmqctl set_permissions -p / guest ".*" ".*" ".*" # Set permissions for vhost /
+  #     # The following commands set up RabbitMQ dead letter queue infrastructure (no ActiveMQ-style redelivery-delay shortcut in RabbitMQ). Very fragile.
+  #     # The only paramater you may want to play with is x-message-ttl.
+  #     # Please note that this setup assumes that Capillaries Amqp10.address setting is set to "/queues/capidaemon" 
+  #     # Some AMQP 1.0 details (like, why "/queues/capidaemon" and not just "my_simple_capillaries_queue") at https://www.rabbitmq.com/docs/amqp
+  #     # Dead letter exchange circle of life explained at https://www.cloudamqp.com/blog/when-and-how-to-use-the-rabbitmq-dead-letter-exchange.html
+  #     - command: rabbitmqadmin declare exchange --vhost=/ name=capillaries type=direct durable=false
+  #     - command: rabbitmqadmin declare exchange --vhost=/ name=capillaries.dlx type=direct durable=false
+  #     - command: rabbitmqadmin declare queue --vhost=/ name=capidaemon durable=false arguments='{"x-dead-letter-exchange":"capillaries.dlx", "x-dead-letter-routing-key":"capidaemon.dlq"}'
+  #     - command: rabbitmqadmin declare queue --vhost=/ name=capidaemon.dlq durable=false arguments='{"x-message-ttl":5000, "x-dead-letter-exchange":"capillaries", "x-dead-letter-routing-key":"capidaemon"}'
+  #     - command: rabbitmqadmin --vhost=/ declare binding source="capillaries" destination_type="queue" destination="capidaemon" routing_key="capidaemon"
+  #     - command: rabbitmqadmin --vhost=/ declare binding source="capillaries.dlx" destination_type="queue" destination="capidaemon.dlq" routing_key="capidaemon.dlq"
   #   logging:
   #     driver: fluentd
   #     options:
   #       fluentd-address: 10.5.0.7:24224
   #       fluentd-async: "true"
-  #       tag: capimq
+  #       tag: rabbitmq4
+
+  mq:
+    container_name: capillaries_capimq
+    depends_on:
+      - fluentd
+    build:
+      context: .
+      dockerfile: ./pkg/exe/mq/docker/Dockerfile
+    environment:
+      CAPI_CAPIMQ_BROKER_PORT: 7654
+      CAPI_CAPIMQ_BROKER_ACCESS_CONTROL_ALLOW_ORIGIN: webapi_is_the_only_caller_and_it_doesnt_care
+      CAPI_CAPIMQ_BROKER_RETURNED_DELIVERY_DELAY: 500
+      CAPI_CAPIMQ_BROKER_DEAD_AFTER_NO_HEARTBEAT_TIMEOUT: 10000
+      CAPI_PROMETHEUS_EXPORTER_PORT: 9203
+      CAPI_LOG_LEVEL: info
+    ports:
+      - 7654:7654      
+    networks:
+      capinet:
+        ipv4_address: 10.5.0.5
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: 10.5.0.7:24224
+        fluentd-async: "true"
+        tag: capimq
 
   cassandra1:
     container_name: capillaries_cassandra1
@@ -186,7 +187,7 @@ services:
       - /tmp/capi_in:/tmp/capi_in:ro
       - /tmp/capi_out:/tmp/capi_out
     environment:
-      CAPI_MQ_TYPE: amqp10
+      CAPI_MQ_TYPE: capimq
       CAPI_AMQP10_URL: amqp://guest:guest@10.5.0.5:5672/ # RabbitMQ, Classic, Artemis
       #CAPI_AMQP10_ADDRESS: capillaries # Classic, Artemis
       CAPI_AMQP10_ADDRESS: /queues/capidaemon # RabbitMQ
@@ -222,7 +223,7 @@ services:
       - /tmp/capi_in:/tmp/capi_in:ro
       - /tmp/capi_out:/tmp/capi_out
     environment:
-      CAPI_MQ_TYPE: amqp10
+      CAPI_MQ_TYPE: capimq
       CAPI_AMQP10_URL: amqp://guest:guest@10.5.0.5:5672/ # RabbitMQ, Classic, Artemis
       #CAPI_AMQP10_ADDRESS: capillaries # Classic, Artemis
       CAPI_AMQP10_ADDRESS: /queues/capidaemon # RabbitMQ
@@ -258,7 +259,7 @@ services:
       - /tmp/capi_in:/tmp/capi_in:ro
       - /tmp/capi_out:/tmp/capi_out
     environment:
-      CAPI_MQ_TYPE: amqp10
+      CAPI_MQ_TYPE: capimq
       CAPI_AMQP10_URL: amqp://guest:guest@10.5.0.5:5672/ # RabbitMQ, Classic, Artemis
       #CAPI_AMQP10_ADDRESS: capillaries # Classic, Artemis
       CAPI_AMQP10_ADDRESS: /queues/capidaemon # RabbitMQ

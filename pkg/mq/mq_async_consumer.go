@@ -22,6 +22,6 @@ type MqAsyncConsumer interface {
 	Start(logger *l.CapiLogger, listenerChannel chan *wfmodel.Message, acknowledgerChannel chan AknowledgerToken) error
 	StopListener(logger *l.CapiLogger) error
 	StopAcknowledger(logger *l.CapiLogger) error
-	SupportsHearbeat() bool
+	SupportsHeartbeat() bool
 	DecrementActiveProcessors()
 }

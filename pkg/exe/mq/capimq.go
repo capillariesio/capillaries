@@ -105,16 +105,11 @@ func WriteApiError(logger *l.CapiLogger, wc *env.CapiMqBrokerConfig, r *http.Req
 
 	w.Header().Set("Access-Control-Allow-Origin", pickAccessControlAllowOrigin(wc, r))
 	logger.Error("cannot process %s: %s", urlPath, err.Error())
-	respJson, err := json.Marshal(capimq_message_broker.CapimqApiGenericResponse{Error: err.Error()})
-	if err != nil {
-		http.Error(w, fmt.Sprintf("unexpected: cannot serialize error response %s", err.Error()), httpStatus)
-	} else {
-		http.Error(w, string(respJson), httpStatus)
-	}
+	http.Error(w, err.Error(), httpStatus)
 }
 
-func WriteApiSuccess(logger *l.CapiLogger, wc *env.CapiMqBrokerConfig, r *http.Request, w http.ResponseWriter, data any) {
-	logger.PushF("WriteApiSuccess")
+func WriteApiDatalessSuccess(logger *l.CapiLogger, wc *env.CapiMqBrokerConfig, r *http.Request, w http.ResponseWriter) {
+	logger.PushF("WriteApiDatalessSuccess")
 	defer logger.PopF()
 
 	ApiSuccessHitCounter.Inc()
@@ -122,7 +117,18 @@ func WriteApiSuccess(logger *l.CapiLogger, wc *env.CapiMqBrokerConfig, r *http.R
 	logger.Debug("%s: OK", r.URL.Path)
 
 	w.Header().Set("Access-Control-Allow-Origin", pickAccessControlAllowOrigin(wc, r))
-	respJson, err := json.Marshal(capimq_message_broker.CapimqApiGenericResponse{Data: data})
+}
+
+func WriteApiDataSuccess[T capimq_message_broker.CapimqResultType](logger *l.CapiLogger, wc *env.CapiMqBrokerConfig, r *http.Request, w http.ResponseWriter, data T) {
+	logger.PushF("WriteApiDataSuccess")
+	defer logger.PopF()
+
+	ApiSuccessHitCounter.Inc()
+
+	logger.Debug("%s: OK", r.URL.Path)
+
+	w.Header().Set("Access-Control-Allow-Origin", pickAccessControlAllowOrigin(wc, r))
+	respJson, err := json.Marshal(data)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("cannot serialize success response: %s", err.Error()), http.StatusInternalServerError)
 	} else {
@@ -163,7 +169,7 @@ func (h *UrlHandlerInstance) qBulk(w http.ResponseWriter, r *http.Request) {
 		WriteApiError(h.L, &h.Env.CapiMqBroker, r, w, r.URL.Path, err, http.StatusInternalServerError)
 	}
 
-	WriteApiSuccess(h.L, &h.Env.CapiMqBroker, r, w, nil)
+	WriteApiDatalessSuccess(h.L, &h.Env.CapiMqBroker, r, w)
 }
 
 func (h *UrlHandlerInstance) qClaim(w http.ResponseWriter, r *http.Request) {
@@ -181,7 +187,11 @@ func (h *UrlHandlerInstance) qClaim(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	WriteApiSuccess(h.L, &h.Env.CapiMqBroker, r, w, msg.ToCapimqMessage())
+	if msg == nil {
+		WriteApiDatalessSuccess(h.L, &h.Env.CapiMqBroker, r, w)
+	}
+
+	WriteApiDataSuccess(h.L, &h.Env.CapiMqBroker, r, w, msg.ToCapimqMessage())
 }
 
 func (h *UrlHandlerInstance) wipAck(w http.ResponseWriter, r *http.Request) {
@@ -196,7 +206,7 @@ func (h *UrlHandlerInstance) wipAck(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	WriteApiSuccess(h.L, &h.Env.CapiMqBroker, r, w, nil)
+	WriteApiDatalessSuccess(h.L, &h.Env.CapiMqBroker, r, w)
 }
 
 func (h *UrlHandlerInstance) wipHeartbeat(w http.ResponseWriter, r *http.Request) {
@@ -210,7 +220,7 @@ func (h *UrlHandlerInstance) wipHeartbeat(w http.ResponseWriter, r *http.Request
 		WriteApiError(h.L, &h.Env.CapiMqBroker, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
-	WriteApiSuccess(h.L, &h.Env.CapiMqBroker, r, w, nil)
+	WriteApiDatalessSuccess(h.L, &h.Env.CapiMqBroker, r, w)
 }
 
 func (h *UrlHandlerInstance) wipReturn(w http.ResponseWriter, r *http.Request) {
@@ -225,7 +235,7 @@ func (h *UrlHandlerInstance) wipReturn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	WriteApiSuccess(h.L, &h.Env.CapiMqBroker, r, w, nil)
+	WriteApiDatalessSuccess(h.L, &h.Env.CapiMqBroker, r, w)
 }
 
 func getHeapTypeFromRequest(r *http.Request) (capimq_message_broker.HeapType, error) {
@@ -287,7 +297,7 @@ func (h *UrlHandlerInstance) count(w http.ResponseWriter, r *http.Request) {
 	}
 
 	waitRetryGroupPrefix := r.URL.Query().Get("waitRetryGroupPrefix")
-	WriteApiSuccess(h.L, &h.Env.CapiMqBroker, r, w, h.Mb.Count(heapType, waitRetryGroupPrefix))
+	WriteApiDataSuccess(h.L, &h.Env.CapiMqBroker, r, w, h.Mb.Count(heapType, waitRetryGroupPrefix))
 }
 
 func (h *UrlHandlerInstance) delete(w http.ResponseWriter, r *http.Request) {
@@ -297,7 +307,7 @@ func (h *UrlHandlerInstance) delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	waitRetryGroupPrefix := r.URL.Query().Get("waitRetryGroupPrefix")
-	WriteApiSuccess(h.L, &h.Env.CapiMqBroker, r, w, h.Mb.Delete(heapType, waitRetryGroupPrefix))
+	WriteApiDataSuccess(h.L, &h.Env.CapiMqBroker, r, w, h.Mb.Delete(heapType, waitRetryGroupPrefix))
 }
 
 func (h *UrlHandlerInstance) headTailFilter(w http.ResponseWriter, r *http.Request) {
@@ -317,10 +327,10 @@ func (h *UrlHandlerInstance) headTailFilter(w http.ResponseWriter, r *http.Reque
 		if err != nil {
 			WriteApiError(h.L, &h.Env.CapiMqBroker, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		}
-		WriteApiSuccess(h.L, &h.Env.CapiMqBroker, r, w, capimq_message_broker.ToCapimqMessages(h.Mb.HeadTail(heapType, queueRead, from, count)))
+		WriteApiDataSuccess(h.L, &h.Env.CapiMqBroker, r, w, capimq_message_broker.ToCapimqMessages(h.Mb.HeadTail(heapType, queueRead, from, count)))
 	case capimq_message_broker.QueueReadFilter:
 		waitRetryGroupPrefix := r.URL.Query().Get("waitRetryGroupPrefix")
-		WriteApiSuccess(h.L, &h.Env.CapiMqBroker, r, w, capimq_message_broker.ToCapimqMessages(h.Mb.Filter(heapType, waitRetryGroupPrefix)))
+		WriteApiDataSuccess(h.L, &h.Env.CapiMqBroker, r, w, capimq_message_broker.ToCapimqMessages(h.Mb.Filter(heapType, waitRetryGroupPrefix)))
 	default:
 		WriteApiError(h.L, &h.Env.CapiMqBroker, r, w, r.URL.Path, fmt.Errorf("unexpected queueRead %s", queueRead), http.StatusInternalServerError)
 	}
@@ -459,3 +469,4 @@ func main() {
 
 // curl -s -w "\n" -d '[{"script_url":"script1","script_params_url":"scriptparams1","ks":"ks1","run_id":1,"target_node":"node1","first_token":123,"last_token":456,"batch_idx":1,"batches_total":10},{"script_url":"script1","script_params_url":"scriptparams1","ks":"ks1","run_id":1,"target_node":"node1","first_token":457,"last_token":567,"batch_idx":2,"batches_total":10}]' -H "Content-Type: application/json" -X POST http://localhost:7654/q/bulk/
 // curl -s 'http://localhost:7654/q/count?waitRetryGroupPrefix=ks1%2F1%2Fnode1'
+// curl -s -w "\n" -d '000000-2e77b31c-7fc7-4d36-9dff-9ef06665a317' -H "Content-Type: application/json" -X POST http://localhost:7654/q/claim

@@ -1307,7 +1307,9 @@
             "desc": "Apply Python-based calculations to account holdings and txns",
             "r": {
                 "table": "account_period_activity",
-                "expected_batches_total": 500            },
+                "rowset_size": 500,
+                "expected_batches_total": 500
+            },
             "p": {
                 "python_code_urls": [
                     "{dir_py}/portfolio_test_company_info_provider.py",

@@ -179,7 +179,7 @@ func main() {
 			// envConfig.ThreadPoolSize goroutines run simultaneously
 			go func(innerLogger *l.CapiLogger, wfmodelMsg *wfmodel.Message, acknowledgerChannel chan mq.AknowledgerToken) {
 				var heartbeatCallback func(string, string)
-				if asyncConsumer.SupportsHearbeat() {
+				if asyncConsumer.SupportsHeartbeat() {
 					heartbeatCallback = func(wfmodelMsgId string, wfmodelMsgWaitRetryGroup string) {
 						acknowledgerChannel <- mq.AknowledgerToken{MsgId: wfmodelMsgId, Cmd: mq.AcknowledgerCmdHeartbeat}
 						MsgHeartbeatCounter.Inc()

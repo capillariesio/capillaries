@@ -19,6 +19,9 @@ type CapimqInternalMessage struct {
 }
 
 func (im *CapimqInternalMessage) ToCapimqMessage() *CapimqMessage {
+	if im == nil {
+		return nil
+	}
 	return &CapimqMessage{im.Id, im.CapimqWaitRetryGroup, im.Data}
 }
 
@@ -109,7 +112,6 @@ func (mb *MessageBroker) ReturnDead(deadTimeoutMillis int64) []string {
 	mb.WipMutex.Lock()
 	for _, msg := range mb.Wip {
 		if msg.Heartbeat < latestAllowedHearbit {
-			msg.Heartbeat = msg.Ts // Reset heartbeat
 			msgs = append(msgs, msg)
 		}
 	}
@@ -150,7 +152,7 @@ func (mb *MessageBroker) QBulk(msgs []*CapimqInternalMessage) error {
 	for _, msg := range msgs {
 		msg.Ts = ts
 		msg.DeliverAfter = ts
-		msg.Heartbeat = ts
+		msg.Heartbeat = 0
 		mb.Q = append(mb.Q, msg)
 	}
 
@@ -228,18 +230,21 @@ func (mb *MessageBroker) Return(id string, delay int64) error {
 
 	returnedMsg.ClaimComment = ""
 
-	if len(returnedMsg.CapimqWaitRetryGroup) > 0 {
-		newDeliverAfter := time.Now().UnixMilli() + delay
-		mb.QMutex.Lock()
-		mb.Q = append(mb.Q, returnedMsg)
+	newDeliverAfter := time.Now().UnixMilli() + delay
+
+	mb.QMutex.Lock()
+	mb.Q = append(mb.Q, returnedMsg)
+	if len(returnedMsg.CapimqWaitRetryGroup) == 0 {
+		returnedMsg.DeliverAfter = newDeliverAfter
+	} else {
 		for _, msg := range mb.Q {
 			if msg.CapimqWaitRetryGroup == returnedMsg.CapimqWaitRetryGroup {
 				msg.DeliverAfter = newDeliverAfter
 			}
 		}
 		mb.sortQ()
-		mb.QMutex.Unlock()
 	}
+	mb.QMutex.Unlock()
 
 	return nil
 }

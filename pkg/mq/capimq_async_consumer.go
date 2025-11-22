@@ -70,18 +70,28 @@ func (dc *CapimqAsyncConsumer) claim(ctx context.Context) (*wfmodel.Message, err
 		return nil, fmt.Errorf("cannot claim, HTTP response %d: %s", resp.StatusCode, string(bodyBytes))
 	}
 
-	var claimResponse capimq_message_broker.CapimqApiClaimResponse
-	if err := json.Unmarshal(bodyBytes, &claimResponse); err != nil {
+	if len(bodyBytes) == 0 || len(bodyBytes) == 4 && string(bodyBytes) == "null" {
+		// No messages to claim at the moment
+		return nil, nil
+	}
+
+	var claimResponseCapimqMessage capimq_message_broker.CapimqMessage
+	if err := json.Unmarshal(bodyBytes, &claimResponseCapimqMessage); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal CapimqApiClaimResponse, error [%s], body: %s", err.Error(), string(bodyBytes))
 	}
 
-	var wfmodelMsg wfmodel.Message
-	if err := json.Unmarshal(claimResponse.Msg.Data, &wfmodelMsg); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal CapimqApiClaimResponse.Msg.Data, error [%s], body: %s", err.Error(), string(claimResponse.Msg.Data))
+	if len(claimResponseCapimqMessage.Data) == 0 {
+		return nil, fmt.Errorf("cannot unmarshal nil CapimqMessage.Data, body length %d, id %s, wait group %s, body bytes %s", len(bodyBytes), claimResponseCapimqMessage.Id, claimResponseCapimqMessage.CapimqWaitRetryGroup, string(bodyBytes))
 	}
 
-	// Copy id just in case capimq broker overrode it (it should not!)
-	wfmodelMsg.Id = claimResponse.Msg.Id
+	var wfmodelMsg wfmodel.Message
+	if err := json.Unmarshal(claimResponseCapimqMessage.Data, &wfmodelMsg); err != nil {
+		return nil, fmt.Errorf("cannot unmarshal CapimqMessage.Data, error [%s], id %s, wait group %s, body: %s", err.Error(), claimResponseCapimqMessage.Id, claimResponseCapimqMessage.CapimqWaitRetryGroup, string(claimResponseCapimqMessage.Data))
+	}
+
+	// Copy id just in case capimq broker overrode it (it should not!), Capillaries consumer will use this id to Ack/Retry/Heartbeat
+	// And no, Capillaries consumers are not interested in claimResponseCapimqMessage.CapimqWaitRetryGroup
+	wfmodelMsg.Id = claimResponseCapimqMessage.Id
 
 	return &wfmodelMsg, nil
 }
@@ -280,7 +290,7 @@ func (dc *CapimqAsyncConsumer) StopAcknowledger(logger *l.CapiLogger) error {
 
 }
 
-func (dc *CapimqAsyncConsumer) SupportsHearbeat() bool {
+func (dc *CapimqAsyncConsumer) SupportsHeartbeat() bool {
 	return true
 }
 

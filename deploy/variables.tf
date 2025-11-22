@@ -239,16 +239,16 @@ variable "capimq_broker_max_messages" {
 
 variable "capimq_broker_returned_delivery_delay" {
 	type        = number
-	default     = 500
+	default     = 500 # Millis
 }
 variable "capimq_broker_dead_after_no_heartbeat_timeout" {
 	type        = number
-	default     = 10000
+	default     = 20000 # Millis
 }
 
 variable "capimq_client_heartbeat_interval" {
 	type        = number
-	default     = 1000
+	default     = 500 # Millis
 }
 
 variable "internal_bastion_ip" {
@@ -275,6 +275,21 @@ variable "daemon_gogc" {
 	type        = string
 	description = "GOGC env var for daemon, usually 100"
     default     = "100"
+}
+
+variable "webapi_prometheus_exporter_port" {
+	type        = string
+	default     = "9200"
+}
+
+variable "daemon_prometheus_exporter_port" {
+	type        = string
+	default     = "9201" # Traditionally, on devbox we run two Docker containers with daemons using ports 9201 and 9202 
+}
+
+variable "capimq_prometheus_exporter_port" {
+	type        = string
+	default     = "9205"
 }
 
 variable "cassandra_port" {
@@ -495,7 +510,9 @@ locals {
 										[ for i in range(var.number_of_cassandra_hosts) : format("'10.5.0.%02s:9100'", i+11) ], // cassandra node exporters
 										[ for i in range(var.number_of_daemons) : format("'10.5.0.1%02s:9100'", i+1) ])) // daemon node expoters
     prometheus_jmx_targets     = join(",", [ for i in range(var.number_of_cassandra_hosts) : format("'10.5.0.%02s:7070'", i+11) ]) // cassandra JMX exporters
-    prometheus_go_targets      = join(",", concat( ["'localhost:9200'"], [ for i in range(var.number_of_daemons) : format("'10.5.0.1%02s:9200'", i+1) ])) // webapi and daemon go exporters
+    prometheus_go_targets      = join(",", concat(
+											[format("'localhost:%s'",var.webapi_prometheus_exporter_port), format("'localhost:%s'", var.capimq_prometheus_exporter_port) ],
+											[ for i in range(var.number_of_daemons) : format("'10.5.0.1%02s:%s'", i+1, var.daemon_prometheus_exporter_port) ])) // webapi, capimq and daemon go exporters
 	daemon_thread_pool_size    = ceil(var.cpu_count_map[var.daemon_instance_type] * var.daemon_thread_pool_factor )
 	daemon_gomemlimit_gb       = ceil(var.instance_memory_map[var.daemon_instance_type] * 0.75 ) // Let daemon use half of RAM, GOGC=100 will probably take it to 70%, and we also need some memory to run Python
 	webapi_gomemlimit_gb       = ceil(var.instance_memory_map[var.bastion_instance_type] / 2 )

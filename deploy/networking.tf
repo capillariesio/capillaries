@@ -85,9 +85,18 @@ resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_bastion_prometheu
   description = "Prometheus Go webapi exporter"
   security_group_id = aws_security_group.capillaries_securitygroup_bastion.id
   cidr_ipv4         = aws_vpc.main_vpc.cidr_block
-  from_port         = 9200
+  from_port         = var.webapi_prometheus_exporter_port
   ip_protocol       = "tcp"
-  to_port           = 9200
+  to_port           = var.webapi_prometheus_exporter_port
+}
+
+resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_bastion_prometheus_go_capimq_exporter" {
+  description = "Prometheus Go capimq exporter"
+  security_group_id = aws_security_group.capillaries_securitygroup_bastion.id
+  cidr_ipv4         = aws_vpc.main_vpc.cidr_block
+  from_port         = var.capimq_prometheus_exporter_port
+  ip_protocol       = "tcp"
+  to_port           = var.capimq_prometheus_exporter_port
 }
 
 resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_bastion_capimq_broker_internal" {
@@ -177,9 +186,9 @@ resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_private_prometheu
   description = "Prometheus Go daemon exporter"
   security_group_id = aws_security_group.capillaries_securitygroup_private.id
   cidr_ipv4         = aws_vpc.main_vpc.cidr_block
-  from_port         = 9200
+  from_port         = var.daemon_prometheus_exporter_port
   ip_protocol       = "tcp"
-  to_port           = 9200
+  to_port           = var.daemon_prometheus_exporter_port
 }
 
 resource "aws_vpc_security_group_ingress_rule" "capillaries_sg_private_jmx_exporter" {
