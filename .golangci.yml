@@ -79,9 +79,9 @@ linters:
       - path: .+\.go
         text: "(QF1003: could use tagged switch)|(QF1001: could apply De Morgan)"
         linters: [ staticcheck ]
-      # - path: pkg\/xfer\/ssh\.go
-      #   text: "SA1019: x509.IsEncryptedPEMBlock|SA1019: x509.DecryptPEMBlock"
-      #   linters: [ staticcheck ]
+      - path: pkg\/xfer\/ssh\.go
+        text: "SA1019: x509.IsEncryptedPEMBlock|SA1019: x509.DecryptPEMBlock"
+        linters: [ staticcheck ]
 
       - path: .+\.go
         text: Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Sync|.*Flush|os\.Remove(All)?|.*print(f|ln)?|os\.(Un)?Setenv). is not checked
