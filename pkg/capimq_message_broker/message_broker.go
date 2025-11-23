@@ -54,7 +54,7 @@ func StringToHeapType(qOrWip string) (HeapType, error) {
 	case string(HeapTypeQ):
 		return HeapTypeQ, nil
 	case string(HeapTypeWip):
-		return HeapTypeQ, nil
+		return HeapTypeWip, nil
 	default:
 		return HeapTypeUnknown, fmt.Errorf("invalid heap type %s", qOrWip)
 	}
@@ -106,12 +106,12 @@ func (mb *MessageBroker) sortQ() {
 }
 
 func (mb *MessageBroker) ReturnDead(deadTimeoutMillis int64) []string {
-	latestAllowedHearbit := time.Now().UnixMilli() - deadTimeoutMillis
+	latestAllowedHeartbit := time.Now().UnixMilli() - deadTimeoutMillis
 	msgs := make([]*CapimqInternalMessage, 0)
 
 	mb.WipMutex.Lock()
 	for _, msg := range mb.Wip {
-		if msg.Heartbeat < latestAllowedHearbit {
+		if msg.Heartbeat < latestAllowedHeartbit {
 			msgs = append(msgs, msg)
 		}
 	}
@@ -132,7 +132,7 @@ func (mb *MessageBroker) ReturnDead(deadTimeoutMillis int64) []string {
 	msgDescs := make([]string, len(msgs))
 	for i, msg := range msgs {
 		// id,ks/run/node/batch,overstayMillis
-		msgDescs[i] = fmt.Sprintf("%s %s %d", msg.Id, msg.CapimqWaitRetryGroup, latestAllowedHearbit-msg.Heartbeat)
+		msgDescs[i] = fmt.Sprintf("%s %s %d", msg.Id, msg.CapimqWaitRetryGroup, latestAllowedHeartbit-msg.Heartbeat)
 	}
 
 	return msgDescs
@@ -197,7 +197,7 @@ func (mb *MessageBroker) Ack(id string) error {
 	_, ok := mb.Wip[id]
 	if !ok {
 		mb.WipMutex.Unlock()
-		return fmt.Errorf("cannot ack, message with id %s not found in wip", id)
+		return fmt.Errorf("cannot ack, message with id %s not found in wip, it probably was acked already by another client, or was declared dead because the lack of heartbeats", id)
 	}
 	delete(mb.Wip, id)
 	mb.WipMutex.Unlock()
@@ -210,7 +210,7 @@ func (mb *MessageBroker) Heartbeat(id string) error {
 	msg, ok := mb.Wip[id]
 	if !ok {
 		mb.WipMutex.Unlock()
-		return fmt.Errorf("cannot heartbeat, message with id %s not found in wip", id)
+		return fmt.Errorf("cannot heartbeat, message with id %s not found in wip, it probably was acked already by another client, or was declared dead because the lack of heartbeats", id)
 	}
 	msg.Heartbeat = time.Now().UnixMilli()
 	mb.WipMutex.Unlock()
@@ -223,7 +223,7 @@ func (mb *MessageBroker) Return(id string, delay int64) error {
 	returnedMsg, ok := mb.Wip[id]
 	if !ok {
 		mb.WipMutex.Unlock()
-		return fmt.Errorf("cannot return, message with id %s not found in wip", id)
+		return fmt.Errorf("cannot return, message with id %s not found in wip, it probably was acked already by another client, or was declared dead because the lack of heartbeats", id)
 	}
 	delete(mb.Wip, id)
 	mb.WipMutex.Unlock()

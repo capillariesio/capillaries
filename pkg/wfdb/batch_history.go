@@ -13,7 +13,7 @@ import (
 	"github.com/gocql/gocql"
 )
 
-func HarvestLastStatusForBatch(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) (wfmodel.NodeBatchStatusType, error) {
+func HarvestLastStatusForBatch(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) (wfmodel.NodeBatchStatusType, time.Time, error) {
 	logger.PushF("wfdb.HarvestLastStatusForBatch")
 	defer logger.PopF()
 
@@ -26,7 +26,7 @@ func HarvestLastStatusForBatch(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 		Select(wfmodel.TableNameBatchHistory, fields)
 	rows, err := pCtx.CqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		return wfmodel.NodeBatchNone, db.WrapDbErrorWithQuery(fmt.Sprintf("HarvestLastStatusForBatch: cannot get batch history for batch %s", pCtx.Msg.FullBatchId()), q, err)
+		return wfmodel.NodeBatchNone, time.Unix(0, 0), db.WrapDbErrorWithQuery(fmt.Sprintf("HarvestLastStatusForBatch: cannot get batch history for batch %s", pCtx.Msg.FullBatchId()), q, err)
 	}
 
 	lastStatus := wfmodel.NodeBatchNone
@@ -34,7 +34,7 @@ func HarvestLastStatusForBatch(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 	for _, r := range rows {
 		rec, err := wfmodel.NewBatchHistoryEventFromMap(r, fields)
 		if err != nil {
-			return wfmodel.NodeBatchNone, fmt.Errorf("HarvestLastStatusForBatch: : cannot deserialize batch history row: %s, %s", err.Error(), q)
+			return wfmodel.NodeBatchNone, time.Unix(0, 0), fmt.Errorf("HarvestLastStatusForBatch: : cannot deserialize batch history row: %s, %s", err.Error(), q)
 		}
 
 		if rec.Ts.After(lastTs) {
@@ -44,7 +44,7 @@ func HarvestLastStatusForBatch(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 	}
 
 	logger.DebugCtx(pCtx, "batch %s, status %s", pCtx.Msg.FullBatchId(), lastStatus.ToString())
-	return lastStatus, nil
+	return lastStatus, lastTs, nil
 }
 
 func GetRunNodeBatchHistory(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16, nodeName string) ([]*wfmodel.BatchHistoryEvent, error) {

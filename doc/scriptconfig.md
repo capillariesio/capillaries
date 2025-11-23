@@ -87,6 +87,11 @@ This data example is possible for the **non-unique** idx scenario as rowid is a 
 
 For the **unique** index scenario ([rowid](glossary.md#rowid) is not a clustered key, so the key field must be unique), the second handler would throw an error when trying to insert the second index record. There is no way we can distinguish between this scenario (which is a valid case if a re-run happened) and the duplicate key error scenario (in which we should stop processing and complain about a duplicate key). But, since key fields are unique in this scenario, Capillaries have the luxury of cleaning up batch leftovers in the [index table](glossary.md#index-table) by key value, not by [rowid](glossary.md#rowid). So, the second handler simply deletes all index records with key 'aaa' during the cleanup, without paying attention to [rowid](glossary.md#rowid).
 
+### max_batch_processing_time
+Processor A may start a batch, mark it as NodeBatchStart and then crash without sending Ack or Retry. Correspondent message will be picked up by another processor B.
+Processor B will need to clean up the results for this batch in the database. If, for some reason, processor A is still active and writing data to the database, data will end up wrong and/or a "duplicate record" error will occur. To mitigate this issue, before cleanup, processor B gives processor A max_batch_processing_time milliseconds to finish processing this batch.
+
+Default: 1 min
 
 ### r - reader
 Configures table or file reader, depending on the [processor type](glossary.md#processor-types)
@@ -96,17 +101,21 @@ Table reader only. Name of the [data table](glossary.md#table) to read from.
 
 #### r.expected_batches_total
 Table reader only. Number of data batches to supply to the node in parallel. Choose these settings according to your hardware environment specifics. Things to keep in mind:
+
 - each batch will be triggered by a separate RabbitMQ message
 - data for each batch will be read in a single worker thread and, if result written to a table (not file), written multiple writer threads
+
 What is a good size of a batch? Really depends on your specific case, but:
+
 - it doesn't make sense making it smaller than total amount of CPU cores on your daemon instances (otherwise, some daemon worker threads may end up without work while other threads are overloaded)
-- it doesn't make sense making it many times bigger that the expected number of data items to be read (otherwise, you will end up with a lot of batches that does not contain items, anddaemon worker threads will have to handle those empty batches without producing useful results)
+- it doesn't make sense making it many times bigger that the expected number of data items to be read (otherwise, you will end up with a lot of batches that does not contain items, and daemon worker threads will have to handle those empty batches without producing useful results)
+
 If it helps, there is an analogy: hash table load factor, which ideally is supposed to be between 0.6 and 0.75. In our case, the load factor is calculated as total_number_of_items_to_be_read/expected_batches_total.
 
 Default: 1 (no [parallelism](glossary.md#parallellism)).
 
 #### r.rowset_size
-Table reader only. The number of data rows to read from the source table at once when processing the batch.
+Table reader only. The number of data rows to read from the source table at once when processing the batch. Big values may lead to memory overflow.
 
 Default: 1000
 

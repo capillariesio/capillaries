@@ -34,13 +34,19 @@ variable "number_of_cassandra_hosts" {
 	default     = 4
 }
 
+variable "mq_type" {
+	type        = string
+	description = "capimq, amqp10"
+	default     = "amqp10"
+}
+
 variable "amqp10_server_flavor" {
 	type        = string
-	description = "rabbitmq, artemis, classic, capimq"
+	description = "rabbitmq, artemis, classic"
 	default     = "rabbitmq"
 	validation  {
-		condition = contains (["rabbitmq", "activemq-classic", "activemq-artemis", "capimq"], var.amqp10_server_flavor)
-		error_message = "amqp10_server_flavor must be rabbitmq, activemq-classic, activemq-artemis, capimq"
+		condition = contains (["rabbitmq", "activemq-classic", "activemq-artemis"], var.amqp10_server_flavor)
+		error_message = "amqp10_server_flavor must be rabbitmq, activemq-classic, activemq-artemis"
 	}
 }
 
@@ -69,7 +75,7 @@ variable "cassandra_ami_name" {
     default     = "ami-04474687c34a061cf"
 }
 
-# When changing, make sure to also change in binaries_upload.sh
+# When changing, make sure to also change in upload_dependencies.sh
 variable "amqp10_flavor_version_map" {
   type = map(string)
   default = {
@@ -79,7 +85,7 @@ variable "amqp10_flavor_version_map" {
   }
 }
 
-# When changing, make sure to also change in binaries_upload.sh
+# When changing, make sure to also change in upload_dependencies.sh
 variable "rabbitmq_erlang_version" {
 	type        = string
 	description = "Erlang from cloudamqp"
@@ -91,7 +97,7 @@ variable "prometheus_node_exporter_version" {
 	default     = "1.9.1"
 }
 
-# When changing, make sure to also change in binaries_upload.sh
+# When changing, make sure to also change in upload_dependencies.sh
 variable "prometheus_server_version" {
 	type        = string
 	default     = "3.7.0"
@@ -216,12 +222,6 @@ variable "instance_hourly_cost" {
 # Almost never changes
 
 
-variable "mq_type" {
-	type        = string
-	description = "capimq, amqp10"
-	default     = "capimq"
-}
-
 variable "internal_capimq_broker_port" {
 	type        = string
 	default     = "7654"
@@ -243,7 +243,7 @@ variable "capimq_broker_returned_delivery_delay" {
 }
 variable "capimq_broker_dead_after_no_heartbeat_timeout" {
 	type        = number
-	default     = 20000 # Millis
+	default     = 60000 # Millis
 }
 
 variable "capimq_client_heartbeat_interval" {
@@ -255,10 +255,6 @@ variable "internal_bastion_ip" {
     type        = string
     description = "Bastion IP in the VPC"
     default     = "10.5.1.10"
-}
-
-locals {
-	os_arch = format("linux/%s", var.arch)
 }
 
 variable "ssh_user" {
@@ -500,6 +496,7 @@ variable "daemon_writer_workers" {
 }
 
 locals {
+	os_arch                    = format("linux/%s", var.arch)
 	cassandra_hosts            = join(",", [ for i in range(var.number_of_cassandra_hosts) : format("10.5.0.%02s", i+11) ])
     cassandra_initial_tokens   = var.cassandra_initial_tokens_map[var.number_of_cassandra_hosts]
 	activemq_url               = join("",  ["amqp://", var.amqp10_user_name, ":", var.amqp10_user_pass, "@10.5.1.10:5672/"])

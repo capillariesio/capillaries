@@ -303,6 +303,10 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 		custProcDur := time.Since(customProcBatchStartTime)
 		logger.InfoCtx(pCtx, "CustomProcessor: %d items in %v (%.0f items/s)", rsIn.RowCount, custProcDur, float64(rsIn.RowCount)/custProcDur.Seconds())
 
+		// The frequency of this hearbeat may not be enough, even for small rowset_size:
+		// Python calculations even for one row may take, say, a minute
+		// We cannot make heartbeats more granular here (each rowset is handled as a single Python command),
+		// so our last resort is probably to increase the dead hearbeat timeout in CapiMQ
 		instr.PCtx.SendHeartbeat()
 
 		bs.RowsRead += rsIn.RowCount

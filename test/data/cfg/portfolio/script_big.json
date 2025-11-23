@@ -1305,9 +1305,10 @@
             "type": "table_custom_tfm_table",
             "custom_proc_type": "py_calc",
             "desc": "Apply Python-based calculations to account holdings and txns",
+            "max_batch_processing_time": 120000,
             "r": {
                 "table": "account_period_activity",
-                "rowset_size": 500,
+                "rowset_size": 1000,
                 "expected_batches_total": 500
             },
             "p": {

@@ -396,7 +396,7 @@ func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.Messag
 		return nil
 	}
 
-	logger.DebugCtx(pCtx, "deleting data records for %s...", pCtx.Msg.FullBatchId())
+	logger.WarnCtx(pCtx, "deleting data records for %s...", pCtx.Msg.FullBatchId())
 
 	deleteStartTime := time.Now()
 

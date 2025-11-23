@@ -416,7 +416,7 @@ func main() {
 	var prometheusServer *http.Server
 	if envConfig.Log.PrometheusExporterPort > 0 {
 		logger.Info("listening Prometheus on %d...", envConfig.Log.PrometheusExporterPort)
-		prometheus.MustRegister(ApiSuccessHitCounter, ReturnDeadTimeoutCounter)
+		prometheus.MustRegister(ApiSuccessHitCounter, ApiErrorHitCounter, ReturnDeadTimeoutCounter)
 		prometheusServer = &http.Server{Addr: fmt.Sprintf(":%d", envConfig.Log.PrometheusExporterPort)}
 		waitGroup.Add(1)
 		go func() {

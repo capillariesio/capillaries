@@ -337,7 +337,7 @@ func checkRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, ms
 	}
 }
 
-func checkLastBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, msg *wfmodel.Message, lastBatchStatus wfmodel.NodeBatchStatusType) FurtherProcessingCmd {
+func checkLastBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, msg *wfmodel.Message, lastBatchStatus wfmodel.NodeBatchStatusType, lastBatchTs time.Time) FurtherProcessingCmd {
 	switch lastBatchStatus {
 	case wfmodel.NodeBatchFail, wfmodel.NodeBatchSuccess:
 		logger.WarnCtx(pCtx, "will not process batch %s, it has been already processed (processor crashed after processing it and before marking as success/fail?) with status %d(%s)", msg.FullBatchId(), lastBatchStatus, wfmodel.NodeBatchStatusToString(lastBatchStatus))
@@ -347,9 +347,19 @@ func checkLastBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingConte
 		return FurtherProcessingAck
 
 	case wfmodel.NodeBatchStart:
-		// This run/node/batch has been picked up by another processor that crashed before marking success/fail
+		// This run/node/batch has been already picked up by another processor that presumably crashed before marking success/fail
 		switch pCtx.CurrentScriptNode.RerunPolicy {
 		case sc.NodeRerun:
+			// We cannot be 100% sure that no other worker is currently handling this batch.
+			// Do our best: give that worker some time to complete.
+			durationToWaitMore := time.Until(lastBatchTs.Add(time.Duration(pCtx.CurrentScriptNode.MaxBatchProcessingTime) * time.Millisecond))
+
+			if durationToWaitMore > 0 {
+				logger.WarnCtx(pCtx, "will wait for another %dms until %dms timeout, some other instance may still be handling this batch", durationToWaitMore.Milliseconds(), pCtx.CurrentScriptNode.MaxBatchProcessingTime)
+				return FurtherProcessingRetry
+			}
+
+			logger.WarnCtx(pCtx, "grace period %dms for potential other client is over, we will clean up and re-rocess", pCtx.CurrentScriptNode.MaxBatchProcessingTime)
 			if deleteErr := proc.DeleteDataAndUniqueIndexesByBatchIdx(logger, pCtx); deleteErr != nil {
 				if db.IsDbConnError(deleteErr) {
 					return FurtherProcessingRetry
@@ -361,7 +371,8 @@ func checkLastBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingConte
 				}
 				return FurtherProcessingAck
 			}
-			// Clean up successful, process this node further
+
+			// Clean up successful, process this batch anew
 			return FurtherProcessingProceed
 
 		case sc.NodeFail:
@@ -472,7 +483,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wf
 
 	logger.DebugCtx(pCtx, "started processing batch %s", msg.FullBatchId())
 
-	lastBatchStatus, err := wfdb.HarvestLastStatusForBatch(logger, pCtx)
+	lastBatchStatus, lastBatchTs, err := wfdb.HarvestLastStatusForBatch(logger, pCtx)
 	if err != nil {
 		if db.IsDbConnError(err) {
 			return mq.AcknowledgerCmdRetry
@@ -481,7 +492,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wf
 	}
 
 	// Check if this run/node/batch has been handled already
-	furtherProcCmd = checkLastBatchStatus(logger, pCtx, msg, lastBatchStatus)
+	furtherProcCmd = checkLastBatchStatus(logger, pCtx, msg, lastBatchStatus, lastBatchTs)
 	switch furtherProcCmd {
 	case FurtherProcessingRetry:
 		return mq.AcknowledgerCmdRetry

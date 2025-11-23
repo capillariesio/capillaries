@@ -882,8 +882,8 @@ sudo systemctl restart activemq-artemis
 
 elif [ "$AMQP10_SERVER_FLAVOR" = "rabbitmq" ]; then
 
-curl -LOs $CAPILLARIES_RELEASE_URL/$ERLANG_FILENAME
-sudo DEBIAN_FRONTEND=noninteractive apt install -y ./$ERLANG_FILENAME
+curl -LOs $CAPILLARIES_RELEASE_URL/$RABBITMQ_ERLANG_FILENAME
+sudo DEBIAN_FRONTEND=noninteractive apt install -y ./$RABBITMQ_ERLANG_FILENAME
 if [ "$?" -ne "0" ]; then
     echo erlang install error, exiting
     exit $?
