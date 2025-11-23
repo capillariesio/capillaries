@@ -61,10 +61,10 @@ const Amqp10FullListenerChannelTimeout time.Duration = 50
 // waitForAllProcessorsToCompleteSoTheyDoNotWriteToAcknowledgerChannel
 // asyncConsumer.StopAcknowledger()
 // close(acknowledgerChannel)
-// The size of listenerChannel should correlate with the number of processor threads
-// The size of acknowledgerChannel is between 1 and any reasonale value <= number of processor threads
+// The size of listenerChannel is 1 because we want zero prefetch
+// The size of acknowledgerChannel is between 1 and any reasonale value
 type Amqp10AsyncConsumer struct {
-	url                         string
+	brokerUrl                   string
 	address                     string
 	ackMethod                   RetryMethodType
 	maxProcessors               int
@@ -77,9 +77,9 @@ type Amqp10AsyncConsumer struct {
 	amqpMessagesInHandlingMutex sync.RWMutex
 }
 
-func NewAmqp10Consumer(url string, address string, ackMethod RetryMethodType, maxProcessors int) *Amqp10AsyncConsumer {
+func NewAmqp10Consumer(brokerUrl string, address string, ackMethod RetryMethodType, maxProcessors int) *Amqp10AsyncConsumer {
 	return &Amqp10AsyncConsumer{
-		url:                         url,
+		brokerUrl:                   brokerUrl,
 		address:                     address,
 		ackMethod:                   ackMethod,
 		maxProcessors:               maxProcessors,
@@ -166,10 +166,10 @@ func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 			openCtx, openCancel := context.WithTimeout(context.Background(), Amqp10ListenerOpenTimeout*time.Millisecond)
 			// To achieve zero prefetch (to avoid a scenario when some instances are busy only retrying and other instances are working hard on relevant batches),
 			// we set link credit to -1 and perform manual flow via IssueCredit(1)
-			openErr := dc.listener.openInternal(openCtx, dc.url, dc.address, -1)
+			openErr := dc.listener.openInternal(openCtx, dc.brokerUrl, dc.address, -1)
 			openCancel()
 			if openErr != nil {
-				logger.Error("cannot reconnect to %s, address %s, credit %d: %s", dc.url, dc.address, -1, openErr.Error())
+				logger.Error("cannot reconnect to %s, address %s, credit %d: %s", dc.brokerUrl, dc.address, -1, openErr.Error())
 				time.Sleep(Amqp10ListenerReconnectTimeout * time.Millisecond)
 			}
 		}
@@ -280,8 +280,8 @@ func (dc *Amqp10AsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 		case token := <-acknowledgerChannel:
 			if !dc.acknowledger.isOpen() {
 				openCtx, openCancel := context.WithTimeout(context.Background(), Amqp10AcknowledgerOpenTimeout*time.Millisecond)
-				if err := dc.acknowledger.openInternal(openCtx, dc.url, dc.address, -1); err != nil {
-					logger.Error("cannot reconnect to %s, address %s: %s", dc.url, dc.address, err.Error())
+				if err := dc.acknowledger.openInternal(openCtx, dc.brokerUrl, dc.address, -1); err != nil {
+					logger.Error("cannot reconnect to %s, address %s: %s", dc.brokerUrl, dc.address, err.Error())
 					time.Sleep(Amqp10AcknowledgerReconnectTimeout * time.Millisecond)
 				}
 				openCancel()
