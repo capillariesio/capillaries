@@ -93,6 +93,9 @@ func NewAmqp10Consumer(url string, address string, ackMethod RetryMethodType, ma
 }
 
 func (dc *Amqp10AsyncConsumer) listenerReceive(logger *l.CapiLogger, listenerChannel chan *wfmodel.Message) {
+	logger.PushF("Amqp10AsyncConsumer.listenerReceive")
+	defer logger.Close()
+
 	issueErr := dc.listener.receiver.IssueCredit(1)
 	if issueErr != nil {
 		logger.Error("cannot issue credit to listener before receive: %s", issueErr.Error())
@@ -190,6 +193,9 @@ func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 }
 
 func (dc *Amqp10AsyncConsumer) acknowledgerAckRetry(logger *l.CapiLogger, token AknowledgerToken) {
+	logger.PushF("Amqp10AsyncConsumer.acknowledgerAckRetry")
+	defer logger.Close()
+
 	dc.amqpMessagesInHandlingMutex.RLock()
 	amqpMsg, ok := dc.amqpMessagesInHandling[token.MsgId]
 	dc.amqpMessagesInHandlingMutex.RUnlock()
