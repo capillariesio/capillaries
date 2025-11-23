@@ -425,7 +425,7 @@ func checkQueueConnectivity(envConfig *env.EnvConfig) int {
 	}
 
 	if err := mqProducer.Open(); err != nil {
-		fmt.Fprintf(os.Stderr, err.Error())
+		fmt.Fprintf(os.Stderr, "cannot open mq producer%s", err.Error())
 		return 1
 	}
 	mqProducer.Close()

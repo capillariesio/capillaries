@@ -351,6 +351,8 @@ func (mb *MessageBroker) HeadTail(heapType HeapType, queueRead QueueReadType, fr
 			msgs = append(msgs, allMsgs[i])
 			i += inc
 		}
+	default:
+		// Nada
 	}
 
 	return msgs
@@ -382,6 +384,8 @@ func (mb *MessageBroker) Filter(heapType HeapType, waitRetryGroupPrefix string) 
 			}
 			mb.WipMutex.RUnlock()
 		}
+	default:
+		// Return empty
 	}
 
 	return msgs

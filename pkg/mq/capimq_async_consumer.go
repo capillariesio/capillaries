@@ -38,9 +38,9 @@ type CapimqAsyncConsumer struct {
 	acknowledgerDone     chan bool
 }
 
-func NewCapimqConsumer(url string, clientName string, maxProcessors int) *CapimqAsyncConsumer {
+func NewCapimqConsumer(brokerUrl string, clientName string, maxProcessors int) *CapimqAsyncConsumer {
 	return &CapimqAsyncConsumer{
-		url:                  url,
+		url:                  brokerUrl,
 		clientName:           clientName,
 		maxProcessors:        maxProcessors,
 		listenerStopping:     false,
@@ -226,6 +226,8 @@ func (dc *CapimqAsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 					logger.Error("cannot send heartbeat, msg %s: %s", token.MsgId, ackErr.Error())
 					continue
 				}
+			default:
+				logger.Error("unexpected token.Cmd %d", token.Cmd)
 			}
 		case <-timeoutChannel:
 			// Biz as usual, check for acknowledgerStopping and select again if still in the loop
@@ -254,7 +256,7 @@ func (dc *CapimqAsyncConsumer) Start(logger *l.CapiLogger, listenerChannel chan 
 
 }
 
-func (dc *CapimqAsyncConsumer) StopListener(logger *l.CapiLogger) error {
+func (dc *CapimqAsyncConsumer) StopListener() error {
 	dc.listenerStopping = true
 
 	timeoutChannel := make(chan bool, 1)
@@ -267,12 +269,12 @@ func (dc *CapimqAsyncConsumer) StopListener(logger *l.CapiLogger) error {
 		// Happy path, the caller can close the listener channel
 		return nil
 	case <-timeoutChannel:
-		return fmt.Errorf("cannot stop Listener gracefully, caller closing Listener channel may result in panic")
+		return errors.New("cannot stop Listener gracefully, caller closing Listener channel may result in panic")
 	}
 
 }
 
-func (dc *CapimqAsyncConsumer) StopAcknowledger(logger *l.CapiLogger) error {
+func (dc *CapimqAsyncConsumer) StopAcknowledger() error {
 	dc.acknowledgerStopping = true
 
 	timeoutChannel := make(chan bool, 1)
@@ -285,7 +287,7 @@ func (dc *CapimqAsyncConsumer) StopAcknowledger(logger *l.CapiLogger) error {
 		// Happy path, the caller can close the Acknowledger channel
 		return nil
 	case <-timeoutChannel:
-		return fmt.Errorf("cannot stop Acknowledger gracefully, caller closing Acknowledger channel may result in panic")
+		return errors.New("cannot stop Acknowledger gracefully, caller closing Acknowledger channel may result in panic")
 	}
 
 }

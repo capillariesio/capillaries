@@ -92,6 +92,61 @@ func NewAmqp10Consumer(url string, address string, ackMethod RetryMethodType, ma
 	}
 }
 
+func (dc *Amqp10AsyncConsumer) listenerReceive(logger *l.CapiLogger, listenerChannel chan *wfmodel.Message) {
+	issueErr := dc.listener.receiver.IssueCredit(1)
+	if issueErr != nil {
+		logger.Error("cannot issue credit to listener before receive: %s", issueErr.Error())
+		// We cannot proceed without topping-up the credit, so reconnect
+		closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ListenerCloseTimeout*time.Millisecond)
+		if err := dc.listener.closeInternal(closeCtx); err != nil {
+			logger.Error("cannot properly close after failed issueCredit before receive: %s", err.Error())
+		}
+		closeCancel()
+	} else {
+		recCtx, recCancel := context.WithTimeout(context.Background(), Amqp10ListenerReceiveTimeout*time.Millisecond)
+		// Fun fact: go-amqp receiver.Receive() with no credit returns context.DeadlineExceeded, not amqp:link:transfer-limit-exceeded or resource-limit-exceeded.
+		amqpMsg, recErr := dc.listener.receiver.Receive(recCtx, nil)
+		recCancel()
+		if recErr == nil {
+			var wfmodelMsg wfmodel.Message
+			if err := json.Unmarshal(slices.Concat(amqpMsg.Data...), &wfmodelMsg); err != nil {
+				logger.Error("cannot unmarshal wfmodel.Message, will ack this mq message: %s, %v", err.Error(), amqpMsg)
+				ackCtx, ackCancel := context.WithTimeout(context.Background(), Amqp10ListenerAckTimeout*time.Millisecond)
+				if err = dc.listener.receiver.AcceptMessage(ackCtx, amqpMsg); err != nil {
+					logger.Error("cannot ack unmarshaled mq message, will abandon it: %s", err.Error())
+				}
+				ackCancel()
+			} else {
+				dc.amqpMessagesInHandlingMutex.Lock()
+				dc.amqpMessagesInHandling[wfmodelMsg.Id] = amqpMsg
+				dc.amqpMessagesInHandlingMutex.Unlock()
+				// WARNING: make sure the caller does not close listenerChannel before listenerWorker() completes
+				listenerChannel <- &wfmodelMsg
+				dc.activeProcessors.Add(1)
+			}
+
+		} else {
+			if recErr != context.DeadlineExceeded {
+				connError := &amqp10.ConnError{}
+				sessionError := &amqp10.SessionError{}
+				linkError := &amqp10.LinkError{}
+				if errors.As(recErr, &connError) || errors.As(recErr, &sessionError) || errors.As(recErr, &linkError) {
+					// Connectivity error or RabbitMQ complaining about queue not found (linkError)
+					logger.Error("cannot receive, connectivity error: %s", recErr.Error())
+				} else {
+					logger.Error("cannot receive, unknown error: %s", recErr.Error())
+				}
+				closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ListenerCloseTimeout*time.Millisecond)
+				if err := dc.listener.closeInternal(closeCtx); err != nil {
+					logger.Error("cannot properly close after failed receive: %s", err.Error())
+				}
+				closeCancel()
+			}
+			time.Sleep(Amqp10FullListenerChannelTimeout * time.Millisecond)
+		}
+	}
+}
+
 func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChannel chan *wfmodel.Message) {
 	logger.PushF("Amqp10AsyncConsumer.listenerWorker")
 	defer logger.Close()
@@ -108,7 +163,7 @@ func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 			openCtx, openCancel := context.WithTimeout(context.Background(), Amqp10ListenerOpenTimeout*time.Millisecond)
 			// To achieve zero prefetch (to avoid a scenario when some instances are busy only retrying and other instances are working hard on relevant batches),
 			// we set link credit to -1 and perform manual flow via IssueCredit(1)
-			openErr := dc.listener.open(openCtx, dc.url, dc.address, -1)
+			openErr := dc.listener.openInternal(openCtx, dc.url, dc.address, -1)
 			openCancel()
 			if openErr != nil {
 				logger.Error("cannot reconnect to %s, address %s, credit %d: %s", dc.url, dc.address, -1, openErr.Error())
@@ -117,65 +172,14 @@ func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 		}
 
 		if dc.listener.isOpen() {
-			issueErr := dc.listener.receiver.IssueCredit(1)
-			if issueErr != nil {
-				logger.Error("cannot issue credit to listener before receive: %s", issueErr.Error())
-				// We cannot proceed without topping-up the credit, so reconnect
-				closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ListenerCloseTimeout*time.Millisecond)
-				if err := dc.listener.close(closeCtx); err != nil {
-					logger.Error("cannot properly close after failed issueCredit before receive: %s", err.Error())
-				}
-				closeCancel()
-			} else {
-				recCtx, recCancel := context.WithTimeout(context.Background(), Amqp10ListenerReceiveTimeout*time.Millisecond)
-				// Fun fact: go-amqp receiver.Receive() with no credit returns context.DeadlineExceeded, not amqp:link:transfer-limit-exceeded or resource-limit-exceeded.
-				amqpMsg, recErr := dc.listener.receiver.Receive(recCtx, nil)
-				recCancel()
-				if recErr == nil {
-					var wfmodelMsg wfmodel.Message
-					if err := json.Unmarshal(slices.Concat(amqpMsg.Data...), &wfmodelMsg); err != nil {
-						logger.Error("cannot unmarshal wfmodel.Message, will ack this mq message: %s, %v", err.Error(), amqpMsg)
-						ackCtx, ackCancel := context.WithTimeout(context.Background(), Amqp10ListenerAckTimeout*time.Millisecond)
-						if err = dc.listener.receiver.AcceptMessage(ackCtx, amqpMsg); err != nil {
-							logger.Error("cannot ack unmarshaled mq message, will abandon it: %s", err.Error())
-						}
-						ackCancel()
-					} else {
-						dc.amqpMessagesInHandlingMutex.Lock()
-						dc.amqpMessagesInHandling[wfmodelMsg.Id] = amqpMsg
-						dc.amqpMessagesInHandlingMutex.Unlock()
-						// WARNING: make sure the caller does not close listenerChannel before listenerWorker() completes
-						listenerChannel <- &wfmodelMsg
-						dc.activeProcessors.Add(1)
-					}
-
-				} else {
-					if recErr != context.DeadlineExceeded {
-						connError := &amqp10.ConnError{}
-						sessionError := &amqp10.SessionError{}
-						linkError := &amqp10.LinkError{}
-						if errors.As(recErr, &connError) || errors.As(recErr, &sessionError) || errors.As(recErr, &linkError) {
-							// Connectivity error or RabbitMQ complaining about queue not found (linkError)
-							logger.Error("cannot receive, connectivity error: %s", recErr.Error())
-						} else {
-							logger.Error("cannot receive, unknown error: %s", recErr.Error())
-						}
-						closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ListenerCloseTimeout*time.Millisecond)
-						if err := dc.listener.close(closeCtx); err != nil {
-							logger.Error("cannot properly close after failed receive: %s", err.Error())
-						}
-						closeCancel()
-					}
-					time.Sleep(Amqp10FullListenerChannelTimeout * time.Millisecond)
-				}
-			}
+			dc.listenerReceive(logger, listenerChannel)
 		}
 	}
 
 	// Cleanup on exit
 	if dc.listener.isOpen() {
 		closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ListenerCloseTimeout*time.Millisecond)
-		if err := dc.listener.close(closeCtx); err != nil {
+		if err := dc.listener.closeInternal(closeCtx); err != nil {
 			logger.Error("cannot properly close on exit: %s", err.Error())
 		}
 		closeCancel()
@@ -183,6 +187,76 @@ func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 
 	// Signal that listener is done
 	dc.listener.done <- true
+}
+
+func (dc *Amqp10AsyncConsumer) acknowledgerAckRetry(logger *l.CapiLogger, token AknowledgerToken) {
+	dc.amqpMessagesInHandlingMutex.RLock()
+	amqpMsg, ok := dc.amqpMessagesInHandling[token.MsgId]
+	dc.amqpMessagesInHandlingMutex.RUnlock()
+	if ok {
+		ackCtx, ackCancel := context.WithTimeout(context.Background(), Amqp10AcknowledgerAckTimeout*time.Millisecond)
+		var ackError error
+		switch token.Cmd {
+		case AcknowledgerCmdAck:
+			dc.amqpMessagesInHandlingMutex.Lock()
+			delete(dc.amqpMessagesInHandling, token.MsgId)
+			dc.amqpMessagesInHandlingMutex.Unlock()
+			if ackError = dc.acknowledger.receiver.AcceptMessage(ackCtx, amqpMsg); ackError != nil {
+				logger.Error("cannot ack, expect some daemon instance to perform DeleteDataAndUniqueIndexesByBatchIdx for %s: %s", token.MsgId, ackError.Error())
+			}
+		case AcknowledgerCmdRetry:
+			// ActiveMQ Artemis:
+			// - Reject makes Artemis put the msg to DLQ without honoring redelivery-delay or discard it (if no DLQ configured) regardless of other settings
+			// - Release works
+			// For troubleshooting, whatch for Artemis warnings:
+			// - AMQ222149: Sending message ... to Dead Letter Address DLQ from ...
+			// - AMQ222150: Sending message ... to Dead Letter Address, but there is no Dead Letter Address configured for queue ... so dropping it
+			// ActiveMQ classic:
+			// - Reject works
+			// - Release does not trigger configured redeliveryPlugin (see ./test/docker/activemq/classic/activemq.xml)
+			// RabbitMQ 4:
+			// - Reject works, see some details About Release/Reject at https://www.rabbitmq.com/docs/amqp
+			// - Release does not trigger the dead letter queue process configured in docker-compose.yml
+			dc.amqpMessagesInHandlingMutex.Lock()
+			delete(dc.amqpMessagesInHandling, token.MsgId)
+			dc.amqpMessagesInHandlingMutex.Unlock()
+			switch dc.ackMethod {
+			case RetryMethodReject:
+				if ackError = dc.acknowledger.receiver.RejectMessage(ackCtx, amqpMsg, &amqp10.Error{Condition: amqp10.ErrCondInternalError, Description: fmt.Sprintf("capidaemon %s asked to retry", logger.ZapMachine.String)}); ackError != nil {
+					logger.Error("cannot retry(reject), expect some daemon instance to perform DeleteDataAndUniqueIndexesByBatchIdx for %s: %s", token.MsgId, ackError.Error())
+				}
+			case RetryMethodRelease:
+				if ackError = dc.acknowledger.receiver.ReleaseMessage(ackCtx, amqpMsg); ackError != nil {
+					logger.Error("cannot retry(release), expect some daemon instance to perform DeleteDataAndUniqueIndexesByBatchIdx for %s: %s", token.MsgId, ackError.Error())
+				}
+			default:
+				logger.Error("invalid retry_method configuration: %s", dc.ackMethod)
+			}
+		case AcknowledgerCmdHeartbeat:
+			logger.Error("unexpected acknowledger heartbeat cmd, it is not supported by AMQP message brokers")
+		default:
+			logger.Error("unexpected acknowledger cmd %d", token.Cmd)
+		}
+		ackCancel()
+
+		if ackError != nil {
+			connError := &amqp10.ConnError{}
+			sessionError := &amqp10.SessionError{}
+			linkError := &amqp10.LinkError{}
+			if errors.As(ackError, &connError) || errors.As(ackError, &sessionError) || errors.As(ackError, &linkError) {
+				// Biz as usual, do not bother logging here, open() call above will log an error if any
+				closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10AcknowledgerCloseTimeout*time.Millisecond)
+				if err := dc.acknowledger.closeInternal(closeCtx); err != nil {
+					logger.Error("cannot properly close after failed ack/release: %s", err.Error())
+				}
+				closeCancel()
+			} else if ackError != context.DeadlineExceeded {
+				logger.Error("cannot ack/retry, unknown error, will not reconnect: %s", ackError.Error())
+			}
+		}
+	} else {
+		logger.Error("aknowledger cannot find message: %s", token.MsgId)
+	}
 }
 
 func (dc *Amqp10AsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowledgerChannel chan AknowledgerToken) {
@@ -200,80 +274,14 @@ func (dc *Amqp10AsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 		case token := <-acknowledgerChannel:
 			if !dc.acknowledger.isOpen() {
 				openCtx, openCancel := context.WithTimeout(context.Background(), Amqp10AcknowledgerOpenTimeout*time.Millisecond)
-				if err := dc.acknowledger.open(openCtx, dc.url, dc.address, -1); err != nil {
+				if err := dc.acknowledger.openInternal(openCtx, dc.url, dc.address, -1); err != nil {
 					logger.Error("cannot reconnect to %s, address %s: %s", dc.url, dc.address, err.Error())
 					time.Sleep(Amqp10AcknowledgerReconnectTimeout * time.Millisecond)
 				}
 				openCancel()
 			}
 			if dc.acknowledger.isOpen() {
-				dc.amqpMessagesInHandlingMutex.RLock()
-				amqpMsg, ok := dc.amqpMessagesInHandling[token.MsgId]
-				dc.amqpMessagesInHandlingMutex.RUnlock()
-				if ok {
-					ackCtx, ackCancel := context.WithTimeout(context.Background(), Amqp10AcknowledgerAckTimeout*time.Millisecond)
-					var ackError error
-					switch token.Cmd {
-					case AcknowledgerCmdAck:
-						dc.amqpMessagesInHandlingMutex.Lock()
-						delete(dc.amqpMessagesInHandling, token.MsgId)
-						dc.amqpMessagesInHandlingMutex.Unlock()
-						if ackError = dc.acknowledger.receiver.AcceptMessage(ackCtx, amqpMsg); ackError != nil {
-							logger.Error("cannot ack, expect some daemon instance to perform DeleteDataAndUniqueIndexesByBatchIdx for %s: %s", token.MsgId, ackError.Error())
-						}
-					case AcknowledgerCmdRetry:
-						// ActiveMQ Artemis:
-						// - Reject makes Artemis put the msg to DLQ without honoring redelivery-delay or discard it (if no DLQ configured) regardless of other settings
-						// - Release works
-						// For troubleshooting, whatch for Artemis warnings:
-						// - AMQ222149: Sending message ... to Dead Letter Address DLQ from ...
-						// - AMQ222150: Sending message ... to Dead Letter Address, but there is no Dead Letter Address configured for queue ... so dropping it
-						// ActiveMQ classic:
-						// - Reject works
-						// - Release does not trigger configured redeliveryPlugin (see ./test/docker/activemq/classic/activemq.xml)
-						// RabbitMQ 4:
-						// - Reject works, see some details About Release/Reject at https://www.rabbitmq.com/docs/amqp
-						// - Release does not trigger the dead letter queue process configured in docker-compose.yml
-						dc.amqpMessagesInHandlingMutex.Lock()
-						delete(dc.amqpMessagesInHandling, token.MsgId)
-						dc.amqpMessagesInHandlingMutex.Unlock()
-						switch dc.ackMethod {
-						case RetryMethodReject:
-							if ackError = dc.acknowledger.receiver.RejectMessage(ackCtx, amqpMsg, &amqp10.Error{Condition: amqp10.ErrCondInternalError, Description: fmt.Sprintf("capidaemon %s asked to retry", logger.ZapMachine.String)}); ackError != nil {
-								logger.Error("cannot retry(reject), expect some daemon instance to perform DeleteDataAndUniqueIndexesByBatchIdx for %s: %s", token.MsgId, ackError.Error())
-							}
-						case RetryMethodRelease:
-							if ackError = dc.acknowledger.receiver.ReleaseMessage(ackCtx, amqpMsg); ackError != nil {
-								logger.Error("cannot retry(release), expect some daemon instance to perform DeleteDataAndUniqueIndexesByBatchIdx for %s: %s", token.MsgId, ackError.Error())
-							}
-						default:
-							logger.Error("invalid retry_method configuration: %s", dc.ackMethod)
-						}
-					case AcknowledgerCmdHeartbeat:
-						logger.Error("unexpected acknowledger heartbeat cmd, it is not supported by AMQP message brokers")
-					default:
-						logger.Error("unexpected acknowledger cmd %d", token.Cmd)
-					}
-					ackCancel()
-
-					if ackError != nil {
-						connError := &amqp10.ConnError{}
-						sessionError := &amqp10.SessionError{}
-						linkError := &amqp10.LinkError{}
-						if errors.As(ackError, &connError) || errors.As(ackError, &sessionError) || errors.As(ackError, &linkError) {
-							// Biz as usual, do not bother logging here, open() call above will log an error if any
-							closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10AcknowledgerCloseTimeout*time.Millisecond)
-							if err := dc.acknowledger.close(closeCtx); err != nil {
-								logger.Error("cannot properly close after failed ack/release: %s", err.Error())
-							}
-							closeCancel()
-						} else if ackError != context.DeadlineExceeded {
-							logger.Error("cannot ack/retry, unknown error, will not reconnect: %s", ackError.Error())
-						}
-					}
-				} else {
-					logger.Error("aknowledger cannot find message: %s", token.MsgId)
-				}
+				dc.acknowledgerAckRetry(logger, token)
 			}
 		case <-timeoutChannel:
 			// Biz as usual, check for acknowledgerStopping and select again if still in the loop
@@ -284,7 +292,7 @@ func (dc *Amqp10AsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 	// Cleanup on exit
 	if dc.acknowledger.isOpen() {
 		closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10AcknowledgerCloseTimeout*time.Millisecond)
-		if err := dc.acknowledger.close(closeCtx); err != nil {
+		if err := dc.acknowledger.closeInternal(closeCtx); err != nil {
 			logger.Error("cannot properly close on exit: %s", err.Error())
 		}
 		closeCancel()
@@ -310,7 +318,7 @@ func (dc *Amqp10AsyncConsumer) Start(logger *l.CapiLogger, listenerChannel chan 
 	return nil
 }
 
-func (dc *Amqp10AsyncConsumer) StopListener(logger *l.CapiLogger) error {
+func (dc *Amqp10AsyncConsumer) StopListener() error {
 	dc.listenerStopping = true
 
 	timeoutChannel := make(chan bool, 1)
@@ -323,11 +331,11 @@ func (dc *Amqp10AsyncConsumer) StopListener(logger *l.CapiLogger) error {
 		// Happy path, the caller can close the listener channel
 		return nil
 	case <-timeoutChannel:
-		return fmt.Errorf("cannot stop Listener gracefully, caller closing Listener channel may result in panic")
+		return errors.New("cannot stop Listener gracefully, caller closing Listener channel may result in panic")
 	}
 }
 
-func (dc *Amqp10AsyncConsumer) StopAcknowledger(logger *l.CapiLogger) error {
+func (dc *Amqp10AsyncConsumer) StopAcknowledger() error {
 	dc.acknowledgerStopping = true
 
 	timeoutChannel := make(chan bool, 1)
@@ -340,7 +348,7 @@ func (dc *Amqp10AsyncConsumer) StopAcknowledger(logger *l.CapiLogger) error {
 		// Happy path, the caller can close the Acknowledger channel
 		return nil
 	case <-timeoutChannel:
-		return fmt.Errorf("cannot stop Acknowledger gracefully, caller closing Acknowledger channel may result in panic")
+		return errors.New("cannot stop Acknowledger gracefully, caller closing Acknowledger channel may result in panic")
 	}
 }
 

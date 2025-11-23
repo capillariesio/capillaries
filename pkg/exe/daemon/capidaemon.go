@@ -147,7 +147,7 @@ func main() {
 		case osSignal := <-osSignalChannel:
 			if osSignal == os.Interrupt || osSignal == os.Kill {
 				logger.Info("received os signal %v , quitting...", osSignal)
-				if err = asyncConsumer.StopListener(logger); err != nil {
+				if err = asyncConsumer.StopListener(); err != nil {
 					logger.Error("cannot stop listener gracefully, brace for impact: %s", err.Error())
 				}
 				// This can make listenerWorker panic if there was an error above
@@ -159,7 +159,7 @@ func main() {
 					time.Sleep(1000 * time.Millisecond)
 				}
 
-				if err = asyncConsumer.StopAcknowledger(logger); err != nil {
+				if err = asyncConsumer.StopAcknowledger(); err != nil {
 					logger.Error("cannot stop acknowledger gracefully, brace for impact: %s", err.Error())
 				}
 				// This can make acknowledgerWorker panic if there was an error above
@@ -178,9 +178,9 @@ func main() {
 
 			// envConfig.ThreadPoolSize goroutines run simultaneously
 			go func(innerLogger *l.CapiLogger, wfmodelMsg *wfmodel.Message, acknowledgerChannel chan mq.AknowledgerToken) {
-				var heartbeatCallback func(string, string)
+				var heartbeatCallback func(string)
 				if asyncConsumer.SupportsHeartbeat() {
-					heartbeatCallback = func(wfmodelMsgId string, wfmodelMsgWaitRetryGroup string) {
+					heartbeatCallback = func(wfmodelMsgId string) {
 						acknowledgerChannel <- mq.AknowledgerToken{MsgId: wfmodelMsgId, Cmd: mq.AcknowledgerCmdHeartbeat}
 						MsgHeartbeatCounter.Inc()
 					}
@@ -197,6 +197,8 @@ func main() {
 					MsgAckCounter.Inc()
 				case mq.AcknowledgerCmdRetry:
 					MsgRetryCounter.Inc()
+				default:
+					innerLogger.Error("unexpected acknoledger cmd %d", acknowledgerCmd)
 				}
 
 				innerLogger.Close()

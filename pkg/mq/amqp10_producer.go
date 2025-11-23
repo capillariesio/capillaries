@@ -64,13 +64,13 @@ func (p *Amqp10Producer) Open() error {
 	return nil
 }
 
-func (p *Amqp10Producer) SendBulk(msgs []*wfmodel.Message) error {
+func (p *Amqp10Producer) SendBulk([]*wfmodel.Message) error {
 	return errors.New("SendBulk not supported")
 }
 
 func (p *Amqp10Producer) Send(msg *wfmodel.Message) error {
 	if p.sender == nil {
-		return fmt.Errorf("cannot send, nil sender")
+		return errors.New("cannot send, nil sender")
 	}
 
 	msgBytes, err := json.Marshal(msg)

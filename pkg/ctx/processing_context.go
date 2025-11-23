@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-type HeartbeatCallbackFunc func(string, string)
+type HeartbeatCallbackFunc func(string)
 
 type MessageProcessingContext struct {
 	Msg                     wfmodel.Message
@@ -47,7 +47,7 @@ func (pCtx *MessageProcessingContext) SendHeartbeat() {
 		now := time.Now().UnixMilli()
 		if pCtx.LastHeartbeatSentTs+pCtx.HeartbeatIntervalMillis < now {
 			pCtx.LastHeartbeatSentTs = now
-			pCtx.HeartbeatCallback(pCtx.Msg.Id, pCtx.Msg.FullNodeId())
+			pCtx.HeartbeatCallback(pCtx.Msg.Id)
 		}
 	}
 }

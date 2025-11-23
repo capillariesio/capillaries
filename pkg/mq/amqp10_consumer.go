@@ -15,7 +15,7 @@ type Amqp10Consumer struct {
 	done     chan bool
 }
 
-func (c *Amqp10Consumer) open(ctx context.Context, url string, address string, credits int32) error {
+func (c *Amqp10Consumer) openInternal(ctx context.Context, url string, address string, credits int32) error {
 	c.done = make(chan bool)
 
 	var err error
@@ -47,7 +47,7 @@ func (c *Amqp10Consumer) isOpen() bool {
 	return c.conn != nil && c.session != nil && c.receiver != nil
 }
 
-func (c *Amqp10Consumer) close(ctx context.Context) error {
+func (c *Amqp10Consumer) closeInternal(ctx context.Context) error {
 	sb := strings.Builder{}
 	if c.receiver != nil {
 		if err := c.receiver.Close(ctx); err != nil {
@@ -78,7 +78,7 @@ func (c *Amqp10Consumer) close(ctx context.Context) error {
 }
 
 func (c *Amqp10Consumer) Open(ctx context.Context, url string, address string) error {
-	return c.open(ctx, url, address, 32)
+	return c.openInternal(ctx, url, address, 32)
 }
 
 func (c *Amqp10Consumer) Receiver() *amqp10.Receiver { return c.receiver }
