@@ -1,5 +1,5 @@
 {
-    "totals_start_policy": "auto",
+    "totals_start_policy": "manual",
     "url_suffix": "",
     "dir_cfg": "https://raw.githubusercontent.com/capillariesio/capillaries/main/test/data/cfg/tag_and_denormalize",
     "dir_in": "https://raw.githubusercontent.com/capillariesio/capillaries/main/test/data/in/tag_and_denormalize",

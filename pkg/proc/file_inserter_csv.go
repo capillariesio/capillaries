@@ -65,7 +65,7 @@ func (instr *FileInserter) createCsvFileAndStartWorker(logger *l.CapiLogger, u *
 
 func (instr *FileInserter) csvFileInserterWorker(logger *l.CapiLogger) {
 	logger.PushF("proc.csvFileInserterWorker")
-	defer logger.PopF()
+	defer logger.Close()
 
 	var localFilePath string
 	if instr.TempFilePath != "" {
@@ -131,5 +131,6 @@ func (instr *FileInserter) csvFileInserterWorker(logger *l.CapiLogger) {
 		} else {
 			instr.RecordWrittenStatuses <- fmt.Errorf("cannot sync file %s(temp %s): [%s]", instr.FinalFileUrl, instr.TempFilePath, err.Error())
 		}
+		instr.PCtx.SendHeartbeat()
 	} // next batch
 }

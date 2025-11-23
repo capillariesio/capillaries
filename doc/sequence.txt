@@ -1,6 +1,6 @@
 lifelinestyle :1
 fontawesome5solid f007 Operator
-participantgroup #lightgray RabbitMQ
+participantgroup #lightgray Message queue
 fontawesome5solid f5fd Queue
 end
 participantgroup #lightgray Servers

@@ -168,7 +168,7 @@ func RunCreateFile(envConfig *env.EnvConfig,
 		sc.FieldRefs{sc.RowidTokenFieldRef()},
 		srcFieldRefs)
 
-	instr := newFileInserter(pCtx, &node.FileCreator, pCtx.BatchInfo.RunId, pCtx.BatchInfo.BatchIdx)
+	instr := newFileInserter(pCtx, &node.FileCreator, pCtx.Msg.RunId, pCtx.Msg.BatchIdx)
 
 	u, err := url.Parse(instr.FinalFileUrl)
 	if err != nil {

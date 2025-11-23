@@ -16,6 +16,23 @@ const (
 	NodeBatchRunStopReceived NodeBatchStatusType = 104
 )
 
+func NodeBatchStatusToString(s NodeBatchStatusType) string {
+	switch s {
+	case NodeBatchNone:
+		return "none"
+	case NodeBatchStart:
+		return "start"
+	case NodeBatchSuccess:
+		return "success"
+	case NodeBatchFail:
+		return "fail"
+	case NodeBatchRunStopReceived:
+		return "stopreceived"
+	default:
+		return "unknown"
+	}
+}
+
 const TableNameBatchHistory = "wf_batch_history"
 
 // Object model with tags that allow to create cql CREATE TABLE queries and to print object

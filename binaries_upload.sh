@@ -43,4 +43,6 @@ if [ "$1" = "" ]; then
 fi
 
 echo "Copying in files to "$1
-aws s3 cp ./build/ $1/ --recursive --include "*"
+aws s3 cp ./build/ca $1/ca/ --recursive --include "*"
+aws s3 cp ./build/linux $1/linux/ --recursive --include "*"
+aws s3 cp ./build/webui $1/webui/ --recursive --include "*"

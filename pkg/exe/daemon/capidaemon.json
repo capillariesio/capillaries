@@ -1,7 +1,9 @@
 {
   "handler_executable_type": "capi_daemon",
   "cassandra": {
-    "hosts": ["127.0.0.1"],
+    "hosts": [
+      "127.0.0.1"
+    ],
     "port": 9042,
     "username": "cassandra",
     "password": "cassandra",
@@ -11,22 +13,47 @@
     "timeout": 5000,
     "connect_timeout": 1000
   },
-  "amqp091": {
-    "url": "amqp://guest:guest@127.0.0.1/",
-    "exchange": "capillaries",
-    "prefetch_count": 20,
-    "prefetch_size": 0
+  "amqp10_for_rabbitmq4": {
+    "url": "amqp://guest:guest@127.0.0.1:5672/",
+    "address": "/queues/capidaemon",
+    "retry_method": "reject"
+  },
+  "amqp10_for_activemq_artemis": {
+    "url": "amqp://artemis:artemis@127.0.0.1:5672/",
+    "address": "capillaries",
+    "retry_method": "release"
+  },
+  "amqp10_for_activemq_classic": {
+    "url": "amqp://guest:guest@127.0.0.1:5672/",
+    "address": "capillaries",
+    "retry_method": "reject"
+  },
+  "capimq_client_for_capimq_experimental":{
+    "url":"http://localhost:7654",
+    "heartbeat_interval": 1000
+  },
+  "mq_type":"amqp10",
+  "amqp10": {
+    "url": "amqp://guest:guest@127.0.0.1:5672/",
+    "address": "/queues/capidaemon",
+    "retry_method": "reject"
+  },
+  "capimq_client":{
+    "url":"http://localhost:7654",
+    "heartbeat_interval": 1000
   },
   "custom_processors": {
     "py_calc": {
       "python_interpreter_path": "python",
-      "python_interpreter_params": ["-u", "-" ]
+      "python_interpreter_params": [
+        "-u",
+        "-"
+      ]
     },
     "tag_and_denormalize": {}
   },
   "daemon": {
-    "thread_pool_size": 1,
-    "dead_letter_ttl": 5000
+    "thread_pool_size": 2
   },
   "log": {
     "level": "info",

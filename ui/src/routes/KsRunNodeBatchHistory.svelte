@@ -103,6 +103,8 @@
 
 	let svgSummary = $state('');
 	let executionDetailsVisible = $state(false);
+	let earliestDatetime = $state('');
+	let latestDatetime = $state('');
 
 	function findMedian(arr) {
 		arr.sort((a, b) => a - b);
@@ -190,6 +192,9 @@
 			}
 		}
 
+		earliestDatetime = earliestTs;
+		latestDatetime = latestTs;
+
 		let nonStartedBatchesArray = [...Array(batch_history[0].batches_total).keys()].filter(
 			(i) => !(i in batchStartMap)
 		);
@@ -253,7 +258,7 @@
 			svgSummary += '</svg>';
 		} else {
 			svgSummary = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 400 50" width="400px" height="50px">\n`;
-			svgSummary += `<text x="50" y="15" font-size="15">No timeline chart: no data yet</text>`;
+			svgSummary += `<text x="50" y="15" font-size="15">No timeline chart: no completed batches yet</text>`;
 			svgSummary += `<text x="10" y="35" font-size="15">or the number of batches does not exceed 1</text>`;
 			svgSummary += '</svg>';
 		}
@@ -364,6 +369,10 @@
 <div style="width:100%">
 	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 	{@html svgSummary}
+
+	<div style="float: left;">{dayjs(earliestDatetime).format('MMM D, YYYY HH:mm:ss.SSS Z')}</div>
+	<div style="float: right;">{dayjs(latestDatetime).format('MMM D, YYYY HH:mm:ss.SSS Z')}</div>
+	
 </div>
 {/snippet}
 

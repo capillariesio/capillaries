@@ -19,7 +19,7 @@ func BuildDependencyNodeEventLists(logger *l.CapiLogger, pCtx *ctx.MessageProces
 		return nil, err
 	}
 
-	runLifespanMap, err := HarvestRunLifespans(logger, pCtx.CqlSession, pCtx.BatchInfo.DataKeyspace, affectingRunIds)
+	runLifespanMap, err := HarvestRunLifespans(logger, pCtx.CqlSession, pCtx.Msg.DataKeyspace, affectingRunIds)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,7 @@ func BuildDependencyNodeEventLists(logger *l.CapiLogger, pCtx *ctx.MessageProces
 			}
 			e := wfmodel.DependencyNodeEvent{
 				RunId:          affectingRunId,
-				RunIsCurrent:   affectingRunId == pCtx.BatchInfo.RunId,
+				RunIsCurrent:   affectingRunId == pCtx.Msg.RunId,
 				RunStartTs:     runLifespan.StartTs,
 				RunFinalStatus: runLifespan.FinalStatus,
 				RunCompletedTs: runLifespan.CompletedTs,

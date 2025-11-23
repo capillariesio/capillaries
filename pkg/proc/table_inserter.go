@@ -236,12 +236,12 @@ func (instr *TableInserter) cancelDrainer(err error) {
 	instr.DrainerCancelSignal <- err
 }
 
-func (instr *TableInserter) waitForDrainer(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) error {
+func (instr *TableInserter) waitForDrainer() error {
 	err := <-instr.DrainerCompleteSignal // This error will hold the result of all harvested writers
 	if err != nil {
-		logger.ErrorCtx(pCtx, "error(s) while waiting for workers to drain RecordsIn: %s", err.Error())
+		return fmt.Errorf("error(s) while waiting for workers to drain RecordsIn: %s", err.Error())
 	}
-	return err
+	return nil
 }
 
 func (instr *TableInserter) closeInserter(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) {
@@ -327,7 +327,7 @@ type PreparedQuery struct {
 }
 
 func (instr *TableInserter) tableNameWithSuffix(tableName string) string {
-	return fmt.Sprintf("%s%s", tableName, cql.RunIdSuffix(instr.PCtx.BatchInfo.RunId))
+	return fmt.Sprintf("%s%s", tableName, cql.RunIdSuffix(instr.PCtx.Msg.RunId))
 }
 
 // TEST ONLY
@@ -360,14 +360,14 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, tabl
 	if pq.Qb == nil {
 		var err error
 		// rowid=?, batch_idx=123, field1=?, field2=?
-		pq.Qb, err = newDataQueryBuilder(instr.PCtx.BatchInfo.DataKeyspace, tableRecordItems, instr.PCtx.BatchInfo.BatchIdx)
+		pq.Qb, err = newDataQueryBuilder(instr.PCtx.Msg.DataKeyspace, tableRecordItems, instr.PCtx.Msg.BatchIdx)
 		if err != nil {
 			return fmt.Errorf("cannot create insert data query builder: %s", err.Error())
 		}
 		// insert into table.name_run_id rowid=?, batch_idx=123, field1=?, field2=?
 		pq.Query, err = pq.Qb.InsertRunPreparedQuery(
 			instr.TableCreator.Name,
-			instr.PCtx.BatchInfo.RunId,
+			instr.PCtx.Msg.RunId,
 			cql.IgnoreIfExists) // INSERT IF NOT EXISTS; if exists,  returned isApplied = false
 		if err != nil {
 			return fmt.Errorf("cannot prepare insert data query string: %s", err.Error())
@@ -530,7 +530,7 @@ func (instr *TableInserter) insertIdxRecordWithRowid(logger *l.CapiLogger, idxNa
 	// Prepare generic idx insert query, do this once for all indexes and rows
 	if pq.Qb == nil {
 		// key=?, rowid=?
-		pq.Qb, err = newIdxQueryBuilder(instr.PCtx.BatchInfo.DataKeyspace)
+		pq.Qb, err = newIdxQueryBuilder(instr.PCtx.Msg.DataKeyspace)
 		if err != nil {
 			return fmt.Errorf("cannot prepare idx builder: %s", err.Error())
 		}
@@ -538,7 +538,7 @@ func (instr *TableInserter) insertIdxRecordWithRowid(logger *l.CapiLogger, idxNa
 
 	// insert into idx_table.name_run_id key=?, rowid=?
 	// idxName is different than on the previous call, update it
-	pq.Query, err = pq.Qb.InsertRunPreparedQuery(idxName, instr.PCtx.BatchInfo.RunId, ifNotExistsFlag)
+	pq.Query, err = pq.Qb.InsertRunPreparedQuery(idxName, instr.PCtx.Msg.RunId, ifNotExistsFlag)
 	if err != nil {
 		return fmt.Errorf("cannot prepare idx query: %s", err.Error())
 	}
@@ -625,7 +625,7 @@ func (instr *TableInserter) insertIdxRecordWithRowid(logger *l.CapiLogger, idxNa
 			if !isApplied {
 				if existingIdxRow["key"] != idxKey || existingIdxRow["rowid"] != curRowid {
 					// We screwed up, a record with this key and different rowid is already there, report everything we can
-					errorToReturn = fmt.Errorf("cannot write duplicate index key [%s] with %s,%d on retry %d, existing record [%v], rowid is different, throwing werror %w", pq.Query, idxKey, curRowid, retryCount, existingIdxRow, ErrDuplicateKey)
+					errorToReturn = fmt.Errorf("cannot write duplicate index key [%s] with %s,%d on retry %d, existing record [%v], rowid is different, throwing error %w", pq.Query, idxKey, curRowid, retryCount, existingIdxRow, ErrDuplicateKey)
 					break
 				}
 				if retryCount == 0 {
@@ -736,7 +736,7 @@ func (instr *TableInserter) insertIdxRecordsForIndexes(logger *l.CapiLogger, wri
 
 func (instr *TableInserter) tableInserterWorker(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) {
 	logger.PushF("proc.tableInserterWorker")
-	defer logger.PopF()
+	defer logger.Close()
 
 	// Each writer thread has its own rand, so we do not have to critsec it.
 	// Assuming machine hashes are different for all daemon machines!

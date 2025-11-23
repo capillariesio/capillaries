@@ -19,13 +19,13 @@ func HarvestNodeStatusesForRun(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 
 	fields := []string{"script_node", "status"}
 	q := (&cql.QueryBuilder{}).
-		Keyspace(pCtx.BatchInfo.DataKeyspace).
-		Cond("run_id", "=", pCtx.BatchInfo.RunId).
+		Keyspace(pCtx.Msg.DataKeyspace).
+		Cond("run_id", "=", pCtx.Msg.RunId).
 		CondInString("script_node", affectedNodes). // TODO: Is this really necessary? Shouldn't run id be enough? Of course, it's safer to be extra cautious, but...?
 		Select(wfmodel.TableNameNodeHistory, fields)
 	rows, err := pCtx.CqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		return wfmodel.NodeBatchNone, "", db.WrapDbErrorWithQuery(fmt.Sprintf("cannot get node history for %s", pCtx.BatchInfo.FullBatchId()), q, err)
+		return wfmodel.NodeBatchNone, "", db.WrapDbErrorWithQuery(fmt.Sprintf("cannot get node history for %s", pCtx.Msg.FullBatchId()), q, err)
 	}
 
 	nodeStatusMap := wfmodel.NodeStatusMap{}
@@ -69,11 +69,11 @@ func HarvestNodeStatusesForRun(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 	}
 
 	if lowestStatus > wfmodel.NodeBatchStart {
-		logger.InfoCtx(pCtx, "run %d complete, status map %s", pCtx.BatchInfo.RunId, nodeStatusMap.ToString())
+		logger.InfoCtx(pCtx, "run %d complete, status map %s", pCtx.Msg.RunId, nodeStatusMap.ToString())
 		return highestStatus, nodeStatusMap.ToString(), nil
 	}
 
-	logger.DebugCtx(pCtx, "run %d incomplete, lowest status %s, status map %s", pCtx.BatchInfo.RunId, lowestStatus.ToString(), nodeStatusMap.ToString())
+	logger.DebugCtx(pCtx, "run %d incomplete, lowest status %s, status map %s", pCtx.Msg.RunId, lowestStatus.ToString(), nodeStatusMap.ToString())
 	return lowestStatus, nodeStatusMap.ToString(), nil
 }
 
@@ -83,7 +83,7 @@ func HarvestNodeLifespans(logger *l.CapiLogger, pCtx *ctx.MessageProcessingConte
 
 	fields := []string{"ts", "run_id", "script_node", "status"}
 	q := (&cql.QueryBuilder{}).
-		Keyspace(pCtx.BatchInfo.DataKeyspace).
+		Keyspace(pCtx.Msg.DataKeyspace).
 		CondInInt16("run_id", affectingRuns).
 		CondInString("script_node", affectedNodes).
 		Select(wfmodel.TableNameNodeHistory, fields)
@@ -132,10 +132,10 @@ func SetNodeStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, sta
 	defer logger.PopF()
 
 	q := (&cql.QueryBuilder{}).
-		Keyspace(pCtx.BatchInfo.DataKeyspace).
+		Keyspace(pCtx.Msg.DataKeyspace).
 		WriteForceUnquote("ts", "toTimeStamp(now())").
-		Write("run_id", pCtx.BatchInfo.RunId).
-		Write("script_node", pCtx.BatchInfo.TargetNodeName).
+		Write("run_id", pCtx.Msg.RunId).
+		Write("script_node", pCtx.Msg.TargetNodeName).
 		Write("status", status).
 		Write("comment", comment).
 		InsertUnpreparedQuery(wfmodel.TableNameNodeHistory, cql.IgnoreIfExists) // If not exists. First one wins.
@@ -144,11 +144,11 @@ func SetNodeStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, sta
 	isApplied, err := pCtx.CqlSession.Query(q).MapScanCAS(existingDataRow)
 
 	if err != nil {
-		err = db.WrapDbErrorWithQuery(fmt.Sprintf("cannot update node %d/%s status to %d", pCtx.BatchInfo.RunId, pCtx.BatchInfo.TargetNodeName, status), q, err)
+		err = db.WrapDbErrorWithQuery(fmt.Sprintf("cannot update node %d/%s status to %d", pCtx.Msg.RunId, pCtx.Msg.TargetNodeName, status), q, err)
 		logger.ErrorCtx(pCtx, "%s", err.Error())
 		return false, err
 	}
-	logger.DebugCtx(pCtx, "%d/%s, %s, isApplied=%t", pCtx.BatchInfo.RunId, pCtx.BatchInfo.TargetNodeName, status.ToString(), isApplied)
+	logger.DebugCtx(pCtx, "%d/%s, %s, isApplied=%t", pCtx.Msg.RunId, pCtx.Msg.TargetNodeName, status.ToString(), isApplied)
 	return isApplied, nil
 }
 

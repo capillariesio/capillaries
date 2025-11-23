@@ -314,9 +314,11 @@ func (scriptDef *ScriptDef) addChildrenToManual(rootNode *ScriptNodeDef, manualS
 	_, isRootInManual := manualSet[rootNode.Name]
 	_, isRootInStart := startSet[rootNode.Name]
 	for _, node := range scriptDef.ScriptNodes {
-		if rootNode.HasTableCreator() && node.HasTableReader() && rootNode.TableCreator.Name == node.TableReader.TableName && (isRootInManual && !isRootInStart || node.StartPolicy == NodeStartManual) ||
-			rootNode.HasTableCreator() && node.HasLookup() && rootNode.TableCreator.Name == node.Lookup.TableCreator.Name && (isRootInManual && !isRootInStart || node.StartPolicy == NodeStartManual) {
-			manualSet[node.Name] = struct{}{}
+		if rootNode.HasTableCreator() && node.HasTableReader() && rootNode.TableCreator.Name == node.TableReader.TableName ||
+			rootNode.HasTableCreator() && node.HasLookup() && rootNode.TableCreator.Name == node.Lookup.TableCreator.Name {
+			if isRootInManual && !isRootInStart || node.StartPolicy == NodeStartManual {
+				manualSet[node.Name] = struct{}{}
+			}
 			scriptDef.addChildrenToManual(node, manualSet, startSet)
 		}
 	}
@@ -333,7 +335,7 @@ func (scriptDef *ScriptDef) addChildrenToAffected(rootNode *ScriptNodeDef, affec
 	}
 }
 
-// Returns all nodes that will receive RabbitMQ messages when a run is started with startNodeNames
+// Returns all nodes that will receive RabbitMQ/ActiveMQ messages when a run is started with startNodeNames
 // The tricky part is not to include nodes that have "manual" nodes between them and the start nodes (see addChildrenToManual)
 func (scriptDef *ScriptDef) GetAffectedNodes(startNodeNames []string) []string {
 	startSet := map[string]struct{}{}

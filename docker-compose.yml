@@ -8,24 +8,104 @@ networks:
         - subnet: 10.5.0.0/16
 
 services:
+  # mq:
+  #   container_name: capillaries_activemq_classic
+  #   build:
+  #     context: .
+  #     dockerfile: ./test/docker/activemq/classic/Dockerfile
+  #   depends_on:
+  #     - fluentd
+  #   networks:
+  #     capinet:
+  #       ipv4_address: 10.5.0.5
+  #   ports:
+  #     - 8161:8161 # admin console
+  #     - 5672:5672 # amqp port
+  #   logging:
+  #     driver: fluentd
+  #     options:
+  #       fluentd-address: 10.5.0.7:24224
+  #       fluentd-async: "true"
+  #       tag: activemq_classic
 
-  rabbitmq:
-    container_name: capillaries_rabbitmq
-    image: rabbitmq:4-management
+  mq:
+    container_name: capillaries_activemq_artemis
+    build:
+      context: .
+      dockerfile: ./test/docker/activemq/artemis/Dockerfile
     depends_on:
       - fluentd
     networks:
       capinet:
         ipv4_address: 10.5.0.5
     ports:
-      - 15672:15672
-      - 5672:5672
+      - 8161:8161 # admin console
+      - 5672:5672 # amqp port
     logging:
       driver: fluentd
       options:
         fluentd-address: 10.5.0.7:24224
         fluentd-async: "true"
-        tag: rabbitmq
+        tag: activemq_artemis
+
+  # mq:
+  #   container_name: capillaries_rabbitmq4
+  #   image: rabbitmq:4.2.0-management-alpine
+  #   depends_on:
+  #     - fluentd
+  #   networks:
+  #     capinet:
+  #       ipv4_address: 10.5.0.5
+  #   ports:
+  #     - 15672:15672
+  #     - 5672:5672
+  #   post_start:
+  #     - command: sleep 5 # Wait a bit before even running rabbitmqctl to avoid some obscure erlang cookie error
+  #     - command: rabbitmqctl wait --pid 1 --timeout 60 # With Docker, the pid of main process is always 1
+  #     - command: rabbitmqctl set_permissions -p / guest ".*" ".*" ".*" # Set permissions for vhost /
+  #     # The following commands set up RabbitMQ dead letter queue infrastructure (no ActiveMQ-style redelivery-delay shortcut in RabbitMQ). Very fragile.
+  #     # The only paramater you may want to play with is x-message-ttl.
+  #     # Please note that this setup assumes that Capillaries Amqp10.address setting is set to "/queues/capidaemon" 
+  #     # Some AMQP 1.0 details (like, why "/queues/capidaemon" and not just "my_simple_capillaries_queue") at https://www.rabbitmq.com/docs/amqp
+  #     # Dead letter exchange circle of life explained at https://www.cloudamqp.com/blog/when-and-how-to-use-the-rabbitmq-dead-letter-exchange.html
+  #     - command: rabbitmqadmin declare exchange --vhost=/ name=capillaries type=direct durable=false
+  #     - command: rabbitmqadmin declare exchange --vhost=/ name=capillaries.dlx type=direct durable=false
+  #     - command: rabbitmqadmin declare queue --vhost=/ name=capidaemon durable=false arguments='{"x-dead-letter-exchange":"capillaries.dlx", "x-dead-letter-routing-key":"capidaemon.dlq"}'
+  #     - command: rabbitmqadmin declare queue --vhost=/ name=capidaemon.dlq durable=false arguments='{"x-message-ttl":5000, "x-dead-letter-exchange":"capillaries", "x-dead-letter-routing-key":"capidaemon"}'
+  #     - command: rabbitmqadmin --vhost=/ declare binding source="capillaries" destination_type="queue" destination="capidaemon" routing_key="capidaemon"
+  #     - command: rabbitmqadmin --vhost=/ declare binding source="capillaries.dlx" destination_type="queue" destination="capidaemon.dlq" routing_key="capidaemon.dlq"
+  #   logging:
+  #     driver: fluentd
+  #     options:
+  #       fluentd-address: 10.5.0.7:24224
+  #       fluentd-async: "true"
+  #       tag: rabbitmq4
+
+  # mq:
+  #   container_name: capillaries_capimq
+  #   depends_on:
+  #     - fluentd
+  #   build:
+  #     context: .
+  #     dockerfile: ./pkg/exe/mq/docker/Dockerfile
+  #   environment:
+  #     CAPI_CAPIMQ_BROKER_PORT: 7654
+  #     CAPI_CAPIMQ_BROKER_ACCESS_CONTROL_ALLOW_ORIGIN: webapi_is_the_only_caller_and_it_doesnt_care
+  #     CAPI_CAPIMQ_BROKER_RETURNED_DELIVERY_DELAY: 500
+  #     CAPI_CAPIMQ_BROKER_DEAD_AFTER_NO_HEARTBEAT_TIMEOUT: 10000
+  #     CAPI_PROMETHEUS_EXPORTER_PORT: 9203
+  #     CAPI_LOG_LEVEL: info
+  #   ports:
+  #     - 7654:7654      
+  #   networks:
+  #     capinet:
+  #       ipv4_address: 10.5.0.5
+  #   logging:
+  #     driver: fluentd
+  #     options:
+  #       fluentd-address: 10.5.0.7:24224
+  #       fluentd-async: "true"
+  #       tag: capimq
 
   cassandra1:
     container_name: capillaries_cassandra1
@@ -78,7 +158,7 @@ services:
 
   prometheus:
     container_name: capillaries_prometheus
-    image: prom/prometheus
+    image: prom/prometheus:v3.7.3
     depends_on:
       - fluentd
     networks:
@@ -107,11 +187,16 @@ services:
       - /tmp/capi_in:/tmp/capi_in:ro
       - /tmp/capi_out:/tmp/capi_out
     environment:
-      CAPI_AMQP091_URL: amqp://guest:guest@10.5.0.5/
+      CAPI_MQ_TYPE: amqp10
+      CAPI_AMQP10_URL: amqp://guest:guest@10.5.0.5:5672/ # RabbitMQ, Classic, Artemis
+      CAPI_AMQP10_ADDRESS: capillaries # Classic, Artemis
+      #CAPI_AMQP10_ADDRESS: /queues/capidaemon # RabbitMQ
+      CAPI_AMQP10_RETRY_METHOD: release # Artemis
+      #CAPI_AMQP10_RETRY_METHOD: reject # RabbitMQ, Classic
+      CAPI_CAPIMQ_CLIENT_URL: http://10.5.0.5:7654 # Capimq
       CAPI_CASSANDRA_HOSTS: 10.5.0.11
       CAPI_CASSANDRA_WRITER_WORKERS: 4
       CAPI_PYCALC_INTERPRETER_PATH: python3
-      CAPI_DEAD_LETTER_TTL: 5000
       CAPI_PROMETHEUS_EXPORTER_PORT: 9201
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
@@ -138,10 +223,15 @@ services:
       - /tmp/capi_in:/tmp/capi_in:ro
       - /tmp/capi_out:/tmp/capi_out
     environment:
-      CAPI_AMQP091_URL: amqp://guest:guest@10.5.0.5/
+      CAPI_MQ_TYPE: amqp10
+      CAPI_AMQP10_URL: amqp://guest:guest@10.5.0.5:5672/ # RabbitMQ, Classic, Artemis
+      CAPI_AMQP10_ADDRESS: capillaries # Classic, Artemis
+      #CAPI_AMQP10_ADDRESS: /queues/capidaemon # RabbitMQ
+      CAPI_AMQP10_RETRY_METHOD: release # Artemis
+      #CAPI_AMQP10_RETRY_METHOD: reject # RabbitMQ, Classic
+      CAPI_CAPIMQ_CLIENT_URL: http://10.5.0.5:7654 # Capimq
       CAPI_CASSANDRA_HOSTS: 10.5.0.11
       CAPI_CASSANDRA_WRITER_WORKERS: 4
-      CAPI_DEAD_LETTER_TTL: 5000
       CAPI_PROMETHEUS_EXPORTER_PORT: 9202
       CAPI_PYCALC_INTERPRETER_PATH: python3
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
@@ -169,7 +259,13 @@ services:
       - /tmp/capi_in:/tmp/capi_in:ro
       - /tmp/capi_out:/tmp/capi_out
     environment:
-      CAPI_AMQP091_URL: amqp://guest:guest@10.5.0.5/
+      CAPI_MQ_TYPE: amqp10
+      CAPI_AMQP10_URL: amqp://guest:guest@10.5.0.5:5672/ # RabbitMQ, Classic, Artemis
+      CAPI_AMQP10_ADDRESS: capillaries # Classic, Artemis
+      #CAPI_AMQP10_ADDRESS: /queues/capidaemon # RabbitMQ
+      CAPI_AMQP10_RETRY_METHOD: release # Artemis
+      #CAPI_AMQP10_RETRY_METHOD: reject # RabbitMQ, Classic
+      CAPI_CAPIMQ_CLIENT_URL: http://10.5.0.5:7654 # Capimq
       CAPI_CASSANDRA_HOSTS: 10.5.0.11
       CAPI_WEBAPI_PORT: 6543
       CAPI_WEBAPI_ACCESS_CONTROL_ALLOW_ORIGIN: http://localhost:8080,http://127.0.0.1:8080
@@ -243,3 +339,8 @@ services:
 
 # Build one image
 # docker compose -p "test_capillaries_containers" build cassandra1
+
+# curl -s -w "\n" -d '{"script_url":"/tmp/capi_cfg/lookup_quicktest/script_quick.yaml", "script_params_url":"/tmp/capi_cfg/lookup_quicktest/script_params_quick_fs_one.yaml", "start_nodes":"read_orders,read_order_items"}' -H "Content-Type: application/json" -X POST "http://localhost:6543/ks/testks1/run"
+# /opt/activemq-artemis/bin/artemis queue create --name capillaries --address capillaries --auto-create-address --anycast --user artemis --password artemis --no-durable --preserve-on-no-consumers
+# /opt/activemq-artemis/bin/artemis queue delete --name capillaries --user artemis --password artemis
+# sed -i -e "s~<redelivery-delay>[0-9]+</redelivery-delay>~<redelivery-delay>5000</redelivery-delay>~2" /var/lib/artemis-instance/etc/broker.xml

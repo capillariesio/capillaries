@@ -3,102 +3,51 @@ package wfmodel
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
-)
-
-/*
-MessagePayloadComment - generic paylod
-Comment - unstructured, can be anything, like information about the sender of the signal
-*/
-type MessagePayloadComment struct {
-	Comment string `json:"comment"`
-}
-
-// Message types, payload depends on it
-const (
-	MessageTypeDataBatch             = 1
-	MessageTypeShutown               = 101 // pass processor_id
-	MessageTypeSetLoggingLevel       = 102 // pass processor_id and logging level
-	MessageTypeCancelProcessInstance = 103 // Pass process id and process instance
 )
 
 /*
 Message - carries data and signals to processors/nodes
 1. No version support. Premature optimization is the root of all evil.
-2. Used for data transfer and for control signals.
+2. Used for data transfer only (no control signals).
 3. For faster de/serialization, consider custom parser not involving reflection
 4. Timestamps are int (not uint) because Unix epoch is int
 */
 type Message struct {
-	Ts          int64 `json:"ts"`
-	MessageType int   `json:"message_type"`
-	Payload     any   `json:"payload"` // This depends on MessageType
+	Ts              int64  `json:"ts"` // Assigned by sender on creation, used only for daemon statistics, see logging age
+	Id              string `json:"id"` // Assigned by sender on creation, used by workers when communicating to CapiMQ/ActiveMQ and its capimq counterpart in CapimqInternalMessage - internally by CapiMQ
+	ScriptURL       string `json:"script_url"`
+	ScriptParamsURL string `json:"script_params_url"`
+	DataKeyspace    string `json:"ks"`
+	RunId           int16  `json:"run_id"`
+	TargetNodeName  string `json:"target_node"`
+	FirstToken      int64  `json:"first_token"`
+	LastToken       int64  `json:"last_token"`
+	BatchIdx        int16  `json:"batch_idx"`
+	BatchesTotal    int16  `json:"batches_total"`
 }
 
-func (msg Message) ToString() string {
-	var sb strings.Builder
-
-	sb.WriteString(fmt.Sprintf("Ts:%d, MessageType:%d. ", msg.Ts, msg.MessageType))
-	if msg.MessageType == MessageTypeDataBatch && msg.Payload != nil {
-		batchPayload, ok := msg.Payload.(MessagePayloadDataBatch)
-		if ok {
-			sb.WriteString(batchPayload.ToString())
-		}
-	}
-	return sb.String()
+func (msg *Message) FullBatchId() string {
+	return fmt.Sprintf("%s/%d/%s/%d", msg.DataKeyspace, msg.RunId, msg.TargetNodeName, msg.BatchIdx)
 }
 
-func (msg Message) Serialize() ([]byte, error) {
-	jsonBytes, err := json.Marshal(msg)
-	if err != nil {
-		// This is really unexpected, log the whole msg
-		return nil, fmt.Errorf("cannot serialize message: %s. %v", msg.ToString(), err)
-	}
-	return jsonBytes, nil
+func (msg *Message) FullNodeId() string {
+	return fmt.Sprintf("%s/%d/%s", msg.DataKeyspace, msg.RunId, msg.TargetNodeName)
+}
+
+func (msg *Message) ToString() string {
+	return fmt.Sprintf("Ts: %d, Id:%s ScriptURL:%s,ScriptParamsURL:%s, DataKeyspace:%s, RunId:%d, TargetNodeName:%s, FirstToken:%d, LastToken:%d, BatchIdx:%d, BatchesTotal:%d. ",
+		msg.Ts, msg.Id, msg.ScriptURL, msg.ScriptParamsURL, msg.DataKeyspace, msg.RunId, msg.TargetNodeName, msg.FirstToken, msg.LastToken, msg.BatchIdx, msg.BatchesTotal)
 }
 
 func (msg *Message) Deserialize(jsonBytes []byte) error {
-	var payload json.RawMessage
-	msg.Payload = &payload
-	err := json.Unmarshal(jsonBytes, &msg)
-	if err != nil {
-		// This is really unexpected, log the whole json as bytes
-		return fmt.Errorf("cannot deserialize message: %v. %v", jsonBytes, err)
-	}
-
-	switch msg.MessageType {
-	case MessageTypeDataBatch:
-		var payloadDataChunk MessagePayloadDataBatch
-		err := json.Unmarshal(payload, &payloadDataChunk)
-		if err != nil {
-			return err
-		}
-		msg.Payload = payloadDataChunk
-	case MessageTypeCancelProcessInstance:
-		payloadComment := MessagePayloadComment{}
-		err := json.Unmarshal(payload, &payloadComment)
-		if err != nil {
-			return err
-		}
-		msg.Payload = payloadComment
-	default:
-		return fmt.Errorf("cannot deserialize message, unknown message type: %s", msg.ToString())
-	}
-
-	return nil
+	return json.Unmarshal(jsonBytes, msg)
 }
 
-// func (tgtMsg *Message) NewDataBatchFromCtx(context *ctx.MessageProcessingContext, targetNodeName string, firstToken int64, lastToken int64, batchIdx int16, batchesTotal int16) {
-// 	tgtMsg.Ts = time.Now().UnixMilli()
-// 	tgtMsg.MessageType = MessageTypeDataBatch
-// 	tgtMsg.Payload = MessagePayloadDataBatch{
-// 		ScriptURL:       context.BatchInfo.ScriptURL,
-// 		ScriptParamsURL: context.BatchInfo.ScriptParamsURL,
-// 		DataKeyspace:    context.BatchInfo.DataKeyspace,
-// 		RunId:           context.BatchInfo.RunId,
-// 		TargetNodeName:  targetNodeName,
-// 		FirstToken:      firstToken,
-// 		LastToken:       lastToken,
-// 		BatchIdx:        batchIdx,
-// 		BatchesTotal:    batchesTotal}
-// }
+func (msg Message) Serialize() ([]byte, error) {
+	var jsonBytes []byte
+	jsonBytes, err := json.Marshal(msg)
+	if err != nil {
+		return nil, err
+	}
+	return jsonBytes, nil
+}

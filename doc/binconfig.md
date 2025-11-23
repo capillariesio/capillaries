@@ -1,6 +1,6 @@
 # Toolbelt, Daemon, and Webapi configuration
 
-Executables that use Capillaries need to be able to access the message queue (RabbitMQ) and the database (Cassandra). There are also some settings that may be helpful during troubleshooting and performance tuning in specific environments. All these settings are managed by EnvConfig (`capi*.json` file residing in the binary's directory).
+Executables that use Capillaries need to be able to access the message queue and the database (Cassandra). There are also some settings that may be helpful during troubleshooting and performance tuning in specific environments. All these settings are managed by EnvConfig (`capi*.json` file residing in the binary's directory).
 
 ## handler_executable_type
 Name of the [queue](glossary.md#processor-queue) this executable consumes messages from. Also used by the logger to identify the source of each log message, so it makes sense to assign a distinct handler_executable_type value to each binary - [Daemon](glossary.md#daemon), [Toolbelt](glossary.md#toolbelt), [Webapi](glossary.md#webapi).
@@ -36,20 +36,17 @@ Milliseconds, passed to gocql.ClusterConfig.Timeout. It is expected to be larger
 ### connect_timeout
 Milliseconds, passed to gocql.ClusterConfig.ConnectTimeout
 
-## amqp091
-RabbitMQ settings, used in [github.com/rabbitmq/amqp091-go](#https://pkg.go.dev/github.com/rabbitmq/amqp091-go)
+## amqp10
+AMQP 1.0 message queue settings
 
 ### url
-RabbitMQ url, passed to amqp.Dial()
+AMQP 1.0 url, for example `amqp://guest:guest@127.0.0.1:5672`
 
-### exchange
-Name of RabbitMQ exchange used by the daemon/toolbelt to send messages passed to amqp.Channel.ExchangeDeclare()
+### address
+AMQP 1.0 address by the daemon/toolbelt, Capillaries uses `/queues/capidaemon` for RabbitMQ and `capillaries` for ActiveMQ 
 
-### prefetch_count
-As is, passed to amqp.Channel.Qos()
-
-### prefetch_size
-As is, passed to amqp.Channel.Qos()
+### retry_method
+AMQP 1.0 call used to return message to the queue, can be either `release` or `reject`
 
 ## private_keys
 Username->private_key_file_path map used for [SFTP](./glossary.md#sftp-uris) upload and download. For example, if anything in your [script configuration](./glossary.md#script) or [API](./api.md) call parameters (like script_file or script_params URIs) points to `sftp://ubuntu@somehost/some/file/path`, you will need an entry like this:
@@ -74,7 +71,7 @@ openssl x509 -inform der -in digicert.cer -out digicert.pem
 ```
 and copy the result PEM file to ca_path location. Do not pollute ca_path directory with unused certificates.
 
-Proper `ca_path` setting is crucial for running [HTTPS version](../test/code/tag_and_denormalize/README.md#using-rabbitmq-workflow-single-run-https-inputs) of Capillaries [tag_and_denormalize integration test](../test/code/tag_and_denormalize/README.md), as it pulls configuration file and input data via HTTPS from github.com.
+Proper `ca_path` setting is crucial for running HTTPS version of Capillaries [tag_and_denormalize integration test](../test/code/tag_and_denormalize/README.md), as it pulls configuration file and input data via HTTPS from github.com.
 
 If ca_path is empty, Go uses the host's root CA set (/usr/ssl/certs etc).
 
@@ -83,18 +80,9 @@ If ca_path is empty, Go uses the host's root CA set (/usr/ssl/certs etc).
 This section is required by [Webapi](glossary.md#daemon) only.
 
 ### thread_pool_size
-Number of threads processing RabbitMQ messages consumed by the binary. Choose this setting according to your hardware environment specifics.
+Number of threads processing messages consumed by the binary. Choose this setting according to your hardware environment specifics.
 
 Default: 5 threads
-
-### dead_letter_ttl
-x-message-ttl setting passed to amqp.Channel.QueueDeclare(). After RabbitMQ detects a message that was consumed but not handled successfully (actively rejected or not acknowledged), it places the message in the dead letter queue, where it resides for dead_letter_ttl milliseconds and RabbitMQ makes another delivery attempt.
-
-1s is very aggressive, may work well for small and time-critical cases. 5-10s are more reasonable values.
-
-Default: 10 seconds
-
-Read more about [Capillaries dead-letter-exchange](qna.md#dead-letter-exchange).
 
 ## zap_config
 Directly deserialized to [zap.Config](https://pkg.go.dev/go.uber.org/zap#Config)

@@ -7,7 +7,7 @@ High-level calls used by [Toolbelt](../doc/glossary.md#toolbelt) and [Webapi](..
 CQL query builder. Focused purely on the language side, all connectivity functionality in pkg/db.
 
 ## ctx
-Processing context used across all levels of RabbitMQ message processing
+Processing context used across all levels of message processing
 
 ## custom
 Custom [processors](../doc/glossary.md#processor):
@@ -42,7 +42,7 @@ Capillaries [Script configuration](../doc/scriptconfig.md) objects
 Working with external media (files, maybe databases in the future)
 
 ## wf
-RabbitMQ messages handled here
+RabbitMQ/ActiveMQ messages handled here
 
 ## wfdb
 Workflow db access functions

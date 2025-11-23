@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/sethvargo/go-envconfig"
@@ -14,7 +15,7 @@ import (
 type EnvConfig struct {
 	HandlerExecutableType             string                       `json:"handler_executable_type"` // daemon,webapi,toolbelt
 	Cassandra                         CassandraConfig              `json:"cassandra"`
-	Amqp                              Amqp091Config                `json:"amqp091"`
+	Amqp10                            Amqp10Config                 `json:"amqp10"`
 	Log                               LogConfig                    `json:"log"`
 	CaPath                            string                       `json:"ca_path" env:"CAPI_CA_PATH, overwrite"`           // Used for HTTP, host's CA dir if empty
 	PrivateKeys                       map[string]string            `json:"private_keys" env:"CAPI_PRIVATE_KEYS, overwrite"` // Used for SFTP only
@@ -22,6 +23,9 @@ type EnvConfig struct {
 	Webapi                            WebapiConfig                 `json:"webapi,omitempty"`
 	CustomProcessorsSettings          map[string]json.RawMessage   `json:"custom_processors"`
 	CustomProcessorDefFactoryInstance sc.CustomProcessorDefFactory `json:"-"`
+	MqType                            string                       `json:"mq_type,omitempty" env:"CAPI_MQ_TYPE, overwrite"`
+	CapiMqClient                      CapiMqClientConfig           `json:"capimq_client,omitempty"`
+	CapiMqBroker                      CapiMqBrokerConfig           `json:"capimq_broker,omitempty"`
 	// ZapConfig                      zap.Config                   `json:"zap_config"`
 }
 
@@ -41,8 +45,21 @@ func (ec *EnvConfig) Deserialize(ctx context.Context, jsonBytes []byte) error {
 		ec.Daemon.ThreadPoolSize = 5
 	}
 
-	if ec.Daemon.DeadLetterTtl < 100 || ec.Daemon.DeadLetterTtl > 3600000 { // [100ms,1hr]
-		ec.Daemon.DeadLetterTtl = 10000
+	if ec.CapiMqBroker.DeadAfterNoHeartbeatTimeout <= 100 || ec.CapiMqBroker.DeadAfterNoHeartbeatTimeout > 3600000 { // [100ms,1hr]
+		ec.CapiMqBroker.DeadAfterNoHeartbeatTimeout = 60000 // 1m
+	}
+
+	if ec.CapiMqBroker.ReturnedDeliveryDelay < 100 || ec.CapiMqBroker.ReturnedDeliveryDelay > 3600000 { // [100ms,1hr]
+		ec.CapiMqBroker.ReturnedDeliveryDelay = 1000 // 1s
+	}
+
+	if ec.CapiMqBroker.MaxMessages <= 1000 || ec.CapiMqBroker.MaxMessages > 1000000000 { // 1000, 1bn]
+		ec.CapiMqBroker.MaxMessages = 10000000 // 10m
+	}
+
+	ec.CapiMqClient.URL = strings.TrimRight(ec.CapiMqClient.URL, "/")                                                                      // We will add paths here, make sure there is no trailing /
+	if (ec.CapiMqClient.HeartbeatInterval != 0 && ec.CapiMqClient.HeartbeatInterval <= 100) || ec.CapiMqClient.HeartbeatInterval > 60000 { // [1ms,1m] 0 means no heartbeat
+		ec.CapiMqClient.HeartbeatInterval = 1000 // 1s
 	}
 
 	return nil

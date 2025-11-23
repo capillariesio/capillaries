@@ -11,17 +11,17 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hashicorp/golang-lru/v2/expirable"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-
+	"github.com/capillariesio/capillaries/pkg/api"
 	"github.com/capillariesio/capillaries/pkg/custom/py_calc"
 	"github.com/capillariesio/capillaries/pkg/custom/tag_and_denormalize"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/l"
+	"github.com/capillariesio/capillaries/pkg/mq"
 	"github.com/capillariesio/capillaries/pkg/sc"
-	"github.com/capillariesio/capillaries/pkg/wf"
+	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/capillariesio/capillaries/pkg/xfer"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // https://stackoverflow.com/questions/25927660/how-to-get-the-current-function-name
@@ -52,6 +52,21 @@ func (f *StandardDaemonProcessorDefFactory) Create(processorType string) (sc.Cus
 
 var version string
 
+var (
+	MsgAckCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "capi_daemon_msg_ack_count",
+		Help: "Capillaries acknowledged msg count",
+	})
+	MsgRetryCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "capi_daemon_msg_retry_count",
+		Help: "Capillaries msg retry count",
+	})
+	MsgHeartbeatCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "capi_daemon_msg_heartbeat_count",
+		Help: "Capillaries heartbeat count",
+	})
+)
+
 func main() {
 	// defer profile.Start(profile.MemProfile).Stop()
 	// go func() {
@@ -61,10 +76,9 @@ func main() {
 	// curl http://localhost:8081/debug/pprof/heap > heap.01.pprof
 	// aws s3 cp heap.01.pprof s3://capillaries-testbucket/log/
 
-	initCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-
+	initCtx, initCancel := context.WithTimeout(context.Background(), 1*time.Second)
 	envConfig, err := env.ReadEnvConfigFile(initCtx, "capidaemon.json")
+	initCancel()
 	if err != nil {
 		log.Fatalf("%s", err.Error())
 	}
@@ -73,7 +87,8 @@ func main() {
 	if envConfig.Log.PrometheusExporterPort > 0 {
 		prometheus.MustRegister(xfer.SftpFileGetGetDuration, xfer.HttpFileGetGetDuration, xfer.S3FileGetGetDuration)
 		prometheus.MustRegister(sc.ScriptDefCacheHitCounter, sc.ScriptDefCacheMissCounter)
-		prometheus.MustRegister(wf.NodeDependencyReadynessHitCounter, wf.NodeDependencyReadynessMissCounter, wf.NodeDependencyReadynessGetDuration, wf.NodeDependencyNoneCounter, wf.NodeDependencyWaitCounter, wf.NodeDependencyGoCounter, wf.NodeDependencyNogoCounter, wf.ReceivedMsgCounter)
+		prometheus.MustRegister(api.NodeDependencyReadynessHitCounter, api.NodeDependencyReadynessMissCounter, api.NodeDependencyReadynessGetDuration, api.NodeDependencyNoneCounter, api.NodeDependencyWaitCounter, api.NodeDependencyGoCounter, api.NodeDependencyNogoCounter)
+		prometheus.MustRegister(MsgAckCounter, MsgRetryCounter, MsgHeartbeatCounter)
 		go func() {
 			http.Handle("/metrics", promhttp.Handler())
 			if err := http.ListenAndServe(fmt.Sprintf(":%d", envConfig.Log.PrometheusExporterPort), nil); err != nil {
@@ -98,32 +113,98 @@ func main() {
 	osSignalChannel := make(chan os.Signal, 1)
 	signal.Notify(osSignalChannel, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	sc.ScriptDefCache = expirable.NewLRU[string, sc.ScriptInitResult](50, nil, time.Minute*1)
-	wf.NodeDependencyReadynessCache = expirable.NewLRU[string, string](1000, nil, time.Second*2)
+	sc.ScriptDefCache = sc.NewScriptDefCache()
+	api.NodeDependencyReadynessCache = api.NewNodeDependencyReadynessCache()
+
+	var heartbeatInterval int64
+	var asyncConsumer mq.MqAsyncConsumer
+	if envConfig.MqType == string(mq.MqClientCapimq) {
+		asyncConsumer = mq.NewCapimqConsumer(envConfig.CapiMqClient.URL, logger.ZapMachine.String, envConfig.Daemon.ThreadPoolSize)
+		heartbeatInterval = envConfig.CapiMqClient.HeartbeatInterval
+	} else {
+		ackMethod, err := mq.StringToRetryMethod(envConfig.Amqp10.RetryMethod)
+		if err != nil {
+			log.Fatalf("no ack method for Amqp10 configured, expected %s or %s ", mq.RetryMethodRelease, mq.RetryMethodReject)
+		}
+		if envConfig.Amqp10.MinCreditWindow == 0 {
+			envConfig.Amqp10.MinCreditWindow = uint32(envConfig.Daemon.ThreadPoolSize)
+		}
+		asyncConsumer = mq.NewAmqp10Consumer(envConfig.Amqp10.URL, envConfig.Amqp10.Address, ackMethod, envConfig.Daemon.ThreadPoolSize)
+	}
+
+	// This is essentially a buffer of size one, and we do not want msgs to spend time in the buffer (remember: no prefetch!), so make it minimal
+	listenerChannel := make(chan *wfmodel.Message, 1)
+	// [1, any_reasonable_value], make it > 1 so processors do not get stuck when sending (many) heartbeats
+	acknowledgerChannel := make(chan mq.AknowledgerToken, envConfig.Daemon.ThreadPoolSize)
+	var sem = make(chan int, envConfig.Daemon.ThreadPoolSize)
+
+	if err := asyncConsumer.Start(logger, listenerChannel, acknowledgerChannel); err != nil {
+		log.Fatalf("%s", err.Error())
+	}
 
 	for {
-		daemonCmd := wf.AmqpFullReconnectCycle(envConfig, logger, osSignalChannel)
-		if daemonCmd == wf.DaemonCmdQuit {
-			logger.Info("got quit cmd, shut down is supposed to be complete by now")
-			os.Exit(0)
-		}
-		logger.Info("got %d, waiting before reconnect...", daemonCmd)
-
-		// Read from osSignalChannel with timeout
-		timeoutChannel := make(chan bool, 1)
-		go func() {
-			time.Sleep(10 * time.Second)
-			timeoutChannel <- true
-		}()
 		select {
 		case osSignal := <-osSignalChannel:
 			if osSignal == os.Interrupt || osSignal == os.Kill {
-				logger.Info("received os signal %v while reconnecting to mq, quitting...", osSignal)
+				logger.Info("received os signal %v , quitting...", osSignal)
+				if err = asyncConsumer.StopListener(); err != nil {
+					logger.Error("cannot stop listener gracefully, brace for impact: %s", err.Error())
+				}
+				// This can make listenerWorker panic if there was an error above
+				close(listenerChannel)
+
+				logger.Info("started waiting for all workers to complete (%d items)", len(sem))
+				for len(sem) > 0 {
+					logger.Info("still waiting for all workers to complete (%d items left)...", len(sem))
+					time.Sleep(1000 * time.Millisecond)
+				}
+
+				if err = asyncConsumer.StopAcknowledger(); err != nil {
+					logger.Error("cannot stop acknowledger gracefully, brace for impact: %s", err.Error())
+				}
+				// This can make acknowledgerWorker panic if there was an error above
+				close(acknowledgerChannel)
 				os.Exit(0)
 			}
-		case <-timeoutChannel:
-			logger.Info("timeout while reconnecting to mq, will try to reconnect again")
-			continue
+		case wfmodelMsg := <-listenerChannel:
+			// Lock one slot in the semaphore
+			sem <- 1
+
+			deliveryHandlerLogger, err := l.NewLoggerFromLogger(logger)
+			if err != nil {
+				logger.Error("cannot create logger for delivery handler thread: %s", err.Error())
+				log.Fatalf("%s", err.Error())
+			}
+
+			// envConfig.ThreadPoolSize goroutines run simultaneously
+			go func(innerLogger *l.CapiLogger, wfmodelMsg *wfmodel.Message, acknowledgerChannel chan mq.AknowledgerToken) {
+				var heartbeatCallback func(string)
+				if asyncConsumer.SupportsHeartbeat() {
+					heartbeatCallback = func(wfmodelMsgId string) {
+						acknowledgerChannel <- mq.AknowledgerToken{MsgId: wfmodelMsgId, Cmd: mq.AcknowledgerCmdHeartbeat}
+						MsgHeartbeatCounter.Inc()
+					}
+				}
+				acknowledgerCmd := api.ProcessDataBatchMsg(envConfig, innerLogger, wfmodelMsg, heartbeatInterval, heartbeatCallback)
+				asyncConsumer.DecrementActiveProcessors()
+				acknowledgerChannel <- mq.AknowledgerToken{MsgId: wfmodelMsg.Id, Cmd: acknowledgerCmd}
+
+				// Unlock semaphore slot
+				<-sem
+
+				switch acknowledgerCmd {
+				case mq.AcknowledgerCmdAck:
+					MsgAckCounter.Inc()
+				case mq.AcknowledgerCmdRetry:
+					MsgRetryCounter.Inc()
+				default:
+					innerLogger.Error("unexpected acknoledger cmd %d", acknowledgerCmd)
+				}
+
+				innerLogger.Close()
+			}(deliveryHandlerLogger, wfmodelMsg, acknowledgerChannel)
+
 		}
+
 	}
 }

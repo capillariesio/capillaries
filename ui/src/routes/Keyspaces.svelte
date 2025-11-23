@@ -66,7 +66,7 @@
 		fetch(new Request(url, { method: method }))
 			.then((response) => response.json())
 			.then((responseJson) => {
-				dropResponseError = responseJson ? responseJson.error.msg : '';
+				dropResponseError = responseJson ? responseJson.error : '';
 			})
 			.catch((error) => {
 				dropResponseError = method + ' ' + url + ':' + error;

@@ -1,34 +1,59 @@
 {
-    "handler_executable_type":"capi_webapi",
-    "cassandra":{
-      "hosts": ["127.0.0.1"],
-      "port": 9042,
-      "username": "cassandra",
-      "password": "cassandra",
-      "keyspace_replication_config": "{ 'class' : 'NetworkTopologyStrategy', 'datacenter1' : 1 }",
-      "writer_workers": 20,
-      "num_conns": 2,
-      "timeout": 5000,
-      "connect_timeout": 1000
+  "handler_executable_type": "capi_webapi",
+  "cassandra": {
+    "hosts": [
+      "127.0.0.1"
+    ],
+    "port": 9042,
+    "username": "cassandra",
+    "password": "cassandra",
+    "keyspace_replication_config": "{ 'class' : 'NetworkTopologyStrategy', 'datacenter1' : 1 }",
+    "writer_workers": 20,
+    "num_conns": 2,
+    "timeout": 5000,
+    "connect_timeout": 1000
+  },
+  "amqp10_for_rabbitmq4": {
+    "url": "amqp://guest:guest@127.0.0.1:5672/",
+    "address": "/queues/capidaemon",
+    "retry_method": "reject"
+  },
+  "amqp10_for_activemq_artemis": {
+    "url": "amqp://artemis:artemis@127.0.0.1:5672/",
+    "address": "capillaries",
+    "retry_method": "release"
+  },
+  "amqp10_for_activemq_classic": {
+    "url": "amqp://guest:guest@127.0.0.1:5672/",
+    "address": "capillaries",
+    "retry_method": "reject"
+  },
+  "capimq_client_for_capimq_experimental":{
+    "url":"http://localhost:7654",
+    "heartbeat_interval": 1000
+  },
+  "mq_type":"amqp10",
+  "amqp10": {
+    "url": "amqp://guest:guest@127.0.0.1:5672/",
+    "address": "/queues/capidaemon",
+    "retry_method": "reject"
+  },
+  "capimq_client":{
+    "url":"http://localhost:7654",
+    "heartbeat_interval": 1000
+  },
+  "webapi": {
+    "webapi_port": 6543,
+    "access_control_allow_origin": "http://localhost:8080,http://127.0.0.1:8080"
+  },
+  "custom_processors": {
+    "py_calc": {
+      "python_interpreter_path": "some_non_empty_python_path"
     },
-    "amqp091":{
-      "url": "amqp://guest:guest@127.0.0.1/",
-      "exchange": "capillaries",
-      "prefetch_count": 20,
-      "prefetch_size": 0
-    },
-    "webapi": {
-      "webapi_port": 6543,
-      "access_control_allow_origin": "http://localhost:8080,http://127.0.0.1:8080"
-    },
-    "custom_processors":{
-      "py_calc":{
-        "python_interpreter_path":"some_non_empty_python_path"
-      },
-      "tag_and_denormalize":{}
-    },
-    "log":{
-      "level": "info",
-      "prometheus_exporter_port": 9200
-    }
+    "tag_and_denormalize": {}
+  },
+  "log": {
+    "level": "info",
+    "prometheus_exporter_port": 9200
+  }
 }

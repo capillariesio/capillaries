@@ -174,7 +174,7 @@ func NewSession(envConfig *env.EnvConfig, keyspace string, createKeyspace Create
 	}
 	cqlSession, err := dataCluster.CreateSession()
 	if err != nil {
-		return nil, CassandraEngineNone, fmt.Errorf("failed to connect to data cluster %v, keyspace [%s]: %s", envConfig.Cassandra.Hosts, keyspace, err.Error())
+		return nil, CassandraEngineNone, fmt.Errorf("failed to connect to data cluster %v, keyspace [%s]: %s; is your Cassandra cluster still starting?", envConfig.Cassandra.Hosts, keyspace, err.Error())
 	}
 
 	cassandraEngine := CassandraEngineNone

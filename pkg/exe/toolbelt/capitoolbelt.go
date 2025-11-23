@@ -13,17 +13,21 @@ import (
 	"strings"
 	"time"
 
-	amqp "github.com/rabbitmq/amqp091-go"
-
 	"github.com/capillariesio/capillaries/pkg/api"
+	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/custom/py_calc"
 	"github.com/capillariesio/capillaries/pkg/custom/tag_and_denormalize"
 	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/l"
+	"github.com/capillariesio/capillaries/pkg/mq"
+	"github.com/capillariesio/capillaries/pkg/proc"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/storage"
+	"github.com/capillariesio/capillaries/pkg/wfdb"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
+	"github.com/gocql/gocql"
+	"github.com/google/uuid"
 )
 
 const LogTsFormatUnquoted = `2006-01-02T15:04:05.000-0700`
@@ -143,22 +147,21 @@ func startRun(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 		return 1
 	}
 
-	// RabbitMQ boilerplate
-	amqpConnection, err := amqp.Dial(envConfig.Amqp.URL)
+	var mqProducer mq.MqProducer
+	if envConfig.MqType == string(mq.MqClientCapimq) {
+		mqProducer = mq.NewCapimqProducer(envConfig.CapiMqClient.URL)
+	} else {
+		mqProducer = mq.NewAmqp10Producer(envConfig.Amqp10.URL, envConfig.Amqp10.Address)
+	}
+
+	err = mqProducer.Open()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "cannot dial RabbitMQ at %s, will reconnect: %s\n", envConfig.Amqp.URL, err.Error())
+		fmt.Fprintf(os.Stderr, "cannot open mq: %s\n", err.Error())
 		return 1
 	}
-	defer amqpConnection.Close()
+	defer mqProducer.Close()
 
-	amqpChannel, err := amqpConnection.Channel()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "cannot create amqp channel, will reconnect: %s\n", err.Error())
-		return 1
-	}
-	defer amqpChannel.Close()
-
-	runId, err := api.StartRun(envConfig, logger, amqpChannel, *scriptFilePath, *paramsFilePath, cqlSession, cassandraEngine, *keyspace, startNodes, "started by Toolbelt")
+	runId, err := api.StartRun(envConfig, logger, mqProducer, *scriptFilePath, *paramsFilePath, cqlSession, cassandraEngine, *keyspace, startNodes, "started by Toolbelt")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
@@ -408,13 +411,26 @@ func checkDbConnectivity(envConfig *env.EnvConfig) int {
 }
 
 func checkQueueConnectivity(envConfig *env.EnvConfig) int {
-	amqpConnection, err := amqp.Dial(envConfig.Amqp.URL)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "cannot dial RabbitMQ at %s: %s\n", envConfig.Amqp.URL, err.Error())
+	var mqUrl string
+	var mqProducer mq.MqProducer
+	if envConfig.Amqp10.URL != "" && envConfig.Amqp10.Address != "" {
+		mqProducer = mq.NewAmqp10Producer(envConfig.Amqp10.URL, envConfig.Amqp10.Address)
+		mqUrl = envConfig.Amqp10.URL
+	} else if envConfig.CapiMqClient.URL != "" {
+		mqProducer = mq.NewCapimqProducer(envConfig.CapiMqClient.URL)
+		mqUrl = envConfig.CapiMqClient.URL
+	} else {
+		fmt.Fprintln(os.Stderr, "no mq broker configured")
 		return 1
 	}
-	amqpConnection.Close()
-	fmt.Fprintf(os.Stdout, "OK: %s\n", envConfig.Amqp.URL)
+
+	if err := mqProducer.Open(); err != nil {
+		fmt.Fprintf(os.Stderr, "cannot open mq producer%s", err.Error())
+		return 1
+	}
+	mqProducer.Close()
+
+	fmt.Fprintf(os.Stdout, "OK: %s\n", mqUrl)
 	return 0
 }
 
@@ -440,7 +456,7 @@ func execNode(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 		return 1
 	}
 
-	runId, err = api.RunNode(envConfig, logger, *nodeName, runId, *scriptFilePath, *paramsFilePath, cqlSession, *keyspace)
+	runId, err = runNode(envConfig, logger, *nodeName, runId, *scriptFilePath, *paramsFilePath, cqlSession, *keyspace)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
@@ -640,6 +656,100 @@ func protoFileReaderCreator() int {
 	}
 
 	return 0
+}
+
+// Used by Toolbelt (exec_node command), can be used for testing Capillaries node execution without message queue wokflow
+func runNode(envConfig *env.EnvConfig, logger *l.CapiLogger, nodeName string, runId int16, scriptFilePath string, paramsFilePath string, cqlSession *gocql.Session, keyspace string) (int16, error) {
+	logger.PushF("api.RunNode")
+	defer logger.PopF()
+
+	script, _, err := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, scriptFilePath, paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
+	if err != nil {
+		return 0, err
+	}
+	// Get new run_id if needed
+	if runId == 0 {
+		runId, err = wfdb.GetNextRunCounter(logger, cqlSession, keyspace)
+		if err != nil {
+			return 0, err
+		}
+		logger.Info("incremented run_id to %d", runId)
+	}
+
+	// Calculate intervals for this node
+	node, ok := script.ScriptNodes[nodeName]
+	if !ok {
+		return 0, fmt.Errorf("cannot find node to start with: %s in the script %s", nodeName, scriptFilePath)
+	}
+
+	intervals, err := node.GetTokenIntervalsByNumberOfBatches()
+	if err != nil {
+		return 0, err
+	}
+
+	// Write affected nodes
+	affectedNodes := script.GetAffectedNodes([]string{nodeName})
+	if err := wfdb.WriteRunProperties(cqlSession, keyspace, runId, []string{nodeName}, affectedNodes, scriptFilePath, paramsFilePath, "started by Toolbelt direct RunNode"); err != nil {
+		return 0, err
+	}
+
+	// Write status 'start', fail if a record for run_id is already there (too many operators)
+	if err := wfdb.SetRunStatus(logger, cqlSession, keyspace, runId, wfmodel.RunStart, fmt.Sprintf("Toolbelt RunNode(%s)", nodeName), cql.ThrowIfExists); err != nil {
+		return 0, err
+	}
+
+	logger.Info("creating data and idx tables for run %d...", runId)
+
+	// Create all run-specific tables, do not create them in daemon on the fly to avoid INCOMPATIBLE_SCHEMA error
+	// (apparently, thrown if we try to insert immediately after creating a table)
+	tablesCreated := 0
+	for _, nodeName := range affectedNodes {
+		node, ok := script.ScriptNodes[nodeName]
+		if !ok || !node.HasTableCreator() {
+			continue
+		}
+		q := proc.CreateDataTableCql(keyspace, runId, &node.TableCreator)
+		if err := cqlSession.Query(q).Exec(); err != nil {
+			return 0, db.WrapDbErrorWithQuery("cannot create data table", q, err)
+		}
+		tablesCreated++
+		for idxName, idxDef := range node.TableCreator.Indexes {
+			q = proc.CreateIdxTableCql(keyspace, runId, idxName, idxDef, &node.TableCreator)
+			if err := cqlSession.Query(q).Exec(); err != nil {
+				return 0, db.WrapDbErrorWithQuery("cannot create idx table", q, err)
+			}
+			tablesCreated++
+		}
+	}
+
+	logger.Info("created %d tables, creating messages to send for run %d...", tablesCreated, runId)
+
+	for i := 0; i < len(intervals); i++ {
+		now := time.Now()
+		logger.Info("BatchStarted: [%d,%d]...", intervals[i][0], intervals[i][1])
+		msg := wfmodel.Message{
+			Id:              uuid.NewString(),
+			Ts:              now.UnixMilli(),
+			ScriptURL:       scriptFilePath,
+			ScriptParamsURL: paramsFilePath,
+			DataKeyspace:    keyspace,
+			RunId:           runId,
+			TargetNodeName:  nodeName,
+			FirstToken:      intervals[i][0],
+			LastToken:       intervals[i][1],
+			BatchIdx:        int16(i),
+			BatchesTotal:    int16(len(intervals))}
+
+		if acknowledgerCmd := api.ProcessDataBatchMsg(envConfig, logger, &msg, 0, nil); acknowledgerCmd != mq.AcknowledgerCmdAck {
+			return 0, fmt.Errorf("processor returned acknowledgerCmd %d, assuming failure, check the logs", acknowledgerCmd)
+		}
+		logger.Info("BatchComplete: [%d,%d], %.3fs", intervals[i][0], intervals[i][1], time.Since(now).Seconds())
+	}
+	if err := wfdb.SetRunStatus(logger, cqlSession, keyspace, runId, wfmodel.RunComplete, fmt.Sprintf("Toolbelt RunNode(%s), run successful", nodeName), cql.IgnoreIfExists); err != nil {
+		return 0, err
+	}
+
+	return runId, nil
 }
 
 var version string

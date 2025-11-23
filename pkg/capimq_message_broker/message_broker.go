@@ -1,0 +1,392 @@
+package capimq_message_broker
+
+import (
+	"fmt"
+	"sort"
+	"strings"
+	"sync"
+	"time"
+)
+
+type CapimqInternalMessage struct {
+	Id                   string
+	CapimqWaitRetryGroup string
+	Ts                   int64
+	DeliverAfter         int64
+	Heartbeat            int64
+	ClaimComment         string
+	Data                 []byte
+}
+
+func (im *CapimqInternalMessage) ToCapimqMessage() *CapimqMessage {
+	if im == nil {
+		return nil
+	}
+	return &CapimqMessage{im.Id, im.CapimqWaitRetryGroup, im.Data}
+}
+
+func ToCapimqMessages(internalMsgs []*CapimqInternalMessage) []*CapimqMessage {
+	externalMsgs := make([]*CapimqMessage, len(internalMsgs))
+	for i := range len(internalMsgs) {
+		externalMsgs[i] = internalMsgs[i].ToCapimqMessage()
+	}
+	return externalMsgs
+}
+
+func (msg *CapimqInternalMessage) DeliverEarlierThan(laterMsg *CapimqInternalMessage) bool {
+	if msg.DeliverAfter != laterMsg.DeliverAfter {
+		return msg.DeliverAfter < laterMsg.DeliverAfter
+	}
+	// Assume earlier msg has smaller id
+	return msg.Id < laterMsg.Id
+}
+
+type HeapType string
+
+const (
+	HeapTypeQ       HeapType = "q"
+	HeapTypeWip     HeapType = "wip"
+	HeapTypeUnknown HeapType = "unknown"
+)
+
+func StringToHeapType(qOrWip string) (HeapType, error) {
+	switch qOrWip {
+	case string(HeapTypeQ):
+		return HeapTypeQ, nil
+	case string(HeapTypeWip):
+		return HeapTypeWip, nil
+	default:
+		return HeapTypeUnknown, fmt.Errorf("invalid heap type %s", qOrWip)
+	}
+}
+
+type QueueReadType string
+
+const (
+	QueueReadHead    QueueReadType = "head"
+	QueueReadTail    QueueReadType = "tail"
+	QueueReadFilter  QueueReadType = "filter"
+	QueueReadUnknown QueueReadType = "unknown"
+)
+
+func StringToQueueReadType(headOrTail string) (QueueReadType, error) {
+	switch headOrTail {
+	case string(QueueReadHead):
+		return QueueReadHead, nil
+	case string(QueueReadTail):
+		return QueueReadTail, nil
+	case string(QueueReadFilter):
+		return QueueReadFilter, nil
+	default:
+		return QueueReadUnknown, fmt.Errorf("invalid head/tail %s", headOrTail)
+	}
+}
+
+type MessageBroker struct {
+	Q           []*CapimqInternalMessage
+	Wip         map[string]*CapimqInternalMessage
+	QMutex      sync.RWMutex
+	WipMutex    sync.RWMutex
+	MaxMessages int
+}
+
+func NewMessageBroker(maxMessages int) *MessageBroker {
+	mb := MessageBroker{
+		Q:           make([]*CapimqInternalMessage, 0),
+		Wip:         map[string]*CapimqInternalMessage{},
+		QMutex:      sync.RWMutex{},
+		WipMutex:    sync.RWMutex{},
+		MaxMessages: maxMessages,
+	}
+	return &mb
+}
+
+func (mb *MessageBroker) sortQ() {
+	sort.Slice(mb.Q, func(i int, j int) bool { return mb.Q[i].DeliverEarlierThan(mb.Q[j]) })
+}
+
+func (mb *MessageBroker) ReturnDead(deadTimeoutMillis int64) []string {
+	latestAllowedHeartbit := time.Now().UnixMilli() - deadTimeoutMillis
+	msgs := make([]*CapimqInternalMessage, 0)
+
+	mb.WipMutex.Lock()
+	for _, msg := range mb.Wip {
+		if msg.Heartbeat < latestAllowedHeartbit {
+			msgs = append(msgs, msg)
+		}
+	}
+	for _, msg := range msgs {
+		delete(mb.Wip, msg.Id)
+	}
+	mb.WipMutex.Unlock()
+
+	if len(msgs) == 0 {
+		return []string{}
+	}
+
+	mb.QMutex.Lock()
+	mb.Q = append(mb.Q, msgs...)
+	mb.sortQ()
+	mb.QMutex.Unlock()
+
+	msgDescs := make([]string, len(msgs))
+	for i, msg := range msgs {
+		// id,ks/run/node/batch,overstayMillis
+		msgDescs[i] = fmt.Sprintf("%s %s %d", msg.Id, msg.CapimqWaitRetryGroup, latestAllowedHeartbit-msg.Heartbeat)
+	}
+
+	return msgDescs
+}
+
+func (mb *MessageBroker) QBulk(msgs []*CapimqInternalMessage) error {
+	ts := time.Now().UnixMilli()
+
+	mb.QMutex.Lock()
+
+	curLen := len(mb.Q)
+	if len(msgs)+curLen > mb.MaxMessages {
+		mb.QMutex.Unlock()
+		return fmt.Errorf("max_messages %d exceeded: already in queue %d, adding %d", mb.MaxMessages, curLen, len(msgs))
+	}
+
+	for _, msg := range msgs {
+		msg.Ts = ts
+		msg.DeliverAfter = ts
+		msg.Heartbeat = 0
+		mb.Q = append(mb.Q, msg)
+	}
+
+	// Need to sort, newer items may need to be delivered earlier than those already in the q (returned)
+	mb.sortQ()
+
+	mb.QMutex.Unlock()
+
+	return nil
+}
+
+func (mb *MessageBroker) Claim(claimComment string) (*CapimqInternalMessage, error) {
+	now := time.Now().UnixMilli()
+	mb.QMutex.Lock()
+	if len(mb.Q) == 0 {
+		mb.QMutex.Unlock()
+		return nil, nil
+	}
+	// The earliest item is at the head of the slice.
+	if mb.Q[0].DeliverAfter > now {
+		// All messages are postponed for time later than now, nothing to return
+		mb.QMutex.Unlock()
+		return nil, nil
+	}
+	msg := mb.Q[0]
+	mb.Q[0] = nil
+	mb.Q = mb.Q[1:]
+	mb.QMutex.Unlock()
+
+	msg.Heartbeat = now
+	msg.ClaimComment = claimComment
+
+	mb.WipMutex.Lock()
+	mb.Wip[msg.Id] = msg
+	mb.WipMutex.Unlock()
+
+	return msg, nil
+}
+
+func (mb *MessageBroker) Ack(id string) error {
+	mb.WipMutex.Lock()
+	_, ok := mb.Wip[id]
+	if !ok {
+		mb.WipMutex.Unlock()
+		return fmt.Errorf("cannot ack, message with id %s not found in wip, it probably was acked already by another client, or was declared dead because the lack of heartbeats", id)
+	}
+	delete(mb.Wip, id)
+	mb.WipMutex.Unlock()
+
+	return nil
+}
+
+func (mb *MessageBroker) Heartbeat(id string) error {
+	mb.WipMutex.Lock()
+	msg, ok := mb.Wip[id]
+	if !ok {
+		mb.WipMutex.Unlock()
+		return fmt.Errorf("cannot heartbeat, message with id %s not found in wip, it probably was acked already by another client, or was declared dead because the lack of heartbeats", id)
+	}
+	msg.Heartbeat = time.Now().UnixMilli()
+	mb.WipMutex.Unlock()
+
+	return nil
+}
+
+func (mb *MessageBroker) Return(id string, delay int64) error {
+	mb.WipMutex.Lock()
+	returnedMsg, ok := mb.Wip[id]
+	if !ok {
+		mb.WipMutex.Unlock()
+		return fmt.Errorf("cannot return, message with id %s not found in wip, it probably was acked already by another client, or was declared dead because the lack of heartbeats", id)
+	}
+	delete(mb.Wip, id)
+	mb.WipMutex.Unlock()
+
+	returnedMsg.ClaimComment = ""
+
+	newDeliverAfter := time.Now().UnixMilli() + delay
+
+	mb.QMutex.Lock()
+	mb.Q = append(mb.Q, returnedMsg)
+	if len(returnedMsg.CapimqWaitRetryGroup) == 0 {
+		returnedMsg.DeliverAfter = newDeliverAfter
+	} else {
+		for _, msg := range mb.Q {
+			if msg.CapimqWaitRetryGroup == returnedMsg.CapimqWaitRetryGroup {
+				msg.DeliverAfter = newDeliverAfter
+			}
+		}
+		mb.sortQ()
+	}
+	mb.QMutex.Unlock()
+
+	return nil
+}
+
+func (mb *MessageBroker) Count(heapType HeapType, waitRetryGroupPrefix string) int {
+	count := 0
+	switch heapType {
+	case HeapTypeQ:
+		mb.QMutex.RLock()
+		for _, msg := range mb.Q {
+			if waitRetryGroupPrefix == "" || strings.HasPrefix(msg.CapimqWaitRetryGroup, waitRetryGroupPrefix) {
+				count++
+			}
+		}
+		mb.QMutex.RUnlock()
+		return count
+	case HeapTypeWip:
+		mb.WipMutex.RLock()
+		for _, msg := range mb.Wip {
+			if waitRetryGroupPrefix == "" || strings.HasPrefix(msg.CapimqWaitRetryGroup, waitRetryGroupPrefix) {
+				count++
+			}
+		}
+		mb.WipMutex.RUnlock()
+		return count
+	default:
+		return 0
+	}
+}
+
+func (mb *MessageBroker) Delete(heapType HeapType, waitRetryGroupPrefix string) int {
+	switch heapType {
+	case HeapTypeQ:
+		count := 0
+		mb.QMutex.Lock()
+		i := 0
+		for i < len(mb.Q) {
+			if waitRetryGroupPrefix == "" || strings.HasPrefix(mb.Q[i].CapimqWaitRetryGroup, waitRetryGroupPrefix) {
+				count++
+				mb.Q[i] = nil
+				mb.Q = append(mb.Q[:i], mb.Q[i+1:]...)
+			}
+			i++
+		}
+		mb.QMutex.Unlock()
+		return count
+	case HeapTypeWip:
+		idsToDelete := make([]string, 0)
+		mb.WipMutex.Lock()
+		for id, msg := range mb.Wip {
+			if waitRetryGroupPrefix == "" || strings.HasPrefix(msg.CapimqWaitRetryGroup, waitRetryGroupPrefix) {
+				idsToDelete = append(idsToDelete, id)
+			}
+		}
+		for _, id := range idsToDelete {
+			delete(mb.Wip, id)
+		}
+		mb.WipMutex.Unlock()
+		return len(idsToDelete)
+	default:
+		return 0
+	}
+}
+
+func (mb *MessageBroker) HeadTail(heapType HeapType, queueRead QueueReadType, from int, count int) []*CapimqInternalMessage {
+	msgs := make([]*CapimqInternalMessage, 0)
+	switch heapType {
+	case HeapTypeQ:
+		mb.QMutex.RLock()
+		i := from
+		inc := 1
+		if queueRead == QueueReadTail {
+			i = len(mb.Q) - 1 - from
+			inc = -1
+		}
+		for range count {
+			if i < 0 || i >= len(mb.Q) {
+				break
+			}
+			msgs = append(msgs, mb.Q[i])
+			i += inc
+		}
+		mb.QMutex.RUnlock()
+	case HeapTypeWip:
+		allMsgs := make([]*CapimqInternalMessage, 0)
+		mb.WipMutex.RLock()
+		for _, msg := range mb.Wip {
+			allMsgs = append(allMsgs, msg)
+		}
+		mb.WipMutex.RUnlock()
+
+		sort.Slice(allMsgs, func(i int, j int) bool { return allMsgs[i].DeliverEarlierThan(allMsgs[j]) })
+
+		i := from
+		inc := 1
+		if queueRead == QueueReadTail {
+			i = len(allMsgs) - 1 - from
+			inc = -1
+		}
+		for range count {
+			if i < 0 || i >= len(allMsgs) {
+				break
+			}
+			msgs = append(msgs, allMsgs[i])
+			i += inc
+		}
+	default:
+		// Nada
+	}
+
+	return msgs
+}
+
+func (mb *MessageBroker) Filter(heapType HeapType, waitRetryGroupPrefix string) []*CapimqInternalMessage {
+	msgs := make([]*CapimqInternalMessage, 0)
+	switch heapType {
+	case HeapTypeQ:
+		// Empty prefix not accepted - too many msgs
+		if waitRetryGroupPrefix != "" {
+			mb.QMutex.RLock()
+			for _, msg := range mb.Q {
+				// Empty ks not accepted - will result in too many msgs
+				if strings.HasPrefix(msg.CapimqWaitRetryGroup, waitRetryGroupPrefix) {
+					msgs = append(msgs, msg)
+				}
+			}
+			mb.QMutex.RUnlock()
+		}
+	case HeapTypeWip:
+		// Empty prefix not accepted - too many msgs
+		if waitRetryGroupPrefix != "" {
+			mb.WipMutex.RLock()
+			for _, msg := range mb.Wip {
+				if strings.HasPrefix(msg.CapimqWaitRetryGroup, waitRetryGroupPrefix) {
+					msgs = append(msgs, msg)
+				}
+			}
+			mb.WipMutex.RUnlock()
+		}
+	default:
+		// Return empty
+	}
+
+	return msgs
+}

@@ -104,13 +104,14 @@ func ValidateStartPolicy(startPolicy NodeStartPolicy) error {
 }
 
 type ScriptNodeDef struct {
-	Name                string          // Get it from the key
-	Type                NodeType        `json:"type" yaml:"type"`
-	Desc                string          `json:"desc" yaml:"desc"`
-	StartPolicy         NodeStartPolicy `json:"start_policy" yaml:"start_policy"`
-	RerunPolicy         NodeRerunPolicy `json:"rerun_policy,omitempty" yaml:"rerun_policy,omitempty"`
-	CustomProcessorType string          `json:"custom_proc_type,omitempty" yaml:"custom_proc_type,omitempty"`
-	HandlerExeType      string          `json:"handler_exe_type,omitempty" yaml:"handler_exe_type,omitempty"`
+	Name                   string          // Get it from the key
+	Type                   NodeType        `json:"type" yaml:"type"`
+	Desc                   string          `json:"desc" yaml:"desc"`
+	StartPolicy            NodeStartPolicy `json:"start_policy" yaml:"start_policy"`
+	RerunPolicy            NodeRerunPolicy `json:"rerun_policy,omitempty" yaml:"rerun_policy,omitempty"`
+	CustomProcessorType    string          `json:"custom_proc_type,omitempty" yaml:"custom_proc_type,omitempty"`
+	HandlerExeType         string          `json:"handler_exe_type,omitempty" yaml:"handler_exe_type,omitempty"`
+	MaxBatchProcessingTime int             `json:"max_batch_processing_time,omitempty" yaml:"max_batch_processing_time,omitempty"`
 
 	RawReader   json.RawMessage `json:"r" yaml:"r"` // This depends on tfm type
 	TableReader TableReaderDef
@@ -246,6 +247,10 @@ func (node *ScriptNodeDef) Deserialize(customProcessorDefFactory CustomProcessor
 
 	// Defaults
 
+	if node.MaxBatchProcessingTime == 0 {
+		node.MaxBatchProcessingTime = 60000 // 1 min
+	}
+
 	if len(node.HandlerExeType) == 0 {
 		node.HandlerExeType = HandlerExeTypeGeneric
 	}
@@ -319,9 +324,13 @@ func (node *ScriptNodeDef) evalCreatorAndLookupExpressionsAndCheckType() error {
 			// If no grouping is used, no agg calls allowed
 			if node.HasLookup() && !node.Lookup.IsGroup || !node.HasLookup() {
 				v := AggFinderVisitor{}
-				ast.Walk(&v, tgtFieldDef.ParsedExpression)
-				if v.Error != nil {
-					foundErrors = append(foundErrors, fmt.Sprintf("cannot use agg functions in [%s], lookup group flag is not set or no lookups used: [%s]", tgtFieldDef.RawExpression, v.Error.Error()))
+				if tgtFieldDef.ParsedExpression == nil {
+					foundErrors = append(foundErrors, fmt.Sprintf("cannot parse node %s, target field %s expression [%s] was not parsed successfully", node.Name, tgtFieldName, tgtFieldDef.RawExpression))
+				} else {
+					ast.Walk(&v, tgtFieldDef.ParsedExpression)
+					if v.Error != nil {
+						foundErrors = append(foundErrors, fmt.Sprintf("cannot use agg functions in [%s], lookup group flag is not set or no lookups used: [%s]", tgtFieldDef.RawExpression, v.Error.Error()))
+					}
 				}
 			}
 

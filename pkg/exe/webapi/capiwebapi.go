@@ -22,15 +22,13 @@ import (
 	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/l"
+	"github.com/capillariesio/capillaries/pkg/mq"
 	"github.com/capillariesio/capillaries/pkg/sc"
-	"github.com/capillariesio/capillaries/pkg/wf"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/capillariesio/capillaries/pkg/xfer"
 	"github.com/gocql/gocql"
-	"github.com/hashicorp/golang-lru/v2/expirable"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type StandardWebapiProcessorDefFactory struct {
@@ -60,13 +58,9 @@ func newRoute(method, pattern string, handler http.HandlerFunc) route {
 	return route{method, regexp.MustCompile("^" + pattern + "$"), handler}
 }
 
-type ApiResponseError struct {
-	Msg string `json:"msg"`
-}
-
 type ApiResponse struct {
-	Data  any              `json:"data"`
-	Error ApiResponseError `json:"error"`
+	Data  any    `json:"data"`
+	Error string `json:"error"` // If need more, consider re-introducing ApiResponseError struct, and watch client side responseJson
 }
 
 func pickAccessControlAllowOrigin(wc *env.WebapiConfig, r *http.Request) string {
@@ -94,7 +88,7 @@ func WriteApiError(logger *l.CapiLogger, wc *env.WebapiConfig, r *http.Request, 
 
 	w.Header().Set("Access-Control-Allow-Origin", pickAccessControlAllowOrigin(wc, r))
 	logger.Error("cannot process %s: %s", urlPath, err.Error())
-	respJson, err := json.Marshal(ApiResponse{Error: ApiResponseError{Msg: err.Error()}})
+	respJson, err := json.Marshal(ApiResponse{Error: err.Error()})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("unexpected: cannot serialize error response %s", err.Error()), httpStatus)
 	} else {
@@ -625,20 +619,22 @@ func (h *UrlHandler) ksStartRun(w http.ResponseWriter, r *http.Request) {
 	h.L.Info("start run in %s, db session creation took %.2fs", keyspace, time.Since(dbStartTime).Seconds())
 
 	amqpStartTime := time.Now()
-	amqpConnection, err := amqp.Dial(h.Env.Amqp.URL)
-	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot dial RabbitMQ at %v, will reconnect: %v", h.Env.Amqp.URL, err), http.StatusInternalServerError)
-		return
-	}
-	defer amqpConnection.Close()
 
-	amqpChannel, err := amqpConnection.Channel()
+	var mqProducer mq.MqProducer
+	if h.Env.MqType == string(mq.MqClientCapimq) {
+		mqProducer = mq.NewCapimqProducer(h.Env.CapiMqClient.URL)
+	} else {
+		mqProducer = mq.NewAmqp10Producer(h.Env.Amqp10.URL, h.Env.Amqp10.Address)
+	}
+
+	err = mqProducer.Open()
 	if err != nil {
-		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot create amqp channel: %v", err), http.StatusInternalServerError)
+		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot open mq: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	defer amqpChannel.Close()
-	h.L.Info("start runin %s, amqp connect took %.2fs", keyspace, time.Since(amqpStartTime).Seconds())
+	defer mqProducer.Close()
+
+	h.L.Info("start runing %s, mq connect took %.2fs", keyspace, time.Since(amqpStartTime).Seconds())
 
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -652,7 +648,7 @@ func (h *UrlHandler) ksStartRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	runId, err := api.StartRun(h.Env, h.L, amqpChannel, runProps.ScriptUrl, runProps.ScriptParamsUrl, cqlSession, cassandraEngine, keyspace, strings.Split(runProps.StartNodes, ","), runProps.RunDescription)
+	runId, err := api.StartRun(h.Env, h.L, mqProducer, runProps.ScriptUrl, runProps.ScriptParamsUrl, cqlSession, cassandraEngine, keyspace, strings.Split(runProps.StartNodes, ","), runProps.RunDescription)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -828,8 +824,8 @@ func main() {
 
 	mux.Handle("/", h)
 
-	sc.ScriptDefCache = expirable.NewLRU[string, sc.ScriptInitResult](50, nil, time.Minute*1)
-	wf.NodeDependencyReadynessCache = expirable.NewLRU[string, string](1000, nil, time.Second*2)
+	sc.ScriptDefCache = sc.NewScriptDefCache()
+	api.NodeDependencyReadynessCache = api.NewNodeDependencyReadynessCache()
 
 	if envConfig.Log.PrometheusExporterPort > 0 {
 		prometheus.MustRegister(xfer.SftpFileGetGetDuration, xfer.HttpFileGetGetDuration, xfer.S3FileGetGetDuration)

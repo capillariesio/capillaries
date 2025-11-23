@@ -134,3 +134,11 @@ linters:
       - path: pkg\/proc\/proc_file_creator\.go
         text: "unchecked-type-assertion: type cast result is unchecked in [^ ]+FileRecordHeapItem"
         linters: [ revive ]
+      - path: pkg\/api\/message_handler\.go
+        text: function ProcessDataBatchMsg has cyclomatic complexity
+        linters: [ revive ]
+      # - path: .+\.go
+      #   text: "unused-parameter: parameter '_"
+      #   linters: [ revive ]
+
+        

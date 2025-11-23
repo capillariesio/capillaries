@@ -36,10 +36,11 @@ startNodes1='1_read_accounts,1_read_txns,1_read_period_holdings'
 if [[ "$one_or_multi" = "multi" ]]; then
   startNodes2='2_account_txns_outer,2_account_period_holdings_outer'
   startNodes3='3_build_account_period_activity'
+  startNodes4='5_tag_by_period'
 fi
 
 if [[ "$local_or_cloud" = "cloud" ]]; then
-  webapi_multi_run 'http://'$BASTION_IP':'$EXTERNAL_WEBAPI_PORT $keyspace $scriptFile $paramsFile $startNodes1 $startNodes2 $startNodes3
+  webapi_multi_run 'http://'$BASTION_IP':'$EXTERNAL_WEBAPI_PORT $keyspace $scriptFile $paramsFile $startNodes1 $startNodes2 $startNodes3 $startNodes4
 else
-  webapi_multi_run 'http://localhost:6543' $keyspace $scriptFile $paramsFile $startNodes1 $startNodes2 $startNodes3
+  webapi_multi_run 'http://localhost:6543' $keyspace $scriptFile $paramsFile $startNodes1 $startNodes2 $startNodes3 $startNodes4
 fi
