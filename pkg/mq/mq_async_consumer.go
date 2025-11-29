@@ -20,8 +20,7 @@ type AknowledgerToken struct {
 
 type MqAsyncConsumer interface {
 	Start(logger *l.CapiLogger, listenerChannel chan *wfmodel.Message, acknowledgerChannel chan AknowledgerToken) error
-	StopListener() error
-	StopAcknowledger() error
+	Shutdown(logger *l.CapiLogger, listenerChannel chan *wfmodel.Message, acknowledgerChannel chan AknowledgerToken, threadPoolSemaphore chan int)
 	SupportsHeartbeat() bool
 	DecrementActiveProcessors()
 }

@@ -256,7 +256,7 @@ func (dc *CapimqAsyncConsumer) Start(logger *l.CapiLogger, listenerChannel chan 
 
 }
 
-func (dc *CapimqAsyncConsumer) StopListener() error {
+func (dc *CapimqAsyncConsumer) stopListener() error {
 	dc.listenerStopping = true
 
 	timeoutChannel := make(chan bool, 1)
@@ -274,7 +274,7 @@ func (dc *CapimqAsyncConsumer) StopListener() error {
 
 }
 
-func (dc *CapimqAsyncConsumer) StopAcknowledger() error {
+func (dc *CapimqAsyncConsumer) stopAcknowledger() error {
 	dc.acknowledgerStopping = true
 
 	timeoutChannel := make(chan bool, 1)
@@ -298,4 +298,30 @@ func (dc *CapimqAsyncConsumer) SupportsHeartbeat() bool {
 
 func (dc *CapimqAsyncConsumer) DecrementActiveProcessors() {
 	dc.activeProcessors.Add(-1)
+}
+
+func (dc *CapimqAsyncConsumer) Shutdown(logger *l.CapiLogger, listenerChannel chan *wfmodel.Message, acknowledgerChannel chan AknowledgerToken, sem chan int) {
+	logger.PushF("CapimqAsyncConsumer.Shutdown")
+	defer logger.Close()
+
+	if err := dc.stopListener(); err != nil {
+		logger.Error("cannot stop listener gracefully, brace for impact: %s", err.Error())
+	}
+
+	// This can make listenerWorker panic if there was an error above
+	close(listenerChannel)
+
+	logger.Info("started waiting for all workers to complete (%d items)", len(sem))
+	for len(sem) > 0 {
+		logger.Info("still waiting for all workers to complete (%d items left)...", len(sem))
+		time.Sleep(1000 * time.Millisecond)
+	}
+	logger.Info("all workers complete")
+
+	if err := dc.stopAcknowledger(); err != nil {
+		logger.Error("cannot stop acknowledger gracefully, brace for impact: %s", err.Error())
+	}
+
+	// This can make acknowledgerWorker panic if there was an error above
+	close(acknowledgerChannel)
 }

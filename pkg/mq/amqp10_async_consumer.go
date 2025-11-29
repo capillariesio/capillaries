@@ -179,14 +179,9 @@ func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 		}
 	}
 
-	// Cleanup on exit
-	if dc.listener.isOpen() {
-		closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ListenerCloseTimeout*time.Millisecond)
-		if err := dc.listener.closeInternal(closeCtx); err != nil {
-			logger.Error("cannot properly close on exit: %s", err.Error())
-		}
-		closeCancel()
-	}
+	// Do not call closeInternal here, Shutdown will cleanup
+	// closeInternal() will close the underlying link in dc.listener, which, apparently, is referenced by amqpMessages, so an attempt to ack/retry
+	// an amqpMessage with link closed will throw an error
 
 	// Signal that listener is done
 	dc.listener.done <- true
@@ -295,14 +290,12 @@ func (dc *Amqp10AsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 
 	}
 
-	// Cleanup on exit
-	if dc.acknowledger.isOpen() {
-		closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10AcknowledgerCloseTimeout*time.Millisecond)
-		if err := dc.acknowledger.closeInternal(closeCtx); err != nil {
-			logger.Error("cannot properly close on exit: %s", err.Error())
-		}
-		closeCancel()
+	// Drain aknowledger channel
+	for len(acknowledgerChannel) > 0 {
+		<-acknowledgerChannel
 	}
+
+	// Do not call closeInternal here, Shutdown will cleanup
 
 	// Signal that Acknowledger is done
 	dc.acknowledger.done <- true
@@ -324,7 +317,7 @@ func (dc *Amqp10AsyncConsumer) Start(logger *l.CapiLogger, listenerChannel chan 
 	return nil
 }
 
-func (dc *Amqp10AsyncConsumer) StopListener() error {
+func (dc *Amqp10AsyncConsumer) stopListener() error {
 	dc.listenerStopping = true
 
 	timeoutChannel := make(chan bool, 1)
@@ -341,7 +334,17 @@ func (dc *Amqp10AsyncConsumer) StopListener() error {
 	}
 }
 
-func (dc *Amqp10AsyncConsumer) StopAcknowledger() error {
+func (dc *Amqp10AsyncConsumer) closeListener() error {
+	if dc.listener.isOpen() {
+		closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10ListenerCloseTimeout*time.Millisecond)
+		err := dc.listener.closeInternal(closeCtx)
+		closeCancel()
+		return err
+	}
+	return nil
+}
+
+func (dc *Amqp10AsyncConsumer) stopAcknowledger() error {
 	dc.acknowledgerStopping = true
 
 	timeoutChannel := make(chan bool, 1)
@@ -358,10 +361,52 @@ func (dc *Amqp10AsyncConsumer) StopAcknowledger() error {
 	}
 }
 
+func (dc *Amqp10AsyncConsumer) closeAcknowledger() error {
+	if dc.acknowledger.isOpen() {
+		closeCtx, closeCancel := context.WithTimeout(context.Background(), Amqp10AcknowledgerCloseTimeout*time.Millisecond)
+		err := dc.acknowledger.closeInternal(closeCtx)
+		closeCancel()
+		return err
+	}
+	return nil
+}
+
 func (dc *Amqp10AsyncConsumer) SupportsHeartbeat() bool {
 	return false
 }
 
 func (dc *Amqp10AsyncConsumer) DecrementActiveProcessors() {
 	dc.activeProcessors.Add(-1)
+}
+
+func (dc *Amqp10AsyncConsumer) Shutdown(logger *l.CapiLogger, listenerChannel chan *wfmodel.Message, acknowledgerChannel chan AknowledgerToken, sem chan int) {
+	logger.PushF("Amqp10AsyncConsumer.Shutdown")
+	defer logger.Close()
+
+	if err := dc.stopListener(); err != nil {
+		logger.Error("cannot stop listener gracefully, brace for impact: %s", err.Error())
+	}
+
+	// This can make listenerWorker panic if there was an error above
+	close(listenerChannel)
+
+	logger.Info("started waiting for all workers to complete (%d items)", len(sem))
+	for len(sem) > 0 {
+		logger.Info("still waiting for all workers to complete (%d items left)...", len(sem))
+		time.Sleep(1000 * time.Millisecond)
+	}
+	logger.Info("all workers complete")
+
+	// Now it is safe to close
+	dc.closeListener()
+
+	if err := dc.stopAcknowledger(); err != nil {
+		logger.Error("cannot stop acknowledger gracefully, brace for impact: %s", err.Error())
+	}
+
+	// Now it is safe to close
+	dc.closeAcknowledger()
+
+	// This can make acknowledgerWorker panic if there was an error above
+	close(acknowledgerChannel)
 }
