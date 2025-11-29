@@ -111,7 +111,7 @@ func main() {
 	logger.Info("S3 config status: %s", xfer.GetS3ConfigStatus(initCtx).String())
 
 	osSignalChannel := make(chan os.Signal, 1)
-	signal.Notify(osSignalChannel, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(osSignalChannel, os.Interrupt, syscall.SIGINT, syscall.SIGTERM) // kill -s 2 <PID>
 
 	sc.ScriptDefCache = sc.NewScriptDefCache()
 	api.NodeDependencyReadynessCache = api.NewNodeDependencyReadynessCache()

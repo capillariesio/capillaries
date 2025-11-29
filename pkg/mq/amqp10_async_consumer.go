@@ -154,6 +154,8 @@ func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 	logger.PushF("Amqp10AsyncConsumer.listenerWorker")
 	defer logger.Close()
 
+	dc.listener.done = make(chan bool, 1)
+
 	for !dc.listenerStopping {
 		// Do not claim until at least one procesor is ready, otherwise we risk a msg sitting
 		// in the channel without sending heartbits, so by the time a processor start handling it,
@@ -263,6 +265,8 @@ func (dc *Amqp10AsyncConsumer) acknowledgerAckRetry(logger *l.CapiLogger, token 
 func (dc *Amqp10AsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowledgerChannel chan AknowledgerToken) {
 	logger.PushF("Amqp10AsyncConsumer.aknowledgerWorker")
 	defer logger.Close()
+
+	dc.acknowledger.done = make(chan bool, 1)
 
 	for !dc.acknowledgerStopping {
 		timeoutChannel := make(chan bool, 1)
@@ -409,4 +413,6 @@ func (dc *Amqp10AsyncConsumer) Shutdown(logger *l.CapiLogger, listenerChannel ch
 
 	// This can make acknowledgerWorker panic if there was an error above
 	close(acknowledgerChannel)
+
+	logger.Info("gracefully shut down")
 }

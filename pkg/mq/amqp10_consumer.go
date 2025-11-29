@@ -16,8 +16,6 @@ type Amqp10Consumer struct {
 }
 
 func (c *Amqp10Consumer) openInternal(ctx context.Context, url string, address string, credits int32) error {
-	c.done = make(chan bool)
-
 	var err error
 	c.conn, err = amqp10.Dial(ctx, url, nil)
 	if err != nil {

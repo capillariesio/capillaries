@@ -155,6 +155,8 @@ func (dc *CapimqAsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 	logger.PushF("CapimqAsyncConsumer.listenerWorker")
 	defer logger.Close()
 
+	dc.listenerDone = make(chan bool, 1)
+
 	for !dc.listenerStopping {
 		// Do not claim until at least one procesor is ready, otherwise we risk a msg sitting
 		// in the channel without sending heartbits, so by the time a processor start handling it,
@@ -191,6 +193,8 @@ func (dc *CapimqAsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChan
 func (dc *CapimqAsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowledgerChannel chan AknowledgerToken) {
 	logger.PushF("CapimqAsyncConsumer.aknowledgerWorker")
 	defer logger.Close()
+
+	dc.acknowledgerDone = make(chan bool, 1)
 
 	for !dc.acknowledgerStopping {
 		timeoutChannel := make(chan bool, 1)
@@ -324,4 +328,6 @@ func (dc *CapimqAsyncConsumer) Shutdown(logger *l.CapiLogger, listenerChannel ch
 
 	// This can make acknowledgerWorker panic if there was an error above
 	close(acknowledgerChannel)
+
+	logger.Info("gracefully shut down")
 }
