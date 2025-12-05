@@ -402,14 +402,18 @@ func (dc *Amqp10AsyncConsumer) Shutdown(logger *l.CapiLogger, listenerChannel ch
 	logger.Info("all workers complete")
 
 	// Now it is safe to close
-	dc.closeListener()
+	if err := dc.closeListener(); err != nil {
+		logger.Error("cannot close listener: %s", err.Error())
+	}
 
 	if err := dc.stopAcknowledger(); err != nil {
 		logger.Error("cannot stop acknowledger gracefully, brace for impact: %s", err.Error())
 	}
 
 	// Now it is safe to close
-	dc.closeAcknowledger()
+	if err := dc.closeAcknowledger(); err != nil {
+		logger.Error("cannot close acknowledger: %s", err.Error())
+	}
 
 	// This can make acknowledgerWorker panic if there was an error above
 	close(acknowledgerChannel)
