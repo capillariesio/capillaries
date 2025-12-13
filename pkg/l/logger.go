@@ -82,7 +82,7 @@ func NewLoggerFromEnvConfig(envConfig *env.EnvConfig) (*CapiLogger, error) {
 			Compress:   true,
 		}
 		ljChan := make(chan os.Signal, 1)
-		signal.Notify(ljChan, syscall.SIGHUP)
+		signal.Notify(ljChan, syscall.SIGHUP) // kill -s 1 <PID>
 		go func() {
 			for {
 				<-ljChan

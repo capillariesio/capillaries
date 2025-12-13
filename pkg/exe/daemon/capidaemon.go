@@ -111,7 +111,7 @@ func main() {
 	logger.Info("S3 config status: %s", xfer.GetS3ConfigStatus(initCtx).String())
 
 	osSignalChannel := make(chan os.Signal, 1)
-	signal.Notify(osSignalChannel, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(osSignalChannel, os.Interrupt, syscall.SIGINT, syscall.SIGTERM) // kill -s 2 <PID>
 
 	sc.ScriptDefCache = sc.NewScriptDefCache()
 	api.NodeDependencyReadynessCache = api.NewNodeDependencyReadynessCache()
@@ -142,29 +142,13 @@ func main() {
 		log.Fatalf("%s", err.Error())
 	}
 
-	for {
+	keepRunning := true
+	for keepRunning {
 		select {
 		case osSignal := <-osSignalChannel:
 			if osSignal == os.Interrupt || osSignal == os.Kill {
 				logger.Info("received os signal %v , quitting...", osSignal)
-				if err = asyncConsumer.StopListener(); err != nil {
-					logger.Error("cannot stop listener gracefully, brace for impact: %s", err.Error())
-				}
-				// This can make listenerWorker panic if there was an error above
-				close(listenerChannel)
-
-				logger.Info("started waiting for all workers to complete (%d items)", len(sem))
-				for len(sem) > 0 {
-					logger.Info("still waiting for all workers to complete (%d items left)...", len(sem))
-					time.Sleep(1000 * time.Millisecond)
-				}
-
-				if err = asyncConsumer.StopAcknowledger(); err != nil {
-					logger.Error("cannot stop acknowledger gracefully, brace for impact: %s", err.Error())
-				}
-				// This can make acknowledgerWorker panic if there was an error above
-				close(acknowledgerChannel)
-				os.Exit(0)
+				keepRunning = false
 			}
 		case wfmodelMsg := <-listenerChannel:
 			// Lock one slot in the semaphore
@@ -207,4 +191,5 @@ func main() {
 		}
 
 	}
+	asyncConsumer.Shutdown(logger, listenerChannel, acknowledgerChannel, sem)
 }
