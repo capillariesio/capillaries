@@ -104,12 +104,12 @@ func (procDef *TagAndDenormalizeProcessorDef) tagAndDenormalize(rsIn *proc.Rowse
 
 	for rowIdx := 0; rowIdx < rsIn.RowCount; rowIdx++ {
 		vars := eval.VarValuesMap{}
-		if err := rsIn.ExportToVars(rowIdx, &vars); err != nil {
+		if err := rsIn.ExportToVars(rowIdx, vars); err != nil {
 			return err
 		}
 
 		for tag, tagCriteria := range procDef.ParsedTagCriteria {
-			eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, &vars)
+			eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, vars)
 			valVolatile, err := eCtx.Eval(tagCriteria)
 			if err != nil {
 				return fmt.Errorf("cannot evaluate expression for tag %s criteria: [%s]", tag, err.Error())

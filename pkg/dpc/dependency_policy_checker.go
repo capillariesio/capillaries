@@ -24,7 +24,7 @@ func CheckDependencyPolicyAgainstNodeEventList(logger *l.CapiLogger, fullBatchId
 
 	for eventIdx := 0; eventIdx < len(events); eventIdx++ {
 		vars := wfmodel.NewVarsFromDepCtx(events[eventIdx])
-		eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, &vars)
+		eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, vars)
 		for ruleIdx, rule := range targetNodeDepPol.Rules {
 			ruleMatched, err := eCtx.Eval(rule.ParsedExpression)
 			if err != nil {

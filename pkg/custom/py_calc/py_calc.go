@@ -489,7 +489,7 @@ func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput
 
 				// We need to include reader fieldsin the result, writermay use any of them
 				vars := eval.VarValuesMap{}
-				if err := rsIn.ExportToVars(rowIdx, &vars); err != nil {
+				if err := rsIn.ExportToVars(rowIdx, vars); err != nil {
 					return err
 				}
 
@@ -582,7 +582,7 @@ const ProcPrefix string = "p_"
 func (procDef *PyCalcProcessorDef) printItemCalculationCode(rowIdx int, rsIn *proc.Rowset) (string, error) {
 	// Initialize input variables in no particular order
 	vars := eval.VarValuesMap{}
-	err := rsIn.ExportToVars(rowIdx, &vars)
+	err := rsIn.ExportToVars(rowIdx, vars)
 	if err != nil {
 		return "", err
 	}

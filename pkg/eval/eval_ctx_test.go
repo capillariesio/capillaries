@@ -18,7 +18,7 @@ func assertEqual(t *testing.T, expString string, expectedResult any, varValuesMa
 		t.Error(fmt.Errorf("%s: %s", expString, err1.Error()))
 		return
 	}
-	eCtx := NewPlainEvalCtxWithVars(AggFuncDisabled, &varValuesMap)
+	eCtx := NewPlainEvalCtxWithVars(AggFuncDisabled, varValuesMap)
 	result, err2 := eCtx.Eval(exp)
 	if err2 != nil {
 		t.Error(fmt.Errorf("%s: %s", expString, err2.Error()))
@@ -34,7 +34,7 @@ func assertFloatNan(t *testing.T, expString string, varValuesMap VarValuesMap) {
 		t.Error(fmt.Errorf("%s: %s", expString, err1.Error()))
 		return
 	}
-	eCtx := NewPlainEvalCtxWithVars(AggFuncDisabled, &varValuesMap)
+	eCtx := NewPlainEvalCtxWithVars(AggFuncDisabled, varValuesMap)
 	result, err2 := eCtx.Eval(exp)
 	if err2 != nil {
 		t.Error(fmt.Errorf("%s: %s", expString, err2.Error()))
@@ -51,7 +51,7 @@ func assertEvalError(t *testing.T, expString string, expectedErrorMsg string, va
 		assert.Contains(t, err1.Error(), expectedErrorMsg, fmt.Sprintf("Unmatched: %v = %v: %s ", expectedErrorMsg, err1.Error(), expString))
 		return
 	}
-	eCtx := NewPlainEvalCtxWithVars(AggFuncDisabled, &varValuesMap)
+	eCtx := NewPlainEvalCtxWithVars(AggFuncDisabled, varValuesMap)
 	_, err2 := eCtx.Eval(exp)
 
 	assert.Contains(t, err2.Error(), expectedErrorMsg, fmt.Sprintf("Unmatched: %v = %v: %s ", expectedErrorMsg, err2.Error(), expString))
@@ -62,9 +62,9 @@ func TestBad(t *testing.T) {
 	assertEvalError(t, "some(", "1:6: expected ')', found 'EOF'", VarValuesMap{})
 
 	// Missing identifier
-	assertEvalError(t, "someident", "cannot evaluate identifier someident", VarValuesMap{})
+	assertEvalError(t, "someident", "cannot evaluate ident expression 'someident', no empty object", VarValuesMap{})
 	assertEvalError(t, "somefunc()", "cannot evaluate unsupported func 'somefunc'", VarValuesMap{})
-	assertEvalError(t, "t2.aaa == 1", "cannot evaluate expression 't2', variable not supplied, check table/alias name", VarValuesMap{})
+	assertEvalError(t, "t2.aaa == 1", "cannot evaluate selector ident expression 't2', variable not supplied, check table/alias name", VarValuesMap{})
 
 	// Unsupported binary operators
 	assertEvalError(t, "2 ^ 1", "cannot perform binary expression unknown op ^", VarValuesMap{})   // TODO: implement ^ xor

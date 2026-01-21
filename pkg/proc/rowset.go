@@ -166,7 +166,7 @@ func (rs *Rowset) InitRows(capacity int) error {
 	}
 	return nil
 }
-func (rs *Rowset) ExportToVars(rowIdx int, vars *eval.VarValuesMap) error {
+func (rs *Rowset) ExportToVars(rowIdx int, vars eval.VarValuesMap) error {
 	return rs.ExportToVarsWithAlias(rowIdx, vars, "")
 }
 
@@ -202,37 +202,37 @@ func (rs *Rowset) GetTableRecord(rowIdx int) (map[string]any, error) {
 }
 
 // TODO: consider passing just vars eval.VarValuesMap; maps are passed by ref in Go anyways
-func (rs *Rowset) ExportToVarsWithAlias(rowIdx int, vars *eval.VarValuesMap, useTableAlias string) error {
+func (rs *Rowset) ExportToVarsWithAlias(rowIdx int, vars eval.VarValuesMap, useTableAlias string) error {
 	for colIdx := 0; colIdx < len(rs.Fields); colIdx++ {
 		tName := &rs.Fields[colIdx].TableName
 		if len(useTableAlias) > 0 {
 			tName = &useTableAlias
 		}
 		fName := &rs.Fields[colIdx].FieldName
-		_, ok := (*vars)[*tName]
+		_, ok := vars[*tName]
 		if !ok {
-			(*vars)[*tName] = map[string]any{}
+			vars[*tName] = map[string]any{}
 		}
 		valuePtr := (*rs.Rows[rowIdx])[colIdx]
 		switch assertedValuePtr := valuePtr.(type) {
 		case *int64:
-			(*vars)[*tName][*fName] = *assertedValuePtr
+			vars[*tName][*fName] = *assertedValuePtr
 		case *string:
-			(*vars)[*tName][*fName] = *assertedValuePtr
+			vars[*tName][*fName] = *assertedValuePtr
 		case *time.Time:
-			(*vars)[*tName][*fName] = *assertedValuePtr
+			vars[*tName][*fName] = *assertedValuePtr
 		case *bool:
-			(*vars)[*tName][*fName] = *assertedValuePtr
+			vars[*tName][*fName] = *assertedValuePtr
 		case *decimal.Decimal:
-			(*vars)[*tName][*fName] = *assertedValuePtr
+			vars[*tName][*fName] = *assertedValuePtr
 		case *float64:
-			(*vars)[*tName][*fName] = *assertedValuePtr
+			vars[*tName][*fName] = *assertedValuePtr
 		case *inf.Dec:
 			decVal, err := decimal.NewFromString((*(valuePtr.(*inf.Dec))).String())
 			if err != nil {
 				return fmt.Errorf("ExportToVars cannot convert inf.Dec [%v]to decimal.Decimal", *(valuePtr.(*inf.Dec)))
 			}
-			(*vars)[*tName][*fName] = decVal
+			vars[*tName][*fName] = decVal
 		default:
 			return fmt.Errorf("ExportToVars unsupported field type %T", valuePtr)
 		}

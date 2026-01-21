@@ -20,7 +20,7 @@ const (
 )
 
 type EvalCtx struct {
-	Vars       *VarValuesMap
+	Vars       VarValuesMap
 	AggFunc    AggFuncType
 	AggType    AggDataType
 	AggCallExp *ast.CallExpr
@@ -84,7 +84,7 @@ func NewPlainEvalCtxAndInitializedAgg(funcName string, aggEnabled AggEnabledType
 	return &eCtx, nil
 }
 
-func NewPlainEvalCtxWithVars(aggEnabled AggEnabledType, vars *VarValuesMap) EvalCtx {
+func NewPlainEvalCtxWithVars(aggEnabled AggEnabledType, vars VarValuesMap) EvalCtx {
 	return EvalCtx{
 		AggFunc:    AggUnknown,
 		Vars:       vars,
@@ -97,7 +97,7 @@ func NewPlainEvalCtxWithVars(aggEnabled AggEnabledType, vars *VarValuesMap) Eval
 		Max:        MaxCollector{Int: minSupportedInt, Float: minSupportedFloat, Dec: minSupportedDecimal(), Str: ""}}
 }
 
-func NewPlainEvalCtxWithVarsAndInitializedAgg(funcName string, aggEnabled AggEnabledType, vars *VarValuesMap, aggFuncType AggFuncType, aggFuncArgs []ast.Expr) (*EvalCtx, error) {
+func NewPlainEvalCtxWithVarsAndInitializedAgg(funcName string, aggEnabled AggEnabledType, vars VarValuesMap, aggFuncType AggFuncType, aggFuncArgs []ast.Expr) (*EvalCtx, error) {
 	eCtx := NewPlainEvalCtxWithVars(aggEnabled, vars)
 	// Special case: we need to provide eCtx.StringAgg with a separator and
 	// explicitly set its type to AggTypeString from the very beginning (instead of detecting it later, as we do for other agg functions)
@@ -690,7 +690,23 @@ func (eCtx *EvalCtx) Eval(exp ast.Expr) (any, error) {
 			eCtx.Value = false
 			return false, nil
 		}
-		return nil, fmt.Errorf("cannot evaluate identifier %s", exp.Name)
+		if eCtx.Vars == nil {
+			return nil, fmt.Errorf("cannot evaluate ident expression '%s', no variables supplied to the context", exp.Name)
+		}
+
+		// Non-selector idents are store under ""
+		objectAttributes, ok := eCtx.Vars[""]
+		if !ok {
+			return nil, fmt.Errorf("cannot evaluate ident expression '%s', no empty object", exp.Name)
+		}
+
+		val, ok := objectAttributes[exp.Name]
+		if !ok {
+			return nil, fmt.Errorf("cannot evaluate ident expression %s, variable not supplied", exp.Name)
+		}
+		eCtx.Value = val
+
+		return val, nil
 
 	case *ast.CallExpr:
 		args := make([]any, len(exp.Args))
@@ -733,17 +749,17 @@ func (eCtx *EvalCtx) Eval(exp ast.Expr) (any, error) {
 			}
 
 			if eCtx.Vars == nil {
-				return nil, fmt.Errorf("cannot evaluate expression '%s', no variables supplied to the context", objectIdent.Name)
+				return nil, fmt.Errorf("cannot evaluate selector ident expression '%s', no variables supplied to the context", objectIdent.Name)
 			}
 
-			objectAttributes, ok := (*eCtx.Vars)[objectIdent.Name]
+			objectAttributes, ok := eCtx.Vars[objectIdent.Name]
 			if !ok {
-				return nil, fmt.Errorf("cannot evaluate expression '%s', variable not supplied, check table/alias name", objectIdent.Name)
+				return nil, fmt.Errorf("cannot evaluate selector ident expression '%s', variable not supplied, check table/alias name", objectIdent.Name)
 			}
 
 			val, ok := objectAttributes[exp.Sel.Name]
 			if !ok {
-				return nil, fmt.Errorf("cannot evaluate expression %s.%s, variable not supplied, check field name", objectIdent.Name, exp.Sel.Name)
+				return nil, fmt.Errorf("cannot evaluate selector ident expression %s.%s, variable not supplied, check field name", objectIdent.Name, exp.Sel.Name)
 			}
 			eCtx.Value = val
 			return val, nil

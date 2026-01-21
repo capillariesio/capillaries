@@ -396,7 +396,7 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 		// Save rsIn
 		for outRowIdx := 0; outRowIdx < rsIn.RowCount; outRowIdx++ {
 			clear(vars)
-			if err := rsIn.ExportToVars(outRowIdx, &vars); err != nil {
+			if err := rsIn.ExportToVars(outRowIdx, vars); err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot export to vars from source table, node %s: %s", node.Name, err.Error()))
 				return bs, instr.waitForDrainer()
 			}
@@ -532,7 +532,7 @@ func RunCreateDistinctTableForBatch(envConfig *env.EnvConfig,
 		// Save rsIn
 		for outRowIdx := 0; outRowIdx < rsIn.RowCount; outRowIdx++ {
 			clear(vars)
-			if err = rsIn.ExportToVars(outRowIdx, &vars); err != nil {
+			if err = rsIn.ExportToVars(outRowIdx, vars); err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot export to vars from source table, node %s: %s", node.Name, err.Error()))
 				return bs, instr.waitForDrainer()
 			}
@@ -589,7 +589,7 @@ func buildKeysToFindInTheLookupIndex(rsLeft *Rowset, scriptNodeLookup sc.LookupD
 	keyToLeftRowIdxMap := map[string][]int{}
 	for rowIdx := 0; rowIdx < rsLeft.RowCount; rowIdx++ {
 		vars := eval.VarValuesMap{}
-		if err := rsLeft.ExportToVars(rowIdx, &vars); err != nil {
+		if err := rsLeft.ExportToVars(rowIdx, vars); err != nil {
 			return nil, nil, err
 		}
 		key, err := sc.BuildKey(vars[sc.ReaderAlias], scriptNodeLookup.TableCreator.Indexes[scriptNodeLookup.IndexName])
@@ -649,7 +649,7 @@ func setupEvalCtxForGroup(node *sc.ScriptNodeDef, rsLeft *Rowset) (map[int64]map
 func evalRowGroupedFields(writerFieldDefs map[string]*sc.WriteTableFieldDef, rsLeft *Rowset, leftRowIdx int, rsRight *Rowset, rightRowIdx int, eCtxMap map[int64]map[string]*eval.EvalCtx) error {
 	leftRowid := *((*rsLeft.Rows[leftRowIdx])[rsLeft.FieldsByFieldName["rowid"]].(*int64))
 	for fieldName, fieldDef := range writerFieldDefs {
-		eCtxMap[leftRowid][fieldName].Vars = &eval.VarValuesMap{}
+		eCtxMap[leftRowid][fieldName].Vars = eval.VarValuesMap{}
 		if err := rsLeft.ExportToVars(leftRowIdx, eCtxMap[leftRowid][fieldName].Vars); err != nil {
 			return err
 		}
@@ -668,7 +668,7 @@ func checkLookupFilter(lookupDef *sc.LookupDef, rsRight *Rowset, rightRowIdx int
 	lookupFilterOk := true
 	if lookupDef.UsesFilter() {
 		vars := eval.VarValuesMap{}
-		if err := rsRight.ExportToVars(rightRowIdx, &vars); err != nil {
+		if err := rsRight.ExportToVars(rightRowIdx, vars); err != nil {
 			return false, err
 		}
 		var err error
@@ -705,7 +705,7 @@ func produceGroupedTableRecord(node *sc.ScriptNodeDef, rsLeft *Rowset, leftRowId
 		}
 		// Grouped left outer join with no data on the right
 		leftVars := eval.VarValuesMap{}
-		if err := rsLeft.ExportToVars(leftRowIdx, &leftVars); err != nil {
+		if err := rsLeft.ExportToVars(leftRowIdx, leftVars); err != nil {
 			return nil, err
 		}
 
@@ -743,10 +743,10 @@ func produceGroupedTableRecord(node *sc.ScriptNodeDef, rsLeft *Rowset, leftRowId
 
 func produceNonGroupedTableRecordForLeftWithChildren(node *sc.ScriptNodeDef, rsLeft *Rowset, leftRowIdx int, rsRight *Rowset, rightRowIdx int) (map[string]any, error) {
 	vars := eval.VarValuesMap{}
-	if err := rsLeft.ExportToVars(leftRowIdx, &vars); err != nil {
+	if err := rsLeft.ExportToVars(leftRowIdx, vars); err != nil {
 		return nil, err
 	}
-	if err := rsRight.ExportToVarsWithAlias(rightRowIdx, &vars, sc.LookupAlias); err != nil {
+	if err := rsRight.ExportToVarsWithAlias(rightRowIdx, vars, sc.LookupAlias); err != nil {
 		return nil, err
 	}
 
@@ -762,7 +762,7 @@ func produceNonGroupedTableRecordForCheldlessLeft(node *sc.ScriptNodeDef, rsLeft
 	tableRecord := map[string]any{}
 
 	leftVars := eval.VarValuesMap{}
-	if err := rsLeft.ExportToVars(leftRowIdx, &leftVars); err != nil {
+	if err := rsLeft.ExportToVars(leftRowIdx, leftVars); err != nil {
 		return nil, err
 	}
 

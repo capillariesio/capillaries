@@ -73,7 +73,7 @@ func readAndInsert(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, tab
 
 		for rowIdx := 0; rowIdx < rs.RowCount; rowIdx++ {
 			vars := eval.VarValuesMap{}
-			if err := rs.ExportToVars(rowIdx, &vars); err != nil {
+			if err := rs.ExportToVars(rowIdx, vars); err != nil {
 				return bs, err
 			}
 
