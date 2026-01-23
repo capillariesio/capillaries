@@ -14,7 +14,7 @@ import (
 )
 
 // IMPORTANT: please keep this eval core component TableFieldType- and custom function-agnostic.
-// It should not be aware of things lice decimal2 or some math.iif() functions.
+// It should not be aware of things like decimal2 or some math.iif() functions.
 
 func DetectRootAggFunc(exp ast.Expr) (string, AggEnabledType, AggFuncType, []ast.Expr) {
 	if callExp, ok := exp.(*ast.CallExpr); ok {
@@ -292,16 +292,16 @@ func (eCtx *EvalCtx) EvalBinaryDecimal2ToBool(valLeftVolatile any, op token.Toke
 
 	valLeft, ok := valLeftVolatile.(decimal.Decimal)
 	if !ok {
-		return false, fmt.Errorf("cannot evaluate binary decimal2 expression '%v' with '%v(%T)' on the left", op, valLeftVolatile, valLeftVolatile)
+		return false, fmt.Errorf("cannot evaluate binary decimal expression '%v' with '%v(%T)' on the left", op, valLeftVolatile, valLeftVolatile)
 	}
 
 	valRight, ok := valRightVolatile.(decimal.Decimal)
 	if !ok {
-		return false, fmt.Errorf("cannot evaluate binary decimal2 expression '%v(%T) %v %v(%T)', invalid right arg", valLeft, valLeft, op, valRightVolatile, valRightVolatile)
+		return false, fmt.Errorf("cannot evaluate binary decimal expression '%v(%T) %v %v(%T)', invalid right arg", valLeft, valLeft, op, valRightVolatile, valRightVolatile)
 	}
 
 	if !isCompareOp(op) {
-		return false, fmt.Errorf("cannot perform bool op %v against decimal2 %v and decimal2 %v", op, valLeft, valRight)
+		return false, fmt.Errorf("cannot perform bool op %v against decimal %v and decimal %v", op, valLeft, valRight)
 	}
 	if op == token.GTR && valLeft.Cmp(valRight) > 0 ||
 		op == token.LSS && valLeft.Cmp(valRight) < 0 ||
@@ -366,18 +366,18 @@ func (eCtx *EvalCtx) EvalBinaryFloat64(valLeftVolatile any, op token.Token, valR
 	}
 }
 
-func (eCtx *EvalCtx) EvalBinaryDecimal2(valLeftVolatile any, op token.Token, valRightVolatile any) (result decimal.Decimal, err error) {
+func (eCtx *EvalCtx) EvalBinaryDecimal(valLeftVolatile any, op token.Token, valRightVolatile any) (result decimal.Decimal, err error) {
 
 	result = decimal.NewFromFloat(math.MaxFloat64)
 	err = nil
 	valLeft, ok := valLeftVolatile.(decimal.Decimal)
 	if !ok {
-		return decimal.NewFromInt(0), fmt.Errorf("cannot evaluate binary decimal2 expression '%v' with '%v(%T)' on the left", op, valLeftVolatile, valLeftVolatile)
+		return decimal.NewFromInt(0), fmt.Errorf("cannot evaluate binary decimal expression '%v' with '%v(%T)' on the left", op, valLeftVolatile, valLeftVolatile)
 	}
 
 	valRight, ok := valRightVolatile.(decimal.Decimal)
 	if !ok {
-		return decimal.NewFromInt(0), fmt.Errorf("cannot evaluate binary decimal2 expression '%v(%T) %v %v(%T)', invalid right arg", valLeft, valLeft, op, valRightVolatile, valRightVolatile)
+		return decimal.NewFromInt(0), fmt.Errorf("cannot evaluate binary decimal expression '%v(%T) %v %v(%T)', invalid right arg", valLeft, valLeft, op, valRightVolatile, valRightVolatile)
 	}
 
 	defer func() {
@@ -396,7 +396,7 @@ func (eCtx *EvalCtx) EvalBinaryDecimal2(valLeftVolatile any, op token.Token, val
 	case token.QUO:
 		return valLeft.Div(valRight).Round(2), nil
 	default:
-		return decimal.NewFromInt(0), fmt.Errorf("cannot perform decimal2 op %v against decimal2 %v and float64 %v", op, valLeft, valRight)
+		return decimal.NewFromInt(0), fmt.Errorf("cannot perform decimal op %v against decimal %v and float64 %v", op, valLeft, valRight)
 	}
 }
 
@@ -515,7 +515,7 @@ func (eCtx *EvalCtx) EvalBinaryStringToBool(valLeftVolatile any, op token.Token,
 
 	valRight, ok := valRightVolatile.(string)
 	if !ok {
-		return false, fmt.Errorf("cannot evaluate binary decimal2 expression '%v(%T) %v %v(%T)', invalid right arg", valLeft, valLeft, op, valRightVolatile, valRightVolatile)
+		return false, fmt.Errorf("cannot evaluate binary decimal expression '%v(%T) %v %v(%T)', invalid right arg", valLeft, valLeft, op, valRightVolatile, valRightVolatile)
 	}
 	valRight = strings.ReplaceAll(strings.Trim(valRight, "\""), `\"`, `"`)
 
@@ -594,7 +594,7 @@ func (eCtx *EvalCtx) evalBinaryArithmeticExp(valLeftVolatile any, exp *ast.Binar
 			eCtx.Value, err = eCtx.EvalBinaryFloat64(stdArgLeft, exp.Op, stdArgRight)
 			return eCtx.Value, err
 		case decimal.Decimal:
-			eCtx.Value, err = eCtx.EvalBinaryDecimal2(stdArgLeft, exp.Op, stdArgRight)
+			eCtx.Value, err = eCtx.EvalBinaryDecimal(stdArgLeft, exp.Op, stdArgRight)
 			return eCtx.Value, err
 		default:
 			return nil, fmt.Errorf("cannot perform binary arithmetic op, unexpected std type '%v(%T)' %v '%v(%T)' ", valLeftVolatile, valLeftVolatile, exp.Op, valRightVolatile, valRightVolatile)

@@ -261,7 +261,7 @@ func assertBinaryEval(t *testing.T, evalFunc EvalFunc, valLeftVolatile any, op t
 	case BinaryFloat64ToBoolFunc:
 		_, err = eCtx.EvalBinaryFloat64ToBool(valLeftVolatile, op, valRightVolatile)
 	case BinaryDecimal2Func:
-		_, err = eCtx.EvalBinaryDecimal2(valLeftVolatile, op, valRightVolatile)
+		_, err = eCtx.EvalBinaryDecimal(valLeftVolatile, op, valRightVolatile)
 	case BinaryDecimal2ToBoolFunc:
 		_, err = eCtx.EvalBinaryDecimal2ToBool(valLeftVolatile, op, valRightVolatile)
 	case BinaryTimeToBoolFunc:
@@ -315,17 +315,17 @@ func TestBadEvalBinaryFloat64ToBool(t *testing.T) {
 func TestBadEvalBinaryDecimal2(t *testing.T) {
 	goodVal := decimal.NewFromFloat(1)
 	badVal := "a"
-	assertBinaryEval(t, BinaryDecimal2Func, badVal, token.ADD, goodVal, "cannot evaluate binary decimal2 expression '+' with 'a(string)' on the left")
-	assertBinaryEval(t, BinaryDecimal2Func, goodVal, token.ADD, badVal, "cannot evaluate binary decimal2 expression '1(decimal.Decimal) + a(string)', invalid right arg")
-	assertBinaryEval(t, BinaryDecimal2Func, goodVal, token.AND, goodVal, "cannot perform decimal2 op & against decimal2 1 and float64 1")
+	assertBinaryEval(t, BinaryDecimal2Func, badVal, token.ADD, goodVal, "cannot evaluate binary decimal expression '+' with 'a(string)' on the left")
+	assertBinaryEval(t, BinaryDecimal2Func, goodVal, token.ADD, badVal, "cannot evaluate binary decimal expression '1(decimal.Decimal) + a(string)', invalid right arg")
+	assertBinaryEval(t, BinaryDecimal2Func, goodVal, token.AND, goodVal, "cannot perform decimal op & against decimal 1 and float64 1")
 }
 
 func TestBadEvalBinaryDecimal2Bool(t *testing.T) {
 	goodVal := decimal.NewFromFloat(1)
 	badVal := "a"
-	assertBinaryEval(t, BinaryDecimal2ToBoolFunc, badVal, token.LSS, goodVal, "cannot evaluate binary decimal2 expression '<' with 'a(string)' on the left")
-	assertBinaryEval(t, BinaryDecimal2ToBoolFunc, goodVal, token.LSS, badVal, "cannot evaluate binary decimal2 expression '1(decimal.Decimal) < a(string)', invalid right arg")
-	assertBinaryEval(t, BinaryDecimal2ToBoolFunc, goodVal, token.ADD, goodVal, "cannot perform bool op + against decimal2 1 and decimal2 1")
+	assertBinaryEval(t, BinaryDecimal2ToBoolFunc, badVal, token.LSS, goodVal, "cannot evaluate binary decimal expression '<' with 'a(string)' on the left")
+	assertBinaryEval(t, BinaryDecimal2ToBoolFunc, goodVal, token.LSS, badVal, "cannot evaluate binary decimal expression '1(decimal.Decimal) < a(string)', invalid right arg")
+	assertBinaryEval(t, BinaryDecimal2ToBoolFunc, goodVal, token.ADD, goodVal, "cannot perform bool op + against decimal 1 and decimal 1")
 }
 
 func TestBadEvalBinaryTimeBool(t *testing.T) {
@@ -364,7 +364,7 @@ func TestBadEvalBinaryStringToBool(t *testing.T) {
 	goodVal := "good"
 	badVal := 1
 	assertBinaryEval(t, BinaryStringToBoolFunc, badVal, token.LSS, goodVal, "cannot evaluate binary string expression < with '1(int)' on the left")
-	assertBinaryEval(t, BinaryStringToBoolFunc, goodVal, token.GTR, badVal, "cannot evaluate binary decimal2 expression 'good(string) > 1(int)', invalid right arg")
+	assertBinaryEval(t, BinaryStringToBoolFunc, goodVal, token.GTR, badVal, "cannot evaluate binary decimal expression 'good(string) > 1(int)', invalid right arg")
 	assertBinaryEval(t, BinaryStringToBoolFunc, goodVal, token.AND, goodVal, "cannot perform bool op & against string good and string good")
 }
 
