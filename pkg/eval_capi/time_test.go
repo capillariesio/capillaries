@@ -64,7 +64,7 @@ func TestNow(t *testing.T) {
 		t.Error(fmt.Errorf("cannot parse Now(): %s", err1.Error()))
 		return
 	}
-	eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, CapillariesEvalFunctions, nil, eval.VarValuesMap{})
+	eCtx := eval.NewEvalCtxWithFunctionsConstantsVars(eval.AggFuncDisabled, CapillariesEvalFunctions, nil, eval.VarValuesMap{})
 	result, err2 := eCtx.Eval(exp)
 	if err2 != nil {
 		t.Error(fmt.Errorf("cannot eval Now(): %s", err2.Error()))

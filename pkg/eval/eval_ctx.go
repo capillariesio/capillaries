@@ -138,34 +138,7 @@ func defaultDecimal() decimal.Decimal {
 
 // TODO: refactor to avoid duplicated ctx creationcode
 
-func NewPlainEvalCtx(aggEnabled AggEnabledType) EvalCtx {
-	return EvalCtx{
-		AggFunc:    AggUnknown,
-		AggType:    AggTypeUnknown,
-		AggEnabled: aggEnabled,
-		StringAgg:  StringAggCollector{Separator: "", Sb: strings.Builder{}},
-		Sum:        SumCollector{Dec: defaultDecimal()},
-		Avg:        AvgCollector{Dec: defaultDecimal()},
-		Min:        MinCollector{Int: maxSupportedInt, Float: maxSupportedFloat, Dec: maxSupportedDecimal(), Str: ""},
-		Max:        MaxCollector{Int: minSupportedInt, Float: minSupportedFloat, Dec: minSupportedDecimal(), Str: ""}}
-}
-
-func NewPlainEvalCtxAndInitializedAgg(funcName string, aggEnabled AggEnabledType, aggFuncType AggFuncType, aggFuncArgs []ast.Expr, functions map[string]EvalFunction, constants map[string]any) (*EvalCtx, error) {
-	eCtx := NewPlainEvalCtxWithVars(aggEnabled, functions, constants, nil)
-	// Special case: we need to provide eCtx.StringAgg with a separator and
-	// explicitly set its type to AggTypeString from the very beginning (instead of detecting it later, as we do for other agg functions)
-	if aggEnabled == AggFuncEnabled && aggFuncType == AggStringAgg {
-		var aggStringErr error
-		eCtx.StringAgg.Separator, aggStringErr = getAggStringSeparator(funcName, aggFuncArgs)
-		if aggStringErr != nil {
-			return nil, aggStringErr
-		}
-		eCtx.AggType = AggTypeString
-	}
-	return &eCtx, nil
-}
-
-func NewPlainEvalCtxWithVars(aggEnabled AggEnabledType, functions map[string]EvalFunction, constants map[string]any, vars VarValuesMap) EvalCtx {
+func NewEvalCtxWithFunctionsConstantsVars(aggEnabled AggEnabledType, functions map[string]EvalFunction, constants map[string]any, vars VarValuesMap) EvalCtx {
 	return EvalCtx{
 		AggFunc:       AggUnknown,
 		AggType:       AggTypeUnknown,
@@ -181,8 +154,8 @@ func NewPlainEvalCtxWithVars(aggEnabled AggEnabledType, functions map[string]Eva
 	}
 }
 
-func NewPlainEvalCtxWithVarsAndInitializedAgg(funcName string, aggEnabled AggEnabledType, functions map[string]EvalFunction, constants map[string]any, vars VarValuesMap, aggFuncType AggFuncType, aggFuncArgs []ast.Expr) (*EvalCtx, error) {
-	eCtx := NewPlainEvalCtxWithVars(aggEnabled, functions, constants, vars)
+func NewAggEvalCtxWithFunctionsConstantsVars(funcName string, aggEnabled AggEnabledType, functions map[string]EvalFunction, constants map[string]any, vars VarValuesMap, aggFuncType AggFuncType, aggFuncArgs []ast.Expr) (*EvalCtx, error) {
+	eCtx := NewEvalCtxWithFunctionsConstantsVars(aggEnabled, functions, constants, vars)
 	// Special case: we need to provide eCtx.StringAgg with a separator and
 	// explicitly set its type to AggTypeString from the very beginning (instead of detecting it later, as we do for other agg functions)
 	if aggEnabled == AggFuncEnabled && aggFuncType == AggStringAgg {

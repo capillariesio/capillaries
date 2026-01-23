@@ -176,7 +176,7 @@ func evalExpressionWithFieldRefsAndCheckType(exp ast.Expr, fieldRefs FieldRefs, 
 		}
 
 		funcName, aggFuncEnabled, aggFuncType, aggFuncArgs := eval.DetectRootAggFunc(exp)
-		eCtx, err := eval.NewPlainEvalCtxWithVarsAndInitializedAgg(funcName, aggFuncEnabled, eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, varValuesMap, aggFuncType, aggFuncArgs)
+		eCtx, err := eval.NewAggEvalCtxWithFunctionsConstantsVars(funcName, aggFuncEnabled, eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, varValuesMap, aggFuncType, aggFuncArgs)
 		if err != nil {
 			return err
 		}

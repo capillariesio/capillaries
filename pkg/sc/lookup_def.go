@@ -123,7 +123,7 @@ func (lkpDef *LookupDef) CheckFilterCondition(varsFromLookup eval.VarValuesMap) 
 	if !lkpDef.UsesFilter() {
 		return true, nil
 	}
-	eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, varsFromLookup)
+	eCtx := eval.NewEvalCtxWithFunctionsConstantsVars(eval.AggFuncDisabled, eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, varsFromLookup)
 	valVolatile, err := eCtx.Eval(lkpDef.Filter)
 	if err != nil {
 		return false, fmt.Errorf("cannot evaluate expression: [%s]", err.Error())

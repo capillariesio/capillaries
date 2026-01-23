@@ -208,7 +208,7 @@ func CalculateFieldValue(fieldName string, fieldDef *WriteTableFieldDef, srcVars
 		calcWithAggFunc = eval.AggFuncDisabled
 	}
 
-	eCtx, err := eval.NewPlainEvalCtxWithVarsAndInitializedAgg(funcName, calcWithAggFunc, eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, srcVars, aggFuncType, aggFuncArgs)
+	eCtx, err := eval.NewAggEvalCtxWithFunctionsConstantsVars(funcName, calcWithAggFunc, eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, srcVars, aggFuncType, aggFuncArgs)
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +254,7 @@ func (tcDef *TableCreatorDef) CheckTableRecordHavingCondition(tableRecord map[st
 		vars[CreatorAlias][fieldName] = fieldValue
 	}
 
-	eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, vars)
+	eCtx := eval.NewEvalCtxWithFunctionsConstantsVars(eval.AggFuncDisabled, eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, vars)
 	valVolatile, err := eCtx.Eval(tcDef.Having)
 	if err != nil {
 		return false, fmt.Errorf("cannot evaluate 'having' expression: [%s]", err.Error())

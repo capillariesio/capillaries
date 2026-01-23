@@ -110,7 +110,7 @@ func (procDef *TagAndDenormalizeProcessorDef) tagAndDenormalize(rsIn *proc.Rowse
 		}
 
 		for tag, tagCriteria := range procDef.ParsedTagCriteria {
-			eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, vars)
+			eCtx := eval.NewEvalCtxWithFunctionsConstantsVars(eval.AggFuncDisabled, eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, vars)
 			valVolatile, err := eCtx.Eval(tagCriteria)
 			if err != nil {
 				return fmt.Errorf("cannot evaluate expression for tag %s criteria: [%s]", tag, err.Error())
