@@ -1,12 +1,14 @@
-package eval
+package eval_capi
 
 import (
 	"fmt"
 	"time"
+
+	"github.com/capillariesio/capillaries/pkg/eval"
 )
 
 func callTimeParse(args []any) (any, error) {
-	if err := checkArgs("time.Parse", 2, len(args)); err != nil {
+	if err := eval.CheckArgs("time.Parse", 2, len(args)); err != nil {
 		return nil, err
 	}
 	arg0, ok0 := args[0].(string)
@@ -18,7 +20,7 @@ func callTimeParse(args []any) (any, error) {
 }
 
 func callTimeFormat(args []any) (any, error) {
-	if err := checkArgs("time.Format", 2, len(args)); err != nil {
+	if err := eval.CheckArgs("time.Format", 2, len(args)); err != nil {
 		return nil, err
 	}
 	arg0, ok0 := args[0].(time.Time)
@@ -30,7 +32,7 @@ func callTimeFormat(args []any) (any, error) {
 }
 
 func callTimeFixedZone(args []any) (any, error) {
-	if err := checkArgs("time.FixedZone", 2, len(args)); err != nil {
+	if err := eval.CheckArgs("time.FixedZone", 2, len(args)); err != nil {
 		return nil, err
 	}
 	arg0, ok0 := args[0].(string) // Name
@@ -42,7 +44,7 @@ func callTimeFixedZone(args []any) (any, error) {
 }
 
 func callTimeDate(args []any) (any, error) {
-	if err := checkArgs("time.Date", 8, len(args)); err != nil {
+	if err := eval.CheckArgs("time.Date", 8, len(args)); err != nil {
 		return nil, err
 	}
 	arg0, ok0 := args[0].(int64)      // Year
@@ -60,7 +62,7 @@ func callTimeDate(args []any) (any, error) {
 }
 
 func callTimeDiffMilli(args []any) (any, error) {
-	if err := checkArgs("time.DiffMilli", 2, len(args)); err != nil {
+	if err := eval.CheckArgs("time.DiffMilli", 2, len(args)); err != nil {
 		return nil, err
 	}
 	arg0, ok0 := args[0].(time.Time)
@@ -73,14 +75,14 @@ func callTimeDiffMilli(args []any) (any, error) {
 }
 
 func callTimeNow(args []any) (any, error) {
-	if err := checkArgs("time.Now", 0, len(args)); err != nil {
+	if err := eval.CheckArgs("time.Now", 0, len(args)); err != nil {
 		return nil, err
 	}
 	return time.Now(), nil
 }
 
 func callTimeUnix(args []any) (any, error) {
-	if err := checkArgs("time.Unix", 1, len(args)); err != nil {
+	if err := eval.CheckArgs("time.Unix", 1, len(args)); err != nil {
 		return nil, err
 	}
 	arg0, ok0 := args[0].(time.Time)
@@ -92,7 +94,7 @@ func callTimeUnix(args []any) (any, error) {
 }
 
 func callTimeUnixMilli(args []any) (any, error) {
-	if err := checkArgs("time.UnixMilli", 1, len(args)); err != nil {
+	if err := eval.CheckArgs("time.UnixMilli", 1, len(args)); err != nil {
 		return nil, err
 	}
 	arg0, ok0 := args[0].(time.Time)
@@ -104,7 +106,7 @@ func callTimeUnixMilli(args []any) (any, error) {
 }
 
 func callTimeBefore(args []any) (any, error) {
-	if err := checkArgs("time.Before", 2, len(args)); err != nil {
+	if err := eval.CheckArgs("time.Before", 2, len(args)); err != nil {
 		return nil, err
 	}
 	arg0, ok0 := args[0].(time.Time)
@@ -117,7 +119,7 @@ func callTimeBefore(args []any) (any, error) {
 }
 
 func callTimeAfter(args []any) (any, error) {
-	if err := checkArgs("time.After", 2, len(args)); err != nil {
+	if err := eval.CheckArgs("time.After", 2, len(args)); err != nil {
 		return nil, err
 	}
 	arg0, ok0 := args[0].(time.Time)

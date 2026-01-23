@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/capillariesio/capillaries/pkg/eval"
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 )
 
 type LookupJoinType string
@@ -122,7 +123,7 @@ func (lkpDef *LookupDef) CheckFilterCondition(varsFromLookup eval.VarValuesMap) 
 	if !lkpDef.UsesFilter() {
 		return true, nil
 	}
-	eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, varsFromLookup)
+	eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, varsFromLookup)
 	valVolatile, err := eCtx.Eval(lkpDef.Filter)
 	if err != nil {
 		return false, fmt.Errorf("cannot evaluate expression: [%s]", err.Error())

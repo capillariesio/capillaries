@@ -12,49 +12,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func assertEqual(t *testing.T, expString string, expectedResult any, varValuesMap VarValuesMap) {
-	exp, err1 := parser.ParseExpr(expString)
-	if err1 != nil {
-		t.Error(fmt.Errorf("%s: %s", expString, err1.Error()))
-		return
-	}
-	eCtx := NewPlainEvalCtxWithVars(AggFuncDisabled, varValuesMap)
-	result, err2 := eCtx.Eval(exp)
-	if err2 != nil {
-		t.Error(fmt.Errorf("%s: %s", expString, err2.Error()))
-		return
-	}
-
-	assert.Equal(t, expectedResult, result, fmt.Sprintf("Unmatched: %v = %v: %s ", expectedResult, result, expString))
-}
-
-func assertFloatNan(t *testing.T, expString string, varValuesMap VarValuesMap) {
-	exp, err1 := parser.ParseExpr(expString)
-	if err1 != nil {
-		t.Error(fmt.Errorf("%s: %s", expString, err1.Error()))
-		return
-	}
-	eCtx := NewPlainEvalCtxWithVars(AggFuncDisabled, varValuesMap)
-	result, err2 := eCtx.Eval(exp)
-	if err2 != nil {
-		t.Error(fmt.Errorf("%s: %s", expString, err2.Error()))
-		return
-	}
-	floatResult, ok := result.(float64)
-	assert.True(t, ok)
-	assert.True(t, math.IsNaN(floatResult))
-}
-
-func assertEvalError(t *testing.T, expString string, expectedErrorMsg string, varValuesMap VarValuesMap) {
-	exp, err1 := parser.ParseExpr(expString)
-	if err1 != nil {
-		assert.Contains(t, err1.Error(), expectedErrorMsg, fmt.Sprintf("Unmatched: %v = %v: %s ", expectedErrorMsg, err1.Error(), expString))
-		return
-	}
-	eCtx := NewPlainEvalCtxWithVars(AggFuncDisabled, varValuesMap)
-	_, err2 := eCtx.Eval(exp)
-
-	assert.Contains(t, err2.Error(), expectedErrorMsg, fmt.Sprintf("Unmatched: %v = %v: %s ", expectedErrorMsg, err2.Error(), expString))
+func TestVarValuesMapUtils(t *testing.T) {
+	varValuesMap := VarValuesMap{"some_table": map[string]any{"some_field": 1}}
+	assert.Equal(t, "[some_table ]", varValuesMap.Tables())
+	assert.Equal(t, "[some_table.some_field ]", varValuesMap.Names())
 }
 
 func TestBad(t *testing.T) {
@@ -78,35 +39,14 @@ func TestBad(t *testing.T) {
 	assertEvalError(t, "t1.fieldInt.w", "cannot evaluate selector expression &{t1 fieldInt}, unknown type of X: *ast.SelectorExpr", VarValuesMap{"t1": {"fieldInt": 1}})
 }
 
-func TestConvertEval(t *testing.T) {
+func TestIdent(t *testing.T) {
 	varValuesMap := VarValuesMap{
-		"t1": {
-			"fieldInt":      1,
-			"fieldInt16":    int16(1),
-			"fieldInt32":    int32(1),
-			"fieldInt64":    int16(1),
-			"fieldFloat32":  float32(1.0),
-			"fieldFloat64":  float64(1.0),
-			"fieldDecimal2": decimal.NewFromInt(1),
+		"": {
+			"fieldInt": 2,
 		},
 	}
-
-	// Number to number
-	for fldName := range varValuesMap["t1"] {
-		assertEqual(t, fmt.Sprintf("decimal2(t1.%s) == 1", fldName), true, varValuesMap)
-		assertEqual(t, fmt.Sprintf("float(t1.%s) == 1.0", fldName), true, varValuesMap)
-		assertEqual(t, fmt.Sprintf("int(t1.%s) == 1", fldName), true, varValuesMap)
-	}
-
-	// String to number
-	assertEqual(t, `int("1") == 1`, true, varValuesMap)
-	assertEqual(t, `float("1.0") == 1.0`, true, varValuesMap)
-	assertEqual(t, `decimal2("1.0") == 1.0`, true, varValuesMap)
-
-	// Number to string
-	assertEqual(t, `string(1) == "1"`, true, varValuesMap)
-	assertEqual(t, `string(1.1) == "1.1"`, true, varValuesMap)
-	assertEqual(t, `string(decimal2(1.1)) == "1.1"`, true, varValuesMap)
+	assertEqual(t, `(fieldInt == 2) == true`, true, varValuesMap)
+	assertEqual(t, `(fieldInt == 3) == false`, true, varValuesMap)
 }
 
 func TestArithmetic(t *testing.T) {

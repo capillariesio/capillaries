@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/eval"
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"github.com/shopspring/decimal"
 )
 
@@ -175,7 +176,7 @@ func evalExpressionWithFieldRefsAndCheckType(exp ast.Expr, fieldRefs FieldRefs, 
 		}
 
 		funcName, aggFuncEnabled, aggFuncType, aggFuncArgs := eval.DetectRootAggFunc(exp)
-		eCtx, err := eval.NewPlainEvalCtxWithVarsAndInitializedAgg(funcName, aggFuncEnabled, varValuesMap, aggFuncType, aggFuncArgs)
+		eCtx, err := eval.NewPlainEvalCtxWithVarsAndInitializedAgg(funcName, aggFuncEnabled, eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, varValuesMap, aggFuncType, aggFuncArgs)
 		if err != nil {
 			return err
 		}
@@ -294,7 +295,7 @@ func harvestFieldRefsFromParsedExpression(exp ast.Expr, usedFields *FieldRefs, p
 	case *ast.SelectorExpr:
 		switch assertedExpIdent := assertedExp.X.(type) {
 		case *ast.Ident:
-			_, ok := eval.GolangConstants[fmt.Sprintf("%s.%s", assertedExpIdent.Name, assertedExp.Sel.Name)]
+			_, ok := eval_capi.CapillariesEvalConstants[fmt.Sprintf("%s.%s", assertedExpIdent.Name, assertedExp.Sel.Name)]
 			if !ok {
 				usedFields.contributeUnresolved(assertedExpIdent.Name, assertedExp.Sel.Name)
 			}

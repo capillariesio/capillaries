@@ -8,6 +8,9 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// IMPORTANT: please keep this eval core component TableFieldType- and custom function-agnostic.
+// It should not be aware of things lice decimal2 or some math.iif() functions.
+
 type AggFuncType string
 
 const (
@@ -134,7 +137,7 @@ func (eCtx *EvalCtx) CallAggStringAgg(callExp *ast.CallExpr, args []any) (any, e
 	if err := eCtx.checkAgg(funcName, callExp, AggStringAgg); err != nil {
 		return nil, err
 	}
-	if err := checkArgs(funcName, 2, len(args)); err != nil {
+	if err := CheckArgs(funcName, 2, len(args)); err != nil {
 		return nil, err
 	}
 
@@ -146,7 +149,7 @@ func (eCtx *EvalCtx) CallAggStringAggIf(callExp *ast.CallExpr, args []any) (any,
 	if err := eCtx.checkAgg(funcName, callExp, AggStringAgg); err != nil {
 		return nil, err
 	}
-	if err := checkArgs(funcName, 3, len(args)); err != nil {
+	if err := CheckArgs(funcName, 3, len(args)); err != nil {
 		return nil, err
 	}
 	isApply, err := checkIf(funcName, args[2])
@@ -205,7 +208,7 @@ func (eCtx *EvalCtx) CallAggSum(callExp *ast.CallExpr, args []any) (any, error) 
 	if err := eCtx.checkAgg(funcName, callExp, AggSum); err != nil {
 		return nil, err
 	}
-	if err := checkArgs(funcName, 1, len(args)); err != nil {
+	if err := CheckArgs(funcName, 1, len(args)); err != nil {
 		return nil, err
 	}
 	return eCtx.callAggSumInternal(funcName, args, true)
@@ -216,7 +219,7 @@ func (eCtx *EvalCtx) CallAggSumIf(callExp *ast.CallExpr, args []any) (any, error
 	if err := eCtx.checkAgg(funcName, callExp, AggSum); err != nil {
 		return nil, err
 	}
-	if err := checkArgs(funcName, 2, len(args)); err != nil {
+	if err := CheckArgs(funcName, 2, len(args)); err != nil {
 		return nil, err
 	}
 	isApply, err := checkIf(funcName, args[1])
@@ -273,7 +276,10 @@ func (eCtx *EvalCtx) callAggAvgInternal(funcName string, args []any, isApply boo
 			eCtx.Avg.Count++
 		}
 		if eCtx.Avg.Count > 0 {
-			return eCtx.Avg.Dec.Div(decimal.NewFromInt(eCtx.Avg.Count)).Round(2), nil
+			// Do not round like eCtx.Avg.Dec.Div(decimal.NewFromInt(eCtx.Avg.Count)).Round(2),
+			// this code ideally should support not only decimal2. Let the caller do the rounding
+			// after agg is complete
+			return eCtx.Avg.Dec.Div(decimal.NewFromInt(eCtx.Avg.Count)), nil
 		}
 		return defaultDecimal(), nil
 
@@ -287,7 +293,7 @@ func (eCtx *EvalCtx) CallAggAvg(callExp *ast.CallExpr, args []any) (any, error) 
 	if err := eCtx.checkAgg(funcName, callExp, AggAvg); err != nil {
 		return nil, err
 	}
-	if err := checkArgs(funcName, 1, len(args)); err != nil {
+	if err := CheckArgs(funcName, 1, len(args)); err != nil {
 		return nil, err
 	}
 	return eCtx.callAggAvgInternal(funcName, args, true)
@@ -298,7 +304,7 @@ func (eCtx *EvalCtx) CallAggAvgIf(callExp *ast.CallExpr, args []any) (any, error
 	if err := eCtx.checkAgg(funcName, callExp, AggAvg); err != nil {
 		return nil, err
 	}
-	if err := checkArgs(funcName, 2, len(args)); err != nil {
+	if err := CheckArgs(funcName, 2, len(args)); err != nil {
 		return nil, err
 	}
 	isApply, err := checkIf(funcName, args[1])
@@ -320,7 +326,7 @@ func (eCtx *EvalCtx) CallAggCount(callExp *ast.CallExpr, args []any) (any, error
 	if err := eCtx.checkAgg(funcName, callExp, AggCount); err != nil {
 		return nil, err
 	}
-	if err := checkArgs(funcName, 0, len(args)); err != nil {
+	if err := CheckArgs(funcName, 0, len(args)); err != nil {
 		return nil, err
 	}
 	return eCtx.callAggCountInternal(true)
@@ -331,7 +337,7 @@ func (eCtx *EvalCtx) CallAggCountIf(callExp *ast.CallExpr, args []any) (any, err
 	if err := eCtx.checkAgg(funcName, callExp, AggCount); err != nil {
 		return nil, err
 	}
-	if err := checkArgs(funcName, 1, len(args)); err != nil {
+	if err := CheckArgs(funcName, 1, len(args)); err != nil {
 		return nil, err
 	}
 	isApply, err := checkIf(funcName, args[0])
@@ -416,7 +422,7 @@ func (eCtx *EvalCtx) CallAggMin(callExp *ast.CallExpr, args []any) (any, error) 
 	if err := eCtx.checkAgg(funcName, callExp, AggMin); err != nil {
 		return nil, err
 	}
-	if err := checkArgs(funcName, 1, len(args)); err != nil {
+	if err := CheckArgs(funcName, 1, len(args)); err != nil {
 		return nil, err
 	}
 	return eCtx.callAggMinInternal(funcName, args, true)
@@ -427,7 +433,7 @@ func (eCtx *EvalCtx) CallAggMinIf(callExp *ast.CallExpr, args []any) (any, error
 	if err := eCtx.checkAgg(funcName, callExp, AggMin); err != nil {
 		return nil, err
 	}
-	if err := checkArgs(funcName, 2, len(args)); err != nil {
+	if err := CheckArgs(funcName, 2, len(args)); err != nil {
 		return nil, err
 	}
 	isApply, err := checkIf(funcName, args[1])
@@ -511,7 +517,7 @@ func (eCtx *EvalCtx) CallAggMax(callExp *ast.CallExpr, args []any) (any, error) 
 	if err := eCtx.checkAgg(funcName, callExp, AggMax); err != nil {
 		return nil, err
 	}
-	if err := checkArgs(funcName, 1, len(args)); err != nil {
+	if err := CheckArgs(funcName, 1, len(args)); err != nil {
 		return nil, err
 	}
 	return eCtx.callAggMaxInternal(funcName, args, true)
@@ -522,7 +528,7 @@ func (eCtx *EvalCtx) CallAggMaxIf(callExp *ast.CallExpr, args []any) (any, error
 	if err := eCtx.checkAgg(funcName, callExp, AggMax); err != nil {
 		return nil, err
 	}
-	if err := checkArgs(funcName, 2, len(args)); err != nil {
+	if err := CheckArgs(funcName, 2, len(args)); err != nil {
 		return nil, err
 	}
 	isApply, err := checkIf(funcName, args[1])

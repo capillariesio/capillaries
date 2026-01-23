@@ -1,12 +1,14 @@
-package eval
+package eval_capi
 
 import (
 	"fmt"
 	"regexp"
+
+	"github.com/capillariesio/capillaries/pkg/eval"
 )
 
 func callReMatchString(args []any) (any, error) {
-	if err := checkArgs("re.MatchString", 2, len(args)); err != nil {
+	if err := eval.CheckArgs("re.MatchString", 2, len(args)); err != nil {
 		return nil, err
 	}
 	argString0, ok0 := args[0].(string)

@@ -36,7 +36,7 @@ func TestMissingCtxVars(t *testing.T) {
 
 	delete(varValuesMap["t1"], "fieldInt")
 	exp, _ = parser.ParseExpr("avg(t1.fieldInt)")
-	eCtx = NewPlainEvalCtxWithVars(AggFuncEnabled, varValuesMap)
+	eCtx = NewPlainEvalCtxWithVars(AggFuncEnabled, nil, nil, varValuesMap)
 	_, err = eCtx.Eval(exp)
 	assert.Contains(t, err.Error(), "variable not supplied")
 }
@@ -44,7 +44,7 @@ func TestMissingCtxVars(t *testing.T) {
 func validateExtraAgg(expression string) string {
 	varValuesMap := getTestValuesMap()
 	exp, _ := parser.ParseExpr(expression)
-	eCtx := NewPlainEvalCtxWithVars(AggFuncEnabled, varValuesMap)
+	eCtx := NewPlainEvalCtxWithVars(AggFuncEnabled, nil, nil, varValuesMap)
 	_, err := eCtx.Eval(exp)
 	return err.Error()
 }
@@ -78,7 +78,7 @@ func TestDetectRootArgFunc(t *testing.T) {
 func validateAggTwoStringValues(funcName string, expression string, v1 any, v2 any) (any, any) {
 	varValuesMap := getTestValuesMap()
 	exp, _ := parser.ParseExpr(expression)
-	eCtx, _ := NewPlainEvalCtxWithVarsAndInitializedAgg(funcName, AggFuncEnabled, varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
+	eCtx, _ := NewPlainEvalCtxWithVarsAndInitializedAgg(funcName, AggFuncEnabled, nil, nil, varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
 	varValuesMap["t1"]["fieldStr"] = v1
 	result1, _ := eCtx.Eval(exp)
 	varValuesMap["t1"]["fieldStr"] = v2
@@ -107,39 +107,52 @@ func TestStringAggEdgeCases(t *testing.T) {
 
 	// Empty str
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr,",")`)
-	eCtx, _ := NewPlainEvalCtxWithVarsAndInitializedAgg("string_agg", AggFuncEnabled, varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
+	eCtx, _ := NewPlainEvalCtxWithVarsAndInitializedAgg("string_agg", AggFuncEnabled, nil, nil, varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
 	assert.Equal(t, "", eCtx.StringAgg.Sb.String())
 
 	var err error
 
 	// Bad number of args
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr)`)
-	_, err = NewPlainEvalCtxWithVarsAndInitializedAgg("string_agg", AggFuncEnabled, varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
+	_, err = NewPlainEvalCtxWithVarsAndInitializedAgg("string_agg", AggFuncEnabled, nil, nil, varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
 	assert.Contains(t, err.Error(), "string_agg must have two parameters")
 
 	exp, _ = parser.ParseExpr(`string_agg_if(t1.fieldStr)`)
-	_, err = NewPlainEvalCtxWithVarsAndInitializedAgg("string_agg_if", AggFuncEnabled, varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
+	_, err = NewPlainEvalCtxWithVarsAndInitializedAgg("string_agg_if", AggFuncEnabled, nil, nil, varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
 	assert.Contains(t, err.Error(), "string_agg_if must have three parameters")
 
 	// Bad separators
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr, t2.someBadField)`)
-	_, err = NewPlainEvalCtxWithVarsAndInitializedAgg("string_agg", AggFuncEnabled, varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
+	_, err = NewPlainEvalCtxWithVarsAndInitializedAgg("string_agg", AggFuncEnabled, nil, nil, varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
 	assert.Contains(t, err.Error(), "string_agg/if second parameter must be a basic literal")
 
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr, 123)`)
-	_, err = NewPlainEvalCtxWithVarsAndInitializedAgg("string_agg", AggFuncEnabled, varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
+	_, err = NewPlainEvalCtxWithVarsAndInitializedAgg("string_agg", AggFuncEnabled, nil, nil, varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
 	assert.Contains(t, err.Error(), "string_agg/if second parameter must be a constant string")
 }
 
 func validateAggTwoValues(expression string, v1 any, v2 any) (any, any) {
 	varValuesMap := getTestValuesMap()
-	eCtx := NewPlainEvalCtxWithVars(AggFuncEnabled, varValuesMap)
+	eCtx := NewPlainEvalCtxWithVars(AggFuncEnabled, nil, nil, varValuesMap)
 	exp, _ := parser.ParseExpr(expression)
 	varValuesMap["t1"]["fieldInt"] = v1
 	result1, _ := eCtx.Eval(exp)
 	varValuesMap["t1"]["fieldInt"] = v2
 	result2, _ := eCtx.Eval(exp)
 	return result1, result2
+}
+
+func validateAggThreeDecValues(expression string, v1 decimal.Decimal, v2 decimal.Decimal, v3 decimal.Decimal) (any, any, any) {
+	varValuesMap := getTestValuesMap()
+	eCtx := NewPlainEvalCtxWithVars(AggFuncEnabled, nil, nil, varValuesMap)
+	exp, _ := parser.ParseExpr(expression)
+	varValuesMap["t1"]["fieldDec"] = v1
+	result1, _ := eCtx.Eval(exp)
+	varValuesMap["t1"]["fieldDec"] = v2
+	result2, _ := eCtx.Eval(exp)
+	varValuesMap["t1"]["fieldDec"] = v3
+	result3, _ := eCtx.Eval(exp)
+	return result1, result2, result3
 }
 
 func TestSum(t *testing.T) {
@@ -174,7 +187,7 @@ func TestSum(t *testing.T) {
 }
 
 func TestAvg(t *testing.T) {
-	var r1, r2 any
+	var r1, r2, r3 any
 
 	r1, r2 = validateAggTwoValues("avg_if(t1.fieldInt, t1.fieldInt == 2)", 1, 2)
 	assert.Equal(t, int64(0), r1)
@@ -192,16 +205,28 @@ func TestAvg(t *testing.T) {
 	assert.Equal(t, 1.0, r1)
 	assert.Equal(t, 1.5, r2)
 
+	// Test decimals (re-use fieldInt field name sometimes)
 	d1 := decimal.NewFromInt(1)
 	d2 := decimal.NewFromInt(2)
+	d3 := decimal.NewFromInt(1)
 
 	r1, r2 = validateAggTwoValues("avg_if(t1.fieldInt, t1.fieldInt == 2)", d1, d2)
-	assert.Equal(t, decimal.NewFromInt(0), r1)
-	assert.Equal(t, decimal.NewFromFloat(2).Div(decimal.NewFromInt(1)).Round(2), r2)
+	assert.True(t, decimal.NewFromInt(0).Equal(r1.(decimal.Decimal)))
+	assert.True(t, decimal.NewFromFloat(2).Div(decimal.NewFromInt(1)).Round(2).Equal(r2.(decimal.Decimal)))
 
 	r1, r2 = validateAggTwoValues("avg(t1.fieldInt)", d1, d2)
-	assert.Equal(t, d1.Div(decimal.NewFromInt(1)).Round(2), r1)
-	assert.Equal(t, decimal.NewFromFloat(3).Div(decimal.NewFromInt(2)).Round(2), r2)
+	assert.True(t, d1.Div(decimal.NewFromInt(1)).Round(2).Equal(r1.(decimal.Decimal)))
+	assert.True(t, decimal.NewFromFloat(3).Div(decimal.NewFromInt(2)).Round(2).Equal(r2.(decimal.Decimal)))
+
+	r1, r2, r3 = validateAggThreeDecValues("avg_if(t1.fieldDec, t1.fieldDec == 1)", d1, d2, d3)
+	assert.True(t, decimal.NewFromInt(1).Equal(r1.(decimal.Decimal)))
+	assert.True(t, decimal.NewFromFloat(2).Div(decimal.NewFromInt(2)).Equal(r2.(decimal.Decimal)))
+	assert.True(t, decimal.NewFromFloat(2).Div(decimal.NewFromInt(2)).Equal(r3.(decimal.Decimal)))
+
+	r1, r2, r3 = validateAggThreeDecValues("avg(t1.fieldDec)", d1, d2, d3)
+	assert.True(t, d1.Div(decimal.NewFromInt(1)).Round(2).Equal(r1.(decimal.Decimal)))
+	assert.True(t, decimal.NewFromFloat(3).Div(decimal.NewFromInt(2)).Equal(r2.(decimal.Decimal)))
+	assert.True(t, decimal.NewFromFloat(4).Div(decimal.NewFromInt(3)).Equal(r3.(decimal.Decimal)))
 }
 
 func TestMin(t *testing.T) {
@@ -291,7 +316,7 @@ func TestCount(t *testing.T) {
 	var result any
 
 	// count_if
-	eCtx = NewPlainEvalCtxWithVars(AggFuncEnabled, varValuesMap)
+	eCtx = NewPlainEvalCtxWithVars(AggFuncEnabled, nil, nil, varValuesMap)
 	varValuesMap["t1"]["fieldInt"] = 1
 	exp, _ = parser.ParseExpr("count_if(t1.fieldInt == 2)")
 	result, _ = eCtx.Eval(exp)
@@ -301,7 +326,7 @@ func TestCount(t *testing.T) {
 	assert.Equal(t, int64(1), result)
 
 	// count
-	eCtx = NewPlainEvalCtxWithVars(AggFuncEnabled, varValuesMap)
+	eCtx = NewPlainEvalCtxWithVars(AggFuncEnabled, nil, nil, varValuesMap)
 	exp, _ = parser.ParseExpr("count()")
 	result, _ = eCtx.Eval(exp)
 	assert.Equal(t, int64(1), result)
@@ -330,7 +355,7 @@ func TestNoVars(t *testing.T) {
 func validateArgs(expression string) string {
 	varValuesMap := getTestValuesMap()
 	exp, _ := parser.ParseExpr(expression)
-	eCtx := NewPlainEvalCtxWithVars(AggFuncEnabled, varValuesMap)
+	eCtx := NewPlainEvalCtxWithVars(AggFuncEnabled, nil, nil, varValuesMap)
 	_, err := eCtx.Eval(exp)
 	return err.Error()
 }
@@ -361,7 +386,7 @@ func TestBadArgs(t *testing.T) {
 func validateDisabledAggCtx(expression string) string {
 	varValuesMap := getTestValuesMap()
 	exp, _ := parser.ParseExpr(expression)
-	badCtx := NewPlainEvalCtxWithVars(AggFuncDisabled, varValuesMap)
+	badCtx := NewPlainEvalCtxWithVars(AggFuncDisabled, nil, nil, varValuesMap)
 	_, err := badCtx.Eval(exp)
 	return err.Error()
 }
@@ -385,7 +410,7 @@ func TestDisabledAggCtx(t *testing.T) {
 func validateUnsupportedType(expression string, v any) string {
 	varValuesMap := getTestValuesMap()
 	exp, _ := parser.ParseExpr(expression)
-	eCtx := NewPlainEvalCtxWithVars(AggFuncEnabled, varValuesMap)
+	eCtx := NewPlainEvalCtxWithVars(AggFuncEnabled, nil, nil, varValuesMap)
 	varValuesMap["t1"]["fieldInt"] = v
 	_, err := eCtx.Eval(exp)
 	return err.Error()
@@ -419,7 +444,7 @@ func TestUnsupportedTypes(t *testing.T) {
 func validateFieldTypeChange(expression string, v1 any, v2 any) string {
 	varValuesMap := getTestValuesMap()
 	exp, _ := parser.ParseExpr(expression)
-	eCtx := NewPlainEvalCtxWithVars(AggFuncEnabled, varValuesMap)
+	eCtx := NewPlainEvalCtxWithVars(AggFuncEnabled, nil, nil, varValuesMap)
 	varValuesMap["t1"]["fieldInt"] = v1
 	_, err := eCtx.Eval(exp)
 	if err != nil {

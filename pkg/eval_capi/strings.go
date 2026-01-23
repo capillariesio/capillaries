@@ -1,12 +1,14 @@
-package eval
+package eval_capi
 
 import (
 	"fmt"
 	"strings"
+
+	"github.com/capillariesio/capillaries/pkg/eval"
 )
 
 func callStringsReplaceAll(args []any) (any, error) {
-	if err := checkArgs("strings.ReplaceAll", 3, len(args)); err != nil {
+	if err := eval.CheckArgs("strings.ReplaceAll", 3, len(args)); err != nil {
 		return nil, err
 	}
 	argString0, ok0 := args[0].(string)

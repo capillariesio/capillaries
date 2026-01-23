@@ -6,6 +6,7 @@ import (
 	"go/ast"
 
 	"github.com/capillariesio/capillaries/pkg/eval"
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
@@ -124,7 +125,7 @@ func (polDef *DependencyPolicyDef) parseEventPriorityOrderString() error {
 
 func (polDef *DependencyPolicyDef) evalRuleExpressionsAndCheckType() error {
 	vars := wfmodel.NewVarsFromDepCtx(wfmodel.DependencyNodeEvent{})
-	eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, vars)
+	eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, vars)
 	for ruleIdx, rule := range polDef.Rules {
 		result, err := eCtx.Eval(rule.ParsedExpression)
 		if err != nil {

@@ -16,6 +16,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/xfer"
+	"github.com/shopspring/decimal"
 )
 
 type TableRecord map[string]any
@@ -649,13 +650,14 @@ func setupEvalCtxForGroup(node *sc.ScriptNodeDef, rsLeft *Rowset) (map[int64]map
 func evalRowGroupedFields(writerFieldDefs map[string]*sc.WriteTableFieldDef, rsLeft *Rowset, leftRowIdx int, rsRight *Rowset, rightRowIdx int, eCtxMap map[int64]map[string]*eval.EvalCtx) error {
 	leftRowid := *((*rsLeft.Rows[leftRowIdx])[rsLeft.FieldsByFieldName["rowid"]].(*int64))
 	for fieldName, fieldDef := range writerFieldDefs {
-		eCtxMap[leftRowid][fieldName].Vars = eval.VarValuesMap{}
-		if err := rsLeft.ExportToVars(leftRowIdx, eCtxMap[leftRowid][fieldName].Vars); err != nil {
+		vars := eval.VarValuesMap{}
+		if err := rsLeft.ExportToVars(leftRowIdx, vars); err != nil {
 			return err
 		}
-		if err := rsRight.ExportToVarsWithAlias(rightRowIdx, eCtxMap[leftRowid][fieldName].Vars, sc.LookupAlias); err != nil {
+		if err := rsRight.ExportToVarsWithAlias(rightRowIdx, vars, sc.LookupAlias); err != nil {
 			return err
 		}
+		eCtxMap[leftRowid][fieldName].SetVars(vars)
 		_, err := eCtxMap[leftRowid][fieldName].Eval(fieldDef.ParsedExpression)
 		if err != nil {
 			return fmt.Errorf("cannot evaluate target expression [%s]: [%s]", fieldDef.RawExpression, err.Error())
@@ -731,6 +733,16 @@ func produceGroupedTableRecord(node *sc.ScriptNodeDef, rsLeft *Rowset, leftRowId
 		leftRowid := *((*rsLeft.Rows[leftRowIdx])[rsLeft.FieldsByFieldName["rowid"]].(*int64))
 		for fieldName, fieldDef := range node.TableCreator.Fields {
 			finalValue := eCtxMap[leftRowid][fieldName].Value
+
+			// Our eval engine performs agg calculations on decimal values without knowing
+			// the target dec precision (which is 2 for decimal2 at the moment), so we have to make sure
+			// it's actually 2 in the end. Hopefully this is the only place where we have to pay attention to it.
+			if fieldDef.Type == sc.FieldTypeDecimal2 {
+				decFinalValue, ok := finalValue.(decimal.Decimal)
+				if ok {
+					finalValue = decFinalValue.Round(2)
+				}
+			}
 
 			if err := sc.CheckValueType(finalValue, fieldDef.Type); err != nil {
 				return nil, fmt.Errorf("invalid field %s type: [%s]", fieldName, err.Error())

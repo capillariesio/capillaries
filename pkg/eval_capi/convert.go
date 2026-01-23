@@ -1,21 +1,22 @@
-package eval
+package eval_capi
 
 import (
 	"fmt"
 	"strconv"
 
+	"github.com/capillariesio/capillaries/pkg/eval"
 	"github.com/shopspring/decimal"
 )
 
 func callString(args []any) (any, error) {
-	if err := checkArgs("string", 1, len(args)); err != nil {
+	if err := eval.CheckArgs("string", 1, len(args)); err != nil {
 		return nil, err
 	}
 	return fmt.Sprintf("%v", args[0]), nil
 }
 
 func callInt(args []any) (any, error) {
-	if err := checkArgs("int", 1, len(args)); err != nil {
+	if err := eval.CheckArgs("int", 1, len(args)); err != nil {
 		return nil, err
 	}
 
@@ -60,7 +61,7 @@ func callInt(args []any) (any, error) {
 }
 
 func callDecimal2(args []any) (any, error) {
-	if err := checkArgs("decimal2", 1, len(args)); err != nil {
+	if err := eval.CheckArgs("decimal2", 1, len(args)); err != nil {
 		return nil, err
 	}
 
@@ -105,7 +106,7 @@ func callDecimal2(args []any) (any, error) {
 }
 
 func callFloat(args []any) (any, error) {
-	if err := checkArgs("float", 1, len(args)); err != nil {
+	if err := eval.CheckArgs("float", 1, len(args)); err != nil {
 		return nil, err
 	}
 	switch typedArg0 := args[0].(type) {

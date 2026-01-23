@@ -1,15 +1,16 @@
-package eval
+package eval_capi
 
 import (
 	"fmt"
 	"math"
 	"time"
 
+	"github.com/capillariesio/capillaries/pkg/eval"
 	"github.com/shopspring/decimal"
 )
 
 func callLen(args []any) (any, error) {
-	if err := checkArgs("len", 1, len(args)); err != nil {
+	if err := eval.CheckArgs("len", 1, len(args)); err != nil {
 		return nil, err
 	}
 	argString, ok := args[0].(string)
@@ -20,7 +21,7 @@ func callLen(args []any) (any, error) {
 }
 
 func callIntIif(args []any) (any, error) {
-	if err := checkArgs("iif", 3, len(args)); err != nil {
+	if err := eval.CheckArgs("iif", 3, len(args)); err != nil {
 		return nil, err
 	}
 	arg0, ok0 := args[0].(bool)
@@ -36,7 +37,7 @@ func callIntIif(args []any) (any, error) {
 }
 
 func callFloatIif(args []any) (any, error) {
-	if err := checkArgs("iif", 3, len(args)); err != nil {
+	if err := eval.CheckArgs("iif", 3, len(args)); err != nil {
 		return nil, err
 	}
 	arg0, ok0 := args[0].(bool)
@@ -52,7 +53,7 @@ func callFloatIif(args []any) (any, error) {
 }
 
 func callDecimal2Iif(args []any) (any, error) {
-	if err := checkArgs("iif", 3, len(args)); err != nil {
+	if err := eval.CheckArgs("iif", 3, len(args)); err != nil {
 		return nil, err
 	}
 	arg0, ok0 := args[0].(bool)
@@ -68,7 +69,7 @@ func callDecimal2Iif(args []any) (any, error) {
 }
 
 func callStringIif(args []any) (any, error) {
-	if err := checkArgs("iif", 3, len(args)); err != nil {
+	if err := eval.CheckArgs("iif", 3, len(args)); err != nil {
 		return nil, err
 	}
 	arg0, ok0 := args[0].(bool)
@@ -84,7 +85,7 @@ func callStringIif(args []any) (any, error) {
 }
 
 func callTimeIif(args []any) (any, error) {
-	if err := checkArgs("iif", 3, len(args)); err != nil {
+	if err := eval.CheckArgs("iif", 3, len(args)); err != nil {
 		return nil, err
 	}
 	arg0, ok0 := args[0].(bool)
@@ -100,10 +101,10 @@ func callTimeIif(args []any) (any, error) {
 }
 
 func callMathSqrt(args []any) (any, error) {
-	if err := checkArgs("math.Sqrt", 1, len(args)); err != nil {
+	if err := eval.CheckArgs("math.Sqrt", 1, len(args)); err != nil {
 		return nil, err
 	}
-	argFloat, err := castToFloat64(args[0])
+	argFloat, err := eval.CastToFloat64(args[0])
 	if err != nil {
 		return nil, fmt.Errorf("cannot evaluate math.Sqrt(), invalid args %v: [%s]", args, err.Error())
 	}
@@ -112,10 +113,10 @@ func callMathSqrt(args []any) (any, error) {
 }
 
 func callMathRound(args []any) (any, error) {
-	if err := checkArgs("math.Round", 1, len(args)); err != nil {
+	if err := eval.CheckArgs("math.Round", 1, len(args)); err != nil {
 		return nil, err
 	}
-	argFloat, err := castToFloat64(args[0])
+	argFloat, err := eval.CastToFloat64(args[0])
 	if err != nil {
 		return nil, fmt.Errorf("cannot evaluate math.Round(), invalid args %v: [%s]", args, err.Error())
 	}

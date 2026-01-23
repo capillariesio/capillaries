@@ -1,6 +1,7 @@
 package eval
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -12,6 +13,21 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// IMPORTANT: please keep this eval core component TableFieldType- and custom function-agnostic.
+// It should not be aware of things lice decimal2 or some math.iif() functions.
+
+func DetectRootAggFunc(exp ast.Expr) (string, AggEnabledType, AggFuncType, []ast.Expr) {
+	if callExp, ok := exp.(*ast.CallExpr); ok {
+		funExp := callExp.Fun
+		if funIdentExp, ok := funExp.(*ast.Ident); ok {
+			if StringToAggFunc(funIdentExp.Name) != AggUnknown {
+				return funIdentExp.Name, AggFuncEnabled, StringToAggFunc(funIdentExp.Name), callExp.Args
+			}
+		}
+	}
+	return "", AggFuncDisabled, AggUnknown, nil
+}
+
 type AggEnabledType int
 
 const (
@@ -19,8 +35,32 @@ const (
 	AggFuncEnabled
 )
 
+type EvalFunction func(args []any) (any, error)
+type VarValuesMap map[string]map[string]any
+
+func (vars *VarValuesMap) Tables() string {
+	sb := strings.Builder{}
+	sb.WriteString("[")
+	for table := range *vars {
+		sb.WriteString(fmt.Sprintf("%s ", table))
+	}
+	sb.WriteString("]")
+	return sb.String()
+}
+
+func (vars *VarValuesMap) Names() string {
+	sb := strings.Builder{}
+	sb.WriteString("[")
+	for table, fldMap := range *vars {
+		for fld := range fldMap {
+			sb.WriteString(fmt.Sprintf("%s.%s ", table, fld))
+		}
+	}
+	sb.WriteString("]")
+	return sb.String()
+}
+
 type EvalCtx struct {
-	Vars       VarValuesMap
 	AggFunc    AggFuncType
 	AggType    AggDataType
 	AggCallExp *ast.CallExpr
@@ -32,6 +72,20 @@ type EvalCtx struct {
 	Max        MaxCollector
 	Value      any
 	AggEnabled AggEnabledType
+	// Provided by caller
+	evalFunctions map[string]EvalFunction
+	evalConstants map[string]any
+	evalVars      VarValuesMap
+}
+
+func (ectx *EvalCtx) SetFunctions(functions map[string]EvalFunction) {
+	ectx.evalFunctions = functions
+}
+func (ectx *EvalCtx) SetConstants(constants map[string]any) {
+	ectx.evalConstants = constants
+}
+func (ectx *EvalCtx) SetVars(vars VarValuesMap) {
+	ectx.evalVars = vars
 }
 
 // Not ready to make these limits/defaults public
@@ -48,6 +102,25 @@ func maxSupportedDecimal() decimal.Decimal {
 }
 func minSupportedDecimal() decimal.Decimal {
 	return decimal.NewFromFloat32(-math.MaxFloat32 + 1)
+}
+
+func getAggStringSeparator(funcName string, aggFuncArgs []ast.Expr) (string, error) {
+	if funcName == string(AggStringAgg) && len(aggFuncArgs) != 2 {
+		return "", fmt.Errorf("%s must have two parameters", funcName)
+	} else if funcName == string(AggStringAggIf) && len(aggFuncArgs) != 3 {
+		return "", fmt.Errorf("%s must have three parameters", funcName)
+	}
+	switch separatorExpTyped := aggFuncArgs[1].(type) {
+	case *ast.BasicLit:
+		switch separatorExpTyped.Kind {
+		case token.STRING:
+			return strings.Trim(separatorExpTyped.Value, "\""), nil
+		default:
+			return "", errors.New("string_agg/if second parameter must be a constant string")
+		}
+	default:
+		return "", errors.New("string_agg/if second parameter must be a basic literal")
+	}
 }
 
 func defaultDecimal() decimal.Decimal {
@@ -75,7 +148,7 @@ func NewPlainEvalCtxAndInitializedAgg(funcName string, aggEnabled AggEnabledType
 	// explicitly set its type to AggTypeString from the very beginning (instead of detecting it later, as we do for other agg functions)
 	if aggEnabled == AggFuncEnabled && aggFuncType == AggStringAgg {
 		var aggStringErr error
-		eCtx.StringAgg.Separator, aggStringErr = GetAggStringSeparator(funcName, aggFuncArgs)
+		eCtx.StringAgg.Separator, aggStringErr = getAggStringSeparator(funcName, aggFuncArgs)
 		if aggStringErr != nil {
 			return nil, aggStringErr
 		}
@@ -84,26 +157,29 @@ func NewPlainEvalCtxAndInitializedAgg(funcName string, aggEnabled AggEnabledType
 	return &eCtx, nil
 }
 
-func NewPlainEvalCtxWithVars(aggEnabled AggEnabledType, vars VarValuesMap) EvalCtx {
+func NewPlainEvalCtxWithVars(aggEnabled AggEnabledType, functions map[string]EvalFunction, constants map[string]any, vars VarValuesMap) EvalCtx {
 	return EvalCtx{
-		AggFunc:    AggUnknown,
-		Vars:       vars,
-		AggType:    AggTypeUnknown,
-		AggEnabled: aggEnabled,
-		StringAgg:  StringAggCollector{Separator: "", Sb: strings.Builder{}},
-		Sum:        SumCollector{Dec: defaultDecimal()},
-		Avg:        AvgCollector{Dec: defaultDecimal()},
-		Min:        MinCollector{Int: maxSupportedInt, Float: maxSupportedFloat, Dec: maxSupportedDecimal(), Str: ""},
-		Max:        MaxCollector{Int: minSupportedInt, Float: minSupportedFloat, Dec: minSupportedDecimal(), Str: ""}}
+		AggFunc:       AggUnknown,
+		AggType:       AggTypeUnknown,
+		AggEnabled:    aggEnabled,
+		StringAgg:     StringAggCollector{Separator: "", Sb: strings.Builder{}},
+		Sum:           SumCollector{Dec: defaultDecimal()},
+		Avg:           AvgCollector{Dec: defaultDecimal()},
+		Min:           MinCollector{Int: maxSupportedInt, Float: maxSupportedFloat, Dec: maxSupportedDecimal(), Str: ""},
+		Max:           MaxCollector{Int: minSupportedInt, Float: minSupportedFloat, Dec: minSupportedDecimal(), Str: ""},
+		evalFunctions: functions,
+		evalConstants: constants,
+		evalVars:      vars,
+	}
 }
 
-func NewPlainEvalCtxWithVarsAndInitializedAgg(funcName string, aggEnabled AggEnabledType, vars VarValuesMap, aggFuncType AggFuncType, aggFuncArgs []ast.Expr) (*EvalCtx, error) {
-	eCtx := NewPlainEvalCtxWithVars(aggEnabled, vars)
+func NewPlainEvalCtxWithVarsAndInitializedAgg(funcName string, aggEnabled AggEnabledType, functions map[string]EvalFunction, constants map[string]any, vars VarValuesMap, aggFuncType AggFuncType, aggFuncArgs []ast.Expr) (*EvalCtx, error) {
+	eCtx := NewPlainEvalCtxWithVars(aggEnabled, functions, constants, vars)
 	// Special case: we need to provide eCtx.StringAgg with a separator and
 	// explicitly set its type to AggTypeString from the very beginning (instead of detecting it later, as we do for other agg functions)
 	if aggEnabled == AggFuncEnabled && aggFuncType == AggStringAgg {
 		var aggStringErr error
-		eCtx.StringAgg.Separator, aggStringErr = GetAggStringSeparator(funcName, aggFuncArgs)
+		eCtx.StringAgg.Separator, aggStringErr = getAggStringSeparator(funcName, aggFuncArgs)
 		if aggStringErr != nil {
 			return nil, aggStringErr
 		}
@@ -112,7 +188,7 @@ func NewPlainEvalCtxWithVarsAndInitializedAgg(funcName string, aggEnabled AggEna
 	return &eCtx, nil
 }
 
-func checkArgs(funcName string, requiredArgCount int, actualArgCount int) error {
+func CheckArgs(funcName string, requiredArgCount int, actualArgCount int) error {
 	if actualArgCount != requiredArgCount {
 		return fmt.Errorf("cannot evaluate %s(), requires %d args, %d supplied", funcName, requiredArgCount, actualArgCount)
 	}
@@ -460,59 +536,7 @@ func (eCtx *EvalCtx) EvalBinaryStringToBool(valLeftVolatile any, op token.Token,
 func (eCtx *EvalCtx) EvalFunc(callExp *ast.CallExpr, funcName string, args []any) (any, error) {
 	var err error
 	switch funcName {
-	case "math.Sqrt":
-		eCtx.Value, err = callMathSqrt(args)
-	case "math.Round":
-		eCtx.Value, err = callMathRound(args)
-	case "len":
-		eCtx.Value, err = callLen(args)
-	case "string":
-		eCtx.Value, err = callString(args)
-	case "float":
-		eCtx.Value, err = callFloat(args)
-	case "int":
-		eCtx.Value, err = callInt(args)
-	case "decimal2":
-		eCtx.Value, err = callDecimal2(args)
-	case "int.iif":
-		eCtx.Value, err = callIntIif(args)
-	case "float.iif":
-		eCtx.Value, err = callFloatIif(args)
-	case "decimal2.iif":
-		eCtx.Value, err = callDecimal2Iif(args)
-	case "string.iif":
-		eCtx.Value, err = callStringIif(args)
-	case "time.iif":
-		eCtx.Value, err = callTimeIif(args)
-	case "time.Parse":
-		eCtx.Value, err = callTimeParse(args)
-	case "time.Format":
-		eCtx.Value, err = callTimeFormat(args)
-	case "time.Date":
-		eCtx.Value, err = callTimeDate(args)
-	case "time.Now":
-		eCtx.Value, err = callTimeNow(args)
-	case "time.Unix":
-		eCtx.Value, err = callTimeUnix(args)
-	case "time.UnixMilli":
-		eCtx.Value, err = callTimeUnixMilli(args)
-	case "time.DiffMilli":
-		eCtx.Value, err = callTimeDiffMilli(args)
-	case "time.Before":
-		eCtx.Value, err = callTimeBefore(args)
-	case "time.After":
-		eCtx.Value, err = callTimeAfter(args)
-	case "time.FixedZone":
-		eCtx.Value, err = callTimeFixedZone(args)
-	case "re.MatchString":
-		eCtx.Value, err = callReMatchString(args)
-	case "strings.ReplaceAll":
-		eCtx.Value, err = callStringsReplaceAll(args)
-	case "fmt.Sprintf":
-		eCtx.Value, err = callFmtSprintf(args)
-
-	// Aggregate functions, to be used only in grouped lookups
-
+	// Aggregate functions, this is part of evalcore
 	case "string_agg":
 		eCtx.Value, err = eCtx.CallAggStringAgg(callExp, args)
 	case "sum":
@@ -539,6 +563,12 @@ func (eCtx *EvalCtx) EvalFunc(callExp *ast.CallExpr, funcName string, args []any
 		eCtx.Value, err = eCtx.CallAggMaxIf(callExp, args)
 
 	default:
+		// Caller-provided functions
+		if eCtx.evalFunctions != nil {
+			if evalFunc, ok := eCtx.evalFunctions[funcName]; ok {
+				return evalFunc(args)
+			}
+		}
 		return nil, fmt.Errorf("cannot evaluate unsupported func '%s'", funcName)
 	}
 	return eCtx.Value, err
@@ -683,30 +713,38 @@ func (eCtx *EvalCtx) Eval(exp ast.Expr) (any, error) {
 		return eCtx.evalUnaryExp(exp)
 
 	case *ast.Ident:
-		if exp.Name == "true" {
+		// true/false are required anyways, do not ask users to put them in Vars
+		switch exp.Name {
+		case "true":
 			eCtx.Value = true
 			return true, nil
-		} else if exp.Name == "false" {
+		case "false":
 			eCtx.Value = false
 			return false, nil
-		}
-		if eCtx.Vars == nil {
-			return nil, fmt.Errorf("cannot evaluate ident expression '%s', no variables supplied to the context", exp.Name)
-		}
+		default:
+			golangConst, ok := eCtx.evalConstants[exp.Name]
+			if ok {
+				eCtx.Value = golangConst
+				return golangConst, nil
+			}
 
-		// Non-selector idents are store under ""
-		objectAttributes, ok := eCtx.Vars[""]
-		if !ok {
-			return nil, fmt.Errorf("cannot evaluate ident expression '%s', no empty object", exp.Name)
-		}
+			if eCtx.evalVars == nil {
+				return nil, fmt.Errorf("cannot evaluate ident expression '%s', no variables supplied to the context", exp.Name)
+			}
 
-		val, ok := objectAttributes[exp.Name]
-		if !ok {
-			return nil, fmt.Errorf("cannot evaluate ident expression %s, variable not supplied", exp.Name)
-		}
-		eCtx.Value = val
+			// Non-selector idents are stored under ""
+			objectAttributes, ok := eCtx.evalVars[""]
+			if !ok {
+				return nil, fmt.Errorf("cannot evaluate ident expression '%s', no empty object", exp.Name)
+			}
 
-		return val, nil
+			val, ok := objectAttributes[exp.Name]
+			if !ok {
+				return nil, fmt.Errorf("cannot evaluate ident expression %s, variable not supplied", exp.Name)
+			}
+			eCtx.Value = val
+			return val, nil
+		}
 
 	case *ast.CallExpr:
 		args := make([]any, len(exp.Args))
@@ -742,17 +780,17 @@ func (eCtx *EvalCtx) Eval(exp ast.Expr) (any, error) {
 	case *ast.SelectorExpr:
 		switch objectIdent := exp.X.(type) {
 		case *ast.Ident:
-			golangConst, ok := GolangConstants[fmt.Sprintf("%s.%s", objectIdent.Name, exp.Sel.Name)]
+			golangConst, ok := eCtx.evalConstants[fmt.Sprintf("%s.%s", objectIdent.Name, exp.Sel.Name)]
 			if ok {
 				eCtx.Value = golangConst
 				return golangConst, nil
 			}
 
-			if eCtx.Vars == nil {
+			if eCtx.evalVars == nil {
 				return nil, fmt.Errorf("cannot evaluate selector ident expression '%s', no variables supplied to the context", objectIdent.Name)
 			}
 
-			objectAttributes, ok := eCtx.Vars[objectIdent.Name]
+			objectAttributes, ok := eCtx.evalVars[objectIdent.Name]
 			if !ok {
 				return nil, fmt.Errorf("cannot evaluate selector ident expression '%s', variable not supplied, check table/alias name", objectIdent.Name)
 			}

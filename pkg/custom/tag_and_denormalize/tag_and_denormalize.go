@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/capillariesio/capillaries/pkg/eval"
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"github.com/capillariesio/capillaries/pkg/proc"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/xfer"
@@ -109,7 +110,7 @@ func (procDef *TagAndDenormalizeProcessorDef) tagAndDenormalize(rsIn *proc.Rowse
 		}
 
 		for tag, tagCriteria := range procDef.ParsedTagCriteria {
-			eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, vars)
+			eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, vars)
 			valVolatile, err := eCtx.Eval(tagCriteria)
 			if err != nil {
 				return fmt.Errorf("cannot evaluate expression for tag %s criteria: [%s]", tag, err.Error())
