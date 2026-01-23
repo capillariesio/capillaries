@@ -13,6 +13,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/eval"
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/xfer"
@@ -636,7 +637,7 @@ func setupEvalCtxForGroup(node *sc.ScriptNodeDef, rsLeft *Rowset) (map[int64]map
 			eCtxMap[rowid] = map[string]*eval.EvalCtx{}
 			for fieldName, fieldDef := range node.TableCreator.Fields {
 				funcName, aggFuncEnabled, aggFuncType, aggFuncArgs := eval.DetectRootAggFunc(fieldDef.ParsedExpression)
-				newCtx, newCtxErr := eval.NewPlainEvalCtxAndInitializedAgg(funcName, aggFuncEnabled, aggFuncType, aggFuncArgs)
+				newCtx, newCtxErr := eval.NewPlainEvalCtxAndInitializedAgg(funcName, aggFuncEnabled, aggFuncType, aggFuncArgs, eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants)
 				if newCtxErr != nil {
 					return nil, newCtxErr
 				}

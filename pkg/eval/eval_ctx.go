@@ -35,7 +35,15 @@ const (
 	AggFuncEnabled
 )
 
+// Custom functions
 type EvalFunction func(args []any) (any, error)
+
+// Identifiers used in the calculation. Examples:
+// - ""."var1": plain variable var1
+// - ""."field1": plain field name field1 (table name given somewhere else implicitly)
+// - "table1"."field1": fully qualified field name
+// - "token"."field1": some custom data used in custom functions, this example can be used by the implementation of Cassandra's token(field1)
+// Capillaries always use fully qualified field names
 type VarValuesMap map[string]map[string]any
 
 func (vars *VarValuesMap) Tables() string {
@@ -142,8 +150,8 @@ func NewPlainEvalCtx(aggEnabled AggEnabledType) EvalCtx {
 		Max:        MaxCollector{Int: minSupportedInt, Float: minSupportedFloat, Dec: minSupportedDecimal(), Str: ""}}
 }
 
-func NewPlainEvalCtxAndInitializedAgg(funcName string, aggEnabled AggEnabledType, aggFuncType AggFuncType, aggFuncArgs []ast.Expr) (*EvalCtx, error) {
-	eCtx := NewPlainEvalCtx(aggEnabled)
+func NewPlainEvalCtxAndInitializedAgg(funcName string, aggEnabled AggEnabledType, aggFuncType AggFuncType, aggFuncArgs []ast.Expr, functions map[string]EvalFunction, constants map[string]any) (*EvalCtx, error) {
+	eCtx := NewPlainEvalCtxWithVars(aggEnabled, functions, constants, nil)
 	// Special case: we need to provide eCtx.StringAgg with a separator and
 	// explicitly set its type to AggTypeString from the very beginning (instead of detecting it later, as we do for other agg functions)
 	if aggEnabled == AggFuncEnabled && aggFuncType == AggStringAgg {
