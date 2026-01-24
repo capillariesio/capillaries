@@ -533,3 +533,84 @@ func TestBlanks(t *testing.T) {
 	assert.Equal(t, minSupportedDecimal(), eCtx.maxCollector.Dec)
 	assert.Equal(t, "", eCtx.maxCollector.Str)
 }
+
+// This is a demonstration of the importance of using precision on every step of the agg calculation,
+// instead of just rounding the final result.
+func TestAggPrecision(t *testing.T) {
+	varValuesMap := VarValuesMap{
+		"": map[string]any{},
+	}
+	exp, _ := parser.ParseExpr("avg(price*tax)")
+	var eCtx *EvalCtx
+
+	// 1. This is the case when only final rounding (no intermediate rounding) works:
+	// round(1.333.., 2) == 1.33
+
+	// Tax 2.00, no precision
+	// avg(0.50*2.00, 1.00*2.00, 0.50*2.00) = 1.333...
+	varValuesMap[""]["tax"] = decimal.NewFromFloat(2.00)
+	eCtx, _ = NewAggEvalCtx("avg", AggAvg, exp.(*ast.CallExpr).Args, nil, nil, nil)
+	varValuesMap[""]["price"] = decimal.NewFromFloat(0.50)
+	eCtx.SetVars(varValuesMap)
+	_, _ = eCtx.Eval(exp)
+	varValuesMap[""]["price"] = decimal.NewFromFloat(1.00)
+	eCtx.SetVars(varValuesMap)
+	_, _ = eCtx.Eval(exp)
+	varValuesMap[""]["price"] = decimal.NewFromFloat(0.50)
+	eCtx.SetVars(varValuesMap)
+	_, _ = eCtx.Eval(exp)
+	assert.Equal(t, decimal.NewFromFloat(1.3333333333333333).String(), eCtx.GetValue().(decimal.Decimal).String())
+
+	// Tax 2.00, precision 2
+	// avg(0.50*2.00, 1.00*2.00, 0.50*2.00) = 1.33
+	varValuesMap[""]["tax"] = decimal.NewFromFloat(2.00)
+	eCtx, _ = NewAggEvalCtx("avg", AggAvg, exp.(*ast.CallExpr).Args, nil, nil, nil)
+	eCtx.SetRoundDec(2)
+	varValuesMap[""]["price"] = decimal.NewFromFloat(0.50)
+	eCtx.SetVars(varValuesMap)
+	_, _ = eCtx.Eval(exp)
+	varValuesMap[""]["price"] = decimal.NewFromFloat(1.00)
+	eCtx.SetVars(varValuesMap)
+	_, _ = eCtx.Eval(exp)
+	varValuesMap[""]["price"] = decimal.NewFromFloat(0.50)
+	eCtx.SetVars(varValuesMap)
+	_, _ = eCtx.Eval(exp)
+	assert.Equal(t, decimal.NewFromFloat(1.33).String(), eCtx.GetValue().(decimal.Decimal).String())
+
+	// 2. This is the case when only final rounding (no intermediate rounding)
+	// does not give the same result, rounding on every step is essential:
+	// round(1.336, 2) != 1.33
+
+	// Tax 2.009, no precision
+	// avg(0.50*2.009, 1.00*2.009, 0.50*2.009) =
+	// avg(1.0045, 2.009, 1.0045) = 4.018 / 3 = 1.336
+	varValuesMap[""]["tax"] = decimal.NewFromFloat(2.004)
+	eCtx, _ = NewAggEvalCtx("avg", AggAvg, exp.(*ast.CallExpr).Args, nil, nil, nil)
+	varValuesMap[""]["price"] = decimal.NewFromFloat(0.50)
+	eCtx.SetVars(varValuesMap)
+	_, _ = eCtx.Eval(exp)
+	varValuesMap[""]["price"] = decimal.NewFromFloat(1.00)
+	eCtx.SetVars(varValuesMap)
+	_, _ = eCtx.Eval(exp)
+	varValuesMap[""]["price"] = decimal.NewFromFloat(0.50)
+	eCtx.SetVars(varValuesMap)
+	_, _ = eCtx.Eval(exp)
+	assert.Equal(t, decimal.NewFromFloat(1.336).String(), eCtx.GetValue().(decimal.Decimal).String())
+
+	// Tax 2.009, precision 2
+	// avg(round(0.50*2.009, 2), round(1.00*2.009, 2), round(0.50*2.009, 2)) =
+	// avg(1.00, 2.00, 1.00) = 4.00 / 3 = 1.333...
+	varValuesMap[""]["tax"] = decimal.NewFromFloat(2.004)
+	eCtx, _ = NewAggEvalCtx("avg", AggAvg, exp.(*ast.CallExpr).Args, nil, nil, nil)
+	eCtx.SetRoundDec(2)
+	varValuesMap[""]["price"] = decimal.NewFromFloat(0.50)
+	eCtx.SetVars(varValuesMap)
+	_, _ = eCtx.Eval(exp)
+	varValuesMap[""]["price"] = decimal.NewFromFloat(1.00)
+	eCtx.SetVars(varValuesMap)
+	_, _ = eCtx.Eval(exp)
+	varValuesMap[""]["price"] = decimal.NewFromFloat(0.50)
+	eCtx.SetVars(varValuesMap)
+	_, _ = eCtx.Eval(exp)
+	assert.Equal(t, decimal.NewFromFloat(1.33).String(), eCtx.GetValue().(decimal.Decimal).String())
+}
