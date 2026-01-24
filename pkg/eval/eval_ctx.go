@@ -16,16 +16,17 @@ import (
 // IMPORTANT: please keep this eval core component TableFieldType- and custom function-agnostic.
 // It should not be aware of things like decimal2 or some math.iif() functions.
 
-func DetectRootAggFunc(exp ast.Expr) (string, AggEnabledType, AggFuncType, []ast.Expr) {
+func DetectRootAggFunc(exp ast.Expr) (AggEnabledType, AggFuncType, []ast.Expr) {
 	if callExp, ok := exp.(*ast.CallExpr); ok {
 		funExp := callExp.Fun
 		if funIdentExp, ok := funExp.(*ast.Ident); ok {
-			if StringToAggFunc(funIdentExp.Name) != AggUnknown {
-				return funIdentExp.Name, AggFuncEnabled, StringToAggFunc(funIdentExp.Name), callExp.Args
+			aggFuncType := StringToAggFunc(funIdentExp.Name)
+			if aggFuncType != AggUnknown {
+				return AggFuncEnabled, aggFuncType, callExp.Args
 			}
 		}
 	}
-	return "", AggFuncDisabled, AggUnknown, nil
+	return AggFuncDisabled, AggUnknown, nil
 }
 
 type AggEnabledType int
@@ -118,11 +119,11 @@ func minSupportedDecimal() decimal.Decimal {
 	return decimal.NewFromFloat32(-math.MaxFloat32 + 1)
 }
 
-func getAggStringSeparator(funcName string, aggFuncArgs []ast.Expr) (string, error) {
-	if funcName == string(AggStringAgg) && len(aggFuncArgs) != 2 {
-		return "", fmt.Errorf("%s must have two parameters", funcName)
-	} else if funcName == string(AggStringAggIf) && len(aggFuncArgs) != 3 {
-		return "", fmt.Errorf("%s must have three parameters", funcName)
+func getAggStringSeparator(aggFuncType AggFuncType, aggFuncArgs []ast.Expr) (string, error) {
+	if aggFuncType == AggStringAgg && len(aggFuncArgs) != 2 {
+		return "", fmt.Errorf("%s must have two parameters", aggFuncType)
+	} else if aggFuncType == AggStringAggIf && len(aggFuncArgs) != 3 {
+		return "", fmt.Errorf("%s must have three parameters", aggFuncType)
 	}
 	switch separatorExpTyped := aggFuncArgs[1].(type) {
 	case *ast.BasicLit:
@@ -164,7 +165,7 @@ func NewPlainEvalCtx(functions map[string]EvalFunction, constants map[string]any
 	return eCtx
 }
 
-func NewAggEvalCtx(funcName string, aggFuncType AggFuncType, aggFuncArgs []ast.Expr, functions map[string]EvalFunction, constants map[string]any, vars VarValuesMap) (*EvalCtx, error) {
+func NewAggEvalCtx(aggFuncType AggFuncType, aggFuncArgs []ast.Expr, functions map[string]EvalFunction, constants map[string]any, vars VarValuesMap) (*EvalCtx, error) {
 	eCtx := newPlainEvalCtx(AggFuncEnabled)
 	eCtx.evalFunctions = functions
 	eCtx.evalConstants = constants
@@ -174,7 +175,7 @@ func NewAggEvalCtx(funcName string, aggFuncType AggFuncType, aggFuncArgs []ast.E
 	// explicitly set its type to AggTypeString from the very beginning (instead of detecting it later, as we do for other agg functions)
 	if aggFuncType == AggStringAgg || aggFuncType == AggStringAggIf {
 		var aggStringErr error
-		eCtx.stringAggCollector.Separator, aggStringErr = getAggStringSeparator(funcName, aggFuncArgs)
+		eCtx.stringAggCollector.Separator, aggStringErr = getAggStringSeparator(aggFuncType, aggFuncArgs)
 		if aggStringErr != nil {
 			return nil, aggStringErr
 		}
@@ -716,40 +717,30 @@ func (eCtx *EvalCtx) Eval(exp ast.Expr) (any, error) {
 		return eCtx.evalUnaryExp(exp)
 
 	case *ast.Ident:
-		// true/false are required anyways, do not ask users to put them in Vars
-		switch exp.Name {
-		case "true":
-			eCtx.value = true
-			return true, nil
-		case "false":
-			eCtx.value = false
-			return false, nil
-		default:
-			if eCtx.evalConstants != nil {
-				golangConst, ok := eCtx.evalConstants[exp.Name]
-				if ok {
-					eCtx.value = golangConst
-					return golangConst, nil
-				}
+		if eCtx.evalConstants != nil {
+			golangConst, ok := eCtx.evalConstants[exp.Name]
+			if ok {
+				eCtx.value = golangConst
+				return golangConst, nil
 			}
-
-			if eCtx.evalVars == nil {
-				return nil, fmt.Errorf("cannot evaluate ident expression '%s', no variables supplied to the context", exp.Name)
-			}
-
-			// Non-selector idents are stored under ""
-			objectAttributes, ok := eCtx.evalVars[""]
-			if !ok {
-				return nil, fmt.Errorf("cannot evaluate ident expression '%s', no empty object", exp.Name)
-			}
-
-			val, ok := objectAttributes[exp.Name]
-			if !ok {
-				return nil, fmt.Errorf("cannot evaluate ident expression %s, variable not supplied", exp.Name)
-			}
-			eCtx.value = val
-			return val, nil
 		}
+
+		if eCtx.evalVars == nil {
+			return nil, fmt.Errorf("cannot evaluate ident expression '%s', no variables supplied to the context", exp.Name)
+		}
+
+		// Non-selector idents are stored under ""
+		objectAttributes, ok := eCtx.evalVars[""]
+		if !ok {
+			return nil, fmt.Errorf("cannot evaluate ident expression '%s', no empty object", exp.Name)
+		}
+
+		val, ok := objectAttributes[exp.Name]
+		if !ok {
+			return nil, fmt.Errorf("cannot evaluate ident expression %s, variable not supplied", exp.Name)
+		}
+		eCtx.value = val
+		return val, nil
 
 	case *ast.CallExpr:
 		args := make([]any, len(exp.Args))

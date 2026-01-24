@@ -636,11 +636,11 @@ func setupEvalCtxForGroup(node *sc.ScriptNodeDef, rsLeft *Rowset) (map[int64]map
 			eCtxMap[rowid] = map[string]*eval.EvalCtx{}
 			for fieldName, fieldDef := range node.TableCreator.Fields {
 				// Expression may contain an agg function and may not. Handle both. No var values available yet.
-				funcName, aggFuncEnabled, aggFuncType, aggFuncArgs := eval.DetectRootAggFunc(fieldDef.ParsedExpression)
+				aggFuncEnabled, aggFuncType, aggFuncArgs := eval.DetectRootAggFunc(fieldDef.ParsedExpression)
 				var newCtx *eval.EvalCtx
 				var newCtxErr error
 				if aggFuncEnabled == eval.AggFuncEnabled {
-					newCtx, newCtxErr = eval.NewAggEvalCtx(funcName, aggFuncType, aggFuncArgs, eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, nil)
+					newCtx, newCtxErr = eval.NewAggEvalCtx(aggFuncType, aggFuncArgs, eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, nil)
 					if newCtxErr != nil {
 						return nil, fmt.Errorf("cannot initialize ctx for group calc: %s", newCtxErr.Error())
 					}
@@ -721,7 +721,7 @@ func produceGroupedTableRecord(node *sc.ScriptNodeDef, rsLeft *Rowset, leftRowId
 
 		var err error
 		for fieldName, fieldDef := range node.TableCreator.Fields {
-			_, isAggEnabled, _, _ := eval.DetectRootAggFunc(fieldDef.ParsedExpression)
+			isAggEnabled, _, _ := eval.DetectRootAggFunc(fieldDef.ParsedExpression)
 			if isAggEnabled == eval.AggFuncEnabled {
 				// Aggregate func is used in field expression - ignore the expression and produce default
 				tableRecord[fieldName], err = node.TableCreator.GetFieldDefaultReadyForDb(fieldName)

@@ -177,9 +177,9 @@ func evalExpressionWithFieldRefsAndCheckType(exp ast.Expr, fieldRefs FieldRefs, 
 
 		var eCtx *eval.EvalCtx
 		var err error
-		funcName, aggFuncEnabled, aggFuncType, aggFuncArgs := eval.DetectRootAggFunc(exp)
+		aggFuncEnabled, aggFuncType, aggFuncArgs := eval.DetectRootAggFunc(exp)
 		if aggFuncEnabled == eval.AggFuncEnabled {
-			eCtx, err = eval.NewAggEvalCtx(funcName, aggFuncType, aggFuncArgs, eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, varValuesMap)
+			eCtx, err = eval.NewAggEvalCtx(aggFuncType, aggFuncArgs, eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, varValuesMap)
 			if err != nil {
 				return err
 			}

@@ -3,6 +3,8 @@ package eval_capi
 import "time"
 
 var CapillariesEvalConstants = map[string]any{
+	"true":           true,
+	"false":          false,
 	"time.January":   time.January,
 	"time.February":  time.February,
 	"time.March":     time.March,

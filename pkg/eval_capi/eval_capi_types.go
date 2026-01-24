@@ -20,20 +20,3 @@ func IsValidFieldType(fieldType TableFieldType) bool {
 		fieldType == FieldTypeDecimal2 ||
 		fieldType == FieldTypeDateTime
 }
-
-// Etra massaging for capi-specific types
-// func EvalCapiField(eCtx *eval.EvalCtx, exp ast.Expr, dataType TableFieldType) (any, error) {
-// 	val, err := eCtx.Eval(exp)
-// 	if err != nil {
-// 		return val, err
-// 	}
-
-// 	if dataType == FieldTypeDecimal2 {
-// 		valDecimal, ok := val.(decimal.Decimal)
-// 		if !ok {
-// 			return nil, fmt.Errorf("cannot accept non-decimal result of eval: (%T,%v)", val, val)
-// 		}
-// 		return valDecimal.Round(2), nil
-// 	}
-// 	return val, nil
-// }

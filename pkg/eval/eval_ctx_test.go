@@ -211,27 +211,83 @@ func TestTime(t *testing.T) {
 	assertEqual(t, `t1.fTime != t2.fTime`, true, varValuesMap)
 }
 
+func TestFunc(t *testing.T) {
+	functions := map[string]EvalFunction{
+		"package1.Mul2": func(args []any) (any, error) {
+			if len(args) != 1 {
+				return nil, fmt.Errorf("package1.Mul2 srequires one arg, not %d", len(args))
+			}
+			switch typedArg := args[0].(type) {
+			case float64:
+				return typedArg * 2.0, nil
+			default:
+				return nil, fmt.Errorf("package1.Mul2 does not support type %T (%v)", args[0], args[0])
+			}
+		},
+		"mul3": func(args []any) (any, error) {
+			if len(args) != 1 {
+				return nil, fmt.Errorf("mul2 requires one arg, not %d", len(args))
+			}
+			switch typedArg := args[0].(type) {
+			case float64:
+				return typedArg * 3.0, nil
+			default:
+				return nil, fmt.Errorf("mul3 does not support type %T (%v)", args[0], args[0])
+			}
+		},
+	}
+	eCtx := NewPlainEvalCtx(functions, nil, nil)
+
+	exp, err := parser.ParseExpr("package1.Mul2(1.0)")
+	assert.Nil(t, err)
+	result, err := eCtx.Eval(exp)
+	assert.Equal(t, float64(2.0), result)
+
+	exp, err = parser.ParseExpr("mul3(1.0)")
+	assert.Nil(t, err)
+	result, err = eCtx.Eval(exp)
+	assert.Equal(t, float64(3.0), result)
+}
+
+func TestConst(t *testing.T) {
+	constants := map[string]any{
+		"const1":          float64(1.0),
+		"package2.const2": float64(2.0),
+	}
+	eCtx := NewPlainEvalCtx(nil, constants, nil)
+
+	exp, err := parser.ParseExpr("const1*2")
+	assert.Nil(t, err)
+	result, err := eCtx.Eval(exp)
+	assert.Equal(t, float64(2.0), result)
+
+	exp, err = parser.ParseExpr("package2.const2*2")
+	assert.Nil(t, err)
+	result, err = eCtx.Eval(exp)
+	assert.Equal(t, float64(4.0), result)
+}
+
 func TestNewPlainEvalCtxAndInitializedAgg(t *testing.T) {
 	varValuesMap := getTestValuesMap()
 	varValuesMap["t1"]["fieldStr"] = "a"
 
 	exp, _ := parser.ParseExpr(`string_agg(t1.fieldStr,",")`)
-	funcName, aggEnabledType, aggFuncType, aggFuncArgs := DetectRootAggFunc(exp)
+	aggEnabledType, aggFuncType, aggFuncArgs := DetectRootAggFunc(exp)
 	assert.Equal(t, AggFuncEnabled, aggEnabledType)
-	eCtx, err := NewAggEvalCtx(funcName, aggFuncType, aggFuncArgs, nil, nil, nil)
+	eCtx, err := NewAggEvalCtx(aggFuncType, aggFuncArgs, nil, nil, nil)
 	assert.Equal(t, AggTypeString, eCtx.aggType)
 	assert.Nil(t, err)
 
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr,1)`)
-	funcName, aggEnabledType, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
+	aggEnabledType, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
 	assert.Equal(t, AggFuncEnabled, aggEnabledType)
-	_, err = NewAggEvalCtx(funcName, aggFuncType, aggFuncArgs, nil, nil, nil)
+	_, err = NewAggEvalCtx(aggFuncType, aggFuncArgs, nil, nil, nil)
 	assert.Equal(t, "string_agg/if second parameter must be a constant string", err.Error())
 
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr, a)`)
-	funcName, aggEnabledType, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
+	aggEnabledType, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
 	assert.Equal(t, AggFuncEnabled, aggEnabledType)
-	_, err = NewAggEvalCtx(funcName, aggFuncType, aggFuncArgs, nil, nil, nil)
+	_, err = NewAggEvalCtx(aggFuncType, aggFuncArgs, nil, nil, nil)
 	assert.Equal(t, "string_agg/if second parameter must be a basic literal", err.Error())
 }
 
