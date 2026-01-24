@@ -55,11 +55,11 @@ func castNumberPairToCommonType(argLeft any, argRight any) (any, any, error) {
 	_, decLeft := stdArgLeft.(decimal.Decimal)
 	_, decRight := stdArgRight.(decimal.Decimal)
 	if decLeft || decRight {
-		finalArgLeft, err := castToDecimal(stdArgLeft)
+		finalArgLeft, err := CastToDecimal(stdArgLeft)
 		if err != nil {
 			return nil, nil, fmt.Errorf("unexpectedly cannot cast left arg to decimal: %s", err.Error())
 		}
-		finalArgRight, err := castToDecimal(stdArgRight)
+		finalArgRight, err := CastToDecimal(stdArgRight)
 		if err != nil {
 			return nil, nil, fmt.Errorf("unexpectedly cannot cast right arg to decimal: %s", err.Error())
 		}
@@ -67,18 +67,18 @@ func castNumberPairToCommonType(argLeft any, argRight any) (any, any, error) {
 	}
 
 	// Cast both to int64
-	finalArgLeft, err := castToInt64(stdArgLeft)
+	finalArgLeft, err := CastToInt64(stdArgLeft)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unexpectedly cannot cast left arg to int64: %s", err.Error())
 	}
-	finalArgRight, err := castToInt64(stdArgRight)
+	finalArgRight, err := CastToInt64(stdArgRight)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unexpectedly cannot cast right arg to int64: %s", err.Error())
 	}
 	return finalArgLeft, finalArgRight, nil
 }
 
-func castToInt64(arg any) (int64, error) {
+func CastToInt64(arg any) (int64, error) {
 	switch typedArg := arg.(type) {
 	case int:
 		return int64(typedArg), nil
@@ -124,7 +124,7 @@ func CastToFloat64(arg any) (float64, error) {
 	}
 }
 
-func castToDecimal(arg any) (decimal.Decimal, error) {
+func CastToDecimal(arg any) (decimal.Decimal, error) {
 	switch typedArg := arg.(type) {
 	case int:
 		return decimal.NewFromInt(int64(typedArg)), nil
