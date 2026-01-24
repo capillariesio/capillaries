@@ -94,7 +94,7 @@ func (lkpDef *LookupDef) resolveLeftTableFields(srcName string, srcFieldRefs *Fi
 		if !ok {
 			return fmt.Errorf("source [%s] does not produce field [%s]", tName, fName)
 		}
-		if srcFieldRef.FieldType == FieldTypeUnknown {
+		if srcFieldRef.FieldType == eval_capi.FieldTypeUnknown {
 			return fmt.Errorf("source field [%s.%s] has unknown type", tName, fName)
 		}
 		lkpDef.LeftTableFields[fieldIdx] = *srcFieldRef
@@ -123,7 +123,7 @@ func (lkpDef *LookupDef) CheckFilterCondition(varsFromLookup eval.VarValuesMap) 
 	if !lkpDef.UsesFilter() {
 		return true, nil
 	}
-	eCtx := eval.NewEvalCtxWithFunctionsConstantsVars(eval.AggFuncDisabled, eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, varsFromLookup)
+	eCtx := eval.NewPlainEvalCtx(eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, varsFromLookup)
 	valVolatile, err := eCtx.Eval(lkpDef.Filter)
 	if err != nil {
 		return false, fmt.Errorf("cannot evaluate expression: [%s]", err.Error())

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 )
@@ -45,34 +46,34 @@ func assertKeyCompare(
 
 func TestBad(t *testing.T) {
 
-	idxDef := IdxDef{Uniqueness: "UNIQUE", Components: []IdxComponentDef{{FieldName: "fld", SortOrder: IdxSortAsc, FieldType: FieldTypeInt}}}
+	idxDef := IdxDef{Uniqueness: "UNIQUE", Components: []IdxComponentDef{{FieldName: "fld", SortOrder: IdxSortAsc, FieldType: eval_capi.FieldTypeInt}}}
 	row1 := map[string]any{"fld": false}
 
 	_, err := BuildKey(row1, &idxDef)
 	assert.Equal(t, "cannot convert value false to type int", err.Error())
 
-	idxDef.Components[0].FieldType = FieldTypeFloat
+	idxDef.Components[0].FieldType = eval_capi.FieldTypeFloat
 	_, err = BuildKey(row1, &idxDef)
 	assert.Equal(t, "cannot convert value false to type float", err.Error())
 
-	idxDef.Components[0].FieldType = FieldTypeDecimal2
+	idxDef.Components[0].FieldType = eval_capi.FieldTypeDecimal2
 	_, err = BuildKey(row1, &idxDef)
 	assert.Equal(t, "cannot convert value false to type decimal2", err.Error())
 
-	idxDef.Components[0].FieldType = FieldTypeDateTime
+	idxDef.Components[0].FieldType = eval_capi.FieldTypeDateTime
 	_, err = BuildKey(row1, &idxDef)
 	assert.Equal(t, "cannot convert value false to type datetime", err.Error())
 
-	idxDef.Components[0].FieldType = FieldTypeString
+	idxDef.Components[0].FieldType = eval_capi.FieldTypeString
 	_, err = BuildKey(row1, &idxDef)
 	assert.Equal(t, "cannot convert value false to type string", err.Error())
 
-	idxDef.Components[0].FieldType = FieldTypeBool
+	idxDef.Components[0].FieldType = eval_capi.FieldTypeBool
 	row1["fld"] = int64(2)
 	_, err = BuildKey(row1, &idxDef)
 	assert.Equal(t, "cannot convert value 2 to type bool", err.Error())
 
-	idxDef.Components[0].FieldType = FieldTypeUnknown
+	idxDef.Components[0].FieldType = eval_capi.FieldTypeUnknown
 	_, err = BuildKey(row1, &idxDef)
 	assert.Equal(t, "cannot build key, unsupported field data type unknown", err.Error())
 }
@@ -85,23 +86,23 @@ func TestCombined(t *testing.T) {
 			{
 				FieldName:       "field_int",
 				CaseSensitivity: IdxCaseSensitivityUnknown,
-				FieldType:       FieldTypeInt,
+				FieldType:       eval_capi.FieldTypeInt,
 			},
 			{
 				FieldName:       "field_string",
 				CaseSensitivity: IdxIgnoreCase,
-				FieldType:       FieldTypeString,
+				FieldType:       eval_capi.FieldTypeString,
 				StringLen:       64,
 			},
 			{
 				FieldName:       "field_float",
 				CaseSensitivity: IdxCaseSensitivityUnknown,
-				FieldType:       FieldTypeFloat,
+				FieldType:       eval_capi.FieldTypeFloat,
 			},
 			{
 				FieldName:       "field_bool",
 				CaseSensitivity: IdxCaseSensitivityUnknown,
-				FieldType:       FieldTypeBool,
+				FieldType:       eval_capi.FieldTypeBool,
 			},
 		},
 	}
@@ -145,7 +146,7 @@ func TestTime(t *testing.T) {
 
 	idxDef := IdxDef{
 		Uniqueness: "UNIQUE",
-		Components: []IdxComponentDef{{FieldName: "fld", FieldType: FieldTypeDateTime}},
+		Components: []IdxComponentDef{{FieldName: "fld", FieldType: eval_capi.FieldTypeDateTime}},
 	}
 
 	idxDef.Components[0].SortOrder = IdxSortAsc
@@ -167,7 +168,7 @@ func TestBool(t *testing.T) {
 
 	idxDef := IdxDef{
 		Uniqueness: "UNIQUE",
-		Components: []IdxComponentDef{{FieldName: "fld", FieldType: FieldTypeBool}},
+		Components: []IdxComponentDef{{FieldName: "fld", FieldType: eval_capi.FieldTypeBool}},
 	}
 
 	row1 := map[string]any{"fld": false}
@@ -184,7 +185,7 @@ func TestInt(t *testing.T) {
 
 	idxDef := IdxDef{
 		Uniqueness: "UNIQUE",
-		Components: []IdxComponentDef{{FieldName: "fld", FieldType: FieldTypeInt}},
+		Components: []IdxComponentDef{{FieldName: "fld", FieldType: eval_capi.FieldTypeInt}},
 	}
 
 	idxDef.Components[0].SortOrder = IdxSortAsc
@@ -212,7 +213,7 @@ func TestFloat(t *testing.T) {
 
 	idxDef := IdxDef{
 		Uniqueness: "UNIQUE",
-		Components: []IdxComponentDef{{FieldName: "fld", FieldType: FieldTypeFloat}},
+		Components: []IdxComponentDef{{FieldName: "fld", FieldType: eval_capi.FieldTypeFloat}},
 	}
 
 	idxDef.Components[0].SortOrder = IdxSortAsc
@@ -253,7 +254,7 @@ func TestString(t *testing.T) {
 	// Use MinStringComponentLen = 16
 	idxDef := IdxDef{
 		Uniqueness: "UNIQUE",
-		Components: []IdxComponentDef{{FieldName: "fld", CaseSensitivity: IdxIgnoreCase, FieldType: FieldTypeString, StringLen: 16}},
+		Components: []IdxComponentDef{{FieldName: "fld", CaseSensitivity: IdxIgnoreCase, FieldType: eval_capi.FieldTypeString, StringLen: 16}},
 	}
 
 	idxDef.Components[0].SortOrder = IdxSortAsc
@@ -295,7 +296,7 @@ func TestDecimal(t *testing.T) {
 
 	idxDef := IdxDef{
 		Uniqueness: "UNIQUE",
-		Components: []IdxComponentDef{{FieldName: "fld", FieldType: FieldTypeDecimal2}}}
+		Components: []IdxComponentDef{{FieldName: "fld", FieldType: eval_capi.FieldTypeDecimal2}}}
 
 	idxDef.Components[0].SortOrder = IdxSortAsc
 
@@ -335,6 +336,6 @@ func TestDecimal(t *testing.T) {
 }
 
 func TestGetNUmericValueSign(t *testing.T) {
-	_, _, err := getNumericValueSign(nil, FieldTypeUnknown)
+	_, _, err := getNumericValueSign(nil, eval_capi.FieldTypeUnknown)
 	assert.Contains(t, err.Error(), "cannot convert value <nil> to type unknown")
 }

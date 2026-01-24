@@ -27,16 +27,18 @@ func TestMissingCtxVars(t *testing.T) {
 
 	var err error
 	var exp ast.Expr
-	var eCtx EvalCtx
+	var eCtx *EvalCtx
 
 	exp, _ = parser.ParseExpr("avg(t1.fieldInt)")
-	eCtx = NewPlainEvalCtx(AggFuncEnabled)
+	eCtx = newPlainEvalCtx(AggFuncEnabled)
 	_, err = eCtx.Eval(exp)
 	assert.Contains(t, err.Error(), "no variables supplied to the context")
 
 	delete(varValuesMap["t1"], "fieldInt")
 	exp, _ = parser.ParseExpr("avg(t1.fieldInt)")
-	eCtx = NewEvalCtxWithFunctionsConstantsVars(AggFuncEnabled, nil, nil, varValuesMap)
+	funcName, aggFuncEnabled, aggFuncType, aggFuncArgs := DetectRootAggFunc(exp)
+	assert.Equal(t, aggFuncEnabled, aggFuncEnabled)
+	eCtx, err = NewAggEvalCtx(funcName, aggFuncType, aggFuncArgs, nil, nil, varValuesMap)
 	_, err = eCtx.Eval(exp)
 	assert.Contains(t, err.Error(), "variable not supplied")
 }
@@ -44,8 +46,9 @@ func TestMissingCtxVars(t *testing.T) {
 func validateExtraAgg(expression string) string {
 	varValuesMap := getTestValuesMap()
 	exp, _ := parser.ParseExpr(expression)
-	eCtx := NewEvalCtxWithFunctionsConstantsVars(AggFuncEnabled, nil, nil, varValuesMap)
-	_, err := eCtx.Eval(exp)
+	funcName, _, aggFuncType, aggFuncArgs := DetectRootAggFunc(exp)
+	eCtx, err := NewAggEvalCtx(funcName, aggFuncType, aggFuncArgs, nil, nil, varValuesMap)
+	_, err = eCtx.Eval(exp)
 	return err.Error()
 }
 
@@ -78,7 +81,7 @@ func TestDetectRootArgFunc(t *testing.T) {
 func validateAggTwoStringValues(funcName string, expression string, v1 any, v2 any) (any, any) {
 	varValuesMap := getTestValuesMap()
 	exp, _ := parser.ParseExpr(expression)
-	eCtx, _ := NewAggEvalCtxWithFunctionsConstantsVars(funcName, AggFuncEnabled, nil, nil, varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
+	eCtx, _ := NewAggEvalCtx(funcName, AggStringAgg, exp.(*ast.CallExpr).Args, nil, nil, varValuesMap)
 	varValuesMap["t1"]["fieldStr"] = v1
 	result1, _ := eCtx.Eval(exp)
 	varValuesMap["t1"]["fieldStr"] = v2
@@ -107,34 +110,35 @@ func TestStringAggEdgeCases(t *testing.T) {
 
 	// Empty str
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr,",")`)
-	eCtx, _ := NewAggEvalCtxWithFunctionsConstantsVars("string_agg", AggFuncEnabled, nil, nil, varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
-	assert.Equal(t, "", eCtx.StringAgg.Sb.String())
+	eCtx, _ := NewAggEvalCtx("string_agg", AggStringAgg, exp.(*ast.CallExpr).Args, nil, nil, varValuesMap)
+	assert.Equal(t, "", eCtx.stringAggCollector.Sb.String())
 
 	var err error
 
 	// Bad number of args
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr)`)
-	_, err = NewAggEvalCtxWithFunctionsConstantsVars("string_agg", AggFuncEnabled, nil, nil, varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
+	_, err = NewAggEvalCtx("string_agg", AggStringAgg, exp.(*ast.CallExpr).Args, nil, nil, varValuesMap)
 	assert.Contains(t, err.Error(), "string_agg must have two parameters")
 
 	exp, _ = parser.ParseExpr(`string_agg_if(t1.fieldStr)`)
-	_, err = NewAggEvalCtxWithFunctionsConstantsVars("string_agg_if", AggFuncEnabled, nil, nil, varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
+	_, err = NewAggEvalCtx("string_agg_if", AggStringAgg, exp.(*ast.CallExpr).Args, nil, nil, varValuesMap)
 	assert.Contains(t, err.Error(), "string_agg_if must have three parameters")
 
 	// Bad separators
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr, t2.someBadField)`)
-	_, err = NewAggEvalCtxWithFunctionsConstantsVars("string_agg", AggFuncEnabled, nil, nil, varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
+	_, err = NewAggEvalCtx("string_agg", AggStringAgg, exp.(*ast.CallExpr).Args, nil, nil, varValuesMap)
 	assert.Contains(t, err.Error(), "string_agg/if second parameter must be a basic literal")
 
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr, 123)`)
-	_, err = NewAggEvalCtxWithFunctionsConstantsVars("string_agg", AggFuncEnabled, nil, nil, varValuesMap, AggStringAgg, exp.(*ast.CallExpr).Args)
+	_, err = NewAggEvalCtx("string_agg", AggStringAgg, exp.(*ast.CallExpr).Args, nil, nil, varValuesMap)
 	assert.Contains(t, err.Error(), "string_agg/if second parameter must be a constant string")
 }
 
 func validateAggTwoValues(expression string, v1 any, v2 any) (any, any) {
 	varValuesMap := getTestValuesMap()
-	eCtx := NewEvalCtxWithFunctionsConstantsVars(AggFuncEnabled, nil, nil, varValuesMap)
 	exp, _ := parser.ParseExpr(expression)
+	funcName, _, aggFuncType, aggFuncArgs := DetectRootAggFunc(exp)
+	eCtx, _ := NewAggEvalCtx(funcName, aggFuncType, aggFuncArgs, nil, nil, varValuesMap)
 	varValuesMap["t1"]["fieldInt"] = v1
 	result1, _ := eCtx.Eval(exp)
 	varValuesMap["t1"]["fieldInt"] = v2
@@ -144,8 +148,9 @@ func validateAggTwoValues(expression string, v1 any, v2 any) (any, any) {
 
 func validateAggThreeDecValues(expression string, v1 decimal.Decimal, v2 decimal.Decimal, v3 decimal.Decimal) (any, any, any) {
 	varValuesMap := getTestValuesMap()
-	eCtx := NewEvalCtxWithFunctionsConstantsVars(AggFuncEnabled, nil, nil, varValuesMap)
 	exp, _ := parser.ParseExpr(expression)
+	funcName, _, aggFuncType, aggFuncArgs := DetectRootAggFunc(exp)
+	eCtx, _ := NewAggEvalCtx(funcName, aggFuncType, aggFuncArgs, nil, nil, varValuesMap)
 	varValuesMap["t1"]["fieldDec"] = v1
 	result1, _ := eCtx.Eval(exp)
 	varValuesMap["t1"]["fieldDec"] = v2
@@ -312,13 +317,15 @@ func TestCount(t *testing.T) {
 	varValuesMap := getTestValuesMap()
 
 	var exp ast.Expr
-	var eCtx EvalCtx
+	var eCtx *EvalCtx
 	var result any
 
 	// count_if
-	eCtx = NewEvalCtxWithFunctionsConstantsVars(AggFuncEnabled, nil, nil, varValuesMap)
-	varValuesMap["t1"]["fieldInt"] = 1
+
 	exp, _ = parser.ParseExpr("count_if(t1.fieldInt == 2)")
+	funcName, _, aggFuncType, aggFuncArgs := DetectRootAggFunc(exp)
+	eCtx, _ = NewAggEvalCtx(funcName, aggFuncType, aggFuncArgs, nil, nil, varValuesMap)
+	varValuesMap["t1"]["fieldInt"] = 1
 	result, _ = eCtx.Eval(exp)
 	assert.Equal(t, int64(0), result)
 	varValuesMap["t1"]["fieldInt"] = 2
@@ -326,25 +333,23 @@ func TestCount(t *testing.T) {
 	assert.Equal(t, int64(1), result)
 
 	// count
-	eCtx = NewEvalCtxWithFunctionsConstantsVars(AggFuncEnabled, nil, nil, varValuesMap)
+	funcName, _, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
+	eCtx, _ = NewAggEvalCtx(funcName, aggFuncType, aggFuncArgs, nil, nil, varValuesMap)
 	exp, _ = parser.ParseExpr("count()")
 	result, _ = eCtx.Eval(exp)
 	assert.Equal(t, int64(1), result)
 	result, _ = eCtx.Eval(exp)
 	assert.Equal(t, int64(2), result)
-
-	// Empty
-	eCtx = NewPlainEvalCtx(AggFuncEnabled)
-	assert.Equal(t, int64(0), eCtx.Count)
 }
 
 func TestNoVars(t *testing.T) {
 
 	var exp ast.Expr
-	var eCtx EvalCtx
+	var eCtx *EvalCtx
 	var result any
 
-	eCtx = NewPlainEvalCtx(AggFuncEnabled)
+	funcName, _, aggFuncType, aggFuncArgs := DetectRootAggFunc(exp)
+	eCtx, _ = NewAggEvalCtx(funcName, aggFuncType, aggFuncArgs, nil, nil, nil)
 	exp, _ = parser.ParseExpr("sum(5)")
 	result, _ = eCtx.Eval(exp)
 	assert.Equal(t, int64(5), result)
@@ -355,14 +360,18 @@ func TestNoVars(t *testing.T) {
 func validateArgs(expression string) string {
 	varValuesMap := getTestValuesMap()
 	exp, _ := parser.ParseExpr(expression)
-	eCtx := NewEvalCtxWithFunctionsConstantsVars(AggFuncEnabled, nil, nil, varValuesMap)
-	_, err := eCtx.Eval(exp)
+	funcName, _, aggFuncType, aggFuncArgs := DetectRootAggFunc(exp)
+	eCtx, err := NewAggEvalCtx(funcName, aggFuncType, aggFuncArgs, nil, nil, varValuesMap)
+	if err != nil {
+		return err.Error()
+	}
+	_, err = eCtx.Eval(exp)
 	return err.Error()
 }
 
 func TestBadArgs(t *testing.T) {
-	assert.Contains(t, validateArgs(`string_agg(t1.fieldStr, "-", 123)`), "requires 2 args, 3 supplied")
-	assert.Contains(t, validateArgs(`string_agg_if(t1.fieldStr, "-")`), "requires 3 args, 2 supplied")
+	assert.Contains(t, validateArgs(`string_agg(t1.fieldStr, "-", 123)`), "string_agg must have two parameters")
+	assert.Contains(t, validateArgs(`string_agg_if(t1.fieldStr, "-")`), "string_agg_if must have three parameters")
 	assert.Contains(t, validateArgs(`count(t1.fieldInt, "-", 123)`), "requires 0 args, 3 supplied")
 	assert.Contains(t, validateArgs(`count_if(t1.fieldInt, "-", 123)`), "requires 1 args, 3 supplied")
 	assert.Contains(t, validateArgs(`sum(t1.fieldInt, "-", 123)`), "requires 1 args, 3 supplied")
@@ -386,7 +395,7 @@ func TestBadArgs(t *testing.T) {
 func validateDisabledAggCtx(expression string) string {
 	varValuesMap := getTestValuesMap()
 	exp, _ := parser.ParseExpr(expression)
-	badCtx := NewEvalCtxWithFunctionsConstantsVars(AggFuncDisabled, nil, nil, varValuesMap)
+	badCtx := NewPlainEvalCtx(nil, nil, varValuesMap)
 	_, err := badCtx.Eval(exp)
 	return err.Error()
 }
@@ -410,7 +419,8 @@ func TestDisabledAggCtx(t *testing.T) {
 func validateUnsupportedType(expression string, v any) string {
 	varValuesMap := getTestValuesMap()
 	exp, _ := parser.ParseExpr(expression)
-	eCtx := NewEvalCtxWithFunctionsConstantsVars(AggFuncEnabled, nil, nil, varValuesMap)
+	funcName, _, aggFuncType, aggFuncArgs := DetectRootAggFunc(exp)
+	eCtx, _ := NewAggEvalCtx(funcName, aggFuncType, aggFuncArgs, nil, nil, varValuesMap)
 	varValuesMap["t1"]["fieldInt"] = v
 	_, err := eCtx.Eval(exp)
 	return err.Error()
@@ -444,7 +454,8 @@ func TestUnsupportedTypes(t *testing.T) {
 func validateFieldTypeChange(expression string, v1 any, v2 any) string {
 	varValuesMap := getTestValuesMap()
 	exp, _ := parser.ParseExpr(expression)
-	eCtx := NewEvalCtxWithFunctionsConstantsVars(AggFuncEnabled, nil, nil, varValuesMap)
+	funcName, _, aggFuncType, aggFuncArgs := DetectRootAggFunc(exp)
+	eCtx, _ := NewAggEvalCtx(funcName, aggFuncType, aggFuncArgs, nil, nil, varValuesMap)
 	varValuesMap["t1"]["fieldInt"] = v1
 	_, err := eCtx.Eval(exp)
 	if err != nil {
@@ -503,22 +514,22 @@ func TestFieldTypeChange(t *testing.T) {
 }
 
 func TestBlanks(t *testing.T) {
-	eCtx := NewPlainEvalCtx(AggFuncEnabled)
-	assert.Equal(t, int64(0), eCtx.Sum.Int)
-	assert.Equal(t, float64(0), eCtx.Sum.Float)
-	assert.Equal(t, defaultDecimal(), eCtx.Sum.Dec)
+	eCtx := newPlainEvalCtx(AggFuncEnabled)
+	assert.Equal(t, int64(0), eCtx.sumCollector.Int)
+	assert.Equal(t, float64(0), eCtx.sumCollector.Float)
+	assert.Equal(t, defaultDecimal(), eCtx.sumCollector.Dec)
 
-	assert.Equal(t, int64(0), eCtx.Avg.Int)
-	assert.Equal(t, float64(0), eCtx.Avg.Float)
-	assert.Equal(t, defaultDecimal(), eCtx.Avg.Dec)
+	assert.Equal(t, int64(0), eCtx.avgCollector.Int)
+	assert.Equal(t, float64(0), eCtx.avgCollector.Float)
+	assert.Equal(t, defaultDecimal(), eCtx.avgCollector.Dec)
 
-	assert.Equal(t, maxSupportedInt, eCtx.Min.Int)
-	assert.Equal(t, maxSupportedFloat, eCtx.Min.Float)
-	assert.Equal(t, maxSupportedDecimal(), eCtx.Min.Dec)
-	assert.Equal(t, "", eCtx.Min.Str)
+	assert.Equal(t, maxSupportedInt, eCtx.minCollector.Int)
+	assert.Equal(t, maxSupportedFloat, eCtx.minCollector.Float)
+	assert.Equal(t, maxSupportedDecimal(), eCtx.minCollector.Dec)
+	assert.Equal(t, "", eCtx.minCollector.Str)
 
-	assert.Equal(t, minSupportedInt, eCtx.Max.Int)
-	assert.Equal(t, minSupportedFloat, eCtx.Max.Float)
-	assert.Equal(t, minSupportedDecimal(), eCtx.Max.Dec)
-	assert.Equal(t, "", eCtx.Max.Str)
+	assert.Equal(t, minSupportedInt, eCtx.maxCollector.Int)
+	assert.Equal(t, minSupportedFloat, eCtx.maxCollector.Float)
+	assert.Equal(t, minSupportedDecimal(), eCtx.maxCollector.Dec)
+	assert.Equal(t, "", eCtx.maxCollector.Str)
 }

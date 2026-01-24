@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"github.com/shopspring/decimal"
 	"gopkg.in/inf.v0"
 )
@@ -11,27 +12,6 @@ import (
 const (
 	FieldNameUnknown = "unknown_field_name"
 )
-
-type TableFieldType string
-
-const (
-	FieldTypeString   TableFieldType = "string"
-	FieldTypeInt      TableFieldType = "int"      // sign+18digit string
-	FieldTypeFloat    TableFieldType = "float"    // sign+64digit string, 32 digits after point
-	FieldTypeBool     TableFieldType = "bool"     // F or T
-	FieldTypeDecimal2 TableFieldType = "decimal2" // sign + 18digit+point+2
-	FieldTypeDateTime TableFieldType = "datetime" // int unix epoch milliseconds
-	FieldTypeUnknown  TableFieldType = "unknown"
-)
-
-func IsValidFieldType(fieldType TableFieldType) bool {
-	return fieldType == FieldTypeString ||
-		fieldType == FieldTypeInt ||
-		fieldType == FieldTypeFloat ||
-		fieldType == FieldTypeBool ||
-		fieldType == FieldTypeDecimal2 ||
-		fieldType == FieldTypeDateTime
-}
 
 // Cassandra timestamps are milliseconds. No microsecond support.
 // On writes:
@@ -48,49 +28,49 @@ func DefaultDecimal2() decimal.Decimal   { return decimal.NewFromFloat(0.0) }
 func DefaultCassandraDecimal2() *inf.Dec { return inf.NewDec(0, 0) }
 func DefaultDateTime() time.Time         { return time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC) } // Same as time.Time default
 
-func GetDefaultFieldTypeValue(fieldType TableFieldType) any {
+func GetDefaultFieldTypeValue(fieldType eval_capi.TableFieldType) any {
 	switch fieldType {
-	case FieldTypeInt:
+	case eval_capi.FieldTypeInt:
 		return DefaultInt
-	case FieldTypeFloat:
+	case eval_capi.FieldTypeFloat:
 		return DefaultFloat
-	case FieldTypeString:
+	case eval_capi.FieldTypeString:
 		return DefaultString
-	case FieldTypeDecimal2:
+	case eval_capi.FieldTypeDecimal2:
 		return DefaultDecimal2()
-	case FieldTypeBool:
+	case eval_capi.FieldTypeBool:
 		return DefaultBool
-	case FieldTypeDateTime:
+	case eval_capi.FieldTypeDateTime:
 		return DefaultDateTime()
 	default:
 		return nil
 	}
 }
 
-func CheckValueType(val any, fieldType TableFieldType) error {
+func CheckValueType(val any, fieldType eval_capi.TableFieldType) error {
 	switch assertedValue := val.(type) {
 	case int64:
-		if fieldType != FieldTypeInt {
+		if fieldType != eval_capi.FieldTypeInt {
 			return fmt.Errorf("expected type %s, but got int64 (%d)", fieldType, assertedValue)
 		}
 	case float64:
-		if fieldType != FieldTypeFloat {
+		if fieldType != eval_capi.FieldTypeFloat {
 			return fmt.Errorf("expected type %s, but got float64 (%f)", fieldType, assertedValue)
 		}
 	case string:
-		if fieldType != FieldTypeString {
+		if fieldType != eval_capi.FieldTypeString {
 			return fmt.Errorf("expected type %s, but got string (%s)", fieldType, assertedValue)
 		}
 	case bool:
-		if fieldType != FieldTypeBool {
+		if fieldType != eval_capi.FieldTypeBool {
 			return fmt.Errorf("expected type %s, but got bool (%v)", fieldType, assertedValue)
 		}
 	case time.Time:
-		if fieldType != FieldTypeDateTime {
+		if fieldType != eval_capi.FieldTypeDateTime {
 			return fmt.Errorf("expected type %s, but got datetime (%s)", fieldType, assertedValue.String())
 		}
 	case decimal.Decimal:
-		if fieldType != FieldTypeDecimal2 {
+		if fieldType != eval_capi.FieldTypeDecimal2 {
 			return fmt.Errorf("expected type %s, but got decimal (%s)", fieldType, assertedValue.String())
 		}
 	default:

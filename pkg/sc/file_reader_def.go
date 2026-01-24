@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/eval"
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"github.com/shopspring/decimal"
 )
 
@@ -24,7 +25,7 @@ type ParquetReaderColumnSettings struct {
 
 type FileReaderColumnDef struct {
 	DefaultValue string                      `json:"col_default_value,omitempty" yaml:"col_default_value,omitempty"` // Optional. If omitted, zero value is used
-	Type         TableFieldType              `json:"col_type" yaml:"col_type"`
+	Type         eval_capi.TableFieldType    `json:"col_type" yaml:"col_type"`
 	Csv          CsvReaderColumnSettings     `json:"csv,omitempty" yaml:"csv,omitempty"`
 	Parquet      ParquetReaderColumnSettings `json:"parquet,omitempty" yaml:"parquet,omitempty"`
 }
@@ -171,7 +172,7 @@ func toString(colName string, colData string, colDef *FileReaderColumnDef, colVa
 		if len(colDef.DefaultValue) > 0 {
 			colVars[ReaderAlias][colName] = colDef.DefaultValue
 		} else {
-			colVars[ReaderAlias][colName] = GetDefaultFieldTypeValue(FieldTypeString)
+			colVars[ReaderAlias][colName] = GetDefaultFieldTypeValue(eval_capi.FieldTypeString)
 		}
 	} else {
 		colVars[ReaderAlias][colName] = colData
@@ -192,7 +193,7 @@ func toBool(colName string, colData string, colDef *FileReaderColumnDef, colVars
 				return fmt.Errorf("cannot read bool column %s, from default value string '%s', allowed values are true,false,T,F,0,1: %s", colName, colDef.DefaultValue, err.Error())
 			}
 		} else {
-			colVars[ReaderAlias][colName] = GetDefaultFieldTypeValue(FieldTypeBool)
+			colVars[ReaderAlias][colName] = GetDefaultFieldTypeValue(eval_capi.FieldTypeBool)
 		}
 	} else {
 		colVars[ReaderAlias][colName], err = strconv.ParseBool(colData)
@@ -212,7 +213,7 @@ func toInt(colName string, colData string, colDef *FileReaderColumnDef, colVars 
 			}
 			colVars[ReaderAlias][colName] = valInt
 		} else {
-			colVars[ReaderAlias][colName] = GetDefaultFieldTypeValue(FieldTypeInt)
+			colVars[ReaderAlias][colName] = GetDefaultFieldTypeValue(eval_capi.FieldTypeInt)
 		}
 	} else {
 		if len(colDef.Csv.SrcColFormat) > 0 {
@@ -242,7 +243,7 @@ func toDateTime(colName string, colData string, colDef *FileReaderColumnDef, col
 			}
 			colVars[ReaderAlias][colName] = valTime
 		} else {
-			colVars[ReaderAlias][colName] = GetDefaultFieldTypeValue(FieldTypeDateTime)
+			colVars[ReaderAlias][colName] = GetDefaultFieldTypeValue(eval_capi.FieldTypeDateTime)
 		}
 	} else {
 		if len(colDef.Csv.SrcColFormat) == 0 {
@@ -267,7 +268,7 @@ func toFloat(colName string, colData string, colDef *FileReaderColumnDef, colVar
 			}
 			colVars[ReaderAlias][colName] = valFloat
 		} else {
-			colVars[ReaderAlias][colName] = GetDefaultFieldTypeValue(FieldTypeFloat)
+			colVars[ReaderAlias][colName] = GetDefaultFieldTypeValue(eval_capi.FieldTypeFloat)
 		}
 	} else {
 		if len(colDef.Csv.SrcColFormat) > 0 {
@@ -298,7 +299,7 @@ func toDecimal2(colName string, colData string, colDef *FileReaderColumnDef, col
 			}
 			colVars[ReaderAlias][colName] = valDec.Round(2)
 		} else {
-			colVars[ReaderAlias][colName] = GetDefaultFieldTypeValue(FieldTypeDecimal2)
+			colVars[ReaderAlias][colName] = GetDefaultFieldTypeValue(eval_capi.FieldTypeDecimal2)
 		}
 	} else {
 		var valFloat float64
@@ -325,27 +326,27 @@ func (frDef *FileReaderDef) ReadCsvLineToValuesMap(line *[]string, colVars eval.
 	for colName, colDef := range frDef.Columns {
 		colData := (*line)[colDef.Csv.SrcColIdx]
 		switch colDef.Type {
-		case FieldTypeString:
+		case eval_capi.FieldTypeString:
 			if err := toString(colName, colData, colDef, colVars); err != nil {
 				return err
 			}
-		case FieldTypeBool:
+		case eval_capi.FieldTypeBool:
 			if err := toBool(colName, colData, colDef, colVars); err != nil {
 				return err
 			}
-		case FieldTypeInt:
+		case eval_capi.FieldTypeInt:
 			if err := toInt(colName, colData, colDef, colVars); err != nil {
 				return err
 			}
-		case FieldTypeDateTime:
+		case eval_capi.FieldTypeDateTime:
 			if err := toDateTime(colName, colData, colDef, colVars); err != nil {
 				return err
 			}
-		case FieldTypeFloat:
+		case eval_capi.FieldTypeFloat:
 			if err := toFloat(colName, colData, colDef, colVars); err != nil {
 				return err
 			}
-		case FieldTypeDecimal2:
+		case eval_capi.FieldTypeDecimal2:
 			if err := toDecimal2(colName, colData, colDef, colVars); err != nil {
 				return err
 			}

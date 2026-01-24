@@ -16,7 +16,7 @@ import (
 type FieldRef struct {
 	TableName string
 	FieldName string
-	FieldType TableFieldType
+	FieldType eval_capi.TableFieldType
 }
 
 func (fr *FieldRef) GetAliasHash() string {
@@ -60,41 +60,41 @@ func RowidFieldRef(tableName string) FieldRef {
 	return FieldRef{
 		TableName: tableName,
 		FieldName: "rowid",
-		FieldType: FieldTypeInt}
+		FieldType: eval_capi.FieldTypeInt}
 }
 
 func RowidTokenFieldRef() FieldRef {
 	return FieldRef{
 		TableName: "db_system",
 		FieldName: "token(rowid)",
-		FieldType: FieldTypeInt}
+		FieldType: eval_capi.FieldTypeInt}
 }
 
 // func RunBatchRowidTokenFieldRef() FieldRef {
 // 	return FieldRef{
 // 		TableName: "db_system",
 // 		FieldName: "token(run_id,batch_idx,rowid)",
-// 		FieldType: FieldTypeInt}
+// 		FieldType:eval_capi.FieldTypeInt}
 // }
 
 func KeyTokenFieldRef() FieldRef {
 	return FieldRef{
 		TableName: "db_system",
 		FieldName: "token(key)",
-		FieldType: FieldTypeInt}
+		FieldType: eval_capi.FieldTypeInt}
 }
 
 //	func RunBatchKeyTokenFieldRef() FieldRef {
 //		return FieldRef{
 //			TableName: "db_system",
 //			FieldName: "token(run_id,batch_idx,key)",
-//			FieldType: FieldTypeInt}
+//			FieldType:eval_capi.FieldTypeInt}
 //	}
 func IdxKeyFieldRef() FieldRef {
 	return FieldRef{
 		TableName: "db_system",
 		FieldName: "key",
-		FieldType: FieldTypeString}
+		FieldType: eval_capi.FieldTypeString}
 }
 
 func (fieldRefs *FieldRefs) contributeUnresolved(tableName string, fieldName string) {
@@ -107,7 +107,7 @@ func (fieldRefs *FieldRefs) contributeUnresolved(tableName string, fieldName str
 		}
 	}
 
-	*fieldRefs = append(*fieldRefs, FieldRef{TableName: tableName, FieldName: fieldName, FieldType: FieldTypeUnknown})
+	*fieldRefs = append(*fieldRefs, FieldRef{TableName: tableName, FieldName: fieldName, FieldType: eval_capi.FieldTypeUnknown})
 }
 
 func (fieldRefs *FieldRefs) Append(otherFieldRefs FieldRefs) {
@@ -137,7 +137,7 @@ func (fieldRefs *FieldRefs) AppendWithFilter(otherFieldRefs FieldRefs, tableFilt
 	}
 }
 
-func evalExpressionWithFieldRefsAndCheckType(exp ast.Expr, fieldRefs FieldRefs, expectedType TableFieldType) error {
+func evalExpressionWithFieldRefsAndCheckType(exp ast.Expr, fieldRefs FieldRefs, expectedType eval_capi.TableFieldType) error {
 	if exp == nil {
 		// Nothing to evaluate
 		return nil
@@ -157,17 +157,17 @@ func evalExpressionWithFieldRefsAndCheckType(exp ast.Expr, fieldRefs FieldRefs, 
 				varValuesMap[tName] = map[string]any{}
 			}
 			switch fType {
-			case FieldTypeInt:
+			case eval_capi.FieldTypeInt:
 				varValuesMap[tName][fName] = int64(0) + deltaInt
-			case FieldTypeFloat:
+			case eval_capi.FieldTypeFloat:
 				varValuesMap[tName][fName] = float64(0.0) + deltaFloat
-			case FieldTypeBool:
+			case eval_capi.FieldTypeBool:
 				varValuesMap[tName][fName] = false
-			case FieldTypeString:
+			case eval_capi.FieldTypeString:
 				varValuesMap[tName][fName] = "12345" // There may be a float() or int() call out there
-			case FieldTypeDateTime:
+			case eval_capi.FieldTypeDateTime:
 				varValuesMap[tName][fName] = time.Now()
-			case FieldTypeDecimal2:
+			case eval_capi.FieldTypeDecimal2:
 				varValuesMap[tName][fName] = decimal.NewFromFloat(0.0).Add(deltaDecimal)
 			default:
 				return fmt.Errorf("evalExpressionWithFieldRefsAndCheckType unsupported field type %s", fieldRefs[i].FieldType)
@@ -175,10 +175,17 @@ func evalExpressionWithFieldRefsAndCheckType(exp ast.Expr, fieldRefs FieldRefs, 
 			}
 		}
 
+		var eCtx *eval.EvalCtx
+		var err error
 		funcName, aggFuncEnabled, aggFuncType, aggFuncArgs := eval.DetectRootAggFunc(exp)
-		eCtx, err := eval.NewAggEvalCtxWithFunctionsConstantsVars(funcName, aggFuncEnabled, eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, varValuesMap, aggFuncType, aggFuncArgs)
-		if err != nil {
-			return err
+		if aggFuncEnabled == eval.AggFuncEnabled {
+			eCtx, err = eval.NewAggEvalCtx(funcName, aggFuncType, aggFuncArgs, eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, varValuesMap)
+			if err != nil {
+				return err
+			}
+			eCtx.SetRoundDec(2) // decimal2
+		} else {
+			eCtx = eval.NewPlainEvalCtx(eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, varValuesMap)
 		}
 
 		result, err := eCtx.Eval(exp)

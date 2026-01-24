@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/shopspring/decimal"
 	"gopkg.in/inf.v0"
@@ -80,20 +81,20 @@ type queryBuilderColumnDefs struct {
 	Len     int
 }
 
-func (cd *queryBuilderColumnDefs) add(column string, fieldType sc.TableFieldType) {
+func (cd *queryBuilderColumnDefs) add(column string, fieldType eval_capi.TableFieldType) {
 	cd.Columns[cd.Len] = column
 	switch fieldType {
-	case sc.FieldTypeInt:
+	case eval_capi.FieldTypeInt:
 		cd.Types[cd.Len] = "BIGINT"
-	case sc.FieldTypeDecimal2:
+	case eval_capi.FieldTypeDecimal2:
 		cd.Types[cd.Len] = "DECIMAL"
-	case sc.FieldTypeFloat:
+	case eval_capi.FieldTypeFloat:
 		cd.Types[cd.Len] = "DOUBLE"
-	case sc.FieldTypeString:
+	case eval_capi.FieldTypeString:
 		cd.Types[cd.Len] = "TEXT"
-	case sc.FieldTypeBool:
+	case eval_capi.FieldTypeBool:
 		cd.Types[cd.Len] = "BOOLEAN"
-	case sc.FieldTypeDateTime:
+	case eval_capi.FieldTypeDateTime:
 		cd.Types[cd.Len] = "TIMESTAMP" // Cassandra stores milliseconds since epoch
 	default:
 		cd.Types[cd.Len] = fmt.Sprintf("UKNOWN_TYPE_%s", fieldType)
@@ -199,7 +200,7 @@ func NewQB() *QueryBuilder {
 	return &qb
 }
 
-func (qb *QueryBuilder) ColumnDef(column string, fieldType sc.TableFieldType) *QueryBuilder {
+func (qb *QueryBuilder) ColumnDef(column string, fieldType eval_capi.TableFieldType) *QueryBuilder {
 	qb.ColumnDefs.add(column, fieldType)
 	return qb
 }

@@ -8,6 +8,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"github.com/shopspring/decimal"
 	"golang.org/x/text/runes"
 
@@ -17,13 +18,13 @@ import (
 
 const BeginningOfTimeMicro = int64(-62135596800000000) // time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC).UnixMicro()
 
-func getNumericValueSign(v any, expectedType TableFieldType) (string, any, error) {
+func getNumericValueSign(v any, expectedType eval_capi.TableFieldType) (string, any, error) {
 	var sign string
 	var newVal any
 	var ok bool
 
 	switch expectedType {
-	case FieldTypeInt:
+	case eval_capi.FieldTypeInt:
 		var n int64
 		if n, ok = v.(int64); !ok {
 			return "", nil, fmt.Errorf("cannot convert value %v to type %v", v, expectedType)
@@ -36,7 +37,7 @@ func getNumericValueSign(v any, expectedType TableFieldType) (string, any, error
 			newVal = -n
 		}
 
-	case FieldTypeFloat:
+	case eval_capi.FieldTypeFloat:
 		var f float64
 		if f, ok = v.(float64); !ok {
 			return "", nil, fmt.Errorf("cannot convert value %v to type %v", v, expectedType)
@@ -49,7 +50,7 @@ func getNumericValueSign(v any, expectedType TableFieldType) (string, any, error
 			newVal = -f
 		}
 
-	case FieldTypeDecimal2:
+	case eval_capi.FieldTypeDecimal2:
 		var d decimal.Decimal
 		if d, ok = v.(decimal.Decimal); !ok {
 			return "", nil, fmt.Errorf("cannot convert value %v to type %v", v, expectedType)
@@ -81,8 +82,8 @@ func BuildKey(fieldMap map[string]any, idxDef *IdxDef) (string, error) {
 		var stringValue string
 
 		switch comp.FieldType {
-		case FieldTypeInt:
-			sign, absVal, err := getNumericValueSign(fieldMap[comp.FieldName], FieldTypeInt)
+		case eval_capi.FieldTypeInt:
+			sign, absVal, err := getNumericValueSign(fieldMap[comp.FieldName], eval_capi.FieldTypeInt)
 			if err != nil {
 				return "", err
 			}
@@ -92,9 +93,9 @@ func BuildKey(fieldMap map[string]any, idxDef *IdxDef) (string, error) {
 				stringValue = flipReplacer.Replace(stringValue)
 			}
 
-		case FieldTypeFloat:
+		case eval_capi.FieldTypeFloat:
 			// We should support numbers as big as 10^32 and with 32 digits afetr decimal point
-			sign, absVal, err := getNumericValueSign(fieldMap[comp.FieldName], FieldTypeFloat)
+			sign, absVal, err := getNumericValueSign(fieldMap[comp.FieldName], eval_capi.FieldTypeFloat)
 			if err != nil {
 				return "", err
 			}
@@ -104,8 +105,8 @@ func BuildKey(fieldMap map[string]any, idxDef *IdxDef) (string, error) {
 				stringValue = flipReplacer.Replace(stringValue)
 			}
 
-		case FieldTypeDecimal2:
-			sign, absVal, err := getNumericValueSign(fieldMap[comp.FieldName], FieldTypeDecimal2)
+		case eval_capi.FieldTypeDecimal2:
+			sign, absVal, err := getNumericValueSign(fieldMap[comp.FieldName], eval_capi.FieldTypeDecimal2)
 			if err != nil {
 				return "", err
 			}
@@ -120,7 +121,7 @@ func BuildKey(fieldMap map[string]any, idxDef *IdxDef) (string, error) {
 				stringValue = flipReplacer.Replace(stringValue)
 			}
 
-		case FieldTypeDateTime:
+		case eval_capi.FieldTypeDateTime:
 			// We support time differences up to microsecond. Not nanosecond! Cassandra supports only milliseconds. Millis are our lingua franca.
 			t, ok := fieldMap[comp.FieldName].(time.Time)
 			if !ok {
@@ -128,7 +129,7 @@ func BuildKey(fieldMap map[string]any, idxDef *IdxDef) (string, error) {
 			}
 			stringValue = fmt.Sprintf("%020d", t.UnixMicro()-BeginningOfTimeMicro)
 
-		case FieldTypeString:
+		case eval_capi.FieldTypeString:
 			s, ok := fieldMap[comp.FieldName].(string)
 			if !ok {
 				return "", fmt.Errorf("cannot convert value %v to type string", fieldMap[comp.FieldName])
@@ -143,7 +144,7 @@ func BuildKey(fieldMap map[string]any, idxDef *IdxDef) (string, error) {
 				stringValue = strings.ToUpper(stringValue)
 			}
 
-		case FieldTypeBool:
+		case eval_capi.FieldTypeBool:
 			b, ok := fieldMap[comp.FieldName].(bool)
 			if !ok {
 				return "", fmt.Errorf("cannot convert value %v to type bool", fieldMap[comp.FieldName])

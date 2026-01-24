@@ -62,7 +62,7 @@ func readCsv(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessagePr
 			}
 
 			// TableCreator: evaluate table column expressions
-			tableRecord, err = node.TableCreator.CalculateTableRecordFromSrcVars(false, colVars)
+			tableRecord, err = node.TableCreator.CalculateTableRecordFromSrcVars(colVars)
 			if err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot populate table record from csv file [%s], line %d: [%s]", filePath, lineIdx, err.Error()))
 				return bs, instr.waitForDrainer()

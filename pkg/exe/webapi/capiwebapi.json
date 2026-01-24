@@ -34,9 +34,9 @@
   },
   "mq_type":"amqp10",
   "amqp10": {
-    "url": "amqp://guest:guest@127.0.0.1:5672/",
-    "address": "/queues/capidaemon",
-    "retry_method": "reject"
+    "url": "amqp://artemis:artemis@127.0.0.1:5672/",
+    "address": "capillaries",
+    "retry_method": "release"
   },
   "capimq_client":{
     "url":"http://localhost:7654",

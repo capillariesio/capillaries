@@ -217,18 +217,21 @@ func TestNewPlainEvalCtxAndInitializedAgg(t *testing.T) {
 
 	exp, _ := parser.ParseExpr(`string_agg(t1.fieldStr,",")`)
 	funcName, aggEnabledType, aggFuncType, aggFuncArgs := DetectRootAggFunc(exp)
-	eCtx, err := NewAggEvalCtxWithFunctionsConstantsVars(funcName, aggEnabledType, nil, nil, nil, aggFuncType, aggFuncArgs)
-	assert.Equal(t, AggTypeString, eCtx.AggType)
+	assert.Equal(t, AggFuncEnabled, aggEnabledType)
+	eCtx, err := NewAggEvalCtx(funcName, aggFuncType, aggFuncArgs, nil, nil, nil)
+	assert.Equal(t, AggTypeString, eCtx.aggType)
 	assert.Nil(t, err)
 
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr,1)`)
 	funcName, aggEnabledType, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
-	_, err = NewAggEvalCtxWithFunctionsConstantsVars(funcName, aggEnabledType, nil, nil, nil, aggFuncType, aggFuncArgs)
+	assert.Equal(t, AggFuncEnabled, aggEnabledType)
+	_, err = NewAggEvalCtx(funcName, aggFuncType, aggFuncArgs, nil, nil, nil)
 	assert.Equal(t, "string_agg/if second parameter must be a constant string", err.Error())
 
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr, a)`)
 	funcName, aggEnabledType, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
-	_, err = NewAggEvalCtxWithFunctionsConstantsVars(funcName, aggEnabledType, nil, nil, nil, aggFuncType, aggFuncArgs)
+	assert.Equal(t, AggFuncEnabled, aggEnabledType)
+	_, err = NewAggEvalCtx(funcName, aggFuncType, aggFuncArgs, nil, nil, nil)
 	assert.Equal(t, "string_agg/if second parameter must be a basic literal", err.Error())
 }
 
@@ -250,7 +253,7 @@ const (
 
 func assertBinaryEval(t *testing.T, evalFunc EvalFunc, valLeftVolatile any, op token.Token, valRightVolatile any, errorMessage string) {
 	var err error
-	eCtx := NewPlainEvalCtx(AggFuncDisabled)
+	eCtx := newPlainEvalCtx(AggFuncDisabled)
 	switch evalFunc {
 	case BinaryIntFunc:
 		_, err = eCtx.EvalBinaryInt(valLeftVolatile, op, valRightVolatile)

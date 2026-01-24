@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/capillariesio/capillaries/pkg/eval"
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
@@ -683,13 +684,13 @@ func testCreatorFieldRefs(t *testing.T, scriptDef *ScriptDef) {
 	var tableFieldRef *FieldRef
 	tableFieldRef, _ = tableFieldRefs.FindByFieldName("field_int2")
 	assert.Equal(t, CreatorAlias, tableFieldRef.TableName)
-	assert.Equal(t, FieldTypeInt, tableFieldRef.FieldType)
+	assert.Equal(t, eval_capi.FieldTypeInt, tableFieldRef.FieldType)
 
 	fileFieldRefs := scriptDef.ScriptNodes["file_totals"].FileCreator.getFieldRefs()
 	var fileFieldRef *FieldRef
 	fileFieldRef, _ = fileFieldRefs.FindByFieldName("total_value")
 	assert.Equal(t, CreatorAlias, fileFieldRef.TableName)
-	assert.Equal(t, FieldTypeDecimal2, fileFieldRef.FieldType)
+	assert.Equal(t, eval_capi.FieldTypeDecimal2, fileFieldRef.FieldType)
 
 	// Duplicate creator
 
@@ -766,7 +767,7 @@ func testCreatorCalculateOutput(t *testing.T, scriptDef *ScriptDef) {
 
 	var fields map[string]any
 	vars = eval.VarValuesMap{"r": {"field_int1": int64(1), "field_string1": "a"}}
-	fields, _ = scriptDef.ScriptNodes["join_table1_table2"].TableCreator.CalculateTableRecordFromSrcVars(true, vars)
+	fields, _ = scriptDef.ScriptNodes["join_table1_table2"].TableCreator.CalculateTableRecordFromSrcVars(vars)
 	if len(fields) == 4 {
 		assert.Equal(t, int64(1), fields["field_int1"])
 		assert.Equal(t, "a", fields["field_string1"])
@@ -790,7 +791,7 @@ func testCreatorCalculateOutput(t *testing.T, scriptDef *ScriptDef) {
 	if len(cols) == 4 {
 		assert.Equal(t, int64(1), cols[0])
 		assert.Equal(t, "a", cols[1])
-		assert.Equal(t, decimal.NewFromInt(1), cols[2])
+		assert.True(t, decimal.NewFromInt(1).Equal(cols[2].(decimal.Decimal)))
 		assert.Equal(t, int64(1), cols[3])
 	}
 
@@ -1043,7 +1044,7 @@ func testUniqueIndexesFieldRefs(t *testing.T, scriptDef *ScriptDef) {
 	if len(*fieldRefs) == 1 {
 		assert.Equal(t, "table2", (*fieldRefs)[0].TableName)
 		assert.Equal(t, "field_string2", (*fieldRefs)[0].FieldName)
-		assert.Equal(t, FieldTypeString, (*fieldRefs)[0].FieldType)
+		assert.Equal(t, eval_capi.FieldTypeString, (*fieldRefs)[0].FieldType)
 	}
 }
 

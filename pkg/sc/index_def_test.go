@@ -3,10 +3,11 @@ package sc
 import (
 	"testing"
 
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"github.com/stretchr/testify/assert"
 )
 
-func assertIdxComp(t *testing.T, fName string, fType TableFieldType, caseSens IdxCaseSensitivity, sortOrder IdxSortOrder, strLen int64, compDef *IdxComponentDef) {
+func assertIdxComp(t *testing.T, fName string, fType eval_capi.TableFieldType, caseSens IdxCaseSensitivity, sortOrder IdxSortOrder, strLen int64, compDef *IdxComponentDef) {
 	assert.Equal(t, fName, compDef.FieldName)
 	assert.Equal(t, fType, compDef.FieldType)
 	assert.Equal(t, caseSens, compDef.CaseSensitivity)
@@ -16,12 +17,12 @@ func assertIdxComp(t *testing.T, fName string, fType TableFieldType, caseSens Id
 
 func TestIndexDefParser(t *testing.T) {
 	fieldRefs := FieldRefs{
-		FieldRef{"t1", "f_int", FieldTypeInt},
-		FieldRef{"t1", "f_float", FieldTypeFloat},
-		FieldRef{"t1", "f_bool", FieldTypeBool},
-		FieldRef{"t1", "f_str", FieldTypeString},
-		FieldRef{"t1", "f_time", FieldTypeDateTime},
-		FieldRef{"t1", "f_dec", FieldTypeDecimal2},
+		FieldRef{"t1", "f_int", eval_capi.FieldTypeInt},
+		FieldRef{"t1", "f_float", eval_capi.FieldTypeFloat},
+		FieldRef{"t1", "f_bool", eval_capi.FieldTypeBool},
+		FieldRef{"t1", "f_str", eval_capi.FieldTypeString},
+		FieldRef{"t1", "f_time", eval_capi.FieldTypeDateTime},
+		FieldRef{"t1", "f_dec", eval_capi.FieldTypeDecimal2},
 	}
 	rawIdxDefMap := map[string]string{
 		"idx_all_default": "non_unique(f_int(),f_float(),f_bool(),f_str(),f_time(),f_dec())",
@@ -42,47 +43,47 @@ func TestIndexDefParser(t *testing.T) {
 	}
 
 	assert.Equal(t, IdxNonUnique, idxDefMap["idx_all_default"].Uniqueness)
-	assertIdxComp(t, "f_int", FieldTypeInt, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_all_default"].Components[0])
-	assertIdxComp(t, "f_float", FieldTypeFloat, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_all_default"].Components[1])
-	assertIdxComp(t, "f_bool", FieldTypeBool, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_all_default"].Components[2])
-	assertIdxComp(t, "f_str", FieldTypeString, IdxCaseSensitive, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_all_default"].Components[3])
-	assertIdxComp(t, "f_time", FieldTypeDateTime, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_all_default"].Components[4])
-	assertIdxComp(t, "f_dec", FieldTypeDecimal2, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_all_default"].Components[5])
+	assertIdxComp(t, "f_int", eval_capi.FieldTypeInt, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_all_default"].Components[0])
+	assertIdxComp(t, "f_float", eval_capi.FieldTypeFloat, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_all_default"].Components[1])
+	assertIdxComp(t, "f_bool", eval_capi.FieldTypeBool, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_all_default"].Components[2])
+	assertIdxComp(t, "f_str", eval_capi.FieldTypeString, IdxCaseSensitive, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_all_default"].Components[3])
+	assertIdxComp(t, "f_time", eval_capi.FieldTypeDateTime, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_all_default"].Components[4])
+	assertIdxComp(t, "f_dec", eval_capi.FieldTypeDecimal2, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_all_default"].Components[5])
 
 	assert.Equal(t, IdxUnique, idxDefMap["idx_all_desc"].Uniqueness)
-	assertIdxComp(t, "f_int", FieldTypeInt, IdxCaseSensitivityUnknown, IdxSortDesc, DefaultStringComponentLen, &idxDefMap["idx_all_desc"].Components[0])
-	assertIdxComp(t, "f_float", FieldTypeFloat, IdxCaseSensitivityUnknown, IdxSortDesc, DefaultStringComponentLen, &idxDefMap["idx_all_desc"].Components[1])
-	assertIdxComp(t, "f_bool", FieldTypeBool, IdxCaseSensitivityUnknown, IdxSortDesc, DefaultStringComponentLen, &idxDefMap["idx_all_desc"].Components[2])
-	assertIdxComp(t, "f_str", FieldTypeString, IdxIgnoreCase, IdxSortDesc, 128, &idxDefMap["idx_all_desc"].Components[3])
-	assertIdxComp(t, "f_time", FieldTypeDateTime, IdxCaseSensitivityUnknown, IdxSortDesc, DefaultStringComponentLen, &idxDefMap["idx_all_desc"].Components[4])
-	assertIdxComp(t, "f_dec", FieldTypeDecimal2, IdxCaseSensitivityUnknown, IdxSortDesc, DefaultStringComponentLen, &idxDefMap["idx_all_desc"].Components[5])
+	assertIdxComp(t, "f_int", eval_capi.FieldTypeInt, IdxCaseSensitivityUnknown, IdxSortDesc, DefaultStringComponentLen, &idxDefMap["idx_all_desc"].Components[0])
+	assertIdxComp(t, "f_float", eval_capi.FieldTypeFloat, IdxCaseSensitivityUnknown, IdxSortDesc, DefaultStringComponentLen, &idxDefMap["idx_all_desc"].Components[1])
+	assertIdxComp(t, "f_bool", eval_capi.FieldTypeBool, IdxCaseSensitivityUnknown, IdxSortDesc, DefaultStringComponentLen, &idxDefMap["idx_all_desc"].Components[2])
+	assertIdxComp(t, "f_str", eval_capi.FieldTypeString, IdxIgnoreCase, IdxSortDesc, 128, &idxDefMap["idx_all_desc"].Components[3])
+	assertIdxComp(t, "f_time", eval_capi.FieldTypeDateTime, IdxCaseSensitivityUnknown, IdxSortDesc, DefaultStringComponentLen, &idxDefMap["idx_all_desc"].Components[4])
+	assertIdxComp(t, "f_dec", eval_capi.FieldTypeDecimal2, IdxCaseSensitivityUnknown, IdxSortDesc, DefaultStringComponentLen, &idxDefMap["idx_all_desc"].Components[5])
 
 	assert.Equal(t, IdxUnique, idxDefMap["idx_all_asc"].Uniqueness)
-	assertIdxComp(t, "f_int", FieldTypeInt, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_all_asc"].Components[0])
-	assertIdxComp(t, "f_float", FieldTypeFloat, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_all_asc"].Components[1])
-	assertIdxComp(t, "f_bool", FieldTypeBool, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_all_asc"].Components[2])
-	assertIdxComp(t, "f_str", FieldTypeString, IdxCaseSensitive, IdxSortAsc, MinStringComponentLen, &idxDefMap["idx_all_asc"].Components[3])
-	assertIdxComp(t, "f_time", FieldTypeDateTime, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_all_asc"].Components[4])
-	assertIdxComp(t, "f_dec", FieldTypeDecimal2, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_all_asc"].Components[5])
+	assertIdxComp(t, "f_int", eval_capi.FieldTypeInt, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_all_asc"].Components[0])
+	assertIdxComp(t, "f_float", eval_capi.FieldTypeFloat, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_all_asc"].Components[1])
+	assertIdxComp(t, "f_bool", eval_capi.FieldTypeBool, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_all_asc"].Components[2])
+	assertIdxComp(t, "f_str", eval_capi.FieldTypeString, IdxCaseSensitive, IdxSortAsc, MinStringComponentLen, &idxDefMap["idx_all_asc"].Components[3])
+	assertIdxComp(t, "f_time", eval_capi.FieldTypeDateTime, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_all_asc"].Components[4])
+	assertIdxComp(t, "f_dec", eval_capi.FieldTypeDecimal2, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_all_asc"].Components[5])
 
 	assert.Equal(t, IdxUnique, idxDefMap["idx_no_mods"].Uniqueness)
-	assertIdxComp(t, "f_int", FieldTypeInt, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_no_mods"].Components[0])
-	assertIdxComp(t, "f_float", FieldTypeFloat, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_no_mods"].Components[1])
-	assertIdxComp(t, "f_bool", FieldTypeBool, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_no_mods"].Components[2])
-	assertIdxComp(t, "f_str", FieldTypeString, IdxCaseSensitive, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_no_mods"].Components[3])
-	assertIdxComp(t, "f_time", FieldTypeDateTime, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_no_mods"].Components[4])
-	assertIdxComp(t, "f_dec", FieldTypeDecimal2, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_no_mods"].Components[5])
+	assertIdxComp(t, "f_int", eval_capi.FieldTypeInt, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_no_mods"].Components[0])
+	assertIdxComp(t, "f_float", eval_capi.FieldTypeFloat, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_no_mods"].Components[1])
+	assertIdxComp(t, "f_bool", eval_capi.FieldTypeBool, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_no_mods"].Components[2])
+	assertIdxComp(t, "f_str", eval_capi.FieldTypeString, IdxCaseSensitive, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_no_mods"].Components[3])
+	assertIdxComp(t, "f_time", eval_capi.FieldTypeDateTime, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_no_mods"].Components[4])
+	assertIdxComp(t, "f_dec", eval_capi.FieldTypeDecimal2, IdxCaseSensitivityUnknown, IdxSortAsc, DefaultStringComponentLen, &idxDefMap["idx_no_mods"].Components[5])
 
 }
 
 func TestIndexDefParserBad(t *testing.T) {
 	fieldRefs := FieldRefs{
-		FieldRef{"t1", "f_int", FieldTypeInt},
-		FieldRef{"t1", "f_float", FieldTypeFloat},
-		FieldRef{"t1", "f_bool", FieldTypeBool},
-		FieldRef{"t1", "f_str", FieldTypeString},
-		FieldRef{"t1", "f_time", FieldTypeDateTime},
-		FieldRef{"t1", "f_dec", FieldTypeDecimal2},
+		FieldRef{"t1", "f_int", eval_capi.FieldTypeInt},
+		FieldRef{"t1", "f_float", eval_capi.FieldTypeFloat},
+		FieldRef{"t1", "f_bool", eval_capi.FieldTypeBool},
+		FieldRef{"t1", "f_str", eval_capi.FieldTypeString},
+		FieldRef{"t1", "f_time", eval_capi.FieldTypeDateTime},
+		FieldRef{"t1", "f_dec", eval_capi.FieldTypeDecimal2},
 	}
 	rawIdxDefMap := map[string]string{"idx_bad_unique": "somename(f_int,f_float,f_bool,f_str,f_time,f_dec)"}
 	idxDefMap := IdxDefMap{}

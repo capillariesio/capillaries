@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/eval"
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"github.com/capillariesio/capillaries/pkg/proc"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/shopspring/decimal"
@@ -214,12 +215,12 @@ func jsonToYamlToScriptDef(t *testing.T) *sc.ScriptDef {
 func testCalculator(t *testing.T, scriptDef *sc.ScriptDef) {
 	// Initializing rowset is tedious and error-prone. Add schema first.
 	rs := proc.NewRowsetFromFieldRefs(sc.FieldRefs{
-		{TableName: "r", FieldName: "field_int1", FieldType: sc.FieldTypeInt},
-		{TableName: "r", FieldName: "field_float1", FieldType: sc.FieldTypeFloat},
-		{TableName: "r", FieldName: "field_decimal1", FieldType: sc.FieldTypeDecimal2},
-		{TableName: "r", FieldName: "field_string1", FieldType: sc.FieldTypeString},
-		{TableName: "r", FieldName: "field_bool1", FieldType: sc.FieldTypeBool},
-		{TableName: "r", FieldName: "field_dt1", FieldType: sc.FieldTypeDateTime},
+		{TableName: "r", FieldName: "field_int1", FieldType: eval_capi.FieldTypeInt},
+		{TableName: "r", FieldName: "field_float1", FieldType: eval_capi.FieldTypeFloat},
+		{TableName: "r", FieldName: "field_decimal1", FieldType: eval_capi.FieldTypeDecimal2},
+		{TableName: "r", FieldName: "field_string1", FieldType: eval_capi.FieldTypeString},
+		{TableName: "r", FieldName: "field_bool1", FieldType: eval_capi.FieldTypeBool},
+		{TableName: "r", FieldName: "field_dt1", FieldType: eval_capi.FieldTypeDateTime},
 	})
 
 	// Allocate rows
@@ -276,8 +277,8 @@ func testCalculator(t *testing.T, scriptDef *sc.ScriptDef) {
 	// Interpreter ok, analyse output
 
 	// Test flusher, doesn't write anywhere, just saves data in the local variable
-	var results []*eval.VarValuesMap
-	flushVarsArray := func(varsArray []*eval.VarValuesMap, _ int) error {
+	var results []eval.VarValuesMap
+	flushVarsArray := func(varsArray []eval.VarValuesMap, _ int) error {
 		results = varsArray
 		return nil
 	}
@@ -351,7 +352,7 @@ bla
 `
 	err = pyCalcProcDef.analyseExecSuccess(codeBase, rawOutput, "", pyCalcProcDef.GetFieldRefs(), rs, flushVarsArray)
 	assert.Nil(t, err)
-	flushedRow := *results[0]
+	flushedRow := results[0]
 	// r fields must be present in the result, they can be used by the writer
 	assert.Equal(t, i, flushedRow["r"]["field_int1"])
 	assert.Equal(t, f, flushedRow["r"]["field_float1"])
@@ -412,20 +413,20 @@ func TestPyCalcDefBadScript(t *testing.T) {
 }
 
 func TestPythonResultToRowsetValueFailures(t *testing.T) {
-	_, err := pythonResultToRowsetValue(&sc.FieldRef{TableName: "p", FieldName: "field_int1", FieldType: sc.FieldTypeInt}, true)
+	_, err := pythonResultToRowsetValue(&sc.FieldRef{TableName: "p", FieldName: "field_int1", FieldType: eval_capi.FieldTypeInt}, true)
 	assert.Contains(t, err.Error(), "int field_int1, unexpected type bool(true)")
-	_, err = pythonResultToRowsetValue(&sc.FieldRef{TableName: "p", FieldName: "field_float1", FieldType: sc.FieldTypeFloat}, true)
+	_, err = pythonResultToRowsetValue(&sc.FieldRef{TableName: "p", FieldName: "field_float1", FieldType: eval_capi.FieldTypeFloat}, true)
 	assert.Contains(t, err.Error(), "float field_float1, unexpected type bool(true)")
-	_, err = pythonResultToRowsetValue(&sc.FieldRef{TableName: "p", FieldName: "field_decimal1", FieldType: sc.FieldTypeDecimal2}, true)
+	_, err = pythonResultToRowsetValue(&sc.FieldRef{TableName: "p", FieldName: "field_decimal1", FieldType: eval_capi.FieldTypeDecimal2}, true)
 	assert.Contains(t, err.Error(), "decimal field_decimal1, unexpected type bool(true)")
-	_, err = pythonResultToRowsetValue(&sc.FieldRef{TableName: "p", FieldName: "field_string1", FieldType: sc.FieldTypeString}, true)
+	_, err = pythonResultToRowsetValue(&sc.FieldRef{TableName: "p", FieldName: "field_string1", FieldType: eval_capi.FieldTypeString}, true)
 	assert.Contains(t, err.Error(), "string field_string1, unexpected type bool(true)")
-	_, err = pythonResultToRowsetValue(&sc.FieldRef{TableName: "p", FieldName: "field_datetime1", FieldType: sc.FieldTypeDateTime}, true)
+	_, err = pythonResultToRowsetValue(&sc.FieldRef{TableName: "p", FieldName: "field_datetime1", FieldType: eval_capi.FieldTypeDateTime}, true)
 	assert.Contains(t, err.Error(), "time field_datetime1, unexpected type bool(true)")
-	_, err = pythonResultToRowsetValue(&sc.FieldRef{TableName: "p", FieldName: "field_datetime1", FieldType: sc.FieldTypeDateTime}, "aaa")
+	_, err = pythonResultToRowsetValue(&sc.FieldRef{TableName: "p", FieldName: "field_datetime1", FieldType: eval_capi.FieldTypeDateTime}, "aaa")
 	assert.Contains(t, err.Error(), "bad time result field_datetime1, unexpected format aaa")
-	_, err = pythonResultToRowsetValue(&sc.FieldRef{TableName: "p", FieldName: "field_bool1", FieldType: sc.FieldTypeBool}, "aaa")
+	_, err = pythonResultToRowsetValue(&sc.FieldRef{TableName: "p", FieldName: "field_bool1", FieldType: eval_capi.FieldTypeBool}, "aaa")
 	assert.Contains(t, err.Error(), "bool field_bool1, unexpected type string(aaa)")
-	_, err = pythonResultToRowsetValue(&sc.FieldRef{TableName: "p", FieldName: "bad_field", FieldType: sc.FieldTypeUnknown}, "")
+	_, err = pythonResultToRowsetValue(&sc.FieldRef{TableName: "p", FieldName: "bad_field", FieldType: eval_capi.FieldTypeUnknown}, "")
 	assert.Contains(t, err.Error(), "unexpected field type unknown, bad_field, string()")
 }

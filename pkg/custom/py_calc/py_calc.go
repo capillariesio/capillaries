@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/eval"
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"github.com/capillariesio/capillaries/pkg/proc"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/xfer"
@@ -107,7 +108,7 @@ func (procDef *PyCalcProcessorDef) Deserialize(raw json.RawMessage, customProcSe
 		// Use relaxed Go parser for Python - we are lucky that Go designers liked Python, so we do not have to implement a separate Python partser (for now)
 		if fieldDef.ParsedExpression, err = sc.ParseRawRelaxedGolangExpressionStringAndHarvestFieldRefs(fieldDef.RawExpression, &fieldDef.UsedFields, sc.FieldRefAllowUnknownIdents); err != nil {
 			foundErrors = append(foundErrors, fmt.Sprintf("cannot parse field expression [%s]: [%s]", fieldDef.RawExpression, err.Error()))
-		} else if !sc.IsValidFieldType(fieldDef.Type) {
+		} else if !eval_capi.IsValidFieldType(fieldDef.Type) {
 			foundErrors = append(foundErrors, fmt.Sprintf("invalid field type [%s]", fieldDef.Type))
 		}
 
@@ -214,39 +215,39 @@ func valueToPythonExpr(val any) string {
 
 func pythonResultToRowsetValue(fieldRef *sc.FieldRef, fieldValue any) (any, error) {
 	switch fieldRef.FieldType {
-	case sc.FieldTypeString:
+	case eval_capi.FieldTypeString:
 		finalVal, ok := fieldValue.(string)
 		if !ok {
 			return nil, fmt.Errorf("string %s, unexpected type %T(%v)", fieldRef.FieldName, fieldValue, fieldValue)
 		}
 		return finalVal, nil
-	case sc.FieldTypeBool:
+	case eval_capi.FieldTypeBool:
 		finalVal, ok := fieldValue.(bool)
 		if !ok {
 			return nil, fmt.Errorf("bool %s, unexpected type %T(%v)", fieldRef.FieldName, fieldValue, fieldValue)
 		}
 		return finalVal, nil
-	case sc.FieldTypeInt:
+	case eval_capi.FieldTypeInt:
 		finalVal, ok := fieldValue.(float64)
 		if !ok {
 			return nil, fmt.Errorf("int %s, unexpected type %T(%v)", fieldRef.FieldName, fieldValue, fieldValue)
 		}
 		finalIntVal := int64(finalVal)
 		return finalIntVal, nil
-	case sc.FieldTypeFloat:
+	case eval_capi.FieldTypeFloat:
 		finalVal, ok := fieldValue.(float64)
 		if !ok {
 			return nil, fmt.Errorf("float %s, unexpected type %T(%v)", fieldRef.FieldName, fieldValue, fieldValue)
 		}
 		return finalVal, nil
-	case sc.FieldTypeDecimal2:
+	case eval_capi.FieldTypeDecimal2:
 		finalVal, ok := fieldValue.(float64)
 		if !ok {
 			return nil, fmt.Errorf("decimal %s, unexpected type %T(%v)", fieldRef.FieldName, fieldValue, fieldValue)
 		}
 		finalDecVal := decimal.NewFromFloat(finalVal).Round(2)
 		return finalDecVal, nil
-	case sc.FieldTypeDateTime:
+	case eval_capi.FieldTypeDateTime:
 		finalVal, ok := fieldValue.(string)
 		if !ok {
 			return nil, fmt.Errorf("time %s, unexpected type %T(%v)", fieldRef.FieldName, fieldValue, fieldValue)
@@ -459,12 +460,12 @@ func getRowResultJson(rowIdx int, codeBase *string, rawOutput *string, sectionEn
 	return rawSectionOutput[sectionSuccessPos+len(successMarker):], "", nil
 }
 
-func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput string, _ string, outFieldRefs *sc.FieldRefs, rsIn *proc.Rowset, flushVarsArray func(varsArray []*eval.VarValuesMap, varsArrayCount int) error) error {
+func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput string, _ string, outFieldRefs *sc.FieldRefs, rsIn *proc.Rowset, flushVarsArray func(varsArray []eval.VarValuesMap, varsArrayCount int) error) error {
 	// No Python interpreter errors, but there may be runtime errors and good results.
 	// Timeout error may be there too.
 
 	var foundErrors strings.Builder
-	varsArray := make([]*eval.VarValuesMap, pyCalcFlushBufferSize)
+	varsArray := make([]eval.VarValuesMap, pyCalcFlushBufferSize)
 	varsArrayCount := 0
 
 	sectionEndPos := 0
@@ -510,13 +511,13 @@ func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput
 				}
 
 				if foundErrors.Len() == 0 {
-					varsArray[varsArrayCount] = &vars
+					varsArray[varsArrayCount] = vars
 					varsArrayCount++
 					if varsArrayCount == len(varsArray) {
 						if err = flushVarsArray(varsArray, varsArrayCount); err != nil {
 							return fmt.Errorf("error flushing vars array of size %d: %s", varsArrayCount, err.Error())
 						}
-						varsArray = make([]*eval.VarValuesMap, pyCalcFlushBufferSize)
+						varsArray = make([]eval.VarValuesMap, pyCalcFlushBufferSize)
 						varsArrayCount = 0
 					}
 				}

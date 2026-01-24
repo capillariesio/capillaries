@@ -17,7 +17,6 @@ import (
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/xfer"
-	"github.com/shopspring/decimal"
 )
 
 type TableRecord map[string]any
@@ -238,7 +237,7 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 	}
 	defer instr.closeInserter(logger, pCtx)
 
-	flushVarsArrayCallback := func(varsArray []*eval.VarValuesMap, varsArrayCount int) error {
+	flushVarsArrayCallback := func(varsArray []eval.VarValuesMap, varsArrayCount int) error {
 
 		instr.startDrainer()
 
@@ -250,7 +249,7 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 		for outRowIdx := 0; outRowIdx < varsArrayCount; outRowIdx++ {
 			vars := varsArray[outRowIdx]
 
-			tableRecord, err = node.TableCreator.CalculateTableRecordFromSrcVars(false, *vars)
+			tableRecord, err = node.TableCreator.CalculateTableRecordFromSrcVars(vars)
 			if err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot populate table record from [%v], node %s: [%s]", vars, node.Name, err.Error()))
 				return instr.waitForDrainer()
@@ -403,7 +402,7 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 				return bs, instr.waitForDrainer()
 			}
 
-			tableRecord, err = node.TableCreator.CalculateTableRecordFromSrcVars(false, vars)
+			tableRecord, err = node.TableCreator.CalculateTableRecordFromSrcVars(vars)
 			if err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot populate table record from [%v], node %s: [%s]", vars, node.Name, err.Error()))
 				return bs, instr.waitForDrainer()
@@ -539,7 +538,7 @@ func RunCreateDistinctTableForBatch(envConfig *env.EnvConfig,
 				return bs, instr.waitForDrainer()
 			}
 
-			tableRecord, err = node.TableCreator.CalculateTableRecordFromSrcVars(false, vars)
+			tableRecord, err = node.TableCreator.CalculateTableRecordFromSrcVars(vars)
 			if err != nil {
 				instr.cancelDrainer(fmt.Errorf("cannot populate table record from [%v], node %s: [%s]", vars, node.Name, err.Error()))
 				return bs, instr.waitForDrainer()
@@ -636,10 +635,18 @@ func setupEvalCtxForGroup(node *sc.ScriptNodeDef, rsLeft *Rowset) (map[int64]map
 			rowid := *((*rsLeft.Rows[rowIdx])[rsLeft.FieldsByFieldName["rowid"]].(*int64))
 			eCtxMap[rowid] = map[string]*eval.EvalCtx{}
 			for fieldName, fieldDef := range node.TableCreator.Fields {
+				// Expression may contain an agg function and may not. Handle both. No var values available yet.
 				funcName, aggFuncEnabled, aggFuncType, aggFuncArgs := eval.DetectRootAggFunc(fieldDef.ParsedExpression)
-				newCtx, newCtxErr := eval.NewAggEvalCtxWithFunctionsConstantsVars(funcName, aggFuncEnabled, eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, nil, aggFuncType, aggFuncArgs)
-				if newCtxErr != nil {
-					return nil, newCtxErr
+				var newCtx *eval.EvalCtx
+				var newCtxErr error
+				if aggFuncEnabled == eval.AggFuncEnabled {
+					newCtx, newCtxErr = eval.NewAggEvalCtx(funcName, aggFuncType, aggFuncArgs, eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, nil)
+					if newCtxErr != nil {
+						return nil, fmt.Errorf("cannot initialize ctx for group calc: %s", newCtxErr.Error())
+					}
+					newCtx.SetRoundDec(2) // decimal2
+				} else {
+					newCtx = eval.NewPlainEvalCtx(eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, nil)
 				}
 				eCtxMap[rowid][fieldName] = newCtx
 			}
@@ -723,7 +730,7 @@ func produceGroupedTableRecord(node *sc.ScriptNodeDef, rsLeft *Rowset, leftRowId
 				}
 			} else {
 				// No aggregate function used in field expression - assume it contains only left-side fields
-				tableRecord[fieldName], err = sc.CalculateFieldValue(fieldName, fieldDef, leftVars, false)
+				tableRecord[fieldName], err = sc.CalculateFieldValue(fieldName, fieldDef, leftVars)
 				if err != nil {
 					return nil, err
 				}
@@ -733,17 +740,18 @@ func produceGroupedTableRecord(node *sc.ScriptNodeDef, rsLeft *Rowset, leftRowId
 		// Grouped inner or left outer with present data on the right
 		leftRowid := *((*rsLeft.Rows[leftRowIdx])[rsLeft.FieldsByFieldName["rowid"]].(*int64))
 		for fieldName, fieldDef := range node.TableCreator.Fields {
-			finalValue := eCtxMap[leftRowid][fieldName].Value
+			finalValue := eCtxMap[leftRowid][fieldName].GetValue()
 
-			// Our eval engine performs agg calculations on decimal values without knowing
-			// the target dec precision (which is 2 for decimal2 at the moment), so we have to make sure
-			// it's actually 2 in the end. Hopefully this is the only place where we have to pay attention to it.
-			if fieldDef.Type == sc.FieldTypeDecimal2 {
-				decFinalValue, ok := finalValue.(decimal.Decimal)
-				if ok {
-					finalValue = decFinalValue.Round(2)
-				}
-			}
+			// // Our eval engine performs agg calculations on decimal values without knowing
+			// // the target dec precision (which is 2 for decimal2 at the moment), so we have to make sure
+			// // it's actually 2 in the end. Hopefully this is the only place where we have to pay attention to it.
+			// if fieldDef.Type == eval_capi.FieldTypeDecimal2 {
+			// 	decFinalValue, ok := finalValue.(decimal.Decimal)
+			// 	if !ok {
+			// 		return nil, fmt.Errorf("agg function returned non-dec value for %s", fieldName)
+			// 	}
+			// 	finalValue = decFinalValue.Round(2)
+			// }
 
 			if err := sc.CheckValueType(finalValue, fieldDef.Type); err != nil {
 				return nil, fmt.Errorf("invalid field %s type: [%s]", fieldName, err.Error())
@@ -764,7 +772,7 @@ func produceNonGroupedTableRecordForLeftWithChildren(node *sc.ScriptNodeDef, rsL
 	}
 
 	// We are ready to write this result right away, so prepare the output tableRecord
-	tableRecord, err := node.TableCreator.CalculateTableRecordFromSrcVars(false, vars)
+	tableRecord, err := node.TableCreator.CalculateTableRecordFromSrcVars(vars)
 	if err != nil {
 		return nil, fmt.Errorf("cannot populate table record from [%v]: [%s]", vars, err.Error())
 	}
@@ -789,7 +797,7 @@ func produceNonGroupedTableRecordForCheldlessLeft(node *sc.ScriptNodeDef, rsLeft
 			}
 		} else {
 			// This field expression does not use fields from lkp table - assume the expression contains only left-side fields
-			tableRecord[fieldName], err = sc.CalculateFieldValue(fieldName, fieldDef, leftVars, false)
+			tableRecord[fieldName], err = sc.CalculateFieldValue(fieldName, fieldDef, leftVars)
 			if err != nil {
 				return nil, err
 			}

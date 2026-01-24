@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/eval"
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/shopspring/decimal"
 	"gopkg.in/inf.v0"
@@ -141,22 +142,22 @@ func (rs *Rowset) InitRows(capacity int) error {
 		rs.Rows[rowIdx] = &newRow
 		for colIdx := 0; colIdx < len(rs.Fields); colIdx++ {
 			switch rs.Fields[colIdx].FieldType {
-			case sc.FieldTypeInt:
+			case eval_capi.FieldTypeInt:
 				v := int64(0)
 				(*rs.Rows[rowIdx])[colIdx] = &v
-			case sc.FieldTypeFloat:
+			case eval_capi.FieldTypeFloat:
 				v := float64(0.0)
 				(*rs.Rows[rowIdx])[colIdx] = &v
-			case sc.FieldTypeString:
+			case eval_capi.FieldTypeString:
 				v := ""
 				(*rs.Rows[rowIdx])[colIdx] = &v
-			case sc.FieldTypeDecimal2:
+			case eval_capi.FieldTypeDecimal2:
 				// Set it to Cassandra-accepted value, not decimal.Decimal: https://github.com/gocql/gocql/issues/1578
 				(*rs.Rows[rowIdx])[colIdx] = inf.NewDec(0, 0)
-			case sc.FieldTypeBool:
+			case eval_capi.FieldTypeBool:
 				v := false
 				(*rs.Rows[rowIdx])[colIdx] = &v
-			case sc.FieldTypeDateTime:
+			case eval_capi.FieldTypeDateTime:
 				v := sc.DefaultDateTime()
 				(*rs.Rows[rowIdx])[colIdx] = &v
 			default:
@@ -243,7 +244,7 @@ func (rs *Rowset) ExportToVarsWithAlias(rowIdx int, vars eval.VarValuesMap, useT
 // Force UTC TZ to each ts returned by gocql
 // func (rs *Rowset) SanitizeScannedDatetimesToUtc(rowIdx int) error {
 // 	for valIdx := 0; valIdx < len(rs.Fields); valIdx++ {
-// 		if rs.Fields[valIdx].FieldType == sc.FieldTypeDateTime {
+// 		if rs.Fields[valIdx].FieldType == eval_capi.FieldTypeDateTime {
 // 			origVolatile := (*rs.Rows[rowIdx])[valIdx]
 // 			origDt, ok := origVolatile.(time.Time)
 // 			if !ok {
