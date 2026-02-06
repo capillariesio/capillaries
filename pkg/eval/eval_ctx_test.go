@@ -133,6 +133,9 @@ func TestCompare(t *testing.T) {
 			"fieldFloat64":  float64(2.0),
 			"fieldDecimal2": decimal.NewFromInt(2),
 		},
+		"": {
+			"nil": nil,
+		},
 	}
 	for k1 := range varValuesMap["t1"] {
 		for k2 := range varValuesMap["t2"] {
@@ -143,7 +146,19 @@ func TestCompare(t *testing.T) {
 			assertEqual(t, fmt.Sprintf("t2.%s > t1.%s", k1, k2), true, varValuesMap)
 			assertEqual(t, fmt.Sprintf("t2.%s >= t1.%s", k1, k2), true, varValuesMap)
 		}
+		assertEqual(t, fmt.Sprintf("t1.%s == nil", k1), false, varValuesMap)
+		assertEqual(t, fmt.Sprintf("t1.%s != nil", k1), true, varValuesMap)
+		assertEqual(t, fmt.Sprintf("t1.%s < nil", k1), false, varValuesMap)
+		assertEqual(t, fmt.Sprintf("t1.%s <= nil", k1), false, varValuesMap)
+		assertEqual(t, fmt.Sprintf("t2.%s > nil", k1), false, varValuesMap)
+		assertEqual(t, fmt.Sprintf("t2.%s >= nil", k1), false, varValuesMap)
 	}
+	assertEqual(t, "nil == nil", true, varValuesMap)
+	assertEqual(t, "nil != nil", false, varValuesMap)
+	assertEqual(t, "nil < nil", false, varValuesMap)
+	assertEqual(t, "nil <= nil", false, varValuesMap)
+	assertEqual(t, "nil > nil", false, varValuesMap)
+	assertEqual(t, "nil >= nil", false, varValuesMap)
 
 	// Bool
 	assertEqual(t, "false == false", true, varValuesMap)
@@ -437,4 +452,21 @@ func TestUnsupported(t *testing.T) {
 		},
 	}
 	assertEvalError(t, `t1.fTime[i] < 2`, "unsupported type *ast.IndexExpr", varValuesMap)
+}
+
+func TestGetSafeValue(t *testing.T) {
+
+	eCtx := NewPlainEvalCtx(nil, nil, nil)
+	assert.Equal(t, nil, eCtx.GetValue())
+	assert.Equal(t, int64(35), eCtx.GetSafeValue(int64(35)))
+
+	constants := map[string]any{
+		"const1": float64(1.0),
+	}
+	eCtx = NewPlainEvalCtx(nil, constants, nil)
+	exp, err := parser.ParseExpr("const1*2")
+	assert.Nil(t, err)
+	eCtx.Eval(exp)
+	assert.Equal(t, float64(2.0), eCtx.GetValue())
+	assert.Equal(t, float64(2.0), eCtx.GetSafeValue(int64(35)))
 }

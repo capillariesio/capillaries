@@ -93,6 +93,7 @@ type StringAggCollector struct {
 	Separator string
 }
 
+// Internal data type used for agg calculations only
 type AggDataType string
 
 const (

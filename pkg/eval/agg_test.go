@@ -343,8 +343,87 @@ func TestCount(t *testing.T) {
 	assert.Equal(t, int64(2), result)
 }
 
-func TestNoVars(t *testing.T) {
+func TestNoAggRows(t *testing.T) {
+	var exp ast.Expr
+	var eCtx *EvalCtx
+	var aggFuncType AggFuncType
+	var aggFuncArgs []ast.Expr
 
+	varValuesMap := getTestValuesMap()
+	varValuesMap["t1"]["fieldInt"] = 0
+
+	// if
+
+	exp, _ = parser.ParseExpr("count_if(t1.fieldInt > 0)")
+	_, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
+	eCtx, _ = NewAggEvalCtx(aggFuncType, aggFuncArgs, nil, nil, varValuesMap)
+	_, _ = eCtx.Eval(exp)
+	assert.Equal(t, int64(0), eCtx.GetValue())
+	assert.Equal(t, int64(0), eCtx.GetSafeValue(int64(35)))
+	assert.True(t, eCtx.IsAggFuncEnabled())
+
+	exp, _ = parser.ParseExpr("sum_if(t1.fieldInt > 0)")
+	_, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
+	eCtx, _ = NewAggEvalCtx(aggFuncType, aggFuncArgs, nil, nil, varValuesMap)
+	_, _ = eCtx.Eval(exp)
+	assert.Equal(t, nil, eCtx.GetValue())
+	assert.Equal(t, int64(35), eCtx.GetSafeValue(int64(35)))
+
+	exp, _ = parser.ParseExpr("avg_if(t1.fieldInt > 0)")
+	_, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
+	eCtx, _ = NewAggEvalCtx(aggFuncType, aggFuncArgs, nil, nil, varValuesMap)
+	_, _ = eCtx.Eval(exp)
+	assert.Equal(t, nil, eCtx.GetValue())
+	assert.Equal(t, int64(35), eCtx.GetSafeValue(int64(35)))
+
+	exp, _ = parser.ParseExpr("min_if(t1.fieldInt > 0)")
+	_, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
+	eCtx, _ = NewAggEvalCtx(aggFuncType, aggFuncArgs, nil, nil, varValuesMap)
+	_, _ = eCtx.Eval(exp)
+	assert.Equal(t, nil, eCtx.GetValue())
+	assert.Equal(t, int64(35), eCtx.GetSafeValue(int64(35)))
+
+	exp, _ = parser.ParseExpr("max_if(t1.fieldInt > 0)")
+	_, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
+	eCtx, _ = NewAggEvalCtx(aggFuncType, aggFuncArgs, nil, nil, varValuesMap)
+	_, _ = eCtx.Eval(exp)
+	assert.Equal(t, nil, eCtx.GetValue())
+	assert.Equal(t, int64(35), eCtx.GetSafeValue(int64(35)))
+
+	// No if, not a single row eval
+
+	exp, _ = parser.ParseExpr("count()")
+	_, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
+	eCtx, _ = NewAggEvalCtx(aggFuncType, aggFuncArgs, nil, nil, varValuesMap)
+	assert.Equal(t, int64(0), eCtx.GetValue())
+	assert.Equal(t, int64(0), eCtx.GetSafeValue(int64(35)))
+
+	exp, _ = parser.ParseExpr("sum(t1.fieldInt)")
+	_, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
+	eCtx, _ = NewAggEvalCtx(aggFuncType, aggFuncArgs, nil, nil, varValuesMap)
+	assert.Equal(t, nil, eCtx.GetValue())
+	assert.Equal(t, int64(35), eCtx.GetSafeValue(int64(35)))
+
+	exp, _ = parser.ParseExpr("avg(t1.fieldInt)")
+	_, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
+	eCtx, _ = NewAggEvalCtx(aggFuncType, aggFuncArgs, nil, nil, varValuesMap)
+	assert.Equal(t, nil, eCtx.GetValue())
+	assert.Equal(t, int64(35), eCtx.GetSafeValue(int64(35)))
+
+	exp, _ = parser.ParseExpr("min(t1.fieldInt)")
+	_, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
+	eCtx, _ = NewAggEvalCtx(aggFuncType, aggFuncArgs, nil, nil, varValuesMap)
+	assert.Equal(t, nil, eCtx.GetValue())
+	assert.Equal(t, int64(35), eCtx.GetSafeValue(int64(35)))
+
+	exp, _ = parser.ParseExpr("max(t1.fieldInt)")
+	_, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
+	eCtx, _ = NewAggEvalCtx(aggFuncType, aggFuncArgs, nil, nil, varValuesMap)
+	assert.Equal(t, nil, eCtx.GetValue())
+	assert.Equal(t, int64(35), eCtx.GetSafeValue(int64(35)))
+}
+
+func TestNoVars(t *testing.T) {
 	var exp ast.Expr
 	var eCtx *EvalCtx
 	var result any

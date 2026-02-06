@@ -740,18 +740,10 @@ func produceGroupedTableRecord(node *sc.ScriptNodeDef, rsLeft *Rowset, leftRowId
 		// Grouped inner or left outer with present data on the right
 		leftRowid := *((*rsLeft.Rows[leftRowIdx])[rsLeft.FieldsByFieldName["rowid"]].(*int64))
 		for fieldName, fieldDef := range node.TableCreator.Fields {
-			finalValue := eCtxMap[leftRowid][fieldName].GetValue()
-
-			// // Our eval engine performs agg calculations on decimal values without knowing
-			// // the target dec precision (which is 2 for decimal2 at the moment), so we have to make sure
-			// // it's actually 2 in the end. Hopefully this is the only place where we have to pay attention to it.
-			// if fieldDef.Type == eval_capi.FieldTypeDecimal2 {
-			// 	decFinalValue, ok := finalValue.(decimal.Decimal)
-			// 	if !ok {
-			// 		return nil, fmt.Errorf("agg function returned non-dec value for %s", fieldName)
-			// 	}
-			// 	finalValue = decFinalValue.Round(2)
-			// }
+			// WARNING: this can be considered a Capillaries shortcoming:
+			// what if there are no rows to aggregate? SQL/CQL would return nil, but Capillaries cannot.
+			// So we have to use default value. Or should we make it configurable?
+			finalValue := eCtxMap[leftRowid][fieldName].GetSafeValue(sc.GetDefaultFieldTypeValue(fieldDef.Type))
 
 			if err := sc.CheckValueType(finalValue, fieldDef.Type); err != nil {
 				return nil, fmt.Errorf("invalid field %s type: [%s]", fieldName, err.Error())
