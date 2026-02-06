@@ -104,14 +104,14 @@ func (ectx *EvalCtx) SetRoundDec(roundDec int32) {
 }
 
 func (ectx *EvalCtx) GetValue() any {
-	if ectx.aggEnabled == AggFuncEnabled && (ectx.aggFunc == AggCount || ectx.aggFunc == AggCountIf) && ectx.value == nil {
+	if ectx.aggEnabled == AggFuncEnabled && (ectx.aggFunc == AggCount || ectx.aggFunc == AggCountIf || ectx.aggFunc == AggSum || ectx.aggFunc == AggSumIf || ectx.aggFunc == AggAvg || ectx.aggFunc == AggAvgIf) && ectx.value == nil {
 		return int64(0)
 	}
 	return ectx.value
 }
 
 func (ectx *EvalCtx) GetSafeValue(defaultValue any) any {
-	if ectx.aggEnabled == AggFuncEnabled && (ectx.aggFunc == AggCount || ectx.aggFunc == AggCountIf) {
+	if ectx.aggEnabled == AggFuncEnabled && (ectx.aggFunc == AggCount || ectx.aggFunc == AggCountIf || ectx.aggFunc == AggSum || ectx.aggFunc == AggSumIf || ectx.aggFunc == AggAvg || ectx.aggFunc == AggAvgIf) {
 		return ectx.GetValue()
 	}
 	if ectx.value == nil {
