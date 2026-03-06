@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"go/ast"
 	"go/parser"
+	"math"
+	"math/big"
 	"testing"
 	"time"
 
@@ -601,7 +603,7 @@ func TestBlanks(t *testing.T) {
 	assert.Equal(t, float64(0), eCtx.sumCollector.Float)
 	assert.Equal(t, defaultDecimal(), eCtx.sumCollector.Dec)
 
-	assert.Equal(t, int64(0), eCtx.avgCollector.Int)
+	assert.Equal(t, big.NewInt(0), eCtx.avgCollector.Int)
 	assert.Equal(t, float64(0), eCtx.avgCollector.Float)
 	assert.Equal(t, defaultDecimal(), eCtx.avgCollector.Dec)
 
@@ -695,4 +697,18 @@ func TestAggPrecision(t *testing.T) {
 	eCtx.SetVars(varValuesMap)
 	_, _ = eCtx.Eval(exp)
 	assert.Equal(t, decimal.NewFromFloat(1.33).String(), eCtx.GetValue().(decimal.Decimal).String())
+}
+
+func TestAggOverflow(t *testing.T) {
+	varValuesMap := VarValuesMap{
+		"": map[string]any{
+			"a": int64(math.MaxInt64/2 + 2),
+		},
+	}
+	exp, _ := parser.ParseExpr("avg(a)")
+	var eCtx *EvalCtx
+	eCtx, _ = NewAggEvalCtx(AggAvg, exp.(*ast.CallExpr).Args, nil, nil, varValuesMap)
+	_, _ = eCtx.Eval(exp)
+	_, _ = eCtx.Eval(exp)
+	assert.Equal(t, int64(math.MaxInt64/2+2), eCtx.GetValue())
 }

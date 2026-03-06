@@ -3,6 +3,7 @@ package eval
 import (
 	"fmt"
 	"go/ast"
+	"math/big"
 	"strings"
 
 	"github.com/shopspring/decimal"
@@ -66,7 +67,7 @@ type SumCollector struct {
 	Dec   decimal.Decimal
 }
 type AvgCollector struct {
-	Int   int64
+	Int   *big.Int
 	Float float64
 	Dec   decimal.Decimal
 	Count int64
@@ -106,7 +107,7 @@ const (
 
 func (eCtx *EvalCtx) checkAgg(funcName string, callExp *ast.CallExpr, aggFunc AggFuncType) error {
 	if eCtx.aggEnabled != AggFuncEnabled {
-		return fmt.Errorf("cannot evaluate %s(), context aggregate not enabled (sorry, only expressions with root agg function are supported, no sum(...)*x or sum(...)+y)", funcName)
+		return fmt.Errorf("cannot evaluate %s(), context aggregate not enabled (either agg function is not expected in this expression at all, or agg function is not in the root of the expression, like no sum(...)*x or sum(...)+y)", funcName)
 	}
 	if eCtx.aggCallExp != nil {
 		if eCtx.aggCallExp != callExp {
@@ -255,11 +256,12 @@ func (eCtx *EvalCtx) callAggAvgInternal(funcName string, args []any, isApply boo
 			return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got int value %d", funcName, eCtx.aggType, typedArg0)
 		}
 		if isApply {
-			eCtx.avgCollector.Int += typedArg0
+			eCtx.avgCollector.Int.Add(eCtx.avgCollector.Int, big.NewInt(typedArg0))
 			eCtx.avgCollector.Count++
 		}
 		if eCtx.avgCollector.Count > 0 {
-			return eCtx.avgCollector.Int / eCtx.avgCollector.Count, nil
+			bigintVal := big.NewInt(0).Div(eCtx.avgCollector.Int, big.NewInt(eCtx.avgCollector.Count))
+			return bigintVal.Int64(), nil
 		}
 		return int64(0), nil
 

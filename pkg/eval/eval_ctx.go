@@ -6,6 +6,7 @@ import (
 	"go/ast"
 	"go/token"
 	"math"
+	"math/big"
 	"strconv"
 	"strings"
 	"time"
@@ -161,6 +162,10 @@ func defaultDecimal() decimal.Decimal {
 	return decimal.NewFromInt(0)
 }
 
+func defaultBigint() *big.Int {
+	return big.NewInt(0)
+}
+
 func newPlainEvalCtx(aggEnabled AggEnabledType) *EvalCtx {
 	return &EvalCtx{
 		aggFunc:            AggUnknown,
@@ -168,7 +173,7 @@ func newPlainEvalCtx(aggEnabled AggEnabledType) *EvalCtx {
 		aggEnabled:         aggEnabled,
 		stringAggCollector: StringAggCollector{Separator: "", Sb: strings.Builder{}},
 		sumCollector:       SumCollector{Dec: defaultDecimal()},
-		avgCollector:       AvgCollector{Dec: defaultDecimal()},
+		avgCollector:       AvgCollector{Dec: defaultDecimal(), Int: defaultBigint()},
 		minCollector:       MinCollector{Int: maxSupportedInt, Float: maxSupportedFloat, Dec: maxSupportedDecimal(), Str: ""},
 		maxCollector:       MaxCollector{Int: minSupportedInt, Float: minSupportedFloat, Dec: minSupportedDecimal(), Str: ""},
 		roundDec:           -1,
