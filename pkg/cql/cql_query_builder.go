@@ -85,7 +85,7 @@ func (cd *queryBuilderColumnDefs) add(column string, fieldType eval_capi.TableFi
 	cd.Columns[cd.Len] = column
 	switch fieldType {
 	case eval_capi.FieldTypeInt:
-		cd.Types[cd.Len] = "BIGINT"
+		cd.Types[cd.Len] = "BIGINT" // 64-bit int
 	case eval_capi.FieldTypeDecimal2:
 		cd.Types[cd.Len] = "DECIMAL"
 	case eval_capi.FieldTypeFloat:

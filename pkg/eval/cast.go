@@ -10,6 +10,8 @@ func castNumberToStandardType(arg any) (any, error) {
 	switch typedArg := arg.(type) {
 	case int:
 		return int64(typedArg), nil
+	case int8:
+		return int64(typedArg), nil
 	case int16:
 		return int64(typedArg), nil
 	case int32:
@@ -81,6 +83,8 @@ func castNumberPairToCommonType(argLeft any, argRight any) (any, any, error) {
 func CastToInt64(arg any) (int64, error) {
 	switch typedArg := arg.(type) {
 	case int:
+		return int64(typedArg), nil
+	case int8:
 		return int64(typedArg), nil
 	case int16:
 		return int64(typedArg), nil

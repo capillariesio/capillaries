@@ -13,6 +13,8 @@ func TestCastSingle(t *testing.T) {
 
 	val, _ = castNumberToStandardType(int(12))
 	assert.Equal(t, int64(12), val)
+	val, _ = castNumberToStandardType(int8(12))
+	assert.Equal(t, int64(12), val)
 	val, _ = castNumberToStandardType(int16(12))
 	assert.Equal(t, int64(12), val)
 	val, _ = castNumberToStandardType(int32(12))
@@ -29,6 +31,8 @@ func TestCastSingle(t *testing.T) {
 	assert.Equal(t, "cannot cast 12(string) to standard number type, unsuported type", err.Error())
 
 	val, _ = CastToInt64(int(12))
+	assert.Equal(t, int64(12), val)
+	val, _ = CastToInt64(int8(12))
 	assert.Equal(t, int64(12), val)
 	val, _ = CastToInt64(int16(12))
 	assert.Equal(t, int64(12), val)
