@@ -8,9 +8,9 @@ import (
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/db"
+	"github.com/capillariesio/capillaries/pkg/gocqlmem"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
-	"github.com/gocql/gocql"
 )
 
 func HarvestNodeStatusesForRun(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, affectedNodes []string) (wfmodel.NodeBatchStatusType, string, error) {
@@ -133,7 +133,7 @@ func SetNodeStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, sta
 
 	q := (&cql.QueryBuilder{}).
 		Keyspace(pCtx.Msg.DataKeyspace).
-		WriteForceUnquote("ts", "toTimeStamp(now())").
+		WriteForceUnquote("ts", "toTimestamp(now())").
 		Write("run_id", pCtx.Msg.RunId).
 		Write("script_node", pCtx.Msg.TargetNodeName).
 		Write("status", status).
@@ -152,7 +152,7 @@ func SetNodeStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, sta
 	return isApplied, nil
 }
 
-func GetNodeHistoryForRun(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16) ([]*wfmodel.NodeHistoryEvent, error) {
+func GetNodeHistoryForRun(logger *l.CapiLogger, cqlSession gocqlmem.Session, keyspace string, runId int16) ([]*wfmodel.NodeHistoryEvent, error) {
 	logger.PushF("wfdb.GetNodeHistoryForRun")
 	defer logger.PopF()
 

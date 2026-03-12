@@ -727,7 +727,18 @@ func (eCtx *EvalCtx) Eval(exp ast.Expr) (any, error) {
 	case *ast.BasicLit:
 		switch exp.Kind {
 		case token.INT:
-			i, _ := strconv.ParseInt(exp.Value, 10, 64)
+			i, err := strconv.ParseInt(exp.Value, 10, 64)
+			if err != nil {
+				// Int value may be out of range, try decimal
+				var decValue decimal.Decimal
+				var decError error
+				decValue, decError = decimal.NewFromString(exp.Value)
+				if decError != nil {
+					return nil, fmt.Errorf("cannot eval int %s: int says %s, decimal says %s", exp.Value, err.Error(), decError.Error())
+				}
+				eCtx.value = decValue
+				return decValue, nil
+			}
 			eCtx.value = i
 			return i, nil
 		case token.FLOAT:

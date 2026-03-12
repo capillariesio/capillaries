@@ -9,12 +9,12 @@ import (
 
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/db"
+	"github.com/capillariesio/capillaries/pkg/gocqlmem"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/proc"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/wfdb"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
-	"github.com/gocql/gocql"
 )
 
 const ProhibitedKeyspaceNameRegex = "^system"
@@ -69,7 +69,7 @@ func GetTablesCql(script *sc.ScriptDef, keyspace string, runId int16, startNodeN
 }
 
 // Used by Toolbelt and Webapi to drop Cassandra keyspace
-func DropKeyspace(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string) error {
+func DropKeyspace(logger *l.CapiLogger, cqlSession gocqlmem.Session, keyspace string) error {
 	logger.PushF("api.DropKeyspace")
 	defer logger.PopF()
 
@@ -97,7 +97,7 @@ func DropKeyspace(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace stri
 }
 
 // Used by Webapi to retrieve all runs that happened in this keyspace and their current status
-func HarvestRunLifespans(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runIds []int16) (wfmodel.RunLifespanMap, error) {
+func HarvestRunLifespans(logger *l.CapiLogger, cqlSession gocqlmem.Session, keyspace string, runIds []int16) (wfmodel.RunLifespanMap, error) {
 	logger.PushF("api.HarvestRunLifespans")
 	defer logger.PopF()
 
@@ -105,14 +105,14 @@ func HarvestRunLifespans(logger *l.CapiLogger, cqlSession *gocql.Session, keyspa
 }
 
 // Used by Webapi to retrieve static run properties
-func GetRunProperties(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16) ([]*wfmodel.RunProperties, error) {
+func GetRunProperties(logger *l.CapiLogger, cqlSession gocqlmem.Session, keyspace string, runId int16) ([]*wfmodel.RunProperties, error) {
 	logger.PushF("api.GetRunProperties")
 	defer logger.PopF()
 	return wfdb.GetRunProperties(logger, cqlSession, keyspace, runId)
 }
 
 // Used by Webapi to retrieve each node status history for a run
-func GetNodeHistoryForRun(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16) ([]*wfmodel.NodeHistoryEvent, error) {
+func GetNodeHistoryForRun(logger *l.CapiLogger, cqlSession gocqlmem.Session, keyspace string, runId int16) ([]*wfmodel.NodeHistoryEvent, error) {
 	logger.PushF("api.GetNodeHistoryForRun")
 	defer logger.PopF()
 
@@ -120,7 +120,7 @@ func GetNodeHistoryForRun(logger *l.CapiLogger, cqlSession *gocql.Session, keysp
 }
 
 // Used by Webapi to retrieve batch status history for a run/node pair
-func GetRunNodeBatchHistory(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16, nodeName string) ([]*wfmodel.BatchHistoryEvent, error) {
+func GetRunNodeBatchHistory(logger *l.CapiLogger, cqlSession gocqlmem.Session, keyspace string, runId int16, nodeName string) ([]*wfmodel.BatchHistoryEvent, error) {
 	logger.PushF("api.GetRunNodeBatchHistory")
 	defer logger.PopF()
 	return wfdb.GetRunNodeBatchHistory(logger, cqlSession, keyspace, runId, nodeName)

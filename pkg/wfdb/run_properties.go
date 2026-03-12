@@ -8,12 +8,12 @@ import (
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/db"
+	"github.com/capillariesio/capillaries/pkg/gocqlmem"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
-	"github.com/gocql/gocql"
 )
 
-func GetRunAffectedNodes(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16) ([]string, error) {
+func GetRunAffectedNodes(logger *l.CapiLogger, cqlSession gocqlmem.Session, keyspace string, runId int16) ([]string, error) {
 	logger.PushF("wfdb.GetRunAffectedNodes")
 	defer logger.PopF()
 
@@ -27,11 +27,11 @@ func GetRunAffectedNodes(logger *l.CapiLogger, cqlSession *gocql.Session, keyspa
 	return strings.Split(runPropsList[0].AffectedNodes, ","), nil
 }
 
-// func GetAllRunsProperties(cqlSession *gocql.Session, keyspace string) ([]*wfmodel.RunAffectedNodes, error) {
+// func GetAllRunsProperties(cqlSession gocqlmem.Session, keyspace string) ([]*wfmodel.RunAffectedNodes, error) {
 // 	return getRunProperties(cqlSession, keyspace, 0)
 // }
 
-func GetRunProperties(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16) ([]*wfmodel.RunProperties, error) {
+func GetRunProperties(logger *l.CapiLogger, cqlSession gocqlmem.Session, keyspace string, runId int16) ([]*wfmodel.RunProperties, error) {
 	logger.PushF("wfdb.GetRunProperties")
 	defer logger.PopF()
 
@@ -100,7 +100,7 @@ func HarvestRunIdsByAffectedNodes(logger *l.CapiLogger, pCtx *ctx.MessageProcess
 	return runIds, nodeAffectingRunIdsMap, nil
 }
 
-func WriteRunProperties(cqlSession *gocql.Session, keyspace string, runId int16, startNodes []string, affectedNodes []string, scriptUrl string, scriptParamsUrl string, runDescription string) error {
+func WriteRunProperties(cqlSession gocqlmem.Session, keyspace string, runId int16, startNodes []string, affectedNodes []string, scriptUrl string, scriptParamsUrl string, runDescription string) error {
 	q := (&cql.QueryBuilder{}).
 		Keyspace(keyspace).
 		Write("run_id", runId).

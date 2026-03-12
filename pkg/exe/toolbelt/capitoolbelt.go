@@ -20,6 +20,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/eval_capi"
+	"github.com/capillariesio/capillaries/pkg/gocqlmem"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/mq"
 	"github.com/capillariesio/capillaries/pkg/proc"
@@ -27,7 +28,6 @@ import (
 	"github.com/capillariesio/capillaries/pkg/storage"
 	"github.com/capillariesio/capillaries/pkg/wfdb"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
-	"github.com/gocql/gocql"
 	"github.com/google/uuid"
 )
 
@@ -660,7 +660,7 @@ func protoFileReaderCreator() int {
 }
 
 // Used by Toolbelt (exec_node command), can be used for testing Capillaries node execution without message queue wokflow
-func runNode(envConfig *env.EnvConfig, logger *l.CapiLogger, nodeName string, runId int16, scriptFilePath string, paramsFilePath string, cqlSession *gocql.Session, keyspace string) (int16, error) {
+func runNode(envConfig *env.EnvConfig, logger *l.CapiLogger, nodeName string, runId int16, scriptFilePath string, paramsFilePath string, cqlSession gocqlmem.Session, keyspace string) (int16, error) {
 	logger.PushF("api.RunNode")
 	defer logger.PopF()
 

@@ -96,11 +96,20 @@ func ReadTimeFromRow(fieldName string, r map[string]any) (time.Time, error) {
 }
 
 func ReadInt16FromRow(fieldName string, r map[string]any) (int16, error) {
-	v, ok := r[fieldName].(int)
-	if !ok {
+	switch typedVal := r[fieldName].(type) {
+	case int:
+		return int16(typedVal), nil
+	case int8:
+		return int16(typedVal), nil
+	case int16:
+		return int16(typedVal), nil
+	case int32:
+		return int16(typedVal), nil
+	case int64:
+		return int16(typedVal), nil
+	default:
 		return int16(0), fmt.Errorf("cannot read int16 %s from %v", fieldName, r)
 	}
-	return int16(v), nil
 }
 
 func ReadInt64FromRow(fieldName string, r map[string]any) (int64, error) {

@@ -33,6 +33,7 @@ require (
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.67.5 // indirect
 	github.com/prometheus/procfs v0.20.1 // indirect
+	github.com/twmb/murmur3 v1.1.8 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )

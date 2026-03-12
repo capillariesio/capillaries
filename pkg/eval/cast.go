@@ -132,6 +132,8 @@ func CastToDecimal(arg any) (decimal.Decimal, error) {
 	switch typedArg := arg.(type) {
 	case int:
 		return decimal.NewFromInt(int64(typedArg)), nil
+	case int8:
+		return decimal.NewFromInt(int64(typedArg)), nil
 	case int16:
 		return decimal.NewFromInt(int64(typedArg)), nil
 	case int32:

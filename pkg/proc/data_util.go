@@ -9,14 +9,14 @@ import (
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/eval_capi"
+	"github.com/capillariesio/capillaries/pkg/gocqlmem"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
-	"github.com/gocql/gocql"
 )
 
 const MaxAmazonKeyspacesBatchLen int = 30
 
-// func ClearNodeOutputs(logger *l.Logger, script *sc.ScriptDef, session *gocql.Session, keyspace string, nodeName string, runId int16) error {
+// func ClearNodeOutputs(logger *l.Logger, script *sc.ScriptDef, session gocqlmem.Session, keyspace string, nodeName string, runId int16) error {
 // 	node, ok := script.ScriptNodes[nodeName]
 // 	if !ok {
 // 		return fmt.Errorf("cannot find node %s", nodeName)
@@ -87,7 +87,7 @@ func selectBatchFromDataTablePaged(logger *l.CapiLogger,
 		CondInPrepared("rowid"). // This is a right-side lookup table, select by rowid
 		SelectRun(tableName, lookupNodeRunId, *rs.GetFieldNames())
 
-	var iter *gocql.Iter
+	var iter gocqlmem.Iter
 	selectRetryIdx := 0
 	curSelectExpBackoffFactor := 1
 	var nextPageState []byte
