@@ -93,6 +93,10 @@ func selectBatchFromDataTablePaged(logger *l.CapiLogger,
 	var nextPageState []byte
 	for {
 		iter = pCtx.CqlSession.Query(q, rowids).PageSize(batchSize).PageState(pageState).Iter()
+		if iter.Err() != nil {
+			return nil, db.WrapDbErrorWithQuery("cannot create iterator", q, iter.Err())
+		}
+
 		nextPageState = iter.PageState()
 
 		dbWarnings := iter.Warnings()
@@ -156,6 +160,9 @@ func selectBatchPagedAllRowids(logger *l.CapiLogger,
 		SelectRun(tableName, lookupNodeRunId, *rs.GetFieldNames())
 
 	iter := pCtx.CqlSession.Query(q).PageSize(batchSize).PageState(pageState).Iter()
+	if iter.Err() != nil {
+		return nil, db.WrapDbErrorWithQuery("cannot create iterator", q, iter.Err())
+	}
 	nextPageState := iter.PageState()
 
 	dbWarnings := iter.Warnings()
@@ -209,6 +216,9 @@ func selectBatchFromIdxTablePaged(logger *l.CapiLogger,
 		SelectRun(tableName, lookupNodeRunId, *rs.GetFieldNames())
 
 	iter := pCtx.CqlSession.Query(q, *keysToFind).PageSize(batchSize).PageState(pageState).Iter()
+	if iter.Err() != nil {
+		return nil, db.WrapDbErrorWithQuery("cannot create iterator", q, iter.Err())
+	}
 	nextPageState := iter.PageState()
 
 	dbWarnings := iter.Warnings()
@@ -261,6 +271,9 @@ func selectBatchFromTableByToken(logger *l.CapiLogger,
 	// TODO: consider retries as we do in selectBatchFromDataTablePaged(); although no timeouts were detected so far here
 
 	iter := pCtx.CqlSession.Query(q, startToken, endToken).Iter()
+	if iter.Err() != nil {
+		return 0, db.WrapDbErrorWithQuery("cannot create iterator", q, iter.Err())
+	}
 
 	dbWarnings := iter.Warnings()
 	if len(dbWarnings) > 0 {

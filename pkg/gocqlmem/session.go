@@ -102,7 +102,7 @@ func (s *gocqlmemSession) execInsert(cmd *CommandInsert) (bool, []gocql.ColumnIn
 	return ks.execInsert(cmd)
 }
 
-func (s *gocqlmemSession) execSelect(cmd *CommandSelect, lastSelectedRowIdx int, maxRows int) ([]string, [][]any, []gocql.TypeInfo, int, error) {
+func (s *gocqlmemSession) execSelect(cmd *CommandSelect, lastSelectedRowIdx int, maxRows int, preparedQueryParams []interface{}) ([]string, [][]any, []gocql.TypeInfo, int, error) {
 	s.lock.RLock()
 
 	ks, ksExists := s.keyspaceMap[cmd.GetCtxKeyspace()]
@@ -111,10 +111,10 @@ func (s *gocqlmemSession) execSelect(cmd *CommandSelect, lastSelectedRowIdx int,
 		return []string{}, [][]any{}, []gocql.TypeInfo{}, -1, fmt.Errorf("keyspace %s does not exist", cmd.GetCtxKeyspace())
 	}
 
-	return ks.execSelect(cmd, lastSelectedRowIdx, maxRows)
+	return ks.execSelect(cmd, lastSelectedRowIdx, maxRows, preparedQueryParams)
 }
 
-func (s *gocqlmemSession) execUpdate(cmd *CommandUpdate) (bool, []gocql.ColumnInfo, [][]any, error) {
+func (s *gocqlmemSession) execUpdate(cmd *CommandUpdate, preparedQueryParams []interface{}) (bool, []gocql.ColumnInfo, [][]any, error) {
 	s.lock.RLock()
 
 	ks, ksExists := s.keyspaceMap[cmd.GetCtxKeyspace()]
@@ -123,10 +123,10 @@ func (s *gocqlmemSession) execUpdate(cmd *CommandUpdate) (bool, []gocql.ColumnIn
 		return false, nil, nil, fmt.Errorf("keyspace %s does not exist", cmd.GetCtxKeyspace())
 	}
 
-	return ks.execUpdate(cmd)
+	return ks.execUpdate(cmd, preparedQueryParams)
 }
 
-func (s *gocqlmemSession) execDelete(cmd *CommandDelete) (bool, error) {
+func (s *gocqlmemSession) execDelete(cmd *CommandDelete, preparedQueryParams []interface{}) (bool, error) {
 	s.lock.RLock()
 
 	ks, ksExists := s.keyspaceMap[cmd.GetCtxKeyspace()]
@@ -135,7 +135,7 @@ func (s *gocqlmemSession) execDelete(cmd *CommandDelete) (bool, error) {
 		return false, fmt.Errorf("keyspace %s does not exist", cmd.GetCtxKeyspace())
 	}
 
-	return ks.execDelete(cmd)
+	return ks.execDelete(cmd, preparedQueryParams)
 }
 
 // Session interface

@@ -1,6 +1,8 @@
 package gocqlmem
 
 import (
+	"time"
+
 	gocql "github.com/apache/cassandra-gocql-driver/v2"
 	"gopkg.in/inf.v0"
 )
@@ -48,18 +50,38 @@ func (t *scalarType) Type() gocql.Type {
 
 func (t *scalarType) Zero() interface{} {
 	switch t.typ {
-	case gocql.TypeInt, gocql.TypeBigInt, gocql.TypeSmallInt, gocql.TypeTinyInt:
-		return int64(0)
+	case gocql.TypeInt:
+		v := int32(0)
+		return &v
+	case gocql.TypeBigInt:
+		v := int64(0)
+		return &v
+	case gocql.TypeSmallInt:
+		v := int16(0)
+		return &v
+	case gocql.TypeTinyInt:
+		v := int8(0)
+		return &v
 	case gocql.TypeFloat:
-		return float64(0)
+		v := float32(0)
+		return &v
+	case gocql.TypeDouble:
+		v := float64(0)
+		return &v
 	case gocql.TypeText, gocql.TypeVarchar, gocql.TypeAscii:
-		return ""
+		v := ""
+		return &v
 	case gocql.TypeBoolean:
-		return false
+		v := false
+		return &v
 	case gocql.TypeDecimal:
-		return *inf.NewDec(0, 0)
-	case gocql.TypeBlob:
-		return []byte(nil)
+		return inf.NewDec(0, 0)
+	case gocql.TypeUUID, gocql.TypeTimeUUID:
+		v := gocql.UUID{}
+		return &v
+	case gocql.TypeTimestamp:
+		v := time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC)
+		return &v
 	default:
 		// TODO: raise an alarm
 		return nil

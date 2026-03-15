@@ -81,7 +81,7 @@ func (ks *Keyspace) execInsert(cmd *CommandInsert) (bool, []gocql.ColumnInfo, []
 	return t.execInsert(cmd)
 }
 
-func (ks *Keyspace) execSelect(cmd *CommandSelect, lastSelectedRowIdx int, maxRows int) ([]string, [][]any, []gocql.TypeInfo, int, error) {
+func (ks *Keyspace) execSelect(cmd *CommandSelect, lastSelectedRowIdx int, maxRows int, preparedQueryParams []interface{}) ([]string, [][]any, []gocql.TypeInfo, int, error) {
 	ks.Lock.RLock()
 	defer ks.Lock.RUnlock()
 
@@ -89,10 +89,10 @@ func (ks *Keyspace) execSelect(cmd *CommandSelect, lastSelectedRowIdx int, maxRo
 	if !alreadyExists {
 		return []string{}, [][]any{}, []gocql.TypeInfo{}, -1, fmt.Errorf("cannot select from  table %s, it was not found in the keyspace %s", cmd.TableName, cmd.GetCtxKeyspace())
 	}
-	return t.execSelect(cmd, lastSelectedRowIdx, maxRows)
+	return t.execSelect(cmd, lastSelectedRowIdx, maxRows, preparedQueryParams)
 }
 
-func (ks *Keyspace) execUpdate(cmd *CommandUpdate) (bool, []gocql.ColumnInfo, [][]any, error) {
+func (ks *Keyspace) execUpdate(cmd *CommandUpdate, preparedQueryParams []interface{}) (bool, []gocql.ColumnInfo, [][]any, error) {
 	ks.Lock.RLock()
 	defer ks.Lock.RUnlock()
 
@@ -100,10 +100,10 @@ func (ks *Keyspace) execUpdate(cmd *CommandUpdate) (bool, []gocql.ColumnInfo, []
 	if !alreadyExists {
 		return false, nil, nil, fmt.Errorf("cannot update table %s, it was not found in the keyspace %s", cmd.TableName, cmd.GetCtxKeyspace())
 	}
-	return t.execUpdate(cmd)
+	return t.execUpdate(cmd, preparedQueryParams)
 }
 
-func (ks *Keyspace) execDelete(cmd *CommandDelete) (bool, error) {
+func (ks *Keyspace) execDelete(cmd *CommandDelete, preparedQueryParams []interface{}) (bool, error) {
 	ks.Lock.RLock()
 	defer ks.Lock.RUnlock()
 
@@ -112,5 +112,5 @@ func (ks *Keyspace) execDelete(cmd *CommandDelete) (bool, error) {
 		return false, fmt.Errorf("cannot delete from table %s, it was not found in the keyspace %s", cmd.TableName, cmd.GetCtxKeyspace())
 	}
 
-	return t.execDelete(cmd)
+	return t.execDelete(cmd, preparedQueryParams)
 }

@@ -58,6 +58,31 @@ func TestColumnsAndRowData(t *testing.T) {
 	assert.Equal(t, float64(0.0), rowData.Values[3])
 	assert.Equal(t, *new(inf.Dec), rowData.Values[4])
 }
+func TestIterScan(t *testing.T) {
+	s := NewGocqlmemSession()
+	assert.Nil(t, s.Query("CREATE KEYSPACE ks1").Exec())
+	assert.Nil(t, s.Query("CREATE TABLE ks1.t1 (f_int int, f_text text, f_bool boolean, f_float float, f_dec decimal, primary key (f_int))").Exec())
+
+	var err error
+	err = s.Query("INSERT INTO ks1.t1 (f_int, f_text, f_bool, f_float, f_dec) VALUES (1, '1', TRUE, 1.1, 2.2)").Exec()
+	assert.Nil(t, err)
+
+	iter := s.Query(`SELECT f_int, f_text, f_bool, f_float, f_dec FROM ks1.t1`).Iter()
+	assert.Nil(t, iter.Err())
+
+	resultInt := int32(0)
+	resultText := ""
+	resultBool := false
+	resultFloat := float32(0.0)
+	resultDec := *float64ToDecNoCheck(float64(0.0))
+	ok := iter.Scan(&resultInt, &resultText, &resultBool, &resultFloat, &resultDec)
+	assert.True(t, ok)
+	assert.Equal(t, int32(1), resultInt)
+	assert.Equal(t, "1", resultText)
+	assert.Equal(t, true, resultBool)
+	assert.Equal(t, float32(1.1), resultFloat)
+	assert.Equal(t, *float64ToDecNoCheck(float64(2.2)), resultDec)
+}
 
 func TestScanner(t *testing.T) {
 	s := NewGocqlmemSession()

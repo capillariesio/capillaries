@@ -313,6 +313,39 @@ func TestTableInsert(t *testing.T) {
 	assert.Equal(t, true, existingValues[0][2])
 }
 
+func TestTableSelectInNotIn(t *testing.T) {
+	table := tableStore{
+		columnDefs: []*columnDef{
+			{"col1", PrimaryKeyPartition, gocql.TypeText, ClusteringOrderAsc},
+			{"col2", PrimaryKeyClustering, gocql.TypeBigInt, ClusteringOrderDesc},
+		},
+		columnValues: [][]any{
+			{"a", "a", "c", "d"},
+			{int64(0), int64(1), int64(3), int64(3)},
+		},
+		columnDefMap: map[string]int{"col1": 0, "col2": 1, "col3": 2},
+	}
+	var cmds []Command
+	var cmd *CommandSelect
+	var err error
+	var ok bool
+	var names []string
+	var values [][]any
+	var preparedQueryParams []any
+
+	preparedQueryParams = []any{"c", "d", []any{"a", "c"}, 1}
+	cmds, err = ParseCommands(`SELECT col1, col2, col1 in (?,?), col2 not in (5) FROM ks1.t1 WHERE col1 IN ? AND col2 NOT IN (?);`, preparedQueryParams)
+	assert.Nil(t, err)
+	cmd, ok = cmds[0].(*CommandSelect)
+	assert.True(t, ok)
+	names, values, _, _, err = table.execSelect(cmd, -1, -1, preparedQueryParams)
+	assert.Nil(t, err)
+	assert.Equal(t, "col1,col2,col1 IN (?,?),col2 NOT IN (5)", strings.Join(names, ","))
+	assert.Equal(t, 2, len(values))
+	assert.Equal(t, "[a 0 false true]", fmt.Sprintf("%v", values[0]))
+	assert.Equal(t, "[c 3 true true]", fmt.Sprintf("%v", values[1]))
+}
+
 func TestTableSelect(t *testing.T) {
 	table := tableStore{
 		columnDefs: []*columnDef{
@@ -331,23 +364,25 @@ func TestTableSelect(t *testing.T) {
 	var ok bool
 	var names []string
 	var values [][]any
+	var preparedQueryParams []any
 
-	cmds, err = ParseCommands(`SELECT t.col1+'a' AS c1, cast(col2*5 as text) as c2 FROM ks1.t WHERE t.col1 = 'a'`)
+	preparedQueryParams = []any{5, "a"}
+	cmds, err = ParseCommands(`SELECT t.col1+'a' AS c1, cast(col2*? as text) as c2 FROM ks1.t WHERE t.col1 = ?`, preparedQueryParams)
 	assert.Nil(t, err)
 	cmd, ok = cmds[0].(*CommandSelect)
 	assert.True(t, ok)
-	names, values, _, _, err = table.execSelect(cmd, -1, -1)
+	names, values, _, _, err = table.execSelect(cmd, -1, -1, preparedQueryParams)
 	assert.Nil(t, err)
 	assert.Equal(t, "c1,c2", strings.Join(names, ","))
 	assert.Equal(t, 2, len(values))
 	assert.Equal(t, "[aa 0]", fmt.Sprintf("%v", values[0]))
 	assert.Equal(t, "[aa 5]", fmt.Sprintf("%v", values[1]))
 
-	cmds, err = ParseCommands(`SELECT *, col2 FROM ks1.t WHERE t.col1 = 'a' OR col2 = 3`)
+	cmds, err = ParseCommands(`SELECT *, col2 FROM ks1.t WHERE t.col1 = 'a' OR col2 = 3`, nil)
 	assert.Nil(t, err)
 	cmd, ok = cmds[0].(*CommandSelect)
 	assert.True(t, ok)
-	names, values, _, _, err = table.execSelect(cmd, -1, -1)
+	names, values, _, _, err = table.execSelect(cmd, -1, -1, preparedQueryParams)
 	assert.Nil(t, err)
 	assert.Equal(t, "col1,col2,col2", strings.Join(names, ","))
 	assert.Equal(t, 4, len(values))
@@ -356,11 +391,11 @@ func TestTableSelect(t *testing.T) {
 	assert.Equal(t, "[c 3 3]", fmt.Sprintf("%v", values[2]))
 	assert.Equal(t, "[d 3 3]", fmt.Sprintf("%v", values[3]))
 
-	cmds, err = ParseCommands(`SELECT count(*) as c FROM ks1.t WHERE col1='c'`)
+	cmds, err = ParseCommands(`SELECT count(*) as c FROM ks1.t WHERE col1='c'`, nil)
 	assert.Nil(t, err)
 	cmd, ok = cmds[0].(*CommandSelect)
 	assert.True(t, ok)
-	names, values, _, _, err = table.execSelect(cmd, -1, -1)
+	names, values, _, _, err = table.execSelect(cmd, -1, -1, preparedQueryParams)
 	assert.Nil(t, err)
 	assert.Equal(t, "c", strings.Join(names, ","))
 	assert.Equal(t, 1, len(values))
@@ -389,13 +424,15 @@ func TestTableUpdate(t *testing.T) {
 	var existingValues [][]any
 	var err error
 	var ok bool
+	var preparedQueryParams []any
 
-	cmds, err = ParseCommands(`UPDATE ks1.t SET col3=1001 WHERE t.col1 = 'a'`)
+	preparedQueryParams = []any{1001, "a"}
+	cmds, err = ParseCommands(`UPDATE ks1.t SET col3=? WHERE t.col1 = ?`, preparedQueryParams)
 	assert.Nil(t, err)
 	cmd, ok = cmds[0].(*CommandUpdate)
 	assert.True(t, ok)
 
-	isApplied, existingColumnInfos, existingValues, err = table.execUpdate(cmd)
+	isApplied, existingColumnInfos, existingValues, err = table.execUpdate(cmd, preparedQueryParams)
 	assert.Nil(t, err)
 	assert.True(t, isApplied)
 	assert.Nil(t, existingColumnInfos)
@@ -418,12 +455,12 @@ func TestTableUpdate(t *testing.T) {
 	assert.Equal(t, int64(103), table.columnValues[2][3])
 
 	// UPSERT
-	cmds, err = ParseCommands(`UPDATE ks1.t SET col3=1002 WHERE col1 = 'a' and t.col2 = 100`)
+	cmds, err = ParseCommands(`UPDATE ks1.t SET col3=1002 WHERE col1 = 'a' and t.col2 = 100`, preparedQueryParams)
 	assert.Nil(t, err)
 	cmd, ok = cmds[0].(*CommandUpdate)
 	assert.True(t, ok)
 
-	isApplied, existingColumnInfos, existingValues, err = table.execUpdate(cmd)
+	isApplied, existingColumnInfos, existingValues, err = table.execUpdate(cmd, preparedQueryParams)
 	assert.Nil(t, err)
 	assert.True(t, isApplied)
 	assert.Nil(t, existingColumnInfos)
@@ -471,22 +508,25 @@ func TestTableDelete(t *testing.T) {
 	var err error
 	var ok bool
 	var isApplied bool
+	var preparedQueryParams []any
 
-	cmds, err = ParseCommands(`DELETE col3 FROM ks1.t WHERE t.col1 = 'a'`)
+	preparedQueryParams = []any{"a"}
+
+	cmds, err = ParseCommands(`DELETE col3 FROM ks1.t WHERE t.col1 = ?`, preparedQueryParams)
 	assert.Nil(t, err)
 	cmd, ok = cmds[0].(*CommandDelete)
 	assert.True(t, ok)
-	isApplied, err = table.execDelete(cmd)
+	isApplied, err = table.execDelete(cmd, preparedQueryParams)
 	assert.Nil(t, err)
 	assert.True(t, isApplied)
 	assert.Nil(t, table.columnValues[2][0])
 	assert.Nil(t, table.columnValues[2][1])
 
-	cmds, err = ParseCommands(`DELETE FROM ks1.t WHERE t.col1 = 'a'`)
+	cmds, err = ParseCommands(`DELETE FROM ks1.t WHERE t.col1 = 'a'`, nil)
 	assert.Nil(t, err)
 	cmd, ok = cmds[0].(*CommandDelete)
 	assert.True(t, ok)
-	isApplied, err = table.execDelete(cmd)
+	isApplied, err = table.execDelete(cmd, nil)
 	assert.Nil(t, err)
 	assert.True(t, isApplied)
 	assert.Equal(t, "c", table.columnValues[0][0])

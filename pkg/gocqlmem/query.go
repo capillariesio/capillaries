@@ -215,7 +215,7 @@ func (q *gocqlmemQuery) ExecContext(ctx context.Context) error {
 }
 
 func (q *gocqlmemQuery) Iter() Iter {
-	cmds, err := ParseCommands(q.stmt, q.values...)
+	cmds, err := ParseCommands(q.stmt, q.values)
 	if err != nil {
 		return NewGocqlmemIterWithError(err)
 	}
@@ -260,7 +260,7 @@ func (q *gocqlmemQuery) Iter() Iter {
 				return NewGocqlmemIterWithError(fmt.Errorf("cannot convert page state %v to int: %s", q.pageState, err.Error()))
 			}
 		}
-		names, values, typeInfos, newLastSelectedRowIdx, err := q.session.execSelect(cmd, int(lastSelectedRowIdx), q.pageSize)
+		names, values, typeInfos, newLastSelectedRowIdx, err := q.session.execSelect(cmd, int(lastSelectedRowIdx), q.pageSize, q.values)
 		if err != nil {
 			return NewGocqlmemIterWithError(err)
 		}
@@ -282,7 +282,7 @@ func (q *gocqlmemQuery) Iter() Iter {
 			buf.Bytes())
 
 	case *CommandUpdate:
-		isApplied, existingColumnInfos, existingValues, err := q.session.execUpdate(cmd)
+		isApplied, existingColumnInfos, existingValues, err := q.session.execUpdate(cmd, q.values)
 		if err != nil {
 			return NewGocqlmemIterWithError(err)
 		}
@@ -295,7 +295,7 @@ func (q *gocqlmemQuery) Iter() Iter {
 		return NewGocqlmemIterWithData(cmd.GetCtxKeyspace(), cmd.TableName, existingColumnInfos, existingValues)
 
 	case *CommandDelete:
-		isApplied, err := q.session.execDelete(cmd)
+		isApplied, err := q.session.execDelete(cmd, q.values)
 		if err != nil {
 			return NewGocqlmemIterWithError(err)
 		}

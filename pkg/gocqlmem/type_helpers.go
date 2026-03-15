@@ -70,7 +70,7 @@ func isValidDataType(typ string) bool {
 	return err == nil
 }
 
-func castToInternalType(val any, cqlType gocql.Type) (any, error) {
+func castToInternalKnownType(val any, cqlType gocql.Type) (any, error) {
 	// We assume that nils are allowed for this column
 	if val == nil {
 		return nil, nil
@@ -143,7 +143,7 @@ func castToInternalType(val any, cqlType gocql.Type) (any, error) {
 	}
 }
 
-func compareInternalType(left any, right any, cqlType gocql.Type) (int, error) {
+func compareInternalKnownType(left any, right any, cqlType gocql.Type) (int, error) {
 	if left == nil {
 		return 0, fmt.Errorf("left is nil, not allowed in partition/clustering key comparison, dev error")
 	}
@@ -249,10 +249,12 @@ func clientTypedValueToProvidedPtr(src any, destPtr any) error {
 		}
 	case int32:
 		switch typedDestPtr := destPtr.(type) {
-		case *int32:
-			*typedDestPtr = typedSrc
 		case *int:
 			*typedDestPtr = int(typedSrc)
+		case *int32:
+			*typedDestPtr = typedSrc
+		case *int64:
+			*typedDestPtr = int64(typedSrc)
 		default:
 			return fmt.Errorf("cannot store int32/int %v(%T) to %T", typedSrc, typedSrc, destPtr)
 		}
@@ -260,6 +262,12 @@ func clientTypedValueToProvidedPtr(src any, destPtr any) error {
 		switch typedDestPtr := destPtr.(type) {
 		case *int16:
 			*typedDestPtr = typedSrc
+		case *int:
+			*typedDestPtr = int(typedSrc)
+		case *int32:
+			*typedDestPtr = int32(typedSrc)
+		case *int64:
+			*typedDestPtr = int64(typedSrc)
 		default:
 			return fmt.Errorf("cannot store int16 %v(%T) to %T", typedSrc, typedSrc, destPtr)
 		}
@@ -267,6 +275,14 @@ func clientTypedValueToProvidedPtr(src any, destPtr any) error {
 		switch typedDestPtr := destPtr.(type) {
 		case *int8:
 			*typedDestPtr = typedSrc
+		case *int16:
+			*typedDestPtr = int16(typedSrc)
+		case *int:
+			*typedDestPtr = int(typedSrc)
+		case *int32:
+			*typedDestPtr = int32(typedSrc)
+		case *int64:
+			*typedDestPtr = int64(typedSrc)
 		default:
 			return fmt.Errorf("cannot store int8 %v(%T) to %T", typedSrc, typedSrc, destPtr)
 		}
@@ -281,6 +297,8 @@ func clientTypedValueToProvidedPtr(src any, destPtr any) error {
 		switch typedDestPtr := destPtr.(type) {
 		case *float32:
 			*typedDestPtr = typedSrc
+		case *float64:
+			*typedDestPtr = float64(typedSrc)
 		default:
 			return fmt.Errorf("cannot store float32 %v(%T) to %T", typedSrc, typedSrc, destPtr)
 		}
@@ -304,6 +322,13 @@ func clientTypedValueToProvidedPtr(src any, destPtr any) error {
 			*typedDestPtr = typedSrc
 		default:
 			return fmt.Errorf("cannot store decimal %v(%T) to %T", typedSrc, typedSrc, destPtr)
+		}
+	case time.Time:
+		switch typedDestPtr := destPtr.(type) {
+		case *time.Time:
+			*typedDestPtr = typedSrc
+		default:
+			return fmt.Errorf("cannot store time.Time  %v(%T) to %T", typedSrc, typedSrc, destPtr)
 		}
 	default:
 		return fmt.Errorf("cannot store %v(%T) to %T, type not supported", src, src, destPtr)
@@ -371,4 +396,102 @@ func float64ToDec(f float64) (*inf.Dec, error) {
 func float64ToDecNoCheck(f float64) *inf.Dec {
 	d, _ := float64ToDec(f)
 	return d
+}
+
+func castToInternalType(val any) (any, error) {
+	// We assume that nils are allowed for this column
+	if val == nil {
+		return nil, nil
+	}
+
+	switch typedVal := val.(type) {
+	case int, int8, int16, int32, int64:
+		return eval.CastToInt64(val)
+
+	case float32, float64:
+		return eval.CastToFloat64(val)
+
+	case inf.Dec:
+		return decimal.NewFromString(typedVal.String())
+
+	case bool:
+		typedVal, ok := any(val).(bool)
+		if !ok {
+			return 0, fmt.Errorf("cast %v to bool failed", val)
+		}
+		return typedVal, nil
+
+	case gocql.UUID:
+		return typedVal, nil
+
+	case string:
+		return typedVal, nil
+
+	case time.Time:
+		return typedVal, nil
+
+	default:
+		return 0, fmt.Errorf("cannot cast to internal type %T(%v)", typedVal, typedVal)
+	}
+}
+
+func compareInternalInExpressions(left any, right any) bool {
+	if left == nil && right == nil {
+		return true
+	}
+	if left == nil && right != nil || left != nil && right == nil {
+		return true
+	}
+
+	// left and right are guaranteed to be internal, so no int8 mess
+	switch typedLeft := left.(type) {
+	case int64:
+		switch typedRight := right.(type) {
+		case int64:
+			return typedLeft == typedRight
+		case float64:
+			return float64(typedLeft) == typedRight
+		case decimal.Decimal:
+			return decimal.NewFromInt(typedLeft).Equal(typedRight)
+		}
+
+	case float64:
+		switch typedRight := right.(type) {
+		case float64:
+			return typedLeft == typedRight
+		case int64:
+			return typedLeft == float64(typedRight)
+		case decimal.Decimal:
+			return decimal.NewFromFloat(typedLeft).Equal(typedRight)
+		}
+
+	case decimal.Decimal:
+		switch typedRight := right.(type) {
+		case int64:
+			return typedLeft.Equal(decimal.NewFromInt(typedRight))
+		case float64:
+			return typedLeft.Equal(decimal.NewFromFloat(typedRight))
+		case decimal.Decimal:
+			return typedLeft.Equal(typedRight)
+		}
+
+	case gocql.UUID:
+		switch typedRight := right.(type) {
+		case gocql.UUID:
+			return typedLeft.String() == typedRight.String()
+		}
+
+	case bool:
+		switch typedRight := right.(type) {
+		case bool:
+			return typedLeft == typedRight
+		}
+
+	case string:
+		switch typedRight := right.(type) {
+		case string:
+			return typedLeft == typedRight
+		}
+	}
+	return false
 }

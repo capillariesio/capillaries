@@ -19,6 +19,8 @@ import (
 // Assuming that all CQL functions are lowercase
 var GocqlmemEvalFunctions = map[string]eval.EvalFunction{
 	"cast":              callCast,
+	"cqlin":             callCqlIn,
+	"cqlnotin":          callCqlNotIn,
 	"token":             callToken,
 	"current_timestamp": callCurrentTimestamp,
 	"current_date":      callCurrentDate,
@@ -170,6 +172,32 @@ func callCast(args []any) (any, error) {
 	}
 }
 
+func callCqlIn(args []any) (any, error) {
+	if len(args) < 2 {
+		return nil, fmt.Errorf("cannot evaluate IN: no values in the list")
+	}
+
+	for i := 1; i < len(args); i++ {
+		if compareInternalInExpressions(args[0], args[i]) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func callCqlNotIn(args []any) (any, error) {
+	if len(args) < 2 {
+		return nil, fmt.Errorf("cannot evaluate NOT IN: no values in the list")
+	}
+
+	for i := 1; i < len(args); i++ {
+		if compareInternalInExpressions(args[0], args[i]) {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
 func callToken(args []any) (any, error) {
 	if err := eval.CheckArgs("token", 1, len(args)); err != nil {
 		return nil, err
@@ -193,7 +221,7 @@ func callToken(args []any) (any, error) {
 		binary.LittleEndian.PutUint64(b, uint64(typedValInt64))
 		var h64 hash.Hash64 = murmur3.New64()
 		h64.Write(b)
-		return h64.Sum64(), nil
+		return int64(h64.Sum64()), nil
 
 	case float32, float64:
 		var typedValFloat64 float64

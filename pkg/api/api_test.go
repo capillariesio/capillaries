@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/capillariesio/capillaries/pkg/custom/py_calc"
@@ -10,6 +11,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/mq"
 	"github.com/capillariesio/capillaries/pkg/sc"
+	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -45,6 +47,8 @@ func TestRun(t *testing.T) {
 
 	_, err = StartRun(&envConfig, logger, &mqProducer, "/tmp/capi_cfg/lookup_quicktest/script_quick.yaml", "/tmp/capi_cfg/lookup_quicktest/script_params_quick_fs_one.yaml", gocqlmemSession, cassandraEngineType, "testkeyspace", []string{"read_orders", "read_order_items"}, "test run")
 	assert.Nil(t, err)
+
+	var nodeRunStatus string
 	for {
 		msg := mqProducer.PeekHead()
 		if msg == nil {
@@ -55,6 +59,19 @@ func TestRun(t *testing.T) {
 			mqProducer.RemoveHead()
 		} else {
 			mqProducer.MoveHeadToTail()
+		}
+		nodeHistory, err := GetNodeHistoryForRuns(logger, gocqlmemSession, "testkeyspace", []int16{int16(1)})
+		assert.Nil(t, err)
+
+		newNodeRunStatusMap := map[string]wfmodel.NodeBatchStatusType{}
+		for _, nodeEvent := range nodeHistory {
+			newNodeRunStatusMap[nodeEvent.ScriptNode] = nodeEvent.Status
+		}
+
+		newNodeRunStatus := fmt.Sprintf("%v", newNodeRunStatusMap)
+		if nodeRunStatus != newNodeRunStatus {
+			nodeRunStatus = newNodeRunStatus
+			logger.Info("RUNSTATUS: %s", nodeRunStatus)
 		}
 	}
 }

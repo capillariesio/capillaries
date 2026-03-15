@@ -2,8 +2,10 @@ package gocqlmem
 
 import (
 	"fmt"
+	"time"
 
 	gocql "github.com/apache/cassandra-gocql-driver/v2"
+	"gopkg.in/inf.v0"
 )
 
 type gocqlmemIter struct {
@@ -86,7 +88,9 @@ func (iter *gocqlmemIter) Scan(dest ...interface{}) bool {
 	}
 
 	for i := range len(iter.retrievedColumnInfos) {
-		dest[i] = iter.retrievedValues[iter.pos][i]
+		if err := clientTypedValueToProvidedPtr(iter.retrievedValues[iter.pos][i], dest[i]); err != nil {
+			iter.SetErr(fmt.Errorf("cannot scan column %d: %s", i, err.Error()))
+		}
 	}
 
 	iter.pos++
@@ -192,11 +196,36 @@ func (iter *gocqlmemIter) SliceMap() ([]map[string]interface{}, error) {
 
 	// Not checking for the error because we just did
 	rowData, _ := iter.RowData()
-	dataToReturn := make([]map[string]interface{}, 0)
+	dataToReturn := make([]map[string]any, 0)
 	for iter.Scan(rowData.Values...) {
 		m := make(map[string]interface{}, len(rowData.Columns))
 		for i, column := range rowData.Columns {
-			m[column] = rowData.Values[i]
+			switch typedVal := rowData.Values[i].(type) {
+			case *int:
+				m[column] = *typedVal
+			case *int8:
+				m[column] = *typedVal
+			case *int16:
+				m[column] = *typedVal
+			case *int32:
+				m[column] = *typedVal
+			case *int64:
+				m[column] = *typedVal
+			case *float32:
+				m[column] = *typedVal
+			case *float64:
+				m[column] = *typedVal
+			case *string:
+				m[column] = *typedVal
+			case *bool:
+				m[column] = *typedVal
+			case *gocql.UUID:
+				m[column] = *typedVal
+			case *inf.Dec:
+				m[column] = *typedVal
+			case *time.Time:
+				m[column] = *typedVal
+			}
 		}
 		dataToReturn = append(dataToReturn, m)
 	}
@@ -215,11 +244,36 @@ func (iter *gocqlmemIter) MapScan(dest map[string]interface{}) bool {
 		clear(dest)
 	}
 
-	rowDataValues := make([]any, len(iter.retrievedColumnInfos))
-	if iter.Scan(rowDataValues...) {
+	rowData, _ := iter.RowData()
+	if iter.Scan(rowData.Values...) {
 		if dest != nil {
 			for i, columnInfo := range iter.retrievedColumnInfos {
-				dest[columnInfo.Name] = rowDataValues[i]
+				switch typedVal := rowData.Values[i].(type) {
+				case *int:
+					dest[columnInfo.Name] = *typedVal
+				case *int8:
+					dest[columnInfo.Name] = *typedVal
+				case *int16:
+					dest[columnInfo.Name] = *typedVal
+				case *int32:
+					dest[columnInfo.Name] = *typedVal
+				case *int64:
+					dest[columnInfo.Name] = *typedVal
+				case *float32:
+					dest[columnInfo.Name] = *typedVal
+				case *float64:
+					dest[columnInfo.Name] = *typedVal
+				case *string:
+					dest[columnInfo.Name] = *typedVal
+				case *bool:
+					dest[columnInfo.Name] = *typedVal
+				case *gocql.UUID:
+					dest[columnInfo.Name] = *typedVal
+				case *inf.Dec:
+					dest[columnInfo.Name] = *typedVal
+				case *time.Time:
+					dest[columnInfo.Name] = *typedVal
+				}
 			}
 		}
 		return true

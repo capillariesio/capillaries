@@ -1,6 +1,9 @@
 package gocqlmem
 
 import (
+	"fmt"
+	"go/ast"
+	"strings"
 	"testing"
 
 	gocql "github.com/apache/cassandra-gocql-driver/v2"
@@ -8,7 +11,7 @@ import (
 )
 
 func TestCreateKeyspace(t *testing.T) {
-	cmds, err := ParseCommands(`CREATE KEYSPACE IF NOT EXISTS ks1 WITH REPLICATION { 'class': 'NetworkTopologyStrategy', 'datacenter1': 3, 'datacenter2': 3}`)
+	cmds, err := ParseCommands(`CREATE KEYSPACE IF NOT EXISTS ks1 WITH REPLICATION { 'class': 'NetworkTopologyStrategy', 'datacenter1': 3, 'datacenter2': 3}`, nil)
 	assert.Nil(t, err)
 	cmd, ok := cmds[0].(*CommandCreateKeyspace)
 	assert.True(t, ok)
@@ -26,7 +29,7 @@ func TestCreateKeyspace(t *testing.T) {
 }
 
 func TestUseKeyspace(t *testing.T) {
-	cmds, err := ParseCommands(`USE ks1; select f1 FROM t1;`)
+	cmds, err := ParseCommands(`USE ks1; select f1 FROM t1;`, nil)
 	assert.Nil(t, err)
 
 	cmd, ok := cmds[0].(*CommandUseKeyspace)
@@ -37,12 +40,12 @@ func TestUseKeyspace(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, "ks1", cmds[1].GetCtxKeyspace())
 
-	cmds, err = ParseCommands(`select f1 FROM t1;`)
+	cmds, err = ParseCommands(`select f1 FROM t1;`, nil)
 	assert.Contains(t, err.Error(), "cannot detect keyspace for command 0")
 }
 
 func TestDropKeyspace(t *testing.T) {
-	cmds, err := ParseCommands(`DROP KEYSPACE IF EXISTS ks1;`)
+	cmds, err := ParseCommands(`DROP KEYSPACE IF EXISTS ks1;`, nil)
 	assert.Nil(t, err)
 
 	cmd, ok := cmds[0].(*CommandDropKeyspace)
@@ -52,7 +55,7 @@ func TestDropKeyspace(t *testing.T) {
 }
 
 func TestCreateTable(t *testing.T) {
-	cmds, err := ParseCommands(`CREATE TABLE IF NOT EXISTS ks1.t1 (f1 TEXT, f2 TIMESTAMP, f3 BIGINT, f4 BIGINT, PRIMARY KEY((f1,f2), f3, f4) ) WITH CLUSTERING ORDER BY (f3 ASC, f4 DESC)`)
+	cmds, err := ParseCommands(`CREATE TABLE IF NOT EXISTS ks1.t1 (f1 TEXT, f2 TIMESTAMP, f3 BIGINT, f4 BIGINT, PRIMARY KEY((f1,f2), f3, f4) ) WITH CLUSTERING ORDER BY (f3 ASC, f4 DESC)`, nil)
 	assert.Nil(t, err)
 	cr, ok := cmds[0].(*CommandCreateTable)
 	assert.True(t, ok)
@@ -77,7 +80,7 @@ func TestCreateTable(t *testing.T) {
 	assert.Equal(t, "f4", cr.ClusteringOrderBy[1].FieldName)
 	assert.Equal(t, ClusteringOrderDesc, cr.ClusteringOrderBy[1].ClusteringOrder)
 
-	cmds, err = ParseCommands(`USE ks1;CREATE  TABLE   t1  ( f1  TEXT,  PRIMARY  KEY ( ( f1 ) )  ) `)
+	cmds, err = ParseCommands(`USE ks1;CREATE  TABLE   t1  ( f1  TEXT,  PRIMARY  KEY ( ( f1 ) )  ) `, nil)
 	assert.Nil(t, err)
 	cr, ok = cmds[1].(*CommandCreateTable)
 	assert.True(t, ok)
@@ -91,7 +94,7 @@ func TestCreateTable(t *testing.T) {
 
 	assert.Equal(t, "f1", cr.PartitionKeyColumns[0])
 
-	cmds, err = ParseCommands(`CREATE  TABLE   ks1.t1  ( f1  TEXT, f2 BIGINT,  PRIMARY  KEY ( f1, f2 )  ) `)
+	cmds, err = ParseCommands(`CREATE  TABLE   ks1.t1  ( f1  TEXT, f2 BIGINT,  PRIMARY  KEY ( f1, f2 )  ) `, nil)
 	assert.Nil(t, err)
 	cr, ok = cmds[0].(*CommandCreateTable)
 	assert.True(t, ok)
@@ -106,30 +109,30 @@ func TestCreateTable(t *testing.T) {
 	assert.Equal(t, "f1", cr.PartitionKeyColumns[0])
 	assert.Equal(t, "f2", cr.ClusteringKeyColumns[0])
 
-	cmds, err = ParseCommands(`CREATE  TABLE   ks1.t1  ( f1  TEXT ) `)
+	cmds, err = ParseCommands(`CREATE  TABLE   ks1.t1  ( f1  TEXT ) `, nil)
 	assert.Contains(t, err.Error(), "expected PRIMARY KEY")
 
-	cmds, err = ParseCommands(`CREATE TABLE ks1.t1 ( PRIMARY KEY() )`)
+	cmds, err = ParseCommands(`CREATE TABLE ks1.t1 ( PRIMARY KEY() )`, nil)
 	assert.Contains(t, err.Error(), "cannot parse CREATE TABLE with empty columnn def list")
 
-	cmds, err = ParseCommands(`CREATE TABLE ks1.t1 ( f1 TEXT, PRIMARY KEY() )`)
+	cmds, err = ParseCommands(`CREATE TABLE ks1.t1 ( f1 TEXT, PRIMARY KEY() )`, nil)
 	assert.Contains(t, err.Error(), "cannot parse CREATE TABLE with empty partition column list")
 
-	cmds, err = ParseCommands(`CREATE TABLE IF NOT EXISTS ks1.t1 (f1 TEXT, PRIMARY KEY(f1, f2) ) WITH CLUSTERING ORDER BY (f1 ASC)`)
+	cmds, err = ParseCommands(`CREATE TABLE IF NOT EXISTS ks1.t1 (f1 TEXT, PRIMARY KEY(f1, f2) ) WITH CLUSTERING ORDER BY (f1 ASC)`, nil)
 	assert.Contains(t, err.Error(), "clustering order field f1 specified, but it's not among clustering keys")
 
-	cmds, err = ParseCommands(`CREATE TABLE IF NOT EXISTS ks1.t1 (f1 TEXT, PRIMARY KEY(f2) )`)
+	cmds, err = ParseCommands(`CREATE TABLE IF NOT EXISTS ks1.t1 (f1 TEXT, PRIMARY KEY(f2) )`, nil)
 	assert.Contains(t, err.Error(), "partition key f2 not found in column definitions")
 
-	cmds, err = ParseCommands(`CREATE TABLE IF NOT EXISTS ks1.t1 (f1 TEXT, PRIMARY KEY(f1, f2) )`)
+	cmds, err = ParseCommands(`CREATE TABLE IF NOT EXISTS ks1.t1 (f1 TEXT, PRIMARY KEY(f1, f2) )`, nil)
 	assert.Contains(t, err.Error(), "clustering key f2 not found in column definitions")
 
-	cmds, err = ParseCommands(`CREATE TABLE IF NOT EXISTS ks1.t1 (f1 TEXT, PRIMARY KEY(f1, f1) )`)
+	cmds, err = ParseCommands(`CREATE TABLE IF NOT EXISTS ks1.t1 (f1 TEXT, PRIMARY KEY(f1, f1) )`, nil)
 	assert.Contains(t, err.Error(), "clustering key f1 duplication")
 }
 
 func TestTruncateTable(t *testing.T) {
-	cmds, err := ParseCommands(`USE ks1;TRUNCATE t1;TRUNCATE ks2.t1`)
+	cmds, err := ParseCommands(`USE ks1;TRUNCATE t1;TRUNCATE ks2.t1`, nil)
 	assert.Nil(t, err)
 	cmd, ok := cmds[1].(*CommandTruncateTable)
 	assert.True(t, ok)
@@ -142,7 +145,7 @@ func TestTruncateTable(t *testing.T) {
 }
 
 func TestDropTable(t *testing.T) {
-	cmds, err := ParseCommands(`USE ks1;DROP TABLE IF EXISTS t1;DROP TABLE ks2.t1`)
+	cmds, err := ParseCommands(`USE ks1;DROP TABLE IF EXISTS t1;DROP TABLE ks2.t1`, nil)
 	assert.Nil(t, err)
 	cmd, ok := cmds[1].(*CommandDropTable)
 	assert.True(t, ok)
@@ -157,7 +160,7 @@ func TestDropTable(t *testing.T) {
 }
 
 func TestSelect(t *testing.T) {
-	cmds, err := ParseCommands(`SELECT sum(f1) - ' FROM ', f2 + ' , ', (f3 * 3 = 9) = TRUE AND 1=NULL OR FALSE, cast(f3 as int) FROM ks1.t1 WHERE f1 / 2 = 10 and (f2 = 'a"') ORDER BY f1 asc, f2 desc LIMIT 10`)
+	cmds, err := ParseCommands(`SELECT sum(f1) - ' FROM ', f2 + ' , ', (f3 * 3 = 9) = TRUE AND 1=NULL OR FALSE, cast(f3 as int) FROM ks1.t1 WHERE f1 / 2 = 10 and (f2 = 'a"') ORDER BY f1 asc, f2 desc LIMIT 10`, nil)
 	assert.Nil(t, err)
 	cmd, ok := cmds[0].(*CommandSelect)
 	assert.True(t, ok)
@@ -220,7 +223,7 @@ func TestSelect(t *testing.T) {
 
 	assert.Equal(t, "10", cmd.Limit.V)
 
-	cmds, err = ParseCommands(`SELECT f1 AS ff11 FROM ks1.t1; ; ;SELECT f2 FROM ks1.t2; ; ;`)
+	cmds, err = ParseCommands(`SELECT f1 AS ff11 FROM ks1.t1; ; ;SELECT f2 FROM ks1.t2; ; ;`, nil)
 	assert.Nil(t, err)
 
 	assert.Equal(t, 2, len(cmds))
@@ -241,15 +244,15 @@ func TestSelect(t *testing.T) {
 	assert.Equal(t, "f2", cmd.SelectExpLexems[0][0].V)
 	assert.Equal(t, "t2", cmd.TableName)
 
-	cmds, err = ParseCommands(`SELECT FROM ks1.t1`)
+	cmds, err = ParseCommands(`SELECT FROM ks1.t1`, nil)
 	assert.Contains(t, err.Error(), "expected select expressions")
 
-	cmds, err = ParseCommands(`SELECT f1 FROM t1;bla`)
+	cmds, err = ParseCommands(`SELECT f1 FROM t1;bla`, nil)
 	assert.Contains(t, err.Error(), "unexpected command text, a semicolon expected")
 }
 
 func TestAs(t *testing.T) {
-	cmds, err := ParseCommands(`SELECT max(cast(f1 * 32.0 as int)) as f11, f2 FROM ks1.t1 WHERE cast(f1 as text) = '1'`)
+	cmds, err := ParseCommands(`SELECT max(cast(f1 * 32.0 as int)) as f11, f2 FROM ks1.t1 WHERE cast(f1 as text) = '1'`, nil)
 	assert.Nil(t, err)
 	cmd, ok := cmds[0].(*CommandSelect)
 	assert.True(t, ok)
@@ -280,8 +283,38 @@ func TestAs(t *testing.T) {
 	assert.Equal(t, "text", cmd.WhereExpLexems[4].V)
 	assert.Equal(t, ")", cmd.WhereExpLexems[5].V)
 }
+
+func lexemSliceToString(lexems []*Lexem) string {
+	sb := strings.Builder{}
+	for i, l := range lexems {
+		if i != 0 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString(l.V)
+	}
+	return sb.String()
+}
+
+func TestInNotIn(t *testing.T) {
+	cmds, err := ParseCommands(`SELECT f1 * 2 IN (3+4,5+6), f1 * 7 NOT IN (?, ?) FROM ks1.t1 WHERE f1 IN ? AND f2 NOT IN (?, ?)`, []any{8, 9, []int16{10, 11}, "12", "13"})
+	assert.Nil(t, err)
+	cmd, ok := cmds[0].(*CommandSelect)
+	assert.True(t, ok)
+
+	assert.Equal(t, "ks1", cmd.CtxKeyspace)
+
+	assert.Equal(t, "f1 * 2 == cqlin ( 3 + 4 , 5 + 6 )", lexemSliceToString(cmd.SelectExpLexems[0]))
+	assert.Contains(t, fmt.Sprintf("%v", cmd.SelectExpAsts[0]), "&{cqlin ")
+	assert.Equal(t, "f1 * 7 == cqlnotin ( params.param000 , params.param001 )", lexemSliceToString(cmd.SelectExpLexems[1]))
+	assert.Contains(t, fmt.Sprintf("%v", cmd.SelectExpAsts[1]), "&{cqlnotin ")
+	assert.Equal(t, "t1", cmd.TableName)
+	assert.Equal(t, "f1 == cqlin ( params.param002_000 , params.param002_001 ) && f2 == cqlnotin ( params.param003 , params.param004 )", lexemSliceToString(cmd.WhereExpLexems))
+	assert.Contains(t, fmt.Sprintf("%v", cmd.WhereExpAst.(*ast.BinaryExpr).X), "&{cqlin ")
+	assert.Contains(t, fmt.Sprintf("%v", cmd.WhereExpAst.(*ast.BinaryExpr).Y), "&{cqlnotin ")
+}
+
 func TestInsert(t *testing.T) {
-	cmds, err := ParseCommands(`USE ks1;INSERT INTO t1 (f1,f2,f3) values ('a',NULL,TRUE) IF NOT EXISTS`)
+	cmds, err := ParseCommands(`USE ks1;INSERT INTO t1 (f1,f2,f3) values ('a',NULL,TRUE) IF NOT EXISTS`, nil)
 	assert.Nil(t, err)
 	cmd, ok := cmds[1].(*CommandInsert)
 	assert.True(t, ok)
@@ -298,7 +331,7 @@ func TestInsert(t *testing.T) {
 
 	assert.True(t, cmd.IfNotExists)
 
-	cmds, err = ParseCommands(`USE ks1;INSERT INTO t1 (f1,f2,f3) values (?,?,?)`, 1, 2, 3)
+	cmds, err = ParseCommands(`USE ks1;INSERT INTO t1 (f1,f2,f3) values (?,?,?)`, []any{1, 2, 3})
 	assert.Nil(t, err)
 	cmd, ok = cmds[1].(*CommandInsert)
 	assert.True(t, ok)
@@ -310,15 +343,15 @@ func TestInsert(t *testing.T) {
 	assert.Equal(t, 2, cmd.ColumnValues[1])
 	assert.Equal(t, 3, cmd.ColumnValues[2])
 
-	cmds, err = ParseCommands(`INSERT INTO ks1.t1 () values ()`)
+	cmds, err = ParseCommands(`INSERT INTO ks1.t1 () values ()`, nil)
 	assert.Contains(t, err.Error(), "column list cannot be empty")
 
-	cmds, err = ParseCommands(`INSERT INTO ks1.t1 (f1) values ()`)
+	cmds, err = ParseCommands(`INSERT INTO ks1.t1 (f1) values ()`, nil)
 	assert.Contains(t, err.Error(), "value list length (0) should match column list length (1)")
 }
 
 func TestUpdate(t *testing.T) {
-	cmds, err := ParseCommands(`UPDATE ks1.t1 SET f1 = 1+2, f2 = 'a'='b', f3 = token(f2), f4=NULL WHERE f1 = 10 AND f2 IN ( 'c', 'd') OR f2 NOT IN ('e') IF EXISTS`)
+	cmds, err := ParseCommands(`UPDATE ks1.t1 SET f1 = 1+2, f2 = 'a'='b', f3 = token(f2), f4=NULL WHERE f1 = 10 AND f2 IN ( 'c', 'd') OR f2 NOT IN ('e') IF EXISTS`, nil)
 	assert.Nil(t, err)
 	cmd, ok := cmds[0].(*CommandUpdate)
 	assert.True(t, ok)
@@ -368,7 +401,7 @@ func TestUpdate(t *testing.T) {
 
 	assert.True(t, cmd.IfExists)
 
-	cmds, err = ParseCommands(`use ks1;UPDATE t1 SET f1 = 1 IF f2 = 2`)
+	cmds, err = ParseCommands(`use ks1;UPDATE t1 SET f1 = 1 IF f2 = 2`, nil)
 	assert.Nil(t, err)
 	cmd, ok = cmds[1].(*CommandUpdate)
 	assert.True(t, ok)
@@ -386,7 +419,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	cmds, err := ParseCommands(`USE ks1;DELETE t1.col1 FROM t1 WHERE f1 = NULL IF EXISTS;DELETE FROM ks2.t1`)
+	cmds, err := ParseCommands(`USE ks1;DELETE t1.col1 FROM t1 WHERE f1 = NULL IF EXISTS;DELETE FROM ks2.t1`, nil)
 	assert.Nil(t, err)
 	cmd, ok := cmds[1].(*CommandDelete)
 	assert.True(t, ok)
