@@ -26,6 +26,26 @@ type gocqlmemIter struct {
 	pagingState          []byte
 }
 
+func (iter *gocqlmemIter) guessTypeInfosFromData() error {
+	for colIdx := range len(iter.retrievedColumnInfos) {
+		if iter.retrievedColumnInfos[colIdx].TypeInfo != nil {
+			continue
+		}
+		for rowIdx := range len(iter.retrievedValues) {
+			if iter.retrievedValues[rowIdx][colIdx] == nil {
+				continue
+			}
+			typ, err := guessClientValueType(iter.retrievedValues[rowIdx][colIdx])
+			if err != nil {
+				return err
+			}
+			iter.retrievedColumnInfos[colIdx].TypeInfo = &scalarType{typ: typ}
+			break
+		}
+	}
+	return nil // WARNING: if all retrieved values for a column X are nil, correspondent TypeInfo will be nil
+}
+
 func NewGocqlmemIterWithError(err error) *gocqlmemIter {
 	return &gocqlmemIter{err: err}
 }
@@ -34,11 +54,15 @@ func NewGocqlmemIterWithKeyspace(ks string) *gocqlmemIter {
 }
 
 func NewGocqlmemIterWithData(ks string, table string, infos []gocql.ColumnInfo, values [][]any) *gocqlmemIter {
-	return &gocqlmemIter{keyspace: ks, table: table, retrievedColumnInfos: infos, retrievedValues: values}
+	iter := gocqlmemIter{keyspace: ks, table: table, retrievedColumnInfos: infos, retrievedValues: values}
+	iter.err = iter.guessTypeInfosFromData()
+	return &iter
 }
 
 func NewGocqlmemIterWithDataAndPagingState(ks string, table string, infos []gocql.ColumnInfo, values [][]any, pagingState []byte) *gocqlmemIter {
-	return &gocqlmemIter{keyspace: ks, table: table, retrievedColumnInfos: infos, retrievedValues: values, pagingState: pagingState}
+	iter := gocqlmemIter{keyspace: ks, table: table, retrievedColumnInfos: infos, retrievedValues: values, pagingState: pagingState}
+	iter.err = iter.guessTypeInfosFromData()
+	return &iter
 }
 
 // Iter interface
@@ -90,6 +114,7 @@ func (iter *gocqlmemIter) Scan(dest ...interface{}) bool {
 	for i := range len(iter.retrievedColumnInfos) {
 		if err := clientTypedValueToProvidedPtr(iter.retrievedValues[iter.pos][i], dest[i]); err != nil {
 			iter.SetErr(fmt.Errorf("cannot scan column %d: %s", i, err.Error()))
+			return false
 		}
 	}
 
@@ -178,12 +203,13 @@ func (iter *gocqlmemIter) RowData() (gocql.RowData, error) {
 		Values:  make([]interface{}, len(iter.retrievedColumnInfos)),
 	}
 
-	for i := range len(iter.retrievedColumnInfos) {
-		if iter.retrievedColumnInfos[i].TypeInfo == nil {
-			// We could not guess the type this expression, so do not initialize this value
-			continue
+	for colIdx := range len(iter.retrievedColumnInfos) {
+		if iter.retrievedColumnInfos[colIdx].TypeInfo == nil {
+			// Is the caller prepared for for a nil ptr?
+			rowData.Values[colIdx] = nil
+		} else {
+			rowData.Values[colIdx] = iter.retrievedColumnInfos[colIdx].TypeInfo.Zero()
 		}
-		rowData.Values[i] = iter.retrievedColumnInfos[i].TypeInfo.Zero()
 	}
 
 	return rowData, nil
@@ -194,45 +220,61 @@ func (iter *gocqlmemIter) SliceMap() ([]map[string]interface{}, error) {
 		return nil, iter.err
 	}
 
-	// Not checking for the error because we just did
-	rowData, _ := iter.RowData()
-	dataToReturn := make([]map[string]any, 0)
-	for iter.Scan(rowData.Values...) {
-		m := make(map[string]interface{}, len(rowData.Columns))
-		for i, column := range rowData.Columns {
-			switch typedVal := rowData.Values[i].(type) {
-			case *int:
-				m[column] = *typedVal
-			case *int8:
-				m[column] = *typedVal
-			case *int16:
-				m[column] = *typedVal
-			case *int32:
-				m[column] = *typedVal
-			case *int64:
-				m[column] = *typedVal
-			case *float32:
-				m[column] = *typedVal
-			case *float64:
-				m[column] = *typedVal
-			case *string:
-				m[column] = *typedVal
-			case *bool:
-				m[column] = *typedVal
-			case *gocql.UUID:
-				m[column] = *typedVal
-			case *inf.Dec:
-				m[column] = *typedVal
-			case *time.Time:
-				m[column] = *typedVal
-			}
+	totalRows := len(iter.retrievedValues) - iter.pos
+	result := make([]map[string]any, totalRows)
+	for rowIdx := range totalRows {
+		result[rowIdx] = map[string]interface{}{}
+		for colIdx, colInfo := range iter.retrievedColumnInfos {
+			result[rowIdx][colInfo.Name] = iter.retrievedValues[rowIdx][colIdx]
 		}
-		dataToReturn = append(dataToReturn, m)
+		iter.pos++
 	}
-	if iter.err != nil {
-		return nil, iter.err
-	}
-	return dataToReturn, nil
+
+	return result, nil
+
+	// // Not checking for the error because we just did
+
+	// TODO: prepare rowdata values before each scan. If typeinfo not available, use iter.retrievedValues and iter.pos to obtain the gocql.Type
+	// init  rowData.Columns only once
+
+	// rowData, _ := iter.RowData()
+	// dataToReturn := make([]map[string]any, 0)
+	// for iter.Scan(rowData.Values...) {
+	// 	m := make(map[string]interface{}, len(rowData.Columns))
+	// 	for i, column := range rowData.Columns {
+	// 		switch typedVal := rowData.Values[i].(type) {
+	// 		case *int:
+	// 			m[column] = *typedVal
+	// 		case *int8:
+	// 			m[column] = *typedVal
+	// 		case *int16:
+	// 			m[column] = *typedVal
+	// 		case *int32:
+	// 			m[column] = *typedVal
+	// 		case *int64:
+	// 			m[column] = *typedVal
+	// 		case *float32:
+	// 			m[column] = *typedVal
+	// 		case *float64:
+	// 			m[column] = *typedVal
+	// 		case *string:
+	// 			m[column] = *typedVal
+	// 		case *bool:
+	// 			m[column] = *typedVal
+	// 		case *gocql.UUID:
+	// 			m[column] = *typedVal
+	// 		case *inf.Dec:
+	// 			m[column] = *typedVal
+	// 		case *time.Time:
+	// 			m[column] = *typedVal
+	// 		}
+	// 	}
+	// 	dataToReturn = append(dataToReturn, m)
+	// }
+	// if iter.err != nil {
+	// 	return nil, iter.err
+	// }
+	// return dataToReturn, nil
 }
 
 func (iter *gocqlmemIter) MapScan(dest map[string]interface{}) bool {

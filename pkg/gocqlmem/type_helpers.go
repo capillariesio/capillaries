@@ -330,6 +330,13 @@ func clientTypedValueToProvidedPtr(src any, destPtr any) error {
 		default:
 			return fmt.Errorf("cannot store time.Time  %v(%T) to %T", typedSrc, typedSrc, destPtr)
 		}
+	case gocql.UUID:
+		switch typedDestPtr := destPtr.(type) {
+		case *gocql.UUID:
+			*typedDestPtr = typedSrc
+		default:
+			return fmt.Errorf("cannot store UUID  %v(%T) to %T", typedSrc, typedSrc, destPtr)
+		}
 	default:
 		return fmt.Errorf("cannot store %v(%T) to %T, type not supported", src, src, destPtr)
 	}
@@ -346,12 +353,72 @@ func guessInternalValueType(val any) (gocql.Type, error) {
 		return gocql.TypeBoolean, nil
 	case string:
 		return gocql.TypeText, nil
-	// case inf.Dec:
-	// 	return gocql.TypeDecimal, nil
 	case decimal.Decimal:
 		return gocql.TypeDecimal, nil
 	default:
 		return gocql.TypeCustom, fmt.Errorf("unexpected internal type %T", val)
+	}
+}
+
+func guessClientValueType(val any) (gocql.Type, error) {
+	switch val.(type) {
+	case int:
+		return gocql.TypeInt, nil
+	case int8:
+		return gocql.TypeTinyInt, nil
+	case int16:
+		return gocql.TypeSmallInt, nil
+	case int32:
+		return gocql.TypeInt, nil
+	case int64:
+		return gocql.TypeBigInt, nil
+	case float32:
+		return gocql.TypeFloat, nil
+	case float64:
+		return gocql.TypeDouble, nil
+	case bool:
+		return gocql.TypeBoolean, nil
+	case string:
+		return gocql.TypeText, nil
+	case inf.Dec:
+		return gocql.TypeDecimal, nil
+	case gocql.UUID:
+		return gocql.TypeUUID, nil // Or TypeTimeUUID?
+	case time.Time:
+		return gocql.TypeTimestamp, nil
+	default:
+		return gocql.TypeCustom, fmt.Errorf("unexpected client type %T(%v)", val, val)
+	}
+}
+
+func clientValuePtrToString(val any) string {
+	switch typedVal := val.(type) {
+	case *int:
+		return strconv.FormatInt(int64(*typedVal), 10)
+	case *int8:
+		return strconv.FormatInt(int64(*typedVal), 10)
+	case *int16:
+		return strconv.FormatInt(int64(*typedVal), 10)
+	case *int32:
+		return strconv.FormatInt(int64(*typedVal), 10)
+	case *int64:
+		return strconv.FormatInt(*typedVal, 10)
+	case *float32:
+		return strconv.FormatFloat(float64(*typedVal), 'f', -1, 32)
+	case *float64:
+		return strconv.FormatFloat(*typedVal, 'f', -1, 64)
+	case *bool:
+		return strconv.FormatBool(*typedVal)
+	case *string:
+		return *typedVal
+	case *inf.Dec:
+		return typedVal.String()
+	case *gocql.UUID:
+		return fmt.Sprintf("%x-%x-%x-%x-%x", typedVal[0:4], typedVal[4:6], typedVal[6:8], typedVal[8:10], typedVal[10:16])
+	case *time.Time:
+		return typedVal.Format(time.RFC3339)
+	default:
+		return fmt.Sprintf("%v", typedVal)
 	}
 }
 

@@ -52,12 +52,13 @@ func TestColumnsAndRowData(t *testing.T) {
 	rowData, err := iter.RowData()
 	assert.Nil(t, err)
 	assert.Equal(t, 5, len(rowData.Columns))
-	assert.Equal(t, int64(0), rowData.Values[0])
-	assert.Equal(t, "", rowData.Values[1])
-	assert.Equal(t, false, rowData.Values[2])
-	assert.Equal(t, float64(0.0), rowData.Values[3])
-	assert.Equal(t, *new(inf.Dec), rowData.Values[4])
+	assert.Equal(t, int32(0), *(rowData.Values[0].(*int32)))
+	assert.Equal(t, "", *(rowData.Values[1].(*string)))
+	assert.Equal(t, false, *(rowData.Values[2].(*bool)))
+	assert.Equal(t, float32(0.0), *(rowData.Values[3].(*float32)))
+	assert.Equal(t, *new(inf.Dec), *(rowData.Values[4].(*inf.Dec)))
 }
+
 func TestIterScan(t *testing.T) {
 	s := NewGocqlmemSession()
 	assert.Nil(t, s.Query("CREATE KEYSPACE ks1").Exec())

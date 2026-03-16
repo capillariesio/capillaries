@@ -214,16 +214,16 @@ func TestToken(t *testing.T) {
 
 	testValues := []testValue{
 		{nil, "cannot token <nil>, unsupported source type <nil>", 0},
-		{"hello", "", uint64(0xcbd8a7b341bd9b02)},
-		{int(1), "", uint64(0x4403b7fb05c44a)},
-		{int8(1), "", uint64(0x4403b7fb05c44a)},
-		{int16(1), "", uint64(0x4403b7fb05c44a)},
-		{int32(1), "", uint64(0x4403b7fb05c44a)},
-		{int64(1), "", uint64(0x4403b7fb05c44a)},
-		{float32(1.1), "", uint64(0x7165b2a5cd92e2a)}, // float64(float32(1.1)) !=  float64(1.1)
-		{float64(1.1), "", uint64(0xedc37c19d7aa9352)},
-		{decimal.NewFromFloat(1.1), "", uint64(0x49331c269b0bc618)},
-		{true, "", uint64(0x4403b7fb05c44a)},
+		{"hello", "", int64(-3758069500696749310)},
+		{int(1), "", int64(19144387141682250)},
+		{int8(2), "", int64(-2447670524089286488)},
+		{int16(3), "", int64(6574508035858270988)},
+		{int32(4), "", int64(-5469109305088493887)},
+		{int64(5), "", int64(1140754268591781659)},
+		{float32(1.1), "", int64(0x7165b2a5cd92e2a)}, // float64(float32(1.1)) !=  float64(1.1)
+		{float64(1.2), "", int64(4067943965976384332)},
+		{decimal.NewFromFloat(1.3), "", int64(5143825980438560564)},
+		{true, "", int64(0x4403b7fb05c44a)},
 	}
 
 	for i := range len(testValues) {
@@ -231,7 +231,7 @@ func TestToken(t *testing.T) {
 		val, err = eCtx.Eval(exp)
 		if testValues[i].errorOut == "" {
 			assert.Nil(t, err)
-			assert.Equal(t, testValues[i].valOut, val)
+			assert.Equal(t, testValues[i].valOut, val, fmt.Sprintf("value in: %v", testValues[i].valIn))
 		} else {
 			assert.Contains(t, testValues[i].errorOut, err.Error())
 		}

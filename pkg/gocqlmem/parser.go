@@ -259,7 +259,7 @@ func getStringLiteral(s string) (*Lexem, string) {
 
 func getNull(s string) (*Lexem, string) {
 	s = skipBlank(s)
-	r := regexp.MustCompile(`^(?i)NULL`)
+	r := regexp.MustCompile(`^(?i)NULL\b`)
 	litRange := r.FindStringIndex(s)
 	if len(litRange) >= 2 {
 		return &Lexem{LexemNull, s[0:litRange[1]]}, s[litRange[1]:]
@@ -279,7 +279,7 @@ func getQuestionMark(s string) (*Lexem, string) {
 
 func getAs(s string) (*Lexem, string) {
 	s = skipBlank(s)
-	r := regexp.MustCompile(`^(?i)AS`)
+	r := regexp.MustCompile(`^(?i)AS\b`)
 	litRange := r.FindStringIndex(s)
 	if len(litRange) >= 2 {
 		return &Lexem{LexemAs, strings.ToUpper(s[0:litRange[1]])}, s[litRange[1]:]
@@ -299,7 +299,7 @@ func getNumberLiteral(s string) (*Lexem, string) {
 
 func getBoolLiteral(s string) (*Lexem, string) {
 	s = skipBlank(s)
-	r := regexp.MustCompile(`^(?i)(TRUE|FALSE)`)
+	r := regexp.MustCompile(`^(?i)(TRUE|FALSE)(\b)`)
 	litRange := r.FindStringIndex(s)
 	if len(litRange) >= 2 {
 		return &Lexem{LexemBoolLiteral, strings.ToUpper(s[0:litRange[1]])}, s[litRange[1]:]
@@ -363,7 +363,7 @@ func getArithmeticOp(s string) (*Lexem, string) {
 
 func getLogicalOp(s string) (*Lexem, string) {
 	s = skipBlank(s)
-	r := regexp.MustCompile(`^(?i)(OR|AND|=|!=|>=|<=|>|<)`)
+	r := regexp.MustCompile(`^(?i)(OR\b|AND\b|=|!=|>=|<=|>|<)`)
 	litRange := r.FindStringIndex(s)
 	if len(litRange) >= 2 {
 		opValue := strings.ToUpper(s[0:litRange[1]])
@@ -427,7 +427,7 @@ func getPointedAsterisk(s string) (*Lexem, string) {
 
 func getCqlOp(s string) (*Lexem, string) {
 	s = skipBlank(s)
-	r := regexp.MustCompile(`^(?i)(NOT\s+IN|IN|!~|~)`)
+	r := regexp.MustCompile(`^(?i)(NOT\s+IN\b|IN\b|!~|~)(\b)`)
 	litRange := r.FindStringIndex(s)
 	if len(litRange) >= 2 {
 		return &Lexem{LexemCqlOp, strings.ToUpper(s[0:litRange[1]])}, s[litRange[1]:]
@@ -460,7 +460,7 @@ func getSelectExpressionLexems(s string) ([]*Lexem, string) {
 	parenthesisStackLen := 0
 	lexems := make([]*Lexem, 0)
 	for {
-		stopWord := `(?i)FROM`
+		stopWord := `(?i)FROM\b`
 		l, s = getKeyword(s, stopWord, false)
 		if l != nil {
 			if parenthesisStackLen == 0 {
@@ -695,7 +695,7 @@ func getWhereExpressionLexems(s string) ([]*Lexem, string, error) {
 	lexems := make([]*Lexem, 0)
 	for {
 		// All possible stopwords for SELECT/UPDATE/DELETE
-		stopWord := `(?i)(GROUP\s+BY|ORDER\s+BY|LIMIT|OFFSET|ALLOW\s+FILTERING|IF\s+EXISTS|IF)`
+		stopWord := `(?i)(GROUP\s+BY|ORDER\s+BY|LIMIT|OFFSET|ALLOW\s+FILTERING|IF\s+EXISTS|IF)(\b)`
 		l, s = getKeyword(s, stopWord, false)
 		if l != nil {
 			if parenthesisStackLen == 0 {
@@ -842,14 +842,14 @@ func getColumnDef(s string) (*CreateTableColumnDef, string, bool, error) {
 	l, s = getIdent(s)
 	if l != nil {
 		def.Name = l.V
-		l, s = getKeyword(s, `(?i)(BIGINT|BLOB|BOOLEAN|COUNTER|DATE|DECIMAL|DOUBLE|DURATION|FLOAT|INET|INT|SMALLINT|TEXT|TIMEUUID|TIMESTAMP|TIME|TINYINT|UUID|VARCHAR|VARINT)`, true)
+		l, s = getKeyword(s, `(?i)(BIGINT|BLOB|BOOLEAN|COUNTER|DATE|DECIMAL|DOUBLE|DURATION|FLOAT|INET|INT|SMALLINT|TEXT|TIMEUUID|TIMESTAMP|TIME|TINYINT|UUID|VARCHAR|VARINT)(\b)`, true)
 		if l != nil {
 			typ, err := stringToType(l.V)
 			if err != nil {
 				return nil, s, false, fmt.Errorf("cannot parse column def type: %s", err.Error())
 			}
 			def.ColumnType = typ
-			l, s = getKeyword(s, `(?i)(PRIMARY\s+KEY)`, true)
+			l, s = getKeyword(s, `(?i)(PRIMARY\s+KEY)(\b)`, true)
 			if l != nil {
 				// This field def has PRIMARY KEY tag right in it
 				return &def, s, true, nil
@@ -872,7 +872,7 @@ func getColumnDefList(s string) ([]*CreateTableColumnDef, string, string, error)
 			continue
 		}
 		// This marks the start of the PRIMARY KEY section, which may or may not be there
-		l, s = getKeyword(s, `(?i)(PRIMARY\s+KEY)`, false)
+		l, s = getKeyword(s, `(?i)(PRIMARY\s+KEY)(\b)`, false)
 		if l != nil {
 			break
 		}
@@ -966,7 +966,7 @@ func getColumnSetExpressionLexems(s string) ([]*Lexem, string) {
 	parenthesisStackLen := 0
 	lexems := make([]*Lexem, 0)
 	for {
-		stopWord := `(?i)(WHERE|IF)`
+		stopWord := `(?i)(WHERE|IF)\b`
 		l, s = getKeyword(s, stopWord, false)
 		if l != nil {
 			if parenthesisStackLen == 0 {
@@ -1039,9 +1039,6 @@ func getColumnSetExpressionLexems(s string) ([]*Lexem, string) {
 		break
 	}
 
-	lexems = convertCastForAstParser(lexems)
-	lexems = convertInNotInForAstParser(lexems)
-
 	return lexems, s
 }
 
@@ -1054,7 +1051,7 @@ func getColumnSetExpressions(s string) ([]*ColumnSetExp, string, error) {
 		if l != nil {
 			continue
 		}
-		l, s = getKeyword(s, `(?i)(WHERE|IF)`, false)
+		l, s = getKeyword(s, `(?i)(WHERE|IF)\b`, false)
 		if l != nil {
 			break
 		}
@@ -1069,7 +1066,6 @@ func getColumnSetExpressions(s string) ([]*ColumnSetExp, string, error) {
 			return nil, s, errors.New("expected =")
 		}
 		exp.ExpLexems, s = getColumnSetExpressionLexems(s)
-		exp.ExpLexems = convertCastForAstParser(exp.ExpLexems)
 		columnsSetExpList = append(columnsSetExpList, &exp)
 	}
 	return columnsSetExpList, s, nil
@@ -1151,12 +1147,12 @@ func lexemsToAstExpr(lexems []*Lexem) (ast.Expr, error) {
 
 func parseCreateKeyspace(s string) (*CommandCreateKeyspace, string, error) {
 	var l *Lexem
-	l, s = getKeyword(s, `(?i)CREATE\s+KEYSPACE`, true)
+	l, s = getKeyword(s, `(?i)CREATE\s+KEYSPACE\b`, true)
 	if l == nil {
 		return nil, s, fmt.Errorf("expected CREATE KEYSPACE: %s", s)
 	}
 	cmd := CommandCreateKeyspace{}
-	l, s = getKeyword(s, `(?i)IF\s+NOT\s+EXISTS`, true)
+	l, s = getKeyword(s, `(?i)IF\s+NOT\s+EXISTS\b`, true)
 	if l != nil {
 		cmd.IfNotExists = true
 	}
@@ -1164,7 +1160,7 @@ func parseCreateKeyspace(s string) (*CommandCreateKeyspace, string, error) {
 	if l != nil {
 		cmd.KeyspaceName = l.V
 	}
-	l, s = getKeyword(s, `(?i)WITH\s+REPLICATION`, true)
+	l, s = getKeyword(s, `(?i)WITH\s+REPLICATION\b`, true)
 	if l != nil {
 		var err error
 		cmd.WithReplication, s, err = getKeyValuePairList(s)
@@ -1178,7 +1174,7 @@ func parseCreateKeyspace(s string) (*CommandCreateKeyspace, string, error) {
 
 func parseUseKeyspace(s string) (*CommandUseKeyspace, string, error) {
 	var l *Lexem
-	l, s = getKeyword(s, `(?i)USE`, true)
+	l, s = getKeyword(s, `(?i)USE\b`, true)
 	if l == nil {
 		return nil, s, fmt.Errorf("expected USE: %s", s)
 	}
@@ -1192,12 +1188,12 @@ func parseUseKeyspace(s string) (*CommandUseKeyspace, string, error) {
 
 func parseDropKeyspace(s string) (*CommandDropKeyspace, string, error) {
 	var l *Lexem
-	l, s = getKeyword(s, `(?i)DROP\s+KEYSPACE`, true)
+	l, s = getKeyword(s, `(?i)DROP\s+KEYSPACE\b`, true)
 	if l == nil {
 		return nil, s, fmt.Errorf("expected DROP KEYSPACE: %s", s)
 	}
 	cmd := CommandDropKeyspace{}
-	l, s = getKeyword(s, `(?i)IF\s+EXISTS`, true)
+	l, s = getKeyword(s, `(?i)IF\s+EXISTS\b`, true)
 	if l != nil {
 		cmd.IfExists = true
 	}
@@ -1212,12 +1208,12 @@ func parseCreateTable(s string) (*CommandCreateTable, string, error) {
 	var l *Lexem
 	var err error
 	var primaryKeyField string
-	l, s = getKeyword(s, `(?i)CREATE\s+TABLE`, true)
+	l, s = getKeyword(s, `(?i)CREATE\s+TABLE\b`, true)
 	if l == nil {
 		return nil, s, fmt.Errorf("expected CREATE TABLE: %s", s)
 	}
 	cmd := CommandCreateTable{}
-	l, s = getKeyword(s, `(?i)IF\s+NOT\s+EXISTS`, true)
+	l, s = getKeyword(s, `(?i)IF\s+NOT\s+EXISTS\b`, true)
 	if l != nil {
 		cmd.IfNotExists = true
 	}
@@ -1245,7 +1241,7 @@ func parseCreateTable(s string) (*CommandCreateTable, string, error) {
 
 	if primaryKeyField == "" {
 
-		l, s = getKeyword(s, `(?i)PRIMARY\s+KEY`, true)
+		l, s = getKeyword(s, `(?i)PRIMARY\s+KEY\b`, true)
 		if l == nil {
 			return nil, s, fmt.Errorf("expected PRIMARY KEY: %s", s)
 		}
@@ -1262,7 +1258,7 @@ func parseCreateTable(s string) (*CommandCreateTable, string, error) {
 		return nil, s, fmt.Errorf("cannot parse column def list, ) expected: %s", s)
 	}
 
-	l, s = getKeyword(s, `(?i)WITH\s+CLUSTERING\s+ORDER\s+BY`, true)
+	l, s = getKeyword(s, `(?i)WITH\s+CLUSTERING\s+ORDER\s+BY\b`, true)
 	if l != nil {
 		l, s = getKeyword(s, `\(`, true)
 		if l == nil {
@@ -1284,7 +1280,7 @@ func parseCreateTable(s string) (*CommandCreateTable, string, error) {
 				return nil, s, fmt.Errorf("expected clustering order by ident: %s", s)
 			}
 			var lAscDesc *Lexem
-			lAscDesc, s = getKeyword(s, `(?i)(ASC|DESC)`, true)
+			lAscDesc, s = getKeyword(s, `(?i)(ASC|DESC)(\b)`, true)
 			if lAscDesc == nil {
 				return nil, s, fmt.Errorf("expected clustering order by asc or desc: %s", s)
 			}
@@ -1362,7 +1358,7 @@ func parseCreateTable(s string) (*CommandCreateTable, string, error) {
 
 func parseTruncateTable(s string) (*CommandTruncateTable, string, error) {
 	var l *Lexem
-	l, s = getKeyword(s, `(?i)TRUNCATE`, true)
+	l, s = getKeyword(s, `(?i)TRUNCATE\b`, true)
 	if l == nil {
 		return nil, s, fmt.Errorf("expected TRUNCATE: %s", s)
 	}
@@ -1384,12 +1380,12 @@ func parseTruncateTable(s string) (*CommandTruncateTable, string, error) {
 
 func parseDropTable(s string) (*CommandDropTable, string, error) {
 	var l *Lexem
-	l, s = getKeyword(s, `(?i)DROP\s+TABLE`, true)
+	l, s = getKeyword(s, `(?i)DROP\s+TABLE\b`, true)
 	if l == nil {
 		return nil, s, fmt.Errorf("expected DROP TABLE: %s", s)
 	}
 	cmd := CommandDropTable{}
-	l, s = getKeyword(s, `(?i)IF\s+EXISTS`, true)
+	l, s = getKeyword(s, `(?i)IF\s+EXISTS\b`, true)
 	if l != nil {
 		cmd.IfExists = true
 	}
@@ -1501,16 +1497,16 @@ func convertIns(exp ast.Expr) (ast.Expr, error) {
 func parseSelect(s string, preparedQueryParams []any) (*CommandSelect, string, error) {
 	var l *Lexem
 	var err error
-	l, s = getKeyword(s, `(?i)SELECT`, true)
+	l, s = getKeyword(s, `(?i)SELECT\b`, true)
 	if l == nil {
 		return nil, s, fmt.Errorf("expected SELECT: %s", s)
 	}
 	cmd := CommandSelect{}
-	l, s = getKeyword(s, `(?i)DISTINCT`, true)
+	l, s = getKeyword(s, `(?i)DISTINCT\b`, true)
 	if l != nil {
 		cmd.Distinct = true
 	}
-	l, s = getKeyword(s, `(?i)JSON`, true)
+	l, s = getKeyword(s, `(?i)JSON\b`, true)
 	if l != nil {
 		return nil, s, errors.New("JSON not supported")
 	}
@@ -1518,7 +1514,7 @@ func parseSelect(s string, preparedQueryParams []any) (*CommandSelect, string, e
 	if len(cmd.SelectExpLexems) == 0 {
 		return nil, s, fmt.Errorf("expected select expressions: %s", s)
 	}
-	l, s = getKeyword(s, `(?i)FROM`, true)
+	l, s = getKeyword(s, `(?i)FROM\b`, true)
 	if l == nil {
 		return nil, s, fmt.Errorf("expected FROM: %s", s)
 	}
@@ -1534,7 +1530,7 @@ func parseSelect(s string, preparedQueryParams []any) (*CommandSelect, string, e
 		cmd.TableName = l.V
 	}
 
-	l, s = getKeyword(s, `(?i)WHERE`, true)
+	l, s = getKeyword(s, `(?i)WHERE\b`, true)
 	if l != nil {
 		cmd.WhereExpLexems, s, err = getWhereExpressionLexems(s)
 		if err != nil {
@@ -1544,11 +1540,11 @@ func parseSelect(s string, preparedQueryParams []any) (*CommandSelect, string, e
 			return nil, s, fmt.Errorf("expected where expression: %s", s)
 		}
 	}
-	l, s = getKeyword(s, `(?i)GROUP\s+BY`, true)
+	l, s = getKeyword(s, `(?i)GROUP\s+BY\b`, true)
 	if l != nil {
 		return nil, s, errors.New("GROUP BY not supported")
 	}
-	l, s = getKeyword(s, `(?i)ORDER\s+BY`, true)
+	l, s = getKeyword(s, `(?i)ORDER\s+BY\b`, true)
 	if l != nil {
 		cmd.OrderByFields = make([]*OrderByField, 0)
 		for {
@@ -1556,7 +1552,7 @@ func parseSelect(s string, preparedQueryParams []any) (*CommandSelect, string, e
 			if l != nil {
 				continue
 			}
-			l, s = getKeyword(s, `(?i)(PER\s+PARTITION\s+LIMIT|LIMIT|ALLOW\sFILTERING|OFFSET)`, false)
+			l, s = getKeyword(s, `(?i)(PER\s+PARTITION\s+LIMIT|LIMIT|ALLOW\sFILTERING|OFFSET)(\b)`, false)
 			if l != nil {
 				break
 			}
@@ -1566,7 +1562,7 @@ func parseSelect(s string, preparedQueryParams []any) (*CommandSelect, string, e
 				return nil, s, fmt.Errorf("expected order by ident: %s", s)
 			}
 			var lAscDesc *Lexem
-			lAscDesc, s = getKeyword(s, `(?i)(ASC|DESC)`, true)
+			lAscDesc, s = getKeyword(s, `(?i)(ASC|DESC)(\b)`, true)
 			if lAscDesc == nil {
 				return nil, s, fmt.Errorf("expected order by asc or desc: %s", s)
 			}
@@ -1577,22 +1573,22 @@ func parseSelect(s string, preparedQueryParams []any) (*CommandSelect, string, e
 			cmd.OrderByFields = append(cmd.OrderByFields, &OrderByField{lField.V, clusteringOrder})
 		}
 	}
-	l, s = getKeyword(s, `(?i)PER\s+PARTITION\s+LIMIT`, true)
+	l, s = getKeyword(s, `(?i)PER\s+PARTITION\s+LIMIT\b`, true)
 	if l != nil {
 		return nil, s, errors.New("PER PARTITION LIMIT not supported")
 	}
-	l, s = getKeyword(s, `(?i)LIMIT`, true)
+	l, s = getKeyword(s, `(?i)LIMIT\b`, true)
 	if l != nil {
 		cmd.Limit, s = getNumberLiteral(s)
 		if cmd.Limit == nil {
 			return nil, s, fmt.Errorf("expected limit number: %s", s)
 		}
 	}
-	l, s = getKeyword(s, `(?i)OFFSET`, true)
+	l, s = getKeyword(s, `(?i)OFFSET\b`, true)
 	if l != nil {
 		return nil, s, errors.New("OFFSET not supported")
 	}
-	l, s = getKeyword(s, `(?i)ALLOW\sFILTERING`, true)
+	l, s = getKeyword(s, `(?i)ALLOW\sFILTERING\b`, true)
 	if l != nil {
 		return nil, s, errors.New("ALLOW FILTERING not supported")
 	}
@@ -1644,7 +1640,7 @@ func parseSelect(s string, preparedQueryParams []any) (*CommandSelect, string, e
 			return nil, s, fmt.Errorf("cannot build ast from select where expression: %s", err.Error())
 		}
 		if cmd.WhereExpAst, err = convertIns(cmd.WhereExpAst); err != nil {
-			return nil, s, fmt.Errorf("cannot convert ins for where expression: %s", err.Error())
+			return nil, s, fmt.Errorf("cannot convert ins for select where expression: %s", err.Error())
 		}
 	}
 
@@ -1655,7 +1651,7 @@ func getInsertExpression(s string) ([]*Lexem, string) {
 	var l *Lexem
 	exp := make([]*Lexem, 0)
 	for {
-		l, s = getKeyword(s, `(?i)IF\s(NOT\sEXISTS|USING|TIMESTAMP)`, false)
+		l, s = getKeyword(s, `(?i)IF\s(NOT\sEXISTS|USING|TIMESTAMP)(\b)`, false)
 		if l != nil {
 			break
 		}
@@ -1747,7 +1743,7 @@ func getInsertExpressions(s string) ([][]*Lexem, string) {
 
 func parseInsert(s string, preparedQueryParams []any) (*CommandInsert, string, error) {
 	var l *Lexem
-	l, s = getKeyword(s, `(?i)INSERT\s+INTO`, true)
+	l, s = getKeyword(s, `(?i)INSERT\s+INTO\b`, true)
 	if l == nil {
 		return nil, s, fmt.Errorf("expected INSERT INTO: %s", s)
 	}
@@ -1789,7 +1785,7 @@ func parseInsert(s string, preparedQueryParams []any) (*CommandInsert, string, e
 		return nil, s, fmt.Errorf("expected ): %s", s)
 	}
 
-	l, s = getKeyword(s, `(?i)VALUES`, true)
+	l, s = getKeyword(s, `(?i)VALUES\b`, true)
 	if l == nil {
 		return nil, s, fmt.Errorf("expected VALUES: %s", s)
 	}
@@ -1801,7 +1797,7 @@ func parseInsert(s string, preparedQueryParams []any) (*CommandInsert, string, e
 
 	cmd.ColumnValueLexems, s = getInsertExpressions(s)
 
-	l, s = getKeyword(s, `(?i)IF\s+NOT\s+EXISTS`, true)
+	l, s = getKeyword(s, `(?i)IF\s+NOT\s+EXISTS\b`, true)
 	if l != nil {
 		cmd.IfNotExists = true
 	}
@@ -1851,7 +1847,7 @@ func parseInsert(s string, preparedQueryParams []any) (*CommandInsert, string, e
 
 func parseUpdate(s string, preparedQueryParams []any) (*CommandUpdate, string, error) {
 	var l *Lexem
-	l, s = getKeyword(s, `(?i)UPDATE`, true)
+	l, s = getKeyword(s, `(?i)UPDATE\b`, true)
 	if l == nil {
 		return nil, s, fmt.Errorf("expected UPDATE: %s", s)
 	}
@@ -1868,7 +1864,7 @@ func parseUpdate(s string, preparedQueryParams []any) (*CommandUpdate, string, e
 		cmd.TableName = l.V
 	}
 
-	l, s = getKeyword(s, `(?i)SET`, true)
+	l, s = getKeyword(s, `(?i)SET\b`, true)
 	if l == nil {
 		return nil, s, fmt.Errorf("expected SET: %s", s)
 	}
@@ -1879,7 +1875,7 @@ func parseUpdate(s string, preparedQueryParams []any) (*CommandUpdate, string, e
 		return nil, s, err
 	}
 
-	l, s = getKeyword(s, `(?i)WHERE`, true)
+	l, s = getKeyword(s, `(?i)WHERE\b`, true)
 	if l != nil {
 		cmd.WhereExpLexems, s, err = getWhereExpressionLexems(s)
 		if err != nil {
@@ -1890,12 +1886,12 @@ func parseUpdate(s string, preparedQueryParams []any) (*CommandUpdate, string, e
 		}
 	}
 
-	l, s = getKeyword(s, `(?i)IF\s+EXISTS`, true)
+	l, s = getKeyword(s, `(?i)IF\s+EXISTS\b`, true)
 	if l != nil {
 		cmd.IfExists = true
 	}
 
-	l, s = getKeyword(s, `(?i)IF`, true)
+	l, s = getKeyword(s, `(?i)IF\b`, true)
 	if l != nil {
 		cmd.IfExpLexems, s, err = getWhereExpressionLexems(s)
 		if err != nil {
@@ -1908,43 +1904,79 @@ func parseUpdate(s string, preparedQueryParams []any) (*CommandUpdate, string, e
 
 	// Replace all question marks with prepared params: in column expressions
 	paramIdx := 0
-	for columnSetExpIdx := range len(cmd.ColumnSetExpressions) {
-		for lexemIdx := range cmd.ColumnSetExpressions[columnSetExpIdx].ExpLexems {
-			if cmd.ColumnSetExpressions[columnSetExpIdx].ExpLexems[lexemIdx].T == LexemQuestionMark {
-				if paramIdx >= len(preparedQueryParams) {
-					return nil, s, fmt.Errorf("not enough prepared params supplied: %d", len(preparedQueryParams))
-				}
-				cmd.ColumnSetExpressions[columnSetExpIdx].ExpLexems[lexemIdx] = &Lexem{LexemPointedIdent, fmt.Sprintf("params.param%03d", paramIdx)}
-				paramIdx++
-			}
+	// CAST/IN/preparedQueryParams in select column expression:
+	for selectExpIdx := range len(cmd.ColumnSetExpressions) {
+		// Convert AS and IN/NOT IN to functions so Go parser can work with them
+		cmd.ColumnSetExpressions[selectExpIdx].ExpLexems = convertCastForAstParser(cmd.ColumnSetExpressions[selectExpIdx].ExpLexems)
+		cmd.ColumnSetExpressions[selectExpIdx].ExpLexems = convertInNotInForAstParser(cmd.ColumnSetExpressions[selectExpIdx].ExpLexems)
+		// Replace all question marks with prepared param names: in select expressions
+		if paramIdx, cmd.ColumnSetExpressions[selectExpIdx].ExpLexems, err = replaceQuestionMarksWithParamNamesInLexems(paramIdx, cmd.ColumnSetExpressions[selectExpIdx].ExpLexems, preparedQueryParams); err != nil {
+			return nil, s, err
 		}
+	}
+
+	// for columnSetExpIdx := range len(cmd.ColumnSetExpressions) {
+	// 	for lexemIdx := range cmd.ColumnSetExpressions[columnSetExpIdx].ExpLexems {
+	// 		if cmd.ColumnSetExpressions[columnSetExpIdx].ExpLexems[lexemIdx].T == LexemQuestionMark {
+	// 			if paramIdx >= len(preparedQueryParams) {
+	// 				return nil, s, fmt.Errorf("not enough prepared params supplied: %d", len(preparedQueryParams))
+	// 			}
+	// 			cmd.ColumnSetExpressions[columnSetExpIdx].ExpLexems[lexemIdx] = &Lexem{LexemPointedIdent, fmt.Sprintf("params.param%03d", paramIdx)}
+	// 			paramIdx++
+	// 		}
+	// 	}
+	// }
+
+	// CAST/IN/preparedQueryParams in where expression:
+	// Convert AS and IN/NOT IN to functions so Go parser can work with them
+	cmd.WhereExpLexems = convertCastForAstParser(cmd.WhereExpLexems)
+	cmd.WhereExpLexems = convertInNotInForAstParser(cmd.WhereExpLexems)
+	// Replace all question marks with prepared param names: in where expression
+	if paramIdx, cmd.WhereExpLexems, err = replaceQuestionMarksWithParamNamesInLexems(paramIdx, cmd.WhereExpLexems, preparedQueryParams); err != nil {
+		return nil, s, err
+	}
+
+	cmd.IfExpLexems = convertCastForAstParser(cmd.IfExpLexems)
+	cmd.IfExpLexems = convertInNotInForAstParser(cmd.IfExpLexems)
+	// Replace all question marks with prepared param names: in if expression
+	if paramIdx, cmd.IfExpLexems, err = replaceQuestionMarksWithParamNamesInLexems(paramIdx, cmd.IfExpLexems, preparedQueryParams); err != nil {
+		return nil, s, err
 	}
 
 	// And in where expression
-	if len(cmd.WhereExpLexems) > 0 {
-		for lexemIdx := range cmd.WhereExpLexems {
-			if cmd.WhereExpLexems[lexemIdx].T == LexemQuestionMark {
-				if paramIdx >= len(preparedQueryParams) {
-					return nil, s, fmt.Errorf("not enough prepared params supplied: %d", len(preparedQueryParams))
-				}
-				cmd.WhereExpLexems[lexemIdx] = &Lexem{LexemPointedIdent, fmt.Sprintf("params.param%03d", paramIdx)}
-				paramIdx++
-			}
-		}
-	}
+	// if len(cmd.WhereExpLexems) > 0 {
+	// 	for lexemIdx := range cmd.WhereExpLexems {
+	// 		if cmd.WhereExpLexems[lexemIdx].T == LexemQuestionMark {
+	// 			if paramIdx >= len(preparedQueryParams) {
+	// 				return nil, s, fmt.Errorf("not enough prepared params supplied: %d", len(preparedQueryParams))
+	// 			}
+	// 			cmd.WhereExpLexems[lexemIdx] = &Lexem{LexemPointedIdent, fmt.Sprintf("params.param%03d", paramIdx)}
+	// 			paramIdx++
+	// 		}
+	// 	}
+	// }
 
+	// Lexems to expressions: set expressions
 	cmd.ColumnSetExpAsts = make([]ast.Expr, len(cmd.ColumnSetExpressions))
-	for i, columnSetExp := range cmd.ColumnSetExpressions {
-		cmd.ColumnSetExpAsts[i], err = lexemsToAstExpr(columnSetExp.ExpLexems)
+	for setExpIdx, columnSetExp := range cmd.ColumnSetExpressions {
+		astExp, err := lexemsToAstExpr(columnSetExp.ExpLexems)
 		if err != nil {
 			return nil, s, fmt.Errorf("cannot build ast from column set expression: %s", err.Error())
 		}
+		if astExp, err = convertIns(astExp); err != nil {
+			return nil, s, fmt.Errorf("cannot convert ins for select expression %d: %s", setExpIdx, err.Error())
+		}
+		cmd.ColumnSetExpAsts[setExpIdx] = astExp
 	}
 
+	// Lexems to expressions: where expression
 	if len(cmd.WhereExpLexems) > 0 {
 		cmd.WhereExpAst, err = lexemsToAstExpr(cmd.WhereExpLexems)
 		if err != nil {
 			return nil, s, fmt.Errorf("cannot build ast from update where expression: %s", err.Error())
+		}
+		if cmd.WhereExpAst, err = convertIns(cmd.WhereExpAst); err != nil {
+			return nil, s, fmt.Errorf("cannot convert ins for update where expression: %s", err.Error())
 		}
 	}
 
@@ -1952,6 +1984,9 @@ func parseUpdate(s string, preparedQueryParams []any) (*CommandUpdate, string, e
 		cmd.IfExpAst, err = lexemsToAstExpr(cmd.IfExpLexems)
 		if err != nil {
 			return nil, s, fmt.Errorf("cannot build ast from if expression: %s", err.Error())
+		}
+		if cmd.IfExpAst, err = convertIns(cmd.IfExpAst); err != nil {
+			return nil, s, fmt.Errorf("cannot convert ins for update if expression: %s", err.Error())
 		}
 	}
 
@@ -1962,12 +1997,12 @@ func parseDelete(s string, preparedQueryParams []interface{}) (*CommandDelete, s
 	var l *Lexem
 	var err error
 	cmd := CommandDelete{ColumnsToDelete: []string{}}
-	l, s = getKeyword(s, `(?i)DELETE`, true)
+	l, s = getKeyword(s, `(?i)DELETE\b`, true)
 	if l == nil {
 		return nil, s, fmt.Errorf("expected DELETE: %s", s)
 	}
 	for {
-		l, s = getKeyword(s, `(?i)FROM`, false)
+		l, s = getKeyword(s, `(?i)FROM\b`, false)
 		if l != nil {
 			break
 		}
@@ -1982,7 +2017,7 @@ func parseDelete(s string, preparedQueryParams []interface{}) (*CommandDelete, s
 		}
 		return nil, s, fmt.Errorf("expected FROM or column name: %s", s)
 	}
-	l, s = getKeyword(s, `(?i)FROM`, true)
+	l, s = getKeyword(s, `(?i)FROM\b`, true)
 	if l == nil {
 		return nil, s, fmt.Errorf("expected FROM: %s", s)
 	}
@@ -1998,7 +2033,7 @@ func parseDelete(s string, preparedQueryParams []interface{}) (*CommandDelete, s
 		cmd.TableName = l.V
 	}
 
-	l, s = getKeyword(s, `(?i)WHERE`, true)
+	l, s = getKeyword(s, `(?i)WHERE\b`, true)
 	if l != nil {
 		cmd.WhereExpLexems, s, err = getWhereExpressionLexems(s)
 		if err != nil {
@@ -2009,12 +2044,12 @@ func parseDelete(s string, preparedQueryParams []interface{}) (*CommandDelete, s
 		}
 	}
 
-	l, s = getKeyword(s, `(?i)IF\s+EXISTS`, true)
+	l, s = getKeyword(s, `(?i)IF\s+EXISTS\b`, true)
 	if l != nil {
 		cmd.IfExists = true
 	}
 
-	l, s = getKeyword(s, `(?i)IF`, true)
+	l, s = getKeyword(s, `(?i)IF\b`, true)
 	if l != nil {
 		return nil, s, fmt.Errorf("IF not upported, it affects performance: %s", s)
 	}
@@ -2065,7 +2100,7 @@ func ParseCommands(s string, preparedQueryParams []interface{}) ([]Command, erro
 		if s == "" {
 			break
 		}
-		l, s = getKeyword(s, `(?i)(CREATE\s+KEYSPACE|USE|DROP\s+KEYSPACE|CREATE\s+TABLE|TRUNCATE|DROP\s+TABLE|SELECT|INSERT\s+INTO|UPDATE|DELETE)`, false)
+		l, s = getKeyword(s, `(?i)(CREATE\s+KEYSPACE|USE|DROP\s+KEYSPACE|CREATE\s+TABLE|TRUNCATE|DROP\s+TABLE|SELECT|INSERT\s+INTO|UPDATE|DELETE)(\b)`, false)
 		if l != nil {
 			var cmd Command
 			var err error

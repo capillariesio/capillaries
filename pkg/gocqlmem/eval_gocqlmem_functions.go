@@ -238,7 +238,7 @@ func callToken(args []any) (any, error) {
 		}
 		var h64 hash.Hash64 = murmur3.New64()
 		h64.Write(buf.Bytes())
-		return h64.Sum64(), nil
+		return int64(h64.Sum64()), nil
 
 	case bool:
 		typedValInt64 := 0
@@ -249,7 +249,7 @@ func callToken(args []any) (any, error) {
 		binary.LittleEndian.PutUint64(b, uint64(typedValInt64))
 		var h64 hash.Hash64 = murmur3.New64()
 		h64.Write(b)
-		return h64.Sum64(), nil
+		return int64(h64.Sum64()), nil
 
 	// case inf.Dec:
 	// 	b, err := typedVal.GobEncode()
@@ -267,12 +267,13 @@ func callToken(args []any) (any, error) {
 		}
 		var h64 hash.Hash64 = murmur3.New64()
 		h64.Write(b)
-		return h64.Sum64(), nil
+		return int64(h64.Sum64()), nil
 
 	case string:
 		var h64 hash.Hash64 = murmur3.New64()
 		h64.Write([]byte(typedVal))
-		return h64.Sum64(), nil
+		return int64(h64.Sum64()), nil
+
 	default:
 		return nil, fmt.Errorf("cannot token %v, unsupported source type %T", args[0], args[0])
 	}

@@ -65,7 +65,7 @@ func (iter *gocqlIter) Scanner() gocql.Scanner {
 }
 
 func (iter *gocqlIter) Scan(dest ...interface{}) bool {
-	return iter.i.Scan(dest)
+	return iter.i.Scan(dest...)
 }
 
 func (iter *gocqlIter) GetCustomPayload() map[string][]byte {
@@ -214,7 +214,7 @@ func (q *gocqlQuery) Idempotent(value bool) Query {
 	return q
 }
 func (q *gocqlQuery) Bind(v ...interface{}) Query {
-	q.q.Bind(v)
+	q.q.Bind(v...)
 	return q
 }
 func (q *gocqlQuery) SerialConsistency(cons gocql.Consistency) Query {
@@ -248,16 +248,16 @@ func (q *gocqlQuery) MapScanContext(ctx context.Context, m map[string]interface{
 	return q.q.MapScanContext(ctx, m)
 }
 func (q *gocqlQuery) Scan(dest ...interface{}) error {
-	return q.q.Scan(dest)
+	return q.q.Scan(dest...)
 }
 func (q *gocqlQuery) ScanContext(ctx context.Context, dest ...interface{}) error {
-	return q.q.ScanContext(ctx, dest)
+	return q.q.ScanContext(ctx, dest...)
 }
 func (q *gocqlQuery) ScanCAS(dest ...interface{}) (applied bool, err error) {
-	return q.q.ScanCAS(dest)
+	return q.q.ScanCAS(dest...)
 }
 func (q *gocqlQuery) ScanCASContext(ctx context.Context, dest ...interface{}) (applied bool, err error) {
-	return q.q.ScanCASContext(ctx, dest)
+	return q.q.ScanCASContext(ctx, dest...)
 }
 func (q *gocqlQuery) MapScanCAS(dest map[string]interface{}) (applied bool, err error) {
 	return q.q.MapScanCAS(dest)
@@ -308,7 +308,7 @@ func (s *gocqlSession) AwaitSchemaAgreement(ctx context.Context) error {
 }
 
 func (s *gocqlSession) Query(stmt string, values ...interface{}) Query {
-	return &gocqlQuery{q: s.s.Query(stmt, values)}
+	return &gocqlQuery{q: s.s.Query(stmt, values...)}
 }
 
 func (s *gocqlSession) Bind(stmt string, b func(q *gocql.QueryInfo) ([]interface{}, error)) Query {

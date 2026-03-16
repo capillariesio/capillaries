@@ -360,48 +360,19 @@ func TestUpdate(t *testing.T) {
 	assert.Equal(t, "t1", cmd.TableName)
 
 	assert.Equal(t, "f1", cmd.ColumnSetExpressions[0].Name)
-	assert.Equal(t, "1", cmd.ColumnSetExpressions[0].ExpLexems[0].V)
-	assert.Equal(t, "+", cmd.ColumnSetExpressions[0].ExpLexems[1].V)
-	assert.Equal(t, "2", cmd.ColumnSetExpressions[0].ExpLexems[2].V)
-
+	assert.Equal(t, "1 + 2", lexemSliceToString(cmd.ColumnSetExpressions[0].ExpLexems))
 	assert.Equal(t, "f2", cmd.ColumnSetExpressions[1].Name)
-	assert.Equal(t, "a", cmd.ColumnSetExpressions[1].ExpLexems[0].V)
-	assert.Equal(t, "==", cmd.ColumnSetExpressions[1].ExpLexems[1].V)
-	assert.Equal(t, "b", cmd.ColumnSetExpressions[1].ExpLexems[2].V)
-
+	assert.Equal(t, "a == b", lexemSliceToString(cmd.ColumnSetExpressions[1].ExpLexems))
 	assert.Equal(t, "f3", cmd.ColumnSetExpressions[2].Name)
-	assert.Equal(t, "token", cmd.ColumnSetExpressions[2].ExpLexems[0].V)
-	assert.Equal(t, "(", cmd.ColumnSetExpressions[2].ExpLexems[1].V)
-	assert.Equal(t, "f2", cmd.ColumnSetExpressions[2].ExpLexems[2].V)
-	assert.Equal(t, ")", cmd.ColumnSetExpressions[2].ExpLexems[3].V)
-
+	assert.Equal(t, "token ( f2 )", lexemSliceToString(cmd.ColumnSetExpressions[2].ExpLexems))
 	assert.Equal(t, "f4", cmd.ColumnSetExpressions[3].Name)
-	assert.Equal(t, "NULL", cmd.ColumnSetExpressions[3].ExpLexems[0].V)
-	assert.Equal(t, LexemNull, cmd.ColumnSetExpressions[3].ExpLexems[0].T)
+	assert.Equal(t, "NULL", lexemSliceToString(cmd.ColumnSetExpressions[3].ExpLexems))
 
-	assert.Equal(t, "f1", cmd.WhereExpLexems[0].V)
-	assert.Equal(t, "==", cmd.WhereExpLexems[1].V)
-	assert.Equal(t, "10", cmd.WhereExpLexems[2].V)
-	assert.Equal(t, "&&", cmd.WhereExpLexems[3].V)
-	assert.Equal(t, "(", cmd.WhereExpLexems[4].V)
-	assert.Equal(t, "f2", cmd.WhereExpLexems[5].V)
-	assert.Equal(t, "==", cmd.WhereExpLexems[6].V)
-	assert.Equal(t, "c", cmd.WhereExpLexems[7].V)
-	assert.Equal(t, "||", cmd.WhereExpLexems[8].V)
-	assert.Equal(t, "f2", cmd.WhereExpLexems[9].V)
-	assert.Equal(t, "==", cmd.WhereExpLexems[10].V)
-	assert.Equal(t, "d", cmd.WhereExpLexems[11].V)
-	assert.Equal(t, ")", cmd.WhereExpLexems[12].V)
-	assert.Equal(t, "||", cmd.WhereExpLexems[13].V)
-	assert.Equal(t, "(", cmd.WhereExpLexems[14].V)
-	assert.Equal(t, "f2", cmd.WhereExpLexems[15].V)
-	assert.Equal(t, "!=", cmd.WhereExpLexems[16].V)
-	assert.Equal(t, "e", cmd.WhereExpLexems[17].V)
-	assert.Equal(t, ")", cmd.WhereExpLexems[18].V)
+	assert.Equal(t, "f1 == 10 && f2 == cqlin ( c , d ) || f2 == cqlnotin ( e )", lexemSliceToString(cmd.WhereExpLexems))
 
 	assert.True(t, cmd.IfExists)
 
-	cmds, err = ParseCommands(`use ks1;UPDATE t1 SET f1 = 1 IF f2 = 2`, nil)
+	cmds, err = ParseCommands(`use ks1;UPDATE t1 SET f1 = 1 IF f2 IN (4)`, nil)
 	assert.Nil(t, err)
 	cmd, ok = cmds[1].(*CommandUpdate)
 	assert.True(t, ok)
@@ -410,12 +381,12 @@ func TestUpdate(t *testing.T) {
 	assert.Equal(t, "t1", cmd.TableName)
 
 	assert.Equal(t, "f1", cmd.ColumnSetExpressions[0].Name)
-	assert.Equal(t, "1", cmd.ColumnSetExpressions[0].ExpLexems[0].V)
+	assert.Equal(t, "1", lexemSliceToString(cmd.ColumnSetExpressions[0].ExpLexems))
+	assert.Equal(t, "&{1 2 INT 1}", fmt.Sprintf("%v", cmd.ColumnSetExpAsts[0]))
 
 	assert.False(t, cmd.IfExists)
-	assert.Equal(t, "f2", cmd.IfExpLexems[0].V)
-	assert.Equal(t, "==", cmd.IfExpLexems[1].V)
-	assert.Equal(t, "2", cmd.IfExpLexems[2].V)
+	assert.Equal(t, "f2 == cqlin ( 4 )", lexemSliceToString(cmd.IfExpLexems))
+	assert.Contains(t, fmt.Sprintf("%v", cmd.IfExpAst), "&{cqlin ")
 }
 
 func TestDelete(t *testing.T) {

@@ -48,7 +48,7 @@ func addAppliedToRetrievedData(ks string, tableName string, existingColumnInfos 
 	return existingColumnInfos, existingValues
 }
 
-func internalValueToRequestedType(val any, typ gocql.Type) (any, error) {
+func internalValueToClientType(val any, typ gocql.Type) (any, error) {
 	switch typedInternalVal := val.(type) {
 	case int64:
 		switch typ {
@@ -86,12 +86,12 @@ func internalValueToRequestedType(val any, typ gocql.Type) (any, error) {
 	return val, nil
 }
 
-func adjustInternalValuesAccordingToTypeInfos(values [][]any, typeInfos []gocql.TypeInfo) error {
+func adjustInternalValuesToClientTypesAccordingToTypeInfos(values [][]any, typeInfos []gocql.TypeInfo) error {
 	for rowIdx := range len(values) {
 		for colIdx := range len(typeInfos) {
 			if typeInfos[colIdx] != nil {
 				var err error
-				if values[rowIdx][colIdx], err = internalValueToRequestedType(values[rowIdx][colIdx], typeInfos[colIdx].Type()); err != nil {
+				if values[rowIdx][colIdx], err = internalValueToClientType(values[rowIdx][colIdx], typeInfos[colIdx].Type()); err != nil {
 					return err
 				}
 			}
@@ -99,12 +99,12 @@ func adjustInternalValuesAccordingToTypeInfos(values [][]any, typeInfos []gocql.
 	}
 	return nil
 }
-func adjustInternalValuesAccordingToColumnInfos(values [][]any, columnInfos []gocql.ColumnInfo) error {
+func adjustInternalValuesToClientTypesAccordingToColumnInfos(values [][]any, columnInfos []gocql.ColumnInfo) error {
 	for rowIdx := range len(values) {
 		for colIdx := range len(columnInfos) {
 			if columnInfos[colIdx].TypeInfo != nil {
 				var err error
-				if values[rowIdx][colIdx], err = internalValueToRequestedType(values[rowIdx][colIdx], columnInfos[colIdx].TypeInfo.Type()); err != nil {
+				if values[rowIdx][colIdx], err = internalValueToClientType(values[rowIdx][colIdx], columnInfos[colIdx].TypeInfo.Type()); err != nil {
 					return err
 				}
 			}
@@ -242,7 +242,7 @@ func (q *gocqlmemQuery) Iter() Iter {
 			return NewGocqlmemIterWithError(err)
 		}
 
-		if err = adjustInternalValuesAccordingToColumnInfos(existingValues, existingColumnInfos); err != nil {
+		if err = adjustInternalValuesToClientTypesAccordingToColumnInfos(existingValues, existingColumnInfos); err != nil {
 			return NewGocqlmemIterWithError(err)
 		}
 
@@ -265,7 +265,7 @@ func (q *gocqlmemQuery) Iter() Iter {
 			return NewGocqlmemIterWithError(err)
 		}
 
-		if err = adjustInternalValuesAccordingToTypeInfos(values, typeInfos); err != nil {
+		if err = adjustInternalValuesToClientTypesAccordingToTypeInfos(values, typeInfos); err != nil {
 			return NewGocqlmemIterWithError(err)
 		}
 
@@ -287,7 +287,7 @@ func (q *gocqlmemQuery) Iter() Iter {
 			return NewGocqlmemIterWithError(err)
 		}
 
-		if err = adjustInternalValuesAccordingToColumnInfos(existingValues, existingColumnInfos); err != nil {
+		if err = adjustInternalValuesToClientTypesAccordingToColumnInfos(existingValues, existingColumnInfos); err != nil {
 			return NewGocqlmemIterWithError(err)
 		}
 
@@ -324,7 +324,9 @@ func (q *gocqlmemQuery) MapScan(m map[string]interface{}) error {
 	if err := iter.Err(); err != nil {
 		return err
 	}
-	iter.MapScan(m)
+	if !iter.MapScan(m) {
+		return iter.Err()
+	}
 	return iter.Close()
 }
 
@@ -341,7 +343,9 @@ func (q *gocqlmemQuery) Scan(dest ...interface{}) error {
 	if iter.NumRows() == 0 {
 		return gocql.ErrNotFound
 	}
-	iter.Scan(dest)
+	if !iter.Scan(dest) {
+		return iter.Err()
+	}
 	return iter.Close()
 }
 
@@ -381,7 +385,9 @@ func (q *gocqlmemQuery) MapScanCAS(dest map[string]interface{}) (applied bool, e
 	if iter.NumRows() == 0 {
 		return false, gocql.ErrNotFound
 	}
-	iter.MapScan(dest)
+	if !iter.MapScan(dest) {
+		return false, iter.Err()
+	}
 	applied = dest["[applied]"].(bool)
 	delete(dest, "[applied]")
 

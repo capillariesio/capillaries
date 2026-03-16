@@ -136,30 +136,49 @@ func TestPageSize(t *testing.T) {
 	isApplied, err = s.Query("INSERT INTO ks1.t1 (a,b) VALUES (2,2)").MapScanCAS(dest)
 	assert.Nil(t, err)
 	assert.True(t, isApplied)
+	isApplied, err = s.Query("INSERT INTO ks1.t1 (a,b) VALUES (3,3)").MapScanCAS(dest)
+	assert.Nil(t, err)
+	assert.True(t, isApplied)
+	isApplied, err = s.Query("INSERT INTO ks1.t1 (a,b) VALUES (4,4)").MapScanCAS(dest)
+	assert.Nil(t, err)
+	assert.True(t, isApplied)
 
 	resultA := int32(0)
 	resultB := int64(0)
 
-	iter := s.Query(`SELECT a,b FROM ks1.t1`).PageSize(1).PageState([]byte{}).Iter()
+	iter := s.Query(`SELECT a,b FROM ks1.t1`).PageSize(2).PageState([]byte{}).Iter()
 	assert.Nil(t, err)
 	nextPageState := iter.PageState()
-	scanner := iter.Scanner()
-	for scanner.Next() {
-		err = scanner.Scan(&resultA, &resultB)
-		assert.Nil(t, err)
-		assert.Equal(t, int32(1), resultA)
-		assert.Equal(t, int64(1), resultB)
-	}
 
-	iter = s.Query(`SELECT a,b FROM ks1.t1`).PageSize(1).PageState(nextPageState).Iter()
+	scanner := iter.Scanner()
+
+	assert.True(t, scanner.Next())
+	err = scanner.Scan(&resultA, &resultB)
+	assert.Nil(t, err)
+	assert.Equal(t, int32(1), resultA)
+	assert.Equal(t, int64(1), resultB)
+
+	assert.True(t, scanner.Next())
+	err = scanner.Scan(&resultA, &resultB)
+	assert.Nil(t, err)
+	assert.Equal(t, int32(2), resultA)
+	assert.Equal(t, int64(2), resultB)
+
+	iter = s.Query(`SELECT a,b FROM ks1.t1`).PageSize(2).PageState(nextPageState).Iter()
 	assert.Nil(t, err)
 	scanner = iter.Scanner()
-	for scanner.Next() {
-		err = scanner.Scan(&resultA, &resultB)
-		assert.Nil(t, err)
-		assert.Equal(t, int32(2), resultA)
-		assert.Equal(t, int64(2), resultB)
-	}
+
+	assert.True(t, scanner.Next())
+	err = scanner.Scan(&resultA, &resultB)
+	assert.Nil(t, err)
+	assert.Equal(t, int32(3), resultA)
+	assert.Equal(t, int64(3), resultB)
+
+	assert.True(t, scanner.Next())
+	err = scanner.Scan(&resultA, &resultB)
+	assert.Nil(t, err)
+	assert.Equal(t, int32(4), resultA)
+	assert.Equal(t, int64(4), resultB)
 }
 
 func TestUuid(t *testing.T) {

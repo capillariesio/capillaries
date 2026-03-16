@@ -1,4 +1,4 @@
-FROM golang:1.25 AS golang
+FROM golang:1.26.1 AS golang
 WORKDIR /usr/src/capillaries
 ADD go.mod go.sum ./
 ADD ./pkg ./pkg
