@@ -142,6 +142,36 @@ type clusteringKeyEntry struct {
 	Key string
 }
 
+type sortNumericKeyEntry struct {
+	Idx int
+	Key int64
+}
+
+func (t *tableStore) getRowSequenceFromColumnDefAndPartitionFieldToken(partitionKeyFieldIdx int) ([]int, error) {
+	totalRows := len(t.columnValues[0])
+	tempClusteringKey := make([]sortNumericKeyEntry, totalRows)
+	for i := range totalRows {
+		tokenVal, err := callToken([]any{t.columnValues[partitionKeyFieldIdx][i]})
+		if err != nil {
+			return nil, fmt.Errorf("cannot calculate token of %v", t.columnValues[partitionKeyFieldIdx][i])
+		}
+		tokenValInt64, ok := tokenVal.(int64)
+		if !ok {
+			return nil, fmt.Errorf("unexpectedly, token val in not int64: %T(%v)", tokenVal, tokenVal)
+		}
+		tempClusteringKey[i] = sortNumericKeyEntry{Idx: i, Key: tokenValInt64}
+	}
+	slices.SortFunc(tempClusteringKey, func(e1, e2 sortNumericKeyEntry) int {
+		return cmp.Compare(e1.Key, e2.Key)
+	})
+
+	result := make([]int, len(tempClusteringKey))
+	for i := range len(tempClusteringKey) {
+		result[i] = tempClusteringKey[i].Idx
+	}
+	return result, nil
+}
+
 func (t *tableStore) getRowSequenceFromColumnDefAndSelectOrderBy(orderByFieldsFromSelect []*OrderByField) ([]int, error) {
 	totalRows := len(t.columnValues[0])
 	if len(orderByFieldsFromSelect) == 0 {
@@ -403,6 +433,9 @@ func (t *tableStore) execInternalUpsert(cmd *CommandInsert) (bool, []gocql.Colum
 			}
 			t.columnValues[tableColIdx] = slices.Insert(t.columnValues[tableColIdx], insertIdx, val)
 		}
+		if cmd.TableName == "order_item_date_inner_00001" && insertedColumnValues["order_id"].(string) == "001d9673d0e150471d536c210ce20123" {
+			fmt.Printf("internalwritingdata insert %v\n", insertedColumnValues)
+		}
 	} else {
 		for tableColIdx, tableColDef := range t.columnDefs {
 			val, ok := insertedColumnValues[tableColDef.name]
@@ -411,6 +444,11 @@ func (t *tableStore) execInternalUpsert(cmd *CommandInsert) (bool, []gocql.Colum
 			}
 			t.columnValues[tableColIdx] = append(t.columnValues[tableColIdx], val)
 		}
+
+		if cmd.TableName == "order_item_date_inner_00001" && insertedColumnValues["order_id"].(string) == "001d9673d0e150471d536c210ce20123" {
+			fmt.Printf("internalwritingdata append %v\n", insertedColumnValues)
+		}
+
 	}
 	return true, nil, nil, nil
 }
@@ -662,13 +700,50 @@ func populateFieldsUnderCount(tableName string, columnDefs []*columnDef, columnE
 	return newColumnExpName, newColumnExpAst, nil
 }
 
+func findTokenPartitionFieldInLexems(lexems []*Lexem, tableName string, columnDefs []*columnDef) int {
+	// Follow field order: partition keys always go first
+	for colIdx, colDef := range columnDefs {
+		if colDef.primaryKey != PrimaryKeyPartition {
+			continue
+		}
+		for lexemIdx, l := range lexems {
+			if l.V != colDef.name && l.V != tableName+"."+colDef.name {
+				continue
+			}
+			if lexemIdx < 2 || lexems[lexemIdx-1].V != "(" || lexems[lexemIdx-2].V != "token" {
+				continue
+			}
+			// We have a token(<partitioning key field>) expression, return this field name
+			return colIdx
+		}
+	}
+	return -1
+}
+
 func (t *tableStore) execSelect(cmd *CommandSelect, lastSelectedRowIdx int, maxRows int, preparedQueryParams []interface{}) ([]string, [][]any, []gocql.TypeInfo, int, error) {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 
-	selectSeq, err := t.getRowSequenceFromColumnDefAndSelectOrderBy(cmd.OrderByFields)
-	if err != nil {
-		return nil, nil, nil, -1, err
+	var selectSeq []int
+	var err error
+
+	// IMPORTANT!
+	// Essential, but sometimes overlooked Cassandra feature:
+	// When querying Cassandra using the token() function in the WHERE clause,
+	// the results are returned ordered by the hash value of the partition key,
+	// not the partition key itself. This is guaranteed for standard partitioners like Murmur3Partitioner.
+	// TODO: implement ordering by token(partfield1),token(partfield2),someClustField
+	orderBytokenPartitionFieldIdx := findTokenPartitionFieldInLexems(cmd.WhereExpLexems, cmd.TableName, t.columnDefs)
+	if orderBytokenPartitionFieldIdx != -1 {
+		selectSeq, err = t.getRowSequenceFromColumnDefAndPartitionFieldToken(orderBytokenPartitionFieldIdx)
+		if err != nil {
+			return nil, nil, nil, -1, fmt.Errorf("cannot get token-based row sequence: %s", err.Error())
+		}
+	} else {
+		selectSeq, err = t.getRowSequenceFromColumnDefAndSelectOrderBy(cmd.OrderByFields)
+		if err != nil {
+			return nil, nil, nil, -1, fmt.Errorf("cannot get field-based row sequence: %s", err.Error())
+		}
 	}
 
 	// Handle asterisks and count()
@@ -722,16 +797,16 @@ func (t *tableStore) execSelect(cmd *CommandSelect, lastSelectedRowIdx int, maxR
 
 	var isAgg bool
 	aggCtxs := make([]*eval.EvalCtx, len(cmd.SelectExpAsts))
-	for i, resultExp := range cmd.SelectExpAsts {
+	for internalRowIdx, resultExp := range cmd.SelectExpAsts {
 		aggEnabled, aggFuncType, aggFuncArgs := eval.DetectRootAggFunc(resultExp)
 		if aggEnabled == eval.AggFuncEnabled {
-			aggCtxs[i], err = eval.NewAggEvalCtx(aggFuncType, aggFuncArgs, GocqlmemEvalFunctions, GocqlmemEvalConstants, nil)
+			aggCtxs[internalRowIdx], err = eval.NewAggEvalCtx(aggFuncType, aggFuncArgs, GocqlmemEvalFunctions, GocqlmemEvalConstants, nil)
 			if err != nil {
 				return nil, nil, nil, -1, err
 			}
 			isAgg = true
 		} else {
-			aggCtxs[i] = eval.NewPlainEvalCtx(GocqlmemEvalFunctions, GocqlmemEvalConstants, nil)
+			aggCtxs[internalRowIdx] = eval.NewPlainEvalCtx(GocqlmemEvalFunctions, GocqlmemEvalConstants, nil)
 		}
 	}
 
@@ -822,6 +897,14 @@ func (t *tableStore) execSelect(cmd *CommandSelect, lastSelectedRowIdx int, maxR
 			isFirstHitAlreadyPassed = true
 			if !isAgg {
 				resultRows = append(resultRows, resultRow)
+				if cmd.TableName == "order_item_date_inner_00001" {
+					for i, colName := range cmd.SelectExpNames {
+						if colName == "order_id" && resultRow[i].(string) == "001d9673d0e150471d536c210ce20123" {
+							fmt.Printf("findthebug read from table, row %d, %v\n", i, resultRow)
+							break
+						}
+					}
+				}
 			}
 
 			selectedRowCount++

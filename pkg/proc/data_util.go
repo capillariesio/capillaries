@@ -262,6 +262,11 @@ func selectBatchFromTableByToken(logger *l.CapiLogger,
 	}
 
 	qb := cql.QueryBuilder{}
+	// IMPORTANT!
+	// we are relying on an essential, but sometimes overlooked Cassandra feature:
+	// When querying Cassandra using the token() function in the WHERE clause,
+	// the results are returned ordered by the hash value of the partition key,
+	// not the partition key itself. This is guaranteed for standard partitioners like Murmur3Partitioner.
 	q := qb.Keyspace(pCtx.Msg.DataKeyspace).
 		Limit(batchSize).
 		CondPrepared("token(rowid)", ">=").
@@ -270,7 +275,7 @@ func selectBatchFromTableByToken(logger *l.CapiLogger,
 
 	// TODO: consider retries as we do in selectBatchFromDataTablePaged(); although no timeouts were detected so far here
 
-	iter := pCtx.CqlSession.Query(q, startToken, endToken).Iter()
+	iter := pCtx.CqlSession.Query(q, startToken, endToken).PageSize(batchSize).Iter()
 	if iter.Err() != nil {
 		return 0, db.WrapDbErrorWithQuery("cannot create iterator", q, iter.Err())
 	}

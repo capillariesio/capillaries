@@ -402,6 +402,41 @@ func TestTableSelect(t *testing.T) {
 	assert.Equal(t, "[1]", fmt.Sprintf("%v", values[0]))
 }
 
+func TestTableSelectByToken(t *testing.T) {
+	table := tableStore{
+		columnDefs: []*columnDef{
+			{"col1", PrimaryKeyPartition, gocql.TypeText, ClusteringOrderAsc},
+			{"col2", PrimaryKeyClustering, gocql.TypeBigInt, ClusteringOrderDesc},
+		},
+		columnValues: [][]any{
+			{"a", "b", "c", "d"},
+			{int64(0), int64(1), int64(2), int64(3)},
+		},
+		columnDefMap: map[string]int{"col1": 0, "col2": 1},
+	}
+	var cmds []Command
+	var cmd *CommandSelect
+	var err error
+	var ok bool
+	var names []string
+	var values [][]any
+	var preparedQueryParams []any
+
+	cmds, err = ParseCommands(`SELECT t.col1, token(col1) FROM ks1.t WHERE token(col1) >= -9223372036854775808 AND token(col1) <= 9223372036854775807`, nil)
+	assert.Nil(t, err)
+	cmd, ok = cmds[0].(*CommandSelect)
+	assert.True(t, ok)
+	names, values, _, _, err = table.execSelect(cmd, -1, -1, preparedQueryParams)
+	assert.Nil(t, err)
+	assert.Equal(t, "t.col1,token(col1)", strings.Join(names, ","))
+
+	// Ordered by token
+	assert.Equal(t, "[a -8839064797231613815]", fmt.Sprintf("%v", values[0]))
+	assert.Equal(t, "[c -8198557465434950441]", fmt.Sprintf("%v", values[1]))
+	assert.Equal(t, "[d -3786697372163639434]", fmt.Sprintf("%v", values[2]))
+	assert.Equal(t, "[b 8833996863197925870]", fmt.Sprintf("%v", values[3]))
+}
+
 func TestTableUpdate(t *testing.T) {
 	table := tableStore{
 		columnDefs: []*columnDef{

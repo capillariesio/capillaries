@@ -112,9 +112,11 @@ func (iter *gocqlmemIter) Scan(dest ...interface{}) bool {
 	}
 
 	for i := range len(iter.retrievedColumnInfos) {
-		if err := clientTypedValueToProvidedPtr(iter.retrievedValues[iter.pos][i], dest[i]); err != nil {
-			iter.SetErr(fmt.Errorf("cannot scan column %d: %s", i, err.Error()))
-			return false
+		if dest[i] != nil {
+			if err := clientTypedValueToProvidedPtr(iter.retrievedValues[iter.pos][i], dest[i]); err != nil {
+				iter.SetErr(fmt.Errorf("cannot scan column %d: %s", i, err.Error()))
+				return false
+			}
 		}
 	}
 
