@@ -56,9 +56,9 @@ func internalValueToClientType(val any, typ gocql.Type) (any, error) {
 			return int8(typedInternalVal), nil
 		case gocql.TypeSmallInt:
 			return int16(typedInternalVal), nil
-		case gocql.TypeInt:
+		case gocql.TypeInt, gocql.TypeDate:
 			return int32(typedInternalVal), nil
-		case gocql.TypeBigInt, gocql.TypeVarint:
+		case gocql.TypeBigInt, gocql.TypeVarint, gocql.TypeCounter, gocql.TypeTime:
 			return typedInternalVal, nil
 		}
 
@@ -80,6 +80,18 @@ func internalValueToClientType(val any, typ gocql.Type) (any, error) {
 			}
 			return *infDecVal, nil
 		}
+	case []byte:
+		switch typ {
+		case gocql.TypeBlob:
+			return typedInternalVal, nil
+		case gocql.TypeUUID, gocql.TypeTimeUUID:
+			uuid, err := gocql.UUIDFromBytes(typedInternalVal)
+			if err != nil {
+				return nil, fmt.Errorf("cannot []byte %v(%T) to UUID/TimeUUID: %s", typedInternalVal, typedInternalVal, err.Error())
+			}
+			return uuid, nil
+		}
+
 	}
 
 	// Give up and pray

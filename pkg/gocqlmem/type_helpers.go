@@ -70,7 +70,8 @@ func isValidDataType(typ string) bool {
 	return err == nil
 }
 
-func castToInternalKnownType(val any, cqlType gocql.Type) (any, error) {
+// Used in UPDATE and INSERT, when gocql type info is avalable
+func sanitizeToInternalKnownType(val any, cqlType gocql.Type) (any, error) {
 	// We assume that nils are allowed for this column
 	if val == nil {
 		return nil, nil
@@ -117,9 +118,16 @@ func castToInternalKnownType(val any, cqlType gocql.Type) (any, error) {
 		if !ok {
 			return 0, fmt.Errorf("cast %v to UUID failed", val)
 		}
+		return typedVal.Bytes(), nil
+
+	case gocql.TypeBlob:
+		typedVal, ok := any(val).([]byte)
+		if !ok {
+			return 0, fmt.Errorf("cast %v to []byte failed", val)
+		}
 		return typedVal, nil
 
-	case gocql.TypeText, gocql.TypeVarchar:
+	case gocql.TypeText, gocql.TypeVarchar, gocql.TypeAscii:
 		typedVal, ok := any(val).(string)
 		if !ok {
 			return 0, fmt.Errorf("cast %v to string failed", val)
@@ -143,6 +151,7 @@ func castToInternalKnownType(val any, cqlType gocql.Type) (any, error) {
 	}
 }
 
+// Used when navigating in the table, column types are available
 func compareInternalKnownType(left any, right any, cqlType gocql.Type) (int, error) {
 	if left == nil {
 		return 0, fmt.Errorf("left is nil, not allowed in partition/clustering key comparison, dev error")
@@ -196,6 +205,7 @@ func compareInternalKnownType(left any, right any, cqlType gocql.Type) (int, err
 		return typedLeft.Compare(typedRight), nil
 
 	case gocql.TypeTimeUUID, gocql.TypeUUID:
+		// Should we implement a Compare for TimeUUID? gocql does not seem to have it, so assuming byte comparison is ok.
 		typedLeft, okLeft := any(left).(gocql.UUID)
 		if !okLeft {
 			return 0, fmt.Errorf("left cast %v to uuid failed", left)
@@ -205,6 +215,17 @@ func compareInternalKnownType(left any, right any, cqlType gocql.Type) (int, err
 			return 0, fmt.Errorf("right cast %v to uuid failed", right)
 		}
 		return bytes.Compare(typedLeft.Bytes(), typedRight.Bytes()), nil
+
+	case gocql.TypeBlob:
+		typedLeft, okLeft := any(left).([]byte)
+		if !okLeft {
+			return 0, fmt.Errorf("left cast %v to []byte failed", left)
+		}
+		typedRight, okRight := any(right).([]byte)
+		if !okRight {
+			return 0, fmt.Errorf("right cast %v to []byte failed", right)
+		}
+		return bytes.Compare(typedLeft, typedRight), nil
 
 	case gocql.TypeBoolean:
 		typedLeft, okLeft := any(left).(bool)
@@ -222,7 +243,7 @@ func compareInternalKnownType(left any, right any, cqlType gocql.Type) (int, err
 		} else {
 			return 0, nil
 		}
-	case gocql.TypeText, gocql.TypeVarchar:
+	case gocql.TypeText, gocql.TypeVarchar, gocql.TypeAscii:
 		typedLeft, okLeft := any(left).(string)
 		if !okLeft {
 			return 0, fmt.Errorf("left cast %v to string failed", left)
@@ -233,7 +254,7 @@ func compareInternalKnownType(left any, right any, cqlType gocql.Type) (int, err
 		}
 		return cmp.Compare(typedLeft, typedRight), nil
 	default:
-		return 0, fmt.Errorf("unknown column type %v", cqlType)
+		return 0, fmt.Errorf("unsupported column type %v", cqlType)
 	}
 }
 
@@ -335,7 +356,20 @@ func clientTypedValueToProvidedPtr(src any, destPtr any) error {
 		case *gocql.UUID:
 			*typedDestPtr = typedSrc
 		default:
-			return fmt.Errorf("cannot store UUID  %v(%T) to %T", typedSrc, typedSrc, destPtr)
+			return fmt.Errorf("cannot store UUID/TimeUUID  %v(%T) to %T", typedSrc, typedSrc, destPtr)
+		}
+	case []byte:
+		switch typedDestPtr := destPtr.(type) {
+		case *[]byte:
+			*typedDestPtr = bytes.Clone(typedSrc)
+		case *gocql.UUID:
+			uuidVal, err := gocql.UUIDFromBytes(typedSrc)
+			if err != nil {
+				return fmt.Errorf("cannot convert []byte  %v(%T) to UUID/TimeUUID", typedSrc, typedSrc)
+			}
+			*typedDestPtr = uuidVal
+		default:
+			return fmt.Errorf("cannot store []byte  %v(%T) to %T", typedSrc, typedSrc, destPtr)
 		}
 	default:
 		return fmt.Errorf("cannot store %v(%T) to %T, type not supported", src, src, destPtr)
@@ -346,15 +380,19 @@ func clientTypedValueToProvidedPtr(src any, destPtr any) error {
 func guessInternalValueType(val any) (gocql.Type, error) {
 	switch val.(type) {
 	case int64:
-		return gocql.TypeBigInt, nil
+		return gocql.TypeBigInt, nil // int8, int16 etc?
 	case float64:
-		return gocql.TypeDouble, nil
+		return gocql.TypeDouble, nil // float32?
 	case bool:
 		return gocql.TypeBoolean, nil
 	case string:
-		return gocql.TypeText, nil
+		return gocql.TypeText, nil // Varchar, ascii?
 	case decimal.Decimal:
 		return gocql.TypeDecimal, nil
+	case gocql.UUID:
+		return gocql.TypeUUID, nil // What if it's TimeUUID?
+	case []byte:
+		return gocql.TypeBlob, nil
 	default:
 		return gocql.TypeCustom, fmt.Errorf("unexpected internal type %T", val)
 	}
@@ -384,6 +422,8 @@ func guessClientValueType(val any) (gocql.Type, error) {
 		return gocql.TypeDecimal, nil
 	case gocql.UUID:
 		return gocql.TypeUUID, nil // Or TypeTimeUUID?
+	case []byte:
+		return gocql.TypeBlob, nil
 	case time.Time:
 		return gocql.TypeTimestamp, nil
 	default:
@@ -391,6 +431,7 @@ func guessClientValueType(val any) (gocql.Type, error) {
 	}
 }
 
+// Used in tests only
 func clientValuePtrToString(val any) string {
 	switch typedVal := val.(type) {
 	case *int:
@@ -417,6 +458,8 @@ func clientValuePtrToString(val any) string {
 		return fmt.Sprintf("%x-%x-%x-%x-%x", typedVal[0:4], typedVal[4:6], typedVal[6:8], typedVal[8:10], typedVal[10:16])
 	case *time.Time:
 		return typedVal.Format(time.RFC3339)
+	case *[]byte:
+		return fmt.Sprintf("%x", typedVal)
 	default:
 		return fmt.Sprintf("%v", typedVal)
 	}
@@ -465,7 +508,8 @@ func float64ToDecNoCheck(f float64) *inf.Dec {
 	return d
 }
 
-func castToInternalType(val any) (any, error) {
+// Used when adding prepared query params to value map for a parsed CQL expression
+func sanitizeToInternalType(val any) (any, error) {
 	// We assume that nils are allowed for this column
 	if val == nil {
 		return nil, nil
@@ -489,6 +533,9 @@ func castToInternalType(val any) (any, error) {
 		return typedVal, nil
 
 	case gocql.UUID:
+		return typedVal.Bytes(), nil
+
+	case []byte:
 		return typedVal, nil
 
 	case string:
@@ -502,6 +549,7 @@ func castToInternalType(val any) (any, error) {
 	}
 }
 
+// Used when calculating IN and NOT IN expressions, arg types can be anything
 func compareInternalInExpressions(left any, right any) bool {
 	if left == nil && right == nil {
 		return true
@@ -546,6 +594,12 @@ func compareInternalInExpressions(left any, right any) bool {
 		switch typedRight := right.(type) {
 		case gocql.UUID:
 			return typedLeft.String() == typedRight.String()
+		}
+
+	case []byte:
+		switch typedRight := right.(type) {
+		case []byte:
+			return bytes.Compare(typedLeft, typedRight) == 0
 		}
 
 	case bool:

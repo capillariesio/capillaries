@@ -567,9 +567,19 @@ func (t *tableStore) execInternalUpsert(cmd *CommandInsert) (bool, []gocql.Colum
 
 	insertedColumnValues := map[string]any{}
 	for i, name := range cmd.ColumnNames {
-		insertedColumnValues[name], err = castToInternalKnownType(cmd.ColumnValues[i], t.columnDefs[t.columnDefMap[name]].columnType)
+		if t.columnDefs[t.columnDefMap[name]].columnType == gocql.TypeCounter {
+			return false, nil, nil, fmt.Errorf("cannot insert value %T(%v) into counter column %s, only updates are supported", cmd.ColumnValues[i], cmd.ColumnValues[i], name)
+		}
+		insertedColumnValues[name], err = sanitizeToInternalKnownType(cmd.ColumnValues[i], t.columnDefs[t.columnDefMap[name]].columnType)
 		if err != nil {
 			return false, nil, nil, fmt.Errorf("cannot cast column %d(%s) to internal type %v: %s", i, name, cmd.ColumnValues[i], err.Error())
+		}
+	}
+
+	// Initialize counter columns with zeroes
+	for _, colDef := range t.columnDefs {
+		if colDef.columnType == gocql.TypeCounter {
+			insertedColumnValues[colDef.name] = int64(0)
 		}
 	}
 
@@ -1198,7 +1208,7 @@ func getInsertedPriKeyColumnValuePairFromEql(tableName string, columnDefs []*col
 		return colName, nil, nil
 	}
 
-	internalColVal, err := castToInternalKnownType(colValAny, columnDefs[columnDefMap[colName]].columnType)
+	internalColVal, err := sanitizeToInternalKnownType(colValAny, columnDefs[columnDefMap[colName]].columnType)
 	if err != nil {
 		return "", nil, fmt.Errorf("cannot cast column %s value (%v): %s", colName, colValAny, err.Error())
 	}
@@ -1263,7 +1273,7 @@ func calcValuesToUpdate(cmd *CommandUpdate, columnDefs []*columnDef, columnDefMa
 		if err != nil {
 			return nil, fmt.Errorf("cannot calculate updated column %d: %s", i, err.Error())
 		}
-		updatedNonKeyColValues[colSetExp.Name], err = castToInternalKnownType(updatedNonKeyColValues[colSetExp.Name], columnDefs[columnDefMap[colSetExp.Name]].columnType)
+		updatedNonKeyColValues[colSetExp.Name], err = sanitizeToInternalKnownType(updatedNonKeyColValues[colSetExp.Name], columnDefs[columnDefMap[colSetExp.Name]].columnType)
 		if err != nil {
 			return nil, fmt.Errorf("cannot cast updated column %d: %s", i, err.Error())
 		}

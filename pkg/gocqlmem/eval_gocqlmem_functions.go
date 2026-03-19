@@ -494,9 +494,14 @@ func callToTimestamp(args []any) (any, error) {
 	if err := eval.CheckArgs("toTimestamp", 1, len(args)); err != nil {
 		return nil, err
 	}
-	u, ok := args[0].(gocql.UUID)
-	if !ok {
-		return nil, fmt.Errorf("cannot read timeuuid from %T(%v)", args[0], args[0])
+
+	switch typedArg := args[0].(type) {
+	case gocql.UUID:
+		return typedArg.Time(), nil
+	case int64:
+		// Assuming this is a date - number of days since epoch
+		return time.Unix(typedArg*86400, 0).UTC(), nil
+	default:
+		return nil, fmt.Errorf("totimestamp does not support %T(%v)", typedArg, typedArg)
 	}
-	return u.Time().UnixMilli(), nil // Cassandra ts: millis from epoch
 }

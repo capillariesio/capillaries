@@ -851,7 +851,7 @@ func getColumnDef(s string) (*CreateTableColumnDef, string, bool, error) {
 	l, s = getIdent(s)
 	if l != nil {
 		def.Name = l.V
-		l, s = getKeyword(s, `(?i)(BIGINT|BLOB|BOOLEAN|COUNTER|DATE|DECIMAL|DOUBLE|DURATION|FLOAT|INET|INT|SMALLINT|TEXT|TIMEUUID|TIMESTAMP|TIME|TINYINT|UUID|VARCHAR|VARINT)(\b)`, true)
+		l, s = getKeyword(s, `(?i)(BIGINT|BLOB|BOOLEAN|COUNTER|DATE|DECIMAL|DOUBLE|DURATION|FLOAT|INET|INT|SMALLINT|TEXT|TIMEUUID|TIMESTAMP|TIME|TINYINT|UUID|VARCHAR|VARINT|ASCII)(\b)`, true)
 		if l != nil {
 			typ, err := stringToType(l.V)
 			if err != nil {
@@ -1326,6 +1326,9 @@ func parseCreateTable(s string) (*CommandCreateTable, string, error) {
 		var fieldFound bool
 		for i := range len(cmd.ColumnDefs) {
 			if fieldName == cmd.ColumnDefs[i].Name {
+				if cmd.ColumnDefs[i].ColumnType == gocql.TypeCounter {
+					return nil, s, fmt.Errorf("partition key %s cannot have counter type", fieldName)
+				}
 				fieldFound = true
 				break
 			}
@@ -1339,6 +1342,9 @@ func parseCreateTable(s string) (*CommandCreateTable, string, error) {
 		var fieldFound bool
 		for i := range len(cmd.ColumnDefs) {
 			if fieldName == cmd.ColumnDefs[i].Name {
+				if cmd.ColumnDefs[i].ColumnType == gocql.TypeCounter {
+					return nil, s, fmt.Errorf("clustering key %s cannot have counter type", fieldName)
+				}
 				fieldFound = true
 				break
 			}
@@ -1420,14 +1426,14 @@ func addPreparedQueryParamsToMap(valMap eval.VarValuesMap, preparedQueryParams [
 			paramSlice := reflect.ValueOf(preparedQueryParams[paramIdx])
 			if paramSlice.Kind() == reflect.Slice {
 				for i := range paramSlice.Len() {
-					internalTypedVal, err := castToInternalType(paramSlice.Index(i).Interface())
+					internalTypedVal, err := sanitizeToInternalType(paramSlice.Index(i).Interface())
 					if err != nil {
 						return err
 					}
 					valMap["params"][fmt.Sprintf("param%03d_%03d", paramIdx, i)] = internalTypedVal
 				}
 			} else {
-				internalTypedVal, err := castToInternalType(preparedQueryParams[paramIdx])
+				internalTypedVal, err := sanitizeToInternalType(preparedQueryParams[paramIdx])
 				if err != nil {
 					return err
 				}

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	gocql "github.com/apache/cassandra-gocql-driver/v2"
 	"github.com/capillariesio/capillaries/pkg/eval"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
@@ -283,6 +284,23 @@ func TestDatetimeFunctions(t *testing.T) {
 	curTime := int64(((ti.Hour()*60+ti.Minute())*60+ti.Second())*1000000000 + ti.Nanosecond())
 	assert.Nil(t, err)
 	assert.Equal(t, curTime/1000000, val.(int64)/1000000) // Give it some slack
+
+	// toTimestamp
+
+	timeToTest := time.Unix(1436832817, 476000000).UTC()
+	sometimeuuid := gocql.UUIDFromTime(timeToTest)
+	eCtx.SetVars(eval.VarValuesMap{"": {"sometimeuuid": sometimeuuid}})
+	exp, _ = parser.ParseExpr(`totimestamp(sometimeuuid)`)
+	val, err = eCtx.Eval(exp)
+	assert.Nil(t, err)
+	assert.Equal(t, time.Date(2015, 7, 14, 0, 13, 37, 476000000, time.UTC), val)
+	assert.Equal(t, time.Unix(1436832817, 476000000).UTC(), val)
+
+	eCtx.SetVars(eval.VarValuesMap{"": {"somedate": int64(5)}})
+	exp, _ = parser.ParseExpr(`totimestamp(somedate`)
+	val, err = eCtx.Eval(exp)
+	assert.Nil(t, err)
+	assert.Equal(t, time.Date(1970, 1, 6, 0, 0, 0, 0, time.UTC), val)
 }
 
 func TestMathFunctions(t *testing.T) {

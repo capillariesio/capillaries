@@ -53,7 +53,7 @@ func (t *scalarType) Zero() interface{} {
 	case gocql.TypeInt:
 		v := int32(0)
 		return &v
-	case gocql.TypeBigInt:
+	case gocql.TypeBigInt, gocql.TypeCounter:
 		v := int64(0)
 		return &v
 	case gocql.TypeSmallInt:
@@ -79,8 +79,17 @@ func (t *scalarType) Zero() interface{} {
 	case gocql.TypeUUID, gocql.TypeTimeUUID:
 		v := gocql.UUID{}
 		return &v
+	case gocql.TypeBlob:
+		v := []byte{}
+		return &v
 	case gocql.TypeTimestamp:
 		v := time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC)
+		return &v
+	case gocql.TypeDate:
+		v := int32(0)
+		return &v
+	case gocql.TypeTime:
+		v := int64(0)
 		return &v
 	default:
 		// TODO: raise an alarm
