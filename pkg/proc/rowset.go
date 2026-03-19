@@ -241,6 +241,7 @@ func (rs *Rowset) ExportToVarsWithAlias(rowIdx int, vars eval.VarValuesMap, useT
 	return nil
 }
 
+// DO NOT DELETE YET
 // Force UTC TZ to each ts returned by gocql
 // func (rs *Rowset) SanitizeScannedDatetimesToUtc(rowIdx int) error {
 // 	for valIdx := 0; valIdx < len(rs.Fields); valIdx++ {

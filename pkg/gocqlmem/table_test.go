@@ -24,29 +24,29 @@ func TestTableSelectOrderBy(t *testing.T) {
 	}
 
 	seq, err := table.getRowSequenceFromColumnDefAndSelectOrderBy([]*OrderByField{
-		{"col1", ClusteringOrderAsc},
-		{"col2", ClusteringOrderDesc},
+		{"col1", ClusteringOrderAsc, ClusteringOrderCaseSensitive},
+		{"col2", ClusteringOrderDesc, ClusteringOrderCaseSensitive},
 	})
 	assert.Nil(t, err)
 	assert.Equal(t, []int{0, 1, 2, 3}, seq)
 
 	seq, err = table.getRowSequenceFromColumnDefAndSelectOrderBy([]*OrderByField{
-		{"col1", ClusteringOrderDesc},
-		{"col2", ClusteringOrderAsc},
+		{"col1", ClusteringOrderDesc, ClusteringOrderCaseSensitive},
+		{"col2", ClusteringOrderAsc, ClusteringOrderCaseSensitive},
 	})
 	assert.Nil(t, err)
 	assert.Equal(t, []int{3, 2, 1, 0}, seq)
 
 	seq, err = table.getRowSequenceFromColumnDefAndSelectOrderBy([]*OrderByField{
-		{"col1", ClusteringOrderAsc},
-		{"col2", ClusteringOrderAsc},
+		{"col1", ClusteringOrderAsc, ClusteringOrderCaseSensitive},
+		{"col2", ClusteringOrderAsc, ClusteringOrderCaseSensitive},
 	})
 	assert.Nil(t, err)
 	assert.Equal(t, []int{1, 0, 2, 3}, seq)
 
 	seq, err = table.getRowSequenceFromColumnDefAndSelectOrderBy([]*OrderByField{
-		{"col1", ClusteringOrderDesc},
-		{"col2", ClusteringOrderDesc},
+		{"col1", ClusteringOrderDesc, ClusteringOrderCaseSensitive},
+		{"col2", ClusteringOrderDesc, ClusteringOrderCaseSensitive},
 	})
 	assert.Nil(t, err)
 	assert.Equal(t, []int{3, 2, 0, 1}, seq)
@@ -56,20 +56,20 @@ func TestTableSelectOrderBy(t *testing.T) {
 	assert.Equal(t, []int{0, 1, 2, 3}, seq)
 
 	seq, err = table.getRowSequenceFromColumnDefAndSelectOrderBy([]*OrderByField{
-		{"col1", ClusteringOrderDesc},
+		{"col1", ClusteringOrderDesc, ClusteringOrderCaseSensitive},
 	})
 	assert.Nil(t, err)
 	assert.Equal(t, []int{3, 2, 0, 1}, seq)
 
 	seq, err = table.getRowSequenceFromColumnDefAndSelectOrderBy([]*OrderByField{
-		{"col2", ClusteringOrderAsc},
+		{"col2", ClusteringOrderAsc, ClusteringOrderCaseSensitive},
 	})
 	assert.Nil(t, err)
 	assert.Equal(t, []int{3, 2, 1, 0}, seq)
 
 	seq, err = table.getRowSequenceFromColumnDefAndSelectOrderBy([]*OrderByField{
-		{"col3", ClusteringOrderAsc},
-		{"col2", ClusteringOrderAsc},
+		{"col3", ClusteringOrderAsc, ClusteringOrderCaseSensitive},
+		{"col2", ClusteringOrderAsc, ClusteringOrderCaseSensitive},
 	})
 	assert.Contains(t, err.Error(), "cannot process ORDER BY col3, this field is not a clustering key")
 }
@@ -409,8 +409,8 @@ func TestTableSelectByToken(t *testing.T) {
 			{"col2", PrimaryKeyClustering, gocql.TypeBigInt, ClusteringOrderDesc},
 		},
 		columnValues: [][]any{
-			{"a", "b", "c", "d"},
-			{int64(0), int64(1), int64(2), int64(3)},
+			{"a", "b", "c", "d", "e", "f", "j"},
+			{int64(0), int64(1), int64(2), int64(3), int64(4), int64(5), int64(6)},
 		},
 		columnDefMap: map[string]int{"col1": 0, "col2": 1},
 	}
@@ -433,8 +433,11 @@ func TestTableSelectByToken(t *testing.T) {
 	// Ordered by token
 	assert.Equal(t, "[a -8839064797231613815]", fmt.Sprintf("%v", values[0]))
 	assert.Equal(t, "[c -8198557465434950441]", fmt.Sprintf("%v", values[1]))
-	assert.Equal(t, "[d -3786697372163639434]", fmt.Sprintf("%v", values[2]))
-	assert.Equal(t, "[b 8833996863197925870]", fmt.Sprintf("%v", values[3]))
+	assert.Equal(t, "[f -7907455435422653521]", fmt.Sprintf("%v", values[2]))
+	assert.Equal(t, "[e -4200008757497435756]", fmt.Sprintf("%v", values[3]))
+	assert.Equal(t, "[d -3786697372163639434]", fmt.Sprintf("%v", values[4]))
+	assert.Equal(t, "[j -416149536780825218]", fmt.Sprintf("%v", values[5]))
+	assert.Equal(t, "[b 8833996863197925870]", fmt.Sprintf("%v", values[6]))
 }
 
 func TestTableUpdate(t *testing.T) {

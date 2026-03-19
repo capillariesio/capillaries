@@ -36,6 +36,8 @@ func TestRun(t *testing.T) {
 		CustomProcessorDefFactoryInstance: &TestProcessorDefFactory{},
 		UseGocqlmem:                       true,
 	}
+	sc.ScriptDefCache = sc.NewScriptDefCache()
+	NodeDependencyReadynessCache = NewNodeDependencyReadynessCache()
 
 	logger, err := l.NewLoggerFromEnvConfig(&envConfig)
 	assert.Nil(t, err)
@@ -47,6 +49,14 @@ func TestRun(t *testing.T) {
 
 	_, err = StartRun(&envConfig, logger, &mqProducer, "/tmp/capi_cfg/lookup_quicktest/script_quick.yaml", "/tmp/capi_cfg/lookup_quicktest/script_params_quick_fs_one.yaml", gocqlmemSession, cassandraEngineType, "testkeyspace", []string{"read_orders", "read_order_items"}, "test run")
 	assert.Nil(t, err)
+
+	var runStatus wfmodel.RunStatusType
+	runHistory, err := GetRunHistory(logger, gocqlmemSession, "testkeyspace")
+	assert.Nil(t, err)
+
+	runStatus = runHistory[len(runHistory)-1].Status
+	logger.Info("TestRun.RUNSTATUS: %s", runStatus.ToString())
+	assert.Equal(t, wfmodel.RunStart, runStatus)
 
 	var nodeRunStatus string
 	for {
@@ -60,6 +70,12 @@ func TestRun(t *testing.T) {
 		} else {
 			mqProducer.MoveHeadToTail()
 		}
+		runHistory, err := GetRunHistory(logger, gocqlmemSession, "testkeyspace")
+		assert.Nil(t, err)
+
+		runStatus = runHistory[len(runHistory)-1].Status
+		logger.Info("TestRun.RUNSTATUS: %s", runStatus.ToString())
+
 		nodeHistory, err := GetNodeHistoryForRuns(logger, gocqlmemSession, "testkeyspace", []int16{int16(1)})
 		assert.Nil(t, err)
 
@@ -71,7 +87,8 @@ func TestRun(t *testing.T) {
 		newNodeRunStatus := fmt.Sprintf("%v", newNodeRunStatusMap)
 		if nodeRunStatus != newNodeRunStatus {
 			nodeRunStatus = newNodeRunStatus
-			logger.Info("RUNSTATUS: %s", nodeRunStatus)
+			logger.Info("TestRun.NODESTATUS: %s", nodeRunStatus)
 		}
 	}
+	assert.Equal(t, wfmodel.RunComplete, runStatus)
 }

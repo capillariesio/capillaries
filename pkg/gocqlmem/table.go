@@ -1,20 +1,26 @@
 package gocqlmem
 
 import (
+	"bytes"
 	"cmp"
+	"encoding/hex"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"math"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
+	"time"
+	"unicode"
 
 	gocql "github.com/apache/cassandra-gocql-driver/v2"
 	"github.com/capillariesio/capillaries/pkg/eval"
-	"gopkg.in/inf.v0"
+	"github.com/shopspring/decimal"
+	"golang.org/x/text/runes"
+	"golang.org/x/text/transform"
+	"golang.org/x/text/unicode/norm"
 )
 
 type PrimaryKeyType int
@@ -137,6 +143,155 @@ func (t *tableStore) getClusteringKeyOrderByName(name string) ClusteringOrderTyp
 	return ClusteringOrderNone
 }
 
+func getNumericValueSign(v any) (string, any, error) {
+	switch typedVal := v.(type) {
+	case int64:
+		if typedVal >= 0 {
+			return "0", typedVal, nil
+		}
+		return "-", -typedVal, nil
+
+	case float64:
+		if typedVal >= 0 {
+			return "0", typedVal, nil
+		}
+		return "-", -typedVal, nil
+
+	case decimal.Decimal:
+		if typedVal.Sign() >= 0 {
+			return "0", typedVal, nil
+		}
+		return "-", typedVal.Neg(), nil
+
+	default:
+		return "", nil, fmt.Errorf("type %T(%v) not supported", typedVal, typedVal)
+	}
+}
+
+const BeginningOfTimeMicro = int64(-62135596800000000) // time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC).UnixMicro()
+
+func (t *tableStore) buildKey(orderByFieldsFromSelect []*OrderByField, rowIdx int) (string, error) {
+	var keyBuffer bytes.Buffer
+	tfm := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
+	flipReplacer := strings.NewReplacer("0", "9", "1", "8", "2", "7", "3", "6", "4", "5", "5", "4", "6", "3", "7", "2", "8", "1", "9", "0")
+
+	for _, keyField := range orderByFieldsFromSelect {
+		var stringValue string
+		var strippedFieldName string
+		var isToken bool
+		if strings.HasPrefix(keyField.FieldName, "token(") {
+			strippedFieldName = strings.Replace(strings.Replace(keyField.FieldName, "token(", "", -1), ")", "", -1)
+			isToken = true
+		} else {
+			strippedFieldName = keyField.FieldName
+		}
+
+		fieldIdx, ok := t.columnDefMap[strippedFieldName]
+		if !ok {
+			return "", fmt.Errorf("cannot find field %s", strippedFieldName)
+		}
+		val := t.columnValues[fieldIdx][rowIdx]
+
+		if isToken {
+			tokenVal, err := callToken([]any{val})
+			if err != nil {
+				return "", fmt.Errorf("cannot calculate token of %v", val)
+			}
+			tokenValInt64, ok := tokenVal.(int64)
+			if !ok {
+				return "", fmt.Errorf("unexpectedly, token val in not int64: %T(%v)", tokenVal, tokenVal)
+			}
+			sign, absVal, err := getNumericValueSign(tokenValInt64)
+			if err != nil {
+				return "", err
+			}
+			stringValue = fmt.Sprintf("%s%020d", sign, absVal)
+			// If this is a negative value, flip every digit
+			if sign == "-" {
+				stringValue = flipReplacer.Replace(stringValue)
+			}
+		} else {
+			switch typedVal := val.(type) {
+			case int64:
+				sign, absVal, err := getNumericValueSign(typedVal)
+				if err != nil {
+					return "", err
+				}
+				stringValue = fmt.Sprintf("%s%020d", sign, absVal)
+				// If this is a negative value, flip every digit
+				if sign == "-" {
+					stringValue = flipReplacer.Replace(stringValue)
+				}
+
+			case float64:
+				// We should support numbers as big as 10^32 and with 32 digits afetr decimal point
+				sign, absVal, err := getNumericValueSign(typedVal)
+				if err != nil {
+					return "", err
+				}
+				stringValue = strings.ReplaceAll(fmt.Sprintf("%s%66s", sign, fmt.Sprintf("%.32f", absVal)), " ", "0")
+				// If this is a negative value, flip every digit
+				if sign == "-" {
+					stringValue = flipReplacer.Replace(stringValue)
+				}
+
+			case decimal.Decimal:
+				sign, absVal, err := getNumericValueSign(typedVal)
+				if err != nil {
+					return "", err
+				}
+				decVal, ok := absVal.(decimal.Decimal)
+				if !ok {
+					return "", fmt.Errorf("unexpectedly cannot convert value %v to type decimal2", typedVal)
+				}
+				floatVal, _ := decVal.Float64()
+				stringValue = strings.ReplaceAll(fmt.Sprintf("%s%66s", sign, fmt.Sprintf("%.32f", floatVal)), " ", "0")
+				// If this is a negative value, flip every digit
+				if sign == "-" {
+					stringValue = flipReplacer.Replace(stringValue)
+				}
+
+			case time.Time:
+				// We support time differences up to microsecond. Not nanosecond! Cassandra supports only milliseconds. Millis are our lingua franca.
+				stringValue = fmt.Sprintf("%020d", typedVal.UnixMicro()-BeginningOfTimeMicro)
+
+			case string:
+				// Normalize the string
+				transformedString, _, _ := transform.String(tfm, typedVal)
+				// Take only first 64 (or whatever we have in StringLen) characters
+				// use "%-64s" sprint format to pad with spaces on the right
+				formatString := fmt.Sprintf("%s-%ds", "%", 64)
+				stringValue = fmt.Sprintf(formatString, transformedString)[:64]
+				if keyField.CaseSensitivity == ClusteringOrderIgnoreCase {
+					stringValue = strings.ToUpper(stringValue)
+				}
+
+			case bool:
+				if typedVal {
+					stringValue = "T" // "F" < "T"
+				} else {
+					stringValue = "F"
+				}
+
+			default:
+				return "", fmt.Errorf("cannot build key, unsupported field data type %T(%v)", typedVal, typedVal)
+			}
+		}
+
+		if keyField.ClusteringOrder == ClusteringOrderDesc {
+			stringBytes := []byte(stringValue)
+			for i, b := range stringBytes {
+				stringBytes[i] = 0xFF - b
+			}
+			stringValue = hex.EncodeToString(stringBytes)
+		}
+
+		keyBuffer.WriteString(stringValue)
+	}
+
+	return keyBuffer.String(), nil
+}
+
 type clusteringKeyEntry struct {
 	Idx int
 	Key string
@@ -162,6 +317,27 @@ func (t *tableStore) getRowSequenceFromColumnDefAndPartitionFieldToken(partition
 		tempClusteringKey[i] = sortNumericKeyEntry{Idx: i, Key: tokenValInt64}
 	}
 	slices.SortFunc(tempClusteringKey, func(e1, e2 sortNumericKeyEntry) int {
+		return cmp.Compare(e1.Key, e2.Key)
+	})
+
+	result := make([]int, len(tempClusteringKey))
+	for i := range len(tempClusteringKey) {
+		result[i] = tempClusteringKey[i].Idx
+	}
+	return result, nil
+}
+
+func (t *tableStore) getRowSequenceByKey(orderByFieldsFromSelect []*OrderByField) ([]int, error) {
+	totalRows := len(t.columnValues[0])
+	tempClusteringKey := make([]clusteringKeyEntry, totalRows)
+	for rowIdx := range totalRows {
+		key, err := t.buildKey(orderByFieldsFromSelect, rowIdx)
+		if err != nil {
+			return nil, err
+		}
+		tempClusteringKey[rowIdx] = clusteringKeyEntry{Idx: rowIdx, Key: key}
+	}
+	slices.SortFunc(tempClusteringKey, func(e1, e2 clusteringKeyEntry) int {
 		return cmp.Compare(e1.Key, e2.Key)
 	})
 
@@ -228,6 +404,7 @@ func (t *tableStore) getRowSequenceFromColumnDefAndSelectOrderBy(orderByFieldsFr
 	return result, nil
 }
 
+/*
 func convertLexemToInternalType(lexem *Lexem, cqlType gocql.Type) (any, error) {
 	if lexem.T == LexemNull {
 		return nil, nil
@@ -302,6 +479,7 @@ func convertLexemToInternalType(lexem *Lexem, cqlType gocql.Type) (any, error) {
 		return 0, fmt.Errorf("unknown column type %v", cqlType)
 	}
 }
+*/
 
 func getRowIndexFromColumnDefAndInsert(columnValues [][]any, columnDefs []*columnDef, insertedColumnValues map[string]any) (int, int, bool, error) {
 	topIdx := 0                       // Top candidate for replacement
@@ -700,6 +878,38 @@ func populateFieldsUnderCount(tableName string, columnDefs []*columnDef, columnE
 	return newColumnExpName, newColumnExpAst, nil
 }
 
+func findTokenPartitionFieldsInLexems(lexems []*Lexem, tableName string, columnDefs []*columnDef) []string {
+	result := []string{}
+	// Follow field order: partition keys always go first
+	for _, colDef := range columnDefs {
+		if colDef.primaryKey != PrimaryKeyPartition {
+			continue
+		}
+		for lexemIdx, l := range lexems {
+			if l.V != colDef.name && l.V != tableName+"."+colDef.name {
+				continue
+			}
+			if lexemIdx < 2 || lexems[lexemIdx-1].V != "(" || lexems[lexemIdx-2].V != "token" {
+				continue
+			}
+			// We have a token(<partitioning key field>) expression, return this field name
+			finalFieldName := "token(" + colDef.name + ")"
+			var isAlreadyThere bool
+			for _, fieldName := range result {
+				if finalFieldName == fieldName {
+					isAlreadyThere = true
+					break
+				}
+			}
+			if !isAlreadyThere {
+				result = append(result, "token("+colDef.name+")")
+			}
+		}
+	}
+	return result
+}
+
+/*
 func findTokenPartitionFieldInLexems(lexems []*Lexem, tableName string, columnDefs []*columnDef) int {
 	// Follow field order: partition keys always go first
 	for colIdx, colDef := range columnDefs {
@@ -719,6 +929,7 @@ func findTokenPartitionFieldInLexems(lexems []*Lexem, tableName string, columnDe
 	}
 	return -1
 }
+*/
 
 func (t *tableStore) execSelect(cmd *CommandSelect, lastSelectedRowIdx int, maxRows int, preparedQueryParams []interface{}) ([]string, [][]any, []gocql.TypeInfo, int, error) {
 	t.lock.RLock()
@@ -732,36 +943,44 @@ func (t *tableStore) execSelect(cmd *CommandSelect, lastSelectedRowIdx int, maxR
 	// When querying Cassandra using the token() function in the WHERE clause,
 	// the results are returned ordered by the hash value of the partition key,
 	// not the partition key itself. This is guaranteed for standard partitioners like Murmur3Partitioner.
-	// TODO: implement ordering by token(partfield1),token(partfield2),someClustField
-	orderBytokenPartitionFieldIdx := findTokenPartitionFieldInLexems(cmd.WhereExpLexems, cmd.TableName, t.columnDefs)
-	if orderBytokenPartitionFieldIdx != -1 {
-		selectSeq, err = t.getRowSequenceFromColumnDefAndPartitionFieldToken(orderBytokenPartitionFieldIdx)
+
+	orderByTokenFields := findTokenPartitionFieldsInLexems(cmd.WhereExpLexems, cmd.TableName, t.columnDefs)
+	if len(orderByTokenFields) > 0 {
+		// This method requires building keys for each row and sorting them
+		combinedOrderByFields := []*OrderByField{}
+		for _, tokenFieldName := range orderByTokenFields {
+			combinedOrderByFields = append(combinedOrderByFields, &OrderByField{tokenFieldName, ClusteringOrderAsc, ClusteringOrderCaseSensitive})
+		}
+		combinedOrderByFields = append(combinedOrderByFields, cmd.OrderByFields...)
+
+		selectSeq, err = t.getRowSequenceByKey(combinedOrderByFields)
 		if err != nil {
 			return nil, nil, nil, -1, fmt.Errorf("cannot get token-based row sequence: %s", err.Error())
 		}
 	} else {
+		// This method uses already sorted data
 		selectSeq, err = t.getRowSequenceFromColumnDefAndSelectOrderBy(cmd.OrderByFields)
 		if err != nil {
 			return nil, nil, nil, -1, fmt.Errorf("cannot get field-based row sequence: %s", err.Error())
 		}
 	}
 
-	// Handle asterisks and count()
-
-	// resultNames, resultExps, err := getResultNamesAndExpressions(cmd.TableName, t.columnDefs, cmd.SelectExpLexems, cmd.SelectExpAsts)
-	// if err != nil {
-	// 	return nil, nil, nil, -1, err
-	// }
-
-	// cmd.SelectExpNames, cmd.SelectExpAsts, err = replaceAsteriskInColumnNames(cmd.TableName, t.columnDefs, cmd.SelectExpLexems, cmd.SelectExpNames, cmd.SelectExpAsts)
-	// if err != nil {
-	// 	return nil, nil, nil, -1, err
-	// }
-
-	// cmd.SelectExpNames, cmd.SelectExpAsts, err = populateFieldsUnderCount(cmd.TableName, t.columnDefs, cmd.SelectExpLexems, cmd.SelectExpNames, cmd.SelectExpAsts)
-	// if err != nil {
-	// 	return nil, nil, nil, -1, err
-	// }
+	/*
+		orderByTokenFieldIdx := findTokenPartitionFieldInLexems(cmd.WhereExpLexems, cmd.TableName, t.columnDefs)
+		if orderByTokenFieldIdx >= 0 {
+			// This method requires building keys for each row and sorting them
+			selectSeq, err = t.getRowSequenceFromColumnDefAndPartitionFieldToken(orderByTokenFieldIdx)
+			if err != nil {
+				return nil, nil, nil, -1, fmt.Errorf("cannot get token-based row sequence: %s", err.Error())
+			}
+		} else {
+			// This method uses already sorted data
+			selectSeq, err = t.getRowSequenceFromColumnDefAndSelectOrderBy(cmd.OrderByFields)
+			if err != nil {
+				return nil, nil, nil, -1, fmt.Errorf("cannot get field-based row sequence: %s", err.Error())
+			}
+		}
+	*/
 
 	// Unwrap asterisks. It would be nice to do that in the parser, but too bad we have no idea about table field defs when parsing.
 	newColumnExpNames := []string{}
@@ -897,14 +1116,6 @@ func (t *tableStore) execSelect(cmd *CommandSelect, lastSelectedRowIdx int, maxR
 			isFirstHitAlreadyPassed = true
 			if !isAgg {
 				resultRows = append(resultRows, resultRow)
-				if cmd.TableName == "order_item_date_inner_00001" {
-					for i, colName := range cmd.SelectExpNames {
-						if colName == "order_id" && resultRow[i].(string) == "001d9673d0e150471d536c210ce20123" {
-							fmt.Printf("findthebug read from table, row %d, %v\n", i, resultRow)
-							break
-						}
-					}
-				}
 			}
 
 			selectedRowCount++
@@ -997,6 +1208,15 @@ func getInsertedPriKeyColumnValuePairFromEql(tableName string, columnDefs []*col
 
 func harvestInsertedPriKeyValuesFromAstExp(tableName string, columnDefs []*columnDef, columnDefMap map[string]int, exp ast.Expr, colValueMap map[string]any) error {
 	switch typedExp := exp.(type) {
+	// TODO: besides "partition_key = value AND clustering_column = value", we need to support:
+	// partition_key = value AND clustering_column IN (value1, value2)
+	// TOKEN(user_id) > TOKEN(100) AND TOKEN(user_id) < TOKEN(200)
+	// support casting: user_id = CAST('101' AS uuid);
+	// More rules:
+	// You cannot use regular (non-indexed) columns in the WHERE clause unless you use ALLOW FILTERING
+	// You cannot use > or < on a partition key without the TOKEN function.
+	// No LIKE operator
+	// Mandatory Primary Key: If you omit the WHERE clause, the update will fail, or if you use a partially defined primary key, it will throw an error
 	case *ast.BinaryExpr:
 		switch typedExp.Op {
 		case token.LAND:
@@ -1161,6 +1381,7 @@ func (t *tableStore) execUpdate(cmd *CommandUpdate, preparedQueryParams []interf
 	}
 
 	// Primary key columns must be set, we have to convert "WHERE col1 = 'a' and col2 = 100` into col1:'a',col2:100
+	// Cassandra supports more options (see TODO in harvestInsertedPriKeyValuesFromAstExp), but that's a lot to implement at the moment
 	allInsertedColValues, err := getInsertedPriKeyValuesFromWhereClause(cmd.TableName, t.columnDefs, t.columnDefMap, cmd.WhereExpAst)
 	if err != nil {
 		return false, nil, nil, err

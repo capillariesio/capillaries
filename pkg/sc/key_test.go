@@ -1,6 +1,7 @@
 package sc
 
 import (
+	"maps"
 	"math"
 	"strings"
 	"testing"
@@ -31,16 +32,16 @@ func assertKeyCompare(
 
 	key1, err1 := BuildKey(row1, &idxDef)
 	if err1 != nil {
-		t.Errorf("%s\n", err1)
+		t.Errorf("cannot build key1 %s\n", err1)
 	}
 
 	key2, err2 := BuildKey(row2, &idxDef)
 	if err2 != nil {
-		t.Errorf("%s\n", err2)
+		t.Errorf("cannot build key2 %s\n", err2)
 	}
 
 	if moreLess == "<" && (key1 >= key2) || moreLess == ">" && (key1 <= key2) || moreLess == "==" && (key1 != key2) {
-		t.Errorf("\nExpected:\n%s\n%s\n%s\n", key1, moreLess, key2)
+		t.Errorf("\nExpected:\n%s\n%s\n%s\nrow1: %v\nrow2: %v\n", key1, moreLess, key2, row1, row2)
 	}
 }
 
@@ -107,20 +108,30 @@ func TestCombined(t *testing.T) {
 		},
 	}
 
-	row1 := map[string]any{
+	baseRow1 := map[string]any{
 		"field_int":    int64(1),
 		"field_string": "abc",
 		"field_float":  -2.3,
 		"field_bool":   false,
 	}
-	row2 := map[string]any{
+	baseRow2 := map[string]any{
 		"field_int":    int64(1),
 		"field_string": "Abc",
 		"field_float":  1.3,
 		"field_bool":   true,
 	}
 
+	var row1, row2 map[string]any
+
 	// -2.3 < 1.3
+	row1 = maps.Clone(baseRow1)
+	row2 = maps.Clone(baseRow2)
+	assertKeyCompare(t, row1, "<", row2, idxDef)
+
+	// -2.3 < -2.0
+	row1 = maps.Clone(baseRow1)
+	row2 = maps.Clone(baseRow2)
+	row2["field_float"] = -2.0
 	assertKeyCompare(t, row1, "<", row2, idxDef)
 
 	// abc > Abc
@@ -128,15 +139,37 @@ func TestCombined(t *testing.T) {
 	assertKeyCompare(t, row1, ">", row2, idxDef)
 
 	// F < T
+	row1 = maps.Clone(baseRow1)
+	row2 = maps.Clone(baseRow2)
 	row2["field_string"] = row1["field_string"]
 	row2["field_float"] = row1["field_float"]
 	assertKeyCompare(t, row1, "<", row2, idxDef)
 
 	// F == F
+	row1 = maps.Clone(baseRow1)
+	row2 = maps.Clone(baseRow2)
 	row2["field_bool"] = row1["field_bool"]
+	row2["field_string"] = row1["field_string"]
+	row2["field_float"] = row1["field_float"]
 	assertKeyCompare(t, row1, "==", row2, idxDef)
 
+	// -3786697372163639434 < -416149536780825218 (number of digits)
+	row1 = maps.Clone(baseRow1)
+	row2 = maps.Clone(baseRow2)
+	row1["field_int"] = int64(-3786697372163639434)
+	row2["field_int"] = int64(-416149536780825218)
+	assertKeyCompare(t, row1, "<", row2, idxDef)
+
+	// 123 > 99 (number of digits)
+	row1 = maps.Clone(baseRow1)
+	row2 = maps.Clone(baseRow2)
+	row1["field_int"] = int64(123)
+	row2["field_int"] = int64(99)
+	assertKeyCompare(t, row1, ">", row2, idxDef)
+
 	// No such field in the table row
+	row1 = maps.Clone(baseRow1)
+	row2 = maps.Clone(baseRow2)
 	delete(row1, "field_float")
 	_, err2 := BuildKey(row1, &idxDef)
 	assertKeyErrorPrefix(t, "cannot find value for field field_float in", err2.Error())

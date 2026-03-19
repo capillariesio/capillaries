@@ -51,6 +51,14 @@ const (
 	ClusteringOrderDesc
 )
 
+type ClusteringOrderCaseSensitivity int
+
+const (
+	ClusteringOrderCaseSensitivityUnknown ClusteringOrderCaseSensitivity = iota
+	ClusteringOrderCaseSensitive
+	ClusteringOrderIgnoreCase
+)
+
 func stringToClusteringOrderType(s string) ClusteringOrderType {
 	switch s {
 	case "ASC":
@@ -65,6 +73,7 @@ func stringToClusteringOrderType(s string) ClusteringOrderType {
 type OrderByField struct {
 	FieldName       string
 	ClusteringOrder ClusteringOrderType
+	CaseSensitivity ClusteringOrderCaseSensitivity
 }
 
 type Command interface {
@@ -1289,7 +1298,7 @@ func parseCreateTable(s string) (*CommandCreateTable, string, error) {
 			if clusteringOrder == ClusteringOrderNone {
 				return nil, s, fmt.Errorf("expected clustering order by asc or desc, got %s", lAscDesc.V)
 			}
-			cmd.ClusteringOrderBy = append(cmd.ClusteringOrderBy, &OrderByField{lField.V, clusteringOrder})
+			cmd.ClusteringOrderBy = append(cmd.ClusteringOrderBy, &OrderByField{lField.V, clusteringOrder, ClusteringOrderCaseSensitive})
 		}
 		for _, clustOrderBy := range cmd.ClusteringOrderBy {
 			var clusteringKeyFieldFound bool
@@ -1570,7 +1579,7 @@ func parseSelect(s string, preparedQueryParams []any) (*CommandSelect, string, e
 			if clusteringOrder == ClusteringOrderNone {
 				return nil, s, fmt.Errorf("expected order by asc or desc, got %s", lAscDesc.V)
 			}
-			cmd.OrderByFields = append(cmd.OrderByFields, &OrderByField{lField.V, clusteringOrder})
+			cmd.OrderByFields = append(cmd.OrderByFields, &OrderByField{lField.V, clusteringOrder, ClusteringOrderCaseSensitive})
 		}
 	}
 	l, s = getKeyword(s, `(?i)PER\s+PARTITION\s+LIMIT\b`, true)

@@ -265,28 +265,6 @@ func (q *gocqlmemQuery) Iter() Iter {
 			return NewGocqlmemIterWithError(err)
 		}
 
-		if cmd.TableName == "order_item_date_inner_00001" {
-			orderIdColIdx := -1
-			orderItemIdColIdx := -1
-			tokenRowidIdx := -1
-			for colIdx, colName := range names {
-				if colName == "order_id" {
-					orderIdColIdx = colIdx
-				} else if colName == "order_item_id" {
-					orderItemIdColIdx = colIdx
-				} else if colName == "token(rowid)" {
-					tokenRowidIdx = colIdx
-				}
-			}
-			for rowIdx := range len(values) {
-				if values[rowIdx][orderIdColIdx].(string) == "001d9673d0e150471d536c210ce20123" {
-					fmt.Printf("findthebug all returned rows, row %d, itemid %v, tokenrowid %v, %v, %d\n", rowIdx, values[rowIdx][orderItemIdColIdx], values[rowIdx][tokenRowidIdx], q.values, lastSelectedRowIdx)
-				}
-			}
-			fmt.Printf("findthebug last row %d, tokenrowid %v, %v, %d\n", len(values)-1, values[len(values)-1][tokenRowidIdx], q.values, lastSelectedRowIdx)
-			fmt.Printf("findthebug page size %d\n", q.pageSize)
-		}
-
 		if err = adjustInternalValuesToClientTypesAccordingToTypeInfos(values, typeInfos); err != nil {
 			return NewGocqlmemIterWithError(err)
 		}

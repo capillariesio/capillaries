@@ -278,19 +278,27 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 		return instr.waitForDrainer()
 	}
 
+	var curStartLeftTokenRowIds []int64
 	for {
-		lastRetrievedLeftToken, err := selectBatchFromTableByToken(logger,
+		lastRetrievedLeftToken, endTokenRowIds, err := selectBatchFromTableByToken(logger,
 			pCtx,
 			rsIn,
 			node.TableReader.TableName,
 			readerNodeRunId,
 			leftBatchSize,
 			curStartLeftToken,
-			endLeftToken)
+			endLeftToken,
+			curStartLeftTokenRowIds)
 		if err != nil {
 			return bs, err
 		}
-		curStartLeftToken = lastRetrievedLeftToken + 1
+
+		// If token(rowid) guaranteed uniqueness, we would just "curStartLeftToken = lastRetrievedLeftToken + 1"
+		// But duplicates are possible, so we have to be prepared to handle token overlaps
+		// (rows with same token but different rowids returned in separate selectBatchFromTableByToken calls)
+		// See overlap/epilogue logic in selectBatchFromTableByToken.
+		curStartLeftToken = lastRetrievedLeftToken
+		curStartLeftTokenRowIds = endTokenRowIds
 
 		if rsIn.RowCount == 0 {
 			break
@@ -311,9 +319,10 @@ func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 		instr.PCtx.SendHeartbeat()
 
 		bs.RowsRead += rsIn.RowCount
-		if rsIn.RowCount < leftBatchSize {
-			break
-		}
+
+		// We are tempted to "if rs.RowCount < srcBatchSize break", here but do not do that:
+		// because of the rowid overlapping/epilogue logic, selectBatchFromTableByToken returns less rows than rs capacity
+
 	} // for each source table batch
 
 	bs.Elapsed = time.Since(totalStartTime)
@@ -369,20 +378,28 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 	instr.startDrainer()
 	defer instr.closeInserter(logger, pCtx)
 
+	var curStartLeftTokenRowIds []int64
 	for {
-		lastRetrievedLeftToken, err := selectBatchFromTableByToken(logger,
+		lastRetrievedLeftToken, endTokenRowIds, err := selectBatchFromTableByToken(logger,
 			pCtx,
 			rsIn,
 			node.TableReader.TableName,
 			readerNodeRunId,
 			leftBatchSize,
 			curStartLeftToken,
-			endLeftToken)
+			endLeftToken,
+			curStartLeftTokenRowIds)
 		if err != nil {
 			instr.cancelDrainer(fmt.Errorf("cannot select batch from source table, node %s: %s", node.Name, err.Error()))
 			return bs, instr.waitForDrainer()
 		}
-		curStartLeftToken = lastRetrievedLeftToken + 1
+
+		// If token(rowid) guaranteed uniqueness, we would just "curStartLeftToken = lastRetrievedLeftToken + 1"
+		// But duplicates are possible, so we have to be prepared to handle token overlaps
+		// (rows with same token but different rowids returned in separate selectBatchFromTableByToken calls)
+		// See overlap/epilogue logic in selectBatchFromTableByToken.
+		curStartLeftToken = lastRetrievedLeftToken
+		curStartLeftTokenRowIds = endTokenRowIds
 
 		if rsIn.RowCount == 0 {
 			break
@@ -429,9 +446,10 @@ func RunCreateTableForBatch(envConfig *env.EnvConfig,
 		}
 
 		bs.RowsRead += rsIn.RowCount
-		if rsIn.RowCount < leftBatchSize {
-			break
-		}
+
+		// We are tempted to "if rs.RowCount < srcBatchSize break", here but do not do that:
+		// because of the rowid overlapping/epilogue logic, selectBatchFromTableByToken returns less rows than rs capacity
+
 		instr.PCtx.SendHeartbeat()
 	} // for each source table batch
 
@@ -502,24 +520,32 @@ func RunCreateDistinctTableForBatch(envConfig *env.EnvConfig,
 	instr.startDrainer()
 	defer instr.closeInserter(logger, pCtx)
 
+	var curStartLeftTokenRowIds []int64
 	for {
 		// Poor man's cache that spans across rsIn retrieved, works well for low-cardinality datasets
 		usedDistinctKeysMap := map[string]struct{}{}
 		distinctCacheHits := 0
 
-		lastRetrievedLeftToken, err := selectBatchFromTableByToken(logger,
+		lastRetrievedLeftToken, endTokenRowIds, err := selectBatchFromTableByToken(logger,
 			pCtx,
 			rsIn,
 			node.TableReader.TableName,
 			readerNodeRunId,
 			leftBatchSize,
 			curStartLeftToken,
-			endLeftToken)
+			endLeftToken,
+			curStartLeftTokenRowIds)
 		if err != nil {
 			instr.cancelDrainer(fmt.Errorf("cannot select batch from source table, node %s: %s", node.Name, err.Error()))
 			return bs, instr.waitForDrainer()
 		}
-		curStartLeftToken = lastRetrievedLeftToken + 1
+
+		// If token(rowid) guaranteed uniqueness, we would just "curStartLeftToken = lastRetrievedLeftToken + 1"
+		// But duplicates are possible, so we have to be prepared to handle token overlaps
+		// (rows with same token but different rowids returned in separate selectBatchFromTableByToken calls)
+		// See overlap/epilogue logic in selectBatchFromTableByToken.
+		curStartLeftToken = lastRetrievedLeftToken
+		curStartLeftTokenRowIds = endTokenRowIds
 
 		if rsIn.RowCount == 0 {
 			break
@@ -568,9 +594,10 @@ func RunCreateDistinctTableForBatch(envConfig *env.EnvConfig,
 		logger.DebugCtx(pCtx, "distinct cache hits %d/%d=%d percent %s", distinctCacheHits, rsIn.RowCount, distinctCacheHits*100/rsIn.RowCount, node.TableCreator.Name)
 
 		bs.RowsRead += rsIn.RowCount
-		if rsIn.RowCount < leftBatchSize {
-			break
-		}
+
+		// We are tempted to "if rs.RowCount < srcBatchSize break", here but do not do that:
+		// because of the rowid overlapping/epilogue logic, selectBatchFromTableByToken returns less rows than rs capacity
+
 		instr.PCtx.SendHeartbeat()
 	} // for each source table batch
 
@@ -911,16 +938,18 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 
 	curStartLeftToken := startLeftToken
 	leftPageIdx := 0
+	var curStartLeftTokenRowIds []int64
 	for {
 		selectLeftBatchByTokenStartTime := time.Now()
-		lastRetrievedLeftToken, err := selectBatchFromTableByToken(logger,
+		lastRetrievedLeftToken, endTokenRowIds, err := selectBatchFromTableByToken(logger,
 			pCtx,
 			rsLeft,
 			node.TableReader.TableName,
 			readerNodeRunId,
 			leftBatchSize,
 			curStartLeftToken,
-			endLeftToken)
+			endLeftToken,
+			curStartLeftTokenRowIds)
 		if err != nil {
 			instr.cancelDrainer(fmt.Errorf("cannot select batch from source table, node %s: %s", node.Name, err.Error()))
 			return bs, instr.waitForDrainer()
@@ -928,7 +957,12 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 
 		logger.DebugCtx(pCtx, "selectBatchFromTableByToken: leftPageIdx %d, queried tokens from %d to %d in %.3fs, retrieved %d rows", leftPageIdx, curStartLeftToken, endLeftToken, time.Since(selectLeftBatchByTokenStartTime).Seconds(), rsLeft.RowCount)
 
-		curStartLeftToken = lastRetrievedLeftToken + 1
+		// If token(rowid) guaranteed uniqueness, we would just "curStartLeftToken = lastRetrievedLeftToken + 1"
+		// But duplicates are possible, so we have to be prepared to handle token overlaps
+		// (rows with same token but different rowids returned in separate selectBatchFromTableByToken calls)
+		// See overlap/epilogue logic in selectBatchFromTableByToken.
+		curStartLeftToken = lastRetrievedLeftToken
+		curStartLeftTokenRowIds = endTokenRowIds
 
 		if rsLeft.RowCount == 0 {
 			break
@@ -1160,10 +1194,10 @@ func RunCreateTableRelForBatch(envConfig *env.EnvConfig,
 		}
 
 		bs.RowsRead += rsLeft.RowCount
-		// No page state used when querying left page, so rely on the row count
-		if rsLeft.RowCount < leftBatchSize {
-			break
-		}
+
+		// We are tempted to "if rs.RowCount < srcBatchSize break", here but do not do that:
+		// because of the rowid overlapping/epilogue logic, selectBatchFromTableByToken returns less rows than rs capacity
+
 		leftPageIdx++
 		// instr.PCtx.SendHeartbeat() - this may be not enough, processing may take longer, send heartbeats inside
 	} // for each source table batch

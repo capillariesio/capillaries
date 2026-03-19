@@ -87,7 +87,7 @@ func BuildKey(fieldMap map[string]any, idxDef *IdxDef) (string, error) {
 			if err != nil {
 				return "", err
 			}
-			stringValue = fmt.Sprintf("%s%018d", sign, absVal)
+			stringValue = fmt.Sprintf("%s%020d", sign, absVal)
 			// If this is a negative value, flip every digit
 			if sign == "-" {
 				stringValue = flipReplacer.Replace(stringValue)

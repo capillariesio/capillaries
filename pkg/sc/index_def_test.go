@@ -103,12 +103,12 @@ func TestIndexDefParserBad(t *testing.T) {
 	rawIdxDefMap = map[string]string{"idx_bad_comp_string_len": "unique(f_int,f_float,f_bool(128),f_str(32000),f_time,f_dec)"}
 	idxDefMap = IdxDefMap{}
 	err = idxDefMap.parseRawIndexDefMap(rawIdxDefMap, &fieldRefs)
-	assert.Equal(t, "cannot parse order definitions: [index unique(f_int,f_float,f_bool(128),f_str(32000),f_time,f_dec): [invalid expression &{29 INT 128} in f_bool, component length modifier is valid only for string fields, but f_bool has type bool]; index unique(f_int,f_float,f_bool(128),f_str(32000),f_time,f_dec): [invalid expression &{40 INT 32000} in f_str, component length modifier for string fields cannot exceed 1024]]", err.Error())
+	assert.Equal(t, "cannot parse order definitions: [index unique(f_int,f_float,f_bool(128),f_str(32000),f_time,f_dec): [invalid expression &{29 32 INT 128} in f_bool, component length modifier is valid only for string fields, but f_bool has type bool]; index unique(f_int,f_float,f_bool(128),f_str(32000),f_time,f_dec): [invalid expression &{40 45 INT 32000} in f_str, component length modifier for string fields cannot exceed 1024]]", err.Error())
 
 	rawIdxDefMap = map[string]string{"idx_bad_comp_string_len_float": "unique(f_int,f_float,f_bool,f_str(5.2),f_time,f_dec)"}
 	idxDefMap = IdxDefMap{}
 	err = idxDefMap.parseRawIndexDefMap(rawIdxDefMap, &fieldRefs)
-	assert.Equal(t, "cannot parse order definitions: [index unique(f_int,f_float,f_bool,f_str(5.2),f_time,f_dec): [invalid expression &{35 FLOAT 5.2} in f_str, expected an integer for string component length]]", err.Error())
+	assert.Equal(t, "cannot parse order definitions: [index unique(f_int,f_float,f_bool,f_str(5.2),f_time,f_dec): [invalid expression &{35 38 FLOAT 5.2} in f_str, expected an integer for string component length]]", err.Error())
 
 	rawIdxDefMap = map[string]string{"idx_bad_modifier_func": "unique(f_int,f_float,f_bool,f_str(badmofifierfunc()),f_time,f_dec)"}
 	idxDefMap = IdxDefMap{}
