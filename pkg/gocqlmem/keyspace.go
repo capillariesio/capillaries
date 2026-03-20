@@ -8,15 +8,17 @@ import (
 )
 
 type Keyspace struct {
-	TableMap        map[string]*tableStore
-	WithReplication []*KeyValuePair
-	Lock            sync.RWMutex
+	TableMap         map[string]*tableStore
+	WithReplication  []*KeyValuePair
+	Lock             sync.RWMutex
+	TableMetadataMap map[string]*gocql.TableMetadata
 }
 
 func newKeyspace() *Keyspace {
 	return &Keyspace{
-		TableMap:        map[string]*tableStore{},
-		WithReplication: make([]*KeyValuePair, 0),
+		TableMap:         map[string]*tableStore{},
+		WithReplication:  make([]*KeyValuePair, 0),
+		TableMetadataMap: map[string]*gocql.TableMetadata{},
 	}
 }
 
@@ -24,6 +26,7 @@ func (ks *Keyspace) createTable(cmd *CommandCreateTable) error {
 	ks.Lock.Lock()
 	defer ks.Lock.Unlock()
 
+	// Table store
 	_, alreadyExists := ks.TableMap[cmd.TableName]
 	if alreadyExists && cmd.IfNotExists {
 		return nil
@@ -36,6 +39,13 @@ func (ks *Keyspace) createTable(cmd *CommandCreateTable) error {
 		return fmt.Errorf("cannot create table %s: %s", cmd.TableName, err.Error())
 	}
 	ks.TableMap[cmd.TableName] = newTable
+
+	// Table metadata
+	ks.TableMetadataMap[cmd.TableName] = &gocql.TableMetadata{
+		Keyspace: cmd.GetCtxKeyspace(),
+		Name:     cmd.TableName,
+	}
+
 	return nil
 }
 
