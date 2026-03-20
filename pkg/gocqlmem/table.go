@@ -39,11 +39,12 @@ type columnDef struct {
 }
 
 type tableStore struct {
-	columnDefs   []*columnDef // Partition,clustering,other
-	columnValues [][]any      // Partition,clustering,other
-	columnTokens [][]int64    // Partition keys only
-	columnDefMap map[string]int
-	lock         sync.RWMutex
+	columnDefs              []*columnDef // Partition,clustering,other - does NOT match the order in cmd.ColumnDefs
+	columnValues            [][]any      // Partition,clustering,other
+	columnTokens            [][]int64    // Partition keys only
+	columnDefMap            map[string]int
+	origColIdxToStoreColIdx []int // maps origColIdx->idxIn t.columnDefs We store columns as partitioning,clustering,other so this is used for  * selects
+	lock                    sync.RWMutex
 }
 
 func createColDef(name string, mapColType map[string]gocql.Type, primaryKeyType PrimaryKeyType, mapColClusteringOrder map[string]ClusteringOrderType) (*columnDef, error) {
@@ -69,10 +70,11 @@ func createColDef(name string, mapColType map[string]gocql.Type, primaryKeyType 
 
 func newTable(cmd *CommandCreateTable) (*tableStore, error) {
 	t := tableStore{
-		columnDefs:   make([]*columnDef, len(cmd.ColumnDefs)),
-		columnValues: make([][]any, len(cmd.ColumnDefs)),
-		columnTokens: make([][]int64, len(cmd.PartitionKeyColumns)),
-		columnDefMap: map[string]int{},
+		columnDefs:              make([]*columnDef, len(cmd.ColumnDefs)),
+		columnValues:            make([][]any, len(cmd.ColumnDefs)),
+		columnTokens:            make([][]int64, len(cmd.PartitionKeyColumns)),
+		columnDefMap:            map[string]int{},
+		origColIdxToStoreColIdx: make([]int, len(cmd.ColumnDefs)),
 	}
 
 	mapColType := map[string]gocql.Type{}
@@ -129,6 +131,10 @@ func newTable(cmd *CommandCreateTable) (*tableStore, error) {
 			t.columnDefMap[createTableColDef.Name] = colDefIdx
 			colDefIdx++
 		}
+	}
+
+	for origColIdx, origColDef := range cmd.ColumnDefs {
+		t.origColIdxToStoreColIdx[origColIdx] = t.columnDefMap[origColDef.Name]
 	}
 
 	return &t, nil
@@ -495,7 +501,7 @@ func getRowIndexFromColumnDefAndInsert(columnValues [][]any, columnDefs []*colum
 			curVal := columnValues[tableColIdx][curIdx]
 			compareResult, err := compareInternalKnownType(curVal, insertedColVal, tableColDef.columnType)
 			if err != nil {
-				return -1, -1, false, fmt.Errorf("cannot compare existing %v to inserted %v", curVal, insertedColVal)
+				return -1, -1, false, fmt.Errorf("cannot compare existing %v to inserted %v: %s", curVal, insertedColVal, err.Error())
 			}
 			if tableColDef.clusteringOrder == ClusteringOrderDesc {
 				compareResult *= -1
@@ -567,9 +573,9 @@ func (t *tableStore) execInternalUpsert(cmd *CommandInsert) (bool, []gocql.Colum
 
 	insertedColumnValues := map[string]any{}
 	for i, name := range cmd.ColumnNames {
-		if t.columnDefs[t.columnDefMap[name]].columnType == gocql.TypeCounter {
-			return false, nil, nil, fmt.Errorf("cannot insert value %T(%v) into counter column %s, only updates are supported", cmd.ColumnValues[i], cmd.ColumnValues[i], name)
-		}
+		// if t.columnDefs[t.columnDefMap[name]].columnType == gocql.TypeCounter {
+		// 	return false, nil, nil, fmt.Errorf("cannot insert value %T(%v) into counter column %s, only updates are supported", cmd.ColumnValues[i], cmd.ColumnValues[i], name)
+		// }
 		insertedColumnValues[name], err = sanitizeToInternalKnownType(cmd.ColumnValues[i], t.columnDefs[t.columnDefMap[name]].columnType)
 		if err != nil {
 			return false, nil, nil, fmt.Errorf("cannot cast column %d(%s) to internal type %v: %s", i, name, cmd.ColumnValues[i], err.Error())
@@ -577,11 +583,11 @@ func (t *tableStore) execInternalUpsert(cmd *CommandInsert) (bool, []gocql.Colum
 	}
 
 	// Initialize counter columns with zeroes
-	for _, colDef := range t.columnDefs {
-		if colDef.columnType == gocql.TypeCounter {
-			insertedColumnValues[colDef.name] = int64(0)
-		}
-	}
+	// for _, colDef := range t.columnDefs {
+	// 	if colDef.columnType == gocql.TypeCounter {
+	// 		insertedColumnValues[colDef.name] = int64(0)
+	// 	}
+	// }
 
 	if len(t.columnValues[0]) > 0 {
 		insertIdx, existingIdx, isAlreadyExists, err = getRowIndexFromColumnDefAndInsert(t.columnValues, t.columnDefs, insertedColumnValues)
@@ -660,6 +666,9 @@ func (t *tableStore) execInsert(cmd *CommandInsert) (bool, []gocql.ColumnInfo, [
 		if cmd.ColumnValues[i] == nil && (t.columnDefs[i].primaryKey == PrimaryKeyPartition || t.columnDefs[i].primaryKey == PrimaryKeyClustering) {
 			return false, nil, nil, fmt.Errorf("cannot insert NULL into a partition/clustered key column %s", name)
 		}
+		if t.columnDefs[t.columnDefMap[name]].columnType == gocql.TypeCounter {
+			return false, nil, nil, fmt.Errorf("cannot insert value %T(%v) into counter column %s, only updates/upserts are supported", cmd.ColumnValues[i], cmd.ColumnValues[i], name)
+		}
 		/*
 			eCtx := eval.NewPlainEvalCtx(GocqlmemEvalFunctions, GocqlmemEvalConstants, nil)
 			colVal, err := eCtx.Eval(cmd.ColumnValueExpAsts[i])
@@ -679,6 +688,14 @@ func (t *tableStore) execInsert(cmd *CommandInsert) (bool, []gocql.ColumnInfo, [
 				return false, nil, nil, fmt.Errorf("cannot upsert NULL into a partition/clustered key column %s", name)
 			}
 		*/
+	}
+
+	// Initialize counter fields with zeroes
+	for _, colDef := range t.columnDefs {
+		if colDef.columnType == gocql.TypeCounter {
+			cmd.ColumnNames = append(cmd.ColumnNames, colDef.name)
+			cmd.ColumnValues = append(cmd.ColumnValues, int64(0))
+		}
 	}
 
 	return t.execInternalUpsert(cmd)
@@ -787,13 +804,13 @@ func replaceAsteriskInColumnNames(tableName string, columnDefs []*columnDef, col
 */
 
 // Handle SELECT * and SELECT t.*
-func replaceAsteriskInColumnName(tableName string, columnDefs []*columnDef, columnExpLexems []*Lexem) ([]string, []ast.Expr, error) {
+func replaceAsteriskInColumnName(tableName string, origColIdxToStoreColIdx []int, columnDefs []*columnDef, columnExpLexems []*Lexem) ([]string, []ast.Expr, error) {
 	if !isSelectAsterisk(tableName, columnExpLexems) {
 		return nil, nil, nil
 	}
 	newColumnExpNames := []string{}
 	newColumnExpAsts := []ast.Expr{}
-	for colIdx := range len(columnDefs) {
+	for _, colIdx := range origColIdxToStoreColIdx {
 		asteriskColumnExpAst, err := parser.ParseExpr(columnDefs[colIdx].name)
 		if err != nil {
 			return nil, nil, fmt.Errorf("dev error, cannot parse column name %s: %s", columnDefs[colIdx].name, err.Error())
@@ -941,6 +958,23 @@ func findTokenPartitionFieldInLexems(lexems []*Lexem, tableName string, columnDe
 }
 */
 
+func guessTypeInfoForColumn(colName string, columnDefs []*columnDef, columnDefMap map[string]int, val any) (gocql.TypeInfo, error) {
+	if tableColIdx, ok := columnDefMap[colName]; ok {
+		// A pure table column was selected, return its type
+		return newScalarType(columnDefs[tableColIdx].columnType), nil
+	}
+	// An expression used, return our best guess
+	if val != nil {
+		typ, err := guessInternalValueType(val)
+		if err != nil {
+			return nil, fmt.Errorf("cannot guess type of returned column %s: %s", colName, err.Error())
+		}
+		return newScalarType(typ), nil
+	}
+	// Give up
+	return nil, nil
+}
+
 func (t *tableStore) execSelect(cmd *CommandSelect, lastSelectedRowIdx int, maxRows int, preparedQueryParams []interface{}) ([]string, [][]any, []gocql.TypeInfo, int, error) {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
@@ -996,7 +1030,7 @@ func (t *tableStore) execSelect(cmd *CommandSelect, lastSelectedRowIdx int, maxR
 	newColumnExpNames := []string{}
 	newColumnExpAsts := []ast.Expr{}
 	for colIdx, columnExpLexems := range cmd.SelectExpLexems {
-		createdNames, createdAsts, err := replaceAsteriskInColumnName(cmd.TableName, t.columnDefs, columnExpLexems)
+		createdNames, createdAsts, err := replaceAsteriskInColumnName(cmd.TableName, t.origColIdxToStoreColIdx, t.columnDefs, columnExpLexems)
 		if err != nil {
 			return nil, nil, nil, -1, err
 		}
@@ -1108,17 +1142,10 @@ func (t *tableStore) execSelect(cmd *CommandSelect, lastSelectedRowIdx int, maxR
 				}
 
 				if typeInfos[resultColIdx] == nil {
-					if tableColIdx, ok := t.columnDefMap[cmd.SelectExpNames[resultColIdx]]; ok {
-						// A pure table column was selected, return its type
-						typeInfos[resultColIdx] = newScalarType(t.columnDefs[tableColIdx].columnType)
-					} else {
-						// An expression used, return our best guess
-						if val != nil {
-							typ, err := guessInternalValueType(val)
-							if err != nil {
-								return nil, nil, nil, -1, fmt.Errorf("cannot guess type of returned column %d: %s", resultColIdx, err.Error())
-							}
-							typeInfos[resultColIdx] = newScalarType(typ)
+					if typeInfos[resultColIdx] == nil {
+						typeInfos[resultColIdx], err = guessTypeInfoForColumn(cmd.SelectExpNames[resultColIdx], t.columnDefs, t.columnDefMap, val)
+						if err != nil {
+							return nil, nil, nil, -1, fmt.Errorf("cannot obtain typeinfo for non-agg: %s", err.Error())
 						}
 					}
 				}
@@ -1138,7 +1165,14 @@ func (t *tableStore) execSelect(cmd *CommandSelect, lastSelectedRowIdx int, maxR
 	if isAgg {
 		resultRow := []any{}
 		for resultColIdx := range cmd.SelectExpAsts {
-			resultRow = append(resultRow, aggCtxs[resultColIdx].GetValue())
+			val := aggCtxs[resultColIdx].GetValue()
+			resultRow = append(resultRow, val)
+			if typeInfos[resultColIdx] == nil {
+				typeInfos[resultColIdx], err = guessTypeInfoForColumn(cmd.SelectExpNames[resultColIdx], t.columnDefs, t.columnDefMap, val)
+				if err != nil {
+					return nil, nil, nil, -1, fmt.Errorf("cannot obtain typeinfo for agg: %s", err.Error())
+				}
+			}
 		}
 		resultRows = append(resultRows, resultRow)
 	}

@@ -199,22 +199,21 @@ func TestAggregateOnCounters(t *testing.T) {
 
 	existingRowMap := map[string]interface{}{}
 
-	assertUpserMapScanCas(t, true, s, "INSERT INTO ks1.t1 (a) VALUES(1)", existingRowMap)
 	assertUpserMapScanCas(t, true, s, "UPDATE ks1.t1 SET b = b + 1 WHERE a = 1", existingRowMap)
 	assertIterScan(t, "[[1,1,1,1,1]]", s, "SELECT count(b), max(b) as max, min(b) as min, avg(b) as avg, sum(b) as sum FROM ks1.t1")
+	assertUpserMapScanCas(t, true, s, "UPDATE ks1.t1 SET b = b + 1 WHERE a = 1", existingRowMap)
+	assertIterScan(t, "[[1,2,2,2,2]]", s, "SELECT count(b), max(b) as max, min(b) as min, avg(b) as avg, sum(b) as sum FROM ks1.t1")
 
 	assertUpserMapScanCas(t, true, s, "UPDATE ks1.t1 SET b = b + 2 WHERE a = 1", existingRowMap)
-	assertIterScan(t, "[[1,3,3,3,3]]", s, "SELECT count(b), max(b) as max, min(b) as min, avg(b) as avg, sum(b) as sum FROM ks1.t1")
+	assertIterScan(t, "[[1,4,4,4,4]]", s, "SELECT count(b), max(b) as max, min(b) as min, avg(b) as avg, sum(b) as sum FROM ks1.t1")
 
 	assertUpserMapScanCas(t, true, s, "UPDATE ks1.t1 SET b = b - 2 WHERE a = 1", existingRowMap)
-	assertIterScan(t, "[[1,1,1,1,1]]", s, "SELECT count(b), max(b) as max, min(b) as min, avg(b) as avg, sum(b) as sum FROM ks1.t1")
-
-	assertUpserMapScanCas(t, true, s, "INSERT INTO ks1.t1 (a) VALUES(2)", existingRowMap)
-	assertIterScan(t, "[[2,1,0,0,1]]", s, "SELECT count(b), max(b) as max, min(b) as min, avg(b) as avg, sum(b) as sum FROM ks1.t1")
+	assertIterScan(t, "[[1,2,2,2,2]]", s, "SELECT count(b), max(b) as max, min(b) as min, avg(b) as avg, sum(b) as sum FROM ks1.t1")
 
 	assertUpserMapScanCas(t, true, s, "UPDATE ks1.t1 SET b = b + 1 WHERE a = 2", existingRowMap)
+	assertUpserMapScanCas(t, true, s, "UPDATE ks1.t1 SET b = b + 1 WHERE a = 2", existingRowMap)
 	assertUpserMapScanCas(t, true, s, "UPDATE ks1.t1 SET b = b + 2 WHERE a = 2", existingRowMap)
-	assertIterScan(t, "[[2,3,1,2,4]]", s, "SELECT count(b), max(b) as max, min(b) as min, avg(b) as avg, sum(b) as sum FROM ks1.t1")
+	assertIterScan(t, "[[2,4,2,3,6]]", s, "SELECT count(b), max(b) as max, min(b) as min, avg(b) as avg, sum(b) as sum FROM ks1.t1")
 }
 
 func TestAggregateWithSetsListMapsTuplesUdtsFunctionsTtlSchemachange(t *testing.T) {

@@ -27,8 +27,12 @@ func (is *iterScanner) Scan(dest ...interface{}) error {
 	}
 
 	for i := range len(is.Cols) {
-		if err := clientTypedValueToProvidedPtr(is.Cols[i], dest[i]); err != nil {
-			return fmt.Errorf("cannot scan column %d: %s", i, err.Error())
+		if is.Cols[i] == nil {
+			dest[i] = nil
+		} else {
+			if err := clientTypedValueToProvidedPtr(is.Cols[i], dest[i]); err != nil {
+				return fmt.Errorf("cannot scan column %d: %s", i, err.Error())
+			}
 		}
 	}
 	return nil

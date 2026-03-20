@@ -20,7 +20,8 @@ func TestTableSelectOrderBy(t *testing.T) {
 			{"a", "a", "b", "c"},
 			{3, 2, 1, 1},
 		},
-		columnDefMap: map[string]int{"col1": 0, "col2": 1},
+		columnDefMap:            map[string]int{"col1": 0, "col2": 1, "col3": 2},
+		origColIdxToStoreColIdx: []int{0, 1, 2},
 	}
 
 	seq, err := table.getRowSequenceFromColumnDefAndSelectOrderBy([]*OrderByField{
@@ -226,8 +227,9 @@ func TestTableInsert(t *testing.T) {
 			{"col2", PrimaryKeyClustering, gocql.TypeBigInt, ClusteringOrderDesc},
 			{"col3", PrimaryKeyNone, gocql.TypeBoolean, ClusteringOrderNone},
 		},
-		columnValues: [][]any{[]any{}, []any{}, []any{}},
-		columnDefMap: map[string]int{"col1": 0, "col2": 1, "col3": 2},
+		columnValues:            [][]any{[]any{}, []any{}, []any{}},
+		columnDefMap:            map[string]int{"col1": 0, "col2": 1, "col3": 2},
+		origColIdxToStoreColIdx: []int{0, 1, 2},
 	}
 
 	var cmd CommandInsert
@@ -323,7 +325,8 @@ func TestTableSelectInNotIn(t *testing.T) {
 			{"a", "a", "c", "d"},
 			{int64(0), int64(1), int64(3), int64(3)},
 		},
-		columnDefMap: map[string]int{"col1": 0, "col2": 1, "col3": 2},
+		columnDefMap:            map[string]int{"col1": 0, "col2": 1},
+		origColIdxToStoreColIdx: []int{0, 1},
 	}
 	var cmds []Command
 	var cmd *CommandSelect
@@ -356,7 +359,8 @@ func TestTableSelect(t *testing.T) {
 			{"a", "a", "c", "d"},
 			{int64(0), int64(1), int64(3), int64(3)},
 		},
-		columnDefMap: map[string]int{"col1": 0, "col2": 1, "col3": 2},
+		columnDefMap:            map[string]int{"col1": 0, "col2": 1},
+		origColIdxToStoreColIdx: []int{0, 1},
 	}
 	var cmds []Command
 	var cmd *CommandSelect
@@ -412,7 +416,8 @@ func TestTableSelectByToken(t *testing.T) {
 			{"a", "b", "c", "d", "e", "f", "j"},
 			{int64(0), int64(1), int64(2), int64(3), int64(4), int64(5), int64(6)},
 		},
-		columnDefMap: map[string]int{"col1": 0, "col2": 1},
+		columnDefMap:            map[string]int{"col1": 0, "col2": 1},
+		origColIdxToStoreColIdx: []int{0, 1},
 	}
 	var cmds []Command
 	var cmd *CommandSelect
@@ -452,7 +457,8 @@ func TestTableUpdate(t *testing.T) {
 			{int64(0), int64(1), int64(3), int64(3)},
 			{int64(100), int64(101), int64(103), int64(103)},
 		},
-		columnDefMap: map[string]int{"col1": 0, "col2": 1, "col3": 2},
+		columnDefMap:            map[string]int{"col1": 0, "col2": 1, "col3": 2},
+		origColIdxToStoreColIdx: []int{0, 1, 2},
 	}
 
 	var cmds []Command
@@ -539,7 +545,8 @@ func TestTableDelete(t *testing.T) {
 			{int64(0), int64(1), int64(3), int64(3)},
 			{int64(1), int64(2), int64(3), int64(4)},
 		},
-		columnDefMap: map[string]int{"col1": 0, "col2": 1, "col3": 2},
+		columnDefMap:            map[string]int{"col1": 0, "col2": 1, "col3": 2},
+		origColIdxToStoreColIdx: []int{0, 1, 2},
 	}
 	var cmds []Command
 	var cmd *CommandDelete

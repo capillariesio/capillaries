@@ -1,6 +1,7 @@
 package eval
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -473,6 +474,35 @@ func (eCtx *EvalCtx) EvalBinaryBoolToBool(valLeftVolatile any, op token.Token, v
 	return false, nil
 }
 
+func (eCtx *EvalCtx) EvalBinaryByteSliceToByteSlice(valLeftVolatile any, op token.Token, valRightVolatile any) (bool, error) {
+
+	valLeft, ok := valLeftVolatile.([]byte)
+	if !ok {
+		return false, fmt.Errorf("cannot evaluate binary []byte expression %v with %T on the left", op, valLeftVolatile)
+	}
+
+	valRight, ok := valRightVolatile.([]byte)
+	if !ok {
+		return false, fmt.Errorf("cannot evaluate binary []byte expression '%v(%T) %v %v(%T)', invalid right arg", valLeft, valLeft, op, valRightVolatile, valRightVolatile)
+	}
+
+	if !isCompareOp(op) {
+		return false, fmt.Errorf("cannot perform compare op %v against tim[]bytee %v and []byte %v", op, valLeft, valRight)
+	}
+
+	res := bytes.Compare(valLeft, valRight)
+
+	if op == token.GTR && res > 0 ||
+		op == token.LSS && res < 0 ||
+		op == token.GEQ && res >= 0 ||
+		op == token.LEQ && res <= 0 ||
+		op == token.EQL && res == 0 ||
+		op == token.NEQ && res != 0 {
+		return true, nil
+	}
+	return false, nil
+}
+
 func (eCtx *EvalCtx) EvalUnaryBoolNot(exp ast.Expr) (bool, error) {
 	valVolatile, err := eCtx.Eval(exp)
 	if err != nil {
@@ -661,6 +691,9 @@ func (eCtx *EvalCtx) evalBinaryCompareExp(valLeftVolatile any, exp *ast.BinaryEx
 		return eCtx.value, err
 	case bool:
 		eCtx.value, err = eCtx.EvalBinaryBoolToBool(valLeftVolatile, exp.Op, valRightVolatile)
+		return eCtx.value, err
+	case []byte:
+		eCtx.value, err = eCtx.EvalBinaryByteSliceToByteSlice(valLeftVolatile, exp.Op, valRightVolatile)
 		return eCtx.value, err
 	default:
 		// Assume both args are numbers (int, float, dec)

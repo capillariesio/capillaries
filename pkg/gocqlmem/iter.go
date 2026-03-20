@@ -26,15 +26,19 @@ type gocqlmemIter struct {
 	pagingState          []byte
 }
 
+/*
 func (iter *gocqlmemIter) guessTypeInfosFromData() error {
 	for colIdx := range len(iter.retrievedColumnInfos) {
 		if iter.retrievedColumnInfos[colIdx].TypeInfo != nil {
+			// Type was provided from column def or guessed by guessInternalValueType
 			continue
 		}
+		// retrieved values for that column was nil, try guessing the client type here by walking through all values
 		for rowIdx := range len(iter.retrievedValues) {
 			if iter.retrievedValues[rowIdx][colIdx] == nil {
 				continue
 			}
+			return fmt.Errorf("bla")
 			typ, err := guessClientValueType(iter.retrievedValues[rowIdx][colIdx])
 			if err != nil {
 				return err
@@ -45,6 +49,7 @@ func (iter *gocqlmemIter) guessTypeInfosFromData() error {
 	}
 	return nil // WARNING: if all retrieved values for a column X are nil, correspondent TypeInfo will be nil
 }
+*/
 
 func NewGocqlmemIterWithError(err error) *gocqlmemIter {
 	return &gocqlmemIter{err: err}
@@ -54,14 +59,14 @@ func NewGocqlmemIterWithKeyspace(ks string) *gocqlmemIter {
 }
 
 func NewGocqlmemIterWithData(ks string, table string, infos []gocql.ColumnInfo, values [][]any) *gocqlmemIter {
+	// WARNING: if all retrieved values for a column X are nil, correspondent TypeInfo will be nil
 	iter := gocqlmemIter{keyspace: ks, table: table, retrievedColumnInfos: infos, retrievedValues: values}
-	iter.err = iter.guessTypeInfosFromData()
 	return &iter
 }
 
 func NewGocqlmemIterWithDataAndPagingState(ks string, table string, infos []gocql.ColumnInfo, values [][]any, pagingState []byte) *gocqlmemIter {
+	// WARNING: if all retrieved values for a column X are nil, correspondent TypeInfo will be nil
 	iter := gocqlmemIter{keyspace: ks, table: table, retrievedColumnInfos: infos, retrievedValues: values, pagingState: pagingState}
-	iter.err = iter.guessTypeInfosFromData()
 	return &iter
 }
 
@@ -113,9 +118,13 @@ func (iter *gocqlmemIter) Scan(dest ...interface{}) bool {
 
 	for i := range len(iter.retrievedColumnInfos) {
 		if dest[i] != nil {
-			if err := clientTypedValueToProvidedPtr(iter.retrievedValues[iter.pos][i], dest[i]); err != nil {
-				iter.SetErr(fmt.Errorf("cannot scan column %d: %s", i, err.Error()))
-				return false
+			if iter.retrievedValues[iter.pos][i] == nil {
+				dest[i] = nil
+			} else {
+				if err := clientTypedValueToProvidedPtr(iter.retrievedValues[iter.pos][i], dest[i]); err != nil {
+					iter.SetErr(fmt.Errorf("cannot scan column %d: %s", i, err.Error()))
+					return false
+				}
 			}
 		}
 	}

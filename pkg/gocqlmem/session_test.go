@@ -2,11 +2,48 @@ package gocqlmem
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
+	gocql "github.com/apache/cassandra-gocql-driver/v2"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/inf.v0"
 )
+
+func clientValuePtrToString(val any) string {
+	switch typedVal := val.(type) {
+	case *int:
+		return strconv.FormatInt(int64(*typedVal), 10)
+	case *int8:
+		return strconv.FormatInt(int64(*typedVal), 10)
+	case *int16:
+		return strconv.FormatInt(int64(*typedVal), 10)
+	case *int32:
+		return strconv.FormatInt(int64(*typedVal), 10)
+	case *int64:
+		return strconv.FormatInt(*typedVal, 10)
+	case *float32:
+		return strconv.FormatFloat(float64(*typedVal), 'f', -1, 32)
+	case *float64:
+		return strconv.FormatFloat(*typedVal, 'f', -1, 64)
+	case *bool:
+		return strconv.FormatBool(*typedVal)
+	case *string:
+		return *typedVal
+	case *inf.Dec:
+		return typedVal.String()
+	case *gocql.UUID:
+		return fmt.Sprintf("%x-%x-%x-%x-%x", typedVal[0:4], typedVal[4:6], typedVal[6:8], typedVal[8:10], typedVal[10:16])
+	case *time.Time:
+		return typedVal.Format(time.RFC3339)
+	case *[]byte:
+		return fmt.Sprintf("%x", typedVal)
+	default:
+		return fmt.Sprintf("%v", typedVal)
+	}
+}
 
 func sliceMapRowsToString(rows []map[string]any) string {
 	if rows == nil {

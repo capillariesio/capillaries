@@ -29,7 +29,7 @@ func (f *TestProcessorDefFactory) Create(processorType string) (sc.CustomProcess
 	}
 }
 
-func noooooTestRun(t *testing.T) {
+func noooTestRun(t *testing.T) {
 	envConfig := env.EnvConfig{
 		Cassandra:                         env.CassandraConfig{WriterWorkers: 1},
 		Log:                               env.LogConfig{Level: "INFO"},

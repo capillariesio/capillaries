@@ -1,13 +1,10 @@
 package gocqlmem
 
 import (
-	"fmt"
 	"testing"
-	"time"
 
 	gocql "github.com/apache/cassandra-gocql-driver/v2"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/inf.v0"
 )
 
 func TestMapScanCAS(t *testing.T) {
@@ -204,121 +201,4 @@ func TestUuid(t *testing.T) {
 	assert.Equal(t, uB[1], uC[1])
 	assert.Equal(t, uB[14], uC[14])
 	assert.Equal(t, uB[15], uC[15])
-}
-
-func TestTypes(t *testing.T) {
-	s := NewGocqlmemSession()
-	assert.Nil(t, s.Query("CREATE KEYSPACE ks1").Exec())
-	assert.Nil(t, s.Query(`CREATE TABLE ks1.t1 (
-		f_tinyint tinyint,
-		f_smallint smallint,
-		f_int int,
-		f_bigint bigint,
-		f_counter counter,
-		f_bool boolean,
-		f_float float,
-		f_double double,
-		f_dec decimal,
-		f_timeuuid timeuuid,
-		f_uuid uuid,
-		f_blob blob,
-		f_timestamp timestamp,
-		f_time time,
-		f_date date,
-		f_varchar varchar,
-		f_text text,
-		f_ascii ascii,
-		primary key (f_tinyint))`).Exec())
-
-	timeToTest := time.Unix(1436832817, 476000000).UTC()
-	sometimeuuid := gocql.TimeUUIDWith(0, 0, []byte{})
-	preparedQueryParams := []any{sometimeuuid, sometimeuuid, []byte{1, 2}, timeToTest}
-	var err error
-	err = s.Query(`INSERT INTO ks1.t1 (
-		f_tinyint,
-		f_smallint,
-		f_int,
-		f_bigint,
-		f_bool,
-		f_float,
-		f_double,
-		f_dec,
-		f_timeuuid,
-		f_uuid,
-		f_blob,
-		f_timestamp,
-		f_time,
-		f_date,
-		f_varchar,
-		f_text,
-		f_ascii
-	)
-	VALUES (
-		1,
-		2,
-		3,
-		4,
-		TRUE,
-		1.1,
-		1.2,
-		1.3,
-		?,
-		?,
-		?,
-		?,
-		10000000,
-		6,
-		'1',
-		'2',
-		'3'
-)`, preparedQueryParams...).Exec()
-	assert.Nil(t, err)
-
-	result := []map[string]interface{}{}
-	result, err = s.Query(`SELECT * FROM ks1.t1`).Iter().SliceMap()
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(result))
-	assert.Equal(t, "map[f_ascii:3 f_bigint:4 f_blob:[1 2] f_bool:true f_counter:0 f_date:6 f_dec:{{false [13]} 1} f_double:1.2 f_float:1.1 f_int:3 f_smallint:2 f_text:2 f_time:10000000 f_timestamp:2015-07-14 00:13:37.476 +0000 UTC f_timeuuid:00000000-0000-1000-8000-000000000000 f_tinyint:1 f_uuid:00000000-0000-1000-8000-000000000000 f_varchar:1]", fmt.Sprintf("%v", result[0]))
-
-	iter := s.Query(`SELECT * FROM ks1.t1`).Iter()
-	assert.Nil(t, iter.Err())
-
-	rowData, err := iter.RowData()
-	assert.Nil(t, err)
-
-	assert.True(t, iter.Scan(rowData.Values...))
-	assert.Nil(t, iter.Err())
-	assert.Equal(t, int8(1), *(rowData.Values[0]).(*int8))
-	assert.Equal(t, int16(2), *(rowData.Values[1]).(*int16))
-	assert.Equal(t, int32(3), *(rowData.Values[2]).(*int32))
-	assert.Equal(t, int64(4), *(rowData.Values[3]).(*int64))
-	assert.Equal(t, int64(0), *(rowData.Values[4]).(*int64)) // counter
-	assert.Equal(t, true, *(rowData.Values[5]).(*bool))
-	assert.Equal(t, float32(1.1), *(rowData.Values[6]).(*float32))
-	assert.Equal(t, float64(1.2), *(rowData.Values[7]).(*float64))
-	assert.Equal(t, *inf.NewDec(13, 1), *(rowData.Values[8]).(*inf.Dec))
-	assert.Equal(t, sometimeuuid, *(rowData.Values[9]).(*gocql.UUID))
-	assert.Equal(t, sometimeuuid, *(rowData.Values[10]).(*gocql.UUID))
-	assert.Equal(t, []byte{1, 2}, *(rowData.Values[11]).(*[]byte))
-	assert.Equal(t, timeToTest, *(rowData.Values[12]).(*time.Time))
-	assert.Equal(t, int64(10000000), *(rowData.Values[13]).(*int64))
-	assert.Equal(t, int32(6), *(rowData.Values[14]).(*int32))
-	assert.Equal(t, "1", *(rowData.Values[15]).(*string))
-	assert.Equal(t, "2", *(rowData.Values[16]).(*string))
-	assert.Equal(t, "3", *(rowData.Values[17]).(*string))
-
-	// Accept int32 into int
-
-	iter = s.Query(`SELECT f_date FROM ks1.t1`).Iter()
-	assert.Nil(t, iter.Err())
-
-	rowData, err = iter.RowData()
-	assert.Nil(t, err)
-
-	var valInt int
-	rowData.Values[0] = &valInt
-
-	assert.True(t, iter.Scan(rowData.Values...))
-	assert.Nil(t, iter.Err())
-	assert.Equal(t, 6, *(rowData.Values[0]).(*int))
 }

@@ -7,8 +7,6 @@ import (
 	"fmt"
 
 	gocql "github.com/apache/cassandra-gocql-driver/v2"
-	"github.com/shopspring/decimal"
-	"gopkg.in/inf.v0"
 )
 
 type gocqlmemQuery struct {
@@ -46,56 +44,6 @@ func addAppliedToRetrievedData(ks string, tableName string, existingColumnInfos 
 	}
 	existingValues[0] = append(existingValues[0], isApplied)
 	return existingColumnInfos, existingValues
-}
-
-func internalValueToClientType(val any, typ gocql.Type) (any, error) {
-	switch typedInternalVal := val.(type) {
-	case int64:
-		switch typ {
-		case gocql.TypeTinyInt:
-			return int8(typedInternalVal), nil
-		case gocql.TypeSmallInt:
-			return int16(typedInternalVal), nil
-		case gocql.TypeInt, gocql.TypeDate:
-			return int32(typedInternalVal), nil
-		case gocql.TypeBigInt, gocql.TypeVarint, gocql.TypeCounter, gocql.TypeTime:
-			return typedInternalVal, nil
-		}
-
-	case float64:
-		switch typ {
-		case gocql.TypeFloat:
-			return float32(typedInternalVal), nil
-		case gocql.TypeDouble:
-			return typedInternalVal, nil
-		}
-
-	case decimal.Decimal:
-		switch typ {
-		case gocql.TypeDecimal:
-			s := typedInternalVal.String()
-			infDecVal, ok := new(inf.Dec).SetString(s)
-			if !ok {
-				return nil, fmt.Errorf("cannot convert decimal %v(%T) to inf.Dec from string %s", typedInternalVal, typedInternalVal, s)
-			}
-			return *infDecVal, nil
-		}
-	case []byte:
-		switch typ {
-		case gocql.TypeBlob:
-			return typedInternalVal, nil
-		case gocql.TypeUUID, gocql.TypeTimeUUID:
-			uuid, err := gocql.UUIDFromBytes(typedInternalVal)
-			if err != nil {
-				return nil, fmt.Errorf("cannot []byte %v(%T) to UUID/TimeUUID: %s", typedInternalVal, typedInternalVal, err.Error())
-			}
-			return uuid, nil
-		}
-
-	}
-
-	// Give up and pray
-	return val, nil
 }
 
 func adjustInternalValuesToClientTypesAccordingToTypeInfos(values [][]any, typeInfos []gocql.TypeInfo) error {

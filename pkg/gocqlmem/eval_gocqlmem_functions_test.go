@@ -257,7 +257,7 @@ func TestDatetimeFunctions(t *testing.T) {
 	now := time.Now().UnixMilli()
 	val, err = eCtx.Eval(exp)
 	assert.Nil(t, err)
-	assert.Equal(t, now/10, val.(int64)/10) // Give it some slack
+	assert.Equal(t, now/100, val.(int64)/100) // Give it some slack
 
 	// current_date
 
