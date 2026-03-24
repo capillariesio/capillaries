@@ -1,0 +1,1 @@
+This package implements in-memory gocql. Can be useful for unit testing. Uses eval package for agg calculations. May be externalized eventually.
