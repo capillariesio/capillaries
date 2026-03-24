@@ -110,6 +110,8 @@ func CastToFloat64(arg any) (float64, error) {
 	switch typedArg := arg.(type) {
 	case int:
 		return float64(typedArg), nil
+	case int8:
+		return float64(typedArg), nil
 	case int16:
 		return float64(typedArg), nil
 	case int32:

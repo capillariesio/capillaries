@@ -320,6 +320,7 @@ const (
 	BinaryBoolToBoolFunc
 	BinaryStringFunc
 	BinaryStringToBoolFunc
+	BinaryByteSliceToByteSliceFunc
 )
 
 func assertBinaryEval(t *testing.T, evalFunc EvalFunc, valLeftVolatile any, op token.Token, valRightVolatile any, errorMessage string) {
@@ -348,6 +349,8 @@ func assertBinaryEval(t *testing.T, evalFunc EvalFunc, valLeftVolatile any, op t
 		_, err = eCtx.EvalBinaryString(valLeftVolatile, op, valRightVolatile)
 	case BinaryStringToBoolFunc:
 		_, err = eCtx.EvalBinaryStringToBool(valLeftVolatile, op, valRightVolatile)
+	case BinaryByteSliceToByteSliceFunc:
+		_, err = eCtx.EvalBinaryByteSliceToByteSlice(valLeftVolatile, op, valRightVolatile)
 	default:
 		assert.Fail(t, "unsupported EvalFunc")
 	}
@@ -442,6 +445,37 @@ func TestBadEvalBinaryStringToBool(t *testing.T) {
 	assertBinaryEval(t, BinaryStringToBoolFunc, goodVal, token.AND, goodVal, "cannot perform bool op & against string good and string good")
 }
 
+func TestEvalBinaryByteSliceToByteSlice(t *testing.T) {
+	goodVal := []byte{1, 2}
+	anotherGoodVal := []byte{2, 3}
+	eCtx := newPlainEvalCtx(AggFuncDisabled)
+
+	res, err := eCtx.EvalBinaryByteSliceToByteSlice(goodVal, token.LSS, anotherGoodVal)
+	assert.Nil(t, err)
+	assert.True(t, res)
+
+	res, err = eCtx.EvalBinaryByteSliceToByteSlice(goodVal, token.GTR, anotherGoodVal)
+	assert.Nil(t, err)
+	assert.False(t, res)
+
+	badVal := 1
+	assertBinaryEval(t, BinaryByteSliceToByteSliceFunc, badVal, token.LSS, goodVal, "cannot evaluate binary []byte expression < with int on the left")
+	assertBinaryEval(t, BinaryByteSliceToByteSliceFunc, goodVal, token.GTR, badVal, "cannot evaluate binary []byte expression '[1 2]([]uint8) > 1(int)', invalid right arg")
+	assertBinaryEval(t, BinaryByteSliceToByteSliceFunc, goodVal, token.AND, goodVal, "cannot perform compare op & against []byte [1 2] and []byte [1 2]")
+
+	// Exercise EvalBinaryCompareExp with []byte
+	constants := map[string]any{
+		"goodVal":        goodVal,
+		"anotherGoodVal": anotherGoodVal,
+	}
+	eCtx = NewPlainEvalCtx(nil, constants, nil)
+	exp, err := parser.ParseExpr("goodVal < anotherGoodVal")
+	assert.Nil(t, err)
+	eCtx.Eval(exp)
+	assert.True(t, eCtx.GetValue().(bool))
+
+}
+
 func TestUnsupported(t *testing.T) {
 	varValuesMap := VarValuesMap{
 		"t1": {
@@ -469,4 +503,21 @@ func TestGetSafeValue(t *testing.T) {
 	eCtx.Eval(exp)
 	assert.Equal(t, float64(2.0), eCtx.GetValue())
 	assert.Equal(t, float64(2.0), eCtx.GetSafeValue(int64(35)))
+}
+
+func TestOutOfRangeInt(t *testing.T) {
+
+	eCtx := NewPlainEvalCtx(nil, nil, nil)
+
+	constants := map[string]any{
+		"const1": float64(1.0),
+	}
+	eCtx = NewPlainEvalCtx(nil, constants, nil)
+	exp, err := parser.ParseExpr("100000000000000000000")
+	assert.Nil(t, err)
+	eCtx.Eval(exp)
+
+	expected, err := decimal.NewFromString("100000000000000000000")
+	assert.Nil(t, err)
+	assert.Equal(t, expected, eCtx.GetValue())
 }

@@ -487,7 +487,7 @@ func (eCtx *EvalCtx) EvalBinaryByteSliceToByteSlice(valLeftVolatile any, op toke
 	}
 
 	if !isCompareOp(op) {
-		return false, fmt.Errorf("cannot perform compare op %v against tim[]bytee %v and []byte %v", op, valLeft, valRight)
+		return false, fmt.Errorf("cannot perform compare op %v against []byte %v and []byte %v", op, valLeft, valRight)
 	}
 
 	res := bytes.Compare(valLeft, valRight)

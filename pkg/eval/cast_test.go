@@ -53,6 +53,8 @@ func TestCastSingle(t *testing.T) {
 
 	val, _ = CastToFloat64(int(12))
 	assert.Equal(t, float64(12.0), val)
+	val, _ = CastToFloat64(int8(12))
+	assert.Equal(t, float64(12.0), val)
 	val, _ = CastToFloat64(int16(12))
 	assert.Equal(t, float64(12.0), val)
 	val, _ = CastToFloat64(int32(12))
@@ -71,6 +73,8 @@ func TestCastSingle(t *testing.T) {
 	assert.Equal(t, float64(12.2), val)
 
 	val, _ = CastToDecimal(int(12))
+	assert.Equal(t, decimal.NewFromFloat(12.0), val)
+	val, _ = CastToDecimal(int8(12))
 	assert.Equal(t, decimal.NewFromFloat(12.0), val)
 	val, _ = CastToDecimal(int16(12))
 	assert.Equal(t, decimal.NewFromFloat(12.0), val)
