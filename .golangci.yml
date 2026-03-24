@@ -82,6 +82,9 @@ linters:
       - path: pkg\/xfer\/ssh\.go
         text: "SA1019: x509.IsEncryptedPEMBlock|SA1019: x509.DecryptPEMBlock"
         linters: [ staticcheck ]
+      - path: pkg\/xfer\/s3\.go
+        text: "superceded by feature/s3/transfermanager"
+        linters: [ staticcheck ]
 
       - path: .+\.go
         text: Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Sync|.*Flush|os\.Remove(All)?|.*print(f|ln)?|os\.(Un)?Setenv). is not checked
@@ -99,22 +102,59 @@ linters:
         linters: [ govet ]
 
       - path: .+\.go
+        text: replace sort.Slice by slices.SortFunc
+        linters: [ revive ]
+      - path: .+\.go
+        text: that contains an underscore
+        linters: [ revive ]
+      - path: .+\.go
         text: should have a package comment
         linters: [ revive ]
       - path: .+\.go
         text: should be
         linters: [ revive ]
+
+      - path: pkg\/gocqlmem\/keyspace\.go
+        text: maximum number of return results per function exceeded
+        linters: [ revive ]
+      - path: pkg\/gocqlmem\/parser\.go
+        text: has (cognitive|cyclomatic) complexity
+        linters: [ revive ]
+      - path: pkg\/gocqlmem\/parser\.go
+        text: this block is empty, you can remove it
+        linters: [ revive ]
+      - path: pkg\/gocqlmem\/session\.go
+        text: maximum number of return results per function exceeded
+        linters: [ revive ]
+      - path: pkg\/gocqlmem\/table\.go
+        text: maximum number of return results per function exceeded
+        linters: [ revive ]
+      - path: pkg\/gocqlmem\/table\.go
+        text: has (cognitive|cyclomatic) complexity
+        linters: [ revive ]
+      - path: pkg\/gocqlmem\/type_helpers\.go
+        text: function compareInternalInExpressions has cyclomatic complexity
+        linters: [ revive ]
+      - path: pkg\/gocqlmem\/type_helpers\.go
+        text: function compareInternalKnownType has cyclomatic complexity
+        linters: [ revive ]
+      - path: pkg\/gocqlmem\/type_helpers\.go
+        text: function clientTypedValueToProvidedPtr has cyclomatic complexity
+        linters: [ revive ]
       - path: pkg\/proc\/proc_table_creator\.go
         text: function RunCreateTableRelForBatch has (cyclomatic|cognitive) complexity
-        linters: [ revive ]
-      - path: pkg\/eval\/eval_ctx\.go
-        text: EvalFunc has cyclomatic complexity
         linters: [ revive ]
       - path: pkg\/capigraph\/layering\.go
         text: function buildLayerMap has cognitive complexity
         linters: [ revive ]
       - path: pkg\/api\/capigraph\.go
         text: function GetCapigraphDiagram has (cognitive|cyclomatic) complexity
+        linters: [ revive ]
+      - path: pkg\/eval\/eval_ctx\.go
+        text: function \(\*EvalCtx\)\.Eval has (cognitive|cyclomatic) complexity
+        linters: [ revive ]
+      - path: pkg\/gocqlmem\/eval_gocqlmem_functions\.go
+        text: function callCast has cyclomatic complexity
         linters: [ revive ]
       - path: pkg\/capigraph\/svg\.go
         text: maximum number of return results per function exceeded

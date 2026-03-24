@@ -295,7 +295,6 @@ func NewSession(envConfig *env.EnvConfig, keyspace string, createKeyspace Create
 			}
 		}
 		return testGocqlmemSession, CassandraEngineCassandra, err
-	} else {
-		return NewGocqlSession(envConfig, keyspace, createKeyspace)
 	}
+	return NewGocqlSession(envConfig, keyspace, createKeyspace)
 }

@@ -470,9 +470,9 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, tabl
 			for _, tri := range tableRecordItems {
 				switch v := tri.Value.(type) {
 				case string:
-					sb.WriteString(fmt.Sprintf("%s:%d characters;", tri.FieldName, len(v)))
+					fmt.Fprintf(&sb, "%s:%d characters;", tri.FieldName, len(v))
 				default:
-					sb.WriteString(fmt.Sprintf("%s:%T;", tri.FieldName, tri.Value))
+					fmt.Fprintf(&sb, "%s:%T;", tri.FieldName, tri.Value)
 				}
 			}
 			errorToReturn = db.WrapDbErrorWithQuery(sb.String(), pq.Query, err)

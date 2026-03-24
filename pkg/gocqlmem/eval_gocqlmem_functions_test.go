@@ -35,7 +35,7 @@ func TestCast(t *testing.T) {
 
 	exp, _ = parser.ParseExpr(`cast()`)
 	eCtx = eval.NewPlainEvalCtx(GocqlmemEvalFunctions, GocqlmemEvalConstants, nil)
-	val, err = eCtx.Eval(exp)
+	_, err = eCtx.Eval(exp)
 	assert.Contains(t, "cannot evaluate cast(), requires 2 args, 0 supplied", err.Error())
 
 	vars := eval.VarValuesMap{
@@ -201,7 +201,7 @@ func TestToken(t *testing.T) {
 
 	exp, _ = parser.ParseExpr(`token()`)
 	eCtx = eval.NewPlainEvalCtx(GocqlmemEvalFunctions, GocqlmemEvalConstants, nil)
-	val, err = eCtx.Eval(exp)
+	_, err = eCtx.Eval(exp)
 	assert.Contains(t, "cannot evaluate token(), requires 1 args, 0 supplied", err.Error())
 
 	vars := eval.VarValuesMap{
@@ -250,7 +250,7 @@ func TestDatetimeFunctions(t *testing.T) {
 	// current_timestamp
 
 	exp, _ = parser.ParseExpr(`current_timestamp(1)`)
-	val, err = eCtx.Eval(exp)
+	_, err = eCtx.Eval(exp)
 	assert.Contains(t, "cannot evaluate current_timestamp(), requires 0 args, 1 supplied", err.Error())
 
 	exp, _ = parser.ParseExpr(`current_timestamp()`)
@@ -262,11 +262,10 @@ func TestDatetimeFunctions(t *testing.T) {
 	// current_date
 
 	exp, _ = parser.ParseExpr(`current_date(1)`)
-	val, err = eCtx.Eval(exp)
+	_, err = eCtx.Eval(exp)
 	assert.Contains(t, "cannot evaluate current_date(), requires 0 args, 1 supplied", err.Error())
 
 	exp, _ = parser.ParseExpr(`current_date()`)
-	now = time.Now().UnixMilli()
 	val, err = eCtx.Eval(exp)
 	assert.Nil(t, err)
 	assert.Equal(t, int64(time.Since(time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)).Hours())/24, val)
@@ -274,11 +273,10 @@ func TestDatetimeFunctions(t *testing.T) {
 	// current_time
 
 	exp, _ = parser.ParseExpr(`current_time(1)`)
-	val, err = eCtx.Eval(exp)
+	_, err = eCtx.Eval(exp)
 	assert.Contains(t, "cannot evaluate current_time(), requires 0 args, 1 supplied", err.Error())
 
 	exp, _ = parser.ParseExpr(`current_time()`)
-	now = time.Now().UnixMilli()
 	val, err = eCtx.Eval(exp)
 	ti := time.Now()
 	curTime := int64(((ti.Hour()*60+ti.Minute())*60+ti.Second())*1000000000 + ti.Nanosecond())
@@ -320,7 +318,7 @@ func TestMathFunctions(t *testing.T) {
 	// Abs
 
 	exp, _ = parser.ParseExpr(`abs()`)
-	val, err = eCtx.Eval(exp)
+	_, err = eCtx.Eval(exp)
 	assert.Contains(t, "cannot evaluate abs(), requires 1 args, 0 supplied", err.Error())
 
 	exp, _ = parser.ParseExpr(`abs(f1)`)
@@ -351,7 +349,7 @@ func TestMathFunctions(t *testing.T) {
 	// Exp
 
 	exp, _ = parser.ParseExpr(`exp()`)
-	val, err = eCtx.Eval(exp)
+	_, err = eCtx.Eval(exp)
 	assert.Contains(t, "cannot evaluate exp(), requires 1 args, 0 supplied", err.Error())
 
 	exp, _ = parser.ParseExpr(`exp(f1)`)
@@ -382,7 +380,7 @@ func TestMathFunctions(t *testing.T) {
 	// Log
 
 	exp, _ = parser.ParseExpr(`log()`)
-	val, err = eCtx.Eval(exp)
+	_, err = eCtx.Eval(exp)
 	assert.Contains(t, "cannot evaluate log(), requires 1 args, 0 supplied", err.Error())
 
 	exp, _ = parser.ParseExpr(`log(f1)`)
@@ -413,7 +411,7 @@ func TestMathFunctions(t *testing.T) {
 	// Log10
 
 	exp, _ = parser.ParseExpr(`log10()`)
-	val, err = eCtx.Eval(exp)
+	_, err = eCtx.Eval(exp)
 	assert.Contains(t, "cannot evaluate log10(), requires 1 args, 0 supplied", err.Error())
 
 	exp, _ = parser.ParseExpr(`log10(f1)`)
@@ -444,7 +442,7 @@ func TestMathFunctions(t *testing.T) {
 	// Round
 
 	exp, _ = parser.ParseExpr(`round()`)
-	val, err = eCtx.Eval(exp)
+	_, err = eCtx.Eval(exp)
 	assert.Contains(t, "cannot evaluate round(), requires 1 args, 0 supplied", err.Error())
 
 	exp, _ = parser.ParseExpr(`round(f1)`)

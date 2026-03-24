@@ -255,12 +255,12 @@ func TestFunc(t *testing.T) {
 
 	exp, err := parser.ParseExpr("package1.Mul2(1.0)")
 	assert.Nil(t, err)
-	result, err := eCtx.Eval(exp)
+	result, _ := eCtx.Eval(exp)
 	assert.Equal(t, float64(2.0), result)
 
 	exp, err = parser.ParseExpr("mul3(1.0)")
 	assert.Nil(t, err)
-	result, err = eCtx.Eval(exp)
+	result, _ = eCtx.Eval(exp)
 	assert.Equal(t, float64(3.0), result)
 }
 
@@ -273,12 +273,12 @@ func TestConst(t *testing.T) {
 
 	exp, err := parser.ParseExpr("const1*2")
 	assert.Nil(t, err)
-	result, err := eCtx.Eval(exp)
+	result, _ := eCtx.Eval(exp)
 	assert.Equal(t, float64(2.0), result)
 
 	exp, err = parser.ParseExpr("package2.const2*2")
 	assert.Nil(t, err)
-	result, err = eCtx.Eval(exp)
+	result, _ = eCtx.Eval(exp)
 	assert.Equal(t, float64(4.0), result)
 }
 
@@ -325,7 +325,7 @@ const (
 
 func assertBinaryEval(t *testing.T, evalFunc EvalFunc, valLeftVolatile any, op token.Token, valRightVolatile any, errorMessage string) {
 	var err error
-	eCtx := newPlainEvalCtx(AggFuncDisabled)
+	eCtx := newPlainEvalCtxInternal(AggFuncDisabled)
 	switch evalFunc {
 	case BinaryIntFunc:
 		_, err = eCtx.EvalBinaryInt(valLeftVolatile, op, valRightVolatile)
@@ -448,7 +448,7 @@ func TestBadEvalBinaryStringToBool(t *testing.T) {
 func TestEvalBinaryByteSliceToByteSlice(t *testing.T) {
 	goodVal := []byte{1, 2}
 	anotherGoodVal := []byte{2, 3}
-	eCtx := newPlainEvalCtx(AggFuncDisabled)
+	eCtx := newPlainEvalCtxInternal(AggFuncDisabled)
 
 	res, err := eCtx.EvalBinaryByteSliceToByteSlice(goodVal, token.LSS, anotherGoodVal)
 	assert.Nil(t, err)
@@ -471,9 +471,9 @@ func TestEvalBinaryByteSliceToByteSlice(t *testing.T) {
 	eCtx = NewPlainEvalCtx(nil, constants, nil)
 	exp, err := parser.ParseExpr("goodVal < anotherGoodVal")
 	assert.Nil(t, err)
-	eCtx.Eval(exp)
-	assert.True(t, eCtx.GetValue().(bool))
-
+	val, err := eCtx.Eval(exp)
+	assert.Nil(t, err)
+	assert.True(t, val.(bool))
 }
 
 func TestUnsupported(t *testing.T) {
@@ -500,24 +500,23 @@ func TestGetSafeValue(t *testing.T) {
 	eCtx = NewPlainEvalCtx(nil, constants, nil)
 	exp, err := parser.ParseExpr("const1*2")
 	assert.Nil(t, err)
-	eCtx.Eval(exp)
-	assert.Equal(t, float64(2.0), eCtx.GetValue())
+	val, err := eCtx.Eval(exp)
+	assert.Nil(t, err)
+	assert.Equal(t, float64(2.0), val)
 	assert.Equal(t, float64(2.0), eCtx.GetSafeValue(int64(35)))
 }
 
 func TestOutOfRangeInt(t *testing.T) {
-
-	eCtx := NewPlainEvalCtx(nil, nil, nil)
-
 	constants := map[string]any{
 		"const1": float64(1.0),
 	}
-	eCtx = NewPlainEvalCtx(nil, constants, nil)
+	eCtx := NewPlainEvalCtx(nil, constants, nil)
 	exp, err := parser.ParseExpr("100000000000000000000")
 	assert.Nil(t, err)
-	eCtx.Eval(exp)
+	val, err := eCtx.Eval(exp)
+	assert.Nil(t, err)
 
 	expected, err := decimal.NewFromString("100000000000000000000")
 	assert.Nil(t, err)
-	assert.Equal(t, expected, eCtx.GetValue())
+	assert.Equal(t, expected, val)
 }

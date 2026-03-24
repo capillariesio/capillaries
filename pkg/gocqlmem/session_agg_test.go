@@ -24,7 +24,7 @@ func TestFunctions(t *testing.T) {
 		`[[<nil>,<nil>,0,0,<nil>,0,0,0,0,<nil>,<nil>,0,0,<nil>,<nil>,0,0]]`, s,
 		"SELECT max(b), min(b), sum(b), avg(b), max(c), sum(c), avg(c), sum(d), avg(d), max(e), min(e), sum(e), avg(e), max(f), min(f), sum(f), avg(f) FROM ks1.t1")
 
-	existingRowMap := map[string]interface{}{}
+	existingRowMap := map[string]any{}
 
 	assertUpserMapScanCas(t, true, s, "INSERT INTO ks1.t1 (a, b, c, d, e, f) VALUES (1, 1, 11.5, 11.5, 1, 1)", existingRowMap)
 	assertUpserMapScanCas(t, true, s, "INSERT INTO ks1.t1 (a, b, c, d, e, f) VALUES (1, 2, 9.5, 1.5, 2, 2)", existingRowMap)
@@ -65,7 +65,7 @@ func TestCountStar(t *testing.T) {
 	assertIterScan(t, "[[0,0]]", s, "SELECT count(*), count(*) FROM ks1.t1")
 	assertIterMapScan(t, "[[map[count(*):0]]]", s, "SELECT count(*), count(*) FROM ks1.t1")
 	assertIterMapScan(t, "[[map[count(*):0 count(1):0]]]", s, "SELECT count(*), count(1) FROM ks1.t1")
-	assertScanner(t, "[[0,0]]", s, "SELECT count(*), count(*) FROM ks1.t1")
+	assertIterMapScan(t, "[[map[count(*):0]]]", s, "SELECT count(*), count(*) FROM ks1.t1")
 
 	// count(1)
 	assertIterSliceMap(t, "[map[count(1):0]]", "", s, "SELECT count(1) FROM ks1.t1")
@@ -77,7 +77,7 @@ func TestCountStar(t *testing.T) {
 	// Star with other aggregates
 	assertIterSliceMap(t, "[map[count(*):0 max(a):<nil>]]", "", s, "SELECT count(*), max(a) FROM ks1.t1")
 
-	existingRowMap := map[string]interface{}{}
+	existingRowMap := map[string]any{}
 	assertUpserMapScanCas(t, true, s, "INSERT INTO ks1.t1 (a, b, c) VALUES (1, 1, 11.5)", existingRowMap)
 	assertUpserMapScanCas(t, true, s, "INSERT INTO ks1.t1 (a, b, c) VALUES (1, 2, 9.5)", existingRowMap)
 	assertUpserMapScanCas(t, true, s, "INSERT INTO ks1.t1 (a, b, c) VALUES (1, 3, 9.0)", existingRowMap)
@@ -97,7 +97,7 @@ func TestMaxAggregationDescending(t *testing.T) {
 	assert.Nil(t, s.Query("CREATE KEYSPACE ks1").Exec())
 	assert.Nil(t, s.Query("CREATE TABLE ks1.t1 (a int, b int, primary key (a, b)) WITH CLUSTERING ORDER BY (b DESC)").Exec())
 
-	existingRowMap := map[string]interface{}{}
+	existingRowMap := map[string]any{}
 
 	assertUpserMapScanCas(t, true, s, "INSERT INTO ks1.t1 (a, b) VALUES (1, 1000)", existingRowMap)
 	assertUpserMapScanCas(t, true, s, "INSERT INTO ks1.t1 (a, b) VALUES (1, 100)", existingRowMap)
@@ -117,7 +117,7 @@ func TestMinAggregationDescending(t *testing.T) {
 	assert.Nil(t, s.Query("CREATE KEYSPACE ks1").Exec())
 	assert.Nil(t, s.Query("CREATE TABLE ks1.t1 (a int, b int, primary key (a, b)) WITH CLUSTERING ORDER BY (b DESC)").Exec())
 
-	existingRowMap := map[string]interface{}{}
+	existingRowMap := map[string]any{}
 
 	assertUpserMapScanCas(t, true, s, "INSERT INTO ks1.t1 (a, b) VALUES (1, 1000)", existingRowMap)
 	assertUpserMapScanCas(t, true, s, "INSERT INTO ks1.t1 (a, b) VALUES (1, 100)", existingRowMap)
@@ -137,7 +137,7 @@ func TestMaxAggregationAscending(t *testing.T) {
 	assert.Nil(t, s.Query("CREATE KEYSPACE ks1").Exec())
 	assert.Nil(t, s.Query("CREATE TABLE ks1.t1 (a int, b int, primary key (a, b)) WITH CLUSTERING ORDER BY (b ASC)").Exec())
 
-	existingRowMap := map[string]interface{}{}
+	existingRowMap := map[string]any{}
 
 	assertUpserMapScanCas(t, true, s, "INSERT INTO ks1.t1 (a, b) VALUES (1, 1000)", existingRowMap)
 	assertUpserMapScanCas(t, true, s, "INSERT INTO ks1.t1 (a, b) VALUES (1, 100)", existingRowMap)
@@ -157,7 +157,7 @@ func TestMinAggregationAscending(t *testing.T) {
 	assert.Nil(t, s.Query("CREATE KEYSPACE ks1").Exec())
 	assert.Nil(t, s.Query("CREATE TABLE ks1.t1 (a int, b int, primary key (a, b)) WITH CLUSTERING ORDER BY (b ASC)").Exec())
 
-	existingRowMap := map[string]interface{}{}
+	existingRowMap := map[string]any{}
 
 	assertUpserMapScanCas(t, true, s, "INSERT INTO ks1.t1 (a, b) VALUES (1, 1000)", existingRowMap)
 	assertUpserMapScanCas(t, true, s, "INSERT INTO ks1.t1 (a, b) VALUES (1, 100)", existingRowMap)
@@ -180,7 +180,7 @@ func TestAggregateWithColumns(t *testing.T) {
 	assertIterSliceMap(t, "[map[b:<nil> count(b):0 first:<nil> max:<nil>]]", "", s, "SELECT count(b), max(b) as max, b, c as first FROM ks1.t1")
 	assertIterScan(t, "[[0,<nil>,<nil>,<nil>]]", s, "SELECT count(b), max(b) as max, b, c as first FROM ks1.t1")
 
-	existingRowMap := map[string]interface{}{}
+	existingRowMap := map[string]any{}
 
 	assertUpserMapScanCas(t, true, s, "INSERT INTO ks1.t1 (a, b, c) VALUES (1, 2, null)", existingRowMap)
 	assertUpserMapScanCas(t, true, s, "INSERT INTO ks1.t1 (a, b, c) VALUES (2, 4, 6)", existingRowMap)
@@ -197,7 +197,7 @@ func TestAggregateOnCounters(t *testing.T) {
 	assertIterSliceMap(t, "[map[b:<nil> count(b):0 max:<nil>]]", "", s, "SELECT count(b), max(b) as max, b FROM ks1.t1")
 	assertIterScan(t, "[[0,<nil>,<nil>,<nil>]]", s, "SELECT count(b), max(b) as max, b, c as first FROM ks1.t1")
 
-	existingRowMap := map[string]interface{}{}
+	existingRowMap := map[string]any{}
 
 	assertUpserMapScanCas(t, true, s, "UPDATE ks1.t1 SET b = b + 1 WHERE a = 1", existingRowMap)
 	assertIterScan(t, "[[1,1,1,1,1]]", s, "SELECT count(b), max(b) as max, min(b) as min, avg(b) as avg, sum(b) as sum FROM ks1.t1")
@@ -216,7 +216,7 @@ func TestAggregateOnCounters(t *testing.T) {
 	assertIterScan(t, "[[2,4,2,3,6]]", s, "SELECT count(b), max(b) as max, min(b) as min, avg(b) as avg, sum(b) as sum FROM ks1.t1")
 }
 
-func TestAggregateWithSetsListMapsTuplesUdtsFunctionsTtlSchemachange(t *testing.T) {
+func TestAggregateWithSetsListMapsTuplesUdtsFunctionsTtlSchemachange(_ *testing.T) {
 	// Not supported
 }
 
@@ -225,7 +225,7 @@ func TestInvalidCalls(t *testing.T) {
 	assert.Nil(t, s.Query("CREATE KEYSPACE ks1").Exec())
 	assert.Nil(t, s.Query("CREATE TABLE ks1.t1 (a int, b int, c int, primary key (a, b))").Exec())
 
-	existingRowMap := map[string]interface{}{}
+	existingRowMap := map[string]any{}
 
 	assertUpserMapScanCas(t, true, s, "INSERT INTO ks1.t1 (a, b, c) VALUES (1, 1, 10)", existingRowMap)
 	assertUpserMapScanCas(t, true, s, "INSERT INTO ks1.t1 (a, b, c) VALUES (1, 2, 9)", existingRowMap)
@@ -243,7 +243,7 @@ func TestReversedType(t *testing.T) {
 	assert.Nil(t, s.Query("CREATE KEYSPACE ks1").Exec())
 	assert.Nil(t, s.Query("CREATE TABLE ks1.t1 (a int, b int, c int, primary key (a, b)) WITH CLUSTERING ORDER BY (b DESC)").Exec())
 
-	existingRowMap := map[string]interface{}{}
+	existingRowMap := map[string]any{}
 
 	assertUpserMapScanCas(t, true, s, "INSERT INTO ks1.t1 (a, b, c) VALUES (1, 1, 10)", existingRowMap)
 	assertUpserMapScanCas(t, true, s, "INSERT INTO ks1.t1 (a, b, c) VALUES (1, 2, 9)", existingRowMap)
@@ -257,7 +257,7 @@ func TestArithmeticCorrectness(t *testing.T) {
 	assert.Nil(t, s.Query("CREATE KEYSPACE ks1").Exec())
 	assert.Nil(t, s.Query("CREATE TABLE ks1.t1 (bucket int primary key, val decimal)").Exec())
 
-	existingRowMap := map[string]interface{}{}
+	existingRowMap := map[string]any{}
 
 	assertUpserMapScanCas(t, true, s, "INSERT INTO ks1.t1 (bucket, val) values (1, 0.25)", existingRowMap)
 	assertUpserMapScanCas(t, true, s, "INSERT INTO ks1.t1 (bucket, val) values (2, 0.25)", existingRowMap)
@@ -270,7 +270,7 @@ func TestAggregatesWithoutOverflow(t *testing.T) {
 	assert.Nil(t, s.Query("CREATE KEYSPACE ks1").Exec())
 	assert.Nil(t, s.Query("CREATE TABLE ks1.t1 (bucket int primary key, v1 tinyint, v2 smallint, v3 int, v4 bigint, v5 varint)").Exec())
 
-	existingRowMap := map[string]interface{}{}
+	existingRowMap := map[string]any{}
 
 	for _, i := range []int{1, 2, 3} {
 		assertUpserMapScanCas(t, true, s, fmt.Sprintf("INSERT INTO ks1.t1 (bucket, v1, v2, v3, v4, v5) values (%d, %d, %d, %d, %d, %d)",
@@ -291,7 +291,7 @@ func TestAggregatesOverflow(t *testing.T) {
 	assert.Nil(t, s.Query("CREATE KEYSPACE ks1").Exec())
 	assert.Nil(t, s.Query("CREATE TABLE ks1.t1 (bucket int primary key, v1 tinyint, v2 smallint, v3 int, v4 bigint, v5 varint)").Exec())
 
-	existingRowMap := map[string]interface{}{}
+	existingRowMap := map[string]any{}
 
 	for _, i := range []int{1, 2, 3} {
 		assertUpserMapScanCas(t, true, s, fmt.Sprintf("INSERT INTO ks1.t1 (bucket, v1, v2, v3, v4, v5) values (%d, %d, %d, %d, %d, %d)",
@@ -316,7 +316,7 @@ func TestDoubleAggregatesPrecision(t *testing.T) {
 	assert.Nil(t, s.Query("CREATE KEYSPACE ks1").Exec())
 	assert.Nil(t, s.Query("CREATE TABLE ks1.t1 (bucket int primary key, v1 float, v2 double, v3 decimal)").Exec())
 
-	existingRowMap := map[string]interface{}{}
+	existingRowMap := map[string]any{}
 
 	maxPlus2 := new(inf.Dec).Add(float64ToDecNoCheck(float64(math.MaxFloat64)), float64ToDecNoCheck(float64(2.0)))
 	for _, i := range []int{1, 2, 3} {
@@ -358,7 +358,7 @@ func TestSumPrecision(t *testing.T) {
 	assert.Nil(t, s.Query("CREATE KEYSPACE ks1").Exec())
 	assert.Nil(t, s.Query("CREATE TABLE ks1.t1 (bucket int primary key, v1 float, v2 double, v3 decimal)").Exec())
 
-	existingRowMap := map[string]interface{}{}
+	existingRowMap := map[string]any{}
 
 	for i := range 17 {
 		divIby10 := new(inf.Dec).QuoExact(inf.NewDec(int64(i+1), 0), float64ToDecNoCheck(float64(10.0)))

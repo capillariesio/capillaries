@@ -55,7 +55,7 @@ func sliceMapRowsToString(rows []map[string]any) string {
 		if i > 0 {
 			sb.WriteString("]")
 		}
-		sb.WriteString(fmt.Sprintf("%v", r))
+		fmt.Fprintf(&sb, "%v", r)
 	}
 	sb.WriteString("]")
 	return sb.String()
@@ -94,40 +94,45 @@ func assertIterScan(t *testing.T, expectedRows string, s Session, q string) {
 func assertIterMapScan(t *testing.T, expectedRows string, s Session, q string) {
 	iter := s.Query(q).Iter()
 	sb := strings.Builder{}
-	row := map[string]interface{}{}
+	row := map[string]any{}
 	for _, colInfo := range iter.Columns() {
 		row[colInfo.Name] = nil
 	}
 	sb.WriteString("[")
 	for iter.MapScan(row) {
-		sb.WriteString(fmt.Sprintf("[%v]", row))
+		fmt.Fprintf(&sb, "[%v]", row)
 	}
 	sb.WriteString("]")
 	assert.Equal(t, expectedRows, sb.String())
 }
 
+/*
 func assertScanner(t *testing.T, expectedRows string, s Session, q string) {
 	iter := s.Query(q).Iter()
-	row := make([]int64, len(iter.Columns()))
+	//rowInt64 := make([]int64, len(iter.Columns()))
+	rowData, err := iter.RowData()
+	assert.Nil(t, err)
 	sb := strings.Builder{}
 	scanner := iter.Scanner()
 	sb.WriteString("[")
 	for scanner.Next() {
-		scanner.Scan(row)
+		err := scanner.Scan(rowData.Values...)
+		assert.Nil(t, err)
 		sb.WriteString("[")
-		for valIdx, val := range row {
+		for valIdx, val := range rowData.Values {
 			if valIdx > 0 {
 				sb.WriteString(",")
 			}
-			sb.WriteString(fmt.Sprintf("%v", val))
+			fmt.Fprintf(&sb,"%v", val))
 		}
 		sb.WriteString("]")
 	}
 	sb.WriteString("]")
 	assert.Equal(t, expectedRows, sb.String())
 }
+*/
 
-func assertUpserMapScanCas(t *testing.T, isApplyExpected bool, s Session, q string, existingRowMap map[string]interface{}) {
+func assertUpserMapScanCas(t *testing.T, isApplyExpected bool, s Session, q string, existingRowMap map[string]any) {
 	isApplied, err := s.Query(q).MapScanCAS(existingRowMap)
 	assert.Nil(t, err)
 	assert.Equal(t, isApplyExpected, isApplied)

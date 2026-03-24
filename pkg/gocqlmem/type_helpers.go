@@ -3,6 +3,7 @@ package gocqlmem
 import (
 	"bytes"
 	"cmp"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -153,10 +154,10 @@ func sanitizeToInternalKnownType(val any, cqlType gocql.Type) (any, error) {
 // Used when looking for a place to upsert
 func compareInternalKnownType(left any, right any, cqlType gocql.Type) (int, error) {
 	if left == nil {
-		return 0, fmt.Errorf("left is nil, not allowed in partition/clustering key comparison, dev error")
+		return 0, errors.New("left is nil, not allowed in partition/clustering key comparison, dev error")
 	}
 	if right == nil {
-		return 0, fmt.Errorf("right is nil, not allowed in partition/clustering key comparison, dev error")
+		return 0, errors.New("right is nil, not allowed in partition/clustering key comparison, dev error")
 	}
 	switch cqlType {
 	case gocql.TypeInt, gocql.TypeBigInt, gocql.TypeTinyInt, gocql.TypeSmallInt, gocql.TypeCounter, gocql.TypeTime, gocql.TypeDate:
@@ -246,13 +247,13 @@ func compareInternalKnownType(left any, right any, cqlType gocql.Type) (int, err
 		if !okRight {
 			return 0, fmt.Errorf("right cast %v to bool failed", right)
 		}
-		if typedLeft == true && typedRight == false {
+		if typedLeft && !typedRight {
 			return 1, nil
-		} else if typedLeft == false && typedRight == true {
+		} else if !typedLeft && typedRight {
 			return -1, nil
-		} else {
-			return 0, nil
 		}
+		return 0, nil
+
 	case gocql.TypeText, gocql.TypeVarchar, gocql.TypeAscii:
 		typedLeft, okLeft := any(left).(string)
 		if !okLeft {
@@ -263,6 +264,7 @@ func compareInternalKnownType(left any, right any, cqlType gocql.Type) (int, err
 			return 0, fmt.Errorf("right cast %v to string failed", right)
 		}
 		return cmp.Compare(typedLeft, typedRight), nil
+
 	default:
 		return 0, fmt.Errorf("unsupported column type %v", cqlType)
 	}
@@ -549,6 +551,8 @@ func compareInternalInExpressions(left any, right any) bool {
 			return float64(typedLeft) == typedRight
 		case decimal.Decimal:
 			return decimal.NewFromInt(typedLeft).Equal(typedRight)
+		default:
+			return false
 		}
 
 	case float64:
@@ -559,6 +563,8 @@ func compareInternalInExpressions(left any, right any) bool {
 			return typedLeft == float64(typedRight)
 		case decimal.Decimal:
 			return decimal.NewFromFloat(typedLeft).Equal(typedRight)
+		default:
+			return false
 		}
 
 	case decimal.Decimal:
@@ -569,33 +575,44 @@ func compareInternalInExpressions(left any, right any) bool {
 			return typedLeft.Equal(decimal.NewFromFloat(typedRight))
 		case decimal.Decimal:
 			return typedLeft.Equal(typedRight)
+		default:
+			return false
 		}
 
 	case gocql.UUID:
 		switch typedRight := right.(type) {
 		case gocql.UUID:
 			return typedLeft.String() == typedRight.String()
+		default:
+			return false
 		}
 
 	case []byte:
 		switch typedRight := right.(type) {
 		case []byte:
-			return bytes.Compare(typedLeft, typedRight) == 0
+			return bytes.Equal(typedLeft, typedRight)
+		default:
+			return false
 		}
 
 	case bool:
 		switch typedRight := right.(type) {
 		case bool:
 			return typedLeft == typedRight
+		default:
+			return false
 		}
 
 	case string:
 		switch typedRight := right.(type) {
 		case string:
 			return typedLeft == typedRight
+		default:
+			return false
 		}
+	default:
+		return false
 	}
-	return false
 }
 
 func internalValueToClientType(val any, typ gocql.Type) (any, error) {
@@ -610,6 +627,9 @@ func internalValueToClientType(val any, typ gocql.Type) (any, error) {
 			return int32(typedInternalVal), nil
 		case gocql.TypeBigInt, gocql.TypeVarint, gocql.TypeCounter, gocql.TypeTime:
 			return typedInternalVal, nil
+		default:
+			// Give up and pray
+			return val, nil
 		}
 
 	case float64:
@@ -618,6 +638,9 @@ func internalValueToClientType(val any, typ gocql.Type) (any, error) {
 			return float32(typedInternalVal), nil
 		case gocql.TypeDouble:
 			return typedInternalVal, nil
+		default:
+			// Give up and pray
+			return val, nil
 		}
 
 	case decimal.Decimal:
@@ -629,6 +652,9 @@ func internalValueToClientType(val any, typ gocql.Type) (any, error) {
 				return nil, fmt.Errorf("cannot convert decimal %v(%T) to inf.Dec from string %s", typedInternalVal, typedInternalVal, s)
 			}
 			return *infDecVal, nil
+		default:
+			// Give up and pray
+			return val, nil
 		}
 	case []byte:
 		switch typ {
@@ -640,10 +666,13 @@ func internalValueToClientType(val any, typ gocql.Type) (any, error) {
 				return nil, fmt.Errorf("cannot []byte %v(%T) to UUID/TimeUUID: %s", typedInternalVal, typedInternalVal, err.Error())
 			}
 			return uuid, nil
+		default:
+			// Give up and pray
+			return val, nil
 		}
+	default:
+		// Give up and pray
+		return val, nil
 
 	}
-
-	// Give up and pray
-	return val, nil
 }

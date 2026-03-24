@@ -186,7 +186,7 @@ func (t *tableStore) buildKey(orderByFieldsFromSelect []*OrderByField, rowIdx in
 		var strippedFieldName string
 		var isToken bool
 		if strings.HasPrefix(keyField.FieldName, "token(") {
-			strippedFieldName = strings.Replace(strings.Replace(keyField.FieldName, "token(", "", -1), ")", "", -1)
+			strippedFieldName = strings.ReplaceAll(strings.ReplaceAll(keyField.FieldName, "token(", ""), ")", "")
 			isToken = true
 		} else {
 			strippedFieldName = keyField.FieldName
@@ -627,9 +627,6 @@ func (t *tableStore) execInternalUpsert(cmd *CommandInsert) (bool, []gocql.Colum
 			}
 			t.columnValues[tableColIdx] = slices.Insert(t.columnValues[tableColIdx], insertIdx, val)
 		}
-		if cmd.TableName == "order_item_date_inner_00001" && insertedColumnValues["order_id"].(string) == "001d9673d0e150471d536c210ce20123" {
-			fmt.Printf("internalwritingdata insert %v\n", insertedColumnValues)
-		}
 	} else {
 		for tableColIdx, tableColDef := range t.columnDefs {
 			val, ok := insertedColumnValues[tableColDef.name]
@@ -638,16 +635,11 @@ func (t *tableStore) execInternalUpsert(cmd *CommandInsert) (bool, []gocql.Colum
 			}
 			t.columnValues[tableColIdx] = append(t.columnValues[tableColIdx], val)
 		}
-
-		if cmd.TableName == "order_item_date_inner_00001" && insertedColumnValues["order_id"].(string) == "001d9673d0e150471d536c210ce20123" {
-			fmt.Printf("internalwritingdata append %v\n", insertedColumnValues)
-		}
-
 	}
 	return true, nil, nil, nil
 }
 
-func (t *tableStore) execTruncate(cmd *CommandTruncateTable) error {
+func (t *tableStore) execTruncate() error {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
@@ -661,7 +653,7 @@ func (t *tableStore) execInsert(cmd *CommandInsert) (bool, []gocql.ColumnInfo, [
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
-	//insertedColumnValues := map[string]any{}
+	// insertedColumnValues := map[string]any{}
 	for i, name := range cmd.ColumnNames {
 		if cmd.ColumnValues[i] == nil && (t.columnDefs[i].primaryKey == PrimaryKeyPartition || t.columnDefs[i].primaryKey == PrimaryKeyClustering) {
 			return false, nil, nil, fmt.Errorf("cannot insert NULL into a partition/clustered key column %s", name)
@@ -865,7 +857,7 @@ func populateFieldsUnderCount(tableName string, columnDefs []*columnDef, columnE
 */
 
 // Handle count(*), count(t.*) count(field_name), count(null)
-func populateFieldsUnderCount(tableName string, columnDefs []*columnDef, columnExpLexems []*Lexem) (string, ast.Expr, error) {
+func populateFieldsUnderCount(tableName string, columnExpLexems []*Lexem) (string, ast.Expr, error) {
 	if len(columnExpLexems) < 4 || (columnExpLexems[0].V != "count" && columnExpLexems[0].V != "COUNT") || columnExpLexems[1].V != "(" {
 		return "", nil, nil
 	}
@@ -975,7 +967,7 @@ func guessTypeInfoForColumn(colName string, columnDefs []*columnDef, columnDefMa
 	return nil, nil
 }
 
-func (t *tableStore) execSelect(cmd *CommandSelect, lastSelectedRowIdx int, maxRows int, preparedQueryParams []interface{}) ([]string, [][]any, []gocql.TypeInfo, int, error) {
+func (t *tableStore) execSelect(cmd *CommandSelect, lastSelectedRowIdx int, maxRows int, preparedQueryParams []any) ([]string, [][]any, []gocql.TypeInfo, int, error) {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 
@@ -1039,7 +1031,7 @@ func (t *tableStore) execSelect(cmd *CommandSelect, lastSelectedRowIdx int, maxR
 			newColumnExpAsts = append(newColumnExpAsts, createdAsts...)
 			continue
 		}
-		createdName, createdAst, err := populateFieldsUnderCount(cmd.TableName, t.columnDefs, columnExpLexems)
+		createdName, createdAst, err := populateFieldsUnderCount(cmd.TableName, columnExpLexems)
 		if err != nil {
 			return nil, nil, nil, -1, err
 		}
@@ -1224,11 +1216,10 @@ func getInsertedPriKeyColumnValuePairFromEql(tableName string, columnDefs []*col
 		if err != nil {
 			return "", nil, err
 		}
-		if colName != "" {
-			colValExp = eqlExp.X
-		} else {
+		if colName == "" {
 			return "", nil, fmt.Errorf("cannot find column ident in the expected col1 == ... , got %T == %T", eqlExp.X, eqlExp.Y)
 		}
+		colValExp = eqlExp.X
 	}
 
 	// Column value exp can be something like round(2.3), it does not have to be a literal
@@ -1315,7 +1306,7 @@ func calcValuesToUpdate(cmd *CommandUpdate, columnDefs []*columnDef, columnDefMa
 	return updatedNonKeyColValues, nil
 }
 
-func (t *tableStore) execUpdate(cmd *CommandUpdate, preparedQueryParams []interface{}) (bool, []gocql.ColumnInfo, [][]any, error) {
+func (t *tableStore) execUpdate(cmd *CommandUpdate, preparedQueryParams []any) (bool, []gocql.ColumnInfo, [][]any, error) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
@@ -1420,7 +1411,7 @@ func (t *tableStore) execUpdate(cmd *CommandUpdate, preparedQueryParams []interf
 		CtxKeyspace: cmd.CtxKeyspace,
 		TableName:   cmd.TableName,
 		ColumnNames: make([]string, 0),
-		//ColumnValues: make([]*Lexem, 0),
+		// ColumnValues: make([]*Lexem, 0),
 		IfNotExists: false, // We know it does not exist, this is why update became upsert
 	}
 
@@ -1460,7 +1451,7 @@ func (t *tableStore) execUpdate(cmd *CommandUpdate, preparedQueryParams []interf
 	return t.execInternalUpsert(&insertCmd)
 }
 
-func (t *tableStore) execDelete(cmd *CommandDelete, preparedQueryParams []interface{}) (bool, error) {
+func (t *tableStore) execDelete(cmd *CommandDelete, preparedQueryParams []any) (bool, error) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 

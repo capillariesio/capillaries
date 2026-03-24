@@ -2,6 +2,7 @@ package gocqlmem
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -102,7 +103,7 @@ func (s *gocqlmemSession) execInsert(cmd *CommandInsert) (bool, []gocql.ColumnIn
 	return ks.execInsert(cmd)
 }
 
-func (s *gocqlmemSession) execSelect(cmd *CommandSelect, lastSelectedRowIdx int, maxRows int, preparedQueryParams []interface{}) ([]string, [][]any, []gocql.TypeInfo, int, error) {
+func (s *gocqlmemSession) execSelect(cmd *CommandSelect, lastSelectedRowIdx int, maxRows int, preparedQueryParams []any) ([]string, [][]any, []gocql.TypeInfo, int, error) {
 	s.lock.RLock()
 
 	ks, ksExists := s.keyspaceMap[cmd.GetCtxKeyspace()]
@@ -114,7 +115,7 @@ func (s *gocqlmemSession) execSelect(cmd *CommandSelect, lastSelectedRowIdx int,
 	return ks.execSelect(cmd, lastSelectedRowIdx, maxRows, preparedQueryParams)
 }
 
-func (s *gocqlmemSession) execUpdate(cmd *CommandUpdate, preparedQueryParams []interface{}) (bool, []gocql.ColumnInfo, [][]any, error) {
+func (s *gocqlmemSession) execUpdate(cmd *CommandUpdate, preparedQueryParams []any) (bool, []gocql.ColumnInfo, [][]any, error) {
 	s.lock.RLock()
 
 	ks, ksExists := s.keyspaceMap[cmd.GetCtxKeyspace()]
@@ -126,7 +127,7 @@ func (s *gocqlmemSession) execUpdate(cmd *CommandUpdate, preparedQueryParams []i
 	return ks.execUpdate(cmd, preparedQueryParams)
 }
 
-func (s *gocqlmemSession) execDelete(cmd *CommandDelete, preparedQueryParams []interface{}) (bool, error) {
+func (s *gocqlmemSession) execDelete(cmd *CommandDelete, preparedQueryParams []any) (bool, error) {
 	s.lock.RLock()
 
 	ks, ksExists := s.keyspaceMap[cmd.GetCtxKeyspace()]
@@ -140,18 +141,18 @@ func (s *gocqlmemSession) execDelete(cmd *CommandDelete, preparedQueryParams []i
 
 // Session interface
 
-func (s *gocqlmemSession) AwaitSchemaAgreement(ctx context.Context) error {
+func (s *gocqlmemSession) AwaitSchemaAgreement(_ context.Context) error {
 	return nil
 }
 
-func (s *gocqlmemSession) Query(stmt string, values ...interface{}) Query {
+func (s *gocqlmemSession) Query(stmt string, values ...any) Query {
 	return &gocqlmemQuery{
 		session: s,
 		stmt:    stmt,
 		values:  values,
 	}
 }
-func (s *gocqlmemSession) Bind(stmt string, b func(q *gocql.QueryInfo) ([]interface{}, error)) Query {
+func (s *gocqlmemSession) Bind(_ string, _ func(q *gocql.QueryInfo) ([]any, error)) Query {
 	// TODO: implement
 	return nil
 }
@@ -161,11 +162,11 @@ func (s *gocqlmemSession) Close() {
 func (s *gocqlmemSession) Closed() bool {
 	return s.isClosed
 }
-func (s *gocqlmemSession) KeyspaceMetadata(keyspace string) (*gocql.KeyspaceMetadata, error) {
+func (s *gocqlmemSession) KeyspaceMetadata(_ string) (*gocql.KeyspaceMetadata, error) {
 	// TODO: implement
-	return nil, fmt.Errorf("not implemented")
+	return nil, errors.New("not implemented")
 }
-func (s *gocqlmemSession) Batch(typ gocql.BatchType) *gocql.Batch {
+func (s *gocqlmemSession) Batch(_ gocql.BatchType) *gocql.Batch {
 	// TODO: implement
 	return nil
 }

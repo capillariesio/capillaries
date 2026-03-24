@@ -19,7 +19,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v3
       with:
-        go-version: '1.25'
+        go-version: '1.26.1'
 
     - name: Build
       run: go build -v ./...
@@ -27,7 +27,7 @@ jobs:
     - name: golangci-lint
       uses: golangci/golangci-lint-action@v8
       with:
-        version: v2.5.0
+        version: v2.11.4
         args: --verbose --timeout 10m --fix=false --config=.golangci.yml ./pkg/...
 
     - name: Generate coverage report for coveralls.io

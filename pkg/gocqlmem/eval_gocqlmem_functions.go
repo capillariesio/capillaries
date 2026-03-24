@@ -3,8 +3,8 @@ package gocqlmem
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
-	"hash"
 	"math"
 	"strconv"
 	"time"
@@ -79,6 +79,8 @@ func callCast(args []any) (any, error) {
 			typedValInt64 = int64(typedVal)
 		case int64:
 			typedValInt64 = typedVal
+		default:
+			return nil, fmt.Errorf("cannot cast int %v to %v", typedVal, dataType)
 		}
 		switch dataType {
 		case DataTypeBigint, DataTypeSmallint, DataTypeTinyint, DataTypeInt, DataTypeVarint:
@@ -99,6 +101,8 @@ func callCast(args []any) (any, error) {
 			typedValFloat64 = float64(typedVal)
 		case float64:
 			typedValFloat64 = typedVal
+		default:
+			return nil, fmt.Errorf("cannot cast float %v to %v", typedVal, dataType)
 		}
 		switch dataType {
 		case DataTypeBigint, DataTypeSmallint, DataTypeTinyint, DataTypeInt, DataTypeVarint:
@@ -124,9 +128,8 @@ func callCast(args []any) (any, error) {
 		case DataTypeText, DataTypeVarchar:
 			if typedVal {
 				return "TRUE", nil
-			} else {
-				return "FALSE", nil
 			}
+			return "FALSE", nil
 		default:
 			return nil, fmt.Errorf("cannot cast bool %v to %v", typedVal, dataType)
 		}
@@ -174,7 +177,7 @@ func callCast(args []any) (any, error) {
 
 func callCqlIn(args []any) (any, error) {
 	if len(args) < 2 {
-		return nil, fmt.Errorf("cannot evaluate IN: no values in the list")
+		return nil, errors.New("cannot evaluate IN: no values in the list")
 	}
 
 	for i := 1; i < len(args); i++ {
@@ -187,7 +190,7 @@ func callCqlIn(args []any) (any, error) {
 
 func callCqlNotIn(args []any) (any, error) {
 	if len(args) < 2 {
-		return nil, fmt.Errorf("cannot evaluate NOT IN: no values in the list")
+		return nil, errors.New("cannot evaluate NOT IN: no values in the list")
 	}
 
 	for i := 1; i < len(args); i++ {
@@ -216,10 +219,12 @@ func callToken(args []any) (any, error) {
 			typedValInt64 = int64(typedVal)
 		case int64:
 			typedValInt64 = typedVal
+		default:
+			return nil, fmt.Errorf("cannot token int %v", typedVal)
 		}
 		b := make([]byte, 8)
 		binary.LittleEndian.PutUint64(b, uint64(typedValInt64))
-		var h64 hash.Hash64 = murmur3.New64()
+		h64 := murmur3.New64()
 		h64.Write(b)
 		return int64(h64.Sum64()), nil
 
@@ -230,13 +235,15 @@ func callToken(args []any) (any, error) {
 			typedValFloat64 = float64(typedVal)
 		case float64:
 			typedValFloat64 = typedVal
+		default:
+			return nil, fmt.Errorf("cannot token float %v", typedVal)
 		}
 		var buf bytes.Buffer
 		err := binary.Write(&buf, binary.LittleEndian, typedValFloat64)
 		if err != nil {
 			return nil, fmt.Errorf("cannot token float %v, binary fails: %s", typedVal, err.Error())
 		}
-		var h64 hash.Hash64 = murmur3.New64()
+		h64 := murmur3.New64()
 		h64.Write(buf.Bytes())
 		return int64(h64.Sum64()), nil
 
@@ -247,7 +254,7 @@ func callToken(args []any) (any, error) {
 		}
 		b := make([]byte, 8)
 		binary.LittleEndian.PutUint64(b, uint64(typedValInt64))
-		var h64 hash.Hash64 = murmur3.New64()
+		h64 := murmur3.New64()
 		h64.Write(b)
 		return int64(h64.Sum64()), nil
 
@@ -265,12 +272,12 @@ func callToken(args []any) (any, error) {
 		if err != nil {
 			return nil, fmt.Errorf("cannot token decimal %v: %s", typedVal, err.Error())
 		}
-		var h64 hash.Hash64 = murmur3.New64()
+		h64 := murmur3.New64()
 		h64.Write(b)
 		return int64(h64.Sum64()), nil
 
 	case string:
-		var h64 hash.Hash64 = murmur3.New64()
+		h64 := murmur3.New64()
 		h64.Write([]byte(typedVal))
 		return int64(h64.Sum64()), nil
 
@@ -309,17 +316,15 @@ func callCurrentTime(args []any) (any, error) {
 func intAbs(src int64) int64 {
 	if src < 0 {
 		return -src
-	} else {
-		return src
 	}
+	return src
 }
 
 func floatAbs(src float64) float64 {
 	if src < 0 {
 		return -src
-	} else {
-		return src
 	}
+	return src
 }
 
 func callAbs(args []any) (any, error) {

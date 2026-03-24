@@ -11,13 +11,13 @@ import (
 type gocqlmemIter struct {
 	err error
 	pos int
-	//meta    resultMetadata
-	//numRows int
-	//next    *nextIter
-	//host    *HostInfo
+	// meta    resultMetadata
+	// numRows int
+	// next    *nextIter
+	// host    *HostInfo
 
-	//framer *framer
-	//closed int32
+	// framer *framer
+	// closed int32
 
 	keyspace             string
 	table                string
@@ -51,20 +51,20 @@ func (iter *gocqlmemIter) guessTypeInfosFromData() error {
 }
 */
 
-func NewGocqlmemIterWithError(err error) *gocqlmemIter {
+func newGocqlmemIterWithError(err error) *gocqlmemIter {
 	return &gocqlmemIter{err: err}
 }
-func NewGocqlmemIterWithKeyspace(ks string) *gocqlmemIter {
+func newGocqlmemIterWithKeyspace(ks string) *gocqlmemIter {
 	return &gocqlmemIter{keyspace: ks}
 }
 
-func NewGocqlmemIterWithData(ks string, table string, infos []gocql.ColumnInfo, values [][]any) *gocqlmemIter {
+func newGocqlmemIterWithData(ks string, table string, infos []gocql.ColumnInfo, values [][]any) *gocqlmemIter {
 	// WARNING: if all retrieved values for a column X are nil, correspondent TypeInfo will be nil
 	iter := gocqlmemIter{keyspace: ks, table: table, retrievedColumnInfos: infos, retrievedValues: values}
 	return &iter
 }
 
-func NewGocqlmemIterWithDataAndPagingState(ks string, table string, infos []gocql.ColumnInfo, values [][]any, pagingState []byte) *gocqlmemIter {
+func newGocqlmemIterWithDataAndPagingState(ks string, table string, infos []gocql.ColumnInfo, values [][]any, pagingState []byte) *gocqlmemIter {
 	// WARNING: if all retrieved values for a column X are nil, correspondent TypeInfo will be nil
 	iter := gocqlmemIter{keyspace: ks, table: table, retrievedColumnInfos: infos, retrievedValues: values, pagingState: pagingState}
 	return &iter
@@ -103,10 +103,10 @@ func (iter *gocqlmemIter) Scanner() gocql.Scanner {
 	if iter == nil {
 		return nil
 	}
-	return &iterScanner{Iter: iter, Cols: make([]interface{}, len(iter.retrievedColumnInfos))}
+	return &iterScanner{Iter: iter, Cols: make([]any, len(iter.retrievedColumnInfos))}
 }
 
-func (iter *gocqlmemIter) Scan(dest ...interface{}) bool {
+func (iter *gocqlmemIter) Scan(dest ...any) bool {
 	if iter.err != nil || iter.pos >= len(iter.retrievedValues) {
 		return false
 	}
@@ -211,7 +211,7 @@ func (iter *gocqlmemIter) RowData() (gocql.RowData, error) {
 
 	rowData := gocql.RowData{
 		Columns: columnInfosToColumnNames(iter.retrievedColumnInfos),
-		Values:  make([]interface{}, len(iter.retrievedColumnInfos)),
+		Values:  make([]any, len(iter.retrievedColumnInfos)),
 	}
 
 	for colIdx := range len(iter.retrievedColumnInfos) {
@@ -226,7 +226,7 @@ func (iter *gocqlmemIter) RowData() (gocql.RowData, error) {
 	return rowData, nil
 }
 
-func (iter *gocqlmemIter) SliceMap() ([]map[string]interface{}, error) {
+func (iter *gocqlmemIter) SliceMap() ([]map[string]any, error) {
 	if iter.err != nil {
 		return nil, iter.err
 	}
@@ -234,7 +234,7 @@ func (iter *gocqlmemIter) SliceMap() ([]map[string]interface{}, error) {
 	totalRows := len(iter.retrievedValues) - iter.pos
 	result := make([]map[string]any, totalRows)
 	for rowIdx := range totalRows {
-		result[rowIdx] = map[string]interface{}{}
+		result[rowIdx] = map[string]any{}
 		for colIdx, colInfo := range iter.retrievedColumnInfos {
 			result[rowIdx][colInfo.Name] = iter.retrievedValues[rowIdx][colIdx]
 		}
@@ -251,7 +251,7 @@ func (iter *gocqlmemIter) SliceMap() ([]map[string]interface{}, error) {
 	// rowData, _ := iter.RowData()
 	// dataToReturn := make([]map[string]any, 0)
 	// for iter.Scan(rowData.Values...) {
-	// 	m := make(map[string]interface{}, len(rowData.Columns))
+	// 	m := make(map[string]any, len(rowData.Columns))
 	// 	for i, column := range rowData.Columns {
 	// 		switch typedVal := rowData.Values[i].(type) {
 	// 		case *int:
@@ -288,7 +288,7 @@ func (iter *gocqlmemIter) SliceMap() ([]map[string]interface{}, error) {
 	// return dataToReturn, nil
 }
 
-func (iter *gocqlmemIter) MapScan(dest map[string]interface{}) bool {
+func (iter *gocqlmemIter) MapScan(dest map[string]any) bool {
 	if iter.err != nil {
 		return false
 	}
@@ -326,6 +326,8 @@ func (iter *gocqlmemIter) MapScan(dest map[string]interface{}) bool {
 					dest[columnInfo.Name] = *typedVal
 				case *time.Time:
 					dest[columnInfo.Name] = *typedVal
+				default:
+					// TODO: handle other types
 				}
 			}
 		}

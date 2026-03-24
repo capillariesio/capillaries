@@ -32,7 +32,7 @@ func TestMissingCtxVars(t *testing.T) {
 	var eCtx *EvalCtx
 
 	exp, _ = parser.ParseExpr("avg(t1.fieldInt)")
-	eCtx = newPlainEvalCtx(AggFuncEnabled)
+	eCtx = newPlainEvalCtxInternal(AggFuncEnabled)
 	_, err = eCtx.Eval(exp)
 	assert.Contains(t, err.Error(), "no variables supplied to the context")
 
@@ -40,7 +40,7 @@ func TestMissingCtxVars(t *testing.T) {
 	exp, _ = parser.ParseExpr("avg(t1.fieldInt)")
 	aggFuncEnabled, aggFuncType, aggFuncArgs := DetectRootAggFunc(exp)
 	assert.Equal(t, aggFuncEnabled, aggFuncEnabled)
-	eCtx, err = NewAggEvalCtx(aggFuncType, aggFuncArgs, nil, nil, varValuesMap)
+	eCtx, _ = NewAggEvalCtx(aggFuncType, aggFuncArgs, nil, nil, varValuesMap)
 	_, err = eCtx.Eval(exp)
 	assert.Contains(t, err.Error(), "variable not supplied")
 }
@@ -50,8 +50,8 @@ func validateExtraAgg(expression string) string {
 	exp, _ := parser.ParseExpr(expression)
 	_, aggFuncType, aggFuncArgs := DetectRootAggFunc(exp)
 	constants := map[string]any{"true": true, "false": false}
-	eCtx, err := NewAggEvalCtx(aggFuncType, aggFuncArgs, nil, constants, varValuesMap)
-	_, err = eCtx.Eval(exp)
+	eCtx, _ := NewAggEvalCtx(aggFuncType, aggFuncArgs, nil, constants, varValuesMap)
+	_, err := eCtx.Eval(exp)
 	return err.Error()
 }
 
@@ -598,7 +598,7 @@ func TestFieldTypeChange(t *testing.T) {
 }
 
 func TestBlanks(t *testing.T) {
-	eCtx := newPlainEvalCtx(AggFuncEnabled)
+	eCtx := newPlainEvalCtxInternal(AggFuncEnabled)
 	assert.Equal(t, int64(0), eCtx.sumCollector.Int)
 	assert.Equal(t, float64(0), eCtx.sumCollector.Float)
 	assert.Equal(t, defaultDecimal(), eCtx.sumCollector.Dec)

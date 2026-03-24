@@ -318,9 +318,9 @@ func GetCapigraphDiagram(scriptDef *sc.ScriptDef, showIdx bool, showFields bool,
 			sb := strings.Builder{}
 			if showIdx {
 				if node.TableReader.ExpectedBatchesTotal > 1 {
-					sb.WriteString(fmt.Sprintf("%s\n(%d batches)", node.TableReader.TableName, node.TableReader.ExpectedBatchesTotal))
+					fmt.Fprintf(&sb, "%s\n(%d batches)", node.TableReader.TableName, node.TableReader.ExpectedBatchesTotal)
 				} else {
-					sb.WriteString(fmt.Sprintf("%s\n(no parallelism)", node.TableReader.TableName))
+					fmt.Fprintf(&sb, "%s\n(no parallelism)", node.TableReader.TableName)
 				}
 			}
 			if showFields {
@@ -345,7 +345,7 @@ func GetCapigraphDiagram(scriptDef *sc.ScriptDef, showIdx bool, showFields bool,
 
 			sb := strings.Builder{}
 			if showIdx {
-				sb.WriteString(fmt.Sprintf("%s\n(lookup)", node.Lookup.IndexName))
+				fmt.Fprintf(&sb, "%s\n(lookup)", node.Lookup.IndexName)
 			}
 			if showFields {
 				if showIdx {

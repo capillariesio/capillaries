@@ -169,7 +169,6 @@ func TestCombined(t *testing.T) {
 
 	// No such field in the table row
 	row1 = maps.Clone(baseRow1)
-	row2 = maps.Clone(baseRow2)
 	delete(row1, "field_float")
 	_, err2 := BuildKey(row1, &idxDef)
 	assertKeyErrorPrefix(t, "cannot find value for field field_float in", err2.Error())

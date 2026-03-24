@@ -32,7 +32,7 @@ func NewRowsetFromFieldRefs(fieldRefsList ...sc.FieldRefs) *Rowset {
 func (rs *Rowset) ToString() string {
 	var b strings.Builder
 	for _, fr := range rs.Fields {
-		b.WriteString(fmt.Sprintf("%30s", fr.GetAliasHash()))
+		fmt.Fprintf(&b, "%30s", fr.GetAliasHash())
 	}
 	b.WriteString("\n")
 	for rowIdx := 0; rowIdx < rs.RowCount; rowIdx++ {
@@ -40,20 +40,20 @@ func (rs *Rowset) ToString() string {
 		for _, val := range *vals {
 			switch typedVal := val.(type) {
 			case *int64:
-				b.WriteString(fmt.Sprintf("%30d", *typedVal))
+				fmt.Fprintf(&b, "%30d", *typedVal)
 			case *float64:
-				b.WriteString(fmt.Sprintf("%30f", *typedVal))
+				fmt.Fprintf(&b, "%30f", *typedVal)
 			case *string:
-				b.WriteString(fmt.Sprintf("\"%30s\"", *typedVal))
+				fmt.Fprintf(&b, "\"%30s\"", *typedVal)
 			case *bool:
 				if *typedVal {
 					return "                          TRUE"
 				}
 				return "                         FALSE"
 			case *decimal.Decimal:
-				b.WriteString(fmt.Sprintf("%30s", (*typedVal).String()))
+				fmt.Fprintf(&b, "%30s", (*typedVal).String())
 			case *time.Time:
-				b.WriteString(fmt.Sprintf("%30s", (*typedVal).Format("\"2006-01-02T15:04:05.000-0700\"")))
+				fmt.Fprintf(&b, "%30s", (*typedVal).Format("\"2006-01-02T15:04:05.000-0700\""))
 			default:
 				b.WriteString("bla")
 			}

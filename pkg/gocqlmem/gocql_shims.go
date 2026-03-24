@@ -16,7 +16,7 @@ type Iter interface {
 	Keyspace() string
 	Table() string
 	Scanner() gocql.Scanner
-	Scan(dest ...interface{}) bool
+	Scan(dest ...any) bool
 	GetCustomPayload() map[string][]byte
 	Warnings() []string
 	Close() error
@@ -24,8 +24,8 @@ type Iter interface {
 	PageState() []byte
 	NumRows() int
 	RowData() (gocql.RowData, error)
-	SliceMap() ([]map[string]interface{}, error)
-	MapScan(m map[string]interface{}) bool
+	SliceMap() ([]map[string]any, error)
+	MapScan(m map[string]any) bool
 
 	// These methods are not in gocql, but it's worth adding them:
 	Err() error       // Called by tests and Query wrappers around Iter (why do we need them, btw?): MapScan, Scan, ScanCAS, MapScanCAS
@@ -64,7 +64,7 @@ func (iter *gocqlIter) Scanner() gocql.Scanner {
 	return iter.i.Scanner()
 }
 
-func (iter *gocqlIter) Scan(dest ...interface{}) bool {
+func (iter *gocqlIter) Scan(dest ...any) bool {
 	return iter.i.Scan(dest...)
 }
 
@@ -95,11 +95,11 @@ func (iter *gocqlIter) RowData() (gocql.RowData, error) {
 	return iter.i.RowData()
 }
 
-func (iter *gocqlIter) SliceMap() ([]map[string]interface{}, error) {
+func (iter *gocqlIter) SliceMap() ([]map[string]any, error) {
 	return iter.i.SliceMap()
 }
 
-func (iter *gocqlIter) MapScan(m map[string]interface{}) bool {
+func (iter *gocqlIter) MapScan(m map[string]any) bool {
 	return iter.i.MapScan(m)
 }
 
@@ -107,7 +107,7 @@ func (iter *gocqlIter) Err() error {
 	return nil
 }
 
-func (iter *gocqlIter) SetErr(err error) {
+func (iter *gocqlIter) SetErr(_ error) {
 }
 
 type Query interface {
@@ -126,7 +126,7 @@ type Query interface {
 	SetSpeculativeExecutionPolicy(sp gocql.SpeculativeExecutionPolicy) Query
 	IsIdempotent() bool
 	Idempotent(value bool) Query
-	Bind(v ...interface{}) Query
+	Bind(v ...any) Query
 	SerialConsistency(cons gocql.Consistency) Query
 	PageState(state []byte) Query
 	NoSkipMetadata() Query
@@ -134,14 +134,14 @@ type Query interface {
 	ExecContext(ctx context.Context) error
 	Iter() Iter
 	IterContext(ctx context.Context) Iter
-	MapScan(m map[string]interface{}) error
-	MapScanContext(ctx context.Context, m map[string]interface{}) error
-	Scan(dest ...interface{}) error
-	ScanContext(ctx context.Context, dest ...interface{}) error
-	ScanCAS(dest ...interface{}) (applied bool, err error)
-	ScanCASContext(ctx context.Context, dest ...interface{}) (applied bool, err error)
-	MapScanCAS(dest map[string]interface{}) (applied bool, err error)
-	MapScanCASContext(ctx context.Context, dest map[string]interface{}) (applied bool, err error)
+	MapScan(m map[string]any) error
+	MapScanContext(ctx context.Context, m map[string]any) error
+	Scan(dest ...any) error
+	ScanContext(ctx context.Context, dest ...any) error
+	ScanCAS(dest ...any) (applied bool, err error)
+	ScanCASContext(ctx context.Context, dest ...any) (applied bool, err error)
+	MapScanCAS(dest map[string]any) (applied bool, err error)
+	MapScanCASContext(ctx context.Context, dest map[string]any) (applied bool, err error)
 	SetHostID(hostID string) Query
 	GetHostID() string
 	SetKeyspace(keyspace string) Query
@@ -213,7 +213,7 @@ func (q *gocqlQuery) Idempotent(value bool) Query {
 	q.q.Idempotent(value)
 	return q
 }
-func (q *gocqlQuery) Bind(v ...interface{}) Query {
+func (q *gocqlQuery) Bind(v ...any) Query {
 	q.q.Bind(v...)
 	return q
 }
@@ -241,28 +241,28 @@ func (q *gocqlQuery) Iter() Iter {
 func (q *gocqlQuery) IterContext(ctx context.Context) Iter {
 	return &gocqlIter{i: q.q.IterContext(ctx)}
 }
-func (q *gocqlQuery) MapScan(m map[string]interface{}) error {
+func (q *gocqlQuery) MapScan(m map[string]any) error {
 	return q.q.MapScan(m)
 }
-func (q *gocqlQuery) MapScanContext(ctx context.Context, m map[string]interface{}) error {
+func (q *gocqlQuery) MapScanContext(ctx context.Context, m map[string]any) error {
 	return q.q.MapScanContext(ctx, m)
 }
-func (q *gocqlQuery) Scan(dest ...interface{}) error {
+func (q *gocqlQuery) Scan(dest ...any) error {
 	return q.q.Scan(dest...)
 }
-func (q *gocqlQuery) ScanContext(ctx context.Context, dest ...interface{}) error {
+func (q *gocqlQuery) ScanContext(ctx context.Context, dest ...any) error {
 	return q.q.ScanContext(ctx, dest...)
 }
-func (q *gocqlQuery) ScanCAS(dest ...interface{}) (applied bool, err error) {
+func (q *gocqlQuery) ScanCAS(dest ...any) (applied bool, err error) {
 	return q.q.ScanCAS(dest...)
 }
-func (q *gocqlQuery) ScanCASContext(ctx context.Context, dest ...interface{}) (applied bool, err error) {
+func (q *gocqlQuery) ScanCASContext(ctx context.Context, dest ...any) (applied bool, err error) {
 	return q.q.ScanCASContext(ctx, dest...)
 }
-func (q *gocqlQuery) MapScanCAS(dest map[string]interface{}) (applied bool, err error) {
+func (q *gocqlQuery) MapScanCAS(dest map[string]any) (applied bool, err error) {
 	return q.q.MapScanCAS(dest)
 }
-func (q *gocqlQuery) MapScanCASContext(ctx context.Context, dest map[string]interface{}) (applied bool, err error) {
+func (q *gocqlQuery) MapScanCASContext(ctx context.Context, dest map[string]any) (applied bool, err error) {
 	return q.q.MapScanCASContext(ctx, dest)
 }
 func (q *gocqlQuery) SetHostID(hostID string) Query {
@@ -283,8 +283,8 @@ func (q *gocqlQuery) WithNowInSeconds(now int) Query {
 
 type Session interface {
 	AwaitSchemaAgreement(ctx context.Context) error
-	Query(stmt string, values ...interface{}) Query
-	Bind(stmt string, b func(q *gocql.QueryInfo) ([]interface{}, error)) Query
+	Query(stmt string, values ...any) Query
+	Bind(stmt string, b func(q *gocql.QueryInfo) ([]any, error)) Query
 	Close()
 	Closed() bool
 	KeyspaceMetadata(keyspace string) (*gocql.KeyspaceMetadata, error)
@@ -307,11 +307,11 @@ func (s *gocqlSession) AwaitSchemaAgreement(ctx context.Context) error {
 	return s.s.AwaitSchemaAgreement(ctx)
 }
 
-func (s *gocqlSession) Query(stmt string, values ...interface{}) Query {
+func (s *gocqlSession) Query(stmt string, values ...any) Query {
 	return &gocqlQuery{q: s.s.Query(stmt, values...)}
 }
 
-func (s *gocqlSession) Bind(stmt string, b func(q *gocql.QueryInfo) ([]interface{}, error)) Query {
+func (s *gocqlSession) Bind(stmt string, b func(q *gocql.QueryInfo) ([]any, error)) Query {
 	return &gocqlQuery{q: s.s.Bind(stmt, b)}
 }
 

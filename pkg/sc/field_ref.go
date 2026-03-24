@@ -298,6 +298,7 @@ func harvestFieldRefsFromParsedExpression(exp ast.Expr, usedFields *FieldRefs, p
 				return err
 			}
 		}
+		return nil
 
 	case *ast.SelectorExpr:
 		switch assertedExpIdent := assertedExp.X.(type) {
@@ -310,6 +311,7 @@ func harvestFieldRefsFromParsedExpression(exp ast.Expr, usedFields *FieldRefs, p
 			return fmt.Errorf("selectors starting with non-ident are not allowed, found '%v'; aliases to use: readers - '%s', creators - '%s', custom processors - '%s', lookups - '%s'",
 				assertedExp.X, ReaderAlias, CreatorAlias, CustomProcessorAlias, LookupAlias)
 		}
+		return nil
 
 	case *ast.Ident:
 		// Keep in mind we may use this parser for Python expressions. Allow unknown constructs for those cases.
@@ -319,12 +321,13 @@ func harvestFieldRefsFromParsedExpression(exp ast.Expr, usedFields *FieldRefs, p
 					assertedExp.Name, ReaderAlias, CreatorAlias)
 			}
 		}
+		return nil
 
 	case *ast.ParenExpr:
 		return harvestFieldRefsFromParsedExpression(assertedExp.X, usedFields, parserFlags)
+	default:
+		return nil
 	}
-
-	return nil
 }
 
 func ParseRawGolangExpressionStringAndHarvestFieldRefs(strExp string, usedFields *FieldRefs) (ast.Expr, error) {

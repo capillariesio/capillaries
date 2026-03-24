@@ -95,7 +95,7 @@ type CommandCreateKeyspace struct {
 func (c *CommandCreateKeyspace) GetCtxKeyspace() string {
 	return c.KeyspaceName
 }
-func (c *CommandCreateKeyspace) SetCtxKeyspace(keyspace string) {
+func (c *CommandCreateKeyspace) SetCtxKeyspace(_ string) {
 }
 
 type CommandUseKeyspace struct {
@@ -105,7 +105,7 @@ type CommandUseKeyspace struct {
 func (c *CommandUseKeyspace) GetCtxKeyspace() string {
 	return c.KeyspaceName
 }
-func (c *CommandUseKeyspace) SetCtxKeyspace(keyspace string) {
+func (c *CommandUseKeyspace) SetCtxKeyspace(_ string) {
 }
 
 type CommandDropKeyspace struct {
@@ -116,7 +116,7 @@ type CommandDropKeyspace struct {
 func (c *CommandDropKeyspace) GetCtxKeyspace() string {
 	return c.KeyspaceName
 }
-func (c *CommandDropKeyspace) SetCtxKeyspace(keyspace string) {
+func (c *CommandDropKeyspace) SetCtxKeyspace(_ string) {
 }
 
 type CreateTableColumnDef struct {
@@ -201,7 +201,7 @@ type CommandInsert struct {
 	ColumnNames []string
 
 	ColumnValueLexems [][]*Lexem
-	//ColumnValueExpAsts []ast.Expr
+	// ColumnValueExpAsts []ast.Expr
 	ColumnValues []any
 
 	IfNotExists bool
@@ -325,9 +325,8 @@ func getKeyword(s string, kwRegex string, isProcess bool) (*Lexem, string) {
 		result := strings.ToUpper(reBlank.ReplaceAllString(s[0:litRange[1]], " "))
 		if isProcess {
 			return &Lexem{LexemKeyword, result}, s[litRange[1]:]
-		} else {
-			return &Lexem{LexemKeyword, result}, s
 		}
+		return &Lexem{LexemKeyword, result}, s
 	}
 	return nil, s
 }
@@ -383,6 +382,8 @@ func getLogicalOp(s string) (*Lexem, string) {
 			opValue = "&&"
 		case "OR":
 			opValue = "||"
+		default:
+			// Do nothing
 		}
 		return &Lexem{LexemLogicalOp, opValue}, s[litRange[1]:]
 	}
@@ -398,9 +399,8 @@ func getParenthesis(s string, isProcess bool) (*Lexem, string) {
 		result := strings.ToUpper(reBlank.ReplaceAllString(s[0:litRange[1]], " "))
 		if isProcess {
 			return &Lexem{LexemParenthesis, result}, s[litRange[1]:]
-		} else {
-			return &Lexem{LexemParenthesis, result}, s
 		}
+		return &Lexem{LexemParenthesis, result}, s
 	}
 
 	return nil, s
@@ -563,7 +563,7 @@ func getSelectExpressions(s string) ([][]*Lexem, string) {
 			continue
 		}
 		var exp []*Lexem
-		//exp, s = getSelectExpressionLexems(s)
+		// exp, s = getSelectExpressionLexems(s)
 		exp, s = getExpressionLexems(s, `(?i)FROM\b`)
 		if len(exp) == 0 {
 			break
@@ -896,11 +896,10 @@ func getColumnDefList(s string) ([]*CreateTableColumnDef, string, string, error)
 
 		l, s = getParenthesis(s, false)
 		if l != nil {
-			if l.V == ")" {
-				break
-			} else {
+			if l.V != ")" {
 				return nil, s, "", fmt.Errorf("cannot parse column def, unexpected open parenthesis: %s", s)
 			}
+			break
 		}
 
 		var def *CreateTableColumnDef
@@ -1173,7 +1172,7 @@ func getColumnSetExpressions(s string) ([]*ColumnSetExp, string, error) {
 		if l == nil {
 			return nil, s, errors.New("expected =")
 		}
-		//exp.ExpLexems, s = getColumnSetExpressionLexems(s)
+		// exp.ExpLexems, s = getColumnSetExpressionLexems(s)
 		exp.ExpLexems, s = getExpressionLexems(s, `(?i)(WHERE|IF)\b`)
 		columnsSetExpList = append(columnsSetExpList, &exp)
 	}
@@ -1190,9 +1189,9 @@ func lexemsToStringForColumnNames(lexems []*Lexem) string {
 			}
 		}
 		if l.T == LexemCqlOp || l.T == LexemAs {
-			sb.WriteString(fmt.Sprintf(" %s ", l.V))
+			fmt.Fprintf(&sb, " %s ", l.V)
 		} else {
-			sb.WriteString(fmt.Sprintf("%s", l.V))
+			sb.WriteString(l.V)
 		}
 	}
 	return sb.String()
@@ -1210,28 +1209,28 @@ func lexemsToStringForColumnExpression(lexems []*Lexem) (string, error) {
 		}
 		switch l.T {
 		case LexemComma, LexemArithmeticOp, LexemLogicalOp, LexemBoolLiteral, LexemNumberLiteral, LexemParenthesis:
-			sb.WriteString(fmt.Sprintf("%s ", l.V))
+			fmt.Fprintf(&sb, "%s ", l.V)
 		case LexemAsterisk, LexemPointedAsterisk:
 			if i >= 2 && (lexems[i-2].V == "count" || lexems[i-2].V == "COUNT") && lexems[i-1].V == "(" && i < len(lexems)-1 && lexems[i+1].V == ")" {
 				// Write nothing, let it be just count()
 			} else if i == 0 && len(lexems) == 1 {
 				// This is just a SELECT * FROM ...
-				sb.WriteString(fmt.Sprintf("%s ", strings.ReplaceAll(l.V, "*", "ALL_FIELDS")))
+				fmt.Fprintf(&sb, "%s ", strings.ReplaceAll(l.V, "*", "ALL_FIELDS"))
 			} else {
 				return "", fmt.Errorf("unexpected asterisk lexem (%d,%s), not expected here", l.T, l.V)
 			}
 		case LexemIdent, LexemPointedIdent:
 			if isValidDataType(l.V) {
 				// CQL data types are UPPERCASE
-				sb.WriteString(fmt.Sprintf("%s ", strings.ToUpper(l.V)))
+				fmt.Fprintf(&sb, "%s ", strings.ToUpper(l.V))
 			} else if i < len(lexems)-1 && lexems[i+1].V == "(" {
 				// functions are lowercase
-				sb.WriteString(fmt.Sprintf("%s ", strings.ToLower(l.V)))
+				fmt.Fprintf(&sb, "%s ", strings.ToLower(l.V))
 			} else {
-				sb.WriteString(fmt.Sprintf("%s ", l.V))
+				fmt.Fprintf(&sb, "%s ", l.V)
 			}
 		case LexemStringLiteral:
-			sb.WriteString(fmt.Sprintf("`%s` ", l.V))
+			fmt.Fprintf(&sb, "`%s` ", l.V)
 		// case LexemAs: Not used?
 		// 	sb.WriteString(",")
 		case LexemNull:
@@ -1616,7 +1615,7 @@ func convertIns(exp ast.Expr) (ast.Expr, error) {
 
 	modifiedExpr, ok := modifiedNode.(ast.Expr)
 	if !ok {
-		return nil, fmt.Errorf("cannot cast modified ast.Node to ast.Expr")
+		return nil, errors.New("cannot cast modified ast.Node to ast.Expr")
 	}
 	return modifiedExpr, nil
 }
@@ -1744,7 +1743,7 @@ func parseSelect(s string, preparedQueryParams []any) (*CommandSelect, string, e
 	cmd.WhereExpLexems = convertCastForAstParser(cmd.WhereExpLexems)
 	cmd.WhereExpLexems = convertInNotInForAstParser(cmd.WhereExpLexems)
 	// Replace all question marks with prepared param names: in where expressions
-	if paramIdx, cmd.WhereExpLexems, err = replaceQuestionMarksWithParamNamesInLexems(paramIdx, cmd.WhereExpLexems, preparedQueryParams); err != nil {
+	if _, cmd.WhereExpLexems, err = replaceQuestionMarksWithParamNamesInLexems(paramIdx, cmd.WhereExpLexems, preparedQueryParams); err != nil {
 		return nil, s, err
 	}
 
@@ -2071,7 +2070,7 @@ func parseUpdate(s string, preparedQueryParams []any) (*CommandUpdate, string, e
 	cmd.IfExpLexems = convertCastForAstParser(cmd.IfExpLexems)
 	cmd.IfExpLexems = convertInNotInForAstParser(cmd.IfExpLexems)
 	// Replace all question marks with prepared param names: in if expression
-	if paramIdx, cmd.IfExpLexems, err = replaceQuestionMarksWithParamNamesInLexems(paramIdx, cmd.IfExpLexems, preparedQueryParams); err != nil {
+	if _, cmd.IfExpLexems, err = replaceQuestionMarksWithParamNamesInLexems(paramIdx, cmd.IfExpLexems, preparedQueryParams); err != nil {
 		return nil, s, err
 	}
 
@@ -2125,7 +2124,7 @@ func parseUpdate(s string, preparedQueryParams []any) (*CommandUpdate, string, e
 	return &cmd, s, nil
 }
 
-func parseDelete(s string, preparedQueryParams []interface{}) (*CommandDelete, string, error) {
+func parseDelete(s string, preparedQueryParams []any) (*CommandDelete, string, error) {
 	var l *Lexem
 	var err error
 	cmd := CommandDelete{ColumnsToDelete: []string{}}
@@ -2222,7 +2221,7 @@ func parseDelete(s string, preparedQueryParams []interface{}) (*CommandDelete, s
 	return &cmd, s, nil
 }
 
-func ParseCommands(s string, preparedQueryParams []interface{}) ([]Command, error) {
+func ParseCommands(s string, preparedQueryParams []any) ([]Command, error) {
 	cmds := make([]Command, 0)
 	for {
 		var l *Lexem
@@ -2313,6 +2312,8 @@ func ParseCommands(s string, preparedQueryParams []interface{}) ([]Command, erro
 					}
 					cmds[i].SetCtxKeyspace(curKs)
 				}
+			default:
+				// Do nothing
 			}
 		}
 	}

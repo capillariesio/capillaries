@@ -64,8 +64,8 @@ func drawNodeSelections(vizNodeMap []VizNode, nodeFo FontOptions) string {
 		curItem := vizNodeMap[i+1]
 		nodeX := curItem.X + curItem.TotalW/2 - curItem.NodeW/2
 		if curItem.Def.Selected {
-			sb.WriteString(fmt.Sprintf(`<rect class="rect-selected-node" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
-				nodeX-SelectedNodeMargin*nodeFo.SizeInPixels, curItem.Y-SelectedNodeMargin*nodeFo.SizeInPixels, curItem.NodeW+SelectedNodeMargin*nodeFo.SizeInPixels*2, curItem.NodeH+SelectedNodeMargin*nodeFo.SizeInPixels*2))
+			fmt.Fprintf(&sb, `<rect class="rect-selected-node" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
+				nodeX-SelectedNodeMargin*nodeFo.SizeInPixels, curItem.Y-SelectedNodeMargin*nodeFo.SizeInPixels, curItem.NodeW+SelectedNodeMargin*nodeFo.SizeInPixels*2, curItem.NodeH+SelectedNodeMargin*nodeFo.SizeInPixels*2)
 		}
 	}
 	return sb.String()
@@ -94,9 +94,9 @@ func drawEdgeLines(vizNodeMap []VizNode, curItem *VizNode, nodeFo FontOptions, e
 			if math.Abs(startY-endY)/math.Abs(startX-endX) > 8 {
 				curveDeltaForSimilarX = deltaX * math.Abs(startY-endY) / math.Abs(startX-endX) / 4
 			}
-			sb.WriteString(fmt.Sprintf(`<path class="path-edge-sec path-edge-sec-%d" d="m%.2f,%.2f C%.2f,%.2f %.2f,%.2f %.2f,%.2f"/>`+"\n",
+			fmt.Fprintf(&sb, `<path class="path-edge-sec path-edge-sec-%d" d="m%.2f,%.2f C%.2f,%.2f %.2f,%.2f %.2f,%.2f"/>`+"\n",
 				parentItem.RootId,
-				startX, startY, startX+deltaX*0.2, startY+deltaY*0.5, startX+deltaX*0.8+curveDeltaForSimilarX, startY+deltaY*0.5, endX, endY))
+				startX, startY, startX+deltaX*0.2, startY+deltaY*0.5, startX+deltaX*0.8+curveDeltaForSimilarX, startY+deltaY*0.5, endX, endY)
 		}
 	}
 
@@ -105,12 +105,12 @@ func drawEdgeLines(vizNodeMap []VizNode, curItem *VizNode, nodeFo FontOptions, e
 			if childItem.Def.PriIn.SrcId == curItem.Def.Id {
 				startX := curItem.X + curItem.TotalW/2
 				endX := childItem.X + childItem.TotalW/2
-				sb.WriteString(fmt.Sprintf(`<path class="path-edge-pri path-edge-pri-%d" d="m%.2f,%.2f L%.2f,%.2f"/>`+"\n",
+				fmt.Fprintf(&sb, `<path class="path-edge-pri path-edge-pri-%d" d="m%.2f,%.2f L%.2f,%.2f"/>`+"\n",
 					curItem.RootId,
 					startX,
 					curItem.Y+curItem.NodeH+eo.StrokeWidth*2.0,
 					endX,
-					childItem.Y-eo.StrokeWidth*3))
+					childItem.Y-eo.StrokeWidth*3)
 			}
 		}
 		sb.WriteString(drawEdgeLines(vizNodeMap, childItem, nodeFo, edgeFo, eo, rootStrokeColorMap))
@@ -123,16 +123,16 @@ func drawNodesAndEdgeLabels(vizNodeMap []VizNode, curItem *VizNode, nodeFo FontO
 	sb := strings.Builder{}
 	if curItem.Def != nil {
 		title := strings.TrimSpace(xmlReplacer.Replace(fmt.Sprintf("%d %s", curItem.Def.Id, curItem.Def.IconId)))
-		sb.WriteString(fmt.Sprintf(`<a xlink:title="%s">`+"\n", title))
+		fmt.Fprintf(&sb, `<a xlink:title="%s">`+"\n", title)
 		nodeX := curItem.X + curItem.TotalW/2 - curItem.NodeW/2
-		sb.WriteString(fmt.Sprintf(`  <rect class="rect-node-background rect-node-background-%d" %s x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
+		fmt.Fprintf(&sb, `  <rect class="rect-node-background rect-node-background-%d" %s x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
 			curItem.RootId,
 			getStyleColorOverrideForNodeWithOpacity2("fill", curItem.Def.Color),
-			nodeX, curItem.Y, curItem.NodeW, curItem.NodeH))
-		sb.WriteString(fmt.Sprintf(`  <rect class="rect-node rect-node-%d" %s x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
+			nodeX, curItem.Y, curItem.NodeW, curItem.NodeH)
+		fmt.Fprintf(&sb, `  <rect class="rect-node rect-node-%d" %s x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
 			curItem.RootId,
 			getStyleColorOverrideForNode("stroke", curItem.Def.Color),
-			nodeX, curItem.Y, curItem.NodeW, curItem.NodeH))
+			nodeX, curItem.Y, curItem.NodeW, curItem.NodeH)
 		actualIconSize := 0.0
 		if curItem.Def.IconId != "" {
 			actualIconSize = curItem.NodeH - nodeFo.SizeInPixels*NodeTextDimensionMargin*2
@@ -140,23 +140,23 @@ func drawNodesAndEdgeLabels(vizNodeMap []VizNode, curItem *VizNode, nodeFo FontO
 			if curItem.Def.Color != 0 {
 				iconColorCssOverride = getStyleColorOverrideForNode("fill", curItem.Def.Color)
 			}
-			sb.WriteString(fmt.Sprintf(`  <g transform="translate(%.2f,%.2f)"><g transform="scale(%2f)">`+"\n    "+`<use xlink:href="#%s" %s/>`+"\n  </g></g>\n",
+			fmt.Fprintf(&sb, `  <g transform="translate(%.2f,%.2f)"><g transform="scale(%2f)">`+"\n    "+`<use xlink:href="#%s" %s/>`+"\n  </g></g>\n",
 				nodeX+nodeFo.SizeInPixels*NodeTextDimensionMargin,
 				curItem.Y+nodeFo.SizeInPixels*NodeTextDimensionMargin,
 				actualIconSize/100.0,
 				curItem.Def.IconId,
 				iconColorCssOverride,
-			))
+			)
 		}
 		for i, r := range strings.Split(curItem.Def.Text, "\n") {
 			textX := curItem.X + curItem.TotalW/2 - curItem.NodeW/2 + nodeFo.SizeInPixels*NodeTextDimensionMargin
 			if actualIconSize > 0.0 {
 				textX += actualIconSize + nodeFo.SizeInPixels*NodeTextIconInterval
 			}
-			sb.WriteString(fmt.Sprintf(`  <text class="text-node" x="%.2f" y="%.2f">%s</text>`+"\n",
+			fmt.Fprintf(&sb, `  <text class="text-node" x="%.2f" y="%.2f">%s</text>`+"\n",
 				textX,
 				curItem.Y+nodeFo.SizeInPixels*NodeTextDimensionMargin+float64(i)*nodeFo.SizeInPixels*(1.0+nodeFo.Interval),
-				xmlReplacer.Replace(r)))
+				xmlReplacer.Replace(r))
 		}
 		sb.WriteString("</a>\n")
 
@@ -167,31 +167,31 @@ func drawNodesAndEdgeLabels(vizNodeMap []VizNode, curItem *VizNode, nodeFo FontO
 			if edgeItem.W == 0.0 {
 				continue
 			}
-			sb.WriteString(fmt.Sprintf(`<a xlink:title="%s">`+"\n", strings.TrimSpace(xmlReplacer.Replace(eolReplacer.Replace(edgeItem.Edge.Text)))))
+			fmt.Fprintf(&sb, `<a xlink:title="%s">`+"\n", strings.TrimSpace(xmlReplacer.Replace(eolReplacer.Replace(edgeItem.Edge.Text))))
 			parentItem := &(vizNodeMap[edgeItem.Edge.SrcId])
 			if edgeItem.HierarchyType == HierarchySec {
-				sb.WriteString(fmt.Sprintf(`  <rect class="rect-edge-label-background" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
-					edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H))
-				sb.WriteString(fmt.Sprintf(`  <rect class="rect-edge-label-sec rect-edge-label-sec-%d" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
+				fmt.Fprintf(&sb, `  <rect class="rect-edge-label-background" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
+					edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H)
+				fmt.Fprintf(&sb, `  <rect class="rect-edge-label-sec rect-edge-label-sec-%d" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
 					parentItem.RootId,
-					edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H))
+					edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H)
 				for i, r := range strings.Split(edgeItem.Edge.Text, "\n") {
-					sb.WriteString(fmt.Sprintf(`  <text class="text-edge-label" x="%.2f" y="%.2f">%s</text>`+"\n",
+					fmt.Fprintf(&sb, `  <text class="text-edge-label" x="%.2f" y="%.2f">%s</text>`+"\n",
 						edgeItem.X+edgeFo.SizeInPixels*LabelTextDimensionMargin,
 						edgeItem.Y+edgeFo.SizeInPixels*LabelTextDimensionMargin+float64(i)*edgeFo.SizeInPixels*(1+edgeFo.Interval),
-						xmlReplacer.Replace(r)))
+						xmlReplacer.Replace(r))
 				}
 			} else if edgeItem.HierarchyType == HierarchyPri {
-				sb.WriteString(fmt.Sprintf(`  <rect class="rect-edge-label-background" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
-					edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H))
-				sb.WriteString(fmt.Sprintf(`  <rect class="rect-edge-label-pri rect-edge-label-pri-%d" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
+				fmt.Fprintf(&sb, `  <rect class="rect-edge-label-background" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
+					edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H)
+				fmt.Fprintf(&sb, `  <rect class="rect-edge-label-pri rect-edge-label-pri-%d" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
 					parentItem.RootId,
-					edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H))
+					edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H)
 				for i, r := range strings.Split(edgeItem.Edge.Text, "\n") {
-					sb.WriteString(fmt.Sprintf(`  <text class="text-edge-label" x="%.2f" y="%.2f">%s</text>`+"\n",
+					fmt.Fprintf(&sb, `  <text class="text-edge-label" x="%.2f" y="%.2f">%s</text>`+"\n",
 						edgeItem.X+edgeFo.SizeInPixels*LabelTextDimensionMargin,
 						edgeItem.Y+edgeFo.SizeInPixels*LabelTextDimensionMargin+float64(i)*edgeFo.SizeInPixels*(1+edgeFo.Interval),
-						xmlReplacer.Replace(r)))
+						xmlReplacer.Replace(r))
 				}
 			}
 			sb.WriteString("</a>\n")
@@ -311,14 +311,14 @@ func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeO
 	rootColorMap := buildRootColorMap(vizNodeMap, palette)
 
 	sb := strings.Builder{}
-	sb.WriteString(fmt.Sprintf(
-		`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="%d %d %d %d">`+"\n", vbLeft, vbTop, vbRight-vbLeft, vbBottom-vbTop))
+	fmt.Fprintf(&sb,
+		`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="%d %d %d %d">`+"\n", vbLeft, vbTop, vbRight-vbLeft, vbBottom-vbTop)
 	sb.WriteString("<defs>\n")
 
 	for rootId := range len(rootColorMap) {
-		sb.WriteString(fmt.Sprintf(`<marker id="arrow-%d" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse" fill="#%s"><path d="M 0 0 L 10 5 L 0 10 z" /></marker>`+"\n",
+		fmt.Fprintf(&sb, `<marker id="arrow-%d" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse" fill="#%s"><path d="M 0 0 L 10 5 L 0 10 z" /></marker>`+"\n",
 			rootId,
-			getColorOverride("000000", int16(rootId), rootColorMap)))
+			getColorOverride("000000", int16(rootId), rootColorMap))
 	}
 
 	// Caller-provided defs (icons etc)
@@ -326,16 +326,16 @@ func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeO
 	sb.WriteString("</defs>\n")
 	sb.WriteString("<style>\n")
 	sb.WriteString(".viz-background {fill:white;opacity:1.0}\n")
-	sb.WriteString(fmt.Sprintf(".rect-node-background {fill:white; rx:%d; ry:%d; stroke-width:0;opacity:0.7}\n", int(nodeFo.SizeInPixels/2), int(nodeFo.SizeInPixels/2)))
-	sb.WriteString(fmt.Sprintf(".rect-node {fill:none; rx:%d; ry:%d; stroke:black; stroke-width:1;}\n", int(nodeFo.SizeInPixels/2), int(nodeFo.SizeInPixels/2)))
-	sb.WriteString(fmt.Sprintf(".rect-selected-node {fill:transparent; rx:%d; ry:%d; stroke-width:%d; stroke:black; opacity:1.0}\n", int(nodeFo.SizeInPixels/2), int(nodeFo.SizeInPixels/2), int(nodeFo.SizeInPixels/4)))
+	fmt.Fprintf(&sb, ".rect-node-background {fill:white; rx:%d; ry:%d; stroke-width:0;opacity:0.7}\n", int(nodeFo.SizeInPixels/2), int(nodeFo.SizeInPixels/2))
+	fmt.Fprintf(&sb, ".rect-node {fill:none; rx:%d; ry:%d; stroke:black; stroke-width:1;}\n", int(nodeFo.SizeInPixels/2), int(nodeFo.SizeInPixels/2))
+	fmt.Fprintf(&sb, ".rect-selected-node {fill:transparent; rx:%d; ry:%d; stroke-width:%d; stroke:black; opacity:1.0}\n", int(nodeFo.SizeInPixels/2), int(nodeFo.SizeInPixels/2), int(nodeFo.SizeInPixels/4))
 	sb.WriteString(".rect-edge-label-background {fill:white; rx:10; ry:10; stroke-width:0; opacity:0.7;}\n")
 	sb.WriteString(".rect-edge-label-pri {fill:none; rx:10; ry:10; stroke:#606060; stroke-width:1;}\n")
 	sb.WriteString(".rect-edge-label-sec {fill:none; rx:10; ry:10; stroke:#606060; stroke-width:1; stroke-dasharray:5;}\n")
-	sb.WriteString(fmt.Sprintf(".text-node {font-family:%s; font-weight:%s; font-size:%dpx; text-anchor:start; alignment-baseline:hanging; fill:black;}\n", FontTypefaceToString(nodeFo.Typeface), FontWeightToString(nodeFo.Weight), int(nodeFo.SizeInPixels)))
-	sb.WriteString(fmt.Sprintf(".text-edge-label {font-family:%s; font-weight:%s; font-size:%dpx; text-anchor:start; alignment-baseline:hanging; fill:#606060;}\n", FontTypefaceToString(edgeFo.Typeface), FontWeightToString(edgeFo.Weight), int(edgeFo.SizeInPixels)))
-	sb.WriteString(fmt.Sprintf(`.path-edge-pri {stroke-width:%.2f;fill:transparent;stroke:black;}`+"\n", eo.StrokeWidth))
-	sb.WriteString(fmt.Sprintf(`.path-edge-sec {stroke-width:%.2f;stroke-dasharray:5;fill:transparent;stroke:black;}`+"\n", eo.StrokeWidth))
+	fmt.Fprintf(&sb, ".text-node {font-family:%s; font-weight:%s; font-size:%dpx; text-anchor:start; alignment-baseline:hanging; fill:black;}\n", FontTypefaceToString(nodeFo.Typeface), FontWeightToString(nodeFo.Weight), int(nodeFo.SizeInPixels))
+	fmt.Fprintf(&sb, ".text-edge-label {font-family:%s; font-weight:%s; font-size:%dpx; text-anchor:start; alignment-baseline:hanging; fill:#606060;}\n", FontTypefaceToString(edgeFo.Typeface), FontWeightToString(edgeFo.Weight), int(edgeFo.SizeInPixels))
+	fmt.Fprintf(&sb, `.path-edge-pri {stroke-width:%.2f;fill:transparent;stroke:black;}`+"\n", eo.StrokeWidth)
+	fmt.Fprintf(&sb, `.path-edge-sec {stroke-width:%.2f;stroke-dasharray:5;fill:transparent;stroke:black;}`+"\n", eo.StrokeWidth)
 
 	// For each root, create a set of classes with proper color
 	for rootId := range len(rootColorMap) {
@@ -343,14 +343,14 @@ func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeO
 		// 	continue
 		// }
 		// Edge coor: stroke (label border and connectors). Also, proper arrow marker color.
-		sb.WriteString(fmt.Sprintf(`.path-edge-pri-%d {marker-end:url(#arrow-%d);stroke:#%s}`+"\n", rootId, rootId, getColorOverride("000000", int16(rootId), rootColorMap)))
-		sb.WriteString(fmt.Sprintf(`.path-edge-sec-%d {marker-end:url(#arrow-%d);stroke:#%s}`+"\n", rootId, rootId, getColorOverride("000000", int16(rootId), rootColorMap)))
-		sb.WriteString(fmt.Sprintf(`.rect-edge-label-pri-%d {stroke:#%s}`+"\n", rootId, getColorOverride("000000", int16(rootId), rootColorMap)))
-		sb.WriteString(fmt.Sprintf(`.rect-edge-label-sec-%d {stroke:#%s}`+"\n", rootId, getColorOverride("000000", int16(rootId), rootColorMap)))
+		fmt.Fprintf(&sb, `.path-edge-pri-%d {marker-end:url(#arrow-%d);stroke:#%s}`+"\n", rootId, rootId, getColorOverride("000000", int16(rootId), rootColorMap))
+		fmt.Fprintf(&sb, `.path-edge-sec-%d {marker-end:url(#arrow-%d);stroke:#%s}`+"\n", rootId, rootId, getColorOverride("000000", int16(rootId), rootColorMap))
+		fmt.Fprintf(&sb, `.rect-edge-label-pri-%d {stroke:#%s}`+"\n", rootId, getColorOverride("000000", int16(rootId), rootColorMap))
+		fmt.Fprintf(&sb, `.rect-edge-label-sec-%d {stroke:#%s}`+"\n", rootId, getColorOverride("000000", int16(rootId), rootColorMap))
 
 		// Node color: background, stroke
-		sb.WriteString(fmt.Sprintf(`.rect-node-background-%d {fill:#%s;opacity:0.2}`+"\n", rootId, getColorOverride("FFFFFF", int16(rootId), rootColorMap)))
-		sb.WriteString(fmt.Sprintf(`.rect-node-%d {stroke:#%s}`+"\n", rootId, getColorOverride("000000", int16(rootId), rootColorMap)))
+		fmt.Fprintf(&sb, `.rect-node-background-%d {fill:#%s;opacity:0.2}`+"\n", rootId, getColorOverride("FFFFFF", int16(rootId), rootColorMap))
+		fmt.Fprintf(&sb, `.rect-node-%d {stroke:#%s}`+"\n", rootId, getColorOverride("000000", int16(rootId), rootColorMap))
 	}
 	// Renderingstats
 	sb.WriteString(`.capigraph-rendering-stats {font-family:arial; font-weight:normal; font-size:10px; text-anchor:start; alignment-baseline:hanging; fill:transparent;}`)
@@ -358,7 +358,7 @@ func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeO
 	// Caller-provided CSS overrides
 	sb.WriteString(css)
 	sb.WriteString("</style>\n")
-	sb.WriteString(fmt.Sprintf(`<rect class="viz-background" x="%d" y="%d" width="%d" height="%d"/>`+"\n", vbLeft, vbTop, vbRight-vbLeft, vbBottom-vbTop))
+	fmt.Fprintf(&sb, `<rect class="viz-background" x="%d" y="%d" width="%d" height="%d"/>`+"\n", vbLeft, vbTop, vbRight-vbLeft, vbBottom-vbTop)
 
 	// Node selections at the z-bottom
 	sb.WriteString(drawNodeSelections(vizNodeMap, nodeFo))
@@ -369,7 +369,7 @@ func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeO
 	// Nodes and labels
 	sb.WriteString(drawNodesAndEdgeLabels(vizNodeMap, topItem, nodeFo, edgeFo, eo, rootColorMap))
 
-	sb.WriteString(fmt.Sprintf(`<text class="capigraph-rendering-stats" x="0" y="0">Perms %d, elapsed %.3fs, dist %.1f</text>`+"\n", totalPermutations, elapsed, bestDist))
+	fmt.Fprintf(&sb, `<text class="capigraph-rendering-stats" x="0" y="0">Perms %d, elapsed %.3fs, dist %.1f</text>`+"\n", totalPermutations, elapsed, bestDist)
 
 	sb.WriteString("</svg>\n")
 	return sb.String()

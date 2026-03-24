@@ -40,7 +40,7 @@ func TestUseKeyspace(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, "ks1", cmds[1].GetCtxKeyspace())
 
-	cmds, err = ParseCommands(`select f1 FROM t1;`, nil)
+	_, err = ParseCommands(`select f1 FROM t1;`, nil)
 	assert.Contains(t, err.Error(), "cannot detect keyspace for command 0")
 }
 
@@ -109,25 +109,25 @@ func TestCreateTable(t *testing.T) {
 	assert.Equal(t, "f1", cr.PartitionKeyColumns[0])
 	assert.Equal(t, "f2", cr.ClusteringKeyColumns[0])
 
-	cmds, err = ParseCommands(`CREATE  TABLE   ks1.t1  ( f1  TEXT ) `, nil)
+	_, err = ParseCommands(`CREATE  TABLE   ks1.t1  ( f1  TEXT ) `, nil)
 	assert.Contains(t, err.Error(), "expected PRIMARY KEY")
 
-	cmds, err = ParseCommands(`CREATE TABLE ks1.t1 ( PRIMARY KEY() )`, nil)
+	_, err = ParseCommands(`CREATE TABLE ks1.t1 ( PRIMARY KEY() )`, nil)
 	assert.Contains(t, err.Error(), "cannot parse CREATE TABLE with empty columnn def list")
 
-	cmds, err = ParseCommands(`CREATE TABLE ks1.t1 ( f1 TEXT, PRIMARY KEY() )`, nil)
+	_, err = ParseCommands(`CREATE TABLE ks1.t1 ( f1 TEXT, PRIMARY KEY() )`, nil)
 	assert.Contains(t, err.Error(), "cannot parse CREATE TABLE with empty partition column list")
 
-	cmds, err = ParseCommands(`CREATE TABLE IF NOT EXISTS ks1.t1 (f1 TEXT, PRIMARY KEY(f1, f2) ) WITH CLUSTERING ORDER BY (f1 ASC)`, nil)
+	_, err = ParseCommands(`CREATE TABLE IF NOT EXISTS ks1.t1 (f1 TEXT, PRIMARY KEY(f1, f2) ) WITH CLUSTERING ORDER BY (f1 ASC)`, nil)
 	assert.Contains(t, err.Error(), "clustering order field f1 specified, but it's not among clustering keys")
 
-	cmds, err = ParseCommands(`CREATE TABLE IF NOT EXISTS ks1.t1 (f1 TEXT, PRIMARY KEY(f2) )`, nil)
+	_, err = ParseCommands(`CREATE TABLE IF NOT EXISTS ks1.t1 (f1 TEXT, PRIMARY KEY(f2) )`, nil)
 	assert.Contains(t, err.Error(), "partition key f2 not found in column definitions")
 
-	cmds, err = ParseCommands(`CREATE TABLE IF NOT EXISTS ks1.t1 (f1 TEXT, PRIMARY KEY(f1, f2) )`, nil)
+	_, err = ParseCommands(`CREATE TABLE IF NOT EXISTS ks1.t1 (f1 TEXT, PRIMARY KEY(f1, f2) )`, nil)
 	assert.Contains(t, err.Error(), "clustering key f2 not found in column definitions")
 
-	cmds, err = ParseCommands(`CREATE TABLE IF NOT EXISTS ks1.t1 (f1 TEXT, PRIMARY KEY(f1, f1) )`, nil)
+	_, err = ParseCommands(`CREATE TABLE IF NOT EXISTS ks1.t1 (f1 TEXT, PRIMARY KEY(f1, f1) )`, nil)
 	assert.Contains(t, err.Error(), "clustering key f1 duplication")
 }
 
@@ -244,10 +244,10 @@ func TestSelect(t *testing.T) {
 	assert.Equal(t, "f2", cmd.SelectExpLexems[0][0].V)
 	assert.Equal(t, "t2", cmd.TableName)
 
-	cmds, err = ParseCommands(`SELECT FROM ks1.t1`, nil)
+	_, err = ParseCommands(`SELECT FROM ks1.t1`, nil)
 	assert.Contains(t, err.Error(), "expected select expressions")
 
-	cmds, err = ParseCommands(`SELECT f1 FROM t1;bla`, nil)
+	_, err = ParseCommands(`SELECT f1 FROM t1;bla`, nil)
 	assert.Contains(t, err.Error(), "unexpected command text, a semicolon expected")
 }
 
@@ -343,10 +343,10 @@ func TestInsert(t *testing.T) {
 	assert.Equal(t, 2, cmd.ColumnValues[1])
 	assert.Equal(t, 3, cmd.ColumnValues[2])
 
-	cmds, err = ParseCommands(`INSERT INTO ks1.t1 () values ()`, nil)
+	_, err = ParseCommands(`INSERT INTO ks1.t1 () values ()`, nil)
 	assert.Contains(t, err.Error(), "column list cannot be empty")
 
-	cmds, err = ParseCommands(`INSERT INTO ks1.t1 (f1) values ()`, nil)
+	_, err = ParseCommands(`INSERT INTO ks1.t1 (f1) values ()`, nil)
 	assert.Contains(t, err.Error(), "value list length (0) should match column list length (1)")
 }
 

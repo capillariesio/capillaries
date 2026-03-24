@@ -78,8 +78,7 @@ func TestTypesSelect(t *testing.T) {
 )`, preparedQueryParams...).Exec()
 	assert.Nil(t, err)
 
-	result := []map[string]interface{}{}
-	result, err = s.Query(`SELECT * FROM ks1.t1`).Iter().SliceMap()
+	result, err := s.Query(`SELECT * FROM ks1.t1`).Iter().SliceMap()
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(result))
 	assert.Equal(t, "map[f_ascii:3 f_bigint:4 f_blob:[1 2] f_bool:true f_counter:0 f_date:6 f_dec:{{false [13]} 1} f_double:1.2 f_float:1.1 f_int:3 f_smallint:2 f_text:2 f_time:10000000 f_timestamp:2015-07-14 00:13:37.476 +0000 UTC f_timeuuid:00000000-0000-1000-8000-000000000000 f_tinyint:1 f_uuid:00000000-0000-1000-8000-000000000000 f_varchar:1]", fmt.Sprintf("%v", result[0]))
@@ -230,8 +229,7 @@ func TestTypesSelectWithParams(t *testing.T) {
 )`, preparedQueryParams...).Exec()
 	assert.Nil(t, err)
 
-	result := []map[string]interface{}{}
-	result, err = s.Query(`SELECT * FROM ks1.t1`).Iter().SliceMap()
+	result, err := s.Query(`SELECT * FROM ks1.t1`).Iter().SliceMap()
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(result))
 	assert.Equal(t, "map[f_ascii:3 f_bigint:4 f_blob:[1 2] f_bool:true f_counter:0 f_date:6 f_dec:{{false [13]} 1} f_double:1.2 f_float:1.1 f_int:3 f_smallint:2 f_text:2 f_time:10000000 f_timestamp:2015-07-14 00:13:37.476 +0000 UTC f_timeuuid:00000000-0000-1000-8000-000000000000 f_tinyint:1 f_uuid:00000000-0000-1000-8000-000000000000 f_varchar:1]", fmt.Sprintf("%v", result[0]))
@@ -308,7 +306,6 @@ func TestTypesSelectWithParams(t *testing.T) {
 )`, preparedQueryParams...).Exec()
 	assert.Nil(t, err)
 
-	result = []map[string]interface{}{}
 	result, err = s.Query(`SELECT * FROM ks1.t1`).Iter().SliceMap()
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(result))
@@ -389,8 +386,7 @@ func TestTypesInsert(t *testing.T) {
 )`, preparedQueryParams...).Exec()
 	assert.Nil(t, err)
 
-	result := []map[string]interface{}{}
-	result, err = s.Query(`SELECT * FROM ks1.t1`).Iter().SliceMap()
+	result, err := s.Query(`SELECT * FROM ks1.t1`).Iter().SliceMap()
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(result))
 	assert.Equal(t, "map[f_ascii:3 f_bigint:4 f_blob:[1 2] f_bool:true f_counter:0 f_date:6 f_dec:{{false [13]} 1} f_double:1.2 f_float:1.1 f_int:3 f_smallint:2 f_text:2 f_time:10000000 f_timestamp:2015-07-14 00:13:37.476 +0000 UTC f_timeuuid:00000000-0000-1000-8000-000000000000 f_tinyint:1 f_uuid:00000000-0000-1000-8000-000000000000 f_varchar:1]", fmt.Sprintf("%v", result[0]))
@@ -509,8 +505,7 @@ func TestTypesUpdate(t *testing.T) {
 )`, preparedQueryParams...).Exec()
 	assert.Nil(t, err)
 
-	result := []map[string]interface{}{}
-	result, err = s.Query(`SELECT * FROM ks1.t1`).Iter().SliceMap()
+	result, err := s.Query(`SELECT * FROM ks1.t1`).Iter().SliceMap()
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(result))
 	assert.Equal(t, "map[f_ascii:3 f_bigint:4 f_blob:[1 2] f_bool:true f_counter:0 f_date:6 f_dec:{{false [13]} 1} f_double:1.2 f_float:1.1 f_int:3 f_smallint:2 f_text:2 f_time:10000000 f_timestamp:2015-07-14 00:13:37.476 +0000 UTC f_timeuuid:00000000-0000-1000-8000-000000000000 f_tinyint:1 f_uuid:00000000-0000-1000-8000-000000000000 f_varchar:1]", fmt.Sprintf("%v", result[0]))
@@ -518,7 +513,7 @@ func TestTypesUpdate(t *testing.T) {
 	// The following mostly tests sanitizeToInternalType()
 
 	preparedQueryParams = []any{int8(1), int16(2), int32(3), int64(4), true, *inf.NewDec(11, 1), 1.2, inf.NewDec(13, 1), sometimeuuid, sometimeuuid, []byte{1, 2}, timeToTest, 10000000, 6, "1", "2", "3"}
-	existingRowMap := map[string]interface{}{}
+	existingRowMap := map[string]any{}
 	isApplied, err := s.Query(`UPDATE ks1.t1 SET f_counter = f_counter + 10 WHERE
 		f_tinyint = ? AND
 		f_smallint = ? AND
@@ -540,7 +535,6 @@ func TestTypesUpdate(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, isApplied)
 
-	result = []map[string]interface{}{}
 	result, err = s.Query(`SELECT * FROM ks1.t1`).Iter().SliceMap()
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(result))

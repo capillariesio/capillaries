@@ -12,7 +12,7 @@ func TestMapScanCAS(t *testing.T) {
 	assert.Nil(t, s.Query("CREATE KEYSPACE ks1").Exec())
 	assert.Nil(t, s.Query("CREATE TABLE ks1.t1 (a int, b bigint, c smallint, d tinyint, primary key (a))").Exec())
 
-	dest := map[string]interface{}{}
+	dest := map[string]any{}
 	var isApplied bool
 	var err error
 	isApplied, err = s.Query("INSERT INTO ks1.t1 (a,b,c,d) VALUES (1,1,1,1)").MapScanCAS(dest)
@@ -42,8 +42,7 @@ func TestMapScanCAS(t *testing.T) {
 	assert.Equal(t, nil, dest["c"])
 	assert.Equal(t, nil, dest["d"])
 
-	result := []map[string]interface{}{}
-	result, err = s.Query(`SELECT a,b,c,d FROM ks1.t1 WHERE a=1`).Iter().SliceMap()
+	result, err := s.Query(`SELECT a,b,c,d FROM ks1.t1 WHERE a=1`).Iter().SliceMap()
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(result))
 
@@ -98,7 +97,7 @@ func TestMapScanCASUpsert(t *testing.T) {
 	assert.Nil(t, s.Query("CREATE KEYSPACE ks1").Exec())
 	assert.Nil(t, s.Query("CREATE TABLE ks1.t1 (a int, b bigint, c smallint, d tinyint, primary key (a))").Exec())
 
-	dest := map[string]interface{}{}
+	dest := map[string]any{}
 	var isApplied bool
 	var err error
 	isApplied, err = s.Query("INSERT INTO ks1.t1 (a,b,c,d) VALUES (1,1,1,1)").MapScanCAS(dest)
@@ -127,7 +126,7 @@ func TestPageSize(t *testing.T) {
 	assert.Nil(t, s.Query("CREATE KEYSPACE ks1").Exec())
 	assert.Nil(t, s.Query("CREATE TABLE ks1.t1 (a int, b bigint, primary key (a))").Exec())
 
-	dest := map[string]interface{}{}
+	dest := map[string]any{}
 	var isApplied bool
 	var err error
 	isApplied, err = s.Query("INSERT INTO ks1.t1 (a,b) VALUES (1,1)").MapScanCAS(dest)
@@ -190,12 +189,13 @@ func TestUuid(t *testing.T) {
 	err = s.Query("INSERT INTO ks1.t1 (a,b,c) VALUES (1,now(),now())").Exec()
 	assert.Nil(t, err)
 
-	result := []map[string]interface{}{}
-	result, err = s.Query(`SELECT a,b,c FROM ks1.t1 WHERE a=1`).Iter().SliceMap()
+	result, err := s.Query(`SELECT a,b,c FROM ks1.t1 WHERE a=1`).Iter().SliceMap()
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(result))
-	uB := result[0]["b"].(gocql.UUID)
-	uC := result[0]["c"].(gocql.UUID)
+	uB, ok := result[0]["b"].(gocql.UUID)
+	assert.True(t, ok)
+	uC, ok := result[0]["c"].(gocql.UUID)
+	assert.True(t, ok)
 	// Some bytes should match
 	assert.Equal(t, uB[0], uC[0])
 	assert.Equal(t, uB[1], uC[1])

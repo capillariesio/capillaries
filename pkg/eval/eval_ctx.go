@@ -53,7 +53,7 @@ func (vars *VarValuesMap) Tables() string {
 	sb := strings.Builder{}
 	sb.WriteString("[")
 	for table := range *vars {
-		sb.WriteString(fmt.Sprintf("%s ", table))
+		fmt.Fprintf(&sb, "%s ", table)
 	}
 	sb.WriteString("]")
 	return sb.String()
@@ -64,7 +64,7 @@ func (vars *VarValuesMap) Names() string {
 	sb.WriteString("[")
 	for table, fldMap := range *vars {
 		for fld := range fldMap {
-			sb.WriteString(fmt.Sprintf("%s.%s ", table, fld))
+			fmt.Fprintf(&sb, "%s.%s ", table, fld)
 		}
 	}
 	sb.WriteString("]")
@@ -167,7 +167,7 @@ func defaultBigint() *big.Int {
 	return big.NewInt(0)
 }
 
-func newPlainEvalCtx(aggEnabled AggEnabledType) *EvalCtx {
+func newPlainEvalCtxInternal(aggEnabled AggEnabledType) *EvalCtx {
 	return &EvalCtx{
 		aggFunc:            AggUnknown,
 		aggType:            AggTypeUnknown,
@@ -182,7 +182,7 @@ func newPlainEvalCtx(aggEnabled AggEnabledType) *EvalCtx {
 }
 
 func NewPlainEvalCtx(functions map[string]EvalFunction, constants map[string]any, vars VarValuesMap) *EvalCtx {
-	eCtx := newPlainEvalCtx(AggFuncDisabled)
+	eCtx := newPlainEvalCtxInternal(AggFuncDisabled)
 	eCtx.evalFunctions = functions
 	eCtx.evalConstants = constants
 	eCtx.evalVars = vars
@@ -190,7 +190,7 @@ func NewPlainEvalCtx(functions map[string]EvalFunction, constants map[string]any
 }
 
 func NewAggEvalCtx(aggFuncType AggFuncType, aggFuncArgs []ast.Expr, functions map[string]EvalFunction, constants map[string]any, vars VarValuesMap) (*EvalCtx, error) {
-	eCtx := newPlainEvalCtx(AggFuncEnabled)
+	eCtx := newPlainEvalCtxInternal(AggFuncEnabled)
 	eCtx.aggFunc = aggFuncType
 	eCtx.evalFunctions = functions
 	eCtx.evalConstants = constants

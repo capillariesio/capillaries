@@ -13,7 +13,7 @@ func TestColumnsAndRowData(t *testing.T) {
 	assert.Nil(t, s.Query("CREATE KEYSPACE ks1").Exec())
 	assert.Nil(t, s.Query("CREATE TABLE ks1.t1 (f_int int, f_text text, f_bool boolean, f_float float, f_dec decimal, primary key (f_int))").Exec())
 
-	dest := map[string]interface{}{}
+	dest := map[string]any{}
 	var isApplied bool
 	var err error
 	isApplied, err = s.Query("INSERT INTO ks1.t1 (f_int, f_text, f_bool, f_float, f_dec) VALUES (1,'1', TRUE, 1.1, 2.2)").MapScanCAS(dest)
@@ -64,8 +64,7 @@ func TestIterScan(t *testing.T) {
 	assert.Nil(t, s.Query("CREATE KEYSPACE ks1").Exec())
 	assert.Nil(t, s.Query("CREATE TABLE ks1.t1 (f_int int, f_text text, f_bool boolean, f_float float, f_dec decimal, primary key (f_int))").Exec())
 
-	var err error
-	err = s.Query("INSERT INTO ks1.t1 (f_int, f_text, f_bool, f_float, f_dec) VALUES (1, '1', TRUE, 1.1, 2.2)").Exec()
+	err := s.Query("INSERT INTO ks1.t1 (f_int, f_text, f_bool, f_float, f_dec) VALUES (1, '1', TRUE, 1.1, 2.2)").Exec()
 	assert.Nil(t, err)
 
 	iter := s.Query(`SELECT f_int, f_text, f_bool, f_float, f_dec FROM ks1.t1`).Iter()
@@ -90,7 +89,7 @@ func TestScanner(t *testing.T) {
 	assert.Nil(t, s.Query("CREATE KEYSPACE ks1").Exec())
 	assert.Nil(t, s.Query("CREATE TABLE ks1.t1 (f_int int, f_text text, f_bool boolean, f_float float, f_dec decimal, primary key (f_int))").Exec())
 
-	dest := map[string]interface{}{}
+	dest := map[string]any{}
 	var isApplied bool
 	var err error
 	isApplied, err = s.Query("INSERT INTO ks1.t1 (f_int, f_bigint,  f_text, f_bool, f_float, f_dec) VALUES (1, 2, '1', TRUE, 1.1, 2.2)").MapScanCAS(dest)

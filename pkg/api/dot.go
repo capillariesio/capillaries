@@ -45,17 +45,17 @@ func drawFileReader(node *sc.ScriptNodeDef, showFields bool, arrowFontSize int, 
 	fileNames := make([]string, len(node.FileReader.SrcFileUrls))
 	copy(fileNames, node.FileReader.SrcFileUrls)
 
-	b.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [style=dotted, fontsize=\"%d\", label=\"%s\"];\n", node.FileReader.SrcFileUrls[0], node.GetTargetName(), arrowFontSize, arrowLabelBuilder.String()))
-	b.WriteString(fmt.Sprintf("\"%s\" [shape=folder, fontsize=\"%d\", label=\"%s\", tooltip=\"Source data file(s)\"];\n", node.FileReader.SrcFileUrls[0], recordFontSize, strings.Join(fileNames, "\\n")))
+	fmt.Fprintf(&b, "\"%s\" -> \"%s\" [style=dotted, fontsize=\"%d\", label=\"%s\"];\n", node.FileReader.SrcFileUrls[0], node.GetTargetName(), arrowFontSize, arrowLabelBuilder.String())
+	fmt.Fprintf(&b, "\"%s\" [shape=folder, fontsize=\"%d\", label=\"%s\", tooltip=\"Source data file(s)\"];\n", node.FileReader.SrcFileUrls[0], recordFontSize, strings.Join(fileNames, "\\n"))
 	return b.String()
 }
 
 func drawFileCreator(node *sc.ScriptNodeDef, showFields bool, arrowFontSize int, recordFontSize int, allUsedFields sc.FieldRefs, penWidth string, fillColor string, urlEscaper *strings.Replacer, inSrcArrowLabel string) string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [style=solid, fontsize=\"%d\", label=\"%s\"];\n", node.TableReader.TableName, node.Name, arrowFontSize, inSrcArrowLabel))
+	fmt.Fprintf(&b, "\"%s\" -> \"%s\" [style=solid, fontsize=\"%d\", label=\"%s\"];\n", node.TableReader.TableName, node.Name, arrowFontSize, inSrcArrowLabel)
 
 	// Node (file)
-	b.WriteString(fmt.Sprintf("\"%s\" [shape=record, penwidth=\"%s\", fontsize=\"%d\", fillcolor=\"%s\", style=\"filled\", label=\"{%s|creates file:\\n%s}\", tooltip=\"%s\"];\n", node.Name, penWidth, recordFontSize, fillColor, node.Name, urlEscaper.Replace(node.FileCreator.UrlTemplate), node.Desc))
+	fmt.Fprintf(&b, "\"%s\" [shape=record, penwidth=\"%s\", fontsize=\"%d\", fillcolor=\"%s\", style=\"filled\", label=\"{%s|creates file:\\n%s}\", tooltip=\"%s\"];\n", node.Name, penWidth, recordFontSize, fillColor, node.Name, urlEscaper.Replace(node.FileCreator.UrlTemplate), node.Desc)
 
 	// Out (file)
 	arrowLabelBuilder := strings.Builder{}
@@ -66,8 +66,8 @@ func drawFileCreator(node *sc.ScriptNodeDef, showFields bool, arrowFontSize int,
 		}
 	}
 
-	b.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [style=dotted, fontsize=\"%d\", label=\"%s\"];\n", node.Name, node.FileCreator.UrlTemplate, arrowFontSize, arrowLabelBuilder.String()))
-	b.WriteString(fmt.Sprintf("\"%s\" [shape=note, fontsize=\"%d\", label=\"%s\", tooltip=\"Target data file(s)\"];\n", node.FileCreator.UrlTemplate, recordFontSize, node.FileCreator.UrlTemplate))
+	fmt.Fprintf(&b, "\"%s\" -> \"%s\" [style=dotted, fontsize=\"%d\", label=\"%s\"];\n", node.Name, node.FileCreator.UrlTemplate, arrowFontSize, arrowLabelBuilder.String())
+	fmt.Fprintf(&b, "\"%s\" [shape=note, fontsize=\"%d\", label=\"%s\", tooltip=\"Target data file(s)\"];\n", node.FileCreator.UrlTemplate, recordFontSize, node.FileCreator.UrlTemplate)
 	return b.String()
 }
 
@@ -76,9 +76,9 @@ func drawTableReader(node *sc.ScriptNodeDef, showIdx bool, showFields bool, arro
 	sb := strings.Builder{}
 	if showIdx {
 		if node.TableReader.ExpectedBatchesTotal > 1 {
-			sb.WriteString(fmt.Sprintf("%s (%d batches)", node.TableReader.TableName, node.TableReader.ExpectedBatchesTotal))
+			fmt.Fprintf(&sb, "%s (%d batches)", node.TableReader.TableName, node.TableReader.ExpectedBatchesTotal)
 		} else {
-			sb.WriteString(fmt.Sprintf("%s (no parallelism)", node.TableReader.TableName))
+			fmt.Fprintf(&sb, "%s (no parallelism)", node.TableReader.TableName)
 		}
 	}
 	if showFields {
@@ -96,7 +96,7 @@ func drawTableReader(node *sc.ScriptNodeDef, showIdx bool, showFields bool, arro
 	if node.HasFileCreator() {
 		b.WriteString(drawFileCreator(node, showFields, arrowFontSize, recordFontSize, allUsedFields, penWidth, fillColor, urlEscaper, sb.String()))
 	} else {
-		b.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [style=solid, fontsize=\"%d\", label=\"%s\"];\n", node.TableReader.TableName, node.GetTargetName(), arrowFontSize, sb.String()))
+		fmt.Fprintf(&b, "\"%s\" -> \"%s\" [style=solid, fontsize=\"%d\", label=\"%s\"];\n", node.TableReader.TableName, node.GetTargetName(), arrowFontSize, sb.String())
 	}
 
 	if node.HasLookup() {
@@ -112,7 +112,7 @@ func drawTableReader(node *sc.ScriptNodeDef, showIdx bool, showFields bool, arro
 			inLkpArrowLabel = inLkpArrowLabelBuilder.String()
 		}
 		// In (lookup)
-		b.WriteString(fmt.Sprintf("\"%s\" -> \"%s\" [style=dashed, fontsize=\"%d\", label=\"%s\"];\n", node.Lookup.TableCreator.Name, node.GetTargetName(), arrowFontSize, inLkpArrowLabel))
+		fmt.Fprintf(&b, "\"%s\" -> \"%s\" [style=dashed, fontsize=\"%d\", label=\"%s\"];\n", node.Lookup.TableCreator.Name, node.GetTargetName(), arrowFontSize, inLkpArrowLabel)
 	}
 	return b.String()
 }

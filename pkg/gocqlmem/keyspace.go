@@ -58,7 +58,7 @@ func (ks *Keyspace) truncateTable(cmd *CommandTruncateTable) error {
 		return fmt.Errorf("cannot truncate table %s, it was not found", cmd.TableName)
 	}
 
-	return t.execTruncate(cmd)
+	return t.execTruncate()
 }
 
 func (ks *Keyspace) dropTable(cmd *CommandDropTable) error {
@@ -91,7 +91,7 @@ func (ks *Keyspace) execInsert(cmd *CommandInsert) (bool, []gocql.ColumnInfo, []
 	return t.execInsert(cmd)
 }
 
-func (ks *Keyspace) execSelect(cmd *CommandSelect, lastSelectedRowIdx int, maxRows int, preparedQueryParams []interface{}) ([]string, [][]any, []gocql.TypeInfo, int, error) {
+func (ks *Keyspace) execSelect(cmd *CommandSelect, lastSelectedRowIdx int, maxRows int, preparedQueryParams []any) ([]string, [][]any, []gocql.TypeInfo, int, error) {
 	ks.Lock.RLock()
 	defer ks.Lock.RUnlock()
 
@@ -102,7 +102,7 @@ func (ks *Keyspace) execSelect(cmd *CommandSelect, lastSelectedRowIdx int, maxRo
 	return t.execSelect(cmd, lastSelectedRowIdx, maxRows, preparedQueryParams)
 }
 
-func (ks *Keyspace) execUpdate(cmd *CommandUpdate, preparedQueryParams []interface{}) (bool, []gocql.ColumnInfo, [][]any, error) {
+func (ks *Keyspace) execUpdate(cmd *CommandUpdate, preparedQueryParams []any) (bool, []gocql.ColumnInfo, [][]any, error) {
 	ks.Lock.RLock()
 	defer ks.Lock.RUnlock()
 
@@ -113,7 +113,7 @@ func (ks *Keyspace) execUpdate(cmd *CommandUpdate, preparedQueryParams []interfa
 	return t.execUpdate(cmd, preparedQueryParams)
 }
 
-func (ks *Keyspace) execDelete(cmd *CommandDelete, preparedQueryParams []interface{}) (bool, error) {
+func (ks *Keyspace) execDelete(cmd *CommandDelete, preparedQueryParams []any) (bool, error) {
 	ks.Lock.RLock()
 	defer ks.Lock.RUnlock()
 

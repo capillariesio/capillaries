@@ -68,7 +68,7 @@ func TestTableSelectOrderBy(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, []int{3, 2, 1, 0}, seq)
 
-	seq, err = table.getRowSequenceFromColumnDefAndSelectOrderBy([]*OrderByField{
+	_, err = table.getRowSequenceFromColumnDefAndSelectOrderBy([]*OrderByField{
 		{"col3", ClusteringOrderAsc, ClusteringOrderCaseSensitive},
 		{"col2", ClusteringOrderAsc, ClusteringOrderCaseSensitive},
 	})
@@ -258,7 +258,7 @@ func TestTableInsert(t *testing.T) {
 		ColumnValues: []any{"a", 2, true},
 		IfNotExists:  false,
 	}
-	isApplied, existingColumnInfos, existingValues, err = table.execInsert(&cmd)
+	isApplied, _, _, err = table.execInsert(&cmd)
 	assert.Nil(t, err)
 	assert.True(t, isApplied)
 	assert.Equal(t, "a", table.columnValues[0][0])
@@ -273,7 +273,7 @@ func TestTableInsert(t *testing.T) {
 		ColumnValues: []any{"b", 0, true},
 		IfNotExists:  false,
 	}
-	isApplied, existingColumnInfos, existingValues, err = table.execInsert(&cmd)
+	isApplied, _, _, err = table.execInsert(&cmd)
 	assert.Nil(t, err)
 	assert.True(t, isApplied)
 	assert.Equal(t, "a", table.columnValues[0][0])
@@ -334,9 +334,8 @@ func TestTableSelectInNotIn(t *testing.T) {
 	var ok bool
 	var names []string
 	var values [][]any
-	var preparedQueryParams []any
+	preparedQueryParams := []any{"c", "d", []any{"a", "c"}, 1}
 
-	preparedQueryParams = []any{"c", "d", []any{"a", "c"}, 1}
 	cmds, err = ParseCommands(`SELECT col1, col2, col1 in (?,?), col2 not in (5) FROM ks1.t1 WHERE col1 IN ? AND col2 NOT IN (?);`, preparedQueryParams)
 	assert.Nil(t, err)
 	cmd, ok = cmds[0].(*CommandSelect)
@@ -368,9 +367,8 @@ func TestTableSelect(t *testing.T) {
 	var ok bool
 	var names []string
 	var values [][]any
-	var preparedQueryParams []any
+	preparedQueryParams := []any{5, "a"}
 
-	preparedQueryParams = []any{5, "a"}
 	cmds, err = ParseCommands(`SELECT t.col1+'a' AS c1, cast(col2*? as text) as c2 FROM ks1.t WHERE t.col1 = ?`, preparedQueryParams)
 	assert.Nil(t, err)
 	cmd, ok = cmds[0].(*CommandSelect)
@@ -468,9 +466,8 @@ func TestTableUpdate(t *testing.T) {
 	var existingValues [][]any
 	var err error
 	var ok bool
-	var preparedQueryParams []any
 
-	preparedQueryParams = []any{1001, "a"}
+	preparedQueryParams := []any{1001, "a"}
 	cmds, err = ParseCommands(`UPDATE ks1.t SET col3=? WHERE t.col1 = ?`, preparedQueryParams)
 	assert.Nil(t, err)
 	cmd, ok = cmds[0].(*CommandUpdate)
@@ -553,9 +550,8 @@ func TestTableDelete(t *testing.T) {
 	var err error
 	var ok bool
 	var isApplied bool
-	var preparedQueryParams []any
 
-	preparedQueryParams = []any{"a"}
+	preparedQueryParams := []any{"a"}
 
 	cmds, err = ParseCommands(`DELETE col3 FROM ks1.t WHERE t.col1 = ?`, preparedQueryParams)
 	assert.Nil(t, err)

@@ -46,23 +46,23 @@ func checkKeyspaceName(keyspace string) error {
 func GetTablesCql(script *sc.ScriptDef, keyspace string, runId int16, startNodeNames []string) string {
 	sb := strings.Builder{}
 	sb.WriteString("-- Workflow\n")
-	sb.WriteString(fmt.Sprintf("%s\n", wfmodel.GetCreateTableCql(reflect.TypeOf(wfmodel.BatchHistoryEvent{}), keyspace, wfmodel.TableNameBatchHistory)))
-	sb.WriteString(fmt.Sprintf("%s\n", wfmodel.GetCreateTableCql(reflect.TypeOf(wfmodel.NodeHistoryEvent{}), keyspace, wfmodel.TableNameNodeHistory)))
-	sb.WriteString(fmt.Sprintf("%s\n", wfmodel.GetCreateTableCql(reflect.TypeOf(wfmodel.RunHistoryEvent{}), keyspace, wfmodel.TableNameRunHistory)))
-	sb.WriteString(fmt.Sprintf("%s\n", wfmodel.GetCreateTableCql(reflect.TypeOf(wfmodel.RunProperties{}), keyspace, wfmodel.TableNameRunAffectedNodes)))
-	sb.WriteString(fmt.Sprintf("%s\n", wfmodel.GetCreateTableCql(reflect.TypeOf(wfmodel.RunCounter{}), keyspace, wfmodel.TableNameRunCounter)))
+	fmt.Fprintf(&sb, "%s\n", wfmodel.GetCreateTableCql(reflect.TypeOf(wfmodel.BatchHistoryEvent{}), keyspace, wfmodel.TableNameBatchHistory))
+	fmt.Fprintf(&sb, "%s\n", wfmodel.GetCreateTableCql(reflect.TypeOf(wfmodel.NodeHistoryEvent{}), keyspace, wfmodel.TableNameNodeHistory))
+	fmt.Fprintf(&sb, "%s\n", wfmodel.GetCreateTableCql(reflect.TypeOf(wfmodel.RunHistoryEvent{}), keyspace, wfmodel.TableNameRunHistory))
+	fmt.Fprintf(&sb, "%s\n", wfmodel.GetCreateTableCql(reflect.TypeOf(wfmodel.RunProperties{}), keyspace, wfmodel.TableNameRunAffectedNodes))
+	fmt.Fprintf(&sb, "%s\n", wfmodel.GetCreateTableCql(reflect.TypeOf(wfmodel.RunCounter{}), keyspace, wfmodel.TableNameRunCounter))
 	qb := cql.QueryBuilder{}
-	sb.WriteString(fmt.Sprintf("%s\n", qb.Keyspace(keyspace).Write("ks", keyspace).Write("last_run", 0).InsertUnpreparedQuery(wfmodel.TableNameRunCounter, cql.IgnoreIfExists)))
+	fmt.Fprintf(&sb, "%s\n", qb.Keyspace(keyspace).Write("ks", keyspace).Write("last_run", 0).InsertUnpreparedQuery(wfmodel.TableNameRunCounter, cql.IgnoreIfExists))
 
 	for _, nodeName := range script.GetAffectedNodes(startNodeNames) {
 		node, ok := script.ScriptNodes[nodeName]
 		if !ok || !node.HasTableCreator() {
 			continue
 		}
-		sb.WriteString(fmt.Sprintf("-- %s\n", nodeName))
-		sb.WriteString(fmt.Sprintf("%s\n", proc.CreateDataTableCql(keyspace, runId, &node.TableCreator)))
+		fmt.Fprintf(&sb, "-- %s\n", nodeName)
+		fmt.Fprintf(&sb, "%s\n", proc.CreateDataTableCql(keyspace, runId, &node.TableCreator))
 		for idxName, idxDef := range node.TableCreator.Indexes {
-			sb.WriteString(fmt.Sprintf("%s\n", proc.CreateIdxTableCql(keyspace, runId, idxName, idxDef, &node.TableCreator)))
+			fmt.Fprintf(&sb, "%s\n", proc.CreateIdxTableCql(keyspace, runId, idxName, idxDef, &node.TableCreator))
 		}
 	}
 	return sb.String()

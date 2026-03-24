@@ -48,12 +48,12 @@ func (t *scalarType) Type() gocql.Type {
 	return t.typ
 }
 
-func (t *scalarType) Zero() interface{} {
+func (t *scalarType) Zero() any {
 	switch t.typ {
-	case gocql.TypeInt:
+	case gocql.TypeInt, gocql.TypeDate:
 		v := int32(0)
 		return &v
-	case gocql.TypeBigInt, gocql.TypeCounter:
+	case gocql.TypeBigInt, gocql.TypeCounter, gocql.TypeTime:
 		v := int64(0)
 		return &v
 	case gocql.TypeSmallInt:
@@ -85,24 +85,18 @@ func (t *scalarType) Zero() interface{} {
 	case gocql.TypeTimestamp:
 		v := time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC)
 		return &v
-	case gocql.TypeDate:
-		v := int32(0)
-		return &v
-	case gocql.TypeTime:
-		v := int64(0)
-		return &v
 	default:
 		// TODO: raise an alarm
 		return nil
 	}
 }
 
-func (t *scalarType) Marshal(value interface{}) ([]byte, error) {
+func (t *scalarType) Marshal(_ any) ([]byte, error) {
 	// Not implemented, do we need it in our project?
 	return nil, nil
 }
 
-func (t *scalarType) Unmarshal(data []byte, value interface{}) error {
+func (t *scalarType) Unmarshal(_ []byte, _ any) error {
 	// Not implemented, do we need it in our project?
 	return nil
 }

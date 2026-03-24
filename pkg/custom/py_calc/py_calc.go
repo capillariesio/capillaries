@@ -308,7 +308,7 @@ func checkPythonFuncDefAvailability(usedPythonFunctionSignatures map[string]stru
 	for usedSig := range usedPythonFunctionSignatures {
 		if _, ok := availableDefSigs[usedSig]; !ok {
 			if _, ok := pythoBuiltinFunctions[usedSig]; !ok {
-				foundErrors.WriteString(fmt.Sprintf("function def '%s' not found in Python file, and it's not in the list of allowed Python built-in functions; ", usedSig))
+				fmt.Fprintf(&foundErrors, "function def '%s' not found in Python file, and it's not in the list of allowed Python built-in functions; ", usedSig)
 			}
 		}
 	}
@@ -316,7 +316,7 @@ func checkPythonFuncDefAvailability(usedPythonFunctionSignatures map[string]stru
 	if foundErrors.Len() > 0 {
 		var defs strings.Builder
 		for defSig := range availableDefSigs {
-			defs.WriteString(fmt.Sprintf("%s; ", defSig))
+			fmt.Fprintf(&defs, "%s; ", defSig)
 		}
 		return fmt.Errorf("python function defs availability check failed, the following functions are not defined: [%s]. Full list of available Python function definitions: %s", foundErrors.String(), defs.String())
 	}
@@ -375,21 +375,21 @@ func (procDef *PyCalcProcessorDef) buildPythonCodebaseFromRowset(rsIn *proc.Rows
 	// This is the hardcoded Python code structure we rely on. Do not change it.
 	var codeBase strings.Builder
 
-	codeBase.WriteString(fmt.Sprintf(`
+	fmt.Fprintf(&codeBase, `
 import traceback
 import json
 print("\n%s") # Provide function defs
 %s
 `,
 		FORMULA_MARKER_FUNCTION_DEFINITIONS,
-		procDef.PythonCode))
+		procDef.PythonCode)
 
 	for rowIdx := 0; rowIdx < rsIn.RowCount; rowIdx++ {
 		itemCalculationCodebase, err := procDef.printItemCalculationCode(rowIdx, rsIn)
 		if err != nil {
 			return "", err
 		}
-		codeBase.WriteString(fmt.Sprintf("%s\n", itemCalculationCodebase))
+		fmt.Fprintf(&codeBase, "%s\n", itemCalculationCodebase)
 	}
 
 	return codeBase.String(), nil
@@ -499,11 +499,11 @@ func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput
 				for _, outFieldRef := range *outFieldRefs {
 					pythonFieldValue, ok := itemResults[outFieldRef.FieldName]
 					if !ok {
-						foundErrors.WriteString(fmt.Sprintf("cannot find result for row %d, field %s;", rowIdx, outFieldRef.FieldName))
+						fmt.Fprintf(&foundErrors, "cannot find result for row %d, field %s;", rowIdx, outFieldRef.FieldName)
 					} else {
 						valVolatile, err := pythonResultToRowsetValue(&outFieldRef, pythonFieldValue)
 						if err != nil {
-							foundErrors.WriteString(fmt.Sprintf("cannot deserialize result for row %d: %s;", rowIdx, err.Error()))
+							fmt.Fprintf(&foundErrors, "cannot deserialize result for row %d: %s;", rowIdx, err.Error())
 						} else {
 							vars[sc.CustomProcessorAlias][outFieldRef.FieldName] = valVolatile
 						}
@@ -551,21 +551,21 @@ func getErrorLineNumberInfo(codeBase *string, rawErrors string) string {
 		for matchIdx := 0; matchIdx < len(groupMatches); matchIdx++ {
 			errLineNum, errAtoi := strconv.Atoi(groupMatches[matchIdx][1])
 			if errAtoi != nil {
-				errorLineNumberInfo.WriteString(fmt.Sprintf("Unexpected error, cannot parse error line number (%s): %s", groupMatches[matchIdx][1], errAtoi))
+				fmt.Fprintf(&errorLineNumberInfo, "Unexpected error, cannot parse error line number (%s): %s", groupMatches[matchIdx][1], errAtoi)
 			} else {
-				errorLineNumberInfo.WriteString(fmt.Sprintf("Source code lines close to the error location (line %d):\n", errLineNum))
+				fmt.Fprintf(&errorLineNumberInfo, "Source code lines close to the error location (line %d):\n", errLineNum)
 				scanner := bufio.NewScanner(strings.NewReader(*codeBase))
 				lineNum := 1
 				for scanner.Scan() {
 					if lineNum+15 >= errLineNum && lineNum-15 <= errLineNum {
-						errorLineNumberInfo.WriteString(fmt.Sprintf("%06d    %s\n", lineNum, scanner.Text()))
+						fmt.Fprintf(&errorLineNumberInfo, "%06d    %s\n", lineNum, scanner.Text())
 					}
 					lineNum++
 				}
 			}
 		}
 	} else {
-		errorLineNumberInfo.WriteString(fmt.Sprintf("Unexpected error, cannot find error line number in raw error output %s", rawErrors))
+		fmt.Fprintf(&errorLineNumberInfo, "Unexpected error, cannot find error line number in raw error output %s", rawErrors)
 	}
 
 	return errorLineNumberInfo.String()
@@ -589,7 +589,7 @@ func (procDef *PyCalcProcessorDef) printItemCalculationCode(rowIdx int, rsIn *pr
 	}
 	var bIn strings.Builder
 	for fieldName, fieldVal := range vars[sc.ReaderAlias] {
-		bIn.WriteString(fmt.Sprintf("  %s%s = %s\n", ReaderPrefix, fieldName, valueToPythonExpr(fieldVal)))
+		fmt.Fprintf(&bIn, "  %s%s = %s\n", ReaderPrefix, fieldName, valueToPythonExpr(fieldVal))
 	}
 
 	// Calculation expression order matters (we got it from DAG analysis), so follow it
@@ -600,8 +600,8 @@ func (procDef *PyCalcProcessorDef) printItemCalculationCode(rowIdx int, rsIn *pr
 	prefixReplacer := strings.NewReplacer(fmt.Sprintf("%s.", sc.ReaderAlias), ReaderPrefix, fmt.Sprintf("%s.", sc.CustomProcessorAlias), ProcPrefix)
 	for fieldIdx, procFieldWithAlias := range procDef.CalculationOrder {
 		procField := prefixRemover.Replace(procFieldWithAlias)
-		bCalc.WriteString(fmt.Sprintf("  %s%s = %s\n", ProcPrefix, procField, prefixReplacer.Replace(procDef.CalculatedFields[procField].RawExpression)))
-		bRes.WriteString(fmt.Sprintf("  \"%s\":%s%s", procField, ProcPrefix, procField))
+		fmt.Fprintf(&bCalc, "  %s%s = %s\n", ProcPrefix, procField, prefixReplacer.Replace(procDef.CalculatedFields[procField].RawExpression))
+		fmt.Fprintf(&bRes, "  \"%s\":%s%s", procField, ProcPrefix, procField)
 		if fieldIdx < len(procDef.CalculationOrder)-1 {
 			bRes.WriteString(",")
 		}
