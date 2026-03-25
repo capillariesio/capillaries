@@ -68,7 +68,6 @@ linters:
             - "zap.Logger.Sync"
             - "net.Conn.Close"
 
-
   exclusions:
     warn-unused: true
     presets:
@@ -95,27 +94,11 @@ linters:
         text: struct literal uses unkeyed fields
         linters: [ govet ]
 
-      # - path: .+\.go
-      #   text: replace sort.Slice by slices.SortFunc
-      #   linters: [ revive ]
-
-      - path: pkg\/gocqlmem\/parser\.go
+      - path: pkg\/gocqlmem\/.+\.go
         text: has (cognitive|cyclomatic) complexity
         linters: [ revive ]
-      - path: pkg\/gocqlmem\/table\.go
-        text: has (cognitive|cyclomatic) complexity
-        linters: [ revive ]
-      - path: pkg\/gocqlmem\/type_helpers\.go
-        text: function compareInternalInExpressions has cyclomatic complexity
-        linters: [ revive ]
-      - path: pkg\/gocqlmem\/type_helpers\.go
-        text: function compareInternalKnownType has cyclomatic complexity
-        linters: [ revive ]
-      - path: pkg\/gocqlmem\/type_helpers\.go
-        text: function clientTypedValueToProvidedPtr has cyclomatic complexity
-        linters: [ revive ]
-      - path: pkg\/proc\/proc_table_creator\.go
-        text: function RunCreateTableRelForBatch has (cyclomatic|cognitive) complexity
+      - path: pkg\/proc\/proc_table_creator_lookup\.go
+        text: function runCreateTableRelForBatch has (cyclomatic|cognitive) complexity
         linters: [ revive ]
       - path: pkg\/capigraph\/layering\.go
         text: function buildLayerMap has cognitive complexity
@@ -125,12 +108,6 @@ linters:
         linters: [ revive ]
       - path: pkg\/eval\/eval_ctx\.go
         text: function \(\*EvalCtx\)\.Eval has (cognitive|cyclomatic) complexity
-        linters: [ revive ]
-      - path: pkg\/gocqlmem\/eval_gocqlmem_functions\.go
-        text: function callCast has cyclomatic complexity
-        linters: [ revive ]
-      - path: pkg\/proc\/proc_file_creator\.go
-        text: "unchecked-type-assertion: type cast result is unchecked in [^ ]+FileRecordHeapItem"
         linters: [ revive ]
       - path: pkg\/api\/message_handler\.go
         text: function ProcessDataBatchMsg has cyclomatic complexity

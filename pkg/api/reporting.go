@@ -48,7 +48,7 @@ func GetRunHistory(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace
 
 // Used by Webapi and Toolbelt (get_node_history, get_run_status_diagram commands) to retrieve each node status history for multiple runs (used by WebUI main screen and in integration tests)
 func GetNodeHistoryForRuns(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runIds []int16) ([]*wfmodel.NodeHistoryEvent, error) {
-	logger.PushF("api.GetNodeHistory")
+	logger.PushF("api.GetNodeHistoryForRuns")
 	defer logger.PopF()
 
 	qb := cql.QueryBuilder{}
@@ -84,7 +84,7 @@ func GetNodeHistoryForRuns(logger *l.CapiLogger, cqlSession gocqlshims.Session, 
 
 // Used by Toolbelt (get_batch_history command) to retrieve batch status history for a subset of runs and nodes (not used in Webapi or tests at the moment, and may be deprecated)
 func GetBatchHistoryForRunsAndNodes(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runIds []int16, scriptNodes []string) ([]*wfmodel.BatchHistoryEvent, error) {
-	logger.PushF("api.GetBatchHistory")
+	logger.PushF("api.GetBatchHistoryForRunsAndNodes")
 	defer logger.PopF()
 
 	qb := cql.QueryBuilder{}

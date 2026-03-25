@@ -19,6 +19,8 @@ import (
 	"github.com/capillariesio/capillaries/pkg/sc"
 )
 
+type TableRecord map[string]any
+
 type DataIdxSeqModeType int
 
 const (

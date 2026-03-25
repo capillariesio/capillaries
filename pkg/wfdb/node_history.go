@@ -87,7 +87,7 @@ func HarvestNodeStatusesForRun(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 }
 
 func HarvestNodeLifespans(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, affectingRuns []int16, affectedNodes []string) (wfmodel.RunNodeLifespanMap, error) {
-	logger.PushF("wfdb.HarvestLastNodeStatuses")
+	logger.PushF("wfdb.HarvestNodeLifespans")
 	defer logger.PopF()
 
 	fields := []string{"ts", "run_id", "script_node", "status"}

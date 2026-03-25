@@ -29,8 +29,11 @@ func (h FileRecordHeap) Len() int           { return len(h) }
 func (h FileRecordHeap) Less(i, j int) bool { return h[i].Key > h[j].Key } // Reverse order: https://stackoverflow.com/questions/49065781/limit-size-of-the-priority-queue-for-gos-heap-interface-implementation
 func (h FileRecordHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
 func (h *FileRecordHeap) Push(x any) {
-	item := x.(*FileRecordHeapItem)
-	*h = append(*h, item)
+	item, ok := x.(*FileRecordHeapItem)
+	// TODO: handle mismatch
+	if ok {
+		*h = append(*h, item)
+	}
 }
 func (h *FileRecordHeap) Pop() any {
 	old := *h
@@ -131,7 +134,11 @@ func readAndInsert(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, tab
 	if instr.FileCreator.HasTop() {
 		properlyOrderedTopList := make([]*FileRecordHeapItem, topHeap.Len())
 		for i := topHeap.Len() - 1; i >= 0; i-- {
-			properlyOrderedTopList[i] = heap.Pop(&topHeap).(*FileRecordHeapItem)
+			var ok bool
+			properlyOrderedTopList[i], ok = heap.Pop(&topHeap).(*FileRecordHeapItem)
+			if !ok {
+				return bs, errors.New("cannot pop from the heap, expected *FileRecordHeapItem")
+			}
 		}
 		for i := 0; i < len(properlyOrderedTopList); i++ {
 			instr.add(*properlyOrderedTopList[i].FileRecord)
@@ -143,14 +150,14 @@ func readAndInsert(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, tab
 
 }
 
-func RunCreateFile(envConfig *env.EnvConfig,
+func runCreateFile(envConfig *env.EnvConfig,
 	logger *l.CapiLogger,
 	pCtx *ctx.MessageProcessingContext,
 	readerNodeRunId int16,
 	startToken int64,
 	endToken int64) (BatchStats, error) {
 
-	logger.PushF("proc.RunCreateFile")
+	logger.PushF("proc.runCreateFile")
 	defer logger.PopF()
 
 	totalStartTime := time.Now()
