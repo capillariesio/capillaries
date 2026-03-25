@@ -93,34 +93,34 @@ type EvalCtx struct {
 	evalVars      VarValuesMap
 }
 
-func (ectx *EvalCtx) IsAggFuncEnabled() bool {
-	return ectx.aggEnabled == AggFuncEnabled
+func (eCtx *EvalCtx) IsAggFuncEnabled() bool {
+	return eCtx.aggEnabled == AggFuncEnabled
 }
 
-func (ectx *EvalCtx) SetVars(vars VarValuesMap) {
-	ectx.evalVars = vars
+func (eCtx *EvalCtx) SetVars(vars VarValuesMap) {
+	eCtx.evalVars = vars
 }
 
-func (ectx *EvalCtx) SetRoundDec(roundDec int32) {
-	ectx.roundDec = roundDec
+func (eCtx *EvalCtx) SetRoundDec(roundDec int32) {
+	eCtx.roundDec = roundDec
 }
 
-func (ectx *EvalCtx) GetValue() any {
-	if ectx.aggEnabled == AggFuncEnabled && (ectx.aggFunc == AggCount || ectx.aggFunc == AggCountIf || ectx.aggFunc == AggSum || ectx.aggFunc == AggSumIf || ectx.aggFunc == AggAvg || ectx.aggFunc == AggAvgIf) && ectx.value == nil {
+func (eCtx *EvalCtx) GetValue() any {
+	if eCtx.aggEnabled == AggFuncEnabled && (eCtx.aggFunc == AggCount || eCtx.aggFunc == AggCountIf || eCtx.aggFunc == AggSum || eCtx.aggFunc == AggSumIf || eCtx.aggFunc == AggAvg || eCtx.aggFunc == AggAvgIf) && eCtx.value == nil {
 		return int64(0)
 	}
-	return ectx.value
+	return eCtx.value
 }
 
-func (ectx *EvalCtx) GetSafeValue(defaultValue any) any {
-	if ectx.aggEnabled == AggFuncEnabled && (ectx.aggFunc == AggCount || ectx.aggFunc == AggCountIf || ectx.aggFunc == AggSum || ectx.aggFunc == AggSumIf || ectx.aggFunc == AggAvg || ectx.aggFunc == AggAvgIf) {
-		return ectx.GetValue()
+func (eCtx *EvalCtx) GetSafeValue(defaultValue any) any {
+	if eCtx.aggEnabled == AggFuncEnabled && (eCtx.aggFunc == AggCount || eCtx.aggFunc == AggCountIf || eCtx.aggFunc == AggSum || eCtx.aggFunc == AggSumIf || eCtx.aggFunc == AggAvg || eCtx.aggFunc == AggAvgIf) {
+		return eCtx.GetValue()
 	}
-	if ectx.value == nil {
+	if eCtx.value == nil {
 		return defaultValue
 	}
 
-	return ectx.value
+	return eCtx.value
 }
 
 // Not ready to make these limits/defaults public

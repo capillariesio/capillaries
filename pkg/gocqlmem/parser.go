@@ -1213,12 +1213,13 @@ func lexemsToStringForColumnExpression(lexems []*Lexem) (string, error) {
 		case LexemAsterisk, LexemPointedAsterisk:
 			if i >= 2 && (lexems[i-2].V == "count" || lexems[i-2].V == "COUNT") && lexems[i-1].V == "(" && i < len(lexems)-1 && lexems[i+1].V == ")" {
 				// Write nothing, let it be just count()
-			} else if i == 0 && len(lexems) == 1 {
-				// This is just a SELECT * FROM ...
-				fmt.Fprintf(&sb, "%s ", strings.ReplaceAll(l.V, "*", "ALL_FIELDS"))
-			} else {
+				continue
+			}
+			if i != 0 || len(lexems) != 1 {
 				return "", fmt.Errorf("unexpected asterisk lexem (%d,%s), not expected here", l.T, l.V)
 			}
+			// This is just a SELECT * FROM ...
+			fmt.Fprintf(&sb, "%s ", strings.ReplaceAll(l.V, "*", "ALL_FIELDS"))
 		case LexemIdent, LexemPointedIdent:
 			if isValidDataType(l.V) {
 				// CQL data types are UPPERCASE

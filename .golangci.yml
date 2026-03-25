@@ -57,7 +57,7 @@ linters:
             - 30
         - name: function-result-limit
           arguments:
-            - 4
+            - 6
         - name: unhandled-error
           arguments:
             - "fmt.*"
@@ -98,24 +98,9 @@ linters:
       - path: .+\.go
         text: replace sort.Slice by slices.SortFunc
         linters: [ revive ]
-      - path: .+\.go
-        text: should be
-        linters: [ revive ]
 
-      - path: pkg\/gocqlmem\/keyspace\.go
-        text: maximum number of return results per function exceeded
-        linters: [ revive ]
       - path: pkg\/gocqlmem\/parser\.go
         text: has (cognitive|cyclomatic) complexity
-        linters: [ revive ]
-      - path: pkg\/gocqlmem\/parser\.go
-        text: this block is empty, you can remove it
-        linters: [ revive ]
-      - path: pkg\/gocqlmem\/session\.go
-        text: maximum number of return results per function exceeded
-        linters: [ revive ]
-      - path: pkg\/gocqlmem\/table\.go
-        text: maximum number of return results per function exceeded
         linters: [ revive ]
       - path: pkg\/gocqlmem\/table\.go
         text: has (cognitive|cyclomatic) complexity
@@ -144,20 +129,11 @@ linters:
       - path: pkg\/gocqlmem\/eval_gocqlmem_functions\.go
         text: function callCast has cyclomatic complexity
         linters: [ revive ]
-      - path: pkg\/capigraph\/svg\.go
-        text: maximum number of return results per function exceeded
-        linters: [ revive ]
-      - path: pkg\/capigraph\/viz_node_hierarchy\.go
-        text: maximum number of return results per function exceeded
-        linters: [ revive ]
       - path: pkg\/proc\/proc_file_creator\.go
         text: "unchecked-type-assertion: type cast result is unchecked in [^ ]+FileRecordHeapItem"
         linters: [ revive ]
       - path: pkg\/api\/message_handler\.go
         text: function ProcessDataBatchMsg has cyclomatic complexity
         linters: [ revive ]
-      # - path: .+\.go
-      #   text: "unused-parameter: parameter '_"
-      #   linters: [ revive ]
 
         

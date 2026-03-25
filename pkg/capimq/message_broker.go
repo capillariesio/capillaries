@@ -18,11 +18,11 @@ type CapimqInternalMessage struct {
 	Data                 []byte
 }
 
-func (im *CapimqInternalMessage) ToCapimqMessage() *CapimqMessage {
-	if im == nil {
+func (msg *CapimqInternalMessage) ToCapimqMessage() *CapimqMessage {
+	if msg == nil {
 		return nil
 	}
-	return &CapimqMessage{im.Id, im.CapimqWaitRetryGroup, im.Data}
+	return &CapimqMessage{msg.Id, msg.CapimqWaitRetryGroup, msg.Data}
 }
 
 func ToCapimqMessages(internalMsgs []*CapimqInternalMessage) []*CapimqMessage {
