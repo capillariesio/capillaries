@@ -32,7 +32,7 @@ jobs:
 
     - name: Generate coverage report for coveralls.io
       run: |
-        go test -coverprofile=/var/tmp/capillaries.p.tmp -cover $(find ./ -name '*_test.go' ! -wholename './pkg/gocql*' -printf "%h\n" | sort -u)
+        go test -coverprofile=/var/tmp/capillaries.p.tmp -cover $(find ./ -name '*_test.go' ! -wholename './pkg/api*' ! -wholename './pkg/gocql*' -printf "%h\n" | sort -u)
         cat /var/tmp/capillaries.p.tmp | grep -v "donotcover" > /var/tmp/capillaries.p
 
     - name: Send coverage to coveralls.io
