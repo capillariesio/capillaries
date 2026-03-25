@@ -26,6 +26,7 @@ type EnvConfig struct {
 	MqType                            string                       `json:"mq_type,omitempty" env:"CAPI_MQ_TYPE, overwrite"`
 	CapiMqClient                      CapiMqClientConfig           `json:"capimq_client,omitempty"`
 	CapiMqBroker                      CapiMqBrokerConfig           `json:"capimq_broker,omitempty"`
+	UseGocqlmem                       bool
 	// ZapConfig                      zap.Config                   `json:"zap_config"`
 }
 

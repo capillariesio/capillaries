@@ -8,14 +8,15 @@ import (
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/db"
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
+	"github.com/capillariesio/capillaries/pkg/gocqlshims"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
-	"github.com/gocql/gocql"
 )
 
 const MaxAmazonKeyspacesBatchLen int = 30
 
-// func ClearNodeOutputs(logger *l.Logger, script *sc.ScriptDef, session *gocql.Session, keyspace string, nodeName string, runId int16) error {
+// func ClearNodeOutputs(logger *l.Logger, script *sc.ScriptDef, session gocqlmem.Session, keyspace string, nodeName string, runId int16) error {
 // 	node, ok := script.ScriptNodes[nodeName]
 // 	if !ok {
 // 		return fmt.Errorf("cannot find node %s", nodeName)
@@ -86,12 +87,16 @@ func selectBatchFromDataTablePaged(logger *l.CapiLogger,
 		CondInPrepared("rowid"). // This is a right-side lookup table, select by rowid
 		SelectRun(tableName, lookupNodeRunId, *rs.GetFieldNames())
 
-	var iter *gocql.Iter
+	var iter gocqlshims.Iter
 	selectRetryIdx := 0
 	curSelectExpBackoffFactor := 1
 	var nextPageState []byte
 	for {
 		iter = pCtx.CqlSession.Query(q, rowids).PageSize(batchSize).PageState(pageState).Iter()
+		if iter.Err() != nil {
+			return nil, db.WrapDbErrorWithQuery("cannot create iterator", q, iter.Err())
+		}
+
 		nextPageState = iter.PageState()
 
 		dbWarnings := iter.Warnings()
@@ -155,6 +160,9 @@ func selectBatchPagedAllRowids(logger *l.CapiLogger,
 		SelectRun(tableName, lookupNodeRunId, *rs.GetFieldNames())
 
 	iter := pCtx.CqlSession.Query(q).PageSize(batchSize).PageState(pageState).Iter()
+	if iter.Err() != nil {
+		return nil, db.WrapDbErrorWithQuery("cannot create iterator", q, iter.Err())
+	}
 	nextPageState := iter.PageState()
 
 	dbWarnings := iter.Warnings()
@@ -208,6 +216,9 @@ func selectBatchFromIdxTablePaged(logger *l.CapiLogger,
 		SelectRun(tableName, lookupNodeRunId, *rs.GetFieldNames())
 
 	iter := pCtx.CqlSession.Query(q, *keysToFind).PageSize(batchSize).PageState(pageState).Iter()
+	if iter.Err() != nil {
+		return nil, db.WrapDbErrorWithQuery("cannot create iterator", q, iter.Err())
+	}
 	nextPageState := iter.PageState()
 
 	dbWarnings := iter.Warnings()
@@ -241,16 +252,22 @@ func selectBatchFromTableByToken(logger *l.CapiLogger,
 	readerNodeRunId int16,
 	batchSize int,
 	startToken int64,
-	endToken int64) (int64, error) {
+	endToken int64,
+	startTokenRowIds []int64) (int64, []int64, error) {
 
 	logger.PushF("proc.selectBatchFromTableByToken")
 	defer logger.PopF()
 
 	if err := rs.InitRows(batchSize); err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 
 	qb := cql.QueryBuilder{}
+	// IMPORTANT!
+	// we are relying on an essential, but sometimes overlooked Cassandra feature:
+	// When querying Cassandra using the token() function in the WHERE clause,
+	// the results are returned ordered by the hash value of the partition key,
+	// not the partition key itself. This is guaranteed for standard partitioners like Murmur3Partitioner.
 	q := qb.Keyspace(pCtx.Msg.DataKeyspace).
 		Limit(batchSize).
 		CondPrepared("token(rowid)", ">=").
@@ -259,7 +276,14 @@ func selectBatchFromTableByToken(logger *l.CapiLogger,
 
 	// TODO: consider retries as we do in selectBatchFromDataTablePaged(); although no timeouts were detected so far here
 
-	iter := pCtx.CqlSession.Query(q, startToken, endToken).Iter()
+	// "batchSize + len(startTokenRowIds)" usually materializes as 1000+1, but there is no guarantee that
+	// rowset will be full after selectBatchFromTableByToken is complete, even when this is not the last batch retrieved
+	// (for example, the start/end token condition simply does not allow more than 999 out of 1000+1 rows)
+	// So never assume "selectBatchFromTableByToken returned a rowset which is not full, so do not query more".
+	iter := pCtx.CqlSession.Query(q, startToken, endToken).PageSize(batchSize + len(startTokenRowIds)).Iter()
+	if iter.Err() != nil {
+		return 0, nil, db.WrapDbErrorWithQuery("cannot create iterator", q, iter.Err())
+	}
 
 	dbWarnings := iter.Warnings()
 	if len(dbWarnings) > 0 {
@@ -268,8 +292,50 @@ func selectBatchFromTableByToken(logger *l.CapiLogger,
 	rs.RowCount = 0
 	var lastRetrievedToken int64
 	for rs.RowCount < len(rs.Rows) && iter.Scan(*rs.Rows[rs.RowCount]...) {
+		if iter.Err() != nil {
+			return 0, nil, db.WrapDbErrorWithQuery("cannot scan iterator", q, iter.Err())
+		}
 		lastRetrievedToken = *((*rs.Rows[rs.RowCount])[rs.FieldsByFieldName["token(rowid)"]].(*int64))
+		if lastRetrievedToken == startToken {
+			// This is normal, check if we are hitting a record that we already handled (same rowid),
+			// or this is a record with a different rowid, but same token (may happen once in a while)
+			var isIgnoreOverlappedRowid bool
+			rowid := *((*rs.Rows[rs.RowCount])[rs.FieldsByFieldName["rowid"]].(*int64))
+			for _, startTokenRowId := range startTokenRowIds {
+				if rowid == startTokenRowId {
+					// We have handled this rowid when we were called the previous time, ignore it now
+					isIgnoreOverlappedRowid = true
+					break
+				}
+			}
+			if isIgnoreOverlappedRowid {
+				// We have already handled this rowid, do not increase row counter, re-use this row in the rowset
+				continue
+			}
+			// We retrieved a row with startToken, but with unknown rowid - this is rare, but possible.
+			// If you see this warning, this "overlap" handling code is working as expected
+			logger.WarnCtx(pCtx, "successfully handled token(rowid) duplicate, token %d, rowid %d, previously handled rowids epilogue %v", startToken, rowid, startTokenRowIds)
+		}
 		rs.RowCount++
+	}
+
+	// Prepare epilogue rowids for the next call
+	// Do not check if the rowset is full (rs.RowCount == batchSize),
+	// sometimes there are just enough records in the source (yet) to fill it up.
+	// Just go backwards starting from rowIdx := rs.RowCount - 1
+	endTokenRowIds := []int64{}
+	for rowIdx := rs.RowCount - 1; rowIdx >= 0; rowIdx-- {
+		rowid := *((*rs.Rows[rowIdx])[rs.FieldsByFieldName["rowid"]].(*int64))
+		tokenRowid := *((*rs.Rows[rowIdx])[rs.FieldsByFieldName["token(rowid)"]].(*int64))
+		if tokenRowid != lastRetrievedToken {
+			break
+		}
+		endTokenRowIds = append(endTokenRowIds, rowid)
+	}
+	if len(endTokenRowIds) > 1 {
+		// Epilogue contains two or more rowids with the same toke, this is rare, but possible.
+		// If you see this warning, this "overlap" handling code is working as expected
+		logger.WarnCtx(pCtx, "found rowset with two or more epilogue rowids witht he same token(rowid) %d, rowids %v", lastRetrievedToken, endTokenRowIds)
 	}
 
 	maxRetries := 5
@@ -282,17 +348,17 @@ func selectBatchFromTableByToken(logger *l.CapiLogger,
 			break
 		}
 		if !strings.Contains(err.Error(), "Operation timed out") {
-			return 0, db.WrapDbErrorWithQuery("cannot close iterator", q, err)
+			return 0, nil, db.WrapDbErrorWithQuery("cannot close iterator", q, err)
 		}
 		if retryCount >= maxRetries-1 {
-			return 0, db.WrapDbErrorWithQuery(fmt.Sprintf("cannot close iterator after %d attempts and %dms, still getting timeouts", retryCount+1, cql.SumOfExpBackoffDelaysMs(operationTimedOutPauseMillis, int64(expBackoffFactorMultiplier), retryCount)), q, err)
+			return 0, nil, db.WrapDbErrorWithQuery(fmt.Sprintf("cannot close iterator after %d attempts and %dms, still getting timeouts", retryCount+1, cql.SumOfExpBackoffDelaysMs(operationTimedOutPauseMillis, int64(expBackoffFactorMultiplier), retryCount)), q, err)
 		}
 		logger.WarnCtx(pCtx, "cluster overloaded (%s), will wait for %dms before closing iterator %s again, retry count %d", err.Error(), operationTimedOutPauseMillis*curDataExpBackoffFactor, fmt.Sprintf("%s%s", tableName, cql.RunIdSuffix(pCtx.Msg.RunId)), retryCount)
 		time.Sleep(time.Duration(operationTimedOutPauseMillis*curDataExpBackoffFactor) * time.Millisecond)
 		curDataExpBackoffFactor *= expBackoffFactorMultiplier
 	}
 
-	return lastRetrievedToken, nil
+	return lastRetrievedToken, endTokenRowIds, nil
 }
 
 func initRowidsAndKeysToDelete(rowCount int, indexesMap sc.IdxDefMap) ([]int64, map[string][]string) {
@@ -407,7 +473,7 @@ func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.Messag
 	rs := NewRowsetFromFieldRefs(
 		sc.FieldRefs{sc.RowidFieldRef(pCtx.CurrentScriptNode.TableCreator.Name)},
 		*uniqueIdxFieldRefs,
-		sc.FieldRefs{sc.FieldRef{TableName: pCtx.CurrentScriptNode.TableCreator.Name, FieldName: "batch_idx", FieldType: sc.FieldTypeInt}})
+		sc.FieldRefs{sc.FieldRef{TableName: pCtx.CurrentScriptNode.TableCreator.Name, FieldName: "batch_idx", FieldType: eval_capi.FieldTypeInt}})
 
 	var pageState []byte
 	var err error

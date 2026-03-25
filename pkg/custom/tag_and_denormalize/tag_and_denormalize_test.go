@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/capillariesio/capillaries/pkg/eval"
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"github.com/capillariesio/capillaries/pkg/proc"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/shopspring/decimal"
@@ -171,10 +172,10 @@ func TestTagAndDenormalizeRunEmbeddedCriteria(t *testing.T) {
 
 	// Initializing rowset is tedious and error-prone. Add schema first.
 	rs := proc.NewRowsetFromFieldRefs(sc.FieldRefs{
-		{TableName: "r", FieldName: "product_id", FieldType: sc.FieldTypeInt},
-		{TableName: "r", FieldName: "name", FieldType: sc.FieldTypeString},
-		{TableName: "r", FieldName: "price", FieldType: sc.FieldTypeDecimal2},
-		{TableName: "r", FieldName: "product_spec", FieldType: sc.FieldTypeString},
+		{TableName: "r", FieldName: "product_id", FieldType: eval_capi.FieldTypeInt},
+		{TableName: "r", FieldName: "name", FieldType: eval_capi.FieldTypeString},
+		{TableName: "r", FieldName: "price", FieldType: eval_capi.FieldTypeDecimal2},
+		{TableName: "r", FieldName: "product_spec", FieldType: eval_capi.FieldTypeString},
 	})
 
 	// Allocate rows
@@ -194,8 +195,8 @@ func TestTagAndDenormalizeRunEmbeddedCriteria(t *testing.T) {
 	rs.RowCount++
 
 	// Test flusher, doesn't write anywhere, just saves data in the local variable
-	var results []*eval.VarValuesMap
-	flushVarsArray := func(varsArray []*eval.VarValuesMap, _ int) error {
+	var results []eval.VarValuesMap
+	flushVarsArray := func(varsArray []eval.VarValuesMap, _ int) error {
 		results = varsArray
 		return nil
 	}
@@ -205,7 +206,7 @@ func TestTagAndDenormalizeRunEmbeddedCriteria(t *testing.T) {
 
 	// Check that 2 rows were produced: thiswatch is good for boys and for diving
 
-	flushedRow := *results[0]
+	flushedRow := results[0]
 	// r fields must be present in the result, they can be used by the writer
 	assert.Equal(t, product_id, flushedRow["r"]["product_id"])
 	assert.Equal(t, name, flushedRow["r"]["name"])
@@ -223,7 +224,7 @@ func TestTagAndDenormalizeRunEmbeddedCriteria(t *testing.T) {
 		assert.Fail(t, fmt.Sprintf("unexpected tag %s", flushedRowTag))
 	}
 
-	flushedRow = *results[1]
+	flushedRow = results[1]
 	// r fields must be present in the result, they can be used by the writer
 	assert.Equal(t, product_id, flushedRow["r"]["product_id"])
 	assert.Equal(t, name, flushedRow["r"]["name"])

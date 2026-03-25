@@ -1,8 +1,10 @@
-package eval
+package eval_capi
 
 import "time"
 
-var GolangConstants = map[string]any{
+var CapillariesEvalConstants = map[string]any{
+	"true":           true,
+	"false":          false,
 	"time.January":   time.January,
 	"time.February":  time.February,
 	"time.March":     time.March,
@@ -15,4 +17,5 @@ var GolangConstants = map[string]any{
 	"time.October":   time.October,
 	"time.November":  time.November,
 	"time.December":  time.December,
-	"time.UTC":       time.UTC}
+	"time.UTC":       time.UTC,
+}

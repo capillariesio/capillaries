@@ -44,7 +44,7 @@ func (m NodeStatusMap) ToString() string {
 		if sb.Len() > 1 {
 			sb.WriteString(",")
 		}
-		sb.WriteString(fmt.Sprintf(`"%s":"%s"`, nodeName, nodeStatus.ToString()))
+		fmt.Fprintf(&sb, `"%s":"%s"`, nodeName, nodeStatus.ToString())
 	}
 	sb.WriteString("}")
 	return sb.String()
@@ -56,7 +56,7 @@ func (m RunBatchStatusMap) ToString() string {
 	sb := strings.Builder{}
 	sb.WriteString("{")
 	for runId, nodeStatus := range m {
-		sb.WriteString(fmt.Sprintf("%d:%s ", runId, nodeStatus.ToString()))
+		fmt.Fprintf(&sb, "%d:%s ", runId, nodeStatus.ToString())
 	}
 	sb.WriteString("}")
 	return sb.String()
@@ -68,7 +68,7 @@ func (m NodeRunBatchStatusMap) ToString() string {
 	sb := strings.Builder{}
 	sb.WriteString("{")
 	for nodeName, runBatchStatusMap := range m {
-		sb.WriteString(fmt.Sprintf("%s:%s ", nodeName, runBatchStatusMap.ToString()))
+		fmt.Fprintf(&sb, "%s:%s ", nodeName, runBatchStatusMap.ToString())
 	}
 	sb.WriteString("}")
 	return sb.String()

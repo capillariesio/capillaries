@@ -5,9 +5,9 @@ import (
 
 	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/env"
+	"github.com/capillariesio/capillaries/pkg/gocqlshims"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
-	"github.com/gocql/gocql"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -15,7 +15,7 @@ type HeartbeatCallbackFunc func(string)
 
 type MessageProcessingContext struct {
 	Msg                     wfmodel.Message
-	CqlSession              *gocql.Session
+	CqlSession              gocqlshims.Session
 	Script                  *sc.ScriptDef
 	CurrentScriptNode       *sc.ScriptNodeDef
 	ZapMsgId                zapcore.Field

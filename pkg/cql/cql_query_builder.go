@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/shopspring/decimal"
 	"gopkg.in/inf.v0"
@@ -80,20 +81,20 @@ type queryBuilderColumnDefs struct {
 	Len     int
 }
 
-func (cd *queryBuilderColumnDefs) add(column string, fieldType sc.TableFieldType) {
+func (cd *queryBuilderColumnDefs) add(column string, fieldType eval_capi.TableFieldType) {
 	cd.Columns[cd.Len] = column
 	switch fieldType {
-	case sc.FieldTypeInt:
-		cd.Types[cd.Len] = "BIGINT"
-	case sc.FieldTypeDecimal2:
+	case eval_capi.FieldTypeInt:
+		cd.Types[cd.Len] = "BIGINT" // 64-bit int
+	case eval_capi.FieldTypeDecimal2:
 		cd.Types[cd.Len] = "DECIMAL"
-	case sc.FieldTypeFloat:
+	case eval_capi.FieldTypeFloat:
 		cd.Types[cd.Len] = "DOUBLE"
-	case sc.FieldTypeString:
+	case eval_capi.FieldTypeString:
 		cd.Types[cd.Len] = "TEXT"
-	case sc.FieldTypeBool:
+	case eval_capi.FieldTypeBool:
 		cd.Types[cd.Len] = "BOOLEAN"
-	case sc.FieldTypeDateTime:
+	case eval_capi.FieldTypeDateTime:
 		cd.Types[cd.Len] = "TIMESTAMP" // Cassandra stores milliseconds since epoch
 	default:
 		cd.Types[cd.Len] = fmt.Sprintf("UKNOWN_TYPE_%s", fieldType)
@@ -199,7 +200,7 @@ func NewQB() *QueryBuilder {
 	return &qb
 }
 
-func (qb *QueryBuilder) ColumnDef(column string, fieldType sc.TableFieldType) *QueryBuilder {
+func (qb *QueryBuilder) ColumnDef(column string, fieldType eval_capi.TableFieldType) *QueryBuilder {
 	qb.ColumnDefs.add(column, fieldType)
 	return qb
 }
@@ -369,20 +370,20 @@ func (qb *QueryBuilder) SelectRun(tableName string, runId int16, columns []strin
 	if runId == 0 {
 		b.WriteString("INVALID runId: ")
 	}
-	b.WriteString(fmt.Sprintf("SELECT %s FROM %s%s%s",
+	fmt.Fprintf(&b, "SELECT %s FROM %s%s%s",
 		strings.Join(columns, ", "),
 		qb.FormattedKeyspace,
 		tableName,
-		RunIdSuffix(runId)))
+		RunIdSuffix(runId))
 	if qb.Conditions.Len > 0 {
 		b.WriteString(" WHERE ")
 		b.WriteString(strings.Join(qb.Conditions.Items[:qb.Conditions.Len], " AND "))
 	}
 	if len(qb.OrderByColumns) > 0 {
-		b.WriteString(fmt.Sprintf(" ORDER BY %s ", strings.Join(qb.OrderByColumns, ",")))
+		fmt.Fprintf(&b, " ORDER BY %s ", strings.Join(qb.OrderByColumns, ","))
 	}
 	if qb.SelectLimit > 0 {
-		b.WriteString(fmt.Sprintf(" LIMIT %d", qb.SelectLimit))
+		fmt.Fprintf(&b, " LIMIT %d", qb.SelectLimit)
 	}
 	b.WriteString(";")
 
@@ -444,7 +445,7 @@ func (qb *QueryBuilder) CreateRun(tableName string, runId int16, ifNotExists IfN
 	if ifNotExists == IgnoreIfExists {
 		b.WriteString("IF NOT EXISTS ")
 	}
-	b.WriteString(fmt.Sprintf("%s%s%s ( ", qb.FormattedKeyspace, tableName, RunIdSuffix(runId)))
+	fmt.Fprintf(&b, "%s%s%s ( ", qb.FormattedKeyspace, tableName, RunIdSuffix(runId))
 	for i := 0; i < qb.ColumnDefs.Len; i++ {
 		b.WriteString(qb.ColumnDefs.Columns[i])
 		b.WriteString(" ")
@@ -455,7 +456,7 @@ func (qb *QueryBuilder) CreateRun(tableName string, runId int16, ifNotExists IfN
 	}
 	if len(qb.PartitionKeyColumns) > 0 {
 		b.WriteString(", ")
-		b.WriteString(fmt.Sprintf("PRIMARY KEY((%s)", strings.Join(qb.PartitionKeyColumns, ", ")))
+		fmt.Fprintf(&b, "PRIMARY KEY((%s)", strings.Join(qb.PartitionKeyColumns, ", "))
 		if len(qb.ClusteringKeyColumns) > 0 {
 			b.WriteString(", ")
 			b.WriteString(strings.Join(qb.ClusteringKeyColumns, ", "))

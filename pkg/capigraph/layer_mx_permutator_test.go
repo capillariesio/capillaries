@@ -37,7 +37,7 @@ func helperAll(t *testing.T,
 		if sbPerms.Len() != 0 {
 			sbPerms.WriteString(", ")
 		}
-		sbPerms.WriteString(fmt.Sprintf("{p%d: {%s}}", i, mxPerm.String()))
+		fmt.Fprintf(&sbPerms, "{p%d: {%s}}", i, mxPerm.String())
 		vnh.reuseRootSubtreeHierarchy(mxPerm)
 		vnh.PopulateNodeTotalWidth()
 		vnh.PopulateNodesXCoords()

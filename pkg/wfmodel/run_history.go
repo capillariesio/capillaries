@@ -38,7 +38,7 @@ type RunStartTsMap map[int16]time.Time
 func (m RunStartTsMap) ToString() string {
 	sb := strings.Builder{}
 	for runId, ts := range m {
-		sb.WriteString(fmt.Sprintf("%d:%s,", runId, ts.Format(LogTsFormatQuoted)))
+		fmt.Fprintf(&sb, "%d:%s,", runId, ts.Format(LogTsFormatQuoted))
 	}
 	return sb.String()
 }
@@ -46,7 +46,7 @@ func (m RunStartTsMap) ToString() string {
 func (m RunStatusMap) ToString() string {
 	sb := strings.Builder{}
 	for runId, runStatus := range m {
-		sb.WriteString(fmt.Sprintf("%d:%s,", runId, runStatus.ToString()))
+		fmt.Fprintf(&sb, "%d:%s,", runId, runStatus.ToString())
 	}
 	return sb.String()
 }

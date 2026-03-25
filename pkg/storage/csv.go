@@ -9,17 +9,17 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/capillariesio/capillaries/pkg/sc"
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 )
 
 type GuessedField struct {
 	OriginalHeader string
 	CapiName       string
-	Type           sc.TableFieldType
+	Type           eval_capi.TableFieldType
 	Format         string
 }
 
-func guessCsvType(strVal string) (sc.TableFieldType, string) {
+func guessCsvType(strVal string) (eval_capi.TableFieldType, string) {
 	reDecimal2 := regexp.MustCompile(`^(\+|-|)[0-9]*\.[0-9][0-9]$`)              // Exactly two digits after decimal point
 	reInt := regexp.MustCompile(`^(\+|-|)[0-9]+$`)                               // Just digits
 	reFloat := regexp.MustCompile(`^(\+|-|)[0-9]*\.[0-9]+$`)                     // No scientific notation support
@@ -52,28 +52,28 @@ func guessCsvType(strVal string) (sc.TableFieldType, string) {
 		"2006-01-02 15:04:05.0000000-0700"}
 
 	if reDecimal2.MatchString(strings.TrimSpace(strVal)) {
-		return sc.FieldTypeDecimal2, "%f" // Capillaries uses %f format specifier for decimal2 fields (because it uses sscanf(float) internally)
+		return eval_capi.FieldTypeDecimal2, "%f" // Capillaries uses %f format specifier for decimal2 fields (because it uses sscanf(float) internally)
 	}
 	if reInt.MatchString(strings.TrimSpace(strVal)) {
-		return sc.FieldTypeInt, "%d"
+		return eval_capi.FieldTypeInt, "%d"
 	}
 	if reFloat.MatchString(strings.TrimSpace(strVal)) {
-		return sc.FieldTypeFloat, "%f"
+		return eval_capi.FieldTypeFloat, "%f"
 	}
 	if reBool.MatchString(strings.ToLower(strings.TrimSpace(strVal))) {
-		return sc.FieldTypeBool, "" // Capillaries does not accept format specifier for bool fields
+		return eval_capi.FieldTypeBool, "" // Capillaries does not accept format specifier for bool fields
 	}
 
 	for i, re := range reDt {
 		if re.MatchString(strings.TrimSpace(strVal)) {
-			return sc.FieldTypeDateTime, fmtDt[i]
+			return eval_capi.FieldTypeDateTime, fmtDt[i]
 		}
 	}
 
 	if len(strVal) == 0 {
-		return sc.FieldTypeString, ""
+		return eval_capi.FieldTypeString, ""
 	}
-	return sc.FieldTypeString, "" // Capillaries does not accept format specifier for string fields
+	return eval_capi.FieldTypeString, "" // Capillaries does not accept format specifier for string fields
 }
 
 func CsvGuessFields(filePath string, csvHeaderLineIdx int, csvFirstDataLineIdx int, csvSeparator string) ([]*GuessedField, error) {
@@ -97,63 +97,63 @@ func CsvGuessFields(filePath string, csvHeaderLineIdx int, csvFirstDataLineIdx i
 	reNonAlphanum := regexp.MustCompile("[^a-zA-Z0-9_]")
 
 	// If we find something more generic than on previous steps, make data type more generic (eventually, string)
-	generalizeMap := map[sc.TableFieldType]map[sc.TableFieldType]sc.TableFieldType{
-		sc.FieldTypeUnknown: {
-			sc.FieldTypeUnknown:  sc.FieldTypeUnknown,
-			sc.FieldTypeString:   sc.FieldTypeString,
-			sc.FieldTypeBool:     sc.FieldTypeBool,
-			sc.FieldTypeInt:      sc.FieldTypeInt,
-			sc.FieldTypeFloat:    sc.FieldTypeFloat,
-			sc.FieldTypeDecimal2: sc.FieldTypeDecimal2,
-			sc.FieldTypeDateTime: sc.FieldTypeDateTime},
-		sc.FieldTypeBool: {
-			sc.FieldTypeUnknown:  sc.FieldTypeBool,
-			sc.FieldTypeString:   sc.FieldTypeString,
-			sc.FieldTypeBool:     sc.FieldTypeBool,
-			sc.FieldTypeInt:      sc.FieldTypeString,
-			sc.FieldTypeFloat:    sc.FieldTypeString,
-			sc.FieldTypeDecimal2: sc.FieldTypeString,
-			sc.FieldTypeDateTime: sc.FieldTypeString},
-		sc.FieldTypeString: {
-			sc.FieldTypeUnknown:  sc.FieldTypeString,
-			sc.FieldTypeString:   sc.FieldTypeString,
-			sc.FieldTypeBool:     sc.FieldTypeString,
-			sc.FieldTypeInt:      sc.FieldTypeString,
-			sc.FieldTypeFloat:    sc.FieldTypeString,
-			sc.FieldTypeDecimal2: sc.FieldTypeString,
-			sc.FieldTypeDateTime: sc.FieldTypeString},
-		sc.FieldTypeInt: {
-			sc.FieldTypeUnknown:  sc.FieldTypeInt,
-			sc.FieldTypeString:   sc.FieldTypeString,
-			sc.FieldTypeBool:     sc.FieldTypeString,
-			sc.FieldTypeInt:      sc.FieldTypeInt,
-			sc.FieldTypeFloat:    sc.FieldTypeFloat,
-			sc.FieldTypeDecimal2: sc.FieldTypeDecimal2,
-			sc.FieldTypeDateTime: sc.FieldTypeString},
-		sc.FieldTypeFloat: {
-			sc.FieldTypeUnknown:  sc.FieldTypeFloat,
-			sc.FieldTypeString:   sc.FieldTypeString,
-			sc.FieldTypeBool:     sc.FieldTypeString,
-			sc.FieldTypeInt:      sc.FieldTypeFloat,
-			sc.FieldTypeFloat:    sc.FieldTypeFloat,
-			sc.FieldTypeDecimal2: sc.FieldTypeFloat,
-			sc.FieldTypeDateTime: sc.FieldTypeString},
-		sc.FieldTypeDecimal2: {
-			sc.FieldTypeUnknown:  sc.FieldTypeDecimal2,
-			sc.FieldTypeString:   sc.FieldTypeString,
-			sc.FieldTypeBool:     sc.FieldTypeString,
-			sc.FieldTypeInt:      sc.FieldTypeDecimal2,
-			sc.FieldTypeFloat:    sc.FieldTypeFloat,
-			sc.FieldTypeDecimal2: sc.FieldTypeDecimal2,
-			sc.FieldTypeDateTime: sc.FieldTypeString},
-		sc.FieldTypeDateTime: {
-			sc.FieldTypeUnknown:  sc.FieldTypeDateTime,
-			sc.FieldTypeString:   sc.FieldTypeString,
-			sc.FieldTypeBool:     sc.FieldTypeString,
-			sc.FieldTypeInt:      sc.FieldTypeString,
-			sc.FieldTypeFloat:    sc.FieldTypeString,
-			sc.FieldTypeDecimal2: sc.FieldTypeString,
-			sc.FieldTypeDateTime: sc.FieldTypeDateTime},
+	generalizeMap := map[eval_capi.TableFieldType]map[eval_capi.TableFieldType]eval_capi.TableFieldType{
+		eval_capi.FieldTypeUnknown: {
+			eval_capi.FieldTypeUnknown:  eval_capi.FieldTypeUnknown,
+			eval_capi.FieldTypeString:   eval_capi.FieldTypeString,
+			eval_capi.FieldTypeBool:     eval_capi.FieldTypeBool,
+			eval_capi.FieldTypeInt:      eval_capi.FieldTypeInt,
+			eval_capi.FieldTypeFloat:    eval_capi.FieldTypeFloat,
+			eval_capi.FieldTypeDecimal2: eval_capi.FieldTypeDecimal2,
+			eval_capi.FieldTypeDateTime: eval_capi.FieldTypeDateTime},
+		eval_capi.FieldTypeBool: {
+			eval_capi.FieldTypeUnknown:  eval_capi.FieldTypeBool,
+			eval_capi.FieldTypeString:   eval_capi.FieldTypeString,
+			eval_capi.FieldTypeBool:     eval_capi.FieldTypeBool,
+			eval_capi.FieldTypeInt:      eval_capi.FieldTypeString,
+			eval_capi.FieldTypeFloat:    eval_capi.FieldTypeString,
+			eval_capi.FieldTypeDecimal2: eval_capi.FieldTypeString,
+			eval_capi.FieldTypeDateTime: eval_capi.FieldTypeString},
+		eval_capi.FieldTypeString: {
+			eval_capi.FieldTypeUnknown:  eval_capi.FieldTypeString,
+			eval_capi.FieldTypeString:   eval_capi.FieldTypeString,
+			eval_capi.FieldTypeBool:     eval_capi.FieldTypeString,
+			eval_capi.FieldTypeInt:      eval_capi.FieldTypeString,
+			eval_capi.FieldTypeFloat:    eval_capi.FieldTypeString,
+			eval_capi.FieldTypeDecimal2: eval_capi.FieldTypeString,
+			eval_capi.FieldTypeDateTime: eval_capi.FieldTypeString},
+		eval_capi.FieldTypeInt: {
+			eval_capi.FieldTypeUnknown:  eval_capi.FieldTypeInt,
+			eval_capi.FieldTypeString:   eval_capi.FieldTypeString,
+			eval_capi.FieldTypeBool:     eval_capi.FieldTypeString,
+			eval_capi.FieldTypeInt:      eval_capi.FieldTypeInt,
+			eval_capi.FieldTypeFloat:    eval_capi.FieldTypeFloat,
+			eval_capi.FieldTypeDecimal2: eval_capi.FieldTypeDecimal2,
+			eval_capi.FieldTypeDateTime: eval_capi.FieldTypeString},
+		eval_capi.FieldTypeFloat: {
+			eval_capi.FieldTypeUnknown:  eval_capi.FieldTypeFloat,
+			eval_capi.FieldTypeString:   eval_capi.FieldTypeString,
+			eval_capi.FieldTypeBool:     eval_capi.FieldTypeString,
+			eval_capi.FieldTypeInt:      eval_capi.FieldTypeFloat,
+			eval_capi.FieldTypeFloat:    eval_capi.FieldTypeFloat,
+			eval_capi.FieldTypeDecimal2: eval_capi.FieldTypeFloat,
+			eval_capi.FieldTypeDateTime: eval_capi.FieldTypeString},
+		eval_capi.FieldTypeDecimal2: {
+			eval_capi.FieldTypeUnknown:  eval_capi.FieldTypeDecimal2,
+			eval_capi.FieldTypeString:   eval_capi.FieldTypeString,
+			eval_capi.FieldTypeBool:     eval_capi.FieldTypeString,
+			eval_capi.FieldTypeInt:      eval_capi.FieldTypeDecimal2,
+			eval_capi.FieldTypeFloat:    eval_capi.FieldTypeFloat,
+			eval_capi.FieldTypeDecimal2: eval_capi.FieldTypeDecimal2,
+			eval_capi.FieldTypeDateTime: eval_capi.FieldTypeString},
+		eval_capi.FieldTypeDateTime: {
+			eval_capi.FieldTypeUnknown:  eval_capi.FieldTypeDateTime,
+			eval_capi.FieldTypeString:   eval_capi.FieldTypeString,
+			eval_capi.FieldTypeBool:     eval_capi.FieldTypeString,
+			eval_capi.FieldTypeInt:      eval_capi.FieldTypeString,
+			eval_capi.FieldTypeFloat:    eval_capi.FieldTypeString,
+			eval_capi.FieldTypeDecimal2: eval_capi.FieldTypeString,
+			eval_capi.FieldTypeDateTime: eval_capi.FieldTypeDateTime},
 	}
 
 	for {
@@ -172,7 +172,7 @@ func CsvGuessFields(filePath string, csvHeaderLineIdx int, csvFirstDataLineIdx i
 				guessedFields[i] = &GuessedField{
 					OriginalHeader: hdr,
 					CapiName:       "col_" + reNonAlphanum.ReplaceAllString(hdr, "_"),
-					Type:           sc.FieldTypeUnknown,
+					Type:           eval_capi.FieldTypeUnknown,
 					Format:         ""}
 			}
 		} else if lineIdx < csvFirstDataLineIdx {
@@ -188,7 +188,7 @@ func CsvGuessFields(filePath string, csvHeaderLineIdx int, csvFirstDataLineIdx i
 					guessedFields[i] = &GuessedField{
 						OriginalHeader: "",
 						CapiName:       "col_" + fmt.Sprintf("%03d", i),
-						Type:           sc.FieldTypeUnknown,
+						Type:           eval_capi.FieldTypeUnknown,
 						Format:         ""}
 				}
 			}
@@ -209,7 +209,7 @@ func CsvGuessFields(filePath string, csvHeaderLineIdx int, csvFirstDataLineIdx i
 	}
 
 	for i, gf := range guessedFields {
-		if gf.Type == sc.FieldTypeUnknown {
+		if gf.Type == eval_capi.FieldTypeUnknown {
 			return guessedFields, fmt.Errorf("cannot detect type of column %d(%s)", i, gf.OriginalHeader)
 		}
 	}

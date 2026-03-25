@@ -1,16 +1,35 @@
 package eval
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/token"
 	"math"
+	"math/big"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
 )
+
+// IMPORTANT: please keep this eval core component TableFieldType- and custom function-agnostic.
+// It should not be aware of things like decimal2 or some math.iif() functions.
+
+func DetectRootAggFunc(exp ast.Expr) (AggEnabledType, AggFuncType, []ast.Expr) {
+	if callExp, ok := exp.(*ast.CallExpr); ok {
+		funExp := callExp.Fun
+		if funIdentExp, ok := funExp.(*ast.Ident); ok {
+			aggFuncType := StringToAggFunc(funIdentExp.Name)
+			if aggFuncType != AggUnknown {
+				return AggFuncEnabled, aggFuncType, callExp.Args
+			}
+		}
+	}
+	return AggFuncDisabled, AggUnknown, nil
+}
 
 type AggEnabledType int
 
@@ -19,19 +38,89 @@ const (
 	AggFuncEnabled
 )
 
+// Custom functions
+type EvalFunction func(args []any) (any, error)
+
+// Identifiers used in the calculation. Examples:
+// - ""."var1": plain variable var1
+// - ""."field1": plain field name field1 (table name given somewhere else implicitly)
+// - "table1"."field1": fully qualified field name
+// - "token"."field1": some custom data used in custom functions, this example can be used by the implementation of Cassandra's token(field1)
+// Capillaries always use fully qualified field names
+type VarValuesMap map[string]map[string]any
+
+func (vars *VarValuesMap) Tables() string {
+	sb := strings.Builder{}
+	sb.WriteString("[")
+	for table := range *vars {
+		fmt.Fprintf(&sb, "%s ", table)
+	}
+	sb.WriteString("]")
+	return sb.String()
+}
+
+func (vars *VarValuesMap) Names() string {
+	sb := strings.Builder{}
+	sb.WriteString("[")
+	for table, fldMap := range *vars {
+		for fld := range fldMap {
+			fmt.Fprintf(&sb, "%s.%s ", table, fld)
+		}
+	}
+	sb.WriteString("]")
+	return sb.String()
+}
+
 type EvalCtx struct {
-	Vars       *VarValuesMap
-	AggFunc    AggFuncType
-	AggType    AggDataType
-	AggCallExp *ast.CallExpr
-	Count      int64
-	StringAgg  StringAggCollector
-	Sum        SumCollector
-	Avg        AvgCollector
-	Min        MinCollector
-	Max        MaxCollector
-	Value      any
-	AggEnabled AggEnabledType
+	aggFunc            AggFuncType
+	aggType            AggDataType
+	aggCallExp         *ast.CallExpr
+	count              int64
+	stringAggCollector StringAggCollector
+	sumCollector       SumCollector
+	avgCollector       AvgCollector
+	minCollector       MinCollector
+	maxCollector       MaxCollector
+	value              any
+	aggEnabled         AggEnabledType
+	// If >=0, round all intermediate dec calculations to this number of decimal digits.
+	// This approach does not work for: avg(decimal2*decimal4) because it is not clear how to round decimal2*decimal4
+	// Users have to stick to one precision, unfortunately.
+	roundDec int32
+	// Provided by caller
+	evalFunctions map[string]EvalFunction
+	evalConstants map[string]any
+	evalVars      VarValuesMap
+}
+
+func (ectx *EvalCtx) IsAggFuncEnabled() bool {
+	return ectx.aggEnabled == AggFuncEnabled
+}
+
+func (ectx *EvalCtx) SetVars(vars VarValuesMap) {
+	ectx.evalVars = vars
+}
+
+func (ectx *EvalCtx) SetRoundDec(roundDec int32) {
+	ectx.roundDec = roundDec
+}
+
+func (ectx *EvalCtx) GetValue() any {
+	if ectx.aggEnabled == AggFuncEnabled && (ectx.aggFunc == AggCount || ectx.aggFunc == AggCountIf || ectx.aggFunc == AggSum || ectx.aggFunc == AggSumIf || ectx.aggFunc == AggAvg || ectx.aggFunc == AggAvgIf) && ectx.value == nil {
+		return int64(0)
+	}
+	return ectx.value
+}
+
+func (ectx *EvalCtx) GetSafeValue(defaultValue any) any {
+	if ectx.aggEnabled == AggFuncEnabled && (ectx.aggFunc == AggCount || ectx.aggFunc == AggCountIf || ectx.aggFunc == AggSum || ectx.aggFunc == AggSumIf || ectx.aggFunc == AggAvg || ectx.aggFunc == AggAvgIf) {
+		return ectx.GetValue()
+	}
+	if ectx.value == nil {
+		return defaultValue
+	}
+
+	return ectx.value
 }
 
 // Not ready to make these limits/defaults public
@@ -50,69 +139,77 @@ func minSupportedDecimal() decimal.Decimal {
 	return decimal.NewFromFloat32(-math.MaxFloat32 + 1)
 }
 
+func getAggStringSeparator(aggFuncType AggFuncType, aggFuncArgs []ast.Expr) (string, error) {
+	if aggFuncType == AggStringAgg && len(aggFuncArgs) != 2 {
+		return "", fmt.Errorf("%s must have two parameters", aggFuncType)
+	} else if aggFuncType == AggStringAggIf && len(aggFuncArgs) != 3 {
+		return "", fmt.Errorf("%s must have three parameters", aggFuncType)
+	}
+	switch separatorExpTyped := aggFuncArgs[1].(type) {
+	case *ast.BasicLit:
+		switch separatorExpTyped.Kind {
+		case token.STRING:
+			return strings.Trim(separatorExpTyped.Value, "\""), nil
+		default:
+			return "", errors.New("string_agg/if second parameter must be a constant string")
+		}
+	default:
+		return "", errors.New("string_agg/if second parameter must be a basic literal")
+	}
+}
+
 func defaultDecimal() decimal.Decimal {
 	// Explicit zero, otherwise its decimal NIL
 	return decimal.NewFromInt(0)
 }
 
-// TODO: refactor to avoid duplicated ctx creationcode
-
-func NewPlainEvalCtx(aggEnabled AggEnabledType) EvalCtx {
-	return EvalCtx{
-		AggFunc:    AggUnknown,
-		AggType:    AggTypeUnknown,
-		AggEnabled: aggEnabled,
-		StringAgg:  StringAggCollector{Separator: "", Sb: strings.Builder{}},
-		Sum:        SumCollector{Dec: defaultDecimal()},
-		Avg:        AvgCollector{Dec: defaultDecimal()},
-		Min:        MinCollector{Int: maxSupportedInt, Float: maxSupportedFloat, Dec: maxSupportedDecimal(), Str: ""},
-		Max:        MaxCollector{Int: minSupportedInt, Float: minSupportedFloat, Dec: minSupportedDecimal(), Str: ""}}
+func defaultBigint() *big.Int {
+	return big.NewInt(0)
 }
 
-func NewPlainEvalCtxAndInitializedAgg(funcName string, aggEnabled AggEnabledType, aggFuncType AggFuncType, aggFuncArgs []ast.Expr) (*EvalCtx, error) {
-	eCtx := NewPlainEvalCtx(aggEnabled)
+func newPlainEvalCtxInternal(aggEnabled AggEnabledType) *EvalCtx {
+	return &EvalCtx{
+		aggFunc:            AggUnknown,
+		aggType:            AggTypeUnknown,
+		aggEnabled:         aggEnabled,
+		stringAggCollector: StringAggCollector{Separator: "", Sb: strings.Builder{}},
+		sumCollector:       SumCollector{Dec: defaultDecimal()},
+		avgCollector:       AvgCollector{Dec: defaultDecimal(), Int: defaultBigint()},
+		minCollector:       MinCollector{Int: maxSupportedInt, Float: maxSupportedFloat, Dec: maxSupportedDecimal(), Str: ""},
+		maxCollector:       MaxCollector{Int: minSupportedInt, Float: minSupportedFloat, Dec: minSupportedDecimal(), Str: ""},
+		roundDec:           -1,
+	}
+}
+
+func NewPlainEvalCtx(functions map[string]EvalFunction, constants map[string]any, vars VarValuesMap) *EvalCtx {
+	eCtx := newPlainEvalCtxInternal(AggFuncDisabled)
+	eCtx.evalFunctions = functions
+	eCtx.evalConstants = constants
+	eCtx.evalVars = vars
+	return eCtx
+}
+
+func NewAggEvalCtx(aggFuncType AggFuncType, aggFuncArgs []ast.Expr, functions map[string]EvalFunction, constants map[string]any, vars VarValuesMap) (*EvalCtx, error) {
+	eCtx := newPlainEvalCtxInternal(AggFuncEnabled)
+	eCtx.aggFunc = aggFuncType
+	eCtx.evalFunctions = functions
+	eCtx.evalConstants = constants
+	eCtx.evalVars = vars
+
 	// Special case: we need to provide eCtx.StringAgg with a separator and
 	// explicitly set its type to AggTypeString from the very beginning (instead of detecting it later, as we do for other agg functions)
-	if aggEnabled == AggFuncEnabled && aggFuncType == AggStringAgg {
+	if aggFuncType == AggStringAgg || aggFuncType == AggStringAggIf {
 		var aggStringErr error
-		eCtx.StringAgg.Separator, aggStringErr = GetAggStringSeparator(funcName, aggFuncArgs)
+		eCtx.stringAggCollector.Separator, aggStringErr = getAggStringSeparator(aggFuncType, aggFuncArgs)
 		if aggStringErr != nil {
 			return nil, aggStringErr
 		}
-		eCtx.AggType = AggTypeString
+		eCtx.aggType = AggTypeString
 	}
-	return &eCtx, nil
+	return eCtx, nil
 }
 
-func NewPlainEvalCtxWithVars(aggEnabled AggEnabledType, vars *VarValuesMap) EvalCtx {
-	return EvalCtx{
-		AggFunc:    AggUnknown,
-		Vars:       vars,
-		AggType:    AggTypeUnknown,
-		AggEnabled: aggEnabled,
-		StringAgg:  StringAggCollector{Separator: "", Sb: strings.Builder{}},
-		Sum:        SumCollector{Dec: defaultDecimal()},
-		Avg:        AvgCollector{Dec: defaultDecimal()},
-		Min:        MinCollector{Int: maxSupportedInt, Float: maxSupportedFloat, Dec: maxSupportedDecimal(), Str: ""},
-		Max:        MaxCollector{Int: minSupportedInt, Float: minSupportedFloat, Dec: minSupportedDecimal(), Str: ""}}
-}
-
-func NewPlainEvalCtxWithVarsAndInitializedAgg(funcName string, aggEnabled AggEnabledType, vars *VarValuesMap, aggFuncType AggFuncType, aggFuncArgs []ast.Expr) (*EvalCtx, error) {
-	eCtx := NewPlainEvalCtxWithVars(aggEnabled, vars)
-	// Special case: we need to provide eCtx.StringAgg with a separator and
-	// explicitly set its type to AggTypeString from the very beginning (instead of detecting it later, as we do for other agg functions)
-	if aggEnabled == AggFuncEnabled && aggFuncType == AggStringAgg {
-		var aggStringErr error
-		eCtx.StringAgg.Separator, aggStringErr = GetAggStringSeparator(funcName, aggFuncArgs)
-		if aggStringErr != nil {
-			return nil, aggStringErr
-		}
-		eCtx.AggType = AggTypeString
-	}
-	return &eCtx, nil
-}
-
-func checkArgs(funcName string, requiredArgCount int, actualArgCount int) error {
+func CheckArgs(funcName string, requiredArgCount int, actualArgCount int) error {
 	if actualArgCount != requiredArgCount {
 		return fmt.Errorf("cannot evaluate %s(), requires %d args, %d supplied", funcName, requiredArgCount, actualArgCount)
 	}
@@ -216,16 +313,16 @@ func (eCtx *EvalCtx) EvalBinaryDecimal2ToBool(valLeftVolatile any, op token.Toke
 
 	valLeft, ok := valLeftVolatile.(decimal.Decimal)
 	if !ok {
-		return false, fmt.Errorf("cannot evaluate binary decimal2 expression '%v' with '%v(%T)' on the left", op, valLeftVolatile, valLeftVolatile)
+		return false, fmt.Errorf("cannot evaluate binary decimal expression '%v' with '%v(%T)' on the left", op, valLeftVolatile, valLeftVolatile)
 	}
 
 	valRight, ok := valRightVolatile.(decimal.Decimal)
 	if !ok {
-		return false, fmt.Errorf("cannot evaluate binary decimal2 expression '%v(%T) %v %v(%T)', invalid right arg", valLeft, valLeft, op, valRightVolatile, valRightVolatile)
+		return false, fmt.Errorf("cannot evaluate binary decimal expression '%v(%T) %v %v(%T)', invalid right arg", valLeft, valLeft, op, valRightVolatile, valRightVolatile)
 	}
 
 	if !isCompareOp(op) {
-		return false, fmt.Errorf("cannot perform bool op %v against decimal2 %v and decimal2 %v", op, valLeft, valRight)
+		return false, fmt.Errorf("cannot perform bool op %v against decimal %v and decimal %v", op, valLeft, valRight)
 	}
 	if op == token.GTR && valLeft.Cmp(valRight) > 0 ||
 		op == token.LSS && valLeft.Cmp(valRight) < 0 ||
@@ -290,18 +387,18 @@ func (eCtx *EvalCtx) EvalBinaryFloat64(valLeftVolatile any, op token.Token, valR
 	}
 }
 
-func (eCtx *EvalCtx) EvalBinaryDecimal2(valLeftVolatile any, op token.Token, valRightVolatile any) (result decimal.Decimal, err error) {
+func (eCtx *EvalCtx) EvalBinaryDecimal(valLeftVolatile any, op token.Token, valRightVolatile any) (result decimal.Decimal, err error) {
 
 	result = decimal.NewFromFloat(math.MaxFloat64)
 	err = nil
 	valLeft, ok := valLeftVolatile.(decimal.Decimal)
 	if !ok {
-		return decimal.NewFromInt(0), fmt.Errorf("cannot evaluate binary decimal2 expression '%v' with '%v(%T)' on the left", op, valLeftVolatile, valLeftVolatile)
+		return decimal.NewFromInt(0), fmt.Errorf("cannot evaluate binary decimal expression '%v' with '%v(%T)' on the left", op, valLeftVolatile, valLeftVolatile)
 	}
 
 	valRight, ok := valRightVolatile.(decimal.Decimal)
 	if !ok {
-		return decimal.NewFromInt(0), fmt.Errorf("cannot evaluate binary decimal2 expression '%v(%T) %v %v(%T)', invalid right arg", valLeft, valLeft, op, valRightVolatile, valRightVolatile)
+		return decimal.NewFromInt(0), fmt.Errorf("cannot evaluate binary decimal expression '%v(%T) %v %v(%T)', invalid right arg", valLeft, valLeft, op, valRightVolatile, valRightVolatile)
 	}
 
 	defer func() {
@@ -310,18 +407,26 @@ func (eCtx *EvalCtx) EvalBinaryDecimal2(valLeftVolatile any, op token.Token, val
 		}
 	}()
 
+	var val decimal.Decimal
 	switch op {
 	case token.ADD:
-		return valLeft.Add(valRight).Round(2), nil
+		val = valLeft.Add(valRight)
 	case token.SUB:
-		return valLeft.Sub(valRight).Round(2), nil
+		val = valLeft.Sub(valRight)
 	case token.MUL:
-		return valLeft.Mul(valRight).Round(2), nil
+		val = valLeft.Mul(valRight)
 	case token.QUO:
-		return valLeft.Div(valRight).Round(2), nil
+		val = valLeft.Div(valRight)
 	default:
-		return decimal.NewFromInt(0), fmt.Errorf("cannot perform decimal2 op %v against decimal2 %v and float64 %v", op, valLeft, valRight)
+		return decimal.NewFromInt(0), fmt.Errorf("cannot perform decimal op %v against decimal %v and float64 %v", op, valLeft, valRight)
 	}
+
+	// Round(2) when needed
+	if eCtx.roundDec >= 0 {
+		val = val.Round(eCtx.roundDec)
+	}
+
+	return val, nil
 }
 
 func (eCtx *EvalCtx) EvalBinaryBool(valLeftVolatile any, op token.Token, valRightVolatile any) (bool, error) {
@@ -364,6 +469,35 @@ func (eCtx *EvalCtx) EvalBinaryBoolToBool(valLeftVolatile any, op token.Token, v
 
 	if op == token.EQL && valLeft == valRight ||
 		op == token.NEQ && valLeft != valRight {
+		return true, nil
+	}
+	return false, nil
+}
+
+func (eCtx *EvalCtx) EvalBinaryByteSliceToByteSlice(valLeftVolatile any, op token.Token, valRightVolatile any) (bool, error) {
+
+	valLeft, ok := valLeftVolatile.([]byte)
+	if !ok {
+		return false, fmt.Errorf("cannot evaluate binary []byte expression %v with %T on the left", op, valLeftVolatile)
+	}
+
+	valRight, ok := valRightVolatile.([]byte)
+	if !ok {
+		return false, fmt.Errorf("cannot evaluate binary []byte expression '%v(%T) %v %v(%T)', invalid right arg", valLeft, valLeft, op, valRightVolatile, valRightVolatile)
+	}
+
+	if !isCompareOp(op) {
+		return false, fmt.Errorf("cannot perform compare op %v against []byte %v and []byte %v", op, valLeft, valRight)
+	}
+
+	res := bytes.Compare(valLeft, valRight)
+
+	if op == token.GTR && res > 0 ||
+		op == token.LSS && res < 0 ||
+		op == token.GEQ && res >= 0 ||
+		op == token.LEQ && res <= 0 ||
+		op == token.EQL && res == 0 ||
+		op == token.NEQ && res != 0 {
 		return true, nil
 	}
 	return false, nil
@@ -439,7 +573,7 @@ func (eCtx *EvalCtx) EvalBinaryStringToBool(valLeftVolatile any, op token.Token,
 
 	valRight, ok := valRightVolatile.(string)
 	if !ok {
-		return false, fmt.Errorf("cannot evaluate binary decimal2 expression '%v(%T) %v %v(%T)', invalid right arg", valLeft, valLeft, op, valRightVolatile, valRightVolatile)
+		return false, fmt.Errorf("cannot evaluate binary decimal expression '%v(%T) %v %v(%T)', invalid right arg", valLeft, valLeft, op, valRightVolatile, valRightVolatile)
 	}
 	valRight = strings.ReplaceAll(strings.Trim(valRight, "\""), `\"`, `"`)
 
@@ -460,96 +594,50 @@ func (eCtx *EvalCtx) EvalBinaryStringToBool(valLeftVolatile any, op token.Token,
 func (eCtx *EvalCtx) EvalFunc(callExp *ast.CallExpr, funcName string, args []any) (any, error) {
 	var err error
 	switch funcName {
-	case "math.Sqrt":
-		eCtx.Value, err = callMathSqrt(args)
-	case "math.Round":
-		eCtx.Value, err = callMathRound(args)
-	case "len":
-		eCtx.Value, err = callLen(args)
-	case "string":
-		eCtx.Value, err = callString(args)
-	case "float":
-		eCtx.Value, err = callFloat(args)
-	case "int":
-		eCtx.Value, err = callInt(args)
-	case "decimal2":
-		eCtx.Value, err = callDecimal2(args)
-	case "int.iif":
-		eCtx.Value, err = callIntIif(args)
-	case "float.iif":
-		eCtx.Value, err = callFloatIif(args)
-	case "decimal2.iif":
-		eCtx.Value, err = callDecimal2Iif(args)
-	case "string.iif":
-		eCtx.Value, err = callStringIif(args)
-	case "time.iif":
-		eCtx.Value, err = callTimeIif(args)
-	case "time.Parse":
-		eCtx.Value, err = callTimeParse(args)
-	case "time.Format":
-		eCtx.Value, err = callTimeFormat(args)
-	case "time.Date":
-		eCtx.Value, err = callTimeDate(args)
-	case "time.Now":
-		eCtx.Value, err = callTimeNow(args)
-	case "time.Unix":
-		eCtx.Value, err = callTimeUnix(args)
-	case "time.UnixMilli":
-		eCtx.Value, err = callTimeUnixMilli(args)
-	case "time.DiffMilli":
-		eCtx.Value, err = callTimeDiffMilli(args)
-	case "time.Before":
-		eCtx.Value, err = callTimeBefore(args)
-	case "time.After":
-		eCtx.Value, err = callTimeAfter(args)
-	case "time.FixedZone":
-		eCtx.Value, err = callTimeFixedZone(args)
-	case "re.MatchString":
-		eCtx.Value, err = callReMatchString(args)
-	case "strings.ReplaceAll":
-		eCtx.Value, err = callStringsReplaceAll(args)
-	case "fmt.Sprintf":
-		eCtx.Value, err = callFmtSprintf(args)
-
-	// Aggregate functions, to be used only in grouped lookups
-
+	// Aggregate functions, this is part of evalcore
 	case "string_agg":
-		eCtx.Value, err = eCtx.CallAggStringAgg(callExp, args)
+		eCtx.value, err = eCtx.CallAggStringAgg(callExp, args)
 	case "sum":
-		eCtx.Value, err = eCtx.CallAggSum(callExp, args)
+		eCtx.value, err = eCtx.CallAggSum(callExp, args)
 	case "count":
-		eCtx.Value, err = eCtx.CallAggCount(callExp, args)
+		eCtx.value, err = eCtx.CallAggCount(callExp, args)
 	case "avg":
-		eCtx.Value, err = eCtx.CallAggAvg(callExp, args)
+		eCtx.value, err = eCtx.CallAggAvg(callExp, args)
 	case "min":
-		eCtx.Value, err = eCtx.CallAggMin(callExp, args)
+		eCtx.value, err = eCtx.CallAggMin(callExp, args)
 	case "max":
-		eCtx.Value, err = eCtx.CallAggMax(callExp, args)
+		eCtx.value, err = eCtx.CallAggMax(callExp, args)
 	case "string_agg_if":
-		eCtx.Value, err = eCtx.CallAggStringAggIf(callExp, args)
+		eCtx.value, err = eCtx.CallAggStringAggIf(callExp, args)
 	case "sum_if":
-		eCtx.Value, err = eCtx.CallAggSumIf(callExp, args)
+		eCtx.value, err = eCtx.CallAggSumIf(callExp, args)
 	case "count_if":
-		eCtx.Value, err = eCtx.CallAggCountIf(callExp, args)
+		eCtx.value, err = eCtx.CallAggCountIf(callExp, args)
 	case "avg_if":
-		eCtx.Value, err = eCtx.CallAggAvgIf(callExp, args)
+		eCtx.value, err = eCtx.CallAggAvgIf(callExp, args)
 	case "min_if":
-		eCtx.Value, err = eCtx.CallAggMinIf(callExp, args)
+		eCtx.value, err = eCtx.CallAggMinIf(callExp, args)
 	case "max_if":
-		eCtx.Value, err = eCtx.CallAggMaxIf(callExp, args)
+		eCtx.value, err = eCtx.CallAggMaxIf(callExp, args)
 
 	default:
+		// Caller-provided functions
+		if eCtx.evalFunctions != nil {
+			if evalFunc, ok := eCtx.evalFunctions[funcName]; ok {
+				return evalFunc(args)
+			}
+		}
 		return nil, fmt.Errorf("cannot evaluate unsupported func '%s'", funcName)
 	}
-	return eCtx.Value, err
+	return eCtx.value, err
 }
 
 func (eCtx *EvalCtx) evalBinaryArithmeticExp(valLeftVolatile any, exp *ast.BinaryExpr, valRightVolatile any) (any, error) {
 	switch valLeftVolatile.(type) {
 	case string:
 		var err error
-		eCtx.Value, err = eCtx.EvalBinaryString(valLeftVolatile, exp.Op, valRightVolatile)
-		return eCtx.Value, err
+		eCtx.value, err = eCtx.EvalBinaryString(valLeftVolatile, exp.Op, valRightVolatile)
+		return eCtx.value, err
 	default:
 		// Assume both args are numbers (int, float, dec)
 		stdArgLeft, stdArgRight, err := castNumberPairToCommonType(valLeftVolatile, valRightVolatile)
@@ -558,14 +646,14 @@ func (eCtx *EvalCtx) evalBinaryArithmeticExp(valLeftVolatile any, exp *ast.Binar
 		}
 		switch stdArgLeft.(type) {
 		case int64:
-			eCtx.Value, err = eCtx.EvalBinaryInt(stdArgLeft, exp.Op, stdArgRight)
-			return eCtx.Value, err
+			eCtx.value, err = eCtx.EvalBinaryInt(stdArgLeft, exp.Op, stdArgRight)
+			return eCtx.value, err
 		case float64:
-			eCtx.Value, err = eCtx.EvalBinaryFloat64(stdArgLeft, exp.Op, stdArgRight)
-			return eCtx.Value, err
+			eCtx.value, err = eCtx.EvalBinaryFloat64(stdArgLeft, exp.Op, stdArgRight)
+			return eCtx.value, err
 		case decimal.Decimal:
-			eCtx.Value, err = eCtx.EvalBinaryDecimal2(stdArgLeft, exp.Op, stdArgRight)
-			return eCtx.Value, err
+			eCtx.value, err = eCtx.EvalBinaryDecimal(stdArgLeft, exp.Op, stdArgRight)
+			return eCtx.value, err
 		default:
 			return nil, fmt.Errorf("cannot perform binary arithmetic op, unexpected std type '%v(%T)' %v '%v(%T)' ", valLeftVolatile, valLeftVolatile, exp.Op, valRightVolatile, valRightVolatile)
 		}
@@ -576,24 +664,37 @@ func (eCtx *EvalCtx) evalBinaryBoolToBoolExp(valLeftVolatile any, exp *ast.Binar
 	switch valLeftTyped := valLeftVolatile.(type) {
 	case bool:
 		var err error
-		eCtx.Value, err = eCtx.EvalBinaryBool(valLeftTyped, exp.Op, valRightVolatile)
-		return eCtx.Value, err
+		eCtx.value, err = eCtx.EvalBinaryBool(valLeftTyped, exp.Op, valRightVolatile)
+		return eCtx.value, err
 	default:
 		return nil, fmt.Errorf("cannot perform binary op %v against %T left", exp.Op, valLeftVolatile)
 	}
 }
 func (eCtx *EvalCtx) evalBinaryCompareExp(valLeftVolatile any, exp *ast.BinaryExpr, valRightVolatile any) (any, error) {
+	if (valLeftVolatile == nil && valRightVolatile != nil) || (valLeftVolatile != nil && valRightVolatile == nil) {
+		// Cannot be compared, NEQ returns true, all other ops return false
+		eCtx.value = (exp.Op == token.NEQ)
+		return eCtx.value, nil
+	}
+	if valLeftVolatile == nil && valRightVolatile == nil {
+		// EQ returns true, all other ops return false
+		eCtx.value = (exp.Op == token.EQL)
+		return eCtx.value, nil
+	}
 	var err error
 	switch valLeftVolatile.(type) {
 	case time.Time:
-		eCtx.Value, err = eCtx.EvalBinaryTimeToBool(valLeftVolatile, exp.Op, valRightVolatile)
-		return eCtx.Value, err
+		eCtx.value, err = eCtx.EvalBinaryTimeToBool(valLeftVolatile, exp.Op, valRightVolatile)
+		return eCtx.value, err
 	case string:
-		eCtx.Value, err = eCtx.EvalBinaryStringToBool(valLeftVolatile, exp.Op, valRightVolatile)
-		return eCtx.Value, err
+		eCtx.value, err = eCtx.EvalBinaryStringToBool(valLeftVolatile, exp.Op, valRightVolatile)
+		return eCtx.value, err
 	case bool:
-		eCtx.Value, err = eCtx.EvalBinaryBoolToBool(valLeftVolatile, exp.Op, valRightVolatile)
-		return eCtx.Value, err
+		eCtx.value, err = eCtx.EvalBinaryBoolToBool(valLeftVolatile, exp.Op, valRightVolatile)
+		return eCtx.value, err
+	case []byte:
+		eCtx.value, err = eCtx.EvalBinaryByteSliceToByteSlice(valLeftVolatile, exp.Op, valRightVolatile)
+		return eCtx.value, err
 	default:
 		// Assume both args are numbers (int, float, dec)
 		stdArgLeft, stdArgRight, err := castNumberPairToCommonType(valLeftVolatile, valRightVolatile)
@@ -602,14 +703,14 @@ func (eCtx *EvalCtx) evalBinaryCompareExp(valLeftVolatile any, exp *ast.BinaryEx
 		}
 		switch stdArgLeft.(type) {
 		case int64:
-			eCtx.Value, err = eCtx.EvalBinaryIntToBool(stdArgLeft, exp.Op, stdArgRight)
-			return eCtx.Value, err
+			eCtx.value, err = eCtx.EvalBinaryIntToBool(stdArgLeft, exp.Op, stdArgRight)
+			return eCtx.value, err
 		case float64:
-			eCtx.Value, err = eCtx.EvalBinaryFloat64ToBool(stdArgLeft, exp.Op, stdArgRight)
-			return eCtx.Value, err
+			eCtx.value, err = eCtx.EvalBinaryFloat64ToBool(stdArgLeft, exp.Op, stdArgRight)
+			return eCtx.value, err
 		case decimal.Decimal:
-			eCtx.Value, err = eCtx.EvalBinaryDecimal2ToBool(stdArgLeft, exp.Op, stdArgRight)
-			return eCtx.Value, err
+			eCtx.value, err = eCtx.EvalBinaryDecimal2ToBool(stdArgLeft, exp.Op, stdArgRight)
+			return eCtx.value, err
 		default:
 			return nil, fmt.Errorf("cannot perform binary comp op, unexpected std type '%v(%T)' %v '%v(%T)' ", valLeftVolatile, valLeftVolatile, exp.Op, valRightVolatile, valRightVolatile)
 		}
@@ -639,12 +740,12 @@ func (eCtx *EvalCtx) evalUnaryExp(exp *ast.UnaryExpr) (any, error) {
 	switch exp.Op {
 	case token.NOT:
 		var err error
-		eCtx.Value, err = eCtx.EvalUnaryBoolNot(exp.X)
-		return eCtx.Value, err
+		eCtx.value, err = eCtx.EvalUnaryBoolNot(exp.X)
+		return eCtx.value, err
 	case token.SUB:
 		var err error
-		eCtx.Value, err = eCtx.EvalUnaryMinus(exp.X)
-		return eCtx.Value, err
+		eCtx.value, err = eCtx.EvalUnaryMinus(exp.X)
+		return eCtx.value, err
 	default:
 		return nil, fmt.Errorf("cannot evaluate unary op %v, unknown op", exp.Op)
 	}
@@ -659,17 +760,28 @@ func (eCtx *EvalCtx) Eval(exp ast.Expr) (any, error) {
 	case *ast.BasicLit:
 		switch exp.Kind {
 		case token.INT:
-			i, _ := strconv.ParseInt(exp.Value, 10, 64)
-			eCtx.Value = i
+			i, err := strconv.ParseInt(exp.Value, 10, 64)
+			if err != nil {
+				// Int value may be out of range, try decimal
+				var decValue decimal.Decimal
+				var decError error
+				decValue, decError = decimal.NewFromString(exp.Value)
+				if decError != nil {
+					return nil, fmt.Errorf("cannot eval int %s: int says %s, decimal says %s", exp.Value, err.Error(), decError.Error())
+				}
+				eCtx.value = decValue
+				return decValue, nil
+			}
+			eCtx.value = i
 			return i, nil
 		case token.FLOAT:
 			i, _ := strconv.ParseFloat(exp.Value, 64)
-			eCtx.Value = i
+			eCtx.value = i
 			return i, nil
 		case token.IDENT:
 			return nil, fmt.Errorf("cannot evaluate expression %s of type token.IDENT", exp.Value)
 		case token.STRING:
-			eCtx.Value = exp.Value
+			eCtx.value = exp.Value
 			if exp.Value[0] == '"' {
 				return strings.Trim(exp.Value, "\""), nil
 			}
@@ -683,14 +795,30 @@ func (eCtx *EvalCtx) Eval(exp ast.Expr) (any, error) {
 		return eCtx.evalUnaryExp(exp)
 
 	case *ast.Ident:
-		if exp.Name == "true" {
-			eCtx.Value = true
-			return true, nil
-		} else if exp.Name == "false" {
-			eCtx.Value = false
-			return false, nil
+		if eCtx.evalConstants != nil {
+			golangConst, ok := eCtx.evalConstants[exp.Name]
+			if ok {
+				eCtx.value = golangConst
+				return golangConst, nil
+			}
 		}
-		return nil, fmt.Errorf("cannot evaluate identifier %s", exp.Name)
+
+		if eCtx.evalVars == nil {
+			return nil, fmt.Errorf("cannot evaluate ident expression '%s', no variables supplied to the context", exp.Name)
+		}
+
+		// Non-selector idents are stored under ""
+		objectAttributes, ok := eCtx.evalVars[""]
+		if !ok {
+			return nil, fmt.Errorf("cannot evaluate ident expression '%s', no empty object", exp.Name)
+		}
+
+		val, ok := objectAttributes[exp.Name]
+		if !ok {
+			return nil, fmt.Errorf("cannot evaluate ident expression %s, variable not supplied", exp.Name)
+		}
+		eCtx.value = val
+		return val, nil
 
 	case *ast.CallExpr:
 		args := make([]any, len(exp.Args))
@@ -706,15 +834,15 @@ func (eCtx *EvalCtx) Eval(exp ast.Expr) (any, error) {
 		switch typedExp := exp.Fun.(type) {
 		case *ast.Ident:
 			var err error
-			eCtx.Value, err = eCtx.EvalFunc(exp, typedExp.Name, args)
-			return eCtx.Value, err
+			eCtx.value, err = eCtx.EvalFunc(exp, typedExp.Name, args)
+			return eCtx.value, err
 
 		case *ast.SelectorExpr:
 			switch expIdent := typedExp.X.(type) {
 			case *ast.Ident:
 				var err error
-				eCtx.Value, err = eCtx.EvalFunc(exp, fmt.Sprintf("%s.%s", expIdent.Name, typedExp.Sel.Name), args)
-				return eCtx.Value, err
+				eCtx.value, err = eCtx.EvalFunc(exp, fmt.Sprintf("%s.%s", expIdent.Name, typedExp.Sel.Name), args)
+				return eCtx.value, err
 			default:
 				return nil, fmt.Errorf("cannot evaluate fun expression %v, unknown type of X: %T", typedExp.X, typedExp.X)
 			}
@@ -726,26 +854,28 @@ func (eCtx *EvalCtx) Eval(exp ast.Expr) (any, error) {
 	case *ast.SelectorExpr:
 		switch objectIdent := exp.X.(type) {
 		case *ast.Ident:
-			golangConst, ok := GolangConstants[fmt.Sprintf("%s.%s", objectIdent.Name, exp.Sel.Name)]
-			if ok {
-				eCtx.Value = golangConst
-				return golangConst, nil
+			if eCtx.evalConstants != nil {
+				golangConst, ok := eCtx.evalConstants[fmt.Sprintf("%s.%s", objectIdent.Name, exp.Sel.Name)]
+				if ok {
+					eCtx.value = golangConst
+					return golangConst, nil
+				}
 			}
 
-			if eCtx.Vars == nil {
-				return nil, fmt.Errorf("cannot evaluate expression '%s', no variables supplied to the context", objectIdent.Name)
+			if eCtx.evalVars == nil {
+				return nil, fmt.Errorf("cannot evaluate selector ident expression '%s', no variables supplied to the context", objectIdent.Name)
 			}
 
-			objectAttributes, ok := (*eCtx.Vars)[objectIdent.Name]
+			objectAttributes, ok := eCtx.evalVars[objectIdent.Name]
 			if !ok {
-				return nil, fmt.Errorf("cannot evaluate expression '%s', variable not supplied, check table/alias name", objectIdent.Name)
+				return nil, fmt.Errorf("cannot evaluate selector ident expression '%s', variable not supplied, check table/alias name", objectIdent.Name)
 			}
 
 			val, ok := objectAttributes[exp.Sel.Name]
 			if !ok {
-				return nil, fmt.Errorf("cannot evaluate expression %s.%s, variable not supplied, check field name", objectIdent.Name, exp.Sel.Name)
+				return nil, fmt.Errorf("cannot evaluate selector ident expression %s.%s, variable not supplied, check field name", objectIdent.Name, exp.Sel.Name)
 			}
-			eCtx.Value = val
+			eCtx.value = val
 			return val, nil
 		default:
 			return nil, fmt.Errorf("cannot evaluate selector expression %v, unknown type of X: %T", exp.X, exp.X)

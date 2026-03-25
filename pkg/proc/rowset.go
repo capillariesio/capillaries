@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/eval"
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/shopspring/decimal"
 	"gopkg.in/inf.v0"
@@ -31,7 +32,7 @@ func NewRowsetFromFieldRefs(fieldRefsList ...sc.FieldRefs) *Rowset {
 func (rs *Rowset) ToString() string {
 	var b strings.Builder
 	for _, fr := range rs.Fields {
-		b.WriteString(fmt.Sprintf("%30s", fr.GetAliasHash()))
+		fmt.Fprintf(&b, "%30s", fr.GetAliasHash())
 	}
 	b.WriteString("\n")
 	for rowIdx := 0; rowIdx < rs.RowCount; rowIdx++ {
@@ -39,20 +40,20 @@ func (rs *Rowset) ToString() string {
 		for _, val := range *vals {
 			switch typedVal := val.(type) {
 			case *int64:
-				b.WriteString(fmt.Sprintf("%30d", *typedVal))
+				fmt.Fprintf(&b, "%30d", *typedVal)
 			case *float64:
-				b.WriteString(fmt.Sprintf("%30f", *typedVal))
+				fmt.Fprintf(&b, "%30f", *typedVal)
 			case *string:
-				b.WriteString(fmt.Sprintf("\"%30s\"", *typedVal))
+				fmt.Fprintf(&b, "\"%30s\"", *typedVal)
 			case *bool:
 				if *typedVal {
 					return "                          TRUE"
 				}
 				return "                         FALSE"
 			case *decimal.Decimal:
-				b.WriteString(fmt.Sprintf("%30s", (*typedVal).String()))
+				fmt.Fprintf(&b, "%30s", (*typedVal).String())
 			case *time.Time:
-				b.WriteString(fmt.Sprintf("%30s", (*typedVal).Format("\"2006-01-02T15:04:05.000-0700\"")))
+				fmt.Fprintf(&b, "%30s", (*typedVal).Format("\"2006-01-02T15:04:05.000-0700\""))
 			default:
 				b.WriteString("bla")
 			}
@@ -141,22 +142,22 @@ func (rs *Rowset) InitRows(capacity int) error {
 		rs.Rows[rowIdx] = &newRow
 		for colIdx := 0; colIdx < len(rs.Fields); colIdx++ {
 			switch rs.Fields[colIdx].FieldType {
-			case sc.FieldTypeInt:
+			case eval_capi.FieldTypeInt:
 				v := int64(0)
 				(*rs.Rows[rowIdx])[colIdx] = &v
-			case sc.FieldTypeFloat:
+			case eval_capi.FieldTypeFloat:
 				v := float64(0.0)
 				(*rs.Rows[rowIdx])[colIdx] = &v
-			case sc.FieldTypeString:
+			case eval_capi.FieldTypeString:
 				v := ""
 				(*rs.Rows[rowIdx])[colIdx] = &v
-			case sc.FieldTypeDecimal2:
+			case eval_capi.FieldTypeDecimal2:
 				// Set it to Cassandra-accepted value, not decimal.Decimal: https://github.com/gocql/gocql/issues/1578
 				(*rs.Rows[rowIdx])[colIdx] = inf.NewDec(0, 0)
-			case sc.FieldTypeBool:
+			case eval_capi.FieldTypeBool:
 				v := false
 				(*rs.Rows[rowIdx])[colIdx] = &v
-			case sc.FieldTypeDateTime:
+			case eval_capi.FieldTypeDateTime:
 				v := sc.DefaultDateTime()
 				(*rs.Rows[rowIdx])[colIdx] = &v
 			default:
@@ -166,7 +167,7 @@ func (rs *Rowset) InitRows(capacity int) error {
 	}
 	return nil
 }
-func (rs *Rowset) ExportToVars(rowIdx int, vars *eval.VarValuesMap) error {
+func (rs *Rowset) ExportToVars(rowIdx int, vars eval.VarValuesMap) error {
 	return rs.ExportToVarsWithAlias(rowIdx, vars, "")
 }
 
@@ -202,37 +203,37 @@ func (rs *Rowset) GetTableRecord(rowIdx int) (map[string]any, error) {
 }
 
 // TODO: consider passing just vars eval.VarValuesMap; maps are passed by ref in Go anyways
-func (rs *Rowset) ExportToVarsWithAlias(rowIdx int, vars *eval.VarValuesMap, useTableAlias string) error {
+func (rs *Rowset) ExportToVarsWithAlias(rowIdx int, vars eval.VarValuesMap, useTableAlias string) error {
 	for colIdx := 0; colIdx < len(rs.Fields); colIdx++ {
 		tName := &rs.Fields[colIdx].TableName
 		if len(useTableAlias) > 0 {
 			tName = &useTableAlias
 		}
 		fName := &rs.Fields[colIdx].FieldName
-		_, ok := (*vars)[*tName]
+		_, ok := vars[*tName]
 		if !ok {
-			(*vars)[*tName] = map[string]any{}
+			vars[*tName] = map[string]any{}
 		}
 		valuePtr := (*rs.Rows[rowIdx])[colIdx]
 		switch assertedValuePtr := valuePtr.(type) {
 		case *int64:
-			(*vars)[*tName][*fName] = *assertedValuePtr
+			vars[*tName][*fName] = *assertedValuePtr
 		case *string:
-			(*vars)[*tName][*fName] = *assertedValuePtr
+			vars[*tName][*fName] = *assertedValuePtr
 		case *time.Time:
-			(*vars)[*tName][*fName] = *assertedValuePtr
+			vars[*tName][*fName] = *assertedValuePtr
 		case *bool:
-			(*vars)[*tName][*fName] = *assertedValuePtr
+			vars[*tName][*fName] = *assertedValuePtr
 		case *decimal.Decimal:
-			(*vars)[*tName][*fName] = *assertedValuePtr
+			vars[*tName][*fName] = *assertedValuePtr
 		case *float64:
-			(*vars)[*tName][*fName] = *assertedValuePtr
+			vars[*tName][*fName] = *assertedValuePtr
 		case *inf.Dec:
 			decVal, err := decimal.NewFromString((*(valuePtr.(*inf.Dec))).String())
 			if err != nil {
 				return fmt.Errorf("ExportToVars cannot convert inf.Dec [%v]to decimal.Decimal", *(valuePtr.(*inf.Dec)))
 			}
-			(*vars)[*tName][*fName] = decVal
+			vars[*tName][*fName] = decVal
 		default:
 			return fmt.Errorf("ExportToVars unsupported field type %T", valuePtr)
 		}
@@ -240,10 +241,11 @@ func (rs *Rowset) ExportToVarsWithAlias(rowIdx int, vars *eval.VarValuesMap, use
 	return nil
 }
 
+// DO NOT DELETE YET
 // Force UTC TZ to each ts returned by gocql
 // func (rs *Rowset) SanitizeScannedDatetimesToUtc(rowIdx int) error {
 // 	for valIdx := 0; valIdx < len(rs.Fields); valIdx++ {
-// 		if rs.Fields[valIdx].FieldType == sc.FieldTypeDateTime {
+// 		if rs.Fields[valIdx].FieldType == eval_capi.FieldTypeDateTime {
 // 			origVolatile := (*rs.Rows[rowIdx])[valIdx]
 // 			origDt, ok := origVolatile.(time.Time)
 // 			if !ok {

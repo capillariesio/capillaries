@@ -14,6 +14,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/env"
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
 )
@@ -154,8 +155,8 @@ func createInserterAndStartWorkers(logger *l.CapiLogger, envConfig *env.EnvConfi
 
 func CreateDataTableCql(keyspace string, runId int16, tableCreator *sc.TableCreatorDef) string {
 	qb := cql.NewQB()
-	qb.ColumnDef("rowid", sc.FieldTypeInt)
-	qb.ColumnDef("batch_idx", sc.FieldTypeInt)
+	qb.ColumnDef("rowid", eval_capi.FieldTypeInt)
+	qb.ColumnDef("batch_idx", eval_capi.FieldTypeInt)
 	for fieldName, fieldDef := range tableCreator.Fields {
 		qb.ColumnDef(fieldName, fieldDef.Type)
 	}
@@ -165,8 +166,8 @@ func CreateDataTableCql(keyspace string, runId int16, tableCreator *sc.TableCrea
 func CreateIdxTableCql(keyspace string, runId int16, idxName string, idxDef *sc.IdxDef, tableCreator *sc.TableCreatorDef) string {
 	qb := cql.NewQB()
 	qb.Keyspace(keyspace).
-		ColumnDef("key", sc.FieldTypeString).
-		ColumnDef("rowid", sc.FieldTypeInt)
+		ColumnDef("key", eval_capi.FieldTypeString).
+		ColumnDef("rowid", eval_capi.FieldTypeInt)
 	if idxDef.Uniqueness == sc.IdxUnique {
 		// Key must be unique, let Cassandra enforce it for us: PRIMARY KEY (key)
 		qb.PartitionKey("key")
@@ -469,9 +470,9 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, tabl
 			for _, tri := range tableRecordItems {
 				switch v := tri.Value.(type) {
 				case string:
-					sb.WriteString(fmt.Sprintf("%s:%d characters;", tri.FieldName, len(v)))
+					fmt.Fprintf(&sb, "%s:%d characters;", tri.FieldName, len(v))
 				default:
-					sb.WriteString(fmt.Sprintf("%s:%T;", tri.FieldName, tri.Value))
+					fmt.Fprintf(&sb, "%s:%T;", tri.FieldName, tri.Value)
 				}
 			}
 			errorToReturn = db.WrapDbErrorWithQuery(sb.String(), pq.Query, err)

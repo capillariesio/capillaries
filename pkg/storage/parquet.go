@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	gp "github.com/fraugster/parquet-go"
 	pgparquet "github.com/fraugster/parquet-go/parquet"
@@ -35,7 +36,7 @@ func NewParquetWriter(ioWriter io.Writer, codec sc.ParquetCodecType) (*ParquetWr
 	}, nil
 }
 
-func (w *ParquetWriter) AddColumn(name string, fieldType sc.TableFieldType) error {
+func (w *ParquetWriter) AddColumn(name string, fieldType eval_capi.TableFieldType) error {
 	if _, ok := w.StoreMap[name]; ok {
 		return fmt.Errorf("cannot add duplicate column %s", name)
 	}
@@ -43,12 +44,12 @@ func (w *ParquetWriter) AddColumn(name string, fieldType sc.TableFieldType) erro
 	var s *gp.ColumnStore
 	var err error
 	switch fieldType {
-	case sc.FieldTypeString:
+	case eval_capi.FieldTypeString:
 		params := &gp.ColumnParameters{LogicalType: pgparquet.NewLogicalType()}
 		params.LogicalType.STRING = pgparquet.NewStringType()
 		params.ConvertedType = pgparquet.ConvertedTypePtr(pgparquet.ConvertedType_UTF8)
 		s, err = gp.NewByteArrayStore(pgparquet.Encoding_PLAIN, true, params)
-	case sc.FieldTypeDateTime:
+	case eval_capi.FieldTypeDateTime:
 		params := &gp.ColumnParameters{LogicalType: pgparquet.NewLogicalType()}
 		params.LogicalType.TIMESTAMP = pgparquet.NewTimestampType()
 		params.LogicalType.TIMESTAMP.Unit = pgparquet.NewTimeUnit()
@@ -56,9 +57,9 @@ func (w *ParquetWriter) AddColumn(name string, fieldType sc.TableFieldType) erro
 		params.LogicalType.TIMESTAMP.Unit.MILLIS = pgparquet.NewMilliSeconds()
 		params.ConvertedType = pgparquet.ConvertedTypePtr(pgparquet.ConvertedType_TIMESTAMP_MILLIS)
 		s, err = gp.NewInt64Store(pgparquet.Encoding_PLAIN, true, params)
-	case sc.FieldTypeInt:
+	case eval_capi.FieldTypeInt:
 		s, err = gp.NewInt64Store(pgparquet.Encoding_PLAIN, true, &gp.ColumnParameters{})
-	case sc.FieldTypeDecimal2:
+	case eval_capi.FieldTypeDecimal2:
 		params := &gp.ColumnParameters{LogicalType: pgparquet.NewLogicalType()}
 		params.LogicalType.DECIMAL = pgparquet.NewDecimalType()
 		params.LogicalType.DECIMAL.Scale = 2
@@ -69,9 +70,9 @@ func (w *ParquetWriter) AddColumn(name string, fieldType sc.TableFieldType) erro
 		params.Precision = &params.LogicalType.DECIMAL.Precision
 		params.ConvertedType = pgparquet.ConvertedTypePtr(pgparquet.ConvertedType_DECIMAL)
 		s, err = gp.NewInt64Store(pgparquet.Encoding_PLAIN, true, params)
-	case sc.FieldTypeFloat:
+	case eval_capi.FieldTypeFloat:
 		s, err = gp.NewDoubleStore(pgparquet.Encoding_PLAIN, true, &gp.ColumnParameters{})
-	case sc.FieldTypeBool:
+	case eval_capi.FieldTypeBool:
 		s, err = gp.NewBooleanStore(pgparquet.Encoding_PLAIN, &gp.ColumnParameters{})
 	default:
 		return fmt.Errorf("cannot add %s column %s: unsupported field type", fieldType, name)
@@ -177,21 +178,21 @@ func isParquetBool(se *pgparquet.SchemaElement) bool {
 		se.Type != nil && *se.Type == pgparquet.Type_BOOLEAN
 }
 
-func ParquetGuessCapiType(se *pgparquet.SchemaElement) (sc.TableFieldType, error) {
+func ParquetGuessCapiType(se *pgparquet.SchemaElement) (eval_capi.TableFieldType, error) {
 	if isParquetString(se) {
-		return sc.FieldTypeString, nil
+		return eval_capi.FieldTypeString, nil
 	} else if isParquetIntDecimal2(se) || isParquetFixedLengthByteArrayDecimal2(se) {
-		return sc.FieldTypeDecimal2, nil
+		return eval_capi.FieldTypeDecimal2, nil
 	} else if isParquetDateTime(se) || isParquetInt96Date(se) || isParquetInt32Date(se) {
-		return sc.FieldTypeDateTime, nil
+		return eval_capi.FieldTypeDateTime, nil
 	} else if isParquetInt(se) {
-		return sc.FieldTypeInt, nil
+		return eval_capi.FieldTypeInt, nil
 	} else if isParquetFloat(se) {
-		return sc.FieldTypeFloat, nil
+		return eval_capi.FieldTypeFloat, nil
 	} else if isParquetBool(se) {
-		return sc.FieldTypeBool, nil
+		return eval_capi.FieldTypeBool, nil
 	}
-	return sc.FieldTypeUnknown, fmt.Errorf("parquet schema element not supported: %v", se)
+	return eval_capi.FieldTypeUnknown, fmt.Errorf("parquet schema element not supported: %v", se)
 }
 
 func ParquetReadString(val any, se *pgparquet.SchemaElement) (string, error) {

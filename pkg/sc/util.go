@@ -20,8 +20,10 @@ func convertToStringMap(i any) any {
 		for i, v := range x {
 			x[i] = convertToStringMap(v)
 		}
+		return i
+	default:
+		return i
 	}
-	return i
 }
 
 func yamlUnmarshal(in []byte, out any) error {

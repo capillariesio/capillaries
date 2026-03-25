@@ -1,0 +1,28 @@
+package gocqlmem
+
+var GocqlmemEvalConstants = map[string]any{
+	"TRUE":      true,
+	"FALSE":     false,
+	"NULL":      nil,
+	"ASCII":     DataTypeAscii,
+	"BIGINT":    DataTypeBigint,
+	"BLOB":      DataTypeBlob,
+	"BOOLEAN":   DataTypeBoolean,
+	"COUNTER":   DataTypeCounter,
+	"DATE":      DataTypeDate,
+	"DECIMAL":   DataTypeDecimal,
+	"DOUBLE":    DataTypeDouble,
+	"DURATION":  DataTypeDuration,
+	"FLOAT":     DataTypeFloat,
+	"INET":      DataTypeInet,
+	"INT":       DataTypeInt,
+	"SMALLINT":  DataTypeSmallint,
+	"TEXT":      DataTypeText,
+	"TIME":      DataTypeTime,
+	"TIMESTAMP": DataTypeTimestamp,
+	"TIMEUUID":  DataTypeTimeuuid,
+	"TINYINT":   DataTypeTinyint,
+	"UUID":      DataTypeUuid,
+	"VARCHAR":   DataTypeVarchar,
+	"VARINT":    DataTypeVarint,
+}

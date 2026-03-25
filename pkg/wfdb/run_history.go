@@ -8,9 +8,9 @@ import (
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/db"
+	"github.com/capillariesio/capillaries/pkg/gocqlshims"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
-	"github.com/gocql/gocql"
 )
 
 func GetCurrentRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) (wfmodel.RunStatusType, error) {
@@ -46,7 +46,7 @@ func GetCurrentRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContex
 	return lastStatus, nil
 }
 
-func HarvestRunLifespans(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runIds []int16) (wfmodel.RunLifespanMap, error) {
+func HarvestRunLifespans(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runIds []int16) (wfmodel.RunLifespanMap, error) {
 	logger.PushF("wfdb.HarvestRunLifespans")
 	defer logger.PopF()
 
@@ -99,13 +99,13 @@ func HarvestRunLifespans(logger *l.CapiLogger, cqlSession *gocql.Session, keyspa
 	return runLifespanMap, nil
 }
 
-func SetRunStatus(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16, status wfmodel.RunStatusType, comment string, ifNotExistsFlag cql.IfNotExistsType) error {
+func SetRunStatus(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16, status wfmodel.RunStatusType, comment string, ifNotExistsFlag cql.IfNotExistsType) error {
 	logger.PushF("wfdb.SetRunStatus")
 	defer logger.PopF()
 
 	q := (&cql.QueryBuilder{}).
 		Keyspace(keyspace).
-		WriteForceUnquote("ts", "toTimeStamp(now())").
+		WriteForceUnquote("ts", "toTimestamp(now())").
 		Write("run_id", runId).
 		Write("status", status).
 		Write("comment", comment).

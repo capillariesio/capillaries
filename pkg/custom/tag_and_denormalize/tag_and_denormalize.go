@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/capillariesio/capillaries/pkg/eval"
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"github.com/capillariesio/capillaries/pkg/proc"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/xfer"
@@ -31,7 +32,7 @@ func (procDef *TagAndDenormalizeProcessorDef) GetFieldRefs() *sc.FieldRefs {
 		{
 			TableName: sc.CustomProcessorAlias,
 			FieldName: procDef.TagFieldName,
-			FieldType: sc.FieldTypeString}}
+			FieldType: eval_capi.FieldTypeString}}
 }
 
 func (procDef *TagAndDenormalizeProcessorDef) GetUsedInTargetExpressionsFields() *sc.FieldRefs {
@@ -98,18 +99,18 @@ func (procDef *TagAndDenormalizeProcessorDef) Deserialize(raw json.RawMessage, _
 
 const tagAndDenormalizeFlushBufferSize int = 1000
 
-func (procDef *TagAndDenormalizeProcessorDef) tagAndDenormalize(rsIn *proc.Rowset, flushVarsArray func(varsArray []*eval.VarValuesMap, varsArrayCount int) error) error {
-	varsArray := make([]*eval.VarValuesMap, tagAndDenormalizeFlushBufferSize)
+func (procDef *TagAndDenormalizeProcessorDef) tagAndDenormalize(rsIn *proc.Rowset, flushVarsArray func(varsArray []eval.VarValuesMap, varsArrayCount int) error) error {
+	varsArray := make([]eval.VarValuesMap, tagAndDenormalizeFlushBufferSize)
 	varsArrayCount := 0
 
 	for rowIdx := 0; rowIdx < rsIn.RowCount; rowIdx++ {
 		vars := eval.VarValuesMap{}
-		if err := rsIn.ExportToVars(rowIdx, &vars); err != nil {
+		if err := rsIn.ExportToVars(rowIdx, vars); err != nil {
 			return err
 		}
 
 		for tag, tagCriteria := range procDef.ParsedTagCriteria {
-			eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, &vars)
+			eCtx := eval.NewPlainEvalCtx(eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, vars)
 			valVolatile, err := eCtx.Eval(tagCriteria)
 			if err != nil {
 				return fmt.Errorf("cannot evaluate expression for tag %s criteria: [%s]", tag, err.Error())
@@ -126,13 +127,13 @@ func (procDef *TagAndDenormalizeProcessorDef) tagAndDenormalize(rsIn *proc.Rowse
 
 			// Add new tag field to the output
 
-			varsArray[varsArrayCount] = &eval.VarValuesMap{}
+			varsArray[varsArrayCount] = eval.VarValuesMap{}
 			// Write tag
-			(*varsArray[varsArrayCount])[sc.CustomProcessorAlias] = map[string]any{procDef.TagFieldName: tag}
+			varsArray[varsArrayCount][sc.CustomProcessorAlias] = map[string]any{procDef.TagFieldName: tag}
 			// Write r values
-			(*varsArray[varsArrayCount])[sc.ReaderAlias] = map[string]any{}
+			varsArray[varsArrayCount][sc.ReaderAlias] = map[string]any{}
 			for fieldName, fieldVal := range vars[sc.ReaderAlias] {
-				(*varsArray[varsArrayCount])[sc.ReaderAlias][fieldName] = fieldVal
+				varsArray[varsArrayCount][sc.ReaderAlias][fieldName] = fieldVal
 			}
 			varsArrayCount++
 
@@ -140,7 +141,7 @@ func (procDef *TagAndDenormalizeProcessorDef) tagAndDenormalize(rsIn *proc.Rowse
 				if err = flushVarsArray(varsArray, varsArrayCount); err != nil {
 					return fmt.Errorf("error flushing vars array of size %d: %s", varsArrayCount, err.Error())
 				}
-				varsArray = make([]*eval.VarValuesMap, tagAndDenormalizeFlushBufferSize)
+				varsArray = make([]eval.VarValuesMap, tagAndDenormalizeFlushBufferSize)
 				varsArrayCount = 0
 			}
 		}

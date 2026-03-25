@@ -1,0 +1,1 @@
+This package draws Capillaries diagrams. May be externalized eventually.

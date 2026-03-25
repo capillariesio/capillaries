@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/capillariesio/capillaries/pkg/eval"
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 )
 
 const (
@@ -303,14 +304,14 @@ func (node *ScriptNodeDef) evalCreatorAndLookupExpressionsAndCheckType() error {
 	foundErrors := make([]string, 0, 2)
 
 	if node.HasLookup() && node.Lookup.UsesFilter() {
-		if err := evalExpressionWithFieldRefsAndCheckType(node.Lookup.Filter, node.Lookup.UsedInFilterFields, FieldTypeBool); err != nil {
+		if err := evalExpressionWithFieldRefsAndCheckType(node.Lookup.Filter, node.Lookup.UsedInFilterFields, eval_capi.FieldTypeBool); err != nil {
 			foundErrors = append(foundErrors, fmt.Sprintf("cannot evaluate lookup filter expression [%s]: [%s]", node.Lookup.RawFilter, err.Error()))
 		}
 	}
 
 	if node.HasTableCreator() {
 		// Having
-		if err := evalExpressionWithFieldRefsAndCheckType(node.TableCreator.Having, node.TableCreator.UsedInHavingFields, FieldTypeBool); err != nil {
+		if err := evalExpressionWithFieldRefsAndCheckType(node.TableCreator.Having, node.TableCreator.UsedInHavingFields, eval_capi.FieldTypeBool); err != nil {
 			foundErrors = append(foundErrors, fmt.Sprintf("cannot evaluate table creator 'having' expression [%s]: [%s]", node.TableCreator.RawHaving, err.Error()))
 		}
 
@@ -343,7 +344,7 @@ func (node *ScriptNodeDef) evalCreatorAndLookupExpressionsAndCheckType() error {
 
 	if node.HasFileCreator() {
 		// Having
-		if err := evalExpressionWithFieldRefsAndCheckType(node.FileCreator.Having, node.FileCreator.UsedInHavingFields, FieldTypeBool); err != nil {
+		if err := evalExpressionWithFieldRefsAndCheckType(node.FileCreator.Having, node.FileCreator.UsedInHavingFields, eval_capi.FieldTypeBool); err != nil {
 			foundErrors = append(foundErrors, fmt.Sprintf("cannot evaluate file creator 'having' expression [%s]: [%s]", node.FileCreator.RawHaving, err.Error()))
 		}
 
@@ -380,7 +381,7 @@ func (node *ScriptNodeDef) GetUniqueIndexesFieldRefs() *FieldRefs {
 	if !node.HasTableCreator() {
 		return &FieldRefs{}
 	}
-	fieldTypeMap := map[string]TableFieldType{}
+	fieldTypeMap := map[string]eval_capi.TableFieldType{}
 	for _, idxDef := range node.TableCreator.Indexes {
 		if idxDef.Uniqueness == IdxUnique {
 			for _, idxComponentDef := range idxDef.Components {

@@ -53,19 +53,26 @@ func readAndInsert(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, tab
 
 	curStartToken := startToken
 
+	var curStartTokenRowIds []int64
 	for {
-		lastRetrievedToken, err := selectBatchFromTableByToken(logger,
+		lastRetrievedToken, endTokenRowIds, err := selectBatchFromTableByToken(logger,
 			pCtx,
 			rs,
 			tableName,
 			readerNodeRunId,
 			srcBatchSize,
 			curStartToken,
-			endToken)
+			endToken,
+			curStartTokenRowIds)
 		if err != nil {
 			return bs, err
 		}
-		curStartToken = lastRetrievedToken + 1
+		// If token(rowid) guaranteed uniqueness, we would just "curStartToken = lastRetrievedToken + 1"
+		// But duplicates are possible, so we have to be prepared to handle token overlaps
+		// (rows with same token but different rowids returned in separate selectBatchFromTableByToken calls)
+		// See overlap/epilogue logic in selectBatchFromTableByToken.
+		curStartToken = lastRetrievedToken
+		curStartTokenRowIds = endTokenRowIds
 
 		if rs.RowCount == 0 {
 			break
@@ -73,7 +80,7 @@ func readAndInsert(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, tab
 
 		for rowIdx := 0; rowIdx < rs.RowCount; rowIdx++ {
 			vars := eval.VarValuesMap{}
-			if err := rs.ExportToVars(rowIdx, &vars); err != nil {
+			if err := rs.ExportToVars(rowIdx, vars); err != nil {
 				return bs, err
 			}
 
@@ -111,9 +118,9 @@ func readAndInsert(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, tab
 		}
 
 		bs.RowsRead += rs.RowCount
-		if rs.RowCount < srcBatchSize {
-			break
-		}
+
+		// We are tempted to "if rs.RowCount < srcBatchSize break", here but do not do that:
+		// because of the rowid overlapping/epilogue logic, selectBatchFromTableByToken returns less rows than rs capacity
 
 		if err := instr.checkWorkerOutputForErrors(); err != nil {
 			return bs, fmt.Errorf("cannot save record batch from %s to %s(temp %s): [%s]", tableName, instr.FinalFileUrl, instr.TempFilePath, err.Error())

@@ -27,8 +27,8 @@ type VizNode struct {
 
 func (vn *VizNode) String() string {
 	sb := strings.Builder{}
-	sb.WriteString(fmt.Sprintf("{Id:%d RootId:%d Layer:%d ", vn.Def.Id, vn.RootId, vn.Layer))
-	sb.WriteString(fmt.Sprintf("X:%.2f Y:%.2f TotalW:%.2f W:%.2f H:%.2f ", vn.X, vn.Y, vn.TotalW, vn.NodeW, vn.NodeH))
+	fmt.Fprintf(&sb, "{Id:%d RootId:%d Layer:%d ", vn.Def.Id, vn.RootId, vn.Layer)
+	fmt.Fprintf(&sb, "X:%.2f Y:%.2f TotalW:%.2f W:%.2f H:%.2f ", vn.X, vn.Y, vn.TotalW, vn.NodeW, vn.NodeH)
 	sb.WriteString("In:[")
 	for i, e := range vn.IncomingVizEdges {
 		if i > 0 {
@@ -38,7 +38,7 @@ func (vn *VizNode) String() string {
 		if e.HierarchyType == HierarchySec {
 			ht = "sec"
 		}
-		sb.WriteString(fmt.Sprintf("{HT:%s SrcId:%d X:%.2f Y:%.2f W:%.2f H:%.2f}", ht, e.Edge.SrcId, e.X, e.Y, e.W, e.H))
+		fmt.Fprintf(&sb, "{HT:%s SrcId:%d X:%.2f Y:%.2f W:%.2f H:%.2f}", ht, e.Edge.SrcId, e.X, e.Y, e.W, e.H)
 	}
 	sb.WriteString("] ")
 	sb.WriteString("PriRootOut:[")
@@ -46,7 +46,7 @@ func (vn *VizNode) String() string {
 		if i > 0 {
 			sb.WriteString(" ")
 		}
-		sb.WriteString(fmt.Sprintf("%d", c.Def.Id))
+		fmt.Fprintf(&sb, "%d", c.Def.Id)
 	}
 	sb.WriteString("]")
 	sb.WriteString("}")

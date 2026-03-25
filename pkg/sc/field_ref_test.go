@@ -4,6 +4,7 @@ import (
 	"go/parser"
 	"testing"
 
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,39 +26,39 @@ func TestAppendWithFilter(t *testing.T) {
 func TestEvalFieldRefExpression(t *testing.T) {
 	fieldRefs := FieldRefs{
 		{
-			FieldType: FieldTypeInt,
+			FieldType: eval_capi.FieldTypeInt,
 			TableName: "r",
 			FieldName: "fieldInt"},
 		{
-			FieldType: FieldTypeFloat,
+			FieldType: eval_capi.FieldTypeFloat,
 			TableName: "r",
 			FieldName: "fieldFloat"},
 		{
-			FieldType: FieldTypeDecimal2,
+			FieldType: eval_capi.FieldTypeDecimal2,
 			TableName: "r",
 			FieldName: "fieldDec"},
 		{
-			FieldType: FieldTypeString,
+			FieldType: eval_capi.FieldTypeString,
 			TableName: "r",
 			FieldName: "fieldStr"}}
 
 	exp, err := parser.ParseExpr(`r.fieldInt/r.fieldFloat`)
 	assert.Nil(t, err)
-	err = evalExpressionWithFieldRefsAndCheckType(exp, fieldRefs, FieldTypeFloat)
+	err = evalExpressionWithFieldRefsAndCheckType(exp, fieldRefs, eval_capi.FieldTypeFloat)
 	assert.Nil(t, err)
 
 	exp, err = parser.ParseExpr(`r.fieldFloat/r.fieldDec`)
 	assert.Nil(t, err)
-	err = evalExpressionWithFieldRefsAndCheckType(exp, fieldRefs, FieldTypeFloat)
+	err = evalExpressionWithFieldRefsAndCheckType(exp, fieldRefs, eval_capi.FieldTypeFloat)
 	assert.Nil(t, err)
 
 	exp, err = parser.ParseExpr(`r.fieldInt/r.fieldDec`)
 	assert.Nil(t, err)
-	err = evalExpressionWithFieldRefsAndCheckType(exp, fieldRefs, FieldTypeInt)
+	err = evalExpressionWithFieldRefsAndCheckType(exp, fieldRefs, eval_capi.FieldTypeInt)
 	assert.Contains(t, err.Error(), "expected type int, but got decimal")
 
 	exp, err = parser.ParseExpr(`int(r.fieldStr)/float(r.fieldStr)`)
 	assert.Nil(t, err)
-	err = evalExpressionWithFieldRefsAndCheckType(exp, fieldRefs, FieldTypeFloat)
+	err = evalExpressionWithFieldRefsAndCheckType(exp, fieldRefs, eval_capi.FieldTypeFloat)
 	assert.Nil(t, err)
 }

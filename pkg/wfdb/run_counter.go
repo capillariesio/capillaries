@@ -6,12 +6,12 @@ import (
 
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/db"
+	"github.com/capillariesio/capillaries/pkg/gocqlshims"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
-	"github.com/gocql/gocql"
 )
 
-func GetNextRunCounter(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string) (int16, error) {
+func GetNextRunCounter(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string) (int16, error) {
 	logger.PushF("wfdb.GetNextRunCounter")
 	defer logger.PopF()
 
@@ -28,13 +28,30 @@ func GetNextRunCounter(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace
 		}
 
 		if len(rows) != 1 {
-			return 0, fmt.Errorf("cannot get run counter, wrong number of rows: %s, %s", q, err.Error())
+			return 0, fmt.Errorf("cannot get run counter, wrong number of rows: %s", q)
 		}
 
-		lastRunId, ok := rows[0]["last_run"].(int)
-		if !ok {
-			return 0, fmt.Errorf("cannot get run counter from [%v]: %s, %s", rows[0], q, err.Error())
+		// last_run is technically Cassandra INT, so it is supposed to be Go int32, but I am getting Go int from gocql. Play safe.
+		var lastRunId int64
+		switch typedLastRunId := rows[0]["last_run"].(type) {
+		case int:
+			lastRunId = int64(typedLastRunId)
+		case int8:
+			lastRunId = int64(typedLastRunId)
+		case int16:
+			lastRunId = int64(typedLastRunId)
+		case int32:
+			lastRunId = int64(typedLastRunId)
+		case int64:
+			lastRunId = typedLastRunId
+		default:
+			return 0, fmt.Errorf("cannot get run counter from [%v]: %s", rows[0], q)
 		}
+
+		// lastRunId, ok := rows[0]["last_run"].(int)
+		// if !ok {
+		// 	return 0, fmt.Errorf("cannot get run counter from [%v], %s: expected int, got %T", rows[0], q, rows[0]["last_run"])
+		// }
 
 		// Try incrementing
 		newRunId := lastRunId + 1

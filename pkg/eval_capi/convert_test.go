@@ -1,12 +1,45 @@
-package eval
+package eval_capi
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
+	"github.com/capillariesio/capillaries/pkg/eval"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestConvertEval(t *testing.T) {
+	varValuesMap := eval.VarValuesMap{
+		"t1": {
+			"fieldInt":      1,
+			"fieldInt16":    int16(1),
+			"fieldInt32":    int32(1),
+			"fieldInt64":    int16(1),
+			"fieldFloat32":  float32(1.0),
+			"fieldFloat64":  float64(1.0),
+			"fieldDecimal2": decimal.NewFromInt(1),
+		},
+	}
+
+	// Number to number
+	for fldName := range varValuesMap["t1"] {
+		assertEqual(t, fmt.Sprintf("decimal2(t1.%s) == 1", fldName), true, varValuesMap)
+		assertEqual(t, fmt.Sprintf("float(t1.%s) == 1.0", fldName), true, varValuesMap)
+		assertEqual(t, fmt.Sprintf("int(t1.%s) == 1", fldName), true, varValuesMap)
+	}
+
+	// String to number
+	assertEqual(t, `int("1") == 1`, true, varValuesMap)
+	assertEqual(t, `float("1.0") == 1.0`, true, varValuesMap)
+	assertEqual(t, `decimal2("1.0") == 1.0`, true, varValuesMap)
+
+	// Number to string
+	assertEqual(t, `string(1) == "1"`, true, varValuesMap)
+	assertEqual(t, `string(1.1) == "1.1"`, true, varValuesMap)
+	assertEqual(t, `string(decimal2(1.1)) == "1.1"`, true, varValuesMap)
+}
 
 func TestConvert(t *testing.T) {
 	var val any

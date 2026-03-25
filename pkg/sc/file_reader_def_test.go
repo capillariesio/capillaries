@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/eval"
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 )
@@ -78,13 +79,13 @@ func TestFieldRefs(t *testing.T) {
 	var fr *FieldRef
 	fr, _ = fieldRefs.FindByFieldName("col_order_id")
 	assert.Equal(t, ReaderAlias, fr.TableName)
-	assert.Equal(t, FieldTypeString, fr.FieldType)
+	assert.Equal(t, eval_capi.FieldTypeString, fr.FieldType)
 	fr, _ = fieldRefs.FindByFieldName("col_order_status")
 	assert.Equal(t, ReaderAlias, fr.TableName)
-	assert.Equal(t, FieldTypeString, fr.FieldType)
+	assert.Equal(t, eval_capi.FieldTypeString, fr.FieldType)
 	fr, _ = fieldRefs.FindByFieldName("col_order_purchase_timestamp")
 	assert.Equal(t, ReaderAlias, fr.TableName)
-	assert.Equal(t, FieldTypeDateTime, fr.FieldType)
+	assert.Equal(t, eval_capi.FieldTypeDateTime, fr.FieldType)
 }
 
 func TestColumnIndexing(t *testing.T) {
@@ -360,7 +361,7 @@ func TestReadDatetime(t *testing.T) {
 
 	goodVal := time.Date(2017, time.October, 2, 10, 56, 33, 155000000, time.UTC)
 	defaultVal := time.Date(2001, time.July, 7, 11, 22, 33, 700000000, time.UTC)
-	nullVal := GetDefaultFieldTypeValue(FieldTypeDateTime)
+	nullVal := GetDefaultFieldTypeValue(eval_capi.FieldTypeDateTime)
 
 	goodTestScenarios := [][]any{
 		{confGoodFormatGoodDefault, srcLineGood, goodVal},

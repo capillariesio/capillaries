@@ -19,6 +19,8 @@ import (
 	"github.com/capillariesio/capillaries/pkg/custom/tag_and_denormalize"
 	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/env"
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
+	"github.com/capillariesio/capillaries/pkg/gocqlshims"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/mq"
 	"github.com/capillariesio/capillaries/pkg/proc"
@@ -26,7 +28,6 @@ import (
 	"github.com/capillariesio/capillaries/pkg/storage"
 	"github.com/capillariesio/capillaries/pkg/wfdb"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
-	"github.com/gocql/gocql"
 	"github.com/google/uuid"
 )
 
@@ -483,13 +484,13 @@ func protoFileReaderCreator() int {
 	tgtFileFinalPath := "/tmp/capi_out/proto_file_reader_creator_quicktest/" + srcFileName
 
 	// Some reasonable defaults that match our test expectations in test/data/proto_file_reader_creator
-	fileWriterFormatMap := map[sc.TableFieldType]string{
-		sc.FieldTypeString:   "%s",
-		sc.FieldTypeInt:      "%d",
-		sc.FieldTypeFloat:    "%.3f",
-		sc.FieldTypeDecimal2: "%s",
-		sc.FieldTypeDateTime: "2006-01-02 15:04:05",
-		sc.FieldTypeBool:     "%t"}
+	fileWriterFormatMap := map[eval_capi.TableFieldType]string{
+		eval_capi.FieldTypeString:   "%s",
+		eval_capi.FieldTypeInt:      "%d",
+		eval_capi.FieldTypeFloat:    "%.3f",
+		eval_capi.FieldTypeDecimal2: "%s",
+		eval_capi.FieldTypeDateTime: "2006-01-02 15:04:05",
+		eval_capi.FieldTypeBool:     "%t"}
 
 	// Create file reader
 	fileReaderDef := sc.FileReaderDef{
@@ -659,7 +660,7 @@ func protoFileReaderCreator() int {
 }
 
 // Used by Toolbelt (exec_node command), can be used for testing Capillaries node execution without message queue wokflow
-func runNode(envConfig *env.EnvConfig, logger *l.CapiLogger, nodeName string, runId int16, scriptFilePath string, paramsFilePath string, cqlSession *gocql.Session, keyspace string) (int16, error) {
+func runNode(envConfig *env.EnvConfig, logger *l.CapiLogger, nodeName string, runId int16, scriptFilePath string, paramsFilePath string, cqlSession gocqlshims.Session, keyspace string) (int16, error) {
 	logger.PushF("api.RunNode")
 	defer logger.PopF()
 

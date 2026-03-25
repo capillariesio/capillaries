@@ -8,6 +8,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/eval"
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/storage"
@@ -19,7 +20,7 @@ func readParquetRowToValuesMap(d map[string]any,
 	rowIdx int,
 	requestedParquetColumnNames []string,
 	parquetToCapiFieldNameMap map[string]string,
-	parquetToCapiTypeMap map[string]sc.TableFieldType,
+	parquetToCapiTypeMap map[string]eval_capi.TableFieldType,
 	schemaElementMap map[string]*parquet.SchemaElement,
 	colVars eval.VarValuesMap) error {
 	colVars[sc.ReaderAlias] = map[string]any{}
@@ -47,27 +48,27 @@ func readParquetRowToValuesMap(d map[string]any,
 
 		var err error
 		switch capiType {
-		case sc.FieldTypeString:
+		case eval_capi.FieldTypeString:
 			if colVars[sc.ReaderAlias][capiFieldName], err = storage.ParquetReadString(volatile, se); err != nil {
 				return fmt.Errorf("cannot read string row %d, column %s: %s", rowIdx, parquetColName, err.Error())
 			}
-		case sc.FieldTypeInt:
+		case eval_capi.FieldTypeInt:
 			if colVars[sc.ReaderAlias][capiFieldName], err = storage.ParquetReadInt(volatile, se); err != nil {
 				return fmt.Errorf("cannot read int row %d, column %s: %s", rowIdx, parquetColName, err.Error())
 			}
-		case sc.FieldTypeFloat:
+		case eval_capi.FieldTypeFloat:
 			if colVars[sc.ReaderAlias][capiFieldName], err = storage.ParquetReadFloat(volatile, se); err != nil {
 				return fmt.Errorf("cannot read float row %d, column %s: %s", rowIdx, parquetColName, err.Error())
 			}
-		case sc.FieldTypeBool:
+		case eval_capi.FieldTypeBool:
 			if colVars[sc.ReaderAlias][capiFieldName], err = storage.ParquetReadBool(volatile, se); err != nil {
 				return fmt.Errorf("cannot read bool row %d, column %s: %s", rowIdx, parquetColName, err.Error())
 			}
-		case sc.FieldTypeDateTime:
+		case eval_capi.FieldTypeDateTime:
 			if colVars[sc.ReaderAlias][capiFieldName], err = storage.ParquetReadDateTime(volatile, se); err != nil {
 				return fmt.Errorf("cannot read DateTime row %d, column %s: %s", rowIdx, parquetColName, err.Error())
 			}
-		case sc.FieldTypeDecimal2:
+		case eval_capi.FieldTypeDecimal2:
 			if colVars[sc.ReaderAlias][capiFieldName], err = storage.ParquetReadDecimal2(volatile, se); err != nil {
 				return fmt.Errorf("cannot read decimal2 row %d, column %s: %s", rowIdx, parquetColName, err.Error())
 			}
@@ -104,7 +105,7 @@ func readParquet(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.Messa
 
 	// Digest schema
 	schemaElementMap := map[string]*parquet.SchemaElement{}
-	parquetToCapiTypeMap := map[string]sc.TableFieldType{}
+	parquetToCapiTypeMap := map[string]eval_capi.TableFieldType{}
 	schemaDef := reader.GetSchemaDefinition()
 	for _, column := range schemaDef.RootColumn.Children {
 		t, err := storage.ParquetGuessCapiType(column.SchemaElement)
@@ -154,7 +155,7 @@ func readParquet(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.Messa
 		}
 
 		// TableCreator: evaluate table column expressions
-		tableRecord, err = node.TableCreator.CalculateTableRecordFromSrcVars(false, colVars)
+		tableRecord, err = node.TableCreator.CalculateTableRecordFromSrcVars(colVars)
 		if err != nil {
 			instr.cancelDrainer(fmt.Errorf("cannot populate table record from parquet [%s] row %d: [%s]", filePath, bs.RowsRead, err.Error()))
 			return bs, instr.waitForDrainer()

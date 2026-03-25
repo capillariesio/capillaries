@@ -12,49 +12,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func assertEqual(t *testing.T, expString string, expectedResult any, varValuesMap VarValuesMap) {
-	exp, err1 := parser.ParseExpr(expString)
-	if err1 != nil {
-		t.Error(fmt.Errorf("%s: %s", expString, err1.Error()))
-		return
-	}
-	eCtx := NewPlainEvalCtxWithVars(AggFuncDisabled, &varValuesMap)
-	result, err2 := eCtx.Eval(exp)
-	if err2 != nil {
-		t.Error(fmt.Errorf("%s: %s", expString, err2.Error()))
-		return
-	}
-
-	assert.Equal(t, expectedResult, result, fmt.Sprintf("Unmatched: %v = %v: %s ", expectedResult, result, expString))
-}
-
-func assertFloatNan(t *testing.T, expString string, varValuesMap VarValuesMap) {
-	exp, err1 := parser.ParseExpr(expString)
-	if err1 != nil {
-		t.Error(fmt.Errorf("%s: %s", expString, err1.Error()))
-		return
-	}
-	eCtx := NewPlainEvalCtxWithVars(AggFuncDisabled, &varValuesMap)
-	result, err2 := eCtx.Eval(exp)
-	if err2 != nil {
-		t.Error(fmt.Errorf("%s: %s", expString, err2.Error()))
-		return
-	}
-	floatResult, ok := result.(float64)
-	assert.True(t, ok)
-	assert.True(t, math.IsNaN(floatResult))
-}
-
-func assertEvalError(t *testing.T, expString string, expectedErrorMsg string, varValuesMap VarValuesMap) {
-	exp, err1 := parser.ParseExpr(expString)
-	if err1 != nil {
-		assert.Contains(t, err1.Error(), expectedErrorMsg, fmt.Sprintf("Unmatched: %v = %v: %s ", expectedErrorMsg, err1.Error(), expString))
-		return
-	}
-	eCtx := NewPlainEvalCtxWithVars(AggFuncDisabled, &varValuesMap)
-	_, err2 := eCtx.Eval(exp)
-
-	assert.Contains(t, err2.Error(), expectedErrorMsg, fmt.Sprintf("Unmatched: %v = %v: %s ", expectedErrorMsg, err2.Error(), expString))
+func TestVarValuesMapUtils(t *testing.T) {
+	varValuesMap := VarValuesMap{"some_table": map[string]any{"some_field": 1}}
+	assert.Equal(t, "[some_table ]", varValuesMap.Tables())
+	assert.Equal(t, "[some_table.some_field ]", varValuesMap.Names())
 }
 
 func TestBad(t *testing.T) {
@@ -62,9 +23,9 @@ func TestBad(t *testing.T) {
 	assertEvalError(t, "some(", "1:6: expected ')', found 'EOF'", VarValuesMap{})
 
 	// Missing identifier
-	assertEvalError(t, "someident", "cannot evaluate identifier someident", VarValuesMap{})
+	assertEvalError(t, "someident", "cannot evaluate ident expression 'someident', no empty object", VarValuesMap{})
 	assertEvalError(t, "somefunc()", "cannot evaluate unsupported func 'somefunc'", VarValuesMap{})
-	assertEvalError(t, "t2.aaa == 1", "cannot evaluate expression 't2', variable not supplied, check table/alias name", VarValuesMap{})
+	assertEvalError(t, "t2.aaa == 1", "cannot evaluate selector ident expression 't2', variable not supplied, check table/alias name", VarValuesMap{})
 
 	// Unsupported binary operators
 	assertEvalError(t, "2 ^ 1", "cannot perform binary expression unknown op ^", VarValuesMap{})   // TODO: implement ^ xor
@@ -78,35 +39,14 @@ func TestBad(t *testing.T) {
 	assertEvalError(t, "t1.fieldInt.w", "cannot evaluate selector expression &{t1 fieldInt}, unknown type of X: *ast.SelectorExpr", VarValuesMap{"t1": {"fieldInt": 1}})
 }
 
-func TestConvertEval(t *testing.T) {
+func TestIdent(t *testing.T) {
 	varValuesMap := VarValuesMap{
-		"t1": {
-			"fieldInt":      1,
-			"fieldInt16":    int16(1),
-			"fieldInt32":    int32(1),
-			"fieldInt64":    int16(1),
-			"fieldFloat32":  float32(1.0),
-			"fieldFloat64":  float64(1.0),
-			"fieldDecimal2": decimal.NewFromInt(1),
+		"": {
+			"fieldInt": 2,
 		},
 	}
-
-	// Number to number
-	for fldName := range varValuesMap["t1"] {
-		assertEqual(t, fmt.Sprintf("decimal2(t1.%s) == 1", fldName), true, varValuesMap)
-		assertEqual(t, fmt.Sprintf("float(t1.%s) == 1.0", fldName), true, varValuesMap)
-		assertEqual(t, fmt.Sprintf("int(t1.%s) == 1", fldName), true, varValuesMap)
-	}
-
-	// String to number
-	assertEqual(t, `int("1") == 1`, true, varValuesMap)
-	assertEqual(t, `float("1.0") == 1.0`, true, varValuesMap)
-	assertEqual(t, `decimal2("1.0") == 1.0`, true, varValuesMap)
-
-	// Number to string
-	assertEqual(t, `string(1) == "1"`, true, varValuesMap)
-	assertEqual(t, `string(1.1) == "1.1"`, true, varValuesMap)
-	assertEqual(t, `string(decimal2(1.1)) == "1.1"`, true, varValuesMap)
+	assertEqual(t, `(fieldInt == 2) == true`, true, varValuesMap)
+	assertEqual(t, `(fieldInt == 3) == false`, true, varValuesMap)
 }
 
 func TestArithmetic(t *testing.T) {
@@ -193,6 +133,9 @@ func TestCompare(t *testing.T) {
 			"fieldFloat64":  float64(2.0),
 			"fieldDecimal2": decimal.NewFromInt(2),
 		},
+		"": {
+			"nil": nil,
+		},
 	}
 	for k1 := range varValuesMap["t1"] {
 		for k2 := range varValuesMap["t2"] {
@@ -203,7 +146,19 @@ func TestCompare(t *testing.T) {
 			assertEqual(t, fmt.Sprintf("t2.%s > t1.%s", k1, k2), true, varValuesMap)
 			assertEqual(t, fmt.Sprintf("t2.%s >= t1.%s", k1, k2), true, varValuesMap)
 		}
+		assertEqual(t, fmt.Sprintf("t1.%s == nil", k1), false, varValuesMap)
+		assertEqual(t, fmt.Sprintf("t1.%s != nil", k1), true, varValuesMap)
+		assertEqual(t, fmt.Sprintf("t1.%s < nil", k1), false, varValuesMap)
+		assertEqual(t, fmt.Sprintf("t1.%s <= nil", k1), false, varValuesMap)
+		assertEqual(t, fmt.Sprintf("t2.%s > nil", k1), false, varValuesMap)
+		assertEqual(t, fmt.Sprintf("t2.%s >= nil", k1), false, varValuesMap)
 	}
+	assertEqual(t, "nil == nil", true, varValuesMap)
+	assertEqual(t, "nil != nil", false, varValuesMap)
+	assertEqual(t, "nil < nil", false, varValuesMap)
+	assertEqual(t, "nil <= nil", false, varValuesMap)
+	assertEqual(t, "nil > nil", false, varValuesMap)
+	assertEqual(t, "nil >= nil", false, varValuesMap)
 
 	// Bool
 	assertEqual(t, "false == false", true, varValuesMap)
@@ -271,24 +226,83 @@ func TestTime(t *testing.T) {
 	assertEqual(t, `t1.fTime != t2.fTime`, true, varValuesMap)
 }
 
+func TestFunc(t *testing.T) {
+	functions := map[string]EvalFunction{
+		"package1.Mul2": func(args []any) (any, error) {
+			if len(args) != 1 {
+				return nil, fmt.Errorf("package1.Mul2 srequires one arg, not %d", len(args))
+			}
+			switch typedArg := args[0].(type) {
+			case float64:
+				return typedArg * 2.0, nil
+			default:
+				return nil, fmt.Errorf("package1.Mul2 does not support type %T (%v)", args[0], args[0])
+			}
+		},
+		"mul3": func(args []any) (any, error) {
+			if len(args) != 1 {
+				return nil, fmt.Errorf("mul2 requires one arg, not %d", len(args))
+			}
+			switch typedArg := args[0].(type) {
+			case float64:
+				return typedArg * 3.0, nil
+			default:
+				return nil, fmt.Errorf("mul3 does not support type %T (%v)", args[0], args[0])
+			}
+		},
+	}
+	eCtx := NewPlainEvalCtx(functions, nil, nil)
+
+	exp, err := parser.ParseExpr("package1.Mul2(1.0)")
+	assert.Nil(t, err)
+	result, _ := eCtx.Eval(exp)
+	assert.Equal(t, float64(2.0), result)
+
+	exp, err = parser.ParseExpr("mul3(1.0)")
+	assert.Nil(t, err)
+	result, _ = eCtx.Eval(exp)
+	assert.Equal(t, float64(3.0), result)
+}
+
+func TestConst(t *testing.T) {
+	constants := map[string]any{
+		"const1":          float64(1.0),
+		"package2.const2": float64(2.0),
+	}
+	eCtx := NewPlainEvalCtx(nil, constants, nil)
+
+	exp, err := parser.ParseExpr("const1*2")
+	assert.Nil(t, err)
+	result, _ := eCtx.Eval(exp)
+	assert.Equal(t, float64(2.0), result)
+
+	exp, err = parser.ParseExpr("package2.const2*2")
+	assert.Nil(t, err)
+	result, _ = eCtx.Eval(exp)
+	assert.Equal(t, float64(4.0), result)
+}
+
 func TestNewPlainEvalCtxAndInitializedAgg(t *testing.T) {
 	varValuesMap := getTestValuesMap()
 	varValuesMap["t1"]["fieldStr"] = "a"
 
 	exp, _ := parser.ParseExpr(`string_agg(t1.fieldStr,",")`)
-	funcName, aggEnabledType, aggFuncType, aggFuncArgs := DetectRootAggFunc(exp)
-	eCtx, err := NewPlainEvalCtxAndInitializedAgg(funcName, aggEnabledType, aggFuncType, aggFuncArgs)
-	assert.Equal(t, AggTypeString, eCtx.AggType)
+	aggEnabledType, aggFuncType, aggFuncArgs := DetectRootAggFunc(exp)
+	assert.Equal(t, AggFuncEnabled, aggEnabledType)
+	eCtx, err := NewAggEvalCtx(aggFuncType, aggFuncArgs, nil, nil, nil)
+	assert.Equal(t, AggTypeString, eCtx.aggType)
 	assert.Nil(t, err)
 
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr,1)`)
-	funcName, aggEnabledType, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
-	_, err = NewPlainEvalCtxAndInitializedAgg(funcName, aggEnabledType, aggFuncType, aggFuncArgs)
+	aggEnabledType, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
+	assert.Equal(t, AggFuncEnabled, aggEnabledType)
+	_, err = NewAggEvalCtx(aggFuncType, aggFuncArgs, nil, nil, nil)
 	assert.Equal(t, "string_agg/if second parameter must be a constant string", err.Error())
 
 	exp, _ = parser.ParseExpr(`string_agg(t1.fieldStr, a)`)
-	funcName, aggEnabledType, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
-	_, err = NewPlainEvalCtxAndInitializedAgg(funcName, aggEnabledType, aggFuncType, aggFuncArgs)
+	aggEnabledType, aggFuncType, aggFuncArgs = DetectRootAggFunc(exp)
+	assert.Equal(t, AggFuncEnabled, aggEnabledType)
+	_, err = NewAggEvalCtx(aggFuncType, aggFuncArgs, nil, nil, nil)
 	assert.Equal(t, "string_agg/if second parameter must be a basic literal", err.Error())
 }
 
@@ -306,11 +320,12 @@ const (
 	BinaryBoolToBoolFunc
 	BinaryStringFunc
 	BinaryStringToBoolFunc
+	BinaryByteSliceToByteSliceFunc
 )
 
 func assertBinaryEval(t *testing.T, evalFunc EvalFunc, valLeftVolatile any, op token.Token, valRightVolatile any, errorMessage string) {
 	var err error
-	eCtx := NewPlainEvalCtx(AggFuncDisabled)
+	eCtx := newPlainEvalCtxInternal(AggFuncDisabled)
 	switch evalFunc {
 	case BinaryIntFunc:
 		_, err = eCtx.EvalBinaryInt(valLeftVolatile, op, valRightVolatile)
@@ -321,7 +336,7 @@ func assertBinaryEval(t *testing.T, evalFunc EvalFunc, valLeftVolatile any, op t
 	case BinaryFloat64ToBoolFunc:
 		_, err = eCtx.EvalBinaryFloat64ToBool(valLeftVolatile, op, valRightVolatile)
 	case BinaryDecimal2Func:
-		_, err = eCtx.EvalBinaryDecimal2(valLeftVolatile, op, valRightVolatile)
+		_, err = eCtx.EvalBinaryDecimal(valLeftVolatile, op, valRightVolatile)
 	case BinaryDecimal2ToBoolFunc:
 		_, err = eCtx.EvalBinaryDecimal2ToBool(valLeftVolatile, op, valRightVolatile)
 	case BinaryTimeToBoolFunc:
@@ -334,6 +349,8 @@ func assertBinaryEval(t *testing.T, evalFunc EvalFunc, valLeftVolatile any, op t
 		_, err = eCtx.EvalBinaryString(valLeftVolatile, op, valRightVolatile)
 	case BinaryStringToBoolFunc:
 		_, err = eCtx.EvalBinaryStringToBool(valLeftVolatile, op, valRightVolatile)
+	case BinaryByteSliceToByteSliceFunc:
+		_, err = eCtx.EvalBinaryByteSliceToByteSlice(valLeftVolatile, op, valRightVolatile)
 	default:
 		assert.Fail(t, "unsupported EvalFunc")
 	}
@@ -375,17 +392,17 @@ func TestBadEvalBinaryFloat64ToBool(t *testing.T) {
 func TestBadEvalBinaryDecimal2(t *testing.T) {
 	goodVal := decimal.NewFromFloat(1)
 	badVal := "a"
-	assertBinaryEval(t, BinaryDecimal2Func, badVal, token.ADD, goodVal, "cannot evaluate binary decimal2 expression '+' with 'a(string)' on the left")
-	assertBinaryEval(t, BinaryDecimal2Func, goodVal, token.ADD, badVal, "cannot evaluate binary decimal2 expression '1(decimal.Decimal) + a(string)', invalid right arg")
-	assertBinaryEval(t, BinaryDecimal2Func, goodVal, token.AND, goodVal, "cannot perform decimal2 op & against decimal2 1 and float64 1")
+	assertBinaryEval(t, BinaryDecimal2Func, badVal, token.ADD, goodVal, "cannot evaluate binary decimal expression '+' with 'a(string)' on the left")
+	assertBinaryEval(t, BinaryDecimal2Func, goodVal, token.ADD, badVal, "cannot evaluate binary decimal expression '1(decimal.Decimal) + a(string)', invalid right arg")
+	assertBinaryEval(t, BinaryDecimal2Func, goodVal, token.AND, goodVal, "cannot perform decimal op & against decimal 1 and float64 1")
 }
 
 func TestBadEvalBinaryDecimal2Bool(t *testing.T) {
 	goodVal := decimal.NewFromFloat(1)
 	badVal := "a"
-	assertBinaryEval(t, BinaryDecimal2ToBoolFunc, badVal, token.LSS, goodVal, "cannot evaluate binary decimal2 expression '<' with 'a(string)' on the left")
-	assertBinaryEval(t, BinaryDecimal2ToBoolFunc, goodVal, token.LSS, badVal, "cannot evaluate binary decimal2 expression '1(decimal.Decimal) < a(string)', invalid right arg")
-	assertBinaryEval(t, BinaryDecimal2ToBoolFunc, goodVal, token.ADD, goodVal, "cannot perform bool op + against decimal2 1 and decimal2 1")
+	assertBinaryEval(t, BinaryDecimal2ToBoolFunc, badVal, token.LSS, goodVal, "cannot evaluate binary decimal expression '<' with 'a(string)' on the left")
+	assertBinaryEval(t, BinaryDecimal2ToBoolFunc, goodVal, token.LSS, badVal, "cannot evaluate binary decimal expression '1(decimal.Decimal) < a(string)', invalid right arg")
+	assertBinaryEval(t, BinaryDecimal2ToBoolFunc, goodVal, token.ADD, goodVal, "cannot perform bool op + against decimal 1 and decimal 1")
 }
 
 func TestBadEvalBinaryTimeBool(t *testing.T) {
@@ -424,8 +441,39 @@ func TestBadEvalBinaryStringToBool(t *testing.T) {
 	goodVal := "good"
 	badVal := 1
 	assertBinaryEval(t, BinaryStringToBoolFunc, badVal, token.LSS, goodVal, "cannot evaluate binary string expression < with '1(int)' on the left")
-	assertBinaryEval(t, BinaryStringToBoolFunc, goodVal, token.GTR, badVal, "cannot evaluate binary decimal2 expression 'good(string) > 1(int)', invalid right arg")
+	assertBinaryEval(t, BinaryStringToBoolFunc, goodVal, token.GTR, badVal, "cannot evaluate binary decimal expression 'good(string) > 1(int)', invalid right arg")
 	assertBinaryEval(t, BinaryStringToBoolFunc, goodVal, token.AND, goodVal, "cannot perform bool op & against string good and string good")
+}
+
+func TestEvalBinaryByteSliceToByteSlice(t *testing.T) {
+	goodVal := []byte{1, 2}
+	anotherGoodVal := []byte{2, 3}
+	eCtx := newPlainEvalCtxInternal(AggFuncDisabled)
+
+	res, err := eCtx.EvalBinaryByteSliceToByteSlice(goodVal, token.LSS, anotherGoodVal)
+	assert.Nil(t, err)
+	assert.True(t, res)
+
+	res, err = eCtx.EvalBinaryByteSliceToByteSlice(goodVal, token.GTR, anotherGoodVal)
+	assert.Nil(t, err)
+	assert.False(t, res)
+
+	badVal := 1
+	assertBinaryEval(t, BinaryByteSliceToByteSliceFunc, badVal, token.LSS, goodVal, "cannot evaluate binary []byte expression < with int on the left")
+	assertBinaryEval(t, BinaryByteSliceToByteSliceFunc, goodVal, token.GTR, badVal, "cannot evaluate binary []byte expression '[1 2]([]uint8) > 1(int)', invalid right arg")
+	assertBinaryEval(t, BinaryByteSliceToByteSliceFunc, goodVal, token.AND, goodVal, "cannot perform compare op & against []byte [1 2] and []byte [1 2]")
+
+	// Exercise EvalBinaryCompareExp with []byte
+	constants := map[string]any{
+		"goodVal":        goodVal,
+		"anotherGoodVal": anotherGoodVal,
+	}
+	eCtx = NewPlainEvalCtx(nil, constants, nil)
+	exp, err := parser.ParseExpr("goodVal < anotherGoodVal")
+	assert.Nil(t, err)
+	val, err := eCtx.Eval(exp)
+	assert.Nil(t, err)
+	assert.True(t, val.(bool))
 }
 
 func TestUnsupported(t *testing.T) {
@@ -438,4 +486,37 @@ func TestUnsupported(t *testing.T) {
 		},
 	}
 	assertEvalError(t, `t1.fTime[i] < 2`, "unsupported type *ast.IndexExpr", varValuesMap)
+}
+
+func TestGetSafeValue(t *testing.T) {
+
+	eCtx := NewPlainEvalCtx(nil, nil, nil)
+	assert.Equal(t, nil, eCtx.GetValue())
+	assert.Equal(t, int64(35), eCtx.GetSafeValue(int64(35)))
+
+	constants := map[string]any{
+		"const1": float64(1.0),
+	}
+	eCtx = NewPlainEvalCtx(nil, constants, nil)
+	exp, err := parser.ParseExpr("const1*2")
+	assert.Nil(t, err)
+	val, err := eCtx.Eval(exp)
+	assert.Nil(t, err)
+	assert.Equal(t, float64(2.0), val)
+	assert.Equal(t, float64(2.0), eCtx.GetSafeValue(int64(35)))
+}
+
+func TestOutOfRangeInt(t *testing.T) {
+	constants := map[string]any{
+		"const1": float64(1.0),
+	}
+	eCtx := NewPlainEvalCtx(nil, constants, nil)
+	exp, err := parser.ParseExpr("100000000000000000000")
+	assert.Nil(t, err)
+	val, err := eCtx.Eval(exp)
+	assert.Nil(t, err)
+
+	expected, err := decimal.NewFromString("100000000000000000000")
+	assert.Nil(t, err)
+	assert.Equal(t, expected, val)
 }

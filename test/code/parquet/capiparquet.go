@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/storage"
 	gp "github.com/fraugster/parquet-go"
@@ -86,8 +87,8 @@ func diff(leftPath string, rightPath string, isIdenticalSchemas bool) error {
 		return fmt.Errorf("column sets do not match:\n\n%s\n\n%s", strings.Join(leftFields, ","), strings.Join(rightFields, ","))
 	}
 
-	leftTypes := make([]sc.TableFieldType, len(leftFields))
-	rightTypes := make([]sc.TableFieldType, len(rightFields))
+	leftTypes := make([]eval_capi.TableFieldType, len(leftFields))
+	rightTypes := make([]eval_capi.TableFieldType, len(rightFields))
 	for i, fieldName := range leftFields {
 		seLeft, _ := leftSchemaElementMap[fieldName]
 		seRight, _ := rightSchemaElementMap[fieldName]
@@ -141,7 +142,7 @@ func diff(leftPath string, rightPath string, isIdenticalSchemas bool) error {
 					return fmt.Errorf("mismatch row %d, column %s: left nil, right not nil", rowIdx, fieldName)
 				}
 				switch leftTypes[colIdx] {
-				case sc.FieldTypeString:
+				case eval_capi.FieldTypeString:
 					l, err := storage.ParquetReadString(leftVolatile, seLeft)
 					if err != nil {
 						return fmt.Errorf("cannot read string row %d, column %s: %s", rowIdx, fieldName, err.Error())
@@ -153,7 +154,7 @@ func diff(leftPath string, rightPath string, isIdenticalSchemas bool) error {
 					if l != r {
 						return fmt.Errorf("%07d-%s: %s vs %s", rowIdx, fieldName, l, r)
 					}
-				case sc.FieldTypeInt:
+				case eval_capi.FieldTypeInt:
 					l, err := storage.ParquetReadInt(leftVolatile, seLeft)
 					if err != nil {
 						return fmt.Errorf("cannot read int row %d, column %s: %s", rowIdx, fieldName, err.Error())
@@ -165,7 +166,7 @@ func diff(leftPath string, rightPath string, isIdenticalSchemas bool) error {
 					if l != r {
 						return fmt.Errorf("%07d-%s: %d vs %d", rowIdx, fieldName, l, r)
 					}
-				case sc.FieldTypeFloat:
+				case eval_capi.FieldTypeFloat:
 					l, err := storage.ParquetReadFloat(leftVolatile, seLeft)
 					if err != nil {
 						return fmt.Errorf("cannot read float row %d, column %s: %s", rowIdx, fieldName, err.Error())
@@ -177,7 +178,7 @@ func diff(leftPath string, rightPath string, isIdenticalSchemas bool) error {
 					if l != r {
 						return fmt.Errorf("%07d-%s: %f vs %f", rowIdx, fieldName, l, r)
 					}
-				case sc.FieldTypeBool:
+				case eval_capi.FieldTypeBool:
 					l, err := storage.ParquetReadBool(leftVolatile, seLeft)
 					if err != nil {
 						return fmt.Errorf("cannot read bool row %d, column %s: %s", rowIdx, fieldName, err.Error())
@@ -189,7 +190,7 @@ func diff(leftPath string, rightPath string, isIdenticalSchemas bool) error {
 					if l != r {
 						return fmt.Errorf("%07d-%s: %t vs %t", rowIdx, fieldName, l, r)
 					}
-				case sc.FieldTypeDateTime:
+				case eval_capi.FieldTypeDateTime:
 					l, err := storage.ParquetReadDateTime(leftVolatile, seLeft)
 					if err != nil {
 						return fmt.Errorf("cannot read DateTime row %d, column %s: %s", rowIdx, fieldName, err.Error())
@@ -201,7 +202,7 @@ func diff(leftPath string, rightPath string, isIdenticalSchemas bool) error {
 					if !l.Equal(r) {
 						return fmt.Errorf("%07d-%s: %s vs %s", rowIdx, fieldName, l.Format("2006-01-02T15:04:05.000000"), r.Format("2006-01-02T15:04:05.000000"))
 					}
-				case sc.FieldTypeDecimal2:
+				case eval_capi.FieldTypeDecimal2:
 					l, err := storage.ParquetReadDecimal2(leftVolatile, seLeft)
 					if err != nil {
 						return fmt.Errorf("cannot read decimal2 row %d, column %s: %s", rowIdx, fieldName, err.Error())
@@ -244,7 +245,7 @@ func cat(path string) error {
 		schemaElementMap[column.SchemaElement.Name] = column.SchemaElement
 	}
 
-	types := make([]sc.TableFieldType, len(fields))
+	types := make([]eval_capi.TableFieldType, len(fields))
 	for i, fieldName := range fields {
 		se, _ := schemaElementMap[fieldName]
 		var err error
@@ -278,7 +279,7 @@ func cat(path string) error {
 				continue
 			}
 			switch types[colIdx] {
-			case sc.FieldTypeString:
+			case eval_capi.FieldTypeString:
 				typedVal, err := storage.ParquetReadString(volatile, se)
 				if err != nil {
 					return fmt.Errorf("cannot read string row %d, column %s: %s", rowIdx, fieldName, err.Error())
@@ -289,35 +290,35 @@ func cat(path string) error {
 					sb.WriteString(typedVal)
 				}
 
-			case sc.FieldTypeInt:
+			case eval_capi.FieldTypeInt:
 				typedVal, err := storage.ParquetReadInt(volatile, se)
 				if err != nil {
 					return fmt.Errorf("cannot read int row %d, column %s: %s", rowIdx, fieldName, err.Error())
 				}
 				sb.WriteString(fmt.Sprintf("%d", typedVal))
 
-			case sc.FieldTypeFloat:
+			case eval_capi.FieldTypeFloat:
 				typedVal, err := storage.ParquetReadFloat(volatile, se)
 				if err != nil {
 					return fmt.Errorf("cannot read float row %d, column %s: %s", rowIdx, fieldName, err.Error())
 				}
 				sb.WriteString(strconv.FormatFloat(typedVal, 'f', -1, 64))
 
-			case sc.FieldTypeBool:
+			case eval_capi.FieldTypeBool:
 				typedVal, err := storage.ParquetReadBool(volatile, se)
 				if err != nil {
 					return fmt.Errorf("cannot read bool row %d, column %s: %s", rowIdx, fieldName, err.Error())
 				}
 				sb.WriteString(fmt.Sprintf("%t", typedVal))
 
-			case sc.FieldTypeDateTime:
+			case eval_capi.FieldTypeDateTime:
 				typedVal, err := storage.ParquetReadDateTime(volatile, se)
 				if err != nil {
 					return fmt.Errorf("cannot read DateTime row %d, column %s: %s", rowIdx, fieldName, err.Error())
 				}
 				sb.WriteString(typedVal.Format("2006-01-02T15:04:05.000000Z"))
 
-			case sc.FieldTypeDecimal2:
+			case eval_capi.FieldTypeDecimal2:
 				typedVal, err := storage.ParquetReadDecimal2(volatile, se)
 				if err != nil {
 					return fmt.Errorf("cannot read decimal2 row %d, column %s: %s", rowIdx, fieldName, err.Error())
@@ -361,7 +362,7 @@ func sortFile(path string, idxDef *sc.IdxDef) error {
 		schemaElementMap[column.SchemaElement.Name] = column.SchemaElement
 	}
 
-	types := make([]sc.TableFieldType, len(fields))
+	types := make([]eval_capi.TableFieldType, len(fields))
 	for fieldIdx, fieldName := range fields {
 		se, ok := schemaElementMap[fieldName]
 		if !ok {
@@ -380,7 +381,7 @@ func sortFile(path string, idxDef *sc.IdxDef) error {
 	}
 
 	for i := range idxDef.Components {
-		if idxDef.Components[i].FieldType == sc.FieldTypeUnknown {
+		if idxDef.Components[i].FieldType == eval_capi.FieldTypeUnknown {
 			return fmt.Errorf("cannot find column %s in the parquet file", idxDef.Components[i].FieldName)
 		}
 	}
@@ -409,42 +410,42 @@ func sortFile(path string, idxDef *sc.IdxDef) error {
 				return fmt.Errorf("cannot handle nil %s, sorry", fieldName)
 			}
 			switch types[colIdx] {
-			case sc.FieldTypeString:
+			case eval_capi.FieldTypeString:
 				typedVal, err := storage.ParquetReadString(volatile, se)
 				if err != nil {
 					return fmt.Errorf("cannot read string row %d, column %s: %s", rowIdx, fieldName, err.Error())
 				}
 				typedData[fieldName] = typedVal
 
-			case sc.FieldTypeInt:
+			case eval_capi.FieldTypeInt:
 				typedVal, err := storage.ParquetReadInt(volatile, se)
 				if err != nil {
 					return fmt.Errorf("cannot read int row %d, column %s: %s", rowIdx, fieldName, err.Error())
 				}
 				typedData[fieldName] = typedVal
 
-			case sc.FieldTypeFloat:
+			case eval_capi.FieldTypeFloat:
 				typedVal, err := storage.ParquetReadFloat(volatile, se)
 				if err != nil {
 					return fmt.Errorf("cannot read float row %d, column %s: %s", rowIdx, fieldName, err.Error())
 				}
 				typedData[fieldName] = typedVal
 
-			case sc.FieldTypeBool:
+			case eval_capi.FieldTypeBool:
 				typedVal, err := storage.ParquetReadBool(volatile, se)
 				if err != nil {
 					return fmt.Errorf("cannot read bool row %d, column %s: %s", rowIdx, fieldName, err.Error())
 				}
 				typedData[fieldName] = typedVal
 
-			case sc.FieldTypeDateTime:
+			case eval_capi.FieldTypeDateTime:
 				typedVal, err := storage.ParquetReadDateTime(volatile, se)
 				if err != nil {
 					return fmt.Errorf("cannot read DateTime row %d, column %s: %s", rowIdx, fieldName, err.Error())
 				}
 				typedData[fieldName] = typedVal
 
-			case sc.FieldTypeDecimal2:
+			case eval_capi.FieldTypeDecimal2:
 				typedVal, err := storage.ParquetReadDecimal2(volatile, se)
 				if err != nil {
 					return fmt.Errorf("cannot read decimal2 row %d, column %s: %s", rowIdx, fieldName, err.Error())
@@ -553,7 +554,7 @@ func main() {
 				FieldName:       m[1],
 				CaseSensitivity: sc.IdxCaseSensitive,
 				StringLen:       sc.DefaultStringComponentLen,
-				FieldType:       sc.FieldTypeUnknown} // We will figure it out later after reading the file
+				FieldType:       eval_capi.FieldTypeUnknown} // We will figure it out later after reading the file
 			if m[2] == "(desc)" {
 				idxDef.Components[i].SortOrder = sc.IdxSortDesc
 			} else {

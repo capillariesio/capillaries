@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/storage"
@@ -48,37 +49,37 @@ func (instr *FileInserter) generateMapToAdd(batch *WriteFileBatch, rowIdx int) (
 	d := map[string]any{}
 	for i := 0; i < len(instr.FileCreator.Columns); i++ {
 		switch instr.FileCreator.Columns[i].Type {
-		case sc.FieldTypeString:
+		case eval_capi.FieldTypeString:
 			typedValue, ok := batch.Rows[rowIdx][i].(string)
 			if !ok {
 				return nil, fmt.Errorf("cannot convert column %s value [%v] to Parquet string", instr.FileCreator.Columns[i].Parquet.ColumnName, batch.Rows[rowIdx][i])
 			}
 			d[instr.FileCreator.Columns[i].Parquet.ColumnName] = typedValue
-		case sc.FieldTypeInt:
+		case eval_capi.FieldTypeInt:
 			typedValue, ok := batch.Rows[rowIdx][i].(int64)
 			if !ok {
 				return nil, fmt.Errorf("cannot convert column %s value [%v] to Parquet int64", instr.FileCreator.Columns[i].Parquet.ColumnName, batch.Rows[rowIdx][i])
 			}
 			d[instr.FileCreator.Columns[i].Parquet.ColumnName] = typedValue
-		case sc.FieldTypeFloat:
+		case eval_capi.FieldTypeFloat:
 			typedValue, ok := batch.Rows[rowIdx][i].(float64)
 			if !ok {
 				return nil, fmt.Errorf("cannot convert column %s value [%v] to Parquet float64", instr.FileCreator.Columns[i].Parquet.ColumnName, batch.Rows[rowIdx][i])
 			}
 			d[instr.FileCreator.Columns[i].Parquet.ColumnName] = typedValue
-		case sc.FieldTypeBool:
+		case eval_capi.FieldTypeBool:
 			typedValue, ok := batch.Rows[rowIdx][i].(bool)
 			if !ok {
 				return nil, fmt.Errorf("cannot convert column %s value [%v] to Parquet bool", instr.FileCreator.Columns[i].Parquet.ColumnName, batch.Rows[rowIdx][i])
 			}
 			d[instr.FileCreator.Columns[i].Parquet.ColumnName] = typedValue
-		case sc.FieldTypeDecimal2:
+		case eval_capi.FieldTypeDecimal2:
 			typedValue, ok := batch.Rows[rowIdx][i].(decimal.Decimal)
 			if !ok {
 				return nil, fmt.Errorf("cannot convert column %s value [%v] to Parquet decimal", instr.FileCreator.Columns[i].Parquet.ColumnName, batch.Rows[rowIdx][i])
 			}
 			d[instr.FileCreator.Columns[i].Parquet.ColumnName] = storage.ParquetWriterDecimal2(typedValue)
-		case sc.FieldTypeDateTime:
+		case eval_capi.FieldTypeDateTime:
 			typedValue, ok := batch.Rows[rowIdx][i].(time.Time)
 			if !ok {
 				return nil, fmt.Errorf("cannot convert column %s value [%v] to Parquet datetime", instr.FileCreator.Columns[i].Parquet.ColumnName, batch.Rows[rowIdx][i])

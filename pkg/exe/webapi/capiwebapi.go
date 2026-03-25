@@ -21,12 +21,12 @@ import (
 	"github.com/capillariesio/capillaries/pkg/custom/tag_and_denormalize"
 	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/env"
+	"github.com/capillariesio/capillaries/pkg/gocqlshims"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/mq"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/capillariesio/capillaries/pkg/xfer"
-	"github.com/gocql/gocql"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -181,7 +181,7 @@ var NodeDescCache = map[string]string{}
 var NodeDescCacheTs = map[string]time.Time{}
 var NodeDescCacheLock = sync.RWMutex{}
 
-func (h *UrlHandler) getNodeDesc(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16, nodeName string) (string, error) {
+func (h *UrlHandler) getNodeDesc(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16, nodeName string) (string, error) {
 
 	nodeKey := keyspace + ":" + nodeName
 	NodeDescCacheLock.RLock()
@@ -321,7 +321,7 @@ var RunPropsCache = map[string]*wfmodel.RunProperties{}
 var RunPropsCacheTs = map[string]time.Time{}
 var RunPropsCacheLock = sync.RWMutex{}
 
-func getRunProps(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16) (*wfmodel.RunProperties, error) {
+func getRunProps(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16) (*wfmodel.RunProperties, error) {
 	runPropsCacheKey := keyspace + ":" + fmt.Sprintf("%d", runId)
 	RunPropsCacheLock.RLock()
 	oneRunProps, okData := RunPropsCache[runPropsCacheKey]
@@ -352,7 +352,7 @@ func getRunProps(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace strin
 	return allRunsProps[0], nil
 }
 
-func getRunPropsAndLifespans(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16) (*wfmodel.RunProperties, *wfmodel.RunLifespan, error) {
+func getRunPropsAndLifespans(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16) (*wfmodel.RunProperties, *wfmodel.RunLifespan, error) {
 
 	// Static run props
 

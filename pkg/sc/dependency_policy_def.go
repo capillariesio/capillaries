@@ -6,6 +6,7 @@ import (
 	"go/ast"
 
 	"github.com/capillariesio/capillaries/pkg/eval"
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
@@ -68,16 +69,16 @@ type DependencyPolicyDef struct {
 
 func NewFieldRefsFromNodeEvent() *FieldRefs {
 	return &FieldRefs{
-		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "run_id", FieldType: FieldTypeInt},
-		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "run_is_current", FieldType: FieldTypeBool},
-		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "run_start_ts", FieldType: FieldTypeDateTime},
-		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "run_final_status", FieldType: FieldTypeInt},
-		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "run_completed_ts", FieldType: FieldTypeDateTime},
-		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "run_stopped_ts", FieldType: FieldTypeDateTime},
-		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "node_is_started", FieldType: FieldTypeBool},
-		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "node_start_ts", FieldType: FieldTypeDateTime},
-		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "node_status", FieldType: FieldTypeInt},
-		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "node_status_ts", FieldType: FieldTypeDateTime}}
+		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "run_id", FieldType: eval_capi.FieldTypeInt},
+		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "run_is_current", FieldType: eval_capi.FieldTypeBool},
+		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "run_start_ts", FieldType: eval_capi.FieldTypeDateTime},
+		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "run_final_status", FieldType: eval_capi.FieldTypeInt},
+		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "run_completed_ts", FieldType: eval_capi.FieldTypeDateTime},
+		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "run_stopped_ts", FieldType: eval_capi.FieldTypeDateTime},
+		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "node_is_started", FieldType: eval_capi.FieldTypeBool},
+		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "node_start_ts", FieldType: eval_capi.FieldTypeDateTime},
+		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "node_status", FieldType: eval_capi.FieldTypeInt},
+		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "node_status_ts", FieldType: eval_capi.FieldTypeDateTime}}
 }
 
 func (polDef *DependencyPolicyDef) Deserialize(rawPol json.RawMessage, scriptType ScriptType) error {
@@ -124,13 +125,13 @@ func (polDef *DependencyPolicyDef) parseEventPriorityOrderString() error {
 
 func (polDef *DependencyPolicyDef) evalRuleExpressionsAndCheckType() error {
 	vars := wfmodel.NewVarsFromDepCtx(wfmodel.DependencyNodeEvent{})
-	eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, &vars)
+	eCtx := eval.NewPlainEvalCtx(eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, vars)
 	for ruleIdx, rule := range polDef.Rules {
 		result, err := eCtx.Eval(rule.ParsedExpression)
 		if err != nil {
 			return fmt.Errorf("invalid rule %d expression '%s': %s", ruleIdx, rule.RawExpression, err.Error())
 		}
-		if err := CheckValueType(result, FieldTypeBool); err != nil {
+		if err := CheckValueType(result, eval_capi.FieldTypeBool); err != nil {
 			return fmt.Errorf("invalid rule %d expression '%s' type: %s", ruleIdx, rule.RawExpression, err.Error())
 		}
 	}

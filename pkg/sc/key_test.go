@@ -1,11 +1,13 @@
 package sc
 
 import (
+	"maps"
 	"math"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 )
@@ -30,49 +32,49 @@ func assertKeyCompare(
 
 	key1, err1 := BuildKey(row1, &idxDef)
 	if err1 != nil {
-		t.Errorf("%s\n", err1)
+		t.Errorf("cannot build key1 %s\n", err1)
 	}
 
 	key2, err2 := BuildKey(row2, &idxDef)
 	if err2 != nil {
-		t.Errorf("%s\n", err2)
+		t.Errorf("cannot build key2 %s\n", err2)
 	}
 
 	if moreLess == "<" && (key1 >= key2) || moreLess == ">" && (key1 <= key2) || moreLess == "==" && (key1 != key2) {
-		t.Errorf("\nExpected:\n%s\n%s\n%s\n", key1, moreLess, key2)
+		t.Errorf("\nExpected:\n%s\n%s\n%s\nrow1: %v\nrow2: %v\n", key1, moreLess, key2, row1, row2)
 	}
 }
 
 func TestBad(t *testing.T) {
 
-	idxDef := IdxDef{Uniqueness: "UNIQUE", Components: []IdxComponentDef{{FieldName: "fld", SortOrder: IdxSortAsc, FieldType: FieldTypeInt}}}
+	idxDef := IdxDef{Uniqueness: "UNIQUE", Components: []IdxComponentDef{{FieldName: "fld", SortOrder: IdxSortAsc, FieldType: eval_capi.FieldTypeInt}}}
 	row1 := map[string]any{"fld": false}
 
 	_, err := BuildKey(row1, &idxDef)
 	assert.Equal(t, "cannot convert value false to type int", err.Error())
 
-	idxDef.Components[0].FieldType = FieldTypeFloat
+	idxDef.Components[0].FieldType = eval_capi.FieldTypeFloat
 	_, err = BuildKey(row1, &idxDef)
 	assert.Equal(t, "cannot convert value false to type float", err.Error())
 
-	idxDef.Components[0].FieldType = FieldTypeDecimal2
+	idxDef.Components[0].FieldType = eval_capi.FieldTypeDecimal2
 	_, err = BuildKey(row1, &idxDef)
 	assert.Equal(t, "cannot convert value false to type decimal2", err.Error())
 
-	idxDef.Components[0].FieldType = FieldTypeDateTime
+	idxDef.Components[0].FieldType = eval_capi.FieldTypeDateTime
 	_, err = BuildKey(row1, &idxDef)
 	assert.Equal(t, "cannot convert value false to type datetime", err.Error())
 
-	idxDef.Components[0].FieldType = FieldTypeString
+	idxDef.Components[0].FieldType = eval_capi.FieldTypeString
 	_, err = BuildKey(row1, &idxDef)
 	assert.Equal(t, "cannot convert value false to type string", err.Error())
 
-	idxDef.Components[0].FieldType = FieldTypeBool
+	idxDef.Components[0].FieldType = eval_capi.FieldTypeBool
 	row1["fld"] = int64(2)
 	_, err = BuildKey(row1, &idxDef)
 	assert.Equal(t, "cannot convert value 2 to type bool", err.Error())
 
-	idxDef.Components[0].FieldType = FieldTypeUnknown
+	idxDef.Components[0].FieldType = eval_capi.FieldTypeUnknown
 	_, err = BuildKey(row1, &idxDef)
 	assert.Equal(t, "cannot build key, unsupported field data type unknown", err.Error())
 }
@@ -85,41 +87,51 @@ func TestCombined(t *testing.T) {
 			{
 				FieldName:       "field_int",
 				CaseSensitivity: IdxCaseSensitivityUnknown,
-				FieldType:       FieldTypeInt,
+				FieldType:       eval_capi.FieldTypeInt,
 			},
 			{
 				FieldName:       "field_string",
 				CaseSensitivity: IdxIgnoreCase,
-				FieldType:       FieldTypeString,
+				FieldType:       eval_capi.FieldTypeString,
 				StringLen:       64,
 			},
 			{
 				FieldName:       "field_float",
 				CaseSensitivity: IdxCaseSensitivityUnknown,
-				FieldType:       FieldTypeFloat,
+				FieldType:       eval_capi.FieldTypeFloat,
 			},
 			{
 				FieldName:       "field_bool",
 				CaseSensitivity: IdxCaseSensitivityUnknown,
-				FieldType:       FieldTypeBool,
+				FieldType:       eval_capi.FieldTypeBool,
 			},
 		},
 	}
 
-	row1 := map[string]any{
+	baseRow1 := map[string]any{
 		"field_int":    int64(1),
 		"field_string": "abc",
 		"field_float":  -2.3,
 		"field_bool":   false,
 	}
-	row2 := map[string]any{
+	baseRow2 := map[string]any{
 		"field_int":    int64(1),
 		"field_string": "Abc",
 		"field_float":  1.3,
 		"field_bool":   true,
 	}
 
+	var row1, row2 map[string]any
+
 	// -2.3 < 1.3
+	row1 = maps.Clone(baseRow1)
+	row2 = maps.Clone(baseRow2)
+	assertKeyCompare(t, row1, "<", row2, idxDef)
+
+	// -2.3 < -2.0
+	row1 = maps.Clone(baseRow1)
+	row2 = maps.Clone(baseRow2)
+	row2["field_float"] = -2.0
 	assertKeyCompare(t, row1, "<", row2, idxDef)
 
 	// abc > Abc
@@ -127,15 +139,36 @@ func TestCombined(t *testing.T) {
 	assertKeyCompare(t, row1, ">", row2, idxDef)
 
 	// F < T
+	row1 = maps.Clone(baseRow1)
+	row2 = maps.Clone(baseRow2)
 	row2["field_string"] = row1["field_string"]
 	row2["field_float"] = row1["field_float"]
 	assertKeyCompare(t, row1, "<", row2, idxDef)
 
 	// F == F
+	row1 = maps.Clone(baseRow1)
+	row2 = maps.Clone(baseRow2)
 	row2["field_bool"] = row1["field_bool"]
+	row2["field_string"] = row1["field_string"]
+	row2["field_float"] = row1["field_float"]
 	assertKeyCompare(t, row1, "==", row2, idxDef)
 
+	// -3786697372163639434 < -416149536780825218 (number of digits)
+	row1 = maps.Clone(baseRow1)
+	row2 = maps.Clone(baseRow2)
+	row1["field_int"] = int64(-3786697372163639434)
+	row2["field_int"] = int64(-416149536780825218)
+	assertKeyCompare(t, row1, "<", row2, idxDef)
+
+	// 123 > 99 (number of digits)
+	row1 = maps.Clone(baseRow1)
+	row2 = maps.Clone(baseRow2)
+	row1["field_int"] = int64(123)
+	row2["field_int"] = int64(99)
+	assertKeyCompare(t, row1, ">", row2, idxDef)
+
 	// No such field in the table row
+	row1 = maps.Clone(baseRow1)
 	delete(row1, "field_float")
 	_, err2 := BuildKey(row1, &idxDef)
 	assertKeyErrorPrefix(t, "cannot find value for field field_float in", err2.Error())
@@ -145,7 +178,7 @@ func TestTime(t *testing.T) {
 
 	idxDef := IdxDef{
 		Uniqueness: "UNIQUE",
-		Components: []IdxComponentDef{{FieldName: "fld", FieldType: FieldTypeDateTime}},
+		Components: []IdxComponentDef{{FieldName: "fld", FieldType: eval_capi.FieldTypeDateTime}},
 	}
 
 	idxDef.Components[0].SortOrder = IdxSortAsc
@@ -167,7 +200,7 @@ func TestBool(t *testing.T) {
 
 	idxDef := IdxDef{
 		Uniqueness: "UNIQUE",
-		Components: []IdxComponentDef{{FieldName: "fld", FieldType: FieldTypeBool}},
+		Components: []IdxComponentDef{{FieldName: "fld", FieldType: eval_capi.FieldTypeBool}},
 	}
 
 	row1 := map[string]any{"fld": false}
@@ -184,7 +217,7 @@ func TestInt(t *testing.T) {
 
 	idxDef := IdxDef{
 		Uniqueness: "UNIQUE",
-		Components: []IdxComponentDef{{FieldName: "fld", FieldType: FieldTypeInt}},
+		Components: []IdxComponentDef{{FieldName: "fld", FieldType: eval_capi.FieldTypeInt}},
 	}
 
 	idxDef.Components[0].SortOrder = IdxSortAsc
@@ -212,7 +245,7 @@ func TestFloat(t *testing.T) {
 
 	idxDef := IdxDef{
 		Uniqueness: "UNIQUE",
-		Components: []IdxComponentDef{{FieldName: "fld", FieldType: FieldTypeFloat}},
+		Components: []IdxComponentDef{{FieldName: "fld", FieldType: eval_capi.FieldTypeFloat}},
 	}
 
 	idxDef.Components[0].SortOrder = IdxSortAsc
@@ -253,7 +286,7 @@ func TestString(t *testing.T) {
 	// Use MinStringComponentLen = 16
 	idxDef := IdxDef{
 		Uniqueness: "UNIQUE",
-		Components: []IdxComponentDef{{FieldName: "fld", CaseSensitivity: IdxIgnoreCase, FieldType: FieldTypeString, StringLen: 16}},
+		Components: []IdxComponentDef{{FieldName: "fld", CaseSensitivity: IdxIgnoreCase, FieldType: eval_capi.FieldTypeString, StringLen: 16}},
 	}
 
 	idxDef.Components[0].SortOrder = IdxSortAsc
@@ -295,7 +328,7 @@ func TestDecimal(t *testing.T) {
 
 	idxDef := IdxDef{
 		Uniqueness: "UNIQUE",
-		Components: []IdxComponentDef{{FieldName: "fld", FieldType: FieldTypeDecimal2}}}
+		Components: []IdxComponentDef{{FieldName: "fld", FieldType: eval_capi.FieldTypeDecimal2}}}
 
 	idxDef.Components[0].SortOrder = IdxSortAsc
 
@@ -335,6 +368,6 @@ func TestDecimal(t *testing.T) {
 }
 
 func TestGetNUmericValueSign(t *testing.T) {
-	_, _, err := getNumericValueSign(nil, FieldTypeUnknown)
+	_, _, err := getNumericValueSign(nil, eval_capi.FieldTypeUnknown)
 	assert.Contains(t, err.Error(), "cannot convert value <nil> to type unknown")
 }

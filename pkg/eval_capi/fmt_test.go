@@ -1,11 +1,13 @@
-package eval
+package eval_capi
 
 import (
 	"testing"
+
+	"github.com/capillariesio/capillaries/pkg/eval"
 )
 
 func TestFmtFunctions(t *testing.T) {
-	varValuesMap := VarValuesMap{}
+	varValuesMap := eval.VarValuesMap{}
 	assertEqual(t, `fmt.Sprintf("%s %d %.1f","a",2,3.3)`, "a 2 3.3", varValuesMap)
 	assertEqual(t, `fmt.Sprintf("%s %d %.1f","a",2)`, "a 2 %!f(MISSING)", varValuesMap)
 	assertEvalError(t, `fmt.Sprintf("bla")`, "cannot evaluate fmt.Sprintf(), requires at least 2 args, 1 supplied", varValuesMap)

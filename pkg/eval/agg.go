@@ -3,10 +3,14 @@ package eval
 import (
 	"fmt"
 	"go/ast"
+	"math/big"
 	"strings"
 
 	"github.com/shopspring/decimal"
 )
+
+// IMPORTANT: please keep this eval core component TableFieldType- and custom function-agnostic.
+// It should not be aware of things lice decimal2 or some math.iif() functions.
 
 type AggFuncType string
 
@@ -28,18 +32,30 @@ const (
 
 func StringToAggFunc(testString string) AggFuncType {
 	switch testString {
-	case string(AggStringAgg), string(AggStringAggIf):
+	case string(AggStringAgg):
 		return AggStringAgg
-	case string(AggSum), string(AggSumIf):
+	case string(AggStringAggIf):
+		return AggStringAggIf
+	case string(AggSum):
 		return AggSum
-	case string(AggCount), string(AggCountIf):
+	case string(AggSumIf):
+		return AggSumIf
+	case string(AggCount):
 		return AggCount
-	case string(AggAvg), string(AggAvgIf):
+	case string(AggCountIf):
+		return AggCountIf
+	case string(AggAvg):
 		return AggAvg
-	case string(AggMin), string(AggMinIf):
+	case string(AggAvgIf):
+		return AggAvgIf
+	case string(AggMinIf):
+		return AggMinIf
+	case string(AggMin):
 		return AggMin
-	case string(AggMax), string(AggMaxIf):
+	case string(AggMax):
 		return AggMax
+	case string(AggMaxIf):
+		return AggMaxIf
 	default:
 		return AggUnknown
 	}
@@ -51,7 +67,7 @@ type SumCollector struct {
 	Dec   decimal.Decimal
 }
 type AvgCollector struct {
-	Int   int64
+	Int   *big.Int
 	Float float64
 	Dec   decimal.Decimal
 	Count int64
@@ -78,6 +94,7 @@ type StringAggCollector struct {
 	Separator string
 }
 
+// Internal data type used for agg calculations only
 type AggDataType string
 
 const (
@@ -89,16 +106,16 @@ const (
 )
 
 func (eCtx *EvalCtx) checkAgg(funcName string, callExp *ast.CallExpr, aggFunc AggFuncType) error {
-	if eCtx.AggEnabled != AggFuncEnabled {
-		return fmt.Errorf("cannot evaluate %s(), context aggregate not enabled (sorry, only expressions with root agg function are supported, no sum(...)*x or sum(...)+y)", funcName)
+	if eCtx.aggEnabled != AggFuncEnabled {
+		return fmt.Errorf("cannot evaluate %s(), context aggregate not enabled (either agg function is not expected in this expression at all, or agg function is not in the root of the expression, like no sum(...)*x or sum(...)+y)", funcName)
 	}
-	if eCtx.AggCallExp != nil {
-		if eCtx.AggCallExp != callExp {
-			return fmt.Errorf("cannot evaluate more than one aggregate function in the expression, extra %s() found besides already used %s()", funcName, eCtx.AggFunc)
+	if eCtx.aggCallExp != nil {
+		if eCtx.aggCallExp != callExp {
+			return fmt.Errorf("cannot evaluate more than one aggregate function in the expression, extra %s() found besides already used %s()", funcName, eCtx.aggFunc)
 		}
 	} else {
-		eCtx.AggCallExp = callExp
-		eCtx.AggFunc = aggFunc
+		eCtx.aggCallExp = callExp
+		eCtx.aggFunc = aggFunc
 	}
 	return nil
 }
@@ -117,12 +134,12 @@ func (eCtx *EvalCtx) callAggStringAggInternal(funcName string, args []any, isApp
 	switch typedArg0 := args[0].(type) {
 	case string:
 		if isApply {
-			if eCtx.StringAgg.Sb.Len() > 0 {
-				eCtx.StringAgg.Sb.WriteString(eCtx.StringAgg.Separator)
+			if eCtx.stringAggCollector.Sb.Len() > 0 {
+				eCtx.stringAggCollector.Sb.WriteString(eCtx.stringAggCollector.Separator)
 			}
-			eCtx.StringAgg.Sb.WriteString(typedArg0)
+			eCtx.stringAggCollector.Sb.WriteString(typedArg0)
 		}
-		return eCtx.StringAgg.Sb.String(), nil
+		return eCtx.stringAggCollector.Sb.String(), nil
 
 	default:
 		return nil, fmt.Errorf("cannot evaluate %s(), unexpected argument %v of unsupported type %T", funcName, args[0], args[0])
@@ -134,7 +151,7 @@ func (eCtx *EvalCtx) CallAggStringAgg(callExp *ast.CallExpr, args []any) (any, e
 	if err := eCtx.checkAgg(funcName, callExp, AggStringAgg); err != nil {
 		return nil, err
 	}
-	if err := checkArgs(funcName, 2, len(args)); err != nil {
+	if err := CheckArgs(funcName, 2, len(args)); err != nil {
 		return nil, err
 	}
 
@@ -146,7 +163,7 @@ func (eCtx *EvalCtx) CallAggStringAggIf(callExp *ast.CallExpr, args []any) (any,
 	if err := eCtx.checkAgg(funcName, callExp, AggStringAgg); err != nil {
 		return nil, err
 	}
-	if err := checkArgs(funcName, 3, len(args)); err != nil {
+	if err := CheckArgs(funcName, 3, len(args)); err != nil {
 		return nil, err
 	}
 	isApply, err := checkIf(funcName, args[2])
@@ -163,37 +180,37 @@ func (eCtx *EvalCtx) callAggSumInternal(funcName string, args []any, isApply boo
 	}
 	switch typedArg0 := stdTypedArg.(type) {
 	case int64:
-		if eCtx.AggType == AggTypeUnknown {
-			eCtx.AggType = AggTypeInt
-		} else if eCtx.AggType != AggTypeInt {
-			return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got int value %d", funcName, eCtx.AggType, typedArg0)
+		if eCtx.aggType == AggTypeUnknown {
+			eCtx.aggType = AggTypeInt
+		} else if eCtx.aggType != AggTypeInt {
+			return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got int value %d", funcName, eCtx.aggType, typedArg0)
 		}
 		if isApply {
-			eCtx.Sum.Int += typedArg0
+			eCtx.sumCollector.Int += typedArg0
 		}
-		return eCtx.Sum.Int, nil
+		return eCtx.sumCollector.Int, nil
 
 	case float64:
-		if eCtx.AggType == AggTypeUnknown {
-			eCtx.AggType = AggTypeFloat
-		} else if eCtx.AggType != AggTypeFloat {
-			return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got float value %f", funcName, eCtx.AggType, typedArg0)
+		if eCtx.aggType == AggTypeUnknown {
+			eCtx.aggType = AggTypeFloat
+		} else if eCtx.aggType != AggTypeFloat {
+			return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got float value %f", funcName, eCtx.aggType, typedArg0)
 		}
 		if isApply {
-			eCtx.Sum.Float += typedArg0
+			eCtx.sumCollector.Float += typedArg0
 		}
-		return eCtx.Sum.Float, nil
+		return eCtx.sumCollector.Float, nil
 
 	case decimal.Decimal:
-		if eCtx.AggType == AggTypeUnknown {
-			eCtx.AggType = AggTypeDec
-		} else if eCtx.AggType != AggTypeDec {
-			return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got decimal value %s", funcName, eCtx.AggType, typedArg0.String())
+		if eCtx.aggType == AggTypeUnknown {
+			eCtx.aggType = AggTypeDec
+		} else if eCtx.aggType != AggTypeDec {
+			return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got decimal value %s", funcName, eCtx.aggType, typedArg0.String())
 		}
 		if isApply {
-			eCtx.Sum.Dec = eCtx.Sum.Dec.Add(typedArg0)
+			eCtx.sumCollector.Dec = eCtx.sumCollector.Dec.Add(typedArg0)
 		}
-		return eCtx.Sum.Dec, nil
+		return eCtx.sumCollector.Dec, nil
 
 	default:
 		return nil, fmt.Errorf("cannot evaluate %s(), unexpected argument %v of unsupported type %T", funcName, args[0], args[0])
@@ -205,7 +222,7 @@ func (eCtx *EvalCtx) CallAggSum(callExp *ast.CallExpr, args []any) (any, error) 
 	if err := eCtx.checkAgg(funcName, callExp, AggSum); err != nil {
 		return nil, err
 	}
-	if err := checkArgs(funcName, 1, len(args)); err != nil {
+	if err := CheckArgs(funcName, 1, len(args)); err != nil {
 		return nil, err
 	}
 	return eCtx.callAggSumInternal(funcName, args, true)
@@ -216,7 +233,7 @@ func (eCtx *EvalCtx) CallAggSumIf(callExp *ast.CallExpr, args []any) (any, error
 	if err := eCtx.checkAgg(funcName, callExp, AggSum); err != nil {
 		return nil, err
 	}
-	if err := checkArgs(funcName, 2, len(args)); err != nil {
+	if err := CheckArgs(funcName, 2, len(args)); err != nil {
 		return nil, err
 	}
 	isApply, err := checkIf(funcName, args[1])
@@ -233,47 +250,53 @@ func (eCtx *EvalCtx) callAggAvgInternal(funcName string, args []any, isApply boo
 	}
 	switch typedArg0 := stdTypedArg.(type) {
 	case int64:
-		if eCtx.AggType == AggTypeUnknown {
-			eCtx.AggType = AggTypeInt
-		} else if eCtx.AggType != AggTypeInt {
-			return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got int value %d", funcName, eCtx.AggType, typedArg0)
+		if eCtx.aggType == AggTypeUnknown {
+			eCtx.aggType = AggTypeInt
+		} else if eCtx.aggType != AggTypeInt {
+			return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got int value %d", funcName, eCtx.aggType, typedArg0)
 		}
 		if isApply {
-			eCtx.Avg.Int += typedArg0
-			eCtx.Avg.Count++
+			eCtx.avgCollector.Int.Add(eCtx.avgCollector.Int, big.NewInt(typedArg0))
+			eCtx.avgCollector.Count++
 		}
-		if eCtx.Avg.Count > 0 {
-			return eCtx.Avg.Int / eCtx.Avg.Count, nil
+		if eCtx.avgCollector.Count > 0 {
+			bigintVal := big.NewInt(0).Div(eCtx.avgCollector.Int, big.NewInt(eCtx.avgCollector.Count))
+			return bigintVal.Int64(), nil
 		}
 		return int64(0), nil
 
 	case float64:
-		if eCtx.AggType == AggTypeUnknown {
-			eCtx.AggType = AggTypeFloat
-		} else if eCtx.AggType != AggTypeFloat {
-			return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got float value %f", funcName, eCtx.AggType, typedArg0)
+		if eCtx.aggType == AggTypeUnknown {
+			eCtx.aggType = AggTypeFloat
+		} else if eCtx.aggType != AggTypeFloat {
+			return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got float value %f", funcName, eCtx.aggType, typedArg0)
 		}
 		if isApply {
-			eCtx.Avg.Float += typedArg0
-			eCtx.Avg.Count++
+			eCtx.avgCollector.Float += typedArg0
+			eCtx.avgCollector.Count++
 		}
-		if eCtx.Avg.Count > 0 {
-			return eCtx.Avg.Float / float64(eCtx.Avg.Count), nil
+		if eCtx.avgCollector.Count > 0 {
+			return eCtx.avgCollector.Float / float64(eCtx.avgCollector.Count), nil
 		}
 		return float64(0.0), nil
 
 	case decimal.Decimal:
-		if eCtx.AggType == AggTypeUnknown {
-			eCtx.AggType = AggTypeDec
-		} else if eCtx.AggType != AggTypeDec {
-			return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got decimal value %s", funcName, eCtx.AggType, typedArg0.String())
+		if eCtx.aggType == AggTypeUnknown {
+			eCtx.aggType = AggTypeDec
+		} else if eCtx.aggType != AggTypeDec {
+			return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got decimal value %s", funcName, eCtx.aggType, typedArg0.String())
 		}
 		if isApply {
-			eCtx.Avg.Dec = eCtx.Avg.Dec.Add(typedArg0)
-			eCtx.Avg.Count++
+			eCtx.avgCollector.Dec = eCtx.avgCollector.Dec.Add(typedArg0)
+			eCtx.avgCollector.Count++
 		}
-		if eCtx.Avg.Count > 0 {
-			return eCtx.Avg.Dec.Div(decimal.NewFromInt(eCtx.Avg.Count)).Round(2), nil
+		if eCtx.avgCollector.Count > 0 {
+			// Round(2) when needed
+			val := eCtx.avgCollector.Dec.Div(decimal.NewFromInt(eCtx.avgCollector.Count))
+			if eCtx.roundDec >= 0 {
+				val = val.Round(eCtx.roundDec)
+			}
+			return val, nil
 		}
 		return defaultDecimal(), nil
 
@@ -287,7 +310,7 @@ func (eCtx *EvalCtx) CallAggAvg(callExp *ast.CallExpr, args []any) (any, error) 
 	if err := eCtx.checkAgg(funcName, callExp, AggAvg); err != nil {
 		return nil, err
 	}
-	if err := checkArgs(funcName, 1, len(args)); err != nil {
+	if err := CheckArgs(funcName, 1, len(args)); err != nil {
 		return nil, err
 	}
 	return eCtx.callAggAvgInternal(funcName, args, true)
@@ -298,7 +321,7 @@ func (eCtx *EvalCtx) CallAggAvgIf(callExp *ast.CallExpr, args []any) (any, error
 	if err := eCtx.checkAgg(funcName, callExp, AggAvg); err != nil {
 		return nil, err
 	}
-	if err := checkArgs(funcName, 2, len(args)); err != nil {
+	if err := CheckArgs(funcName, 2, len(args)); err != nil {
 		return nil, err
 	}
 	isApply, err := checkIf(funcName, args[1])
@@ -310,9 +333,9 @@ func (eCtx *EvalCtx) CallAggAvgIf(callExp *ast.CallExpr, args []any) (any, error
 
 func (eCtx *EvalCtx) callAggCountInternal(isApply bool) (any, error) {
 	if isApply {
-		eCtx.Count++
+		eCtx.count++
 	}
-	return eCtx.Count, nil
+	return eCtx.count, nil
 }
 
 func (eCtx *EvalCtx) CallAggCount(callExp *ast.CallExpr, args []any) (any, error) {
@@ -320,7 +343,7 @@ func (eCtx *EvalCtx) CallAggCount(callExp *ast.CallExpr, args []any) (any, error
 	if err := eCtx.checkAgg(funcName, callExp, AggCount); err != nil {
 		return nil, err
 	}
-	if err := checkArgs(funcName, 0, len(args)); err != nil {
+	if err := CheckArgs(funcName, 0, len(args)); err != nil {
 		return nil, err
 	}
 	return eCtx.callAggCountInternal(true)
@@ -331,7 +354,7 @@ func (eCtx *EvalCtx) CallAggCountIf(callExp *ast.CallExpr, args []any) (any, err
 	if err := eCtx.checkAgg(funcName, callExp, AggCount); err != nil {
 		return nil, err
 	}
-	if err := checkArgs(funcName, 1, len(args)); err != nil {
+	if err := CheckArgs(funcName, 1, len(args)); err != nil {
 		return nil, err
 	}
 	isApply, err := checkIf(funcName, args[0])
@@ -344,18 +367,18 @@ func (eCtx *EvalCtx) CallAggCountIf(callExp *ast.CallExpr, args []any) (any, err
 func (eCtx *EvalCtx) callAggMinInternal(funcName string, args []any, isApply bool) (any, error) {
 	switch typedArg0 := args[0].(type) {
 	case string:
-		if eCtx.AggType == AggTypeUnknown {
-			eCtx.AggType = AggTypeString
-		} else if eCtx.AggType != AggTypeString {
-			return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got string value %s", funcName, eCtx.AggType, typedArg0)
+		if eCtx.aggType == AggTypeUnknown {
+			eCtx.aggType = AggTypeString
+		} else if eCtx.aggType != AggTypeString {
+			return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got string value %s", funcName, eCtx.aggType, typedArg0)
 		}
 		if isApply {
-			eCtx.Min.Count++
-			if len(eCtx.Min.Str) == 0 || typedArg0 < eCtx.Min.Str {
-				eCtx.Min.Str = typedArg0
+			eCtx.minCollector.Count++
+			if len(eCtx.minCollector.Str) == 0 || typedArg0 < eCtx.minCollector.Str {
+				eCtx.minCollector.Str = typedArg0
 			}
 		}
-		return eCtx.Min.Str, nil
+		return eCtx.minCollector.Str, nil
 
 	default:
 		stdTypedArg0, err := castNumberToStandardType(args[0])
@@ -364,46 +387,46 @@ func (eCtx *EvalCtx) callAggMinInternal(funcName string, args []any, isApply boo
 		}
 		switch typedNumberArg0 := stdTypedArg0.(type) {
 		case int64:
-			if eCtx.AggType == AggTypeUnknown {
-				eCtx.AggType = AggTypeInt
-			} else if eCtx.AggType != AggTypeInt {
-				return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got int value %d", funcName, eCtx.AggType, typedNumberArg0)
+			if eCtx.aggType == AggTypeUnknown {
+				eCtx.aggType = AggTypeInt
+			} else if eCtx.aggType != AggTypeInt {
+				return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got int value %d", funcName, eCtx.aggType, typedNumberArg0)
 			}
 			if isApply {
-				eCtx.Min.Count++
-				if typedNumberArg0 < eCtx.Min.Int {
-					eCtx.Min.Int = typedNumberArg0
+				eCtx.minCollector.Count++
+				if typedNumberArg0 < eCtx.minCollector.Int {
+					eCtx.minCollector.Int = typedNumberArg0
 				}
 			}
-			return eCtx.Min.Int, nil
+			return eCtx.minCollector.Int, nil
 
 		case float64:
-			if eCtx.AggType == AggTypeUnknown {
-				eCtx.AggType = AggTypeFloat
-			} else if eCtx.AggType != AggTypeFloat {
-				return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got float value %f", funcName, eCtx.AggType, typedNumberArg0)
+			if eCtx.aggType == AggTypeUnknown {
+				eCtx.aggType = AggTypeFloat
+			} else if eCtx.aggType != AggTypeFloat {
+				return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got float value %f", funcName, eCtx.aggType, typedNumberArg0)
 			}
 			if isApply {
-				eCtx.Min.Count++
-				if typedNumberArg0 < eCtx.Min.Float {
-					eCtx.Min.Float = typedNumberArg0
+				eCtx.minCollector.Count++
+				if typedNumberArg0 < eCtx.minCollector.Float {
+					eCtx.minCollector.Float = typedNumberArg0
 				}
 			}
-			return eCtx.Min.Float, nil
+			return eCtx.minCollector.Float, nil
 
 		case decimal.Decimal:
-			if eCtx.AggType == AggTypeUnknown {
-				eCtx.AggType = AggTypeDec
-			} else if eCtx.AggType != AggTypeDec {
-				return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got decimal value %s", funcName, eCtx.AggType, typedNumberArg0.String())
+			if eCtx.aggType == AggTypeUnknown {
+				eCtx.aggType = AggTypeDec
+			} else if eCtx.aggType != AggTypeDec {
+				return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got decimal value %s", funcName, eCtx.aggType, typedNumberArg0.String())
 			}
 			if isApply {
-				eCtx.Min.Count++
-				if typedNumberArg0.LessThan(eCtx.Min.Dec) {
-					eCtx.Min.Dec = typedNumberArg0
+				eCtx.minCollector.Count++
+				if typedNumberArg0.LessThan(eCtx.minCollector.Dec) {
+					eCtx.minCollector.Dec = typedNumberArg0
 				}
 			}
-			return eCtx.Min.Dec, nil
+			return eCtx.minCollector.Dec, nil
 
 		default:
 			return nil, fmt.Errorf("cannot evaluate %s(), unexpected argument %v of unsupported type %T", funcName, args[0], args[0])
@@ -416,7 +439,7 @@ func (eCtx *EvalCtx) CallAggMin(callExp *ast.CallExpr, args []any) (any, error) 
 	if err := eCtx.checkAgg(funcName, callExp, AggMin); err != nil {
 		return nil, err
 	}
-	if err := checkArgs(funcName, 1, len(args)); err != nil {
+	if err := CheckArgs(funcName, 1, len(args)); err != nil {
 		return nil, err
 	}
 	return eCtx.callAggMinInternal(funcName, args, true)
@@ -427,7 +450,7 @@ func (eCtx *EvalCtx) CallAggMinIf(callExp *ast.CallExpr, args []any) (any, error
 	if err := eCtx.checkAgg(funcName, callExp, AggMin); err != nil {
 		return nil, err
 	}
-	if err := checkArgs(funcName, 2, len(args)); err != nil {
+	if err := CheckArgs(funcName, 2, len(args)); err != nil {
 		return nil, err
 	}
 	isApply, err := checkIf(funcName, args[1])
@@ -440,18 +463,18 @@ func (eCtx *EvalCtx) CallAggMinIf(callExp *ast.CallExpr, args []any) (any, error
 func (eCtx *EvalCtx) callAggMaxInternal(funcName string, args []any, isApply bool) (any, error) {
 	switch typedArg0 := args[0].(type) {
 	case string:
-		if eCtx.AggType == AggTypeUnknown {
-			eCtx.AggType = AggTypeString
-		} else if eCtx.AggType != AggTypeString {
-			return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got string value %s", funcName, eCtx.AggType, typedArg0)
+		if eCtx.aggType == AggTypeUnknown {
+			eCtx.aggType = AggTypeString
+		} else if eCtx.aggType != AggTypeString {
+			return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got string value %s", funcName, eCtx.aggType, typedArg0)
 		}
 		if isApply {
-			eCtx.Max.Count++
-			if len(eCtx.Max.Str) == 0 || typedArg0 > eCtx.Max.Str {
-				eCtx.Max.Str = typedArg0
+			eCtx.maxCollector.Count++
+			if len(eCtx.maxCollector.Str) == 0 || typedArg0 > eCtx.maxCollector.Str {
+				eCtx.maxCollector.Str = typedArg0
 			}
 		}
-		return eCtx.Max.Str, nil
+		return eCtx.maxCollector.Str, nil
 	default:
 		stdTypedNumberArg0, err := castNumberToStandardType(args[0])
 		if err != nil {
@@ -459,46 +482,46 @@ func (eCtx *EvalCtx) callAggMaxInternal(funcName string, args []any, isApply boo
 		}
 		switch typedNumberArg0 := stdTypedNumberArg0.(type) {
 		case int64:
-			if eCtx.AggType == AggTypeUnknown {
-				eCtx.AggType = AggTypeInt
-			} else if eCtx.AggType != AggTypeInt {
-				return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got int value %d", funcName, eCtx.AggType, typedNumberArg0)
+			if eCtx.aggType == AggTypeUnknown {
+				eCtx.aggType = AggTypeInt
+			} else if eCtx.aggType != AggTypeInt {
+				return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got int value %d", funcName, eCtx.aggType, typedNumberArg0)
 			}
 			if isApply {
-				eCtx.Max.Count++
-				if typedNumberArg0 > eCtx.Max.Int {
-					eCtx.Max.Int = typedNumberArg0
+				eCtx.maxCollector.Count++
+				if typedNumberArg0 > eCtx.maxCollector.Int {
+					eCtx.maxCollector.Int = typedNumberArg0
 				}
 			}
-			return eCtx.Max.Int, nil
+			return eCtx.maxCollector.Int, nil
 
 		case float64:
-			if eCtx.AggType == AggTypeUnknown {
-				eCtx.AggType = AggTypeFloat
-			} else if eCtx.AggType != AggTypeFloat {
-				return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got float value %f", funcName, eCtx.AggType, typedNumberArg0)
+			if eCtx.aggType == AggTypeUnknown {
+				eCtx.aggType = AggTypeFloat
+			} else if eCtx.aggType != AggTypeFloat {
+				return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got float value %f", funcName, eCtx.aggType, typedNumberArg0)
 			}
 			if isApply {
-				eCtx.Max.Count++
-				if typedNumberArg0 > eCtx.Max.Float {
-					eCtx.Max.Float = typedNumberArg0
+				eCtx.maxCollector.Count++
+				if typedNumberArg0 > eCtx.maxCollector.Float {
+					eCtx.maxCollector.Float = typedNumberArg0
 				}
 			}
-			return eCtx.Max.Float, nil
+			return eCtx.maxCollector.Float, nil
 
 		case decimal.Decimal:
-			if eCtx.AggType == AggTypeUnknown {
-				eCtx.AggType = AggTypeDec
-			} else if eCtx.AggType != AggTypeDec {
-				return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got decimal value %s", funcName, eCtx.AggType, typedNumberArg0.String())
+			if eCtx.aggType == AggTypeUnknown {
+				eCtx.aggType = AggTypeDec
+			} else if eCtx.aggType != AggTypeDec {
+				return nil, fmt.Errorf("cannot evaluate %s(), it started with type %s, now got decimal value %s", funcName, eCtx.aggType, typedNumberArg0.String())
 			}
 			if isApply {
-				eCtx.Max.Count++
-				if typedNumberArg0.GreaterThan(eCtx.Max.Dec) {
-					eCtx.Max.Dec = typedNumberArg0
+				eCtx.maxCollector.Count++
+				if typedNumberArg0.GreaterThan(eCtx.maxCollector.Dec) {
+					eCtx.maxCollector.Dec = typedNumberArg0
 				}
 			}
-			return eCtx.Max.Dec, nil
+			return eCtx.maxCollector.Dec, nil
 
 		default:
 			return nil, fmt.Errorf("cannot evaluate %s(), unexpected argument %v of unsupported type %T", funcName, args[0], args[0])
@@ -511,7 +534,7 @@ func (eCtx *EvalCtx) CallAggMax(callExp *ast.CallExpr, args []any) (any, error) 
 	if err := eCtx.checkAgg(funcName, callExp, AggMax); err != nil {
 		return nil, err
 	}
-	if err := checkArgs(funcName, 1, len(args)); err != nil {
+	if err := CheckArgs(funcName, 1, len(args)); err != nil {
 		return nil, err
 	}
 	return eCtx.callAggMaxInternal(funcName, args, true)
@@ -522,7 +545,7 @@ func (eCtx *EvalCtx) CallAggMaxIf(callExp *ast.CallExpr, args []any) (any, error
 	if err := eCtx.checkAgg(funcName, callExp, AggMax); err != nil {
 		return nil, err
 	}
-	if err := checkArgs(funcName, 2, len(args)); err != nil {
+	if err := CheckArgs(funcName, 2, len(args)); err != nil {
 		return nil, err
 	}
 	isApply, err := checkIf(funcName, args[1])

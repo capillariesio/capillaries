@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/eval"
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"gopkg.in/inf.v0"
 )
 
@@ -106,7 +107,7 @@ func (tcDef *TableCreatorDef) Deserialize(rawWriter json.RawMessage) error {
 		if fieldDef.ParsedExpression, err = ParseRawGolangExpressionStringAndHarvestFieldRefs(fieldDef.RawExpression, &fieldDef.UsedFields); err != nil {
 			return fmt.Errorf("cannot parse field expression [%s]: [%s]", fieldDef.RawExpression, err.Error())
 		}
-		if !IsValidFieldType(fieldDef.Type) {
+		if !eval_capi.IsValidFieldType(fieldDef.Type) {
 			return fmt.Errorf("invalid field type [%s]", fieldDef.Type)
 		}
 	}
@@ -142,7 +143,7 @@ func (tcDef *TableCreatorDef) GetFieldDefaultReadyForDb(fieldName string) (any, 
 
 	var err error
 	switch writerFieldDef.Type {
-	case FieldTypeInt:
+	case eval_capi.FieldTypeInt:
 		v := DefaultInt
 		if len(defaultValueString) > 0 {
 			v, err = strconv.ParseInt(defaultValueString, 10, 64)
@@ -151,7 +152,7 @@ func (tcDef *TableCreatorDef) GetFieldDefaultReadyForDb(fieldName string) (any, 
 			}
 		}
 		return v, nil
-	case FieldTypeFloat:
+	case eval_capi.FieldTypeFloat:
 		v := DefaultFloat
 		if len(defaultValueString) > 0 {
 			v, err = strconv.ParseFloat(defaultValueString, 64)
@@ -160,13 +161,13 @@ func (tcDef *TableCreatorDef) GetFieldDefaultReadyForDb(fieldName string) (any, 
 			}
 		}
 		return v, nil
-	case FieldTypeString:
+	case eval_capi.FieldTypeString:
 		v := DefaultString
 		if len(defaultValueString) > 0 {
 			v = defaultValueString
 		}
 		return v, nil
-	case FieldTypeDecimal2:
+	case eval_capi.FieldTypeDecimal2:
 		// Set it to Cassandra-accepted value, not decimal.Decimal: https://github.com/gocql/gocql/issues/1578
 		v := inf.NewDec(0, 0)
 		if len(defaultValueString) > 0 {
@@ -178,7 +179,7 @@ func (tcDef *TableCreatorDef) GetFieldDefaultReadyForDb(fieldName string) (any, 
 			v = inf.NewDec(scaled, 2)
 		}
 		return v, nil
-	case FieldTypeBool:
+	case eval_capi.FieldTypeBool:
 		v := DefaultBool
 		if len(defaultValueString) > 0 {
 			v, err = strconv.ParseBool(defaultValueString)
@@ -187,7 +188,7 @@ func (tcDef *TableCreatorDef) GetFieldDefaultReadyForDb(fieldName string) (any, 
 			}
 		}
 		return v, nil
-	case FieldTypeDateTime:
+	case eval_capi.FieldTypeDateTime:
 		v := DefaultDateTime()
 		if len(defaultValueString) > 0 {
 			v, err = time.Parse(CassandraDatetimeFormat, defaultValueString)
@@ -201,17 +202,11 @@ func (tcDef *TableCreatorDef) GetFieldDefaultReadyForDb(fieldName string) (any, 
 	}
 }
 
-func CalculateFieldValue(fieldName string, fieldDef *WriteTableFieldDef, srcVars eval.VarValuesMap, canUseAggFunc bool) (any, error) {
-	funcName, calcWithAggFunc, aggFuncType, aggFuncArgs := eval.DetectRootAggFunc(fieldDef.ParsedExpression)
-	if !canUseAggFunc {
-		calcWithAggFunc = eval.AggFuncDisabled
-	}
-
-	eCtx, err := eval.NewPlainEvalCtxWithVarsAndInitializedAgg(funcName, calcWithAggFunc, &srcVars, aggFuncType, aggFuncArgs)
-	if err != nil {
-		return nil, err
-	}
-
+func CalculateFieldValue(fieldName string, fieldDef *WriteTableFieldDef, srcVars eval.VarValuesMap) (any, error) {
+	var eCtx *eval.EvalCtx
+	var err error
+	eCtx = eval.NewPlainEvalCtx(eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, srcVars)
+	eCtx.SetRoundDec(2) // decimal2
 	valVolatile, err := eCtx.Eval(fieldDef.ParsedExpression)
 	if err != nil {
 		return nil, fmt.Errorf("cannot evaluate expression for field %s: [%s]", fieldName, err.Error())
@@ -222,14 +217,14 @@ func CalculateFieldValue(fieldName string, fieldDef *WriteTableFieldDef, srcVars
 	return valVolatile, nil
 }
 
-func (tcDef *TableCreatorDef) CalculateTableRecordFromSrcVars(canUseAggFunc bool, srcVars eval.VarValuesMap) (map[string]any, error) {
+func (tcDef *TableCreatorDef) CalculateTableRecordFromSrcVars(srcVars eval.VarValuesMap) (map[string]any, error) {
 	foundErrors := make([]string, 0, 2)
 
 	tableRecord := map[string]any{}
 
 	for fieldName, fieldDef := range tcDef.Fields {
 		var err error
-		tableRecord[fieldName], err = CalculateFieldValue(fieldName, fieldDef, srcVars, canUseAggFunc)
+		tableRecord[fieldName], err = CalculateFieldValue(fieldName, fieldDef, srcVars)
 		if err != nil {
 			foundErrors = append(foundErrors, err.Error())
 		}
@@ -253,7 +248,7 @@ func (tcDef *TableCreatorDef) CheckTableRecordHavingCondition(tableRecord map[st
 		vars[CreatorAlias][fieldName] = fieldValue
 	}
 
-	eCtx := eval.NewPlainEvalCtxWithVars(eval.AggFuncDisabled, &vars)
+	eCtx := eval.NewPlainEvalCtx(eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, vars)
 	valVolatile, err := eCtx.Eval(tcDef.Having)
 	if err != nil {
 		return false, fmt.Errorf("cannot evaluate 'having' expression: [%s]", err.Error())

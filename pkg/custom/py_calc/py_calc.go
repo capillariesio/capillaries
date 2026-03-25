@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/eval"
+	"github.com/capillariesio/capillaries/pkg/eval_capi"
 	"github.com/capillariesio/capillaries/pkg/proc"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/xfer"
@@ -107,7 +108,7 @@ func (procDef *PyCalcProcessorDef) Deserialize(raw json.RawMessage, customProcSe
 		// Use relaxed Go parser for Python - we are lucky that Go designers liked Python, so we do not have to implement a separate Python partser (for now)
 		if fieldDef.ParsedExpression, err = sc.ParseRawRelaxedGolangExpressionStringAndHarvestFieldRefs(fieldDef.RawExpression, &fieldDef.UsedFields, sc.FieldRefAllowUnknownIdents); err != nil {
 			foundErrors = append(foundErrors, fmt.Sprintf("cannot parse field expression [%s]: [%s]", fieldDef.RawExpression, err.Error()))
-		} else if !sc.IsValidFieldType(fieldDef.Type) {
+		} else if !eval_capi.IsValidFieldType(fieldDef.Type) {
 			foundErrors = append(foundErrors, fmt.Sprintf("invalid field type [%s]", fieldDef.Type))
 		}
 
@@ -214,39 +215,39 @@ func valueToPythonExpr(val any) string {
 
 func pythonResultToRowsetValue(fieldRef *sc.FieldRef, fieldValue any) (any, error) {
 	switch fieldRef.FieldType {
-	case sc.FieldTypeString:
+	case eval_capi.FieldTypeString:
 		finalVal, ok := fieldValue.(string)
 		if !ok {
 			return nil, fmt.Errorf("string %s, unexpected type %T(%v)", fieldRef.FieldName, fieldValue, fieldValue)
 		}
 		return finalVal, nil
-	case sc.FieldTypeBool:
+	case eval_capi.FieldTypeBool:
 		finalVal, ok := fieldValue.(bool)
 		if !ok {
 			return nil, fmt.Errorf("bool %s, unexpected type %T(%v)", fieldRef.FieldName, fieldValue, fieldValue)
 		}
 		return finalVal, nil
-	case sc.FieldTypeInt:
+	case eval_capi.FieldTypeInt:
 		finalVal, ok := fieldValue.(float64)
 		if !ok {
 			return nil, fmt.Errorf("int %s, unexpected type %T(%v)", fieldRef.FieldName, fieldValue, fieldValue)
 		}
 		finalIntVal := int64(finalVal)
 		return finalIntVal, nil
-	case sc.FieldTypeFloat:
+	case eval_capi.FieldTypeFloat:
 		finalVal, ok := fieldValue.(float64)
 		if !ok {
 			return nil, fmt.Errorf("float %s, unexpected type %T(%v)", fieldRef.FieldName, fieldValue, fieldValue)
 		}
 		return finalVal, nil
-	case sc.FieldTypeDecimal2:
+	case eval_capi.FieldTypeDecimal2:
 		finalVal, ok := fieldValue.(float64)
 		if !ok {
 			return nil, fmt.Errorf("decimal %s, unexpected type %T(%v)", fieldRef.FieldName, fieldValue, fieldValue)
 		}
 		finalDecVal := decimal.NewFromFloat(finalVal).Round(2)
 		return finalDecVal, nil
-	case sc.FieldTypeDateTime:
+	case eval_capi.FieldTypeDateTime:
 		finalVal, ok := fieldValue.(string)
 		if !ok {
 			return nil, fmt.Errorf("time %s, unexpected type %T(%v)", fieldRef.FieldName, fieldValue, fieldValue)
@@ -307,7 +308,7 @@ func checkPythonFuncDefAvailability(usedPythonFunctionSignatures map[string]stru
 	for usedSig := range usedPythonFunctionSignatures {
 		if _, ok := availableDefSigs[usedSig]; !ok {
 			if _, ok := pythoBuiltinFunctions[usedSig]; !ok {
-				foundErrors.WriteString(fmt.Sprintf("function def '%s' not found in Python file, and it's not in the list of allowed Python built-in functions; ", usedSig))
+				fmt.Fprintf(&foundErrors, "function def '%s' not found in Python file, and it's not in the list of allowed Python built-in functions; ", usedSig)
 			}
 		}
 	}
@@ -315,7 +316,7 @@ func checkPythonFuncDefAvailability(usedPythonFunctionSignatures map[string]stru
 	if foundErrors.Len() > 0 {
 		var defs strings.Builder
 		for defSig := range availableDefSigs {
-			defs.WriteString(fmt.Sprintf("%s; ", defSig))
+			fmt.Fprintf(&defs, "%s; ", defSig)
 		}
 		return fmt.Errorf("python function defs availability check failed, the following functions are not defined: [%s]. Full list of available Python function definitions: %s", foundErrors.String(), defs.String())
 	}
@@ -374,21 +375,21 @@ func (procDef *PyCalcProcessorDef) buildPythonCodebaseFromRowset(rsIn *proc.Rows
 	// This is the hardcoded Python code structure we rely on. Do not change it.
 	var codeBase strings.Builder
 
-	codeBase.WriteString(fmt.Sprintf(`
+	fmt.Fprintf(&codeBase, `
 import traceback
 import json
 print("\n%s") # Provide function defs
 %s
 `,
 		FORMULA_MARKER_FUNCTION_DEFINITIONS,
-		procDef.PythonCode))
+		procDef.PythonCode)
 
 	for rowIdx := 0; rowIdx < rsIn.RowCount; rowIdx++ {
 		itemCalculationCodebase, err := procDef.printItemCalculationCode(rowIdx, rsIn)
 		if err != nil {
 			return "", err
 		}
-		codeBase.WriteString(fmt.Sprintf("%s\n", itemCalculationCodebase))
+		fmt.Fprintf(&codeBase, "%s\n", itemCalculationCodebase)
 	}
 
 	return codeBase.String(), nil
@@ -459,12 +460,12 @@ func getRowResultJson(rowIdx int, codeBase *string, rawOutput *string, sectionEn
 	return rawSectionOutput[sectionSuccessPos+len(successMarker):], "", nil
 }
 
-func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput string, _ string, outFieldRefs *sc.FieldRefs, rsIn *proc.Rowset, flushVarsArray func(varsArray []*eval.VarValuesMap, varsArrayCount int) error) error {
+func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput string, _ string, outFieldRefs *sc.FieldRefs, rsIn *proc.Rowset, flushVarsArray func(varsArray []eval.VarValuesMap, varsArrayCount int) error) error {
 	// No Python interpreter errors, but there may be runtime errors and good results.
 	// Timeout error may be there too.
 
 	var foundErrors strings.Builder
-	varsArray := make([]*eval.VarValuesMap, pyCalcFlushBufferSize)
+	varsArray := make([]eval.VarValuesMap, pyCalcFlushBufferSize)
 	varsArrayCount := 0
 
 	sectionEndPos := 0
@@ -489,7 +490,7 @@ func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput
 
 				// We need to include reader fieldsin the result, writermay use any of them
 				vars := eval.VarValuesMap{}
-				if err := rsIn.ExportToVars(rowIdx, &vars); err != nil {
+				if err := rsIn.ExportToVars(rowIdx, vars); err != nil {
 					return err
 				}
 
@@ -498,11 +499,11 @@ func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput
 				for _, outFieldRef := range *outFieldRefs {
 					pythonFieldValue, ok := itemResults[outFieldRef.FieldName]
 					if !ok {
-						foundErrors.WriteString(fmt.Sprintf("cannot find result for row %d, field %s;", rowIdx, outFieldRef.FieldName))
+						fmt.Fprintf(&foundErrors, "cannot find result for row %d, field %s;", rowIdx, outFieldRef.FieldName)
 					} else {
 						valVolatile, err := pythonResultToRowsetValue(&outFieldRef, pythonFieldValue)
 						if err != nil {
-							foundErrors.WriteString(fmt.Sprintf("cannot deserialize result for row %d: %s;", rowIdx, err.Error()))
+							fmt.Fprintf(&foundErrors, "cannot deserialize result for row %d: %s;", rowIdx, err.Error())
 						} else {
 							vars[sc.CustomProcessorAlias][outFieldRef.FieldName] = valVolatile
 						}
@@ -510,13 +511,13 @@ func (procDef *PyCalcProcessorDef) analyseExecSuccess(codeBase string, rawOutput
 				}
 
 				if foundErrors.Len() == 0 {
-					varsArray[varsArrayCount] = &vars
+					varsArray[varsArrayCount] = vars
 					varsArrayCount++
 					if varsArrayCount == len(varsArray) {
 						if err = flushVarsArray(varsArray, varsArrayCount); err != nil {
 							return fmt.Errorf("error flushing vars array of size %d: %s", varsArrayCount, err.Error())
 						}
-						varsArray = make([]*eval.VarValuesMap, pyCalcFlushBufferSize)
+						varsArray = make([]eval.VarValuesMap, pyCalcFlushBufferSize)
 						varsArrayCount = 0
 					}
 				}
@@ -550,21 +551,21 @@ func getErrorLineNumberInfo(codeBase *string, rawErrors string) string {
 		for matchIdx := 0; matchIdx < len(groupMatches); matchIdx++ {
 			errLineNum, errAtoi := strconv.Atoi(groupMatches[matchIdx][1])
 			if errAtoi != nil {
-				errorLineNumberInfo.WriteString(fmt.Sprintf("Unexpected error, cannot parse error line number (%s): %s", groupMatches[matchIdx][1], errAtoi))
+				fmt.Fprintf(&errorLineNumberInfo, "Unexpected error, cannot parse error line number (%s): %s", groupMatches[matchIdx][1], errAtoi)
 			} else {
-				errorLineNumberInfo.WriteString(fmt.Sprintf("Source code lines close to the error location (line %d):\n", errLineNum))
+				fmt.Fprintf(&errorLineNumberInfo, "Source code lines close to the error location (line %d):\n", errLineNum)
 				scanner := bufio.NewScanner(strings.NewReader(*codeBase))
 				lineNum := 1
 				for scanner.Scan() {
 					if lineNum+15 >= errLineNum && lineNum-15 <= errLineNum {
-						errorLineNumberInfo.WriteString(fmt.Sprintf("%06d    %s\n", lineNum, scanner.Text()))
+						fmt.Fprintf(&errorLineNumberInfo, "%06d    %s\n", lineNum, scanner.Text())
 					}
 					lineNum++
 				}
 			}
 		}
 	} else {
-		errorLineNumberInfo.WriteString(fmt.Sprintf("Unexpected error, cannot find error line number in raw error output %s", rawErrors))
+		fmt.Fprintf(&errorLineNumberInfo, "Unexpected error, cannot find error line number in raw error output %s", rawErrors)
 	}
 
 	return errorLineNumberInfo.String()
@@ -582,13 +583,13 @@ const ProcPrefix string = "p_"
 func (procDef *PyCalcProcessorDef) printItemCalculationCode(rowIdx int, rsIn *proc.Rowset) (string, error) {
 	// Initialize input variables in no particular order
 	vars := eval.VarValuesMap{}
-	err := rsIn.ExportToVars(rowIdx, &vars)
+	err := rsIn.ExportToVars(rowIdx, vars)
 	if err != nil {
 		return "", err
 	}
 	var bIn strings.Builder
 	for fieldName, fieldVal := range vars[sc.ReaderAlias] {
-		bIn.WriteString(fmt.Sprintf("  %s%s = %s\n", ReaderPrefix, fieldName, valueToPythonExpr(fieldVal)))
+		fmt.Fprintf(&bIn, "  %s%s = %s\n", ReaderPrefix, fieldName, valueToPythonExpr(fieldVal))
 	}
 
 	// Calculation expression order matters (we got it from DAG analysis), so follow it
@@ -599,8 +600,8 @@ func (procDef *PyCalcProcessorDef) printItemCalculationCode(rowIdx int, rsIn *pr
 	prefixReplacer := strings.NewReplacer(fmt.Sprintf("%s.", sc.ReaderAlias), ReaderPrefix, fmt.Sprintf("%s.", sc.CustomProcessorAlias), ProcPrefix)
 	for fieldIdx, procFieldWithAlias := range procDef.CalculationOrder {
 		procField := prefixRemover.Replace(procFieldWithAlias)
-		bCalc.WriteString(fmt.Sprintf("  %s%s = %s\n", ProcPrefix, procField, prefixReplacer.Replace(procDef.CalculatedFields[procField].RawExpression)))
-		bRes.WriteString(fmt.Sprintf("  \"%s\":%s%s", procField, ProcPrefix, procField))
+		fmt.Fprintf(&bCalc, "  %s%s = %s\n", ProcPrefix, procField, prefixReplacer.Replace(procDef.CalculatedFields[procField].RawExpression))
+		fmt.Fprintf(&bRes, "  \"%s\":%s%s", procField, ProcPrefix, procField)
 		if fieldIdx < len(procDef.CalculationOrder)-1 {
 			bRes.WriteString(",")
 		}

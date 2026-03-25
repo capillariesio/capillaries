@@ -8,9 +8,9 @@ import (
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/db"
+	"github.com/capillariesio/capillaries/pkg/gocqlshims"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
-	"github.com/gocql/gocql"
 )
 
 func HarvestLastStatusForBatch(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) (wfmodel.NodeBatchStatusType, time.Time, error) {
@@ -47,7 +47,7 @@ func HarvestLastStatusForBatch(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 	return lastStatus, lastTs, nil
 }
 
-func GetRunNodeBatchHistory(logger *l.CapiLogger, cqlSession *gocql.Session, keyspace string, runId int16, nodeName string) ([]*wfmodel.BatchHistoryEvent, error) {
+func GetRunNodeBatchHistory(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16, nodeName string) ([]*wfmodel.BatchHistoryEvent, error) {
 	logger.PushF("wfdb.GetRunNodeBatchHistory")
 	defer logger.PopF()
 
@@ -150,7 +150,7 @@ func SetBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, st
 	qb := cql.QueryBuilder{}
 	qb.
 		Keyspace(pCtx.Msg.DataKeyspace).
-		WriteForceUnquote("ts", "toTimeStamp(now())").
+		WriteForceUnquote("ts", "toTimestamp(now())").
 		Write("run_id", pCtx.Msg.RunId).
 		Write("script_node", pCtx.Msg.TargetNodeName).
 		Write("batch_idx", pCtx.Msg.BatchIdx).
