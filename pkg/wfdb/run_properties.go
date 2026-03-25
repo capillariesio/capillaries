@@ -2,7 +2,7 @@ package wfdb
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
@@ -55,7 +55,16 @@ func GetRunProperties(logger *l.CapiLogger, cqlSession gocqlshims.Session, keysp
 		runs[rowIdx] = rec
 	}
 
-	sort.Slice(runs, func(i, j int) bool { return runs[i].RunId < runs[j].RunId })
+	slices.SortFunc(runs, func(l, r *wfmodel.RunProperties) int {
+		switch {
+		case l.RunId < r.RunId:
+			return -1
+		case l.RunId > r.RunId:
+			return 1
+		default:
+			return 0
+		}
+	})
 
 	return runs, nil
 }

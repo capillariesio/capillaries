@@ -95,9 +95,9 @@ linters:
         text: struct literal uses unkeyed fields
         linters: [ govet ]
 
-      - path: .+\.go
-        text: replace sort.Slice by slices.SortFunc
-        linters: [ revive ]
+      # - path: .+\.go
+      #   text: replace sort.Slice by slices.SortFunc
+      #   linters: [ revive ]
 
       - path: pkg\/gocqlmem\/parser\.go
         text: has (cognitive|cyclomatic) complexity

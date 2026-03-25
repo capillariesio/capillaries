@@ -2,7 +2,7 @@ package wfdb
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
@@ -43,7 +43,16 @@ func HarvestNodeStatusesForRun(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 		nodeEvents[idx] = rec
 	}
 
-	sort.Slice(nodeEvents, func(i, j int) bool { return nodeEvents[i].Ts.Before(nodeEvents[j].Ts) })
+	slices.SortFunc(nodeEvents, func(l, r *wfmodel.NodeHistoryEvent) int {
+		switch {
+		case l.Ts.Before(r.Ts):
+			return -1
+		case l.Ts.After(r.Ts):
+			return 1
+		default:
+			return 0
+		}
+	})
 
 	for _, e := range nodeEvents {
 		lastStatus, ok := nodeStatusMap[e.ScriptNode]

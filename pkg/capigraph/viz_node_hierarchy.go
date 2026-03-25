@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 )
@@ -510,8 +509,15 @@ func (vnh *VizNodeHierarchy) RemoveDuplicateSecEdgeLabels() {
 
 	for _, edgeTextMap := range secLabelsFromItemMap {
 		for _, edges := range edgeTextMap {
-			sort.Slice(edges, func(i int, j int) bool {
-				return edges[i].X < edges[j].X
+			slices.SortFunc(edges, func(l, r *VizEdge) int {
+				switch {
+				case l.X < r.X:
+					return -1
+				case l.X > r.X:
+					return 1
+				default:
+					return 0
+				}
 			})
 			i := 0
 			j := 1

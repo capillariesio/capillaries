@@ -9,7 +9,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -251,7 +251,16 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 		mx.RunLifespans[runCount] = runLifespan
 		runCount++
 	}
-	sort.Slice(mx.RunLifespans, func(i, j int) bool { return mx.RunLifespans[i].RunId < mx.RunLifespans[j].RunId })
+	slices.SortFunc(mx.RunLifespans, func(l, r *wfmodel.RunLifespan) int {
+		switch {
+		case l.RunId < r.RunId:
+			return -1
+		case l.RunId > r.RunId:
+			return 1
+		default:
+			return 0
+		}
+	})
 
 	// Retrieve all node events for this ks, for all runs
 	nodeHistory, err := api.GetNodeHistoryForRuns(h.L, cqlSession, keyspace, []int16{})
@@ -298,19 +307,29 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 	// Sort nodes: started come first, sorted by start ts, other come after that, sorted by node name
 	// Ideally, they should be sorted geometrically from DAG, with start ts coming into play when DAG says nodes are equal.
 	// But this will require script analysis which takes too long.
-	sort.Slice(mx.Nodes, func(i, j int) bool {
-		leftTs, leftPresent := nodeStartTsMap[mx.Nodes[i].NodeName]
-		rightTs, rightPresent := nodeStartTsMap[mx.Nodes[j].NodeName]
+	slices.SortFunc(mx.Nodes, func(l, r WebapiNodeRunMatrixRow) int {
+		leftTs, leftPresent := nodeStartTsMap[l.NodeName]
+		rightTs, rightPresent := nodeStartTsMap[r.NodeName]
 		if !leftPresent && rightPresent {
-			return false
+			return 1
 		} else if leftPresent && !rightPresent {
-			return true
+			return -1
 		} else if leftPresent && rightPresent && !leftTs.Equal(rightTs) {
-			return leftTs.Before(rightTs)
+			if leftTs.Before(rightTs) {
+				return -1
+			}
+			return 1
 		}
 
 		// Sort by node name
-		return mx.Nodes[i].NodeName < mx.Nodes[j].NodeName
+		switch {
+		case l.NodeName < r.NodeName:
+			return -1
+		case l.NodeName > r.NodeName:
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, mx)
@@ -474,8 +493,16 @@ func (h *UrlHandler) ksRunNodeHistory(w http.ResponseWriter, r *http.Request) {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
-	sort.Slice(result.RunNodeHistory, func(i, j int) bool { return result.RunNodeHistory[i].Ts.Before(result.RunNodeHistory[j].Ts) })
-
+	slices.SortFunc(result.RunNodeHistory, func(l, r *wfmodel.NodeHistoryEvent) int {
+		switch {
+		case l.Ts.Before(r.Ts):
+			return -1
+		case l.Ts.After(r.Ts):
+			return 1
+		default:
+			return 0
+		}
+	})
 	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, result)
 }
 

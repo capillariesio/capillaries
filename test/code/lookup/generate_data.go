@@ -9,7 +9,7 @@ import (
 	"math"
 	"math/rand"
 	"os"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -335,11 +335,22 @@ func shuffleAndSaveInOrderItems(inOrderItems []*OrderItem, totalChunks int, base
 
 func sortAndSaveNoGroup(items []*NoGroupItem, fileBase string, formats string) {
 	// "order": "order_id(asc),order_item_id(asc)"
-	sort.Slice(items, func(i, j int) bool {
-		if items[i].OrderId != items[j].OrderId {
-			return items[i].OrderId < items[j].OrderId
-		} else {
-			return items[i].OrderItemId < items[j].OrderItemId
+	slices.SortFunc(items, func(l, r *NoGroupItem) int {
+		switch {
+		case l.OrderId < r.OrderId:
+			return -1
+		case l.OrderId > r.OrderId:
+			return 1
+		default:
+			switch {
+			case l.OrderItemId < r.OrderItemId:
+				return -1
+			case l.OrderItemId > r.OrderItemId:
+				return 1
+			default:
+				return 0
+
+			}
 		}
 	})
 	if strings.Contains(formats, "csv") {
@@ -424,13 +435,29 @@ func sortAndSaveNoGroup(items []*NoGroupItem, fileBase string, formats string) {
 
 func sortAndSaveGroup(items []*GroupItem, fileBase string, formats string) {
 	// "order": "total_value(desc),order_purchase_timestamp(desc),order_id(desc)"
-	sort.Slice(items, func(i, j int) bool {
-		if !items[i].TotalOrderValue.Equal(items[j].TotalOrderValue) {
-			return items[i].TotalOrderValue.GreaterThan(items[j].TotalOrderValue)
-		} else if !items[i].OrderPurchaseTs.Equal(items[j].OrderPurchaseTs) {
-			return items[i].OrderPurchaseTs.After(items[j].OrderPurchaseTs)
-		} else {
-			return items[i].OrderId > items[j].OrderId
+	slices.SortFunc(items, func(l, r *GroupItem) int {
+		switch {
+		case l.TotalOrderValue.GreaterThan(r.TotalOrderValue):
+			return -1
+		case l.TotalOrderValue.LessThan(r.TotalOrderValue):
+			return 1
+		default:
+			switch {
+			case l.OrderPurchaseTs.After(r.OrderPurchaseTs):
+				return -1
+			case l.OrderPurchaseTs.Before(r.OrderPurchaseTs):
+				return 1
+			default:
+				switch {
+				case l.OrderId > l.OrderId:
+					return -1
+				case l.OrderId < l.OrderId:
+					return 1
+				default:
+					return -0
+				}
+			}
+
 		}
 	})
 

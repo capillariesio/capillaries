@@ -2,7 +2,7 @@ package wfdb
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
@@ -70,8 +70,16 @@ func GetRunNodeBatchHistory(logger *l.CapiLogger, cqlSession gocqlshims.Session,
 		result[rowIdx] = rec
 	}
 
-	sort.Slice(result, func(i, j int) bool { return result[i].Ts.Before(result[j].Ts) })
-
+	slices.SortFunc(result, func(l, r *wfmodel.BatchHistoryEvent) int {
+		switch {
+		case l.Ts.Before(r.Ts):
+			return -1
+		case l.Ts.After(r.Ts):
+			return 1
+		default:
+			return 0
+		}
+	})
 	return result, nil
 }
 

@@ -2,7 +2,7 @@ package api
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/capillariesio/capillaries/pkg/capigraph"
@@ -270,7 +270,16 @@ func GetCapigraphDiagram(scriptDef *sc.ScriptDef, showIdx bool, showFields bool,
 		nodeNames[nodeIdx] = nodeName
 		nodeIdx++
 	}
-	sort.Slice(nodeNames, func(i, j int) bool { return nodeNames[i] < nodeNames[j] })
+	slices.SortFunc(nodeNames, func(l, r string) int {
+		switch {
+		case l < r:
+			return -1
+		case l > r:
+			return 1
+		default:
+			return 0
+		}
+	})
 
 	nodeIdx = int16(1)
 	for _, nodeName := range nodeNames {
@@ -329,7 +338,17 @@ func GetCapigraphDiagram(scriptDef *sc.ScriptDef, showIdx bool, showFields bool,
 				if showIdx {
 					sb.WriteString("\n")
 				}
-				sort.Slice(allUsedFields, func(i, j int) bool { return allUsedFields[i].FieldName < allUsedFields[j].FieldName })
+				slices.SortFunc(allUsedFields, func(l, r sc.FieldRef) int {
+					switch {
+					case l.FieldName < r.FieldName:
+						return -1
+					case l.FieldName > r.FieldName:
+						return 1
+					default:
+						return 0
+					}
+				})
+
 				for i := 0; i < len(allUsedFields); i++ {
 					if allUsedFields[i].TableName == sc.ReaderAlias {
 						if sb.Len() > 0 {

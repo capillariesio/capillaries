@@ -2,7 +2,7 @@ package api
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/db"
@@ -32,7 +32,16 @@ func GetRunHistory(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace
 			return nil, fmt.Errorf("cannot deserialize run history row: %s, %s", err.Error(), q)
 		}
 	}
-	sort.Slice(result, func(i, j int) bool { return result[i].Ts.Before(result[j].Ts) })
+	slices.SortFunc(result, func(l, r *wfmodel.RunHistoryEvent) int {
+		switch {
+		case l.Ts.Before(r.Ts):
+			return -1
+		case l.Ts.After(r.Ts):
+			return 1
+		default:
+			return 0
+		}
+	})
 
 	return result, nil
 }
@@ -60,7 +69,16 @@ func GetNodeHistoryForRuns(logger *l.CapiLogger, cqlSession gocqlshims.Session, 
 			return nil, fmt.Errorf("cannot deserialize node history row: %s, %s", err.Error(), q)
 		}
 	}
-	sort.Slice(result, func(i, j int) bool { return result[i].Ts.Before(result[j].Ts) })
+	slices.SortFunc(result, func(l, r *wfmodel.NodeHistoryEvent) int {
+		switch {
+		case l.Ts.Before(r.Ts):
+			return -1
+		case l.Ts.After(r.Ts):
+			return 1
+		default:
+			return 0
+		}
+	})
 	return result, nil
 }
 
@@ -90,6 +108,15 @@ func GetBatchHistoryForRunsAndNodes(logger *l.CapiLogger, cqlSession gocqlshims.
 			return nil, fmt.Errorf("cannot deserialize batch history row: %s, %s", err.Error(), q)
 		}
 	}
-	sort.Slice(result, func(i, j int) bool { return result[i].Ts.Before(result[j].Ts) })
+	slices.SortFunc(result, func(l, r *wfmodel.BatchHistoryEvent) int {
+		switch {
+		case l.Ts.Before(r.Ts):
+			return -1
+		case l.Ts.After(r.Ts):
+			return 1
+		default:
+			return 0
+		}
+	})
 	return result, nil
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 	"slices"
-	"sort"
 	"strings"
 )
 
@@ -247,8 +246,17 @@ func buildRootColorMap(vizNodeMap []VizNode, palette []int32) []int32 {
 		}
 		rootCountMap[vizNode.RootId]++
 	}
-	sort.Slice(rootIds, func(i, j int) bool {
-		return rootCountMap[rootIds[i]] > rootCountMap[rootIds[j]]
+
+	// Most common roots go first
+	slices.SortFunc(rootIds, func(l, r int16) int {
+		switch {
+		case rootCountMap[l] > rootCountMap[r]:
+			return -1
+		case rootCountMap[l] < rootCountMap[r]:
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	rootColorMap := slices.Repeat([]int32{-1}, len(vizNodeMap))

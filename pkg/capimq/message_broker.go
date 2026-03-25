@@ -2,7 +2,7 @@ package capimq
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -102,7 +102,17 @@ func NewMessageBroker(maxMessages int) *MessageBroker {
 }
 
 func (mb *MessageBroker) sortQ() {
-	sort.Slice(mb.Q, func(i int, j int) bool { return mb.Q[i].DeliverEarlierThan(mb.Q[j]) })
+	slices.SortFunc(mb.Q, func(l, r *CapimqInternalMessage) int {
+		switch {
+		case l.DeliverEarlierThan(r):
+			return -1
+		case r.DeliverEarlierThan(l):
+			return 1
+		default:
+			return 0
+		}
+	})
+
 }
 
 func (mb *MessageBroker) ReturnDead(deadTimeoutMillis int64) []string {
@@ -336,7 +346,16 @@ func (mb *MessageBroker) HeadTail(heapType HeapType, queueRead QueueReadType, fr
 		}
 		mb.WipMutex.RUnlock()
 
-		sort.Slice(allMsgs, func(i int, j int) bool { return allMsgs[i].DeliverEarlierThan(allMsgs[j]) })
+		slices.SortFunc(allMsgs, func(l, r *CapimqInternalMessage) int {
+			switch {
+			case l.DeliverEarlierThan(r):
+				return -1
+			case r.DeliverEarlierThan(l):
+				return 1
+			default:
+				return 0
+			}
+		})
 
 		i := from
 		inc := 1

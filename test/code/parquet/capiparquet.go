@@ -8,7 +8,7 @@ import (
 	"os"
 	"reflect"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -465,7 +465,16 @@ func sortFile(path string, idxDef *sc.IdxDef) error {
 		indexedRows = append(indexedRows, IndexedRow{key, d})
 	}
 
-	sort.Slice(indexedRows, func(i, j int) bool { return indexedRows[i].Key < indexedRows[j].Key })
+	slices.SortFunc(indexedRows, func(l, r IndexedRow) int {
+		switch {
+		case l.Key < r.Key:
+			return -1
+		case l.Key > r.Key:
+			return 1
+		default:
+			return 0
+		}
+	})
 
 	f.Truncate(0)
 
