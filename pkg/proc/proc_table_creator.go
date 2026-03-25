@@ -13,7 +13,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/eval"
-	"github.com/capillariesio/capillaries/pkg/eval_capi"
+	"github.com/capillariesio/capillaries/pkg/evalcapi"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/xfer"
@@ -183,13 +183,14 @@ func RunReadFileForBatch(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *c
 		return bs, fmt.Errorf("l scheme %s not supported: %s", u.Scheme, filePath)
 	}
 
-	if node.FileReader.ReaderFileType == sc.ReaderFileTypeCsv {
+	switch node.FileReader.ReaderFileType {
+	case sc.ReaderFileTypeCsv:
 		return readCsv(envConfig, logger, pCtx, totalStartTime, filePath, fileReader)
-	} else if node.FileReader.ReaderFileType == sc.ReaderFileTypeParquet {
+	case sc.ReaderFileTypeParquet:
 		return readParquet(envConfig, logger, pCtx, totalStartTime, filePath, fileReadSeeker)
+	default:
+		return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("unknown reader file type: %d", node.FileReader.ReaderFileType)
 	}
-
-	return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("unknown reader file type: %d", node.FileReader.ReaderFileType)
 }
 
 func RunCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
@@ -667,13 +668,13 @@ func setupEvalCtxForGroup(node *sc.ScriptNodeDef, rsLeft *Rowset) (map[int64]map
 				var newCtx *eval.EvalCtx
 				var newCtxErr error
 				if aggFuncEnabled == eval.AggFuncEnabled {
-					newCtx, newCtxErr = eval.NewAggEvalCtx(aggFuncType, aggFuncArgs, eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, nil)
+					newCtx, newCtxErr = eval.NewAggEvalCtx(aggFuncType, aggFuncArgs, evalcapi.CapillariesEvalFunctions, evalcapi.CapillariesEvalConstants, nil)
 					if newCtxErr != nil {
 						return nil, fmt.Errorf("cannot initialize ctx for group calc: %s", newCtxErr.Error())
 					}
 					newCtx.SetRoundDec(2) // decimal2
 				} else {
-					newCtx = eval.NewPlainEvalCtx(eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, nil)
+					newCtx = eval.NewPlainEvalCtx(evalcapi.CapillariesEvalFunctions, evalcapi.CapillariesEvalConstants, nil)
 				}
 				eCtxMap[rowid][fieldName] = newCtx
 			}

@@ -131,11 +131,11 @@ jobs:
                 exit 1
             fi
 
-    - name: pkg/eval_capi test coverage threshold check
+    - name: pkg/evalcapi test coverage threshold check
       env:
           TESTCOVERAGE_THRESHOLD: 99.5
       run: |
-            go test -v ./pkg/eval_capi/... -coverprofile coverage.out -covermode count
+            go test -v ./pkg/evalcapi/... -coverprofile coverage.out -covermode count
             totalCoverage=`go tool cover -func=coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`
             if (( $(echo "$totalCoverage $TESTCOVERAGE_THRESHOLD" | awk '{print ($1 >= $2)}') )); then
                 echo -e "\033[32mOK: $totalCoverage >= $TESTCOVERAGE_THRESHOLD\033[0m"

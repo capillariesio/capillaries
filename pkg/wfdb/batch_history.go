@@ -119,10 +119,13 @@ func HarvestBatchStatusesForNode(logger *l.CapiLogger, pCtx *ctx.MessageProcessi
 			delete(batchesInProgress, rec.BatchIdx)
 		}
 
-		if rec.Status == wfmodel.NodeBatchFail {
+		switch rec.Status {
+		case wfmodel.NodeBatchFail:
 			failFound = true
-		} else if rec.Status == wfmodel.NodeBatchRunStopReceived {
+		case wfmodel.NodeBatchRunStopReceived:
 			stopReceivedFound = true
+		default:
+			// Nothing interesting yet
 		}
 	}
 

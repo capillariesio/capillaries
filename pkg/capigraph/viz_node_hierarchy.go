@@ -327,12 +327,13 @@ func (vnh *VizNodeHierarchy) PopulateUpperLayerGapMap(edgeFontSizeInPixels float
 	for i := range len(vnh.VizNodeMap) - 1 {
 		hi := &vnh.VizNodeMap[i+1]
 		for _, edge := range hi.IncomingVizEdges {
-			if edge.HierarchyType == HierarchyPri {
+			switch edge.HierarchyType {
+			case HierarchyPri:
 				prevMaxEdgeLabelHeight := maxPriEdgeLabelHightMap[hi.Layer]
 				if prevMaxEdgeLabelHeight == -1 || prevMaxEdgeLabelHeight < edge.H {
 					maxPriEdgeLabelHightMap[hi.Layer] = edge.H
 				}
-			} else if edge.HierarchyType == HierarchySec {
+			case HierarchySec:
 				// Make sure it's for the correspondent layer,
 				// otherwise it's not gonna work for cases when an edge goes up more than one level
 				layer := vnh.VizNodeMap[edge.Edge.SrcId].Layer + 1
@@ -340,7 +341,7 @@ func (vnh *VizNodeHierarchy) PopulateUpperLayerGapMap(edgeFontSizeInPixels float
 				if prevMaxEdgeLabelHeight == -1 || prevMaxEdgeLabelHeight < edge.H {
 					maxSecEdgeLabelHightMap[layer] = edge.H
 				}
-			} else {
+			default:
 				panic(fmt.Sprintf("PopulateUpperLayerGapMap: unknown hierarchy type %d", edge.HierarchyType))
 			}
 		}

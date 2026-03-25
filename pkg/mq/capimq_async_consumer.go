@@ -12,7 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/capillariesio/capillaries/pkg/capimq_message_broker"
+	"github.com/capillariesio/capillaries/pkg/capimq"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
@@ -75,7 +75,7 @@ func (dc *CapimqAsyncConsumer) claim(ctx context.Context) (*wfmodel.Message, err
 		return nil, nil
 	}
 
-	var claimResponseCapimqMessage capimq_message_broker.CapimqMessage
+	var claimResponseCapimqMessage capimq.CapimqMessage
 	if err := json.Unmarshal(bodyBytes, &claimResponseCapimqMessage); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal CapimqApiClaimResponse, error [%s], body: %s", err.Error(), string(bodyBytes))
 	}

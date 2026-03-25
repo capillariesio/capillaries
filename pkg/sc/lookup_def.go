@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/capillariesio/capillaries/pkg/eval"
-	"github.com/capillariesio/capillaries/pkg/eval_capi"
+	"github.com/capillariesio/capillaries/pkg/evalcapi"
 )
 
 type LookupJoinType string
@@ -94,7 +94,7 @@ func (lkpDef *LookupDef) resolveLeftTableFields(srcName string, srcFieldRefs *Fi
 		if !ok {
 			return fmt.Errorf("source [%s] does not produce field [%s]", tName, fName)
 		}
-		if srcFieldRef.FieldType == eval_capi.FieldTypeUnknown {
+		if srcFieldRef.FieldType == evalcapi.FieldTypeUnknown {
 			return fmt.Errorf("source field [%s.%s] has unknown type", tName, fName)
 		}
 		lkpDef.LeftTableFields[fieldIdx] = *srcFieldRef
@@ -123,7 +123,7 @@ func (lkpDef *LookupDef) CheckFilterCondition(varsFromLookup eval.VarValuesMap) 
 	if !lkpDef.UsesFilter() {
 		return true, nil
 	}
-	eCtx := eval.NewPlainEvalCtx(eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, varsFromLookup)
+	eCtx := eval.NewPlainEvalCtx(evalcapi.CapillariesEvalFunctions, evalcapi.CapillariesEvalConstants, varsFromLookup)
 	valVolatile, err := eCtx.Eval(lkpDef.Filter)
 	if err != nil {
 		return false, fmt.Errorf("cannot evaluate expression: [%s]", err.Error())

@@ -8,7 +8,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/db"
-	"github.com/capillariesio/capillaries/pkg/eval_capi"
+	"github.com/capillariesio/capillaries/pkg/evalcapi"
 	"github.com/capillariesio/capillaries/pkg/gocqlshims"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
@@ -125,9 +125,14 @@ func selectBatchFromDataTablePaged(logger *l.CapiLogger,
 
 		err := scanner.Err()
 		if err == nil {
+			// No more retries needed
 			break
 		}
-		if !(strings.Contains(err.Error(), "Operation timed out") || strings.Contains(err.Error(), "Cannot achieve consistency level") && selectRetryIdx < 3) {
+
+		isTimedOut := strings.Contains(err.Error(), "Operation timed out")
+		isInconsistentAndStillRetrying := strings.Contains(err.Error(), "Cannot achieve consistency level") && selectRetryIdx < 3
+		if !isTimedOut && !isInconsistentAndStillRetrying {
+			// The error was not a timeout, and not "inconsistent" while retrying, so it's either some unknown error or the number of retries is too high
 			return nil, db.WrapDbErrorWithQuery(fmt.Sprintf("paged data scanner cannot select %d rows from %s%s after %d attempts; another worker may retry this batch later, but, if some unique idx records has been written already by current worker, the next worker handling this batch will throw an error on them and there is nothing we can do about it;", batchSize, tableName, cql.RunIdSuffix(lookupNodeRunId), selectRetryIdx+1), q, err)
 		}
 		logger.WarnCtx(pCtx, "cannot select %d rows from %s%s on retry %d, getting timeout/consistency error (%s), will wait for %dms and retry", batchSize, tableName, cql.RunIdSuffix(lookupNodeRunId), selectRetryIdx, err.Error(), 10*curSelectExpBackoffFactor)
@@ -473,7 +478,7 @@ func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.Messag
 	rs := NewRowsetFromFieldRefs(
 		sc.FieldRefs{sc.RowidFieldRef(pCtx.CurrentScriptNode.TableCreator.Name)},
 		*uniqueIdxFieldRefs,
-		sc.FieldRefs{sc.FieldRef{TableName: pCtx.CurrentScriptNode.TableCreator.Name, FieldName: "batch_idx", FieldType: eval_capi.FieldTypeInt}})
+		sc.FieldRefs{sc.FieldRef{TableName: pCtx.CurrentScriptNode.TableCreator.Name, FieldName: "batch_idx", FieldType: evalcapi.FieldTypeInt}})
 
 	var pageState []byte
 	var err error

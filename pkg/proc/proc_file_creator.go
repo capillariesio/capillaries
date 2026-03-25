@@ -182,15 +182,17 @@ func RunCreateFile(envConfig *env.EnvConfig,
 		return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("cannot parse file url %s: %s", instr.FinalFileUrl, err.Error())
 	}
 
-	if node.FileCreator.CreatorFileType == sc.CreatorFileTypeCsv {
+	switch node.FileCreator.CreatorFileType {
+
+	case sc.CreatorFileTypeCsv:
 		if err := instr.createCsvFileAndStartWorker(logger, u); err != nil {
 			return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("cannot start csv inserter worker: %s", err.Error())
 		}
-	} else if node.FileCreator.CreatorFileType == sc.CreatorFileTypeParquet {
+	case sc.CreatorFileTypeParquet:
 		if err := instr.createParquetFileAndStartWorker(logger, node.FileCreator.Parquet.Codec, u); err != nil {
 			return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("cannot start parquet inserter worker: %s", err.Error())
 		}
-	} else {
+	default:
 		return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("unknown inserter file type: %d", node.FileCreator.CreatorFileType)
 	}
 
@@ -236,11 +238,12 @@ func RunCreateFile(envConfig *env.EnvConfig,
 
 	logger.InfoCtx(pCtx, "uploading %s of size %d to %s...", instr.TempFilePath, st.Size(), instr.FinalFileUrl)
 
-	if u.Scheme == xfer.UrlSchemeSftp {
+	switch u.Scheme {
+	case xfer.UrlSchemeSftp:
 		return bs, xfer.UploadSftpFile(instr.TempFilePath, instr.FinalFileUrl, envConfig.PrivateKeys)
-	} else if u.Scheme == xfer.UrlSchemeS3 {
+	case xfer.UrlSchemeS3:
 		return bs, xfer.UploadS3File(instr.TempFilePath, u)
+	default:
+		return bs, fmt.Errorf("unexpected URL scheme %s in %s", u.Scheme, instr.FinalFileUrl)
 	}
-
-	return bs, fmt.Errorf("unexpected URL scheme %s in %s", u.Scheme, instr.FinalFileUrl)
 }

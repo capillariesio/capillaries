@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/capillariesio/capillaries/pkg/custom/py_calc"
-	"github.com/capillariesio/capillaries/pkg/custom/tag_and_denormalize"
+	"github.com/capillariesio/capillaries/pkg/custom/pycalc"
+	"github.com/capillariesio/capillaries/pkg/custom/taganddenormalize"
 	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/l"
@@ -20,10 +20,10 @@ type TestProcessorDefFactory struct {
 
 func (f *TestProcessorDefFactory) Create(processorType string) (sc.CustomProcessorDef, bool) {
 	switch processorType {
-	case py_calc.ProcessorPyCalcName:
-		return &py_calc.PyCalcProcessorDef{}, true
-	case tag_and_denormalize.ProcessorTagAndDenormalizeName:
-		return &tag_and_denormalize.TagAndDenormalizeProcessorDef{}, true
+	case pycalc.ProcessorPyCalcName:
+		return &pycalc.PyCalcProcessorDef{}, true
+	case taganddenormalize.ProcessorTagAndDenormalizeName:
+		return &taganddenormalize.TagAndDenormalizeProcessorDef{}, true
 	default:
 		return nil, false
 	}

@@ -43,15 +43,16 @@ func yamlUnmarshal(in []byte, out any) error {
 }
 
 func JsonOrYamlUnmarshal(scriptType ScriptType, in []byte, out any) error {
-	if scriptType == ScriptJson {
+	switch scriptType {
+	case ScriptJson:
 		if err := json.Unmarshal(in, out); err != nil {
 			return fmt.Errorf("cannot unmarshal json: %s", err.Error())
 		}
-	} else if scriptType == ScriptYaml {
+	case ScriptYaml:
 		if err := yamlUnmarshal(in, out); err != nil {
 			return fmt.Errorf("cannot unmarshal yaml: %s", err.Error())
 		}
-	} else {
+	default:
 		return errors.New("cannot unmarshal yaml or json, unknown format")
 	}
 

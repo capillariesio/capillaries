@@ -463,7 +463,7 @@ func (eCtx *EvalCtx) EvalBinaryBoolToBool(valLeftVolatile any, op token.Token, v
 		return false, fmt.Errorf("cannot evaluate binary bool expression '%v(%T) %v %v(%T)', invalid right arg", valLeft, valLeft, op, valRightVolatile, valRightVolatile)
 	}
 
-	if !(op == token.EQL || op == token.NEQ) {
+	if op != token.EQL && op != token.NEQ {
 		return false, fmt.Errorf("cannot evaluate binary bool expression, op %v not supported (and will never be)", op)
 	}
 
@@ -726,14 +726,16 @@ func (eCtx *EvalCtx) evalBinaryExp(exp *ast.BinaryExpr) (any, error) {
 	if err != nil {
 		return 0, err
 	}
-	if exp.Op == token.ADD || exp.Op == token.SUB || exp.Op == token.MUL || exp.Op == token.QUO || exp.Op == token.REM {
+	switch exp.Op {
+	case token.ADD, token.SUB, token.MUL, token.QUO, token.REM:
 		return eCtx.evalBinaryArithmeticExp(valLeftVolatile, exp, valRightVolatile)
-	} else if exp.Op == token.LOR || exp.Op == token.LAND {
+	case token.LOR, token.LAND:
 		return eCtx.evalBinaryBoolToBoolExp(valLeftVolatile, exp, valRightVolatile)
-	} else if exp.Op == token.GTR || exp.Op == token.GEQ || exp.Op == token.LSS || exp.Op == token.LEQ || exp.Op == token.EQL || exp.Op == token.NEQ {
+	case token.GTR, token.GEQ, token.LSS, token.LEQ, token.EQL, token.NEQ:
 		return eCtx.evalBinaryCompareExp(valLeftVolatile, exp, valRightVolatile)
+	default:
+		return nil, fmt.Errorf("cannot perform binary expression unknown op %v", exp.Op)
 	}
-	return nil, fmt.Errorf("cannot perform binary expression unknown op %v", exp.Op)
 }
 
 func (eCtx *EvalCtx) evalUnaryExp(exp *ast.UnaryExpr) (any, error) {

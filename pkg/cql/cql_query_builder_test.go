@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/capillariesio/capillaries/pkg/eval_capi"
+	"github.com/capillariesio/capillaries/pkg/evalcapi"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/inf.v0"
@@ -87,12 +87,12 @@ func TestUpdate(t *testing.T) {
 func TestCreateRun(t *testing.T) {
 	const qTemplate string = "CREATE TABLE IF NOT EXISTS table1%s ( col_int BIGINT, col_bool BOOLEAN, col_string TEXT, col_datetime TIMESTAMP, col_decimal2 DECIMAL, col_float DOUBLE, PRIMARY KEY((col_int, col_decimal2), col_bool, col_float)) WITH PROPERTIES BLA;"
 	qb := (&QueryBuilder{}).
-		ColumnDef("col_int", eval_capi.FieldTypeInt).
-		ColumnDef("col_bool", eval_capi.FieldTypeBool).
-		ColumnDef("col_string", eval_capi.FieldTypeString).
-		ColumnDef("col_datetime", eval_capi.FieldTypeDateTime).
-		ColumnDef("col_decimal2", eval_capi.FieldTypeDecimal2).
-		ColumnDef("col_float", eval_capi.FieldTypeFloat).
+		ColumnDef("col_int", evalcapi.FieldTypeInt).
+		ColumnDef("col_bool", evalcapi.FieldTypeBool).
+		ColumnDef("col_string", evalcapi.FieldTypeString).
+		ColumnDef("col_datetime", evalcapi.FieldTypeDateTime).
+		ColumnDef("col_decimal2", evalcapi.FieldTypeDecimal2).
+		ColumnDef("col_float", evalcapi.FieldTypeFloat).
 		PartitionKey("col_int", "col_decimal2").
 		ClusteringKey("col_bool", "col_float")
 	assert.Equal(t, fmt.Sprintf(qTemplate, "_00123"), qb.CreateRun("table1", 123, IgnoreIfExists, "WITH PROPERTIES BLA"))

@@ -5,7 +5,7 @@ import (
 	"sort"
 
 	"github.com/capillariesio/capillaries/pkg/eval"
-	"github.com/capillariesio/capillaries/pkg/eval_capi"
+	"github.com/capillariesio/capillaries/pkg/evalcapi"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
@@ -25,7 +25,7 @@ func CheckDependencyPolicyAgainstNodeEventList(logger *l.CapiLogger, fullBatchId
 
 	for eventIdx := 0; eventIdx < len(events); eventIdx++ {
 		vars := wfmodel.NewVarsFromDepCtx(events[eventIdx])
-		eCtx := eval.NewPlainEvalCtx(eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, vars)
+		eCtx := eval.NewPlainEvalCtx(evalcapi.CapillariesEvalFunctions, evalcapi.CapillariesEvalConstants, vars)
 		for ruleIdx, rule := range targetNodeDepPol.Rules {
 			ruleMatched, err := eCtx.Eval(rule.ParsedExpression)
 			if err != nil {

@@ -8,7 +8,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/capillariesio/capillaries/pkg/eval_capi"
+	"github.com/capillariesio/capillaries/pkg/evalcapi"
 	"github.com/shopspring/decimal"
 	"golang.org/x/text/runes"
 
@@ -18,13 +18,13 @@ import (
 
 const BeginningOfTimeMicro = int64(-62135596800000000) // time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC).UnixMicro()
 
-func getNumericValueSign(v any, expectedType eval_capi.TableFieldType) (string, any, error) {
+func getNumericValueSign(v any, expectedType evalcapi.TableFieldType) (string, any, error) {
 	var sign string
 	var newVal any
 	var ok bool
 
 	switch expectedType {
-	case eval_capi.FieldTypeInt:
+	case evalcapi.FieldTypeInt:
 		var n int64
 		if n, ok = v.(int64); !ok {
 			return "", nil, fmt.Errorf("cannot convert value %v to type %v", v, expectedType)
@@ -37,7 +37,7 @@ func getNumericValueSign(v any, expectedType eval_capi.TableFieldType) (string, 
 			newVal = -n
 		}
 
-	case eval_capi.FieldTypeFloat:
+	case evalcapi.FieldTypeFloat:
 		var f float64
 		if f, ok = v.(float64); !ok {
 			return "", nil, fmt.Errorf("cannot convert value %v to type %v", v, expectedType)
@@ -50,7 +50,7 @@ func getNumericValueSign(v any, expectedType eval_capi.TableFieldType) (string, 
 			newVal = -f
 		}
 
-	case eval_capi.FieldTypeDecimal2:
+	case evalcapi.FieldTypeDecimal2:
 		var d decimal.Decimal
 		if d, ok = v.(decimal.Decimal); !ok {
 			return "", nil, fmt.Errorf("cannot convert value %v to type %v", v, expectedType)
@@ -82,8 +82,8 @@ func BuildKey(fieldMap map[string]any, idxDef *IdxDef) (string, error) {
 		var stringValue string
 
 		switch comp.FieldType {
-		case eval_capi.FieldTypeInt:
-			sign, absVal, err := getNumericValueSign(fieldMap[comp.FieldName], eval_capi.FieldTypeInt)
+		case evalcapi.FieldTypeInt:
+			sign, absVal, err := getNumericValueSign(fieldMap[comp.FieldName], evalcapi.FieldTypeInt)
 			if err != nil {
 				return "", err
 			}
@@ -93,9 +93,9 @@ func BuildKey(fieldMap map[string]any, idxDef *IdxDef) (string, error) {
 				stringValue = flipReplacer.Replace(stringValue)
 			}
 
-		case eval_capi.FieldTypeFloat:
+		case evalcapi.FieldTypeFloat:
 			// We should support numbers as big as 10^32 and with 32 digits afetr decimal point
-			sign, absVal, err := getNumericValueSign(fieldMap[comp.FieldName], eval_capi.FieldTypeFloat)
+			sign, absVal, err := getNumericValueSign(fieldMap[comp.FieldName], evalcapi.FieldTypeFloat)
 			if err != nil {
 				return "", err
 			}
@@ -105,8 +105,8 @@ func BuildKey(fieldMap map[string]any, idxDef *IdxDef) (string, error) {
 				stringValue = flipReplacer.Replace(stringValue)
 			}
 
-		case eval_capi.FieldTypeDecimal2:
-			sign, absVal, err := getNumericValueSign(fieldMap[comp.FieldName], eval_capi.FieldTypeDecimal2)
+		case evalcapi.FieldTypeDecimal2:
+			sign, absVal, err := getNumericValueSign(fieldMap[comp.FieldName], evalcapi.FieldTypeDecimal2)
 			if err != nil {
 				return "", err
 			}
@@ -121,7 +121,7 @@ func BuildKey(fieldMap map[string]any, idxDef *IdxDef) (string, error) {
 				stringValue = flipReplacer.Replace(stringValue)
 			}
 
-		case eval_capi.FieldTypeDateTime:
+		case evalcapi.FieldTypeDateTime:
 			// We support time differences up to microsecond. Not nanosecond! Cassandra supports only milliseconds. Millis are our lingua franca.
 			t, ok := fieldMap[comp.FieldName].(time.Time)
 			if !ok {
@@ -129,7 +129,7 @@ func BuildKey(fieldMap map[string]any, idxDef *IdxDef) (string, error) {
 			}
 			stringValue = fmt.Sprintf("%020d", t.UnixMicro()-BeginningOfTimeMicro)
 
-		case eval_capi.FieldTypeString:
+		case evalcapi.FieldTypeString:
 			s, ok := fieldMap[comp.FieldName].(string)
 			if !ok {
 				return "", fmt.Errorf("cannot convert value %v to type string", fieldMap[comp.FieldName])
@@ -144,7 +144,7 @@ func BuildKey(fieldMap map[string]any, idxDef *IdxDef) (string, error) {
 				stringValue = strings.ToUpper(stringValue)
 			}
 
-		case eval_capi.FieldTypeBool:
+		case evalcapi.FieldTypeBool:
 			b, ok := fieldMap[comp.FieldName].(bool)
 			if !ok {
 				return "", fmt.Errorf("cannot convert value %v to type bool", fieldMap[comp.FieldName])

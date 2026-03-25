@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/capillariesio/capillaries/pkg/eval_capi"
+	"github.com/capillariesio/capillaries/pkg/evalcapi"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -207,7 +207,7 @@ func (procDef *SomeTestCustomProcessorDef) Deserialize(raw json.RawMessage, _ js
 	for _, fieldDef := range procDef.ProducedFields {
 		if fieldDef.ParsedExpression, err = ParseRawRelaxedGolangExpressionStringAndHarvestFieldRefs(fieldDef.RawExpression, &fieldDef.UsedFields, FieldRefAllowUnknownIdents); err != nil {
 			foundErrors = append(foundErrors, fmt.Sprintf("cannot parse field expression [%s]: [%s]", fieldDef.RawExpression, err.Error()))
-		} else if !eval_capi.IsValidFieldType(fieldDef.Type) {
+		} else if !evalcapi.IsValidFieldType(fieldDef.Type) {
 			foundErrors = append(foundErrors, fmt.Sprintf("invalid field type [%s]", fieldDef.Type))
 		}
 	}

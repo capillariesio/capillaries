@@ -169,9 +169,9 @@ func drawNodesAndEdgeLabels(vizNodeMap []VizNode, curItem *VizNode, nodeFo FontO
 			}
 			fmt.Fprintf(&sb, `<a xlink:title="%s">`+"\n", strings.TrimSpace(xmlReplacer.Replace(eolReplacer.Replace(edgeItem.Edge.Text))))
 			parentItem := &(vizNodeMap[edgeItem.Edge.SrcId])
-			if edgeItem.HierarchyType == HierarchySec {
-				fmt.Fprintf(&sb, `  <rect class="rect-edge-label-background" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
-					edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H)
+			fmt.Fprintf(&sb, `  <rect class="rect-edge-label-background" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n", edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H)
+			switch edgeItem.HierarchyType {
+			case HierarchySec:
 				fmt.Fprintf(&sb, `  <rect class="rect-edge-label-sec rect-edge-label-sec-%d" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
 					parentItem.RootId,
 					edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H)
@@ -181,9 +181,7 @@ func drawNodesAndEdgeLabels(vizNodeMap []VizNode, curItem *VizNode, nodeFo FontO
 						edgeItem.Y+edgeFo.SizeInPixels*LabelTextDimensionMargin+float64(i)*edgeFo.SizeInPixels*(1+edgeFo.Interval),
 						xmlReplacer.Replace(r))
 				}
-			} else if edgeItem.HierarchyType == HierarchyPri {
-				fmt.Fprintf(&sb, `  <rect class="rect-edge-label-background" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
-					edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H)
+			case HierarchyPri:
 				fmt.Fprintf(&sb, `  <rect class="rect-edge-label-pri rect-edge-label-pri-%d" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
 					parentItem.RootId,
 					edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H)
@@ -193,6 +191,8 @@ func drawNodesAndEdgeLabels(vizNodeMap []VizNode, curItem *VizNode, nodeFo FontO
 						edgeItem.Y+edgeFo.SizeInPixels*LabelTextDimensionMargin+float64(i)*edgeFo.SizeInPixels*(1+edgeFo.Interval),
 						xmlReplacer.Replace(r))
 				}
+			default:
+				fmt.Fprintf(&sb, `  <text class="text-edge-label" x="%.2f" y="%.2f">%s</text>`+"\n", edgeItem.X, edgeItem.Y, "unknown pri/sec type")
 			}
 			sb.WriteString("</a>\n")
 		}

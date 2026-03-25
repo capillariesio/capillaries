@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/capillariesio/capillaries/pkg/capigraph"
-	"github.com/capillariesio/capillaries/pkg/custom/py_calc"
-	"github.com/capillariesio/capillaries/pkg/custom/tag_and_denormalize"
+	"github.com/capillariesio/capillaries/pkg/custom/pycalc"
+	"github.com/capillariesio/capillaries/pkg/custom/taganddenormalize"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
@@ -186,15 +186,15 @@ func nodeTypeDescription(node *sc.ScriptNodeDef) string {
 			shortenFileName(node.FileCreator.UrlTemplate))
 	case sc.NodeTypeTableCustomTfmTable:
 		switch node.CustomProcessorType {
-		case py_calc.ProcessorPyCalcName:
+		case pycalc.ProcessorPyCalcName:
 			return fmt.Sprintf(
 				"Processor: apply Python calculations\n"+
 					"Python file(s): %s\n"+
 					"Table created: %s",
-				shortenFileName(node.CustomProcessor.(*py_calc.PyCalcProcessorDef).PythonUrls[0]),
+				shortenFileName(node.CustomProcessor.(*pycalc.PyCalcProcessorDef).PythonUrls[0]),
 				node.TableCreator.Name)
-		case tag_and_denormalize.ProcessorTagAndDenormalizeName:
-			tagCriteriaUrl := shortenFileName(node.CustomProcessor.(*tag_and_denormalize.TagAndDenormalizeProcessorDef).RawTagCriteriaUrl)
+		case taganddenormalize.ProcessorTagAndDenormalizeName:
+			tagCriteriaUrl := shortenFileName(node.CustomProcessor.(*taganddenormalize.TagAndDenormalizeProcessorDef).RawTagCriteriaUrl)
 			if len(tagCriteriaUrl) == 0 {
 				tagCriteriaUrl = "(inline)"
 			}
@@ -233,17 +233,19 @@ func nodeTypeIcon(node *sc.ScriptNodeDef) string {
 	case sc.NodeTypeTableLookupTable:
 		return "icon-database-table-join"
 	case sc.NodeTypeTableFile:
-		if node.FileCreator.CreatorFileType == sc.CreatorFileTypeCsv {
+		switch node.FileCreator.CreatorFileType {
+		case sc.CreatorFileTypeCsv:
 			return "icon-csv"
-		} else if node.FileCreator.CreatorFileType == sc.CreatorFileTypeParquet {
+		case sc.CreatorFileTypeParquet:
 			return "icon-parquet"
+		default:
+			return ""
 		}
-		return ""
 	case sc.NodeTypeTableCustomTfmTable:
 		switch node.CustomProcessorType {
-		case py_calc.ProcessorPyCalcName:
+		case pycalc.ProcessorPyCalcName:
 			return "icon-database-table-py"
-		case tag_and_denormalize.ProcessorTagAndDenormalizeName:
+		case taganddenormalize.ProcessorTagAndDenormalizeName:
 			return "icon-database-table-tag"
 		default:
 			return ""
@@ -296,11 +298,11 @@ func GetCapigraphDiagram(scriptDef *sc.ScriptDef, showIdx bool, showFields bool,
 	for _, node := range scriptDef.ScriptNodes {
 		nodeIdx := nodeNameMap[node.Name]
 		allUsedFields := sc.FieldRefs{}
-		if node.Type == sc.NodeTypeTableCustomTfmTable && node.CustomProcessorType == py_calc.ProcessorPyCalcName {
-			usedInPyExpressions := node.CustomProcessor.(*py_calc.PyCalcProcessorDef).GetUsedInTargetExpressionsFields()
+		if node.Type == sc.NodeTypeTableCustomTfmTable && node.CustomProcessorType == pycalc.ProcessorPyCalcName {
+			usedInPyExpressions := node.CustomProcessor.(*pycalc.PyCalcProcessorDef).GetUsedInTargetExpressionsFields()
 			allUsedFields.Append(*usedInPyExpressions)
-		} else if node.Type == sc.NodeTypeTableCustomTfmTable && node.CustomProcessorType == tag_and_denormalize.ProcessorTagAndDenormalizeName {
-			usedInTagExpressions := node.CustomProcessor.(*tag_and_denormalize.TagAndDenormalizeProcessorDef).GetUsedInTargetExpressionsFields()
+		} else if node.Type == sc.NodeTypeTableCustomTfmTable && node.CustomProcessorType == taganddenormalize.ProcessorTagAndDenormalizeName {
+			usedInTagExpressions := node.CustomProcessor.(*taganddenormalize.TagAndDenormalizeProcessorDef).GetUsedInTargetExpressionsFields()
 			allUsedFields.Append(*usedInTagExpressions)
 		}
 		if node.HasFileCreator() {

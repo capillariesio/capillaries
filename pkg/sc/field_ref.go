@@ -9,14 +9,14 @@ import (
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/eval"
-	"github.com/capillariesio/capillaries/pkg/eval_capi"
+	"github.com/capillariesio/capillaries/pkg/evalcapi"
 	"github.com/shopspring/decimal"
 )
 
 type FieldRef struct {
 	TableName string
 	FieldName string
-	FieldType eval_capi.TableFieldType
+	FieldType evalcapi.TableFieldType
 }
 
 func (fr *FieldRef) GetAliasHash() string {
@@ -60,41 +60,41 @@ func RowidFieldRef(tableName string) FieldRef {
 	return FieldRef{
 		TableName: tableName,
 		FieldName: "rowid",
-		FieldType: eval_capi.FieldTypeInt}
+		FieldType: evalcapi.FieldTypeInt}
 }
 
 func RowidTokenFieldRef() FieldRef {
 	return FieldRef{
 		TableName: "db_system",
 		FieldName: "token(rowid)",
-		FieldType: eval_capi.FieldTypeInt}
+		FieldType: evalcapi.FieldTypeInt}
 }
 
 // func RunBatchRowidTokenFieldRef() FieldRef {
 // 	return FieldRef{
 // 		TableName: "db_system",
 // 		FieldName: "token(run_id,batch_idx,rowid)",
-// 		FieldType:eval_capi.FieldTypeInt}
+// 		FieldType:evalcapi.FieldTypeInt}
 // }
 
 func KeyTokenFieldRef() FieldRef {
 	return FieldRef{
 		TableName: "db_system",
 		FieldName: "token(key)",
-		FieldType: eval_capi.FieldTypeInt}
+		FieldType: evalcapi.FieldTypeInt}
 }
 
 //	func RunBatchKeyTokenFieldRef() FieldRef {
 //		return FieldRef{
 //			TableName: "db_system",
 //			FieldName: "token(run_id,batch_idx,key)",
-//			FieldType:eval_capi.FieldTypeInt}
+//			FieldType:evalcapi.FieldTypeInt}
 //	}
 func IdxKeyFieldRef() FieldRef {
 	return FieldRef{
 		TableName: "db_system",
 		FieldName: "key",
-		FieldType: eval_capi.FieldTypeString}
+		FieldType: evalcapi.FieldTypeString}
 }
 
 func (fieldRefs *FieldRefs) contributeUnresolved(tableName string, fieldName string) {
@@ -107,7 +107,7 @@ func (fieldRefs *FieldRefs) contributeUnresolved(tableName string, fieldName str
 		}
 	}
 
-	*fieldRefs = append(*fieldRefs, FieldRef{TableName: tableName, FieldName: fieldName, FieldType: eval_capi.FieldTypeUnknown})
+	*fieldRefs = append(*fieldRefs, FieldRef{TableName: tableName, FieldName: fieldName, FieldType: evalcapi.FieldTypeUnknown})
 }
 
 func (fieldRefs *FieldRefs) Append(otherFieldRefs FieldRefs) {
@@ -137,7 +137,7 @@ func (fieldRefs *FieldRefs) AppendWithFilter(otherFieldRefs FieldRefs, tableFilt
 	}
 }
 
-func evalExpressionWithFieldRefsAndCheckType(exp ast.Expr, fieldRefs FieldRefs, expectedType eval_capi.TableFieldType) error {
+func evalExpressionWithFieldRefsAndCheckType(exp ast.Expr, fieldRefs FieldRefs, expectedType evalcapi.TableFieldType) error {
 	if exp == nil {
 		// Nothing to evaluate
 		return nil
@@ -157,17 +157,17 @@ func evalExpressionWithFieldRefsAndCheckType(exp ast.Expr, fieldRefs FieldRefs, 
 				varValuesMap[tName] = map[string]any{}
 			}
 			switch fType {
-			case eval_capi.FieldTypeInt:
+			case evalcapi.FieldTypeInt:
 				varValuesMap[tName][fName] = int64(0) + deltaInt
-			case eval_capi.FieldTypeFloat:
+			case evalcapi.FieldTypeFloat:
 				varValuesMap[tName][fName] = float64(0.0) + deltaFloat
-			case eval_capi.FieldTypeBool:
+			case evalcapi.FieldTypeBool:
 				varValuesMap[tName][fName] = false
-			case eval_capi.FieldTypeString:
+			case evalcapi.FieldTypeString:
 				varValuesMap[tName][fName] = "12345" // There may be a float() or int() call out there
-			case eval_capi.FieldTypeDateTime:
+			case evalcapi.FieldTypeDateTime:
 				varValuesMap[tName][fName] = time.Now()
-			case eval_capi.FieldTypeDecimal2:
+			case evalcapi.FieldTypeDecimal2:
 				varValuesMap[tName][fName] = decimal.NewFromFloat(0.0).Add(deltaDecimal)
 			default:
 				return fmt.Errorf("evalExpressionWithFieldRefsAndCheckType unsupported field type %s", fieldRefs[i].FieldType)
@@ -179,13 +179,13 @@ func evalExpressionWithFieldRefsAndCheckType(exp ast.Expr, fieldRefs FieldRefs, 
 		var err error
 		aggFuncEnabled, aggFuncType, aggFuncArgs := eval.DetectRootAggFunc(exp)
 		if aggFuncEnabled == eval.AggFuncEnabled {
-			eCtx, err = eval.NewAggEvalCtx(aggFuncType, aggFuncArgs, eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, varValuesMap)
+			eCtx, err = eval.NewAggEvalCtx(aggFuncType, aggFuncArgs, evalcapi.CapillariesEvalFunctions, evalcapi.CapillariesEvalConstants, varValuesMap)
 			if err != nil {
 				return err
 			}
 			eCtx.SetRoundDec(2) // decimal2
 		} else {
-			eCtx = eval.NewPlainEvalCtx(eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, varValuesMap)
+			eCtx = eval.NewPlainEvalCtx(evalcapi.CapillariesEvalFunctions, evalcapi.CapillariesEvalConstants, varValuesMap)
 		}
 
 		result, err := eCtx.Eval(exp)
@@ -193,8 +193,10 @@ func evalExpressionWithFieldRefsAndCheckType(exp ast.Expr, fieldRefs FieldRefs, 
 			return CheckValueType(result, expectedType)
 		}
 
-		if !(strings.Contains(err.Error(), "divide by zero") || // int, float
-			strings.Contains(err.Error(), "decimal division by 0")) { // decimal
+		isIntDivideByZero := strings.Contains(err.Error(), "divide by zero")            // int, float
+		isDecimalDivideByZero := strings.Contains(err.Error(), "decimal division by 0") // decimal
+		if !isIntDivideByZero && !isDecimalDivideByZero {
+			// Something unexpected
 			return err
 		}
 		deltaInt += int64(1)
@@ -303,7 +305,7 @@ func harvestFieldRefsFromParsedExpression(exp ast.Expr, usedFields *FieldRefs, p
 	case *ast.SelectorExpr:
 		switch assertedExpIdent := assertedExp.X.(type) {
 		case *ast.Ident:
-			_, ok := eval_capi.CapillariesEvalConstants[fmt.Sprintf("%s.%s", assertedExpIdent.Name, assertedExp.Sel.Name)]
+			_, ok := evalcapi.CapillariesEvalConstants[fmt.Sprintf("%s.%s", assertedExpIdent.Name, assertedExp.Sel.Name)]
 			if !ok {
 				usedFields.contributeUnresolved(assertedExpIdent.Name, assertedExp.Sel.Name)
 			}

@@ -15,11 +15,11 @@ import (
 
 	"github.com/capillariesio/capillaries/pkg/api"
 	"github.com/capillariesio/capillaries/pkg/cql"
-	"github.com/capillariesio/capillaries/pkg/custom/py_calc"
-	"github.com/capillariesio/capillaries/pkg/custom/tag_and_denormalize"
+	"github.com/capillariesio/capillaries/pkg/custom/pycalc"
+	"github.com/capillariesio/capillaries/pkg/custom/taganddenormalize"
 	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/env"
-	"github.com/capillariesio/capillaries/pkg/eval_capi"
+	"github.com/capillariesio/capillaries/pkg/evalcapi"
 	"github.com/capillariesio/capillaries/pkg/gocqlshims"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/mq"
@@ -41,10 +41,10 @@ func (f *StandardToolbeltProcessorDefFactory) Create(processorType string) (sc.C
 	// If you develop your own processor(s), use your own ProcessorDefFactory that lists all processors,
 	// they all must implement CustomProcessorRunner interface
 	switch processorType {
-	case py_calc.ProcessorPyCalcName:
-		return &py_calc.PyCalcProcessorDef{}, true
-	case tag_and_denormalize.ProcessorTagAndDenormalizeName:
-		return &tag_and_denormalize.TagAndDenormalizeProcessorDef{}, true
+	case pycalc.ProcessorPyCalcName:
+		return &pycalc.PyCalcProcessorDef{}, true
+	case taganddenormalize.ProcessorTagAndDenormalizeName:
+		return &taganddenormalize.TagAndDenormalizeProcessorDef{}, true
 	default:
 		return nil, false
 	}
@@ -484,13 +484,13 @@ func protoFileReaderCreator() int {
 	tgtFileFinalPath := "/tmp/capi_out/proto_file_reader_creator_quicktest/" + srcFileName
 
 	// Some reasonable defaults that match our test expectations in test/data/proto_file_reader_creator
-	fileWriterFormatMap := map[eval_capi.TableFieldType]string{
-		eval_capi.FieldTypeString:   "%s",
-		eval_capi.FieldTypeInt:      "%d",
-		eval_capi.FieldTypeFloat:    "%.3f",
-		eval_capi.FieldTypeDecimal2: "%s",
-		eval_capi.FieldTypeDateTime: "2006-01-02 15:04:05",
-		eval_capi.FieldTypeBool:     "%t"}
+	fileWriterFormatMap := map[evalcapi.TableFieldType]string{
+		evalcapi.FieldTypeString:   "%s",
+		evalcapi.FieldTypeInt:      "%d",
+		evalcapi.FieldTypeFloat:    "%.3f",
+		evalcapi.FieldTypeDecimal2: "%s",
+		evalcapi.FieldTypeDateTime: "2006-01-02 15:04:05",
+		evalcapi.FieldTypeBool:     "%t"}
 
 	// Create file reader
 	fileReaderDef := sc.FileReaderDef{

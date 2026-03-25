@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/capillariesio/capillaries/pkg/eval_capi"
+	"github.com/capillariesio/capillaries/pkg/evalcapi"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/storage"
 )
@@ -100,16 +100,16 @@ func generateHoldings(fileQuickHoldingsPath string, fileInHoldingsPath string, b
 					return err
 				}
 
-				if err := w.AddColumn("account_id", eval_capi.FieldTypeString); err != nil {
+				if err := w.AddColumn("account_id", evalcapi.FieldTypeString); err != nil {
 					return err
 				}
-				if err := w.AddColumn("d", eval_capi.FieldTypeDateTime); err != nil {
+				if err := w.AddColumn("d", evalcapi.FieldTypeDateTime); err != nil {
 					return err
 				}
-				if err := w.AddColumn("ticker", eval_capi.FieldTypeString); err != nil {
+				if err := w.AddColumn("ticker", evalcapi.FieldTypeString); err != nil {
 					return err
 				}
-				if err := w.AddColumn("qty", eval_capi.FieldTypeInt); err != nil {
+				if err := w.AddColumn("qty", evalcapi.FieldTypeInt); err != nil {
 					return err
 				}
 			}
@@ -211,19 +211,19 @@ func generateTxns(fileQuickTxnsPath string, fileInTxnsPath string, bigAccountsMa
 				if err != nil {
 					return err
 				}
-				if err := w.AddColumn("ts", eval_capi.FieldTypeDateTime); err != nil {
+				if err := w.AddColumn("ts", evalcapi.FieldTypeDateTime); err != nil {
 					return err
 				}
-				if err := w.AddColumn("account_id", eval_capi.FieldTypeString); err != nil {
+				if err := w.AddColumn("account_id", evalcapi.FieldTypeString); err != nil {
 					return err
 				}
-				if err := w.AddColumn("ticker", eval_capi.FieldTypeString); err != nil {
+				if err := w.AddColumn("ticker", evalcapi.FieldTypeString); err != nil {
 					return err
 				}
-				if err := w.AddColumn("qty", eval_capi.FieldTypeInt); err != nil {
+				if err := w.AddColumn("qty", evalcapi.FieldTypeInt); err != nil {
 					return err
 				}
-				if err := w.AddColumn("price", eval_capi.FieldTypeFloat); err != nil {
+				if err := w.AddColumn("price", evalcapi.FieldTypeFloat); err != nil {
 					return err
 				}
 			}
@@ -283,16 +283,16 @@ func generateOutTotals(fileQuickAccountYearPath string, fileOutAccountYearPath s
 	if err != nil {
 		return err
 	}
-	if err := w.AddColumn("ARK fund", eval_capi.FieldTypeString); err != nil {
+	if err := w.AddColumn("ARK fund", evalcapi.FieldTypeString); err != nil {
 		return err
 	}
-	if err := w.AddColumn("Period", eval_capi.FieldTypeString); err != nil {
+	if err := w.AddColumn("Period", evalcapi.FieldTypeString); err != nil {
 		return err
 	}
-	if err := w.AddColumn("Sector", eval_capi.FieldTypeString); err != nil {
+	if err := w.AddColumn("Sector", evalcapi.FieldTypeString); err != nil {
 		return err
 	}
-	if err := w.AddColumn("Time-weighted annualized return %", eval_capi.FieldTypeFloat); err != nil {
+	if err := w.AddColumn("Time-weighted annualized return %", evalcapi.FieldTypeFloat); err != nil {
 		return err
 	}
 
@@ -356,16 +356,16 @@ func generateOutBySector(fileQuickAccountPeriodSectorPath string, fileOutAccount
 	if err != nil {
 		return err
 	}
-	if err := w.AddColumn("ARK fund", eval_capi.FieldTypeString); err != nil {
+	if err := w.AddColumn("ARK fund", evalcapi.FieldTypeString); err != nil {
 		return err
 	}
-	if err := w.AddColumn("Period", eval_capi.FieldTypeString); err != nil {
+	if err := w.AddColumn("Period", evalcapi.FieldTypeString); err != nil {
 		return err
 	}
-	if err := w.AddColumn("Sector", eval_capi.FieldTypeString); err != nil {
+	if err := w.AddColumn("Sector", evalcapi.FieldTypeString); err != nil {
 		return err
 	}
-	if err := w.AddColumn("Time-weighted annualized return %", eval_capi.FieldTypeFloat); err != nil {
+	if err := w.AddColumn("Time-weighted annualized return %", evalcapi.FieldTypeFloat); err != nil {
 		return err
 	}
 
@@ -425,10 +425,10 @@ func generateAccounts(fileInAccountsPath string, quickAccountsMap map[string]str
 		return err
 	}
 
-	if err := w.AddColumn("account_id", eval_capi.FieldTypeString); err != nil {
+	if err := w.AddColumn("account_id", evalcapi.FieldTypeString); err != nil {
 		return err
 	}
-	if err := w.AddColumn("earliest_period_start", eval_capi.FieldTypeDateTime); err != nil {
+	if err := w.AddColumn("earliest_period_start", evalcapi.FieldTypeDateTime); err != nil {
 		return err
 	}
 

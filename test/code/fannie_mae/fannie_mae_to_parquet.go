@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/capillariesio/capillaries/pkg/eval_capi"
+	"github.com/capillariesio/capillaries/pkg/evalcapi"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/storage"
 	"github.com/shopspring/decimal"
@@ -179,117 +179,117 @@ func printFileStatus(newElCounter int, newElCounterIncludingIrrelevant int, curF
 	}
 }
 func fannieMaeCsvToParquet(dealName string, files []string, colIdxMap map[string]int, outDir string) error {
-	colTypeMap := map[string]eval_capi.TableFieldType{
-		"Reference Pool ID":                            eval_capi.FieldTypeInt,
-		"Loan Identifier":                              eval_capi.FieldTypeInt,
-		"Monthly Reporting Period":                     eval_capi.FieldTypeInt,
-		"Channel":                                      eval_capi.FieldTypeString,
-		"Seller Name":                                  eval_capi.FieldTypeString,
-		"Servicer Name":                                eval_capi.FieldTypeString,
-		"Master Servicer":                              eval_capi.FieldTypeString,
-		"Original Interest Rate":                       eval_capi.FieldTypeFloat,
-		"Current Interest Rate":                        eval_capi.FieldTypeFloat,
-		"Original UPB":                                 eval_capi.FieldTypeDecimal2,
-		"UPB at Issuance":                              eval_capi.FieldTypeDecimal2,
-		"Current Actual UPB":                           eval_capi.FieldTypeDecimal2,
-		"Original Loan Term":                           eval_capi.FieldTypeInt,
-		"Origination Date":                             eval_capi.FieldTypeInt,
-		"First Payment Date":                           eval_capi.FieldTypeInt,
-		"Loan Age":                                     eval_capi.FieldTypeInt,
-		"Remaining Months to Legal Maturity":           eval_capi.FieldTypeInt,
-		"Remaining Months To Maturity":                 eval_capi.FieldTypeInt,
-		"Maturity Date":                                eval_capi.FieldTypeInt,
-		"Original Loan to Value Ratio (LTV)":           eval_capi.FieldTypeInt,
-		"Original Combined Loan to Value Ratio (CLTV)": eval_capi.FieldTypeInt,
-		"Number of Borrowers":                          eval_capi.FieldTypeInt,
-		"Debt-To-Income (DTI)":                         eval_capi.FieldTypeInt,
-		"Borrower Credit Score at Origination":         eval_capi.FieldTypeInt,
-		"Co-Borrower Credit Score at Origination":      eval_capi.FieldTypeInt,
-		"First Time Home Buyer Indicator":              eval_capi.FieldTypeString,
-		"Loan Purpose ":                                eval_capi.FieldTypeString,
-		"Property Type":                                eval_capi.FieldTypeString,
-		"Number of Units":                              eval_capi.FieldTypeInt,
-		"Occupancy Status":                             eval_capi.FieldTypeString,
-		"Property State":                               eval_capi.FieldTypeString,
-		"Metropolitan Statistical Area (MSA)":          eval_capi.FieldTypeString,
-		"Zip Code Short":                               eval_capi.FieldTypeString,
-		"Mortgage Insurance Percentage":                eval_capi.FieldTypeFloat,
-		"Amortization Type":                            eval_capi.FieldTypeString,
-		"Prepayment Penalty Indicator":                 eval_capi.FieldTypeString,
-		"Interest Only Loan Indicator":                 eval_capi.FieldTypeString,
-		"Interest Only First Principal And Interest Payment Date": eval_capi.FieldTypeInt,
-		"Months to Amortization":                                  eval_capi.FieldTypeInt,
-		"Current Loan Delinquency Status":                         eval_capi.FieldTypeString,
-		"Loan Payment History":                                    eval_capi.FieldTypeString,
-		"Modification Flag":                                       eval_capi.FieldTypeString,
-		"Mortgage Insurance Cancellation Indicator":               eval_capi.FieldTypeString,
-		"Zero Balance Code":                                       eval_capi.FieldTypeString,
-		"Zero Balance Effective Date":                             eval_capi.FieldTypeInt,
-		"UPB at the Time of Removal":                              eval_capi.FieldTypeDecimal2,
-		"Repurchase Date":                                         eval_capi.FieldTypeInt,
-		"Scheduled Principal Current":                             eval_capi.FieldTypeDecimal2,
-		"Total Principal Current":                                 eval_capi.FieldTypeDecimal2,
-		"Unscheduled Principal Current":                           eval_capi.FieldTypeDecimal2,
-		"Last Paid Installment Date":                              eval_capi.FieldTypeInt,
-		"Foreclosure Date":                                        eval_capi.FieldTypeInt,
-		"Disposition Date":                                        eval_capi.FieldTypeInt,
-		"Foreclosure Costs":                                       eval_capi.FieldTypeInt,
-		"Property Preservation and Repair Costs":                  eval_capi.FieldTypeDecimal2,
-		"Asset Recovery Costs":                                    eval_capi.FieldTypeDecimal2,
-		"Miscellaneous Holding Expenses and Credits":              eval_capi.FieldTypeDecimal2,
-		"Associated Taxes for Holding Property":                   eval_capi.FieldTypeDecimal2,
-		"Net Sales Proceeds":                                      eval_capi.FieldTypeDecimal2,
-		"Credit Enhancement Proceeds":                             eval_capi.FieldTypeDecimal2,
-		"Repurchase Make Whole Proceeds":                          eval_capi.FieldTypeDecimal2,
-		"Other Foreclosure Proceeds":                              eval_capi.FieldTypeDecimal2,
-		"Modification-Related Non-Interest Bearing UPB":           eval_capi.FieldTypeDecimal2,
-		"Principal Forgiveness Amount":                            eval_capi.FieldTypeDecimal2,
-		"Original List Start Date":                                eval_capi.FieldTypeInt,
-		"Original List Price":                                     eval_capi.FieldTypeInt,
-		"Current List Start Date":                                 eval_capi.FieldTypeDecimal2,
-		"Current List Price":                                      eval_capi.FieldTypeDecimal2,
-		"Borrower Credit Score At Issuance":                       eval_capi.FieldTypeInt,
-		"Co-Borrower Credit Score At Issuance":                    eval_capi.FieldTypeInt,
-		"Borrower Credit Score Current ":                          eval_capi.FieldTypeInt,
-		"Co-Borrower Credit Score Current":                        eval_capi.FieldTypeInt,
-		"Mortgage Insurance Type":                                 eval_capi.FieldTypeString,
-		"Servicing Activity Indicator":                            eval_capi.FieldTypeString,
-		"Current Period Modification Loss Amount":                 eval_capi.FieldTypeDecimal2,
-		"Cumulative Modification Loss Amount":                     eval_capi.FieldTypeDecimal2,
-		"Current Period Credit Event Net Gain or Loss":            eval_capi.FieldTypeDecimal2,
-		"Cumulative Credit Event Net Gain or Loss":                eval_capi.FieldTypeDecimal2,
-		"HomeReady® Program Indicator":                            eval_capi.FieldTypeString,
-		"Foreclosure Principal Write-off Amount":                  eval_capi.FieldTypeDecimal2,
-		"Relocation Mortgage Indicator":                           eval_capi.FieldTypeString,
-		"Zero Balance Code Change Date":                           eval_capi.FieldTypeInt,
-		"Loan Holdback Indicator":                                 eval_capi.FieldTypeString,
-		"Loan Holdback Effective Date":                            eval_capi.FieldTypeInt,
-		"Delinquent Accrued Interest":                             eval_capi.FieldTypeDecimal2,
-		"Property Valuation Method ":                              eval_capi.FieldTypeString,
-		"High Balance Loan Indicator ":                            eval_capi.FieldTypeString,
-		"ARM Initial Fixed-Rate Period  ? 5 YR Indicator":         eval_capi.FieldTypeString,
-		"ARM Product Type":                                        eval_capi.FieldTypeString,
-		"Initial Fixed-Rate Period ":                              eval_capi.FieldTypeString,
-		"Interest Rate Adjustment Frequency":                      eval_capi.FieldTypeString,
-		"Next Interest Rate Adjustment Date":                      eval_capi.FieldTypeInt,
-		"Next Payment Change Date":                                eval_capi.FieldTypeInt,
-		"Index":                                                   eval_capi.FieldTypeString,
-		"ARM Cap Structure":                                       eval_capi.FieldTypeString,
-		"Initial Interest Rate Cap Up Percent":                    eval_capi.FieldTypeFloat,
-		"Periodic Interest Rate Cap Up Percent":                   eval_capi.FieldTypeFloat,
-		"Lifetime Interest Rate Cap Up Percent":                   eval_capi.FieldTypeFloat,
-		"Mortgage Margin":                                         eval_capi.FieldTypeString,
-		"ARM Balloon Indicator":                                   eval_capi.FieldTypeString,
-		"ARM Plan Number":                                         eval_capi.FieldTypeString,
-		"Borrower Assistance Plan":                                eval_capi.FieldTypeString,
-		"High Loan to Value (HLTV) Refinance Option Indicator":    eval_capi.FieldTypeString,
-		"Deal Name":                                     eval_capi.FieldTypeString,
-		"Repurchase Make Whole Proceeds Flag":           eval_capi.FieldTypeString,
-		"Alternative Delinquency Resolution":            eval_capi.FieldTypeString,
-		"Alternative Delinquency  Resolution Count":     eval_capi.FieldTypeInt,
-		"Total Deferral Amount":                         eval_capi.FieldTypeDecimal2,
-		"Payment Deferral Modification Event Indicator": eval_capi.FieldTypeString,
-		"Interest Bearing UPB":                          eval_capi.FieldTypeDecimal2}
+	colTypeMap := map[string]evalcapi.TableFieldType{
+		"Reference Pool ID":                            evalcapi.FieldTypeInt,
+		"Loan Identifier":                              evalcapi.FieldTypeInt,
+		"Monthly Reporting Period":                     evalcapi.FieldTypeInt,
+		"Channel":                                      evalcapi.FieldTypeString,
+		"Seller Name":                                  evalcapi.FieldTypeString,
+		"Servicer Name":                                evalcapi.FieldTypeString,
+		"Master Servicer":                              evalcapi.FieldTypeString,
+		"Original Interest Rate":                       evalcapi.FieldTypeFloat,
+		"Current Interest Rate":                        evalcapi.FieldTypeFloat,
+		"Original UPB":                                 evalcapi.FieldTypeDecimal2,
+		"UPB at Issuance":                              evalcapi.FieldTypeDecimal2,
+		"Current Actual UPB":                           evalcapi.FieldTypeDecimal2,
+		"Original Loan Term":                           evalcapi.FieldTypeInt,
+		"Origination Date":                             evalcapi.FieldTypeInt,
+		"First Payment Date":                           evalcapi.FieldTypeInt,
+		"Loan Age":                                     evalcapi.FieldTypeInt,
+		"Remaining Months to Legal Maturity":           evalcapi.FieldTypeInt,
+		"Remaining Months To Maturity":                 evalcapi.FieldTypeInt,
+		"Maturity Date":                                evalcapi.FieldTypeInt,
+		"Original Loan to Value Ratio (LTV)":           evalcapi.FieldTypeInt,
+		"Original Combined Loan to Value Ratio (CLTV)": evalcapi.FieldTypeInt,
+		"Number of Borrowers":                          evalcapi.FieldTypeInt,
+		"Debt-To-Income (DTI)":                         evalcapi.FieldTypeInt,
+		"Borrower Credit Score at Origination":         evalcapi.FieldTypeInt,
+		"Co-Borrower Credit Score at Origination":      evalcapi.FieldTypeInt,
+		"First Time Home Buyer Indicator":              evalcapi.FieldTypeString,
+		"Loan Purpose ":                                evalcapi.FieldTypeString,
+		"Property Type":                                evalcapi.FieldTypeString,
+		"Number of Units":                              evalcapi.FieldTypeInt,
+		"Occupancy Status":                             evalcapi.FieldTypeString,
+		"Property State":                               evalcapi.FieldTypeString,
+		"Metropolitan Statistical Area (MSA)":          evalcapi.FieldTypeString,
+		"Zip Code Short":                               evalcapi.FieldTypeString,
+		"Mortgage Insurance Percentage":                evalcapi.FieldTypeFloat,
+		"Amortization Type":                            evalcapi.FieldTypeString,
+		"Prepayment Penalty Indicator":                 evalcapi.FieldTypeString,
+		"Interest Only Loan Indicator":                 evalcapi.FieldTypeString,
+		"Interest Only First Principal And Interest Payment Date": evalcapi.FieldTypeInt,
+		"Months to Amortization":                                  evalcapi.FieldTypeInt,
+		"Current Loan Delinquency Status":                         evalcapi.FieldTypeString,
+		"Loan Payment History":                                    evalcapi.FieldTypeString,
+		"Modification Flag":                                       evalcapi.FieldTypeString,
+		"Mortgage Insurance Cancellation Indicator":               evalcapi.FieldTypeString,
+		"Zero Balance Code":                                       evalcapi.FieldTypeString,
+		"Zero Balance Effective Date":                             evalcapi.FieldTypeInt,
+		"UPB at the Time of Removal":                              evalcapi.FieldTypeDecimal2,
+		"Repurchase Date":                                         evalcapi.FieldTypeInt,
+		"Scheduled Principal Current":                             evalcapi.FieldTypeDecimal2,
+		"Total Principal Current":                                 evalcapi.FieldTypeDecimal2,
+		"Unscheduled Principal Current":                           evalcapi.FieldTypeDecimal2,
+		"Last Paid Installment Date":                              evalcapi.FieldTypeInt,
+		"Foreclosure Date":                                        evalcapi.FieldTypeInt,
+		"Disposition Date":                                        evalcapi.FieldTypeInt,
+		"Foreclosure Costs":                                       evalcapi.FieldTypeInt,
+		"Property Preservation and Repair Costs":                  evalcapi.FieldTypeDecimal2,
+		"Asset Recovery Costs":                                    evalcapi.FieldTypeDecimal2,
+		"Miscellaneous Holding Expenses and Credits":              evalcapi.FieldTypeDecimal2,
+		"Associated Taxes for Holding Property":                   evalcapi.FieldTypeDecimal2,
+		"Net Sales Proceeds":                                      evalcapi.FieldTypeDecimal2,
+		"Credit Enhancement Proceeds":                             evalcapi.FieldTypeDecimal2,
+		"Repurchase Make Whole Proceeds":                          evalcapi.FieldTypeDecimal2,
+		"Other Foreclosure Proceeds":                              evalcapi.FieldTypeDecimal2,
+		"Modification-Related Non-Interest Bearing UPB":           evalcapi.FieldTypeDecimal2,
+		"Principal Forgiveness Amount":                            evalcapi.FieldTypeDecimal2,
+		"Original List Start Date":                                evalcapi.FieldTypeInt,
+		"Original List Price":                                     evalcapi.FieldTypeInt,
+		"Current List Start Date":                                 evalcapi.FieldTypeDecimal2,
+		"Current List Price":                                      evalcapi.FieldTypeDecimal2,
+		"Borrower Credit Score At Issuance":                       evalcapi.FieldTypeInt,
+		"Co-Borrower Credit Score At Issuance":                    evalcapi.FieldTypeInt,
+		"Borrower Credit Score Current ":                          evalcapi.FieldTypeInt,
+		"Co-Borrower Credit Score Current":                        evalcapi.FieldTypeInt,
+		"Mortgage Insurance Type":                                 evalcapi.FieldTypeString,
+		"Servicing Activity Indicator":                            evalcapi.FieldTypeString,
+		"Current Period Modification Loss Amount":                 evalcapi.FieldTypeDecimal2,
+		"Cumulative Modification Loss Amount":                     evalcapi.FieldTypeDecimal2,
+		"Current Period Credit Event Net Gain or Loss":            evalcapi.FieldTypeDecimal2,
+		"Cumulative Credit Event Net Gain or Loss":                evalcapi.FieldTypeDecimal2,
+		"HomeReady® Program Indicator":                            evalcapi.FieldTypeString,
+		"Foreclosure Principal Write-off Amount":                  evalcapi.FieldTypeDecimal2,
+		"Relocation Mortgage Indicator":                           evalcapi.FieldTypeString,
+		"Zero Balance Code Change Date":                           evalcapi.FieldTypeInt,
+		"Loan Holdback Indicator":                                 evalcapi.FieldTypeString,
+		"Loan Holdback Effective Date":                            evalcapi.FieldTypeInt,
+		"Delinquent Accrued Interest":                             evalcapi.FieldTypeDecimal2,
+		"Property Valuation Method ":                              evalcapi.FieldTypeString,
+		"High Balance Loan Indicator ":                            evalcapi.FieldTypeString,
+		"ARM Initial Fixed-Rate Period  ? 5 YR Indicator":         evalcapi.FieldTypeString,
+		"ARM Product Type":                                        evalcapi.FieldTypeString,
+		"Initial Fixed-Rate Period ":                              evalcapi.FieldTypeString,
+		"Interest Rate Adjustment Frequency":                      evalcapi.FieldTypeString,
+		"Next Interest Rate Adjustment Date":                      evalcapi.FieldTypeInt,
+		"Next Payment Change Date":                                evalcapi.FieldTypeInt,
+		"Index":                                                   evalcapi.FieldTypeString,
+		"ARM Cap Structure":                                       evalcapi.FieldTypeString,
+		"Initial Interest Rate Cap Up Percent":                    evalcapi.FieldTypeFloat,
+		"Periodic Interest Rate Cap Up Percent":                   evalcapi.FieldTypeFloat,
+		"Lifetime Interest Rate Cap Up Percent":                   evalcapi.FieldTypeFloat,
+		"Mortgage Margin":                                         evalcapi.FieldTypeString,
+		"ARM Balloon Indicator":                                   evalcapi.FieldTypeString,
+		"ARM Plan Number":                                         evalcapi.FieldTypeString,
+		"Borrower Assistance Plan":                                evalcapi.FieldTypeString,
+		"High Loan to Value (HLTV) Refinance Option Indicator":    evalcapi.FieldTypeString,
+		"Deal Name":                                     evalcapi.FieldTypeString,
+		"Repurchase Make Whole Proceeds Flag":           evalcapi.FieldTypeString,
+		"Alternative Delinquency Resolution":            evalcapi.FieldTypeString,
+		"Alternative Delinquency  Resolution Count":     evalcapi.FieldTypeInt,
+		"Total Deferral Amount":                         evalcapi.FieldTypeDecimal2,
+		"Payment Deferral Modification Event Indicator": evalcapi.FieldTypeString,
+		"Interest Bearing UPB":                          evalcapi.FieldTypeDecimal2}
 
 	dateConvertSet := map[string]struct{}{
 		"Monthly Reporting Period": struct{}{},
@@ -395,7 +395,7 @@ func fannieMaeCsvToParquet(dealName string, files []string, colIdxMap map[string
 				}
 				strVal := line[colIdx]
 				switch colType {
-				case eval_capi.FieldTypeInt:
+				case evalcapi.FieldTypeInt:
 					v := sc.DefaultInt
 					if len(strVal) != 0 {
 						v, err = strconv.ParseInt(strVal, 10, 64)
@@ -415,7 +415,7 @@ func fannieMaeCsvToParquet(dealName string, files []string, colIdxMap map[string
 					}
 					valMap[colName] = v
 
-				case eval_capi.FieldTypeString:
+				case evalcapi.FieldTypeString:
 					// Check deal name
 					if colName == "Deal Name" {
 						if strVal == "" {
@@ -427,7 +427,7 @@ func fannieMaeCsvToParquet(dealName string, files []string, colIdxMap map[string
 
 					valMap[colName] = strVal
 
-				case eval_capi.FieldTypeFloat:
+				case evalcapi.FieldTypeFloat:
 					v := sc.DefaultFloat
 					if len(strVal) != 0 {
 						v, err = strconv.ParseFloat(strVal, 64)
@@ -437,7 +437,7 @@ func fannieMaeCsvToParquet(dealName string, files []string, colIdxMap map[string
 					}
 					valMap[colName] = v
 
-				case eval_capi.FieldTypeDecimal2:
+				case evalcapi.FieldTypeDecimal2:
 					v := sc.DefaultDecimal2()
 					if len(strVal) != 0 {
 						f, err := strconv.ParseFloat(strVal, 64)

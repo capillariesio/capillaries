@@ -4,7 +4,7 @@ import (
 	"go/parser"
 	"testing"
 
-	"github.com/capillariesio/capillaries/pkg/eval_capi"
+	"github.com/capillariesio/capillaries/pkg/evalcapi"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,39 +26,39 @@ func TestAppendWithFilter(t *testing.T) {
 func TestEvalFieldRefExpression(t *testing.T) {
 	fieldRefs := FieldRefs{
 		{
-			FieldType: eval_capi.FieldTypeInt,
+			FieldType: evalcapi.FieldTypeInt,
 			TableName: "r",
 			FieldName: "fieldInt"},
 		{
-			FieldType: eval_capi.FieldTypeFloat,
+			FieldType: evalcapi.FieldTypeFloat,
 			TableName: "r",
 			FieldName: "fieldFloat"},
 		{
-			FieldType: eval_capi.FieldTypeDecimal2,
+			FieldType: evalcapi.FieldTypeDecimal2,
 			TableName: "r",
 			FieldName: "fieldDec"},
 		{
-			FieldType: eval_capi.FieldTypeString,
+			FieldType: evalcapi.FieldTypeString,
 			TableName: "r",
 			FieldName: "fieldStr"}}
 
 	exp, err := parser.ParseExpr(`r.fieldInt/r.fieldFloat`)
 	assert.Nil(t, err)
-	err = evalExpressionWithFieldRefsAndCheckType(exp, fieldRefs, eval_capi.FieldTypeFloat)
+	err = evalExpressionWithFieldRefsAndCheckType(exp, fieldRefs, evalcapi.FieldTypeFloat)
 	assert.Nil(t, err)
 
 	exp, err = parser.ParseExpr(`r.fieldFloat/r.fieldDec`)
 	assert.Nil(t, err)
-	err = evalExpressionWithFieldRefsAndCheckType(exp, fieldRefs, eval_capi.FieldTypeFloat)
+	err = evalExpressionWithFieldRefsAndCheckType(exp, fieldRefs, evalcapi.FieldTypeFloat)
 	assert.Nil(t, err)
 
 	exp, err = parser.ParseExpr(`r.fieldInt/r.fieldDec`)
 	assert.Nil(t, err)
-	err = evalExpressionWithFieldRefsAndCheckType(exp, fieldRefs, eval_capi.FieldTypeInt)
+	err = evalExpressionWithFieldRefsAndCheckType(exp, fieldRefs, evalcapi.FieldTypeInt)
 	assert.Contains(t, err.Error(), "expected type int, but got decimal")
 
 	exp, err = parser.ParseExpr(`int(r.fieldStr)/float(r.fieldStr)`)
 	assert.Nil(t, err)
-	err = evalExpressionWithFieldRefsAndCheckType(exp, fieldRefs, eval_capi.FieldTypeFloat)
+	err = evalExpressionWithFieldRefsAndCheckType(exp, fieldRefs, evalcapi.FieldTypeFloat)
 	assert.Nil(t, err)
 }
