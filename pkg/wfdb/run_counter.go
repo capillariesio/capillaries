@@ -6,12 +6,12 @@ import (
 
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/db"
-	"github.com/capillariesio/capillaries/pkg/gocqlmem"
+	"github.com/capillariesio/capillaries/pkg/gocqlshims"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
-func GetNextRunCounter(logger *l.CapiLogger, cqlSession gocqlmem.Session, keyspace string) (int16, error) {
+func GetNextRunCounter(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string) (int16, error) {
 	logger.PushF("wfdb.GetNextRunCounter")
 	defer logger.PopF()
 

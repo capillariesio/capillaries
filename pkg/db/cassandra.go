@@ -11,6 +11,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/gocqlmem"
+	"github.com/capillariesio/capillaries/pkg/gocqlshims"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
@@ -37,7 +38,7 @@ func IsDbConnError(err error) bool {
 		strings.Contains(err.Error(), ErrorPrefixDb+"gocql: heartbeat failed")
 }
 
-func createWfTable(cqlSession gocqlmem.Session, keyspace string, t reflect.Type, tableName string) error {
+func createWfTable(cqlSession gocqlshims.Session, keyspace string, t reflect.Type, tableName string) error {
 	q := wfmodel.GetCreateTableCql(t, keyspace, tableName)
 	if err := cqlSession.Query(q).Exec(); err != nil {
 		return WrapDbErrorWithQuery("failed to create WF table", q, err)
@@ -75,7 +76,7 @@ func verifyKeyspaceExists(cqlSession *gocql.Session, keyspace string) error {
 	return WrapDbErrorWithQuery("failed to check keyspace exists, giving up", checkKsQuery, errors.New("number of check attempts reached"))
 }
 
-func VerifyKeyspaceDeleted(cqlSession gocqlmem.Session, keyspace string) error {
+func VerifyKeyspaceDeleted(cqlSession gocqlshims.Session, keyspace string) error {
 	checkKsQuery := fmt.Sprintf("SELECT * FROM system_schema.keyspaces where keyspace_name='%s'", keyspace)
 	for ksCheckAttempt := range DeleteKeyspaceCheckAttempts {
 		rows, ksCheckErr := cqlSession.Query(checkKsQuery).Iter().SliceMap()
@@ -106,7 +107,7 @@ func checkIfAmazonKeyspaces(cqlSession *gocql.Session) (bool, error) {
 	return true, nil
 }
 
-func VerifyAmazonKeyspacesTablesReady(cqlSession gocqlmem.Session, keyspace string, tableNames []string) error {
+func VerifyAmazonKeyspacesTablesReady(cqlSession gocqlshims.Session, keyspace string, tableNames []string) error {
 	tableCheckQuery := fmt.Sprintf("SELECT table_name, status from system_schema_mcs.tables where keyspace_name='%s'", keyspace)
 	for tableCheckAttempt := range CreateTableCheckAttempts {
 		rows, tableCheckErr := cqlSession.Query(tableCheckQuery).Iter().SliceMap()
@@ -143,7 +144,7 @@ func VerifyAmazonKeyspacesTablesReady(cqlSession gocqlmem.Session, keyspace stri
 	return WrapDbErrorWithQuery("failed to check tables, giving up", tableCheckQuery, errors.New("number of check attempts reached"))
 }
 
-func NewGocqlSession(envConfig *env.EnvConfig, keyspace string, createKeyspace CreateKeyspaceEnumType) (gocqlmem.Session, CassandraEngineType, error) {
+func NewGocqlSession(envConfig *env.EnvConfig, keyspace string, createKeyspace CreateKeyspaceEnumType) (gocqlshims.Session, CassandraEngineType, error) {
 	dataCluster := gocql.NewCluster(envConfig.Cassandra.Hosts...)
 	dataCluster.Port = envConfig.Cassandra.Port
 
@@ -174,7 +175,7 @@ func NewGocqlSession(envConfig *env.EnvConfig, keyspace string, createKeyspace C
 			KeyPath:                envConfig.Cassandra.SslOpts.KeyPath}
 	}
 	gocqlSession, err := dataCluster.CreateSession()
-	genericSession := gocqlmem.NewGocqlSession(gocqlSession)
+	genericSession := gocqlshims.NewGocqlSession(gocqlSession)
 	if err != nil {
 		return nil, CassandraEngineNone, fmt.Errorf("failed to connect to data cluster %v, keyspace [%s]: %s; is your Cassandra cluster still starting?", envConfig.Cassandra.Hosts, keyspace, err.Error())
 	}
@@ -254,9 +255,9 @@ func NewGocqlSession(envConfig *env.EnvConfig, keyspace string, createKeyspace C
 }
 
 // Singleton: used within StartRun and ProcessDataBatchMsg
-var testGocqlmemSession gocqlmem.Session
+var testGocqlmemSession gocqlshims.Session
 
-func NewSession(envConfig *env.EnvConfig, keyspace string, createKeyspace CreateKeyspaceEnumType) (gocqlmem.Session, CassandraEngineType, error) {
+func NewSession(envConfig *env.EnvConfig, keyspace string, createKeyspace CreateKeyspaceEnumType) (gocqlshims.Session, CassandraEngineType, error) {
 	if envConfig.UseGocqlmem {
 		var err error
 		if testGocqlmemSession == nil {

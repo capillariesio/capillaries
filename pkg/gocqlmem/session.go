@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	gocql "github.com/apache/cassandra-gocql-driver/v2"
+	"github.com/capillariesio/capillaries/pkg/gocqlshims"
 )
 
 type gocqlmemSession struct {
@@ -15,7 +16,7 @@ type gocqlmemSession struct {
 	isClosed    bool
 }
 
-func NewGocqlmemSession() Session {
+func NewGocqlmemSession() gocqlshims.Session {
 	return &gocqlmemSession{
 		keyspaceMap: map[string]*Keyspace{},
 	}
@@ -145,14 +146,14 @@ func (s *gocqlmemSession) AwaitSchemaAgreement(_ context.Context) error {
 	return nil
 }
 
-func (s *gocqlmemSession) Query(stmt string, values ...any) Query {
+func (s *gocqlmemSession) Query(stmt string, values ...any) gocqlshims.Query {
 	return &gocqlmemQuery{
 		session: s,
 		stmt:    stmt,
 		values:  values,
 	}
 }
-func (s *gocqlmemSession) Bind(_ string, _ func(q *gocql.QueryInfo) ([]any, error)) Query {
+func (s *gocqlmemSession) Bind(_ string, _ func(q *gocql.QueryInfo) ([]any, error)) gocqlshims.Query {
 	// TODO: implement
 	return nil
 }

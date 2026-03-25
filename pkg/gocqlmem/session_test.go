@@ -8,6 +8,7 @@ import (
 	"time"
 
 	gocql "github.com/apache/cassandra-gocql-driver/v2"
+	"github.com/capillariesio/capillaries/pkg/gocqlshims"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/inf.v0"
 )
@@ -61,7 +62,7 @@ func sliceMapRowsToString(rows []map[string]any) string {
 	return sb.String()
 }
 
-func assertIterSliceMap(t *testing.T, expectedRows string, expectedErr string, s Session, q string) {
+func assertIterSliceMap(t *testing.T, expectedRows string, expectedErr string, s gocqlshims.Session, q string) {
 	rows, err := s.Query(q).Iter().SliceMap()
 	if expectedErr == "" {
 		assert.Nil(t, err)
@@ -71,7 +72,7 @@ func assertIterSliceMap(t *testing.T, expectedRows string, expectedErr string, s
 	assert.Equal(t, expectedRows, sliceMapRowsToString(rows))
 }
 
-func assertIterScan(t *testing.T, expectedRows string, s Session, q string) {
+func assertIterScan(t *testing.T, expectedRows string, s gocqlshims.Session, q string) {
 	iter := s.Query(q).Iter()
 	assert.Nil(t, iter.Err())
 	sb := strings.Builder{}
@@ -91,7 +92,7 @@ func assertIterScan(t *testing.T, expectedRows string, s Session, q string) {
 	assert.Equal(t, expectedRows, sb.String())
 }
 
-func assertIterMapScan(t *testing.T, expectedRows string, s Session, q string) {
+func assertIterMapScan(t *testing.T, expectedRows string, s gocqlshims.Session, q string) {
 	iter := s.Query(q).Iter()
 	sb := strings.Builder{}
 	row := map[string]any{}
@@ -107,7 +108,7 @@ func assertIterMapScan(t *testing.T, expectedRows string, s Session, q string) {
 }
 
 /*
-func assertScanner(t *testing.T, expectedRows string, s Session, q string) {
+func assertScanner(t *testing.T, expectedRows string, s gocqlshims.Session, q string) {
 	iter := s.Query(q).Iter()
 	//rowInt64 := make([]int64, len(iter.Columns()))
 	rowData, err := iter.RowData()
@@ -132,7 +133,7 @@ func assertScanner(t *testing.T, expectedRows string, s Session, q string) {
 }
 */
 
-func assertUpserMapScanCas(t *testing.T, isApplyExpected bool, s Session, q string, existingRowMap map[string]any) {
+func assertUpserMapScanCas(t *testing.T, isApplyExpected bool, s gocqlshims.Session, q string, existingRowMap map[string]any) {
 	isApplied, err := s.Query(q).MapScanCAS(existingRowMap)
 	assert.Nil(t, err)
 	assert.Equal(t, isApplyExpected, isApplied)

@@ -10,7 +10,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/env"
-	"github.com/capillariesio/capillaries/pkg/gocqlmem"
+	"github.com/capillariesio/capillaries/pkg/gocqlshims"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/mq"
 	"github.com/capillariesio/capillaries/pkg/proc"
@@ -20,7 +20,7 @@ import (
 )
 
 // Used by Webapi and Toolbelt (stop_run command)
-func StopRun(logger *l.CapiLogger, cqlSession gocqlmem.Session, keyspace string, runId int16, comment string) error {
+func StopRun(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16, comment string) error {
 	logger.PushF("api.StopRun")
 	defer logger.PopF()
 
@@ -33,7 +33,7 @@ func StopRun(logger *l.CapiLogger, cqlSession gocqlmem.Session, keyspace string,
 
 // Used by Webapi and Toolbelt (start_run command). This is the way to start Capillaries processing.
 // startNodes parameter contains names of the script nodes to be executed right upon run start.
-func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, mqSender mq.MqProducer, scriptFilePath string, paramsFilePath string, cqlSession gocqlmem.Session, cassandraEngine db.CassandraEngineType, keyspace string, startNodes []string, desc string) (int16, error) {
+func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, mqSender mq.MqProducer, scriptFilePath string, paramsFilePath string, cqlSession gocqlshims.Session, cassandraEngine db.CassandraEngineType, keyspace string, startNodes []string, desc string) (int16, error) {
 	logger.PushF("api.StartRun")
 	defer logger.PopF()
 

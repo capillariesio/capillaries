@@ -8,7 +8,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/db"
-	"github.com/capillariesio/capillaries/pkg/gocqlmem"
+	"github.com/capillariesio/capillaries/pkg/gocqlshims"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
@@ -47,7 +47,7 @@ func HarvestLastStatusForBatch(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 	return lastStatus, lastTs, nil
 }
 
-func GetRunNodeBatchHistory(logger *l.CapiLogger, cqlSession gocqlmem.Session, keyspace string, runId int16, nodeName string) ([]*wfmodel.BatchHistoryEvent, error) {
+func GetRunNodeBatchHistory(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16, nodeName string) ([]*wfmodel.BatchHistoryEvent, error) {
 	logger.PushF("wfdb.GetRunNodeBatchHistory")
 	defer logger.PopF()
 

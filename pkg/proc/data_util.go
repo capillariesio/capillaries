@@ -9,7 +9,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/eval_capi"
-	"github.com/capillariesio/capillaries/pkg/gocqlmem"
+	"github.com/capillariesio/capillaries/pkg/gocqlshims"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
 )
@@ -87,7 +87,7 @@ func selectBatchFromDataTablePaged(logger *l.CapiLogger,
 		CondInPrepared("rowid"). // This is a right-side lookup table, select by rowid
 		SelectRun(tableName, lookupNodeRunId, *rs.GetFieldNames())
 
-	var iter gocqlmem.Iter
+	var iter gocqlshims.Iter
 	selectRetryIdx := 0
 	curSelectExpBackoffFactor := 1
 	var nextPageState []byte

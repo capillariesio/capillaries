@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	gocql "github.com/apache/cassandra-gocql-driver/v2"
+	"github.com/capillariesio/capillaries/pkg/gocqlshims"
 )
 
 type gocqlmemQuery struct {
@@ -78,7 +79,7 @@ func adjustInternalValuesToClientTypesAccordingToColumnInfos(values [][]any, col
 
 // Why does Query have to mimic Iter's Scan, MapScan, ScanCAS???
 
-func (q *gocqlmemQuery) Consistency(c gocql.Consistency) Query {
+func (q *gocqlmemQuery) Consistency(c gocql.Consistency) gocqlshims.Query {
 	q.consistency = c
 	return q
 }
@@ -87,37 +88,37 @@ func (q *gocqlmemQuery) GetConsistency() gocql.Consistency {
 	return q.consistency
 }
 
-func (q *gocqlmemQuery) CustomPayload(_ map[string][]byte) Query {
+func (q *gocqlmemQuery) CustomPayload(_ map[string][]byte) gocqlshims.Query {
 	// TODO: implement
 	return q
 }
 
-func (q *gocqlmemQuery) Trace(_ gocql.Tracer) Query {
+func (q *gocqlmemQuery) Trace(_ gocql.Tracer) gocqlshims.Query {
 	// TODO: implement
 	return q
 }
 
-func (q *gocqlmemQuery) Observer(_ gocql.QueryObserver) Query {
+func (q *gocqlmemQuery) Observer(_ gocql.QueryObserver) gocqlshims.Query {
 	// TODO: implement
 	return q
 }
 
-func (q *gocqlmemQuery) PageSize(n int) Query {
+func (q *gocqlmemQuery) PageSize(n int) gocqlshims.Query {
 	q.pageSize = n
 	return q
 }
 
-func (q *gocqlmemQuery) DefaultTimestamp(_ bool) Query {
+func (q *gocqlmemQuery) DefaultTimestamp(_ bool) gocqlshims.Query {
 	// TODO: implement
 	return q
 }
 
-func (q *gocqlmemQuery) WithTimestamp(_ int64) Query {
+func (q *gocqlmemQuery) WithTimestamp(_ int64) gocqlshims.Query {
 	// TODO: implement
 	return q
 }
 
-func (q *gocqlmemQuery) RoutingKey(_ []byte) Query {
+func (q *gocqlmemQuery) RoutingKey(_ []byte) gocqlshims.Query {
 	// TODO: implement
 	return q
 }
@@ -125,16 +126,16 @@ func (q *gocqlmemQuery) RoutingKey(_ []byte) Query {
 func (q *gocqlmemQuery) Keyspace() string {
 	return q.keyspace
 }
-func (q *gocqlmemQuery) Prefetch(_ float64) Query {
+func (q *gocqlmemQuery) Prefetch(_ float64) gocqlshims.Query {
 	// TODO: implement
 	return q
 }
-func (q *gocqlmemQuery) RetryPolicy(_ gocql.RetryPolicy) Query {
+func (q *gocqlmemQuery) RetryPolicy(_ gocql.RetryPolicy) gocqlshims.Query {
 	// TODO: implement
 	return q
 }
 
-func (q *gocqlmemQuery) SetSpeculativeExecutionPolicy(_ gocql.SpeculativeExecutionPolicy) Query {
+func (q *gocqlmemQuery) SetSpeculativeExecutionPolicy(_ gocql.SpeculativeExecutionPolicy) gocqlshims.Query {
 	// TODO: implement
 	return q
 }
@@ -143,24 +144,24 @@ func (q *gocqlmemQuery) IsIdempotent() bool {
 	return q.idempotent
 }
 
-func (q *gocqlmemQuery) Idempotent(value bool) Query {
+func (q *gocqlmemQuery) Idempotent(value bool) gocqlshims.Query {
 	q.idempotent = value
 	return q
 }
-func (q *gocqlmemQuery) Bind(_ ...any) Query {
+func (q *gocqlmemQuery) Bind(_ ...any) gocqlshims.Query {
 	// TODO: implement
 	return q
 }
-func (q *gocqlmemQuery) SerialConsistency(_ gocql.Consistency) Query {
+func (q *gocqlmemQuery) SerialConsistency(_ gocql.Consistency) gocqlshims.Query {
 	// TODO: implement
 	return q
 }
-func (q *gocqlmemQuery) PageState(state []byte) Query {
+func (q *gocqlmemQuery) PageState(state []byte) gocqlshims.Query {
 	q.pageState = state
 	return q
 }
 
-func (q *gocqlmemQuery) NoSkipMetadata() Query {
+func (q *gocqlmemQuery) NoSkipMetadata() gocqlshims.Query {
 	// TODO: implement
 	return q
 }
@@ -175,7 +176,7 @@ func (q *gocqlmemQuery) ExecContext(_ context.Context) error {
 	return errors.New("not implemented")
 }
 
-func (q *gocqlmemQuery) Iter() Iter {
+func (q *gocqlmemQuery) Iter() gocqlshims.Iter {
 	cmds, err := ParseCommands(q.stmt, q.values)
 	if err != nil {
 		return newGocqlmemIterWithError(err)
@@ -275,7 +276,7 @@ func (q *gocqlmemQuery) Iter() Iter {
 	}
 }
 
-func (q *gocqlmemQuery) IterContext(_ context.Context) Iter {
+func (q *gocqlmemQuery) IterContext(_ context.Context) gocqlshims.Iter {
 	// TODO: implement
 	return q.Iter()
 }
@@ -363,7 +364,7 @@ func (q *gocqlmemQuery) MapScanCASContext(_ context.Context, dest map[string]any
 	return q.MapScanCAS(dest)
 }
 
-func (q *gocqlmemQuery) SetHostID(hostID string) Query {
+func (q *gocqlmemQuery) SetHostID(hostID string) gocqlshims.Query {
 	q.hostId = hostID
 	return q
 }
@@ -372,11 +373,11 @@ func (q *gocqlmemQuery) GetHostID() string {
 	return q.hostId
 }
 
-func (q *gocqlmemQuery) SetKeyspace(keyspace string) Query {
+func (q *gocqlmemQuery) SetKeyspace(keyspace string) gocqlshims.Query {
 	q.keyspace = keyspace
 	return q
 }
-func (q *gocqlmemQuery) WithNowInSeconds(_ int) Query {
+func (q *gocqlmemQuery) WithNowInSeconds(_ int) gocqlshims.Query {
 	// TODO: implement
 	return q
 }

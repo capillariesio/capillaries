@@ -8,7 +8,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/db"
-	"github.com/capillariesio/capillaries/pkg/gocqlmem"
+	"github.com/capillariesio/capillaries/pkg/gocqlshims"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
@@ -152,7 +152,7 @@ func SetNodeStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, sta
 	return isApplied, nil
 }
 
-func GetNodeHistoryForRun(logger *l.CapiLogger, cqlSession gocqlmem.Session, keyspace string, runId int16) ([]*wfmodel.NodeHistoryEvent, error) {
+func GetNodeHistoryForRun(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16) ([]*wfmodel.NodeHistoryEvent, error) {
 	logger.PushF("wfdb.GetNodeHistoryForRun")
 	defer logger.PopF()
 
