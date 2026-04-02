@@ -46,6 +46,7 @@ func GetCurrentRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContex
 	return lastStatus, nil
 }
 
+// Used by Webapi to retrieve all runs that happened in this keyspace and their current status
 func HarvestRunLifespans(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runIds []int16) (wfmodel.RunLifespanMap, error) {
 	logger.PushF("wfdb.HarvestRunLifespans")
 	defer logger.PopF()

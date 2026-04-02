@@ -27,10 +27,7 @@ func GetRunAffectedNodes(logger *l.CapiLogger, cqlSession gocqlshims.Session, ke
 	return strings.Split(runPropsList[0].AffectedNodes, ","), nil
 }
 
-// func GetAllRunsProperties(cqlSession gocqlmem.Session, keyspace string) ([]*wfmodel.RunAffectedNodes, error) {
-// 	return getRunProperties(cqlSession, keyspace, 0)
-// }
-
+// Used by Webapi to retrieve static run properties
 func GetRunProperties(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16) ([]*wfmodel.RunProperties, error) {
 	logger.PushF("wfdb.GetRunProperties")
 	defer logger.PopF()
@@ -69,7 +66,7 @@ func GetRunProperties(logger *l.CapiLogger, cqlSession gocqlshims.Session, keysp
 	return runs, nil
 }
 
-func HarvestRunIdsByAffectedNodes(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) ([]int16, map[string][]int16, error) {
+func harvestRunIdsByAffectedNodes(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) ([]int16, map[string][]int16, error) {
 	logger.PushF("wfdb.HarvestRunIdsByAffectedNodes")
 	defer logger.PopF()
 

@@ -161,6 +161,7 @@ func SetNodeStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, sta
 	return isApplied, nil
 }
 
+// Used by Webapi to retrieve each node status history for a run
 func GetNodeHistoryForRun(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16) ([]*wfmodel.NodeHistoryEvent, error) {
 	logger.PushF("wfdb.GetNodeHistoryForRun")
 	defer logger.PopF()

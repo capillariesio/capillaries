@@ -90,21 +90,11 @@ linters:
         text: use of `fmt.Print(|f|ln)` forbidden by pattern
         linters: [ forbidigo]
 
-      - path: .+\.go
-        text: struct literal uses unkeyed fields
-        linters: [ govet ]
-
       - path: pkg\/gocqlmem\/.+\.go
         text: has (cognitive|cyclomatic) complexity
         linters: [ revive ]
       - path: pkg\/proc\/proc_table_creator_lookup\.go
         text: function runCreateTableRelForBatch has (cyclomatic|cognitive) complexity
-        linters: [ revive ]
-      - path: pkg\/capigraph\/layering\.go
-        text: function buildLayerMap has cognitive complexity
-        linters: [ revive ]
-      - path: pkg\/api\/capigraph\.go
-        text: function GetCapigraphDiagram has (cognitive|cyclomatic) complexity
         linters: [ revive ]
       - path: pkg\/eval\/eval_ctx\.go
         text: function \(\*EvalCtx\)\.Eval has (cognitive|cyclomatic) complexity

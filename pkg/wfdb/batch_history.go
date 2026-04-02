@@ -47,6 +47,7 @@ func HarvestLastStatusForBatch(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 	return lastStatus, lastTs, nil
 }
 
+// Used by Webapi to retrieve batch status history for a run/node pair
 func GetRunNodeBatchHistory(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16, nodeName string) ([]*wfmodel.BatchHistoryEvent, error) {
 	logger.PushF("wfdb.GetRunNodeBatchHistory")
 	defer logger.PopF()

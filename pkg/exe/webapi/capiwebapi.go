@@ -25,6 +25,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/mq"
 	"github.com/capillariesio/capillaries/pkg/sc"
+	"github.com/capillariesio/capillaries/pkg/wfdb"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/capillariesio/capillaries/pkg/xfer"
 	"github.com/prometheus/client_golang/prometheus"
@@ -238,7 +239,7 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 	defer cqlSession.Close()
 
 	// Retrieve all runs that happened in this ks and find their current statuses
-	runLifespanMap, err := api.HarvestRunLifespans(h.L, cqlSession, keyspace, []int16{})
+	runLifespanMap, err := wfdb.HarvestRunLifespans(h.L, cqlSession, keyspace, []int16{})
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -350,7 +351,7 @@ func getRunProps(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace s
 	if okData && okTs && time.Since(oneRunPropsTs).Seconds() < 30 {
 		return oneRunProps, nil
 	}
-	allRunsProps, err := api.GetRunProperties(logger, cqlSession, keyspace, int16(runId))
+	allRunsProps, err := wfdb.GetRunProperties(logger, cqlSession, keyspace, int16(runId))
 	if err != nil {
 		return nil, err
 	}
@@ -382,7 +383,7 @@ func getRunPropsAndLifespans(logger *l.CapiLogger, cqlSession gocqlshims.Session
 
 	// Run status
 
-	runLifeSpans, err := api.HarvestRunLifespans(logger, cqlSession, keyspace, []int16{int16(runId)})
+	runLifeSpans, err := wfdb.HarvestRunLifespans(logger, cqlSession, keyspace, []int16{int16(runId)})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -439,7 +440,7 @@ func (h *UrlHandler) ksRunNodeBatchHistory(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	result.RunNodeBatchHistory, err = api.GetRunNodeBatchHistory(h.L, cqlSession, keyspace, int16(runId), nodeName)
+	result.RunNodeBatchHistory, err = wfdb.GetRunNodeBatchHistory(h.L, cqlSession, keyspace, int16(runId), nodeName)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -488,7 +489,7 @@ func (h *UrlHandler) ksRunNodeHistory(w http.ResponseWriter, r *http.Request) {
 
 	// Node history
 
-	result.RunNodeHistory, err = api.GetNodeHistoryForRun(h.L, cqlSession, keyspace, int16(runId))
+	result.RunNodeHistory, err = wfdb.GetNodeHistoryForRun(h.L, cqlSession, keyspace, int16(runId))
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
