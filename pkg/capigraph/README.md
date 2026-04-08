@@ -9,6 +9,8 @@ This package draws Capillaries diagrams. May be externalized eventually.
 7. Optional text for nodes and edges
 8. Optional node icons
 
+Q. Why do we even need unoptimized?
+A. Check out the prefix tree unit test, 
 const customIcons100x100 = `
 <g id="icon-database-table-read">
   <g transform="scale(0.56) translate(2,61)">

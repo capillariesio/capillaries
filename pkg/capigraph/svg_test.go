@@ -165,26 +165,31 @@ func TestPriAndSecInfinitePulldownSvg(t *testing.T) {
 func Test40milPermsSvg(t *testing.T) {
 	// defer profile.Start(profile.CPUProfile).Stop()
 
-	drawCtx, drawCancel := context.WithTimeout(context.Background(), 3*time.Second)
+	drawCtx, drawCancel := context.WithTimeout(context.Background(), 1*time.Second)
 	svg, _, totalPermutations, _, bestDist, err := Draw(drawCtx, testNodeDefs40milPerms, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	drawCancel()
 	assert.Equal(t, "timeout exceeded", err.Error())
 	assert.Equal(t, int64(0), totalPermutations)
 	assert.Equal(t, 0.0, math.Round(bestDist*100.0)/100.0)
 
-	// This would take 15 sec, too long for a unit test
+	// If we allowed longer timeouts, this would take 15 sec, too long for a unit test
 	// assert.Equal(t, int64(41472000), totalPermutations)
 	// assert.Equal(t, 84.0, math.Round(bestDist*100.0)/100.0)
 	fmt.Printf("%s\n", svg)
 }
 
+// Not a big diagram, but too many permutations
 func Test300bilPermsSvg(t *testing.T) {
 	_, _, _, _, _, err := Draw(context.TODO(), testNodeDefs300bilPerms, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	assert.Contains(t, err.Error(), "313528320000")
+
 	drawCtx, drawCancel := context.WithTimeout(context.Background(), 15*time.Second)
 	svg, _, _, _, _, err := Draw(drawCtx, testNodeDefs300bilPerms, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	drawCancel()
 	assert.Contains(t, err.Error(), "313528320000")
+
+	svg, _, _, _, _, err = Draw(context.TODO(), testNodeDefs300bilPerms, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), false)
+	assert.Equal(t, nil, err)
 	fmt.Printf("%s\n", svg)
 }
 
@@ -193,7 +198,6 @@ func Test300bilPermsSvg(t *testing.T) {
 // Unoptimized only, too many permutations
 func TestUnoptimizedSvg(t *testing.T) {
 	nodeDefs := make([]NodeDef, 0, 10000)
-	nodeDefs = append(nodeDefs, NodeDef{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}})
 	var populateChildren func(parentIdx int, firstChildIdx int, layer int) int
 	populateChildren = func(parentIdx int, firstChildIdx int, layer int) int {
 		if layer == 4 {
@@ -205,7 +209,7 @@ func TestUnoptimizedSvg(t *testing.T) {
 			if firstChildIdx%7 == 0 {
 				parentOverrideIdx = 0
 			}
-			newNode := NodeDef{int16(nextChildIdx), fmt.Sprintf("%d", nextChildIdx), EdgeDef{int16(parentOverrideIdx), ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}}
+			newNode := NodeDef{int16(nextChildIdx), fmt.Sprintf("%d", nextChildIdx), EdgeDef{int16(parentOverrideIdx), ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""}
 			if parentOverrideIdx != 0 && firstChildIdx%9 == 0 {
 				newNode.SecIn = append(newNode.SecIn, EdgeDef{int16(firstChildIdx / 2), ""})
 			}
@@ -221,10 +225,10 @@ func TestUnoptimizedSvg(t *testing.T) {
 	fmt.Printf("%s\n", svg)
 }
 
-// Takes 160s to complete, but working. Fake nodes, enclosed subtrees, 20 levels, 484 nodes.
+// Takes 160s to complete (it's optimized!), but working.
+// Fake nodes, enclosed subtrees, 20 levels, 484 nodes.
 // func TestInsanelyBigBinaryTreeSvg(t *testing.T) {
 // 	nodeDefs := make([]NodeDef, 0, 10000)
-// 	nodeDefs = append(nodeDefs, NodeDef{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, false})
 // 	var populateChildren func(parentIdx int, firstChildIdx int, layer int) int
 // 	populateChildren = func(parentIdx int, firstChildIdx int, layer int) int {
 // 		if layer == 7 {
@@ -237,7 +241,7 @@ func TestUnoptimizedSvg(t *testing.T) {
 // 				parentOverrideIdx = 0
 // 				layer = 0
 // 			}
-// 			newNode := NodeDef{int16(nextChildIdx), fmt.Sprintf("%d", nextChildIdx), EdgeDef{int16(parentOverrideIdx), ""}, []EdgeDef{}, "", 0, false}
+// 			newNode := NodeDef{int16(nextChildIdx), fmt.Sprintf("%d", nextChildIdx), EdgeDef{int16(parentOverrideIdx), ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""}
 // 			if parentOverrideIdx != 0 && firstChildIdx%9 == 0 {
 // 				newNode.SecIn = append(newNode.SecIn, EdgeDef{int16(firstChildIdx / 2), ""})
 // 			}
@@ -256,13 +260,13 @@ func TestUnoptimizedSvg(t *testing.T) {
 
 func TestEnclosingOneLevelWideNodes(t *testing.T) {
 	nodeDefs := []NodeDef{
-		{0, "", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{1, "A1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{2, "A21\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{1, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A1 to A21"}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{3, "A22\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{1, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A1 to A22"}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{4, "A31\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{2, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A21 to A31"}, []EdgeDef{{6, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B1 to A31"}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{5, "A32\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{3, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A22 to A32"}, []EdgeDef{{6, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B1 to A32"}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{6, "B1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{0, "", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{1, "A1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{2, "A21\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{1, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A1 to A21"}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{3, "A22\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{1, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A1 to A22"}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{4, "A31\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{2, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A21 to A31"}, []EdgeDef{{6, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B1 to A31"}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{5, "A32\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{3, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A22 to A32"}, []EdgeDef{{6, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B1 to A32"}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{6, "B1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 	}
 	svg, _, totalPermutations, _, bestDist, _ := Draw(context.TODO(), nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	assert.Equal(t, int64(6), totalPermutations)
@@ -272,22 +276,22 @@ func TestEnclosingOneLevelWideNodes(t *testing.T) {
 
 func TestHalfComplexWithEnclosed(t *testing.T) {
 	nodeDefs := []NodeDef{
-		{0, "", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{1, "A1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{2, "A2\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{1, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A1 to A2"}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{3, "A31\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{2, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A2 to A31"}, []EdgeDef{{10, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B2 to A31"}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{4, "A32\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{2, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A2 to A32"}, []EdgeDef{{14, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C3 to A32"}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{5, "A41\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{4, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A32 to A41"}, []EdgeDef{{11, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B3 to A41"}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{6, "A42\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{4, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A32 to A42"}, []EdgeDef{{14, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C3 to A42"}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{7, "A51\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{5, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A41 to A51"}, []EdgeDef{{15, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom D1 to A51"}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{8, "A52\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{6, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A42 to A52"}, []EdgeDef{{15, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom D1 to A52"}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{9, "B1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{10, "B2\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{9, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B1 to B2"}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{11, "B3\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{10, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B2 to B3"}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{12, "C1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{13, "C2\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{12, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C1 to C2"}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{14, "C3\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{13, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C2 to C3"}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{15, "D1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{0, "", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{1, "A1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{2, "A2\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{1, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A1 to A2"}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{3, "A31\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{2, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A2 to A31"}, []EdgeDef{{10, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B2 to A31"}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{4, "A32\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{2, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A2 to A32"}, []EdgeDef{{14, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C3 to A32"}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{5, "A41\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{4, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A32 to A41"}, []EdgeDef{{11, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B3 to A41"}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{6, "A42\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{4, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A32 to A42"}, []EdgeDef{{14, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C3 to A42"}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{7, "A51\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{5, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A41 to A51"}, []EdgeDef{{15, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom D1 to A51"}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{8, "A52\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{6, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A42 to A52"}, []EdgeDef{{15, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom D1 to A52"}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{9, "B1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{10, "B2\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{9, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B1 to B2"}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{11, "B3\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{10, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B2 to B3"}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{12, "C1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{13, "C2\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{12, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C1 to C2"}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{14, "C3\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{13, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C2 to C3"}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{15, "D1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 	}
 	svg, _, totalPermutations, _, bestDist, _ := Draw(context.TODO(), nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	assert.Equal(t, int64(48), totalPermutations)
@@ -297,11 +301,11 @@ func TestHalfComplexWithEnclosed(t *testing.T) {
 
 func TestConflictingSecAndTotalViewboxWidthAdjustedToLabel(t *testing.T) {
 	nodeDefs := []NodeDef{
-		{0, "", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{1, "A", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{2, "B", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{3, "C", EdgeDef{1, "A to C"}, []EdgeDef{{2, "B to ? duplicate going really wide"}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{4, "D", EdgeDef{3, "C to D"}, []EdgeDef{{2, "B to ? duplicate going really wide"}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{0, "", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{1, "A", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{2, "B", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{3, "C", EdgeDef{1, "A to C"}, []EdgeDef{{2, "B to ? duplicate going really wide"}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{4, "D", EdgeDef{3, "C to D"}, []EdgeDef{{2, "B to ? duplicate going really wide"}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 	}
 	svg, _, totalPermutations, _, bestDist, _ := Draw(context.TODO(), nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	assert.Equal(t, int64(2), totalPermutations)
@@ -311,7 +315,7 @@ func TestConflictingSecAndTotalViewboxWidthAdjustedToLabel(t *testing.T) {
 
 func TestCapillariesIcons(t *testing.T) {
 	nodeDefs := []NodeDef{
-		{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+
 		{
 			1,
 			"01_read_payments\n" +
@@ -319,10 +323,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Files: /tmp/capi_in/.../CAS_2023_R08_G1_20231020_000.parquet\n" +
 				"Table created: payments",
 			EdgeDef{},
-			[]EdgeDef{},
+			nil,
 			"icon-database-table-read",
 			0,
-			NodeOptions{ThickBorder: true, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			2,
@@ -331,10 +335,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Index used: unique(loan_id)\n" +
 				"Table created: loan_ids",
 			EdgeDef{1, "payments\n(10 batches)"},
-			[]EdgeDef{},
+			nil,
 			"icon-database-table-distinct",
 			0,
-			NodeOptions{ThickBorder: true, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			3,
@@ -343,10 +347,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Index used: unique(deal_name)\n" +
 				"Table created: deal_names",
 			EdgeDef{2, "loan_ids\n(10 batches)"},
-			[]EdgeDef{},
+			nil,
 			"icon-database-table-distinct",
 			0,
-			NodeOptions{ThickBorder: true, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			4,
@@ -355,10 +359,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Index used: unique(deal_name, seller_name)\n" +
 				"Table created: deal_sellers",
 			EdgeDef{2, "loan_ids\n(10 batches)"},
-			[]EdgeDef{},
+			nil,
 			"icon-database-table-distinct",
 			0,
-			NodeOptions{ThickBorder: true, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			5,
@@ -370,7 +374,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{2, "idx_loan_ids_deal_name\n(lookup)"}},
 			"icon-database-table-join",
 			0,
-			NodeOptions{ThickBorder: true, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			6,
@@ -382,7 +386,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{1, "idx_payments_by_loan_id\n(lookup)"}},
 			"icon-database-table-join",
 			0,
-			NodeOptions{ThickBorder: true, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			7,
@@ -391,10 +395,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Group: true, join: left\n" +
 				"Table created: loan_summaries_calculated",
 			EdgeDef{6, "loan_payment_summaries\n(10 batches)"},
-			[]EdgeDef{},
+			nil,
 			"icon-database-table-py",
 			0,
-			NodeOptions{ThickBorder: true, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			8,
@@ -406,7 +410,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{7, "idx_loan_summaries_calculated_deal_name\n(lookup)\ndeal_name"}},
 			"icon-database-table-join",
 			0,
-			NodeOptions{ThickBorder: true, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			9,
@@ -418,7 +422,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{7, "idx_loan_summaries_calculated_deal_name\n(lookup)\ndeal_name\nseller_name"}},
 			"icon-database-table-join",
 			0,
-			NodeOptions{ThickBorder: true, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			10,
@@ -427,10 +431,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Table: loan_summaries_calculated\n" +
 				"Files: /tmp/.../.../loan_summaries_calculated.parquet",
 			EdgeDef{7, "loan_summaries_calculated\n(no parallelism)"},
-			[]EdgeDef{},
+			nil,
 			"icon-parquet",
 			0,
-			NodeOptions{ThickBorder: true, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			11,
@@ -439,10 +443,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Table: deal_summaries\n" +
 				"Files: /tmp/.../.../deal_summaries.parquet",
 			EdgeDef{8, "deal_summaries\n(no parallelism)"},
-			[]EdgeDef{},
+			nil,
 			"icon-parquet",
 			0,
-			NodeOptions{ThickBorder: true, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			12,
@@ -451,10 +455,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Table: deal_seller_summaries\n" +
 				"Files: /tmp/.../.../deal_seller_summaries.parquet",
 			EdgeDef{9, "deal_seller_summaries\n(no parallelism)"},
-			[]EdgeDef{},
+			nil,
 			"icon-parquet",
 			0,
-			NodeOptions{ThickBorder: true, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 
 		{
@@ -464,10 +468,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Files: /tmp/capi_in/.../CAS_2023_R08_G1_20231020_000.parquet\n" +
 				"Table created: payments",
 			EdgeDef{},
-			[]EdgeDef{},
+			nil,
 			"icon-database-table-read",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			14,
@@ -476,10 +480,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Index used: unique(loan_id)\n" +
 				"Table created: loan_ids",
 			EdgeDef{13, "payments\n(10 batches)"},
-			[]EdgeDef{},
+			nil,
 			"icon-database-table-distinct",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			15,
@@ -488,10 +492,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Index used: unique(deal_name)\n" +
 				"Table created: deal_names",
 			EdgeDef{14, "loan_ids\n(10 batches)"},
-			[]EdgeDef{},
+			nil,
 			"icon-database-table-distinct",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			16,
@@ -500,10 +504,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Index used: unique(deal_name, seller_name)\n" +
 				"Table created: deal_sellers",
 			EdgeDef{14, "loan_ids\n(10 batches)"},
-			[]EdgeDef{},
+			nil,
 			"icon-database-table-distinct",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			17,
@@ -515,7 +519,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{14, "idx_loan_ids_deal_name\n(lookup)"}},
 			"icon-database-table-join",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			18,
@@ -527,7 +531,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{13, "idx_payments_by_loan_id\n(lookup)"}},
 			"icon-database-table-join",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			19,
@@ -536,10 +540,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Group: true, join: left\n" +
 				"Table created: loan_summaries_calculated",
 			EdgeDef{18, "loan_payment_summaries\n(10 batches)"},
-			[]EdgeDef{},
+			nil,
 			"icon-database-table-py",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			20,
@@ -551,7 +555,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{19, "idx_loan_summaries_calculated_deal_name\n(lookup)"}},
 			"icon-database-table-join",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			21,
@@ -560,10 +564,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Group: true, join: left\n" +
 				"Table created: deal_seller_summaries",
 			EdgeDef{16, "deal_sellers\n(10 batches)"},
-			[]EdgeDef{},
+			nil,
 			"icon-database-table-join",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			22,
@@ -572,10 +576,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Table: loan_summaries_calculated\n" +
 				"Files: /tmp/.../.../loan_summaries_calculated.parquet",
 			EdgeDef{19, "loan_summaries_calculated\n(no parallelism)"},
-			[]EdgeDef{},
+			nil,
 			"icon-parquet",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			23,
@@ -584,10 +588,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Table: deal_summaries\n" +
 				"Files: /tmp/.../.../deal_summaries.parquet",
 			EdgeDef{20, "deal_summaries\n(no parallelism)"},
-			[]EdgeDef{},
+			nil,
 			"icon-parquet",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			24,
@@ -596,10 +600,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Table: deal_seller_summaries\n" +
 				"Files: /tmp/.../.../deal_seller_summaries.parquet",
 			EdgeDef{21, "deal_seller_summaries\n(no parallelism)"},
-			[]EdgeDef{},
+			nil,
 			"icon-parquet",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 
 		{
@@ -609,10 +613,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Files: /tmp/capi_in/.../CAS_2023_R08_G1_20231020_000.parquet\n" +
 				"Table created: payments",
 			EdgeDef{},
-			[]EdgeDef{},
+			nil,
 			"icon-database-table-read",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			26,
@@ -621,10 +625,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Index used: unique(loan_id)\n" +
 				"Table created: loan_ids",
 			EdgeDef{25, "payments\n(10 batches)"},
-			[]EdgeDef{},
+			nil,
 			"icon-database-table-distinct",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			27,
@@ -633,10 +637,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Index used: unique(deal_name)\n" +
 				"Table created: deal_names",
 			EdgeDef{26, "loan_ids\n(10 batches)"},
-			[]EdgeDef{},
+			nil,
 			"icon-database-table-distinct",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			28,
@@ -645,10 +649,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Index used: unique(deal_name, seller_name)\n" +
 				"Table created: deal_sellers",
 			EdgeDef{26, "loan_ids\n(10 batches)"},
-			[]EdgeDef{},
+			nil,
 			"icon-database-table-distinct",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			29,
@@ -660,7 +664,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{26, "idx_loan_ids_deal_name\n(lookup)"}},
 			"icon-database-table-join",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			30,
@@ -672,7 +676,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{25, "idx_payments_by_loan_id\n(lookup)"}},
 			"icon-database-table-join",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			31,
@@ -681,10 +685,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Group: true, join: left\n" +
 				"Table created: loan_summaries_calculated",
 			EdgeDef{30, "loan_payment_summaries\n(10 batches)"},
-			[]EdgeDef{},
+			nil,
 			"icon-database-table-py",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			32,
@@ -696,7 +700,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{31, "idx_loan_summaries_calculated_deal_name\n(lookup)"}},
 			"icon-database-table-join",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			33,
@@ -705,10 +709,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Group: true, join: left\n" +
 				"Table created: deal_seller_summaries",
 			EdgeDef{28, "deal_sellers\n(10 batches)"},
-			[]EdgeDef{},
+			nil,
 			"icon-database-table-join",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			34,
@@ -717,10 +721,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Table: loan_summaries_calculated\n" +
 				"Files: /tmp/.../.../loan_summaries_calculated.parquet",
 			EdgeDef{31, "loan_summaries_calculated\n(no parallelism)"},
-			[]EdgeDef{},
+			nil,
 			"icon-parquet",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			35,
@@ -729,10 +733,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Table: deal_summaries\n" +
 				"Files: /tmp/.../.../deal_summaries.parquet",
 			EdgeDef{32, "deal_summaries\n(no parallelism)"},
-			[]EdgeDef{},
+			nil,
 			"icon-parquet",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			36,
@@ -741,10 +745,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Table: deal_seller_summaries\n" +
 				"Files: /tmp/.../.../deal_seller_summaries.parquet",
 			EdgeDef{33, "deal_seller_summaries\n(no parallelism)"},
-			[]EdgeDef{},
+			nil,
 			"icon-parquet",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 
 		{
@@ -754,10 +758,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Files: /tmp/capi_in/.../CAS_2023_R08_G1_20231020_000.parquet\n" +
 				"Table created: payments",
 			EdgeDef{},
-			[]EdgeDef{},
+			nil,
 			"icon-database-table-read",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			38,
@@ -766,10 +770,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Index used: unique(loan_id)\n" +
 				"Table created: loan_ids",
 			EdgeDef{37, "payments\n(10 batches)"},
-			[]EdgeDef{},
+			nil,
 			"icon-database-table-distinct",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			39,
@@ -778,10 +782,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Index used: unique(deal_name)\n" +
 				"Table created: deal_names",
 			EdgeDef{38, "loan_ids\n(10 batches)"},
-			[]EdgeDef{},
+			nil,
 			"icon-database-table-distinct",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			40,
@@ -790,10 +794,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Index used: unique(deal_name, seller_name)\n" +
 				"Table created: deal_sellers",
 			EdgeDef{38, "loan_ids\n(10 batches)"},
-			[]EdgeDef{},
+			nil,
 			"icon-database-table-distinct",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			41,
@@ -805,7 +809,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{38, "idx_loan_ids_deal_name\n(lookup)"}},
 			"icon-database-table-join",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			42,
@@ -817,7 +821,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{37, "idx_payments_by_loan_id\n(lookup)"}},
 			"icon-database-table-join",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			43,
@@ -826,10 +830,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Group: true, join: left\n" +
 				"Table created: loan_summaries_calculated",
 			EdgeDef{42, "loan_payment_summaries\n(10 batches)"},
-			[]EdgeDef{},
+			nil,
 			"icon-database-table-py",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			44,
@@ -841,7 +845,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{43, "idx_loan_summaries_calculated_deal_name\n(lookup)"}},
 			"icon-database-table-join",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			45,
@@ -850,10 +854,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Group: true, join: left\n" +
 				"Table created: deal_seller_summaries",
 			EdgeDef{40, "deal_sellers\n(10 batches)"},
-			[]EdgeDef{},
+			nil,
 			"icon-database-table-join",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			46,
@@ -862,10 +866,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Table: loan_summaries_calculated\n" +
 				"Files: /tmp/.../.../loan_summaries_calculated.parquet",
 			EdgeDef{43, "loan_summaries_calculated\n(no parallelism)"},
-			[]EdgeDef{},
+			nil,
 			"icon-parquet",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			47,
@@ -874,10 +878,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Table: deal_summaries\n" +
 				"Files: /tmp/.../.../deal_summaries.parquet",
 			EdgeDef{44, "deal_summaries\n(no parallelism)"},
-			[]EdgeDef{},
+			nil,
 			"icon-parquet",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 		{
 			48,
@@ -886,10 +890,10 @@ func TestCapillariesIcons(t *testing.T) {
 				"Table: deal_seller_summaries\n" +
 				"Files: /tmp/.../.../deal_seller_summaries.parquet",
 			EdgeDef{45, "deal_seller_summaries\n(no parallelism)"},
-			[]EdgeDef{},
+			nil,
 			"icon-parquet",
 			0,
-			NodeOptions{ThickBorder: false, UseRootColorForText: false},
+			NodeBorderThick, NodeTextColorDefault, NodeBackgroundSolid, "",
 		},
 	}
 	// overrideCss := ".rect-node-background {rx:20; ry:20;} .rect-node {rx:20; ry:20;} .capigraph-rendering-stats {fill:black;}"
@@ -938,7 +942,7 @@ func TestPrefixTree(t *testing.T) {
 	nodeDefs := make([]NodeDef, len(words))
 	for idx, w := range words {
 		prefix := words[parentMap[idx]]
-		nodeDefs[idx] = NodeDef{int16(idx), w[len(prefix):], EdgeDef{int16(parentMap[idx]), ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}}
+		nodeDefs[idx] = NodeDef{int16(idx), w[len(prefix):], EdgeDef{int16(parentMap[idx]), ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""}
 	}
 	// Don't even try optimized, it will ask for fact(51)
 	svg, _, _, _, _, err := Draw(context.TODO(), nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), false)
@@ -948,12 +952,12 @@ func TestPrefixTree(t *testing.T) {
 
 func TestMonochromeDiamond(t *testing.T) {
 	var testNodeDefsDiamond = []NodeDef{
-		{1, "1", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{2, "2", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{3, "3", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{4, "4", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{5, "5", EdgeDef{3, ""}, []EdgeDef{{4, ""}, {6, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-		{6, "6", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{2, "2", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{3, "3", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{4, "4", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{5, "5", EdgeDef{3, ""}, []EdgeDef{{4, ""}, {6, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{6, "6", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 	}
 	svg, _, _, _, _, _ := Draw(context.TODO(), testNodeDefsDiamond, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", nil, true)
 	fmt.Printf("%s\n", svg)
@@ -998,15 +1002,14 @@ func TestReadmeRootColors(t *testing.T) {
 	edgeOptions := EdgeOptions{StrokeWidth: 2.0}
 	cssOverrides := `.text-node {font-family:Verdana; font-size:16px; fill:gray;}`
 	rootNodePalette := []int32{0x023EFF, 0xFF7C00, 0x1AC938, 0xE8000B, 0x8B2BE2, 0x9F4800, 0xF14CC1, 0xA3A3A3, 0xFFC400, 0x00D7FF} // blue, orange, etc.
-	useRootColorForText := true
 
 	var testDiagramWithOneEnclosedLevel = []NodeDef{
-		{1, "1 - Read\nprimary data\nfrom file", EdgeDef{}, []EdgeDef{}, "icon-database-table-read", 0, NodeOptions{ThickBorder: false, UseRootColorForText: useRootColorForText}},
-		{2, "2 - Apply\n one set of Python formulas\nto primary data", EdgeDef{1, ""}, []EdgeDef{}, "icon-database-table-py", 0, NodeOptions{ThickBorder: true, UseRootColorForText: useRootColorForText}},
-		{3, "3 - Apply\n another set of Python\nformulas to primary data", EdgeDef{1, ""}, []EdgeDef{}, "icon-database-table-py", 0, NodeOptions{ThickBorder: true, UseRootColorForText: useRootColorForText}},
-		{4, "4 - Join\n primary and\nsecondary data", EdgeDef{2, ""}, []EdgeDef{{6, ""}}, "icon-database-table-join", 0, NodeOptions{ThickBorder: false, UseRootColorForText: useRootColorForText}},
-		{5, "5 - Join\n primary and\nsecondary data", EdgeDef{3, ""}, []EdgeDef{{6, ""}}, "icon-database-table-join", 0, NodeOptions{ThickBorder: false, UseRootColorForText: useRootColorForText}},
-		{6, "6 - Read\n secondary data\nfrom file", EdgeDef{}, []EdgeDef{}, "icon-database-table-read", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{1, "1 - Read\nprimary data\nfrom file", EdgeDef{}, nil, "icon-database-table-read", 0, NodeBorderRegular, NodeTextColorAsNode, NodeBackgroundSolid, ""},
+		{2, "2 - Apply\n one set of Python formulas\nto primary data", EdgeDef{1, ""}, nil, "icon-database-table-py", 0x001080, NodeBorderThick, NodeTextColorAsNode, NodeBackgroundSolid, ""},
+		{3, "3 - Apply\n another set of Python\nformulas to primary data", EdgeDef{1, ""}, nil, "icon-database-table-py", 0, NodeBorderThick, NodeTextColorAsNode, NodeBackgroundSolid, ""},
+		{4, "4 - Join\n primary and\nsecondary data", EdgeDef{2, ""}, []EdgeDef{{6, ""}}, "icon-database-table-join", 0x001080, NodeBorderRegular, NodeTextColorAsNode, NodeBackgroundSolid, ""},
+		{5, "5 - Join\n primary and\nsecondary data", EdgeDef{3, ""}, []EdgeDef{{6, ""}}, "icon-database-table-join", 0, NodeBorderRegular, NodeTextColorAsNode, NodeBackgroundSolid, ""},
+		{6, "6 - Read\n secondary data\nfrom file", EdgeDef{}, nil, "icon-database-table-read", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 	}
 
 	svg, _, _, _, _, _ := Draw(context.TODO(), testDiagramWithOneEnclosedLevel, nodeFontOptions, edgeLabelFontOptions, edgeOptions, defsToAdd, cssOverrides, rootNodePalette, true)
@@ -1039,12 +1042,12 @@ func TestReadmeCustomBackground(t *testing.T) {
 	cssOverrides := `.progress-background {	fill:url(#diagonalBlueLines) } .failed-background {	fill:url(#redGradient) }`
 
 	var testNodeDefsOneSecondary = []NodeDef{
-		{1, "1 - Complete", EdgeDef{}, []EdgeDef{}, "", 0x00FF00, NodeOptions{ThickBorder: false, UseRootColorForText: false, BackgroundType: NodeBackgroundSolid}},
-		{2, "2 - Running", EdgeDef{1, "Some\ndata"}, []EdgeDef{}, "", 0x0000FF, NodeOptions{ThickBorder: false, UseRootColorForText: false, BackgroundType: NodeBackgroundPattern, CustomBackgroundClass: "progress-background"}},
-		{3, "3 - Complete", EdgeDef{}, []EdgeDef{}, "", 0x00FF00, NodeOptions{ThickBorder: false, UseRootColorForText: false, BackgroundType: NodeBackgroundSolid}},
-		{4, "4 - Running", EdgeDef{3, "Some\nother\ndata"}, []EdgeDef{}, "", 0x0000FF, NodeOptions{ThickBorder: false, UseRootColorForText: false, BackgroundType: NodeBackgroundPattern, CustomBackgroundClass: "progress-background"}},
-		{5, "5 - Not started", EdgeDef{4, "Some\nprimary\ndata"}, []EdgeDef{{6, "Some\ndata\nto join"}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false, BackgroundType: NodeBackgroundSolid}},
-		{6, "6 - Failed", EdgeDef{}, []EdgeDef{}, "", 0xFF0000, NodeOptions{ThickBorder: false, UseRootColorForText: false, BackgroundType: NodeBackgroundPattern, CustomBackgroundClass: "failed-background"}},
+		{1, "1 - Complete", EdgeDef{}, nil, "", 0x00FF00, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{2, "2 - Running", EdgeDef{1, "Some\ndata"}, nil, "", 0x0000FF, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundPattern, "progress-background"},
+		{3, "3 - Complete", EdgeDef{}, nil, "", 0x00FF00, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{4, "4 - Running", EdgeDef{3, "Some\nother\ndata"}, nil, "", 0x0000FF, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundPattern, "progress-background"},
+		{5, "5 - Not started", EdgeDef{4, "Some\nprimary\ndata"}, []EdgeDef{{6, "Some\ndata\nto join"}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{6, "6 - Failed", EdgeDef{}, nil, "", 0xFF0000, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundPattern, "failed-background"},
 	}
 	svg, _, _, _, _, _ := Draw(context.TODO(), testNodeDefsOneSecondary, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), defsToAdd, cssOverrides, nil, true)
 	fmt.Printf("%s\n", svg)

@@ -262,13 +262,16 @@ func nodeTypeIcon(node *sc.ScriptNodeDef) string {
 func populateNodeDefs(scriptDef *sc.ScriptDef, nodeStringColorMap map[string]int32) ([]capigraph.NodeDef, map[string]int16) {
 	nodeDefs := make([]capigraph.NodeDef, len(scriptDef.ScriptNodes)+1)
 	nodeDefs[0] = capigraph.NodeDef{
-		Id:      0,
-		Text:    "",
-		PriIn:   capigraph.EdgeDef{},
-		SecIn:   []capigraph.EdgeDef{},
-		IconId:  "",
-		Color:   0,
-		Options: capigraph.NodeOptions{ThickBorder: false, UseRootColorForText: false}}
+		Id:                    0,
+		Text:                  "",
+		PriIn:                 capigraph.EdgeDef{},
+		SecIn:                 []capigraph.EdgeDef{},
+		IconId:                "",
+		ColorOverride:         0,
+		BorderThickness:       capigraph.NodeBorderThick,
+		TextColorPreference:   capigraph.NodeTextColorDefault,
+		BackgroundType:        capigraph.NodeBackgroundSolid,
+		CustomBackgroundClass: ""}
 	nodeNameMap := map[string]int16{}
 
 	// Populate nodes. Before that, sort node names, otherwise they may appear on the diagram in random order (when best distances are close)
@@ -300,7 +303,12 @@ func populateNodeDefs(scriptDef *sc.ScriptDef, nodeStringColorMap map[string]int
 
 		// This is a root node marked as "manual". Do not show "manual" marker,
 		// it is redundant in this case and may be confusing
-		isReallyStartedManually := !node.HasFileReader() && node.StartPolicy == sc.NodeStartManual
+		var nodeBorderThickness capigraph.NodeBorderThickness
+		if node.HasFileReader() && node.StartPolicy == sc.NodeStartManual {
+			nodeBorderThickness = capigraph.NodeBorderThick
+		} else {
+			nodeBorderThickness = capigraph.NodeBorderRegular
+		}
 		var nodeDefText string
 		if nodeStringColorMap != nil {
 			// Short desc
@@ -310,13 +318,17 @@ func populateNodeDefs(scriptDef *sc.ScriptDef, nodeStringColorMap map[string]int
 			nodeDefText = fmt.Sprintf("%s\n%s\n%s", nodeName, node.Desc, nodeTypeDescription(node))
 		}
 		nodeDefs[nodeIdx] = capigraph.NodeDef{
-			Id:      nodeIdx,
-			Text:    nodeDefText,
-			PriIn:   capigraph.EdgeDef{},
-			SecIn:   []capigraph.EdgeDef{},
-			IconId:  nodeTypeIcon(node),
-			Color:   color,
-			Options: capigraph.NodeOptions{ThickBorder: isReallyStartedManually, UseRootColorForText: false}}
+			Id:                    nodeIdx,
+			Text:                  nodeDefText,
+			PriIn:                 capigraph.EdgeDef{},
+			SecIn:                 []capigraph.EdgeDef{},
+			IconId:                nodeTypeIcon(node),
+			ColorOverride:         color,
+			BorderThickness:       nodeBorderThickness,
+			TextColorPreference:   capigraph.NodeTextColorDefault,
+			BackgroundType:        capigraph.NodeBackgroundSolid,
+			CustomBackgroundClass: "",
+		}
 		nodeIdx++
 	}
 	return nodeDefs, nodeNameMap

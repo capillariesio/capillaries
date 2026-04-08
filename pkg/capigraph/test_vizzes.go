@@ -4,21 +4,21 @@ package capigraph
 // -     |/
 // 1:    2
 var testNodeDefsBasic = []NodeDef{
-	{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{1, "1", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{2, "2", EdgeDef{1, ""}, []EdgeDef{{3, "from 3"}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{3, "3", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	{0, "top node", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{2, "2", EdgeDef{1, ""}, []EdgeDef{{3, "from 3"}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{3, "3", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 }
 
 // 0:    1  3
 // -     |  |
 // 1:    2  4
 var testNodeDefsTrivialParallel = []NodeDef{
-	{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{1, "1", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{2, "2", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{3, "3", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{4, "4", EdgeDef{3, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	{0, "top node", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{2, "2", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{3, "3", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{4, "4", EdgeDef{3, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 }
 
 // 0:    1
@@ -27,13 +27,13 @@ var testNodeDefsTrivialParallel = []NodeDef{
 // -     | /  \|
 // 2:    4     5
 var testNodeDefsOneEnclosedOneLevel = []NodeDef{
-	{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{1, "1", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{2, "2", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{3, "3", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{4, "4", EdgeDef{2, ""}, []EdgeDef{{6, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{5, "5", EdgeDef{3, ""}, []EdgeDef{{6, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{6, "6", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	{0, "top node", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{2, "2", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{3, "3", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{4, "4", EdgeDef{2, ""}, []EdgeDef{{6, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{5, "5", EdgeDef{3, ""}, []EdgeDef{{6, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{6, "6", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 }
 
 // 0:    1
@@ -44,15 +44,15 @@ var testNodeDefsOneEnclosedOneLevel = []NodeDef{
 // -     | / \ |
 // 3:    4     7
 var testNodeDefsOneEnclosedTwoLevels = []NodeDef{
-	{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{1, "1", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{2, "2", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{3, "3", EdgeDef{2, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{4, "4", EdgeDef{3, ""}, []EdgeDef{{8, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{5, "5", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{6, "6", EdgeDef{5, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{7, "7", EdgeDef{6, ""}, []EdgeDef{{8, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{8, "8", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	{0, "top node", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{2, "2", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{3, "3", EdgeDef{2, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{4, "4", EdgeDef{3, ""}, []EdgeDef{{8, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{5, "5", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{6, "6", EdgeDef{5, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{7, "7", EdgeDef{6, ""}, []EdgeDef{{8, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{8, "8", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 }
 
 // 0:    1
@@ -61,27 +61,27 @@ var testNodeDefsOneEnclosedTwoLevels = []NodeDef{
 // -     |     |
 // 2:    3     5
 var testNodeDefsNoIntervals = []NodeDef{
-	{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{1, "1", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{2, "2", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{3, "3", EdgeDef{2, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{4, "4", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{5, "5", EdgeDef{4, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	{0, "top node", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{2, "2", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{3, "3", EdgeDef{2, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{4, "4", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{5, "5", EdgeDef{4, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 }
 
 // 0:    1 2 3 4 5 6 7 8 9 10
 var testNodeDefsFlat10 = []NodeDef{
-	{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{1, "1", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{2, "2", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{3, "3", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{4, "4", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{5, "5", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{6, "6", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{7, "7", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{8, "8", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{9, "9", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{10, "10", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	{0, "top node", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{2, "2", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{3, "3", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{4, "4", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{5, "5", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{6, "6", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{7, "7", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{8, "8", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{9, "9", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{10, "10", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 }
 
 // 0:    1
@@ -94,16 +94,16 @@ var testNodeDefsFlat10 = []NodeDef{
 // -     | //  |
 // 2:    6     7
 var testNodeDefsTwoEnclosedNodeSizeMatters = []NodeDef{
-	{0, "", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{1, "1", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{2, "2", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{3, "3", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{4, "4", EdgeDef{2, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{5, "5", EdgeDef{3, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{6, "6", EdgeDef{4, ""}, []EdgeDef{{8, ""}, {9, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{7, "7", EdgeDef{5, ""}, []EdgeDef{{8, ""}, {9, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{8, "8", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{9, "9", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	{0, "", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{2, "2", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{3, "3", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{4, "4", EdgeDef{2, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{5, "5", EdgeDef{3, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{6, "6", EdgeDef{4, ""}, []EdgeDef{{8, ""}, {9, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{7, "7", EdgeDef{5, ""}, []EdgeDef{{8, ""}, {9, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{8, "8", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{9, "9", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 }
 
 // 0:    1  3
@@ -112,13 +112,13 @@ var testNodeDefsTwoEnclosedNodeSizeMatters = []NodeDef{
 // -        | /
 // 2:       5
 var testNodeDefsOneSecondary = []NodeDef{
-	{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{1, "1", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{2, "2", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{3, "3", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{4, "4", EdgeDef{3, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{5, "5", EdgeDef{4, ""}, []EdgeDef{{6, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{6, "6", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	{0, "top node", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{2, "2", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{3, "3", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{4, "4", EdgeDef{3, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{5, "5", EdgeDef{4, ""}, []EdgeDef{{6, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{6, "6", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 }
 
 // 0:       1
@@ -127,74 +127,74 @@ var testNodeDefsOneSecondary = []NodeDef{
 // -        | //
 // 2:       5
 var testNodeDefsDiamond = []NodeDef{
-	{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{1, "1", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{2, "2", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{3, "3", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{4, "4", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{5, "5", EdgeDef{3, ""}, []EdgeDef{{4, ""}, {6, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{6, "6", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	{0, "top node", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{2, "2", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{3, "3", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{4, "4", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{5, "5", EdgeDef{3, ""}, []EdgeDef{{4, ""}, {6, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{6, "6", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 }
 
 var testNodeDefs40milPerms = []NodeDef{
-	{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{1, "1", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	{0, "top node", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 
-	{2, "2", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{3, "3", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{4, "4", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	{2, "2", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{3, "3", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{4, "4", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 
-	{5, "5", EdgeDef{2, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{6, "6", EdgeDef{2, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{7, "7", EdgeDef{2, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{8, "8", EdgeDef{2, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{9, "9", EdgeDef{2, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{10, "10", EdgeDef{3, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{11, "11", EdgeDef{3, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{12, "12", EdgeDef{3, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{13, "13", EdgeDef{3, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{14, "14", EdgeDef{3, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{15, "15", EdgeDef{4, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{16, "16", EdgeDef{4, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{17, "17", EdgeDef{4, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{18, "18", EdgeDef{4, ""}, []EdgeDef{{20, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	// {19, "19", EdgeDef{4, ""}, []EdgeDef{{21, ""}}, "", 0, NodeOptions{ThickBorder:false, UseRootColor:false}},
-	{19, "19", EdgeDef{4, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	{5, "5", EdgeDef{2, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{6, "6", EdgeDef{2, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{7, "7", EdgeDef{2, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{8, "8", EdgeDef{2, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{9, "9", EdgeDef{2, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{10, "10", EdgeDef{3, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{11, "11", EdgeDef{3, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{12, "12", EdgeDef{3, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{13, "13", EdgeDef{3, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{14, "14", EdgeDef{3, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{15, "15", EdgeDef{4, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{16, "16", EdgeDef{4, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{17, "17", EdgeDef{4, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{18, "18", EdgeDef{4, ""}, []EdgeDef{{20, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	// {19, "19", EdgeDef{4, ""}, []EdgeDef{{21, ""}}, "", 0, ThickBorder:false, UseRootColor:false},
+	{19, "19", EdgeDef{4, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 
-	{20, "20", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	// {21, "21", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder:false, UseRootColor:false}},
+	{20, "20", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	// {21, "21", EdgeDef{}, nil, "", 0, ThickBorder:false, UseRootColor:false},
 }
 
 var testNodeDefs300bilPerms = []NodeDef{
-	{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{1, "1", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	{0, "top node", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 
-	{2, "2", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{3, "3", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{4, "4", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	{2, "2", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{3, "3", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{4, "4", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 
-	{5, "5", EdgeDef{2, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{6, "6", EdgeDef{2, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{7, "7", EdgeDef{2, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{8, "8", EdgeDef{2, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{9, "9", EdgeDef{2, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{10, "10", EdgeDef{3, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{11, "11", EdgeDef{3, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{12, "12", EdgeDef{3, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{13, "13", EdgeDef{3, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{14, "14", EdgeDef{3, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{15, "15", EdgeDef{3, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{16, "16", EdgeDef{4, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{17, "17", EdgeDef{4, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{18, "18", EdgeDef{4, ""}, []EdgeDef{{22, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{19, "19", EdgeDef{4, ""}, []EdgeDef{{23, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{20, "20", EdgeDef{4, ""}, []EdgeDef{{24, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{21, "21", EdgeDef{4, ""}, []EdgeDef{{25, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	{5, "5", EdgeDef{2, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{6, "6", EdgeDef{2, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{7, "7", EdgeDef{2, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{8, "8", EdgeDef{2, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{9, "9", EdgeDef{2, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{10, "10", EdgeDef{3, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{11, "11", EdgeDef{3, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{12, "12", EdgeDef{3, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{13, "13", EdgeDef{3, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{14, "14", EdgeDef{3, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{15, "15", EdgeDef{3, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{16, "16", EdgeDef{4, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{17, "17", EdgeDef{4, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{18, "18", EdgeDef{4, ""}, []EdgeDef{{22, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{19, "19", EdgeDef{4, ""}, []EdgeDef{{23, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{20, "20", EdgeDef{4, ""}, []EdgeDef{{24, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{21, "21", EdgeDef{4, ""}, []EdgeDef{{25, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 
-	{22, "22", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{23, "23", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{24, "24", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{25, "25", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	{22, "22", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{23, "23", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{24, "24", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{25, "25", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 }
 
 // 0:    1  2
@@ -203,11 +203,11 @@ var testNodeDefs300bilPerms = []NodeDef{
 // -     | /
 // 2:    4
 var testNodeDefsTwoLevelsFromOneParent = []NodeDef{
-	{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{1, "1", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{2, "2", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{3, "3", EdgeDef{1, ""}, []EdgeDef{{2, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{4, "4", EdgeDef{3, ""}, []EdgeDef{{2, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	{0, "top node", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{2, "2", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{3, "3", EdgeDef{1, ""}, []EdgeDef{{2, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{4, "4", EdgeDef{3, ""}, []EdgeDef{{2, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 }
 
 // 0:    1
@@ -220,14 +220,14 @@ var testNodeDefsTwoLevelsFromOneParent = []NodeDef{
 // -         |
 // 4:        7
 var testNodeDefsTwoLevelsFromOneParentSameRoot = []NodeDef{
-	{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{1, "1", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{2, "2", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{3, "3", EdgeDef{2, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{4, "4", EdgeDef{3, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{5, "5", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{6, "6", EdgeDef{5, ""}, []EdgeDef{{3, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{7, "7", EdgeDef{6, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	{0, "top node", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{2, "2", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{3, "3", EdgeDef{2, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{4, "4", EdgeDef{3, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{5, "5", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{6, "6", EdgeDef{5, ""}, []EdgeDef{{3, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{7, "7", EdgeDef{6, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 }
 
 // 0:    1
@@ -242,15 +242,15 @@ var testNodeDefsTwoLevelsFromOneParentSameRoot = []NodeDef{
 // -         |
 // 5:        8
 var testNodeDefsTwoLevelsFromOneParentSameRootTwoFakes = []NodeDef{
-	{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{1, "1", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{2, "2", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{3, "3", EdgeDef{2, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{4, "4", EdgeDef{3, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{5, "5", EdgeDef{4, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{6, "6", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{7, "7", EdgeDef{6, ""}, []EdgeDef{{4, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{8, "8", EdgeDef{7, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	{0, "top node", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{2, "2", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{3, "3", EdgeDef{2, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{4, "4", EdgeDef{3, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{5, "5", EdgeDef{4, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{6, "6", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{7, "7", EdgeDef{6, ""}, []EdgeDef{{4, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{8, "8", EdgeDef{7, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 }
 
 // 0:    1
@@ -263,14 +263,14 @@ var testNodeDefsTwoLevelsFromOneParentSameRootTwoFakes = []NodeDef{
 // -           |
 // 4:          7
 var testNodeDefsSubtreeBelowLong = []NodeDef{
-	{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{1, "1", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{2, "2", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{3, "3", EdgeDef{2, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{4, "4", EdgeDef{3, ""}, []EdgeDef{{5, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{5, "5", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{6, "6", EdgeDef{5, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{7, "7", EdgeDef{6, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	{0, "top node", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{2, "2", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{3, "3", EdgeDef{2, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{4, "4", EdgeDef{3, ""}, []EdgeDef{{5, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{5, "5", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{6, "6", EdgeDef{5, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{7, "7", EdgeDef{6, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 }
 
 // 0:    1
@@ -283,15 +283,15 @@ var testNodeDefsSubtreeBelowLong = []NodeDef{
 // -     |   /
 // 4:    5
 var testNodeDefsOneNotTwoLevelsDown = []NodeDef{
-	{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{1, "1", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{2, "2", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{3, "3", EdgeDef{2, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{4, "4", EdgeDef{3, ""}, []EdgeDef{{6, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{5, "5", EdgeDef{4, ""}, []EdgeDef{{8, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{6, "6", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{7, "7", EdgeDef{6, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{8, "8", EdgeDef{7, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	{0, "top node", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{2, "2", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{3, "3", EdgeDef{2, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{4, "4", EdgeDef{3, ""}, []EdgeDef{{6, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{5, "5", EdgeDef{4, ""}, []EdgeDef{{8, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{6, "6", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{7, "7", EdgeDef{6, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{8, "8", EdgeDef{7, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 }
 
 // 0:    1
@@ -302,13 +302,13 @@ var testNodeDefsOneNotTwoLevelsDown = []NodeDef{
 // -     | //
 // 3:    4
 var testNodeDefsMultiSecParentPullDown = []NodeDef{
-	{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{1, "1", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{2, "2", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{3, "3", EdgeDef{2, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{4, "4", EdgeDef{3, ""}, []EdgeDef{{5, ""}, {6, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{5, "5", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{6, "6", EdgeDef{5, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	{0, "top node", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{2, "2", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{3, "3", EdgeDef{2, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{4, "4", EdgeDef{3, ""}, []EdgeDef{{5, ""}, {6, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{5, "5", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{6, "6", EdgeDef{5, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 }
 
 // 0:    1   4
@@ -317,32 +317,32 @@ var testNodeDefsMultiSecParentPullDown = []NodeDef{
 // -     |//
 // 2:    3
 var testNodeDefsMultiSecParentNoPullDown = []NodeDef{
-	{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{1, "1", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{2, "2", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{3, "3", EdgeDef{2, ""}, []EdgeDef{{4, ""}, {5, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{4, "4", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{5, "5", EdgeDef{4, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	{0, "top node", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{2, "2", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{3, "3", EdgeDef{2, ""}, []EdgeDef{{4, ""}, {5, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{4, "4", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{5, "5", EdgeDef{4, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 }
 
 // 0:    1
 // - 	  \\\\\\
 // 1:      2 3 4 5 6
 var testNodeDefsDuplicateSecLabels = []NodeDef{
-	{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{1, "1", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	{0, "top node", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 
-	{2, "2", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{3, "3", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{4, "4", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{5, "5", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{6, "6", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	{2, "2", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{3, "3", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{4, "4", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{5, "5", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{6, "6", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 
-	{7, "7", EdgeDef{2, ""}, []EdgeDef{{1, "txt"}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{8, "8", EdgeDef{3, ""}, []EdgeDef{{1, "txt"}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{9, "9", EdgeDef{4, ""}, []EdgeDef{{1, "txt"}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{10, "10", EdgeDef{5, ""}, []EdgeDef{{1, "txt"}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{11, "11", EdgeDef{6, ""}, []EdgeDef{{1, "txt"}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	{7, "7", EdgeDef{2, ""}, []EdgeDef{{1, "txt"}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{8, "8", EdgeDef{3, ""}, []EdgeDef{{1, "txt"}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{9, "9", EdgeDef{4, ""}, []EdgeDef{{1, "txt"}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{10, "10", EdgeDef{5, ""}, []EdgeDef{{1, "txt"}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{11, "11", EdgeDef{6, ""}, []EdgeDef{{1, "txt"}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 }
 
 // 0:    5
@@ -359,19 +359,19 @@ var testNodeDefsDuplicateSecLabels = []NodeDef{
 // -           \  |
 // 6:             12
 var testNodeDefsLayerLongRoots = []NodeDef{
-	{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{1, "1", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{2, "2", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{3, "3", EdgeDef{2, ""}, []EdgeDef{{8, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{4, "4", EdgeDef{3, ""}, []EdgeDef{{6, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{5, "5", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{6, "6", EdgeDef{5, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{7, "7", EdgeDef{6, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{8, "8", EdgeDef{7, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{9, "9", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{10, "10", EdgeDef{9, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{11, "11", EdgeDef{10, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{12, "12", EdgeDef{11, ""}, []EdgeDef{{4, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	{0, "top node", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{2, "2", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{3, "3", EdgeDef{2, ""}, []EdgeDef{{8, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{4, "4", EdgeDef{3, ""}, []EdgeDef{{6, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{5, "5", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{6, "6", EdgeDef{5, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{7, "7", EdgeDef{6, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{8, "8", EdgeDef{7, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{9, "9", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{10, "10", EdgeDef{9, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{11, "11", EdgeDef{10, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{12, "12", EdgeDef{11, ""}, []EdgeDef{{4, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 }
 
 // 0:    1
@@ -382,13 +382,13 @@ var testNodeDefsLayerLongRoots = []NodeDef{
 // -     |\   |\//
 // 3:    4 5  7 8
 var testNodeDefsPriAndSecInfinitePulldown = []NodeDef{
-	{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{1, "1", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{2, "2", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{3, "3", EdgeDef{2, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{4, "4", EdgeDef{3, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{5, "5", EdgeDef{3, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{6, "6", EdgeDef{2, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{7, "7", EdgeDef{6, ""}, []EdgeDef{{2, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
-	{8, "8", EdgeDef{6, ""}, []EdgeDef{{2, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	{0, "top node", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{2, "2", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{3, "3", EdgeDef{2, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{4, "4", EdgeDef{3, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{5, "5", EdgeDef{3, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{6, "6", EdgeDef{2, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{7, "7", EdgeDef{6, ""}, []EdgeDef{{2, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+	{8, "8", EdgeDef{6, ""}, []EdgeDef{{2, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
 }

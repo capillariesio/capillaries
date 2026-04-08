@@ -22,21 +22,31 @@ const (
 	NodeBackgroundPattern
 )
 
-type NodeOptions struct {
-	ThickBorder           bool
-	UseRootColorForText   bool
-	BackgroundType        NodeBackgroundType
-	CustomBackgroundClass string
-}
+type NodeBorderThickness int
+
+const (
+	NodeBorderRegular NodeBorderThickness = iota
+	NodeBorderThick
+)
+
+type NodeTextColorPreference int
+
+const (
+	NodeTextColorDefault NodeTextColorPreference = iota
+	NodeTextColorAsNode
+)
 
 type NodeDef struct {
-	Id      int16
-	Text    string
-	PriIn   EdgeDef
-	SecIn   []EdgeDef
-	IconId  string
-	Color   int32
-	Options NodeOptions
+	Id                    int16
+	Text                  string
+	PriIn                 EdgeDef
+	SecIn                 []EdgeDef
+	IconId                string
+	ColorOverride         int32
+	BorderThickness       NodeBorderThickness
+	TextColorPreference   NodeTextColorPreference // Sometimes, root color text is not very visible, so the user may want to leave it black
+	BackgroundType        NodeBackgroundType
+	CustomBackgroundClass string
 }
 
 func buildPriParentMap(nodeDefs []NodeDef) []int16 {
