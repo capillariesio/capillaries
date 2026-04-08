@@ -15,14 +15,28 @@ type EdgeDef struct {
 	Text  string
 }
 
+type NodeBackgroundType int
+
+const (
+	NodeBackgroundSolid NodeBackgroundType = iota
+	NodeBackgroundPattern
+)
+
+type NodeOptions struct {
+	ThickBorder           bool
+	UseRootColorForText   bool
+	BackgroundType        NodeBackgroundType
+	CustomBackgroundClass string
+}
+
 type NodeDef struct {
-	Id       int16
-	Text     string
-	PriIn    EdgeDef
-	SecIn    []EdgeDef
-	IconId   string
-	Color    int32
-	Selected bool
+	Id      int16
+	Text    string
+	PriIn   EdgeDef
+	SecIn   []EdgeDef
+	IconId  string
+	Color   int32
+	Options NodeOptions
 }
 
 func buildPriParentMap(nodeDefs []NodeDef) []int16 {
@@ -189,7 +203,7 @@ func checkNodeDef(nodeId int16, nodeDefs []NodeDef) error {
 func checkNodeIds(nodeDefs []NodeDef) error {
 	for i := range nodeDefs {
 		if nodeDefs[i].Id != int16(i) {
-			return fmt.Errorf("cannot process node at index %d, it has id %d", i, nodeDefs[i].Id)
+			return fmt.Errorf("cannot process node at index %d, it has id %d; nodes must be arranged by id from 1", i, nodeDefs[i].Id)
 		}
 	}
 	return nil

@@ -1,6 +1,7 @@
 package capigraph
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -540,7 +541,7 @@ func (vnh *VizNodeHierarchy) RemoveDuplicateSecEdgeLabels() {
 
 }
 
-func getBestHierarchy(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions, optimize bool) ([]VizNode, int64, float64, float64, error) {
+func getBestHierarchy(ctx context.Context, nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions, optimize bool) ([]VizNode, int64, float64, float64, error) {
 	priParentMap := buildPriParentMap(nodeDefs)
 	layerMap := buildLayerMap(nodeDefs)
 	rootNodes := buildRootNodeList(priParentMap)
@@ -564,8 +565,8 @@ func getBestHierarchy(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions
 		if err != nil {
 			return nil, int64(0), 0.0, 0.0, err
 		}
-		mxi.MxIterator(func(_ int, mxPerm LayerMx) {
 
+		mxi.MxIterator(ctx, func(_ int, mxPerm LayerMx) {
 			// Hierarchy
 			vnh.reuseRootSubtreeHierarchy(mxPerm)
 
@@ -585,6 +586,10 @@ func getBestHierarchy(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions
 			}
 			mxPermCnt++
 		})
+		deadline, isDeadline := ctx.Deadline()
+		if isDeadline && time.Now().After(deadline) {
+			return nil, int64(0), 0.0, 0.0, errors.New("timeout exceeded")
+		}
 		tElapsed = time.Since(tStart).Seconds()
 
 		if bestMx == nil {

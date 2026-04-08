@@ -1,9 +1,11 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/capillariesio/capillaries/pkg/capigraph"
 	"github.com/capillariesio/capillaries/pkg/custom/pycalc"
@@ -260,13 +262,13 @@ func nodeTypeIcon(node *sc.ScriptNodeDef) string {
 func populateNodeDefs(scriptDef *sc.ScriptDef, nodeStringColorMap map[string]int32) ([]capigraph.NodeDef, map[string]int16) {
 	nodeDefs := make([]capigraph.NodeDef, len(scriptDef.ScriptNodes)+1)
 	nodeDefs[0] = capigraph.NodeDef{
-		Id:       0,
-		Text:     "",
-		PriIn:    capigraph.EdgeDef{},
-		SecIn:    []capigraph.EdgeDef{},
-		IconId:   "",
-		Color:    0,
-		Selected: false}
+		Id:      0,
+		Text:    "",
+		PriIn:   capigraph.EdgeDef{},
+		SecIn:   []capigraph.EdgeDef{},
+		IconId:  "",
+		Color:   0,
+		Options: capigraph.NodeOptions{ThickBorder: false, UseRootColorForText: false}}
 	nodeNameMap := map[string]int16{}
 
 	// Populate nodes. Before that, sort node names, otherwise they may appear on the diagram in random order (when best distances are close)
@@ -308,13 +310,13 @@ func populateNodeDefs(scriptDef *sc.ScriptDef, nodeStringColorMap map[string]int
 			nodeDefText = fmt.Sprintf("%s\n%s\n%s", nodeName, node.Desc, nodeTypeDescription(node))
 		}
 		nodeDefs[nodeIdx] = capigraph.NodeDef{
-			Id:       nodeIdx,
-			Text:     nodeDefText,
-			PriIn:    capigraph.EdgeDef{},
-			SecIn:    []capigraph.EdgeDef{},
-			IconId:   nodeTypeIcon(node),
-			Color:    color,
-			Selected: isReallyStartedManually}
+			Id:      nodeIdx,
+			Text:    nodeDefText,
+			PriIn:   capigraph.EdgeDef{},
+			SecIn:   []capigraph.EdgeDef{},
+			IconId:  nodeTypeIcon(node),
+			Color:   color,
+			Options: capigraph.NodeOptions{ThickBorder: isReallyStartedManually, UseRootColorForText: false}}
 		nodeIdx++
 	}
 	return nodeDefs, nodeNameMap
@@ -426,10 +428,12 @@ func GetCapigraphDiagram(scriptDef *sc.ScriptDef, showIdx bool, showFields bool,
 	if nodeStringColorMap != nil || !useRootPalette {
 		palette = nil
 	}
-	svg, _, _, _, _, errOpt := capigraph.DrawOptimized(nodeDefs, nodeFo, edgeFo, edgeOptions, CapillariesIcons100x100, "", palette)
+	drawCtx, drawCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	svg, _, _, _, _, errOpt := capigraph.Draw(drawCtx, nodeDefs, nodeFo, edgeFo, edgeOptions, CapillariesIcons100x100, "", palette, true)
+	drawCancel()
 	if errOpt != nil {
 		var errUnopt error
-		svg, _, errUnopt = capigraph.DrawUnoptimized(nodeDefs, nodeFo, edgeFo, edgeOptions, CapillariesIcons100x100, "", palette)
+		svg, _, _, _, _, errUnopt = capigraph.Draw(context.TODO(), nodeDefs, nodeFo, edgeFo, edgeOptions, CapillariesIcons100x100, "", palette, false)
 		if errUnopt != nil {
 			svg = fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 500 200">
 <style>{font-family:arial; font-weight:normal; font-size:10px; text-anchor:start; alignment-baseline:hanging; fill:black;}</style>

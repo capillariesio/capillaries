@@ -1,6 +1,7 @@
 package capigraph
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -33,7 +34,7 @@ func helperAll(t *testing.T,
 
 	sbPerms := strings.Builder{}
 	var hierarchyFirst, hierarchyLast string
-	mxi.MxIterator(func(i int, mxPerm LayerMx) {
+	mxi.MxIterator(context.TODO(), func(i int, mxPerm LayerMx) {
 		if sbPerms.Len() != 0 {
 			sbPerms.WriteString(", ")
 		}
@@ -74,7 +75,7 @@ func helperIteratorAndIncrementalCount(t *testing.T,
 	mxi, _ := NewLayerMxPermIterator(nodeDefs, mx)
 
 	cnt := int64(0)
-	mxi.MxIterator(func(_ int, _ LayerMx) {
+	mxi.MxIterator(context.TODO(), func(_ int, _ LayerMx) {
 		cnt++
 	})
 

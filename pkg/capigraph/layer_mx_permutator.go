@@ -1,6 +1,10 @@
 package capigraph
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+	"time"
+)
 
 const MaxAllowedLayerPermutations int64 = 100000000
 
@@ -107,18 +111,23 @@ func harvestRowPermutationSettings(mxi *LayerMxPermIterator, layerIdx int) (int,
 	return totalIntervals, insertStart, insertLen
 }
 
-func (mxi *LayerMxPermIterator) MxIterator(f func(int, LayerMx)) {
-	mxIterRecursive(mxi, 0, 0, f)
+func (mxi *LayerMxPermIterator) MxIterator(ctx context.Context, f func(int, LayerMx)) {
+	mxIterRecursive(ctx, mxi, 0, 0, f)
 }
 
-func mxIterRecursive(mxi *LayerMxPermIterator, layerIdx int, totalCnt int, f func(totalCnt int, perm LayerMx)) {
+func mxIterRecursive(ctx context.Context, mxi *LayerMxPermIterator, layerIdx int, totalCnt int, f func(totalCnt int, perm LayerMx)) {
+	deadline, isDeadline := ctx.Deadline()
+	if isDeadline && time.Now().After(deadline) {
+		return
+	}
+
 	cbInner := func(int, LayerMx) {
 		f(totalCnt, mxi.WorkMx)
 		totalCnt++
 	}
 	cb := func(int, []int16) {
 		mxi.WorkMx[layerIdx] = mxi.Lps[layerIdx].WorkPerm
-		mxIterRecursive(mxi, layerIdx+1, totalCnt, cbInner)
+		mxIterRecursive(ctx, mxi, layerIdx+1, totalCnt, cbInner)
 	}
 	if layerIdx == len(mxi.SrcMx) {
 		f(totalCnt, mxi.WorkMx)
@@ -174,7 +183,7 @@ func mxIterRecursive(mxi *LayerMxPermIterator, layerIdx int, totalCnt int, f fun
 	} else {
 		// No permutations available, just re-use mxi.WorkMx[layerIdx] without modifications
 		// Here, we want to call cb, but without mxi.WorkMx[layerIdx] = mxi.Lps[layerIdx].WorkPerm
-		mxIterRecursive(mxi, layerIdx+1, totalCnt, cbInner)
+		mxIterRecursive(ctx, mxi, layerIdx+1, totalCnt, cbInner)
 	}
 }
 

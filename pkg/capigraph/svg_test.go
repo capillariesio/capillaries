@@ -1,10 +1,12 @@
 package capigraph
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -12,42 +14,42 @@ import (
 // Common MxPermutator and SVG tests
 
 func TestBasicSvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := DrawOptimized(testNodeDefsBasic, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
+	svg, _, totalPermutations, _, bestDist, _ := Draw(context.TODO(), testNodeDefsBasic, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	assert.Equal(t, int64(2), totalPermutations)
 	assert.Equal(t, 72.0, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TrivialParallelSvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := DrawOptimized(testNodeDefsTrivialParallel, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
+	svg, _, totalPermutations, _, bestDist, _ := Draw(context.TODO(), testNodeDefsTrivialParallel, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	assert.Equal(t, int64(2), totalPermutations)
 	assert.Equal(t, 47.2, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestOneEnclosingOneLevelSvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := DrawOptimized(testNodeDefsOneEnclosedOneLevel, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
+	svg, _, totalPermutations, _, bestDist, _ := Draw(context.TODO(), testNodeDefsOneEnclosedOneLevel, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	assert.Equal(t, int64(6), totalPermutations)
 	assert.Equal(t, 144.0, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestOneEnclosedTwoLevelsSvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := DrawOptimized(testNodeDefsOneEnclosedTwoLevels, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
+	svg, _, totalPermutations, _, bestDist, _ := Draw(context.TODO(), testNodeDefsOneEnclosedTwoLevels, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	assert.Equal(t, int64(6), totalPermutations)
 	assert.Equal(t, 144.0, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestNoIntervalsSvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := DrawOptimized(testNodeDefsNoIntervals, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
+	svg, _, totalPermutations, _, bestDist, _ := Draw(context.TODO(), testNodeDefsNoIntervals, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	assert.Equal(t, int64(2), totalPermutations)
 	assert.Equal(t, 0.0, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestFlat10Svg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := DrawOptimized(testNodeDefsFlat10, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
+	svg, _, totalPermutations, _, bestDist, _ := Draw(context.TODO(), testNodeDefsFlat10, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	assert.Equal(t, int64(3628800), totalPermutations)
 	assert.Equal(t, 0.0, bestDist)
 	fmt.Printf("%s\n", svg)
@@ -55,7 +57,7 @@ func TestFlat10Svg(t *testing.T) {
 
 func TestTwoEnclosingTwoLevelsNodeSizeMattersSvg(t *testing.T) {
 	// Only one of 8, 9 is enclosed
-	svg, _, totalPermutations, _, bestDist, _ := DrawOptimized(testNodeDefsTwoEnclosedNodeSizeMatters, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
+	svg, _, totalPermutations, _, bestDist, _ := Draw(context.TODO(), testNodeDefsTwoEnclosedNodeSizeMatters, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	assert.Equal(t, int64(24), totalPermutations)
 	assert.Equal(t, 432.0, bestDist)
 	fmt.Printf("%s\n", svg)
@@ -64,76 +66,76 @@ func TestTwoEnclosingTwoLevelsNodeSizeMattersSvg(t *testing.T) {
 	testNodeDefsTwoEnclosedNodeSizeMatters[4].Text += " wider"
 	testNodeDefsTwoEnclosedNodeSizeMatters[5].Text += " wider"
 
-	svg, _, _, _, bestDist, _ = DrawOptimized(testNodeDefsTwoEnclosedNodeSizeMatters, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
+	svg, _, _, _, bestDist, _ = Draw(context.TODO(), testNodeDefsTwoEnclosedNodeSizeMatters, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	assert.Equal(t, 576.0, math.Round(bestDist*100.0)/100.0)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestOneSecondarySvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := DrawOptimized(testNodeDefsOneSecondary, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
+	svg, _, totalPermutations, _, bestDist, _ := Draw(context.TODO(), testNodeDefsOneSecondary, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	assert.Equal(t, int64(6), totalPermutations)
 	assert.Equal(t, 72.0, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestDiamonSvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := DrawOptimized(testNodeDefsDiamond, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
+	svg, _, totalPermutations, _, bestDist, _ := Draw(context.TODO(), testNodeDefsDiamond, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	assert.Equal(t, int64(24), totalPermutations)
 	assert.Equal(t, 144.0, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestSubtreeBelowLongSvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := DrawOptimized(testNodeDefsSubtreeBelowLong, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
+	svg, _, totalPermutations, _, bestDist, _ := Draw(context.TODO(), testNodeDefsSubtreeBelowLong, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	assert.Equal(t, int64(2), totalPermutations)
 	assert.Equal(t, 72.0, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestOneNotTwoLevelsDownSvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := DrawOptimized(testNodeDefsOneNotTwoLevelsDown, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
+	svg, _, totalPermutations, _, bestDist, _ := Draw(context.TODO(), testNodeDefsOneNotTwoLevelsDown, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	assert.Equal(t, int64(2), totalPermutations)
 	assert.Equal(t, 144.0, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestMultiSecParentPullDownSvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := DrawOptimized(testNodeDefsMultiSecParentPullDown, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
+	svg, _, totalPermutations, _, bestDist, _ := Draw(context.TODO(), testNodeDefsMultiSecParentPullDown, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	assert.Equal(t, int64(2), totalPermutations)
 	assert.Equal(t, 144.0, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestMultiSecParentNoPullDownSvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := DrawOptimized(testNodeDefsMultiSecParentNoPullDown, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
+	svg, _, totalPermutations, _, bestDist, _ := Draw(context.TODO(), testNodeDefsMultiSecParentNoPullDown, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	assert.Equal(t, int64(2), totalPermutations)
 	assert.Equal(t, 144.0, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestTwoLevelsFromOneParentSvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := DrawOptimized(testNodeDefsTwoLevelsFromOneParent, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
+	svg, _, totalPermutations, _, bestDist, _ := Draw(context.TODO(), testNodeDefsTwoLevelsFromOneParent, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	assert.Equal(t, int64(2), totalPermutations)
 	assert.Equal(t, 144.0, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestTwoLevelsFromOneParentSameRootSvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := DrawOptimized(testNodeDefsTwoLevelsFromOneParentSameRoot, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
+	svg, _, totalPermutations, _, bestDist, _ := Draw(context.TODO(), testNodeDefsTwoLevelsFromOneParentSameRoot, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	assert.Equal(t, int64(2), totalPermutations)
 	assert.Equal(t, 72.0, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestTwoLevelsFromOneParentSameRootTwoFakesSvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := DrawOptimized(testNodeDefsTwoLevelsFromOneParentSameRootTwoFakes, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
+	svg, _, totalPermutations, _, bestDist, _ := Draw(context.TODO(), testNodeDefsTwoLevelsFromOneParentSameRootTwoFakes, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	assert.Equal(t, int64(2), totalPermutations)
 	assert.Equal(t, 72.0, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestDuplicateSecLabelsSvg(t *testing.T) {
-	svg, vizNodeMap, totalPermutations, _, bestDist, _ := DrawOptimized(testNodeDefsDuplicateSecLabels, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
+	svg, vizNodeMap, totalPermutations, _, bestDist, _ := Draw(context.TODO(), testNodeDefsDuplicateSecLabels, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	assert.Equal(t, int64(720), totalPermutations)
 	assert.Equal(t, 660.0, bestDist)
 	// Zero-width sec labels to avoid interlapped
@@ -147,33 +149,42 @@ func TestDuplicateSecLabelsSvg(t *testing.T) {
 }
 
 func TestLayerLongRootsSvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := DrawOptimized(testNodeDefsLayerLongRoots, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
+	svg, _, totalPermutations, _, bestDist, _ := Draw(context.TODO(), testNodeDefsLayerLongRoots, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	assert.Equal(t, int64(6), totalPermutations)
 	assert.Equal(t, 216.0, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
 func TestPriAndSecInfinitePulldownSvg(t *testing.T) {
-	svg, _, totalPermutations, _, bestDist, _ := DrawOptimized(testNodeDefsPriAndSecInfinitePulldown, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
+	svg, _, totalPermutations, _, bestDist, _ := Draw(context.TODO(), testNodeDefsPriAndSecInfinitePulldown, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	assert.Equal(t, int64(4), totalPermutations)
 	assert.Equal(t, 144.0, bestDist)
 	fmt.Printf("%s\n", svg)
 }
 
-// Takes 15 seconds, disable for quick testing
-// func Test40milPermsSvg(t *testing.T) {
-// 	defer profile.Start(profile.CPUProfile).Stop()
-// 	svg, _, totalPermutations, _, bestDist, _ := DrawOptimized(testNodeDefs40milPerms, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
-// 	assert.Equal(t, int64(41472000), totalPermutations)
-// 	assert.Equal(t, 84.0, math.Round(bestDist*100.0)/100.0)
-// 	fmt.Printf("%s\n", svg)
-// }
+func Test40milPermsSvg(t *testing.T) {
+	// defer profile.Start(profile.CPUProfile).Stop()
+
+	drawCtx, drawCancel := context.WithTimeout(context.Background(), 3*time.Second)
+	svg, _, totalPermutations, _, bestDist, err := Draw(drawCtx, testNodeDefs40milPerms, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
+	drawCancel()
+	assert.Equal(t, "timeout exceeded", err.Error())
+	assert.Equal(t, int64(0), totalPermutations)
+	assert.Equal(t, 0.0, math.Round(bestDist*100.0)/100.0)
+
+	// This would take 15 sec, too long for a unit test
+	// assert.Equal(t, int64(41472000), totalPermutations)
+	// assert.Equal(t, 84.0, math.Round(bestDist*100.0)/100.0)
+	fmt.Printf("%s\n", svg)
+}
 
 func Test300bilPermsSvg(t *testing.T) {
-	_, _, _, _, _, err := DrawOptimized(testNodeDefs300bilPerms, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
+	_, _, _, _, _, err := Draw(context.TODO(), testNodeDefs300bilPerms, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	assert.Contains(t, err.Error(), "313528320000")
-	svg, _, err := DrawUnoptimized(testNodeDefs300bilPerms, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
-	assert.Equal(t, nil, err)
+	drawCtx, drawCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	svg, _, _, _, _, err := Draw(drawCtx, testNodeDefs300bilPerms, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
+	drawCancel()
+	assert.Contains(t, err.Error(), "313528320000")
 	fmt.Printf("%s\n", svg)
 }
 
@@ -182,7 +193,7 @@ func Test300bilPermsSvg(t *testing.T) {
 // Unoptimized only, too many permutations
 func TestUnoptimizedSvg(t *testing.T) {
 	nodeDefs := make([]NodeDef, 0, 10000)
-	nodeDefs = append(nodeDefs, NodeDef{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, false})
+	nodeDefs = append(nodeDefs, NodeDef{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}})
 	var populateChildren func(parentIdx int, firstChildIdx int, layer int) int
 	populateChildren = func(parentIdx int, firstChildIdx int, layer int) int {
 		if layer == 4 {
@@ -194,7 +205,7 @@ func TestUnoptimizedSvg(t *testing.T) {
 			if firstChildIdx%7 == 0 {
 				parentOverrideIdx = 0
 			}
-			newNode := NodeDef{int16(nextChildIdx), fmt.Sprintf("%d", nextChildIdx), EdgeDef{int16(parentOverrideIdx), ""}, []EdgeDef{}, "", 0, false}
+			newNode := NodeDef{int16(nextChildIdx), fmt.Sprintf("%d", nextChildIdx), EdgeDef{int16(parentOverrideIdx), ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}}
 			if parentOverrideIdx != 0 && firstChildIdx%9 == 0 {
 				newNode.SecIn = append(newNode.SecIn, EdgeDef{int16(firstChildIdx / 2), ""})
 			}
@@ -205,7 +216,7 @@ func TestUnoptimizedSvg(t *testing.T) {
 	}
 	populateChildren(0, 1, 0)
 
-	svg, _, err := DrawUnoptimized(nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
+	svg, _, _, _, _, err := Draw(context.TODO(), nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), false)
 	assert.Equal(t, nil, err)
 	fmt.Printf("%s\n", svg)
 }
@@ -237,7 +248,7 @@ func TestUnoptimizedSvg(t *testing.T) {
 // 	}
 // 	populateChildren(0, 1, 0)
 
-// 	svg, _, totalPermutations, _, _, err := DrawOptimized(nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
+// 	svg, _, totalPermutations, _, _, err := Draw(context.TODO(), nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 // 	assert.Equal(t, int64(3819584), totalPermutations)
 // 	assert.Equal(t, nil, err)
 // 	fmt.Printf("%s\n", svg)
@@ -245,15 +256,15 @@ func TestUnoptimizedSvg(t *testing.T) {
 
 func TestEnclosingOneLevelWideNodes(t *testing.T) {
 	nodeDefs := []NodeDef{
-		{0, "", EdgeDef{}, []EdgeDef{}, "", 0, false},
-		{1, "A1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0, false},
-		{2, "A21\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{1, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A1 to A21"}, []EdgeDef{}, "", 0, false},
-		{3, "A22\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{1, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A1 to A22"}, []EdgeDef{}, "", 0, false},
-		{4, "A31\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{2, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A21 to A31"}, []EdgeDef{{6, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B1 to A31"}}, "", 0, false},
-		{5, "A32\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{3, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A22 to A32"}, []EdgeDef{{6, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B1 to A32"}}, "", 0, false},
-		{6, "B1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0, false},
+		{0, "", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{1, "A1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{2, "A21\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{1, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A1 to A21"}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{3, "A22\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{1, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A1 to A22"}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{4, "A31\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{2, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A21 to A31"}, []EdgeDef{{6, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B1 to A31"}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{5, "A32\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{3, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A22 to A32"}, []EdgeDef{{6, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B1 to A32"}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{6, "B1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
 	}
-	svg, _, totalPermutations, _, bestDist, _ := DrawOptimized(nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
+	svg, _, totalPermutations, _, bestDist, _ := Draw(context.TODO(), nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	assert.Equal(t, int64(6), totalPermutations)
 	assert.Equal(t, 768.0, bestDist)
 	fmt.Printf("%s\n", svg)
@@ -261,24 +272,24 @@ func TestEnclosingOneLevelWideNodes(t *testing.T) {
 
 func TestHalfComplexWithEnclosed(t *testing.T) {
 	nodeDefs := []NodeDef{
-		{0, "", EdgeDef{}, []EdgeDef{}, "", 0, false},
-		{1, "A1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0, false},
-		{2, "A2\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{1, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A1 to A2"}, []EdgeDef{}, "", 0, false},
-		{3, "A31\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{2, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A2 to A31"}, []EdgeDef{{10, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B2 to A31"}}, "", 0, false},
-		{4, "A32\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{2, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A2 to A32"}, []EdgeDef{{14, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C3 to A32"}}, "", 0, false},
-		{5, "A41\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{4, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A32 to A41"}, []EdgeDef{{11, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B3 to A41"}}, "", 0, false},
-		{6, "A42\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{4, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A32 to A42"}, []EdgeDef{{14, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C3 to A42"}}, "", 0, false},
-		{7, "A51\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{5, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A41 to A51"}, []EdgeDef{{15, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom D1 to A51"}}, "", 0, false},
-		{8, "A52\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{6, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A42 to A52"}, []EdgeDef{{15, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom D1 to A52"}}, "", 0, false},
-		{9, "B1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0, false},
-		{10, "B2\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{9, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B1 to B2"}, []EdgeDef{}, "", 0, false},
-		{11, "B3\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{10, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B2 to B3"}, []EdgeDef{}, "", 0, false},
-		{12, "C1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0, false},
-		{13, "C2\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{12, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C1 to C2"}, []EdgeDef{}, "", 0, false},
-		{14, "C3\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{13, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C2 to C3"}, []EdgeDef{}, "", 0, false},
-		{15, "D1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0, false},
+		{0, "", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{1, "A1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{2, "A2\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{1, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A1 to A2"}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{3, "A31\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{2, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A2 to A31"}, []EdgeDef{{10, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B2 to A31"}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{4, "A32\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{2, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A2 to A32"}, []EdgeDef{{14, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C3 to A32"}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{5, "A41\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{4, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A32 to A41"}, []EdgeDef{{11, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B3 to A41"}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{6, "A42\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{4, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A32 to A42"}, []EdgeDef{{14, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C3 to A42"}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{7, "A51\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{5, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A41 to A51"}, []EdgeDef{{15, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom D1 to A51"}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{8, "A52\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{6, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom A42 to A52"}, []EdgeDef{{15, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom D1 to A52"}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{9, "B1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{10, "B2\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{9, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B1 to B2"}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{11, "B3\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{10, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom B2 to B3"}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{12, "C1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{13, "C2\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{12, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C1 to C2"}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{14, "C3\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{13, "Lorem\n\n\nipsum\ndolor\nsit\namet\nfrom C2 to C3"}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{15, "D1\nlorem ipsum dolor sit amet,\nconsectetur adipisci elit,\nsed eiusmod tempor incidunt\nut labore\net dolore magna aliqua", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
 	}
-	svg, _, totalPermutations, _, bestDist, _ := DrawOptimized(nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
+	svg, _, totalPermutations, _, bestDist, _ := Draw(context.TODO(), nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	assert.Equal(t, int64(48), totalPermutations)
 	assert.Equal(t, 3072.0, math.Round(bestDist))
 	fmt.Printf("%s\n", svg)
@@ -286,13 +297,13 @@ func TestHalfComplexWithEnclosed(t *testing.T) {
 
 func TestConflictingSecAndTotalViewboxWidthAdjustedToLabel(t *testing.T) {
 	nodeDefs := []NodeDef{
-		{0, "", EdgeDef{}, []EdgeDef{}, "", 0, false},
-		{1, "A", EdgeDef{}, []EdgeDef{}, "", 0, false},
-		{2, "B", EdgeDef{}, []EdgeDef{}, "", 0, false},
-		{3, "C", EdgeDef{1, "A to C"}, []EdgeDef{{2, "B to ? duplicate going really wide"}}, "", 0, false},
-		{4, "D", EdgeDef{3, "C to D"}, []EdgeDef{{2, "B to ? duplicate going really wide"}}, "", 0, false},
+		{0, "", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{1, "A", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{2, "B", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{3, "C", EdgeDef{1, "A to C"}, []EdgeDef{{2, "B to ? duplicate going really wide"}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{4, "D", EdgeDef{3, "C to D"}, []EdgeDef{{2, "B to ? duplicate going really wide"}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
 	}
-	svg, _, totalPermutations, _, bestDist, _ := DrawOptimized(nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
+	svg, _, totalPermutations, _, bestDist, _ := Draw(context.TODO(), nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), true)
 	assert.Equal(t, int64(2), totalPermutations)
 	assert.Equal(t, 144.0, math.Round(bestDist*100.0)/100.0)
 	fmt.Printf("%s\n", svg)
@@ -300,7 +311,7 @@ func TestConflictingSecAndTotalViewboxWidthAdjustedToLabel(t *testing.T) {
 
 func TestCapillariesIcons(t *testing.T) {
 	nodeDefs := []NodeDef{
-		{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, false},
+		{0, "top node", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
 		{
 			1,
 			"01_read_payments\n" +
@@ -311,7 +322,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-read",
 			0,
-			true,
+			NodeOptions{ThickBorder: true, UseRootColorForText: false},
 		},
 		{
 			2,
@@ -323,7 +334,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-distinct",
 			0,
-			true,
+			NodeOptions{ThickBorder: true, UseRootColorForText: false},
 		},
 		{
 			3,
@@ -335,7 +346,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-distinct",
 			0,
-			true,
+			NodeOptions{ThickBorder: true, UseRootColorForText: false},
 		},
 		{
 			4,
@@ -347,7 +358,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-distinct",
 			0,
-			true,
+			NodeOptions{ThickBorder: true, UseRootColorForText: false},
 		},
 		{
 			5,
@@ -359,7 +370,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{2, "idx_loan_ids_deal_name\n(lookup)"}},
 			"icon-database-table-join",
 			0,
-			true,
+			NodeOptions{ThickBorder: true, UseRootColorForText: false},
 		},
 		{
 			6,
@@ -371,7 +382,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{1, "idx_payments_by_loan_id\n(lookup)"}},
 			"icon-database-table-join",
 			0,
-			true,
+			NodeOptions{ThickBorder: true, UseRootColorForText: false},
 		},
 		{
 			7,
@@ -383,7 +394,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-py",
 			0,
-			true,
+			NodeOptions{ThickBorder: true, UseRootColorForText: false},
 		},
 		{
 			8,
@@ -395,7 +406,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{7, "idx_loan_summaries_calculated_deal_name\n(lookup)\ndeal_name"}},
 			"icon-database-table-join",
 			0,
-			true,
+			NodeOptions{ThickBorder: true, UseRootColorForText: false},
 		},
 		{
 			9,
@@ -407,7 +418,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{7, "idx_loan_summaries_calculated_deal_name\n(lookup)\ndeal_name\nseller_name"}},
 			"icon-database-table-join",
 			0,
-			true,
+			NodeOptions{ThickBorder: true, UseRootColorForText: false},
 		},
 		{
 			10,
@@ -419,7 +430,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-parquet",
 			0,
-			true,
+			NodeOptions{ThickBorder: true, UseRootColorForText: false},
 		},
 		{
 			11,
@@ -431,7 +442,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-parquet",
 			0,
-			true,
+			NodeOptions{ThickBorder: true, UseRootColorForText: false},
 		},
 		{
 			12,
@@ -443,7 +454,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-parquet",
 			0,
-			true,
+			NodeOptions{ThickBorder: true, UseRootColorForText: false},
 		},
 
 		{
@@ -456,7 +467,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-read",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			14,
@@ -468,7 +479,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-distinct",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			15,
@@ -480,7 +491,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-distinct",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			16,
@@ -492,7 +503,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-distinct",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			17,
@@ -504,7 +515,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{14, "idx_loan_ids_deal_name\n(lookup)"}},
 			"icon-database-table-join",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			18,
@@ -516,7 +527,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{13, "idx_payments_by_loan_id\n(lookup)"}},
 			"icon-database-table-join",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			19,
@@ -528,7 +539,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-py",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			20,
@@ -540,7 +551,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{19, "idx_loan_summaries_calculated_deal_name\n(lookup)"}},
 			"icon-database-table-join",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			21,
@@ -552,7 +563,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-join",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			22,
@@ -564,7 +575,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-parquet",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			23,
@@ -576,7 +587,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-parquet",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			24,
@@ -588,7 +599,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-parquet",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 
 		{
@@ -601,7 +612,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-read",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			26,
@@ -613,7 +624,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-distinct",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			27,
@@ -625,7 +636,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-distinct",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			28,
@@ -637,7 +648,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-distinct",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			29,
@@ -649,7 +660,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{26, "idx_loan_ids_deal_name\n(lookup)"}},
 			"icon-database-table-join",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			30,
@@ -661,7 +672,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{25, "idx_payments_by_loan_id\n(lookup)"}},
 			"icon-database-table-join",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			31,
@@ -673,7 +684,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-py",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			32,
@@ -685,7 +696,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{31, "idx_loan_summaries_calculated_deal_name\n(lookup)"}},
 			"icon-database-table-join",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			33,
@@ -697,7 +708,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-join",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			34,
@@ -709,7 +720,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-parquet",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			35,
@@ -721,7 +732,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-parquet",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			36,
@@ -733,7 +744,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-parquet",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 
 		{
@@ -746,7 +757,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-read",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			38,
@@ -758,7 +769,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-distinct",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			39,
@@ -770,7 +781,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-distinct",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			40,
@@ -782,7 +793,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-distinct",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			41,
@@ -794,7 +805,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{38, "idx_loan_ids_deal_name\n(lookup)"}},
 			"icon-database-table-join",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			42,
@@ -806,7 +817,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{37, "idx_payments_by_loan_id\n(lookup)"}},
 			"icon-database-table-join",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			43,
@@ -818,7 +829,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-py",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			44,
@@ -830,7 +841,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{{43, "idx_loan_summaries_calculated_deal_name\n(lookup)"}},
 			"icon-database-table-join",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			45,
@@ -842,7 +853,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-database-table-join",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			46,
@@ -854,7 +865,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-parquet",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			47,
@@ -866,7 +877,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-parquet",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 		{
 			48,
@@ -878,7 +889,7 @@ func TestCapillariesIcons(t *testing.T) {
 			[]EdgeDef{},
 			"icon-parquet",
 			0,
-			false,
+			NodeOptions{ThickBorder: false, UseRootColorForText: false},
 		},
 	}
 	// overrideCss := ".rect-node-background {rx:20; ry:20;} .rect-node {rx:20; ry:20;} .capigraph-rendering-stats {fill:black;}"
@@ -886,7 +897,7 @@ func TestCapillariesIcons(t *testing.T) {
 	// for nodeIdx := range nodeDefs {
 	// 	nodeDefs[nodeIdx].Color = nodeColorMap[nodeIdx%len(nodeColorMap)]
 	// }
-	svg, _, totalPermutations, _, bestDist, _ := DrawOptimized(nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), CapillariesIcons100x100, "" /* overrideCss*/, DefaultPalette())
+	svg, _, totalPermutations, _, bestDist, _ := Draw(context.TODO(), nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), CapillariesIcons100x100, "" /* overrideCss*/, DefaultPalette(), true)
 	assert.Equal(t, int64(31104), totalPermutations)
 	assert.Equal(t, 6618.0, math.Round(bestDist*100.0)/100.0)
 	fmt.Printf("%s\n", svg)
@@ -927,10 +938,114 @@ func TestPrefixTree(t *testing.T) {
 	nodeDefs := make([]NodeDef, len(words))
 	for idx, w := range words {
 		prefix := words[parentMap[idx]]
-		nodeDefs[idx] = NodeDef{int16(idx), w[len(prefix):], EdgeDef{int16(parentMap[idx]), ""}, []EdgeDef{}, "", 0, false}
+		nodeDefs[idx] = NodeDef{int16(idx), w[len(prefix):], EdgeDef{int16(parentMap[idx]), ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}}
 	}
 	// Don't even try optimized, it will ask for fact(51)
-	svg, _, err := DrawUnoptimized(nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette())
+	svg, _, _, _, _, err := Draw(context.TODO(), nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), false)
 	assert.Equal(t, nil, err)
+	fmt.Printf("%s\n", svg)
+}
+
+func TestMonochromeDiamond(t *testing.T) {
+	var testNodeDefsDiamond = []NodeDef{
+		{1, "1", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{2, "2", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{3, "3", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{4, "4", EdgeDef{1, ""}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{5, "5", EdgeDef{3, ""}, []EdgeDef{{4, ""}, {6, ""}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+		{6, "6", EdgeDef{}, []EdgeDef{}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	}
+	svg, _, _, _, _, _ := Draw(context.TODO(), testNodeDefsDiamond, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", nil, true)
+	fmt.Printf("%s\n", svg)
+
+}
+func TestReadmeRootColors(t *testing.T) {
+	const defsToAdd = `
+		<g id="icon-database-table-read">
+			<g transform="scale(0.56) translate(2,61)">
+				<path fill-rule="evenodd"
+				d="M16.49,24.88C24.05,27.41,34.57,29,46.26,29S68.48,27.41,76,24.88c6.63-2.22,10.73-4.9,10.73-7.52S82.67,12.06,76,9.84C68.48,7.33,58,5.75,46.27,5.75S24.06,7.33,16.49,9.84c-14.06,4.7-14.46,10.21,0,15ZM64.91,55.34h48.73a9.27,9.27,0,0,1,9.24,9.24v42.58a9.27,9.27,0,0,1-9.24,9.25H64.91a9.27,9.27,0,0,1-9.24-9.25V64.58a9.27,9.27,0,0,1,9.24-9.24ZM91.09,99.18H118v12H91.09v-12Zm-30.89,0H87.13v12H60.2v-12Zm0-31.89H87.13v12H60.2v-12Zm0,15.94H87.13v12H60.2v-12ZM91.09,67.29H118v12H91.09v-12Zm0,15.94H118v12H91.09v-12ZM5.82,45.77c.52,2.45,4.5,4.91,10.68,7,7.22,2.42,17.16,3.95,28.24,4.08v5.77c-11.67-.13-22.25-1.78-30.05-4.39A35.86,35.86,0,0,1,5.84,54V71.27c.52,2.45,4.5,4.91,10.68,7,7.22,2.4,17.15,3.94,28.22,4.07v5.75c-11.67-.14-22.25-1.78-30.05-4.4A36.08,36.08,0,0,1,5.83,79.5V96.75c.52,2.45,4.51,4.91,10.68,7,7.22,2.41,17.16,4,28.23,4.08v5.75c-11.67-.13-22.24-1.78-30-4.4C10.4,107.72,0,103,0,97.38V95.55C0,69.86,0,43.06,0,17.41c0-5.43,5.61-10,14.66-13C22.82,1.68,34,0,46.27,0S69.7,1.68,77.87,4.41s13.64,6.78,14.55,11.53a3,3,0,0,1,.16,1v28.6H86.8V26.09a36.69,36.69,0,0,1-8.93,4.22c-8.15,2.75-19.31,4.41-31.58,4.41S22.83,33,14.66,30.31A36.26,36.26,0,0,1,5.8,26.14V45.77Z" />
+			</g>
+			<g transform="scale(0.1) translate(540,20)">
+				<path fill-rule="nonzero"
+				d="M117.91 0h201.68c3.93 0 7.44 1.83 9.72 4.67l114.28 123.67c2.21 2.37 3.27 5.4 3.27 8.41l.06 310c0 35.43-29.4 64.81-64.8 64.81H117.91c-35.57 0-64.81-29.24-64.81-64.81V64.8C53.1 29.13 82.23 0 117.91 0zM325.5 37.15v52.94c2.4 31.34 23.57 42.99 52.93 43.5l36.16-.04-89.09-96.4zm96.5 121.3l-43.77-.04c-42.59-.68-74.12-21.97-77.54-66.54l-.09-66.95H117.91c-21.93 0-39.89 17.96-39.89 39.88v381.95c0 21.82 18.07 39.89 39.89 39.89h264.21c21.71 0 39.88-18.15 39.88-39.89v-288.3z" />
+			</g>
+		</g>
+		<g id="icon-database-table-py">
+			<g transform="scale(0.56) translate(2,61)">
+				<path fill-rule="evenodd"
+				d="M16.49,24.88C24.05,27.41,34.57,29,46.26,29S68.48,27.41,76,24.88c6.63-2.22,10.73-4.9,10.73-7.52S82.67,12.06,76,9.84C68.48,7.33,58,5.75,46.27,5.75S24.06,7.33,16.49,9.84c-14.06,4.7-14.46,10.21,0,15ZM64.91,55.34h48.73a9.27,9.27,0,0,1,9.24,9.24v42.58a9.27,9.27,0,0,1-9.24,9.25H64.91a9.27,9.27,0,0,1-9.24-9.25V64.58a9.27,9.27,0,0,1,9.24-9.24ZM91.09,99.18H118v12H91.09v-12Zm-30.89,0H87.13v12H60.2v-12Zm0-31.89H87.13v12H60.2v-12Zm0,15.94H87.13v12H60.2v-12ZM91.09,67.29H118v12H91.09v-12Zm0,15.94H118v12H91.09v-12ZM5.82,45.77c.52,2.45,4.5,4.91,10.68,7,7.22,2.42,17.16,3.95,28.24,4.08v5.77c-11.67-.13-22.25-1.78-30.05-4.39A35.86,35.86,0,0,1,5.84,54V71.27c.52,2.45,4.5,4.91,10.68,7,7.22,2.4,17.15,3.94,28.22,4.07v5.75c-11.67-.14-22.25-1.78-30.05-4.4A36.08,36.08,0,0,1,5.83,79.5V96.75c.52,2.45,4.51,4.91,10.68,7,7.22,2.41,17.16,4,28.23,4.08v5.75c-11.67-.13-22.24-1.78-30-4.4C10.4,107.72,0,103,0,97.38V95.55C0,69.86,0,43.06,0,17.41c0-5.43,5.61-10,14.66-13C22.82,1.68,34,0,46.27,0S69.7,1.68,77.87,4.41s13.64,6.78,14.55,11.53a3,3,0,0,1,.16,1v28.6H86.8V26.09a36.69,36.69,0,0,1-8.93,4.22c-8.15,2.75-19.31,4.41-31.58,4.41S22.83,33,14.66,30.31A36.26,36.26,0,0,1,5.8,26.14V45.77Z" />
+			</g>
+			<g transform="scale(2.1) translate(24,0)">
+				<path d="m9.8594 2.0009c-1.58 0-2.8594 1.2794-2.8594 2.8594v1.6797h4.2891c.39 0 .71094.57094.71094.96094h-7.1406c-1.58 0-2.8594 1.2794-2.8594 2.8594v3.7812c0 1.58 1.2794 2.8594 2.8594 2.8594h1.1797v-2.6797c0-1.58 1.2716-2.8594 2.8516-2.8594h5.25c1.58 0 2.8594-1.2716 2.8594-2.8516v-3.75c0-1.58-1.2794-2.8594-2.8594-2.8594zm-.71875 1.6094c.4 0 .71875.12094.71875.71094s-.31875.89062-.71875.89062c-.39 0-.71094-.30062-.71094-.89062s.32094-.71094.71094-.71094z"/>
+				<path d="m17.959 7v2.6797c0 1.58-1.2696 2.8594-2.8496 2.8594h-5.25c-1.58 0-2.8594 1.2696-2.8594 2.8496v3.75a2.86 2.86 0 0 0 2.8594 2.8613h4.2812a2.86 2.86 0 0 0 2.8594 -2.8613v-1.6797h-4.291c-.39 0-.70898-.56898-.70898-.95898h7.1406a2.86 2.86 0 0 0 2.8594 -2.8613v-3.7793a2.86 2.86 0 0 0 -2.8594 -2.8594zm-9.6387 4.5137-.0039.0039c.01198-.0024.02507-.0016.03711-.0039zm6.5391 7.2754c.39 0 .71094.30062.71094.89062a.71 .71 0 0 1 -.71094 .70898c-.4 0-.71875-.11898-.71875-.70898s.31875-.89062.71875-.89062z"/>
+			</g>
+		</g>
+		<g id="icon-database-table-join">
+			<g transform="scale(0.56) translate(2,61)">
+				<path fill-rule="evenodd"
+				d="M16.49,24.88C24.05,27.41,34.57,29,46.26,29S68.48,27.41,76,24.88c6.63-2.22,10.73-4.9,10.73-7.52S82.67,12.06,76,9.84C68.48,7.33,58,5.75,46.27,5.75S24.06,7.33,16.49,9.84c-14.06,4.7-14.46,10.21,0,15ZM64.91,55.34h48.73a9.27,9.27,0,0,1,9.24,9.24v42.58a9.27,9.27,0,0,1-9.24,9.25H64.91a9.27,9.27,0,0,1-9.24-9.25V64.58a9.27,9.27,0,0,1,9.24-9.24ZM91.09,99.18H118v12H91.09v-12Zm-30.89,0H87.13v12H60.2v-12Zm0-31.89H87.13v12H60.2v-12Zm0,15.94H87.13v12H60.2v-12ZM91.09,67.29H118v12H91.09v-12Zm0,15.94H118v12H91.09v-12ZM5.82,45.77c.52,2.45,4.5,4.91,10.68,7,7.22,2.42,17.16,3.95,28.24,4.08v5.77c-11.67-.13-22.25-1.78-30.05-4.39A35.86,35.86,0,0,1,5.84,54V71.27c.52,2.45,4.5,4.91,10.68,7,7.22,2.4,17.15,3.94,28.22,4.07v5.75c-11.67-.14-22.25-1.78-30.05-4.4A36.08,36.08,0,0,1,5.83,79.5V96.75c.52,2.45,4.51,4.91,10.68,7,7.22,2.41,17.16,4,28.23,4.08v5.75c-11.67-.13-22.24-1.78-30-4.4C10.4,107.72,0,103,0,97.38V95.55C0,69.86,0,43.06,0,17.41c0-5.43,5.61-10,14.66-13C22.82,1.68,34,0,46.27,0S69.7,1.68,77.87,4.41s13.64,6.78,14.55,11.53a3,3,0,0,1,.16,1v28.6H86.8V26.09a36.69,36.69,0,0,1-8.93,4.22c-8.15,2.75-19.31,4.41-31.58,4.41S22.83,33,14.66,30.31A36.26,36.26,0,0,1,5.8,26.14V45.77Z" />
+			</g>
+			<g transform="scale(0.1) translate(500,50)">
+				<path fill-rule="nonzero"
+				d="M303.633 363.721c10.832-11.26 28.745-11.608 40.007-.776 11.26 10.832 11.608 28.745.776 40.006l-91.965 95.954c-5.07 7.72-13.8 12.824-23.727 12.824-1.387 0-2.75-.1-4.079-.296l-.239-.033a28.149 28.149 0 01-15.859-7.649l-96.64-100.8c-10.832-11.261-10.484-29.174.777-40.006s29.174-10.484 40.006.776l47.665 49.733V258.99c0-50.724-20.558-101.577-53.822-139.863-31.152-35.856-73.279-60.35-119.571-62.576C11.355 55.817-.702 42.569.032 26.962.766 11.355 14.014-.702 29.621.032c62.738 3.021 118.895 35.136 159.687 82.086 15.498 17.837 28.798 37.876 39.416 59.302 10.579-21.35 23.828-41.327 39.253-59.121C308.656 35.368 364.703 3.22 427.379.051c15.607-.734 28.855 11.323 29.589 26.93.734 15.607-11.323 28.855-26.93 29.589-46.168 2.335-88.19 26.868-119.285 62.738-33.168 38.253-53.66 89.029-53.66 139.682v153.292l46.54-48.561z" />
+			</g>
+		</g>
+		`
+
+	nodeFontOptions := FontOptions{Typeface: FontTypefaceCourier, Weight: FontWeightNormal, SizeInPixels: 20, Interval: 0.3}
+	edgeLabelFontOptions := FontOptions{Typeface: FontTypefaceArial, Weight: FontWeightNormal, SizeInPixels: 18, Interval: 0.3}
+	edgeOptions := EdgeOptions{StrokeWidth: 2.0}
+	cssOverrides := `.text-node {font-family:Verdana; font-size:16px; fill:gray;}`
+	rootNodePalette := []int32{0x023EFF, 0xFF7C00, 0x1AC938, 0xE8000B, 0x8B2BE2, 0x9F4800, 0xF14CC1, 0xA3A3A3, 0xFFC400, 0x00D7FF} // blue, orange, etc.
+	useRootColorForText := true
+
+	var testDiagramWithOneEnclosedLevel = []NodeDef{
+		{1, "1 - Read\nprimary data\nfrom file", EdgeDef{}, []EdgeDef{}, "icon-database-table-read", 0, NodeOptions{ThickBorder: false, UseRootColorForText: useRootColorForText}},
+		{2, "2 - Apply\n one set of Python formulas\nto primary data", EdgeDef{1, ""}, []EdgeDef{}, "icon-database-table-py", 0, NodeOptions{ThickBorder: true, UseRootColorForText: useRootColorForText}},
+		{3, "3 - Apply\n another set of Python\nformulas to primary data", EdgeDef{1, ""}, []EdgeDef{}, "icon-database-table-py", 0, NodeOptions{ThickBorder: true, UseRootColorForText: useRootColorForText}},
+		{4, "4 - Join\n primary and\nsecondary data", EdgeDef{2, ""}, []EdgeDef{{6, ""}}, "icon-database-table-join", 0, NodeOptions{ThickBorder: false, UseRootColorForText: useRootColorForText}},
+		{5, "5 - Join\n primary and\nsecondary data", EdgeDef{3, ""}, []EdgeDef{{6, ""}}, "icon-database-table-join", 0, NodeOptions{ThickBorder: false, UseRootColorForText: useRootColorForText}},
+		{6, "6 - Read\n secondary data\nfrom file", EdgeDef{}, []EdgeDef{}, "icon-database-table-read", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false}},
+	}
+
+	svg, _, _, _, _, _ := Draw(context.TODO(), testDiagramWithOneEnclosedLevel, nodeFontOptions, edgeLabelFontOptions, edgeOptions, defsToAdd, cssOverrides, rootNodePalette, true)
+	fmt.Printf("%s\n", svg)
+}
+
+func TestReadmeCustomBackground(t *testing.T) {
+	const defsToAdd = `
+    <pattern id="diagonalBlueLines" patternUnits="userSpaceOnUse" width="10" height="10">
+      <line x1="10" y1="0" x2="20" y2="10" stroke="blue" opacity="0.3" stroke-width="2" stroke-linecap="square">
+        <animateTransform attributeType="xml" attributeName="transform" type="translate" from="0 0" to="10 0" begin="0" dur="1" repeatCount="indefinite"/>
+      </line>
+      <line x1="0" y1="0" x2="10" y2="10" stroke="blue" opacity="0.3" stroke-width="2" stroke-linecap="square">
+        <animateTransform attributeType="xml" attributeName="transform" type="translate" from="0 0" to="10 0" begin="0" dur="1" repeatCount="indefinite"/>
+      </line>
+      <line x1="-10" y1="0" x2="0" y2="10" stroke="blue" opacity="0.3" stroke-width="2" stroke-linecap="square">
+        <animateTransform attributeType="xml" attributeName="transform" type="translate" from="0 0" to="10 0" begin="0" dur="1" repeatCount="indefinite"/>
+      </line>
+      <line x1="-20" y1="0" x2="-10" y2="10" stroke="blue" opacity="0.3" stroke-width="2" stroke-linecap="square">
+        <animateTransform attributeType="xml" attributeName="transform" type="translate" from="0 0" to="10 0" begin="0" dur="1" repeatCount="indefinite"/>
+      </line>
+    </pattern>
+    <radialGradient id="redGradient" cx="50%" cy="50%" r="20%">
+      <stop offset="0%" stop-color="red">
+        <animate attributeName="stop-color" values="red;yellow;red" dur="1s" repeatCount="indefinite" />
+        <animate attributeName="offset" values="0%;50%;0%" dur="1s" repeatCount="indefinite" />
+      </stop>
+    </radialGradient>
+`
+	cssOverrides := `.progress-background {	fill:url(#diagonalBlueLines) } .failed-background {	fill:url(#redGradient) }`
+
+	var testNodeDefsOneSecondary = []NodeDef{
+		{1, "1 - Complete", EdgeDef{}, []EdgeDef{}, "", 0x00FF00, NodeOptions{ThickBorder: false, UseRootColorForText: false, BackgroundType: NodeBackgroundSolid}},
+		{2, "2 - Running", EdgeDef{1, "Some\ndata"}, []EdgeDef{}, "", 0x0000FF, NodeOptions{ThickBorder: false, UseRootColorForText: false, BackgroundType: NodeBackgroundPattern, CustomBackgroundClass: "progress-background"}},
+		{3, "3 - Complete", EdgeDef{}, []EdgeDef{}, "", 0x00FF00, NodeOptions{ThickBorder: false, UseRootColorForText: false, BackgroundType: NodeBackgroundSolid}},
+		{4, "4 - Running", EdgeDef{3, "Some\nother\ndata"}, []EdgeDef{}, "", 0x0000FF, NodeOptions{ThickBorder: false, UseRootColorForText: false, BackgroundType: NodeBackgroundPattern, CustomBackgroundClass: "progress-background"}},
+		{5, "5 - Not started", EdgeDef{4, "Some\nprimary\ndata"}, []EdgeDef{{6, "Some\ndata\nto join"}}, "", 0, NodeOptions{ThickBorder: false, UseRootColorForText: false, BackgroundType: NodeBackgroundSolid}},
+		{6, "6 - Failed", EdgeDef{}, []EdgeDef{}, "", 0xFF0000, NodeOptions{ThickBorder: false, UseRootColorForText: false, BackgroundType: NodeBackgroundPattern, CustomBackgroundClass: "failed-background"}},
+	}
+	svg, _, _, _, _, _ := Draw(context.TODO(), testNodeDefsOneSecondary, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), defsToAdd, cssOverrides, nil, true)
 	fmt.Printf("%s\n", svg)
 }
