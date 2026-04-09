@@ -14,6 +14,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
+// See capillaries_capigraph_icons.svg
 const CapillariesIcons100x100 = `
 <g id="icon-database-table-distinct">
   <g transform="scale(0.56) translate(2,61)">
@@ -441,11 +442,11 @@ func GetCapigraphDiagram(scriptDef *sc.ScriptDef, showIdx bool, showFields bool,
 		palette = nil
 	}
 	drawCtx, drawCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	svg, _, _, _, _, errOpt := capigraph.Draw(drawCtx, nodeDefs, nodeFo, edgeFo, edgeOptions, CapillariesIcons100x100, "", palette, true)
+	svg, errOpt := capigraph.Draw(drawCtx, nodeDefs, nodeFo, edgeFo, edgeOptions, CapillariesIcons100x100, "", palette, capigraph.Optimize)
 	drawCancel()
 	if errOpt != nil {
 		var errUnopt error
-		svg, _, _, _, _, errUnopt = capigraph.Draw(context.TODO(), nodeDefs, nodeFo, edgeFo, edgeOptions, CapillariesIcons100x100, "", palette, false)
+		svg, errUnopt = capigraph.Draw(context.TODO(), nodeDefs, nodeFo, edgeFo, edgeOptions, CapillariesIcons100x100, "", palette, capigraph.DoNotOptimize)
 		if errUnopt != nil {
 			svg = fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 500 200">
 <style>{font-family:arial; font-weight:normal; font-size:10px; text-anchor:start; alignment-baseline:hanging; fill:black;}</style>

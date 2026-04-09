@@ -72,7 +72,7 @@ func getStyleColorOverrideForNodeWithOpacity2(attrName string, color int32) stri
 // 	return sb.String()
 
 // }
-func drawEdgeLines(vizNodeMap []VizNode, curItem *VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeOptions, rootStrokeColorMap []int32) string {
+func drawEdgeLines(vizNodeMap []vizNode, curItem *vizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeOptions, rootStrokeColorMap []int32) string {
 	sb := strings.Builder{}
 	if curItem.Def != nil {
 		for _, edge := range curItem.Def.SecIn {
@@ -119,7 +119,7 @@ func drawEdgeLines(vizNodeMap []VizNode, curItem *VizNode, nodeFo FontOptions, e
 	return sb.String()
 }
 
-func drawNodesAndEdgeLabels(vizNodeMap []VizNode, curItem *VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeOptions, rootColorMap []int32) string {
+func drawNodesAndEdgeLabels(vizNodeMap []vizNode, curItem *vizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeOptions, rootColorMap []int32) string {
 	xmlReplacer := strings.NewReplacer("\"", "&quot;", "'", "&apos;", "<", "&lt;", ">", "&gt;", "&", "&amp;")
 	sb := strings.Builder{}
 	if curItem.Def != nil {
@@ -261,7 +261,7 @@ func DefaultPalette() []int32 {
 // 	}
 // }
 
-func buildRootColorMap(vizNodeMap []VizNode, palette []int32) []int32 {
+func buildRootColorMap(vizNodeMap []vizNode, palette []int32) []int32 {
 	rootIds := make([]int16, 0, len(vizNodeMap))
 	rootCountMap := make([]int, len(vizNodeMap))
 	for i := range len(vizNodeMap) - 1 {
@@ -295,7 +295,7 @@ func buildRootColorMap(vizNodeMap []VizNode, palette []int32) []int32 {
 	return rootColorMap
 }
 
-func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeOptions, defsXml string, css string, palette []int32, totalPermutations int64, elapsed float64, bestDist float64) string {
+func drawVizNodes(vizNodeMap []vizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeOptions, defsXml string, css string, palette []int32, totalPermutations int64, elapsed float64, bestDist float64) string {
 	topCoord := math.MaxFloat64
 	bottomCoord := -math.MaxFloat64
 	minLeft := math.MaxFloat64
@@ -404,7 +404,7 @@ func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeO
 	// Nodes and labels
 	sb.WriteString(drawNodesAndEdgeLabels(vizNodeMap, topItem, nodeFo, edgeFo, eo, rootColorMap))
 
-	// Node selections at the z-top
+	// Node selections at the z-top (unused, we now draw outer rect together with the rest of the node)
 	// sb.WriteString(drawNodeSelections(vizNodeMap, nodeFo))
 
 	fmt.Fprintf(&sb, `<text class="capigraph-rendering-stats" x="0" y="0">Perms %d, elapsed %.3fs, dist %.1f</text>`+"\n", totalPermutations, elapsed, bestDist)
@@ -413,77 +413,26 @@ func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeO
 	return sb.String()
 }
 
-func Draw(ctx context.Context, nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions, edgeOptions EdgeOptions, defsOverride string, cssOverride string, palette []int32, optimize bool) (string, []VizNode, int64, float64, float64, error) {
+func Draw(ctx context.Context, nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions, edgeOptions EdgeOptions, defsOverride string, cssOverride string, palette []int32, optimizationMode OptimizationMode) (string, error) {
 	if len(nodeDefs) == 0 {
-		return "", nil, int64(0), 0.0, 0.0, fmt.Errorf("no nodes specified")
+		return "", fmt.Errorf("no nodes specified")
 	}
 	if nodeDefs[0].Id == 1 {
 		nodeDefs = slices.Insert(nodeDefs, 0, NodeDef{0, "top node", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""})
 	}
 	if err := checkNodeIds(nodeDefs); err != nil {
-		return "", nil, int64(0), 0.0, 0.0, err
+		return "", err
 	}
 
 	for i := range len(nodeDefs) - 1 {
 		if err := checkNodeDef(int16(i+1), nodeDefs); err != nil {
-			return "", nil, int64(0), 0.0, 0.0, err
+			return "", err
 		}
 	}
-	vizNodeMap, totalPermutations, elapsed, bestDist, err := getBestHierarchy(ctx, nodeDefs, nodeFo, edgeFo, optimize)
+	vizNodeMap, totalPermutations, elapsed, bestDist, err := getBestHierarchy(ctx, nodeDefs, nodeFo, edgeFo, optimizationMode)
 	if err != nil {
-		return "", nil, int64(0), 0.0, 0.0, err
+		return "", err
 	}
-	svgString := draw(vizNodeMap, nodeFo, edgeFo, edgeOptions, defsOverride, cssOverride, palette, totalPermutations, elapsed, bestDist)
-	return svgString, vizNodeMap, totalPermutations, elapsed, bestDist, nil
+	svgString := drawVizNodes(vizNodeMap, nodeFo, edgeFo, edgeOptions, defsOverride, cssOverride, palette, totalPermutations, elapsed, bestDist)
+	return svgString, nil
 }
-
-/*
-func DrawOptimized(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions, edgeOptions EdgeOptions, defsOverride string, cssOverride string, palette []int32) (string, []VizNode, int64, float64, float64, error) {
-	if len(nodeDefs) == 0 {
-		return "", nil, int64(0), 0.0, 0.0, fmt.Errorf("no nodes specified")
-	}
-	if nodeDefs[0].Id == 1 {
-		nodeDefs = slices.Insert(nodeDefs, 0, NodeDef{0, "top node", EdgeDef{}, nil, "", 0, ThickBorder: false, UseRootColor: false})
-	}
-	if err := checkNodeIds(nodeDefs); err != nil {
-		return "", nil, int64(0), 0.0, 0.0, err
-	}
-
-	for i := range len(nodeDefs) - 1 {
-		if err := checkNodeDef(int16(i+1), nodeDefs); err != nil {
-			return "", nil, int64(0), 0.0, 0.0, err
-		}
-	}
-	vizNodeMap, totalPermutations, elapsed, bestDist, err := getBestHierarchy(nodeDefs, nodeFo, edgeFo, true)
-	if err != nil {
-		return "", nil, int64(0), 0.0, 0.0, err
-	}
-	svgString := draw(vizNodeMap, nodeFo, edgeFo, edgeOptions, defsOverride, cssOverride, palette, totalPermutations, elapsed, bestDist)
-	return svgString, vizNodeMap, totalPermutations, elapsed, bestDist, nil
-}
-
-func DrawUnoptimized(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions, edgeOptions EdgeOptions, defsOverride string, cssOverride string, palette []int32) (string, []VizNode, error) {
-	if len(nodeDefs) == 0 {
-		return "", nil, fmt.Errorf("no nodes specified")
-	}
-	if nodeDefs[0].Id == 1 {
-		nodeDefs = slices.Insert(nodeDefs, 0, NodeDef{0, "top node", EdgeDef{}, nil, "", 0, ThickBorder: false, UseRootColor: false})
-	}
-	if err := checkNodeIds(nodeDefs); err != nil {
-		return "", nil, err
-	}
-
-	for i := range len(nodeDefs) - 1 {
-		if err := checkNodeDef(int16(i+1), nodeDefs); err != nil {
-			return "", nil, err
-		}
-	}
-
-	vizNodeMap, totalPermutations, elapsed, bestDist, err := getBestHierarchy(nodeDefs, nodeFo, edgeFo, false)
-	if err != nil {
-		return "", nil, err
-	}
-	svgString := draw(vizNodeMap, nodeFo, edgeFo, edgeOptions, defsOverride, cssOverride, palette, totalPermutations, elapsed, bestDist)
-	return svgString, vizNodeMap, nil
-}
-*/

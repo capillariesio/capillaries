@@ -583,45 +583,6 @@ func (h *UrlHandler) ksRunViz(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// func (h *UrlHandler) ksRunStatusViz(w http.ResponseWriter, r *http.Request) {
-// 	keyspace, err := getField(r, 0)
-// 	if err != nil {
-// 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
-// 		return
-// 	}
-
-// 	cqlSession, err := db.NewSession(h.Env, keyspace, db.DoNotCreateKeyspaceOnConnect)
-// 	if err != nil {
-// 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
-// 		return
-// 	}
-// 	defer cqlSession.Close()
-
-// 	runIdString, err := getField(r, 1)
-// 	if err != nil {
-// 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
-// 		return
-// 	}
-
-// 	runId, err := strconv.Atoi(runIdString)
-// 	if err != nil {
-// 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
-// 		return
-// 	}
-
-// 	svg, err := h.getViz(h.ScriptCache, h.L, cqlSession, keyspace, int16(runId), true)
-// 	if err != nil {
-// 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
-// 		return
-// 	}
-
-// 	w.Header().Set("content-type", "image/svg+xml")
-// 	w.Header().Set("Access-Control-Allow-Origin", pickAccessControlAllowOrigin(&h.Env.Webapi, r))
-// 	if _, err := w.Write([]byte(svg)); err != nil {
-// 		h.L.Error("cannot write svg response, error %s", err.Error())
-// 	}
-// }
-
 type StartedRunInfo struct {
 	RunId int16 `json:"run_id"`
 }

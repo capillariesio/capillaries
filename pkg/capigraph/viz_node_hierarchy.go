@@ -10,26 +10,33 @@ import (
 	"time"
 )
 
-type RectDimension struct {
+type OptimizationMode int
+
+const (
+	Optimize OptimizationMode = iota
+	DoNotOptimize
+)
+
+type rectDimension struct {
 	W float64
 	H float64
 }
 
-type VizNodeHierarchy struct {
-	VizNodeMap         []VizNode
+type vizNodeHierarchy struct {
+	VizNodeMap         []vizNode
 	NodeDefs           []NodeDef
 	PriParentMap       []int16
 	RootMap            []int16
 	NodeFo             FontOptions
 	EdgeFo             FontOptions
-	NodeDimensionMap   []RectDimension
-	PriEdgeLabelDimMap []RectDimension
-	SecEdgeLabelDimMap [][]RectDimension
+	NodeDimensionMap   []rectDimension
+	PriEdgeLabelDimMap []rectDimension
+	SecEdgeLabelDimMap [][]rectDimension
 	TotalLayers        int
 	UpperLayerGapMap   []float64
 }
 
-func (vnh *VizNodeHierarchy) String() string {
+func (vnh *vizNodeHierarchy) String() string {
 	sb := strings.Builder{}
 	for i, vn := range vnh.VizNodeMap {
 		if i == 0 {
@@ -43,27 +50,27 @@ func (vnh *VizNodeHierarchy) String() string {
 	return sb.String()
 }
 
-func NewVizNodeHierarchy(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions) *VizNodeHierarchy {
-	vnh := VizNodeHierarchy{}
+func NewVizNodeHierarchy(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions) *vizNodeHierarchy {
+	vnh := vizNodeHierarchy{}
 	vnh.NodeDefs = nodeDefs
 	vnh.PriParentMap = buildPriParentMap(nodeDefs)
 	vnh.RootMap = buildNodeToRootMap(vnh.PriParentMap)
 	vnh.NodeFo = nodeFo
 	vnh.EdgeFo = edgeFo
-	vnh.NodeDimensionMap = make([]RectDimension, len(nodeDefs))
+	vnh.NodeDimensionMap = make([]rectDimension, len(nodeDefs))
 	for i := range len(nodeDefs) - 1 {
 		nodeDef := nodeDefs[i+1]
 		vnh.NodeDimensionMap[nodeDef.Id] = getNodeDimensions(&nodeDef, vnh.NodeFo)
 	}
 
-	vnh.PriEdgeLabelDimMap = make([]RectDimension, len(nodeDefs))
-	vnh.SecEdgeLabelDimMap = make([][]RectDimension, len(nodeDefs))
+	vnh.PriEdgeLabelDimMap = make([]rectDimension, len(nodeDefs))
+	vnh.SecEdgeLabelDimMap = make([][]rectDimension, len(nodeDefs))
 	for _, nodeDef := range nodeDefs {
 		if nodeDef.PriIn.SrcId != 0 {
 			w, h := getTextDimensions(nodeDef.PriIn.Text, edgeFo.Typeface, edgeFo.Weight, edgeFo.SizeInPixels, edgeFo.Interval)
 			vnh.PriEdgeLabelDimMap[nodeDef.Id].W, vnh.PriEdgeLabelDimMap[nodeDef.Id].H = getLabelDimensionsFromTextDimensions(w, h, edgeFo.SizeInPixels*LabelTextDimensionMargin)
 		}
-		vnh.SecEdgeLabelDimMap[nodeDef.Id] = make([]RectDimension, len(nodeDef.SecIn))
+		vnh.SecEdgeLabelDimMap[nodeDef.Id] = make([]rectDimension, len(nodeDef.SecIn))
 		for edgeIdx, edgeDef := range nodeDef.SecIn {
 			w, h := getTextDimensions(edgeDef.Text, edgeFo.Typeface, edgeFo.Weight, edgeFo.SizeInPixels, edgeFo.Interval)
 			vnh.SecEdgeLabelDimMap[nodeDef.Id][edgeIdx].W, vnh.SecEdgeLabelDimMap[nodeDef.Id][edgeIdx].H = getLabelDimensionsFromTextDimensions(w, h, edgeFo.SizeInPixels*LabelTextDimensionMargin)
@@ -72,8 +79,8 @@ func NewVizNodeHierarchy(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOpti
 	return &vnh
 }
 
-func (vnh *VizNodeHierarchy) insertRootToNearestParent(rootVizNode *VizNode, leftId int16, rightId int16) {
-	leftParentVisitedMap := make([]*VizNode, len(vnh.VizNodeMap))
+func (vnh *vizNodeHierarchy) insertRootToNearestParent(rootVizNode *vizNode, leftId int16, rightId int16) {
+	leftParentVisitedMap := make([]*vizNode, len(vnh.VizNodeMap))
 
 	// Left branch: walk up and harvest ids
 	leftChildId := leftId
@@ -106,7 +113,7 @@ func (vnh *VizNodeHierarchy) insertRootToNearestParent(rootVizNode *VizNode, lef
 	}
 }
 
-func (vnh *VizNodeHierarchy) insertRoot(rootVizNode *VizNode, perm []int16, idx int) {
+func (vnh *vizNodeHierarchy) insertRoot(rootVizNode *vizNode, perm []int16, idx int) {
 	thisRootId := perm[idx]
 	// Start at the left neighbour, move left
 	i := idx - 1
@@ -135,11 +142,11 @@ func (vnh *VizNodeHierarchy) insertRoot(rootVizNode *VizNode, perm []int16, idx 
 	topItem.PriChildrenAndEnclosedRoots = append(topItem.PriChildrenAndEnclosedRoots, rootVizNode)
 }
 
-func (vnh *VizNodeHierarchy) buildNewRootSubtreeHierarchy(mx LayerMx) {
-	vnh.VizNodeMap = make([]VizNode, len(vnh.NodeDefs))
+func (vnh *vizNodeHierarchy) buildNewRootSubtreeHierarchy(mx LayerMx) {
+	vnh.VizNodeMap = make([]vizNode, len(vnh.NodeDefs))
 	topItem := &(vnh.VizNodeMap[0])
 	topItem.Layer = -1
-	topItem.PriChildrenAndEnclosedRoots = make([]*VizNode, 0, MaxLayerLen)
+	topItem.PriChildrenAndEnclosedRoots = make([]*vizNode, 0, MaxLayerLen)
 
 	vnh.TotalLayers = 0
 	// Initialize static (non-hierarchy-related) properties
@@ -149,33 +156,33 @@ func (vnh *VizNodeHierarchy) buildNewRootSubtreeHierarchy(mx LayerMx) {
 		}
 		for _, nodeId := range row {
 			// Static properties: remain the same regardless of the mx
-			vizNode := &(vnh.VizNodeMap[sanitizeFakeNodeId(nodeId)])
-			vizNode.Def = &(vnh.NodeDefs[sanitizeFakeNodeId(nodeId)])
-			vizNode.RootId = vnh.RootMap[sanitizeFakeNodeId(nodeId)]
+			curVizNode := &(vnh.VizNodeMap[sanitizeFakeNodeId(nodeId)])
+			curVizNode.Def = &(vnh.NodeDefs[sanitizeFakeNodeId(nodeId)])
+			curVizNode.RootId = vnh.RootMap[sanitizeFakeNodeId(nodeId)]
 			if nodeId > FakeNodeBase {
 				// For now, set it to -1, later iteratin will eventually set it to proper layer (where the actual child node resides)
 				// This is not crucial, but may help when troubleshooting
-				vizNode.Layer = -1
+				curVizNode.Layer = -1
 			} else {
 				// This is the real node - the end of fake seq
-				vizNode.Layer = layer
+				curVizNode.Layer = layer
 			}
-			r := vnh.NodeDimensionMap[vizNode.Def.Id]
-			vizNode.NodeW = r.W
-			vizNode.NodeH = r.H
-			incomingEdgesLen := len(vizNode.Def.SecIn)
-			if vizNode.Def.PriIn.SrcId != 0 {
+			r := vnh.NodeDimensionMap[curVizNode.Def.Id]
+			curVizNode.NodeW = r.W
+			curVizNode.NodeH = r.H
+			incomingEdgesLen := len(curVizNode.Def.SecIn)
+			if curVizNode.Def.PriIn.SrcId != 0 {
 				incomingEdgesLen++
 			}
-			vizNode.IncomingVizEdges = make([]VizEdge, incomingEdgesLen) // Just pre-allocate, it will be populated by PopulateEdgeLabelDimensions
+			curVizNode.IncomingVizEdges = make([]vizEdge, incomingEdgesLen) // Just pre-allocate, it will be populated by PopulateEdgeLabelDimensions
 
 			// Properties to change from mx to mx
-			vizNode.PriChildrenAndEnclosedRoots = make([]*VizNode, 0, MaxLayerLen) // No need to fill at the moment, just pre-allocate
+			curVizNode.PriChildrenAndEnclosedRoots = make([]*vizNode, 0, MaxLayerLen) // No need to fill at the moment, just pre-allocate
 		}
 	}
 }
 
-func (vnh *VizNodeHierarchy) reuseRootSubtreeHierarchy(mx LayerMx) {
+func (vnh *vizNodeHierarchy) reuseRootSubtreeHierarchy(mx LayerMx) {
 	vnh.VizNodeMap[0].cleanPropertiesSubjectToPermutation()
 	vnh.VizNodeMap[0].Layer = -1
 
@@ -215,7 +222,7 @@ const NodeTextDimensionMargin float64 = 1.0
 const NodeTextIconInterval float64 = 1.0
 const LabelTextDimensionMargin float64 = 0.5
 
-func getNodeDimensions(nodeDef *NodeDef, fo FontOptions) RectDimension {
+func getNodeDimensions(nodeDef *NodeDef, fo FontOptions) rectDimension {
 	w, h := getTextDimensions(nodeDef.Text, fo.Typeface, fo.Weight, fo.SizeInPixels, fo.Interval)
 	w += float64(fo.SizeInPixels) * NodeTextDimensionMargin * 2 // left+right
 	if nodeDef.IconId != "" {
@@ -223,7 +230,7 @@ func getNodeDimensions(nodeDef *NodeDef, fo FontOptions) RectDimension {
 		w += h + fo.SizeInPixels*NodeTextIconInterval
 	}
 	h += float64(fo.SizeInPixels) * NodeTextDimensionMargin * 2 // top+bottom
-	return RectDimension{w, h}
+	return rectDimension{w, h}
 }
 
 const (
@@ -234,7 +241,7 @@ const (
 	SecEdgeOffsetX                          float64 = 10
 )
 
-func (vnh *VizNodeHierarchy) populateNodeTotalWidthRecursive(vizNode *VizNode) {
+func (vnh *vizNodeHierarchy) populateNodeTotalWidthRecursive(vizNode *vizNode) {
 	// Recursively visit children and add their TotalW to this TotalW
 	for i, childItem := range vizNode.PriChildrenAndEnclosedRoots {
 		vnh.populateNodeTotalWidthRecursive(childItem)
@@ -253,10 +260,10 @@ func (vnh *VizNodeHierarchy) populateNodeTotalWidthRecursive(vizNode *VizNode) {
 	}
 }
 
-func (vnh *VizNodeHierarchy) PopulateNodeTotalWidth() {
+func (vnh *vizNodeHierarchy) PopulateNodeTotalWidth() {
 	vnh.populateNodeTotalWidthRecursive(&vnh.VizNodeMap[0])
 }
-func populateNodeXCoordRecursive(vizNode *VizNode) {
+func populateNodeXCoordRecursive(vizNode *vizNode) {
 	// Decide where to start drawing child items: their cumulative width may be well smaller than parent's
 	cumulativeChildrenAndEnclosedRootsWidth := 0.0
 	for j, childItem := range vizNode.PriChildrenAndEnclosedRoots {
@@ -273,12 +280,12 @@ func populateNodeXCoordRecursive(vizNode *VizNode) {
 	}
 }
 
-func (vnh *VizNodeHierarchy) PopulateNodesXCoords() {
+func (vnh *vizNodeHierarchy) PopulateNodesXCoords() {
 	vnh.VizNodeMap[0].X = 0
 	populateNodeXCoordRecursive(&vnh.VizNodeMap[0])
 }
 
-func (vnh *VizNodeHierarchy) CalculateTotalHorizontalShift() float64 {
+func (vnh *vizNodeHierarchy) CalculateTotalHorizontalShift() float64 {
 	sum := 0.0
 	for i := range len(vnh.VizNodeMap) {
 		tgtVizNode := &vnh.VizNodeMap[i]
@@ -295,7 +302,7 @@ func (vnh *VizNodeHierarchy) CalculateTotalHorizontalShift() float64 {
 }
 
 // Merely copies pre-calculated edge label dimensions to the hierarchy vizitems
-func (vnh *VizNodeHierarchy) PopulateEdgeLabelDimensions() {
+func (vnh *vizNodeHierarchy) PopulateEdgeLabelDimensions() {
 	for i := range len(vnh.VizNodeMap) - 1 {
 		dstVizNode := &(vnh.VizNodeMap[i+1])
 
@@ -303,14 +310,14 @@ func (vnh *VizNodeHierarchy) PopulateEdgeLabelDimensions() {
 		incomingEdgeIdx := 0
 		if dstVizNode.Def.PriIn.SrcId != 0 {
 			labelRectDim := vnh.PriEdgeLabelDimMap[dstVizNode.Def.Id]
-			dstVizNode.IncomingVizEdges[incomingEdgeIdx] = VizEdge{dstVizNode.Def.PriIn, HierarchyPri, 0.0, 0.0, labelRectDim.W, labelRectDim.H}
+			dstVizNode.IncomingVizEdges[incomingEdgeIdx] = vizEdge{dstVizNode.Def.PriIn, HierarchyPri, 0.0, 0.0, labelRectDim.W, labelRectDim.H}
 			incomingEdgeIdx++
 		}
 
 		// Sec edges
 		secLabelRectDims := vnh.SecEdgeLabelDimMap[dstVizNode.Def.Id]
 		for edgeIdx, edge := range dstVizNode.Def.SecIn {
-			dstVizNode.IncomingVizEdges[incomingEdgeIdx] = VizEdge{edge, HierarchySec, 0.0, 0.0, 0.0, 0.0}
+			dstVizNode.IncomingVizEdges[incomingEdgeIdx] = vizEdge{edge, HierarchySec, 0.0, 0.0, 0.0, 0.0}
 			if secLabelRectDims[edgeIdx].W > 0.0 {
 				dstVizNode.IncomingVizEdges[incomingEdgeIdx].W = secLabelRectDims[edgeIdx].W
 				dstVizNode.IncomingVizEdges[incomingEdgeIdx].H = secLabelRectDims[edgeIdx].H
@@ -320,7 +327,7 @@ func (vnh *VizNodeHierarchy) PopulateEdgeLabelDimensions() {
 	}
 }
 
-func (vnh *VizNodeHierarchy) PopulateUpperLayerGapMap(edgeFontSizeInPixels float64) {
+func (vnh *vizNodeHierarchy) PopulateUpperLayerGapMap(edgeFontSizeInPixels float64) {
 	minLayerGap := math.Max(vnh.VizNodeMap[0].TotalW/20.0, vnh.NodeFo.SizeInPixels*3.0) // Purely empiric
 	maxPriEdgeLabelHightMap := slices.Repeat([]float64{-1.0}, vnh.TotalLayers)
 	maxSecEdgeLabelHightMap := slices.Repeat([]float64{-1.0}, vnh.TotalLayers)
@@ -375,7 +382,7 @@ func (vnh *VizNodeHierarchy) PopulateUpperLayerGapMap(edgeFontSizeInPixels float
 	}
 }
 
-func populateLayerHeightsRecursive(vizNode *VizNode, layerHeightMap []float64) {
+func populateLayerHeightsRecursive(vizNode *vizNode, layerHeightMap []float64) {
 	if vizNode.Def != nil {
 		prevCollectedMaxHeight := layerHeightMap[vizNode.Layer]
 		if prevCollectedMaxHeight == -1.0 || prevCollectedMaxHeight < vizNode.NodeH {
@@ -388,7 +395,7 @@ func populateLayerHeightsRecursive(vizNode *VizNode, layerHeightMap []float64) {
 	}
 }
 
-func populateNodeYCoordRecursive(vizNode *VizNode, layerYCoords []float64) {
+func populateNodeYCoordRecursive(vizNode *vizNode, layerYCoords []float64) {
 	if vizNode.Def != nil {
 		vizNode.Y = layerYCoords[vizNode.Layer]
 	}
@@ -397,7 +404,7 @@ func populateNodeYCoordRecursive(vizNode *VizNode, layerYCoords []float64) {
 	}
 }
 
-func (vnh *VizNodeHierarchy) PopulateNodesYCoords() {
+func (vnh *vizNodeHierarchy) PopulateNodesYCoords() {
 	// First, assign all level heights recursively
 	layerHeightMap := slices.Repeat([]float64{-1.0}, vnh.TotalLayers)
 	populateLayerHeightsRecursive(&vnh.VizNodeMap[0], layerHeightMap)
@@ -431,7 +438,7 @@ func getSecOffsetX(startX float64, endX float64, offset float64) (float64, float
 	return SecEdgeOffsetX, SecEdgeOffsetX
 }
 
-func (vnh *VizNodeHierarchy) PopulateEdgeLabelCoords() {
+func (vnh *vizNodeHierarchy) PopulateEdgeLabelCoords() {
 	for i := range len(vnh.VizNodeMap) - 1 {
 		dstVizNode := &vnh.VizNodeMap[i+1]
 
@@ -486,8 +493,8 @@ func (vnh *VizNodeHierarchy) PopulateEdgeLabelCoords() {
 	}
 }
 
-func (vnh *VizNodeHierarchy) RemoveDuplicateSecEdgeLabels() {
-	secLabelsFromItemMap := map[int16]map[string][]*VizEdge{} // Fight srcid->secText duplicates
+func (vnh *vizNodeHierarchy) RemoveDuplicateSecEdgeLabels() {
+	secLabelsFromItemMap := map[int16]map[string][]*vizEdge{} // Fight srcid->secText duplicates
 	for i := range len(vnh.VizNodeMap) - 1 {
 		vizNode := vnh.VizNodeMap[i+1]
 		for j := range vizNode.IncomingVizEdges {
@@ -497,12 +504,12 @@ func (vnh *VizNodeHierarchy) RemoveDuplicateSecEdgeLabels() {
 			}
 			edgeTextMap, ok := secLabelsFromItemMap[e.Edge.SrcId]
 			if !ok {
-				edgeTextMap = map[string][]*VizEdge{}
+				edgeTextMap = map[string][]*vizEdge{}
 				secLabelsFromItemMap[e.Edge.SrcId] = edgeTextMap
 			}
 			_, ok = edgeTextMap[e.Edge.Text]
 			if !ok {
-				edgeTextMap[e.Edge.Text] = make([]*VizEdge, 0, 10)
+				edgeTextMap[e.Edge.Text] = make([]*vizEdge, 0, 10)
 			}
 			edgeTextMap[e.Edge.Text] = append(edgeTextMap[e.Edge.Text], e)
 		}
@@ -510,7 +517,7 @@ func (vnh *VizNodeHierarchy) RemoveDuplicateSecEdgeLabels() {
 
 	for _, edgeTextMap := range secLabelsFromItemMap {
 		for _, edges := range edgeTextMap {
-			slices.SortFunc(edges, func(l, r *VizEdge) int {
+			slices.SortFunc(edges, func(l, r *vizEdge) int {
 				switch {
 				case l.X < r.X:
 					return -1
@@ -541,7 +548,7 @@ func (vnh *VizNodeHierarchy) RemoveDuplicateSecEdgeLabels() {
 
 }
 
-func getBestHierarchy(ctx context.Context, nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions, optimize bool) ([]VizNode, int64, float64, float64, error) {
+func getBestHierarchy(ctx context.Context, nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions, optimizationMode OptimizationMode) ([]vizNode, int64, float64, float64, error) {
 	priParentMap := buildPriParentMap(nodeDefs)
 	layerMap := buildLayerMap(nodeDefs)
 	rootNodes := buildRootNodeList(priParentMap)
@@ -558,7 +565,7 @@ func getBestHierarchy(ctx context.Context, nodeDefs []NodeDef, nodeFo FontOption
 	mxPermCnt := 0
 	bestDistSec := math.MaxFloat64
 	var tElapsed float64
-	if optimize {
+	if optimizationMode == Optimize {
 		bestSignature := "z"
 		tStart := time.Now()
 		mxi, err := NewLayerMxPermIterator(nodeDefs, mx)
