@@ -260,7 +260,7 @@ func (vnh *vizNodeHierarchy) populateNodeTotalWidthRecursive(vizNode *vizNode) {
 	}
 }
 
-func (vnh *vizNodeHierarchy) PopulateNodeTotalWidth() {
+func (vnh *vizNodeHierarchy) populateNodeTotalWidth() {
 	vnh.populateNodeTotalWidthRecursive(&vnh.VizNodeMap[0])
 }
 func populateNodeXCoordRecursive(vizNode *vizNode) {
@@ -280,7 +280,7 @@ func populateNodeXCoordRecursive(vizNode *vizNode) {
 	}
 }
 
-func (vnh *vizNodeHierarchy) PopulateNodesXCoords() {
+func (vnh *vizNodeHierarchy) populateNodesXCoords() {
 	vnh.VizNodeMap[0].X = 0
 	populateNodeXCoordRecursive(&vnh.VizNodeMap[0])
 }
@@ -302,7 +302,7 @@ func (vnh *vizNodeHierarchy) CalculateTotalHorizontalShift() float64 {
 }
 
 // Merely copies pre-calculated edge label dimensions to the hierarchy vizitems
-func (vnh *vizNodeHierarchy) PopulateEdgeLabelDimensions() {
+func (vnh *vizNodeHierarchy) populateEdgeLabelDimensions() {
 	for i := range len(vnh.VizNodeMap) - 1 {
 		dstVizNode := &(vnh.VizNodeMap[i+1])
 
@@ -327,7 +327,7 @@ func (vnh *vizNodeHierarchy) PopulateEdgeLabelDimensions() {
 	}
 }
 
-func (vnh *vizNodeHierarchy) PopulateUpperLayerGapMap(edgeFontSizeInPixels float64) {
+func (vnh *vizNodeHierarchy) populateUpperLayerGapMap(edgeFontSizeInPixels float64) {
 	minLayerGap := math.Max(vnh.VizNodeMap[0].TotalW/20.0, vnh.NodeFo.SizeInPixels*3.0) // Purely empiric
 	maxPriEdgeLabelHightMap := slices.Repeat([]float64{-1.0}, vnh.TotalLayers)
 	maxSecEdgeLabelHightMap := slices.Repeat([]float64{-1.0}, vnh.TotalLayers)
@@ -404,7 +404,7 @@ func populateNodeYCoordRecursive(vizNode *vizNode, layerYCoords []float64) {
 	}
 }
 
-func (vnh *vizNodeHierarchy) PopulateNodesYCoords() {
+func (vnh *vizNodeHierarchy) populateNodesYCoords() {
 	// First, assign all level heights recursively
 	layerHeightMap := slices.Repeat([]float64{-1.0}, vnh.TotalLayers)
 	populateLayerHeightsRecursive(&vnh.VizNodeMap[0], layerHeightMap)
@@ -438,7 +438,7 @@ func getSecOffsetX(startX float64, endX float64, offset float64) (float64, float
 	return SecEdgeOffsetX, SecEdgeOffsetX
 }
 
-func (vnh *vizNodeHierarchy) PopulateEdgeLabelCoords() {
+func (vnh *vizNodeHierarchy) populateEdgeLabelCoords() {
 	for i := range len(vnh.VizNodeMap) - 1 {
 		dstVizNode := &vnh.VizNodeMap[i+1]
 
@@ -493,7 +493,8 @@ func (vnh *vizNodeHierarchy) PopulateEdgeLabelCoords() {
 	}
 }
 
-func (vnh *vizNodeHierarchy) RemoveDuplicateSecEdgeLabels() {
+// Handle duplicate overlapping edge labels (sec edges only)
+func (vnh *vizNodeHierarchy) removeDuplicateSecEdgeLabels() {
 	secLabelsFromItemMap := map[int16]map[string][]*vizEdge{} // Fight srcid->secText duplicates
 	for i := range len(vnh.VizNodeMap) - 1 {
 		vizNode := vnh.VizNodeMap[i+1]
@@ -548,6 +549,7 @@ func (vnh *vizNodeHierarchy) RemoveDuplicateSecEdgeLabels() {
 
 }
 
+// This is the backbone of the library: calculate node positions
 func getBestHierarchy(ctx context.Context, nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions, optimizationMode OptimizationMode) ([]vizNode, int64, float64, float64, error) {
 	priParentMap := buildPriParentMap(nodeDefs)
 	layerMap := buildLayerMap(nodeDefs)
@@ -578,8 +580,8 @@ func getBestHierarchy(ctx context.Context, nodeDefs []NodeDef, nodeFo FontOption
 			vnh.reuseRootSubtreeHierarchy(mxPerm)
 
 			// X coord
-			vnh.PopulateNodeTotalWidth()
-			vnh.PopulateNodesXCoords()
+			vnh.populateNodeTotalWidth()
+			vnh.populateNodesXCoords()
 
 			distSec := vnh.CalculateTotalHorizontalShift()
 			if distSec < bestDistSec {
@@ -611,17 +613,17 @@ func getBestHierarchy(ctx context.Context, nodeDefs []NodeDef, nodeFo FontOption
 	vnh.reuseRootSubtreeHierarchy(bestMx)
 
 	// X coord
-	vnh.PopulateNodeTotalWidth()
-	vnh.PopulateNodesXCoords()
+	vnh.populateNodeTotalWidth()
+	vnh.populateNodesXCoords()
 
 	// Y coord
-	vnh.PopulateEdgeLabelDimensions()
-	vnh.PopulateUpperLayerGapMap(edgeFo.SizeInPixels)
-	vnh.PopulateNodesYCoords()
+	vnh.populateEdgeLabelDimensions()
+	vnh.populateUpperLayerGapMap(edgeFo.SizeInPixels)
+	vnh.populateNodesYCoords()
 
 	// Edge label X and Y
-	vnh.PopulateEdgeLabelCoords()
-	vnh.RemoveDuplicateSecEdgeLabels()
+	vnh.populateEdgeLabelCoords()
+	vnh.removeDuplicateSecEdgeLabels()
 
 	return vnh.VizNodeMap, int64(mxPermCnt), tElapsed, bestDistSec, nil
 }

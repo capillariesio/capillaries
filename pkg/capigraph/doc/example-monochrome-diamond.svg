@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="-10 -10 298 330">
+<defs>
+<marker id="arrow-1" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse" fill="#000000"><path d="M 0 0 L 10 5 L 0 10 z" /></marker>
+<marker id="arrow-2" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse" fill="#000000"><path d="M 0 0 L 10 5 L 0 10 z" /></marker>
+<marker id="arrow-3" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse" fill="#000000"><path d="M 0 0 L 10 5 L 0 10 z" /></marker>
+<marker id="arrow-4" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse" fill="#000000"><path d="M 0 0 L 10 5 L 0 10 z" /></marker>
+<marker id="arrow-5" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse" fill="#000000"><path d="M 0 0 L 10 5 L 0 10 z" /></marker>
+<marker id="arrow-6" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse" fill="#000000"><path d="M 0 0 L 10 5 L 0 10 z" /></marker>
+</defs>
+<style>
+.viz-background {fill:white;opacity:1.0}
+.rect-node-background {fill:white; rx:10; ry:10; stroke-width:0;opacity:0.8}
+.rect-node {fill:none; rx:10; ry:10; stroke:black; stroke-width:1;}
+.rect-selected-node {fill:transparent; rx:10; ry:10; stroke-width:5; stroke:black; opacity:1.0}
+.rect-edge-label-background {fill:white; rx:10; ry:10; stroke-width:0; opacity:0.8;}
+.rect-edge-label-pri {fill:none; rx:10; ry:10; stroke:#606060; stroke-width:1;}
+.rect-edge-label-sec {fill:none; rx:10; ry:10; stroke:#606060; stroke-width:1; stroke-dasharray:5;}
+.text-node {font-family:courier; font-weight:normal; font-size:20px; text-anchor:start; alignment-baseline:hanging; fill:black;stroke-width:0}
+.text-edge-label {font-family:arial; font-weight:normal; font-size:18px; text-anchor:start; alignment-baseline:hanging; fill:#606060;}
+.path-edge-pri {stroke-width:2.00;fill:transparent;stroke:black;}
+.path-edge-sec {stroke-width:2.00;stroke-dasharray:5;fill:transparent;stroke:black;}
+.path-edge-pri-1 {marker-end:url(#arrow-1);stroke:#000000}
+.path-edge-sec-1 {marker-end:url(#arrow-1);stroke:#000000}
+.rect-edge-label-pri-1 {stroke:#000000}
+.rect-edge-label-sec-1 {stroke:#000000}
+.rect-node-background-1 {fill:#FFFFFF;opacity:0.3}
+.rect-node-root-1 {stroke:#000000}
+.rect-selected-node-root-1 {stroke:#000000}
+.text-edge-root-1 {fill:#000000}
+.path-edge-pri-2 {marker-end:url(#arrow-2);stroke:#000000}
+.path-edge-sec-2 {marker-end:url(#arrow-2);stroke:#000000}
+.rect-edge-label-pri-2 {stroke:#000000}
+.rect-edge-label-sec-2 {stroke:#000000}
+.rect-node-background-2 {fill:#FFFFFF;opacity:0.3}
+.path-edge-pri-3 {marker-end:url(#arrow-3);stroke:#000000}
+.path-edge-sec-3 {marker-end:url(#arrow-3);stroke:#000000}
+.rect-edge-label-pri-3 {stroke:#000000}
+.rect-edge-label-sec-3 {stroke:#000000}
+.rect-node-background-3 {fill:#FFFFFF;opacity:0.3}
+.path-edge-pri-4 {marker-end:url(#arrow-4);stroke:#000000}
+.path-edge-sec-4 {marker-end:url(#arrow-4);stroke:#000000}
+.rect-edge-label-pri-4 {stroke:#000000}
+.rect-edge-label-sec-4 {stroke:#000000}
+.rect-node-background-4 {fill:#FFFFFF;opacity:0.3}
+.path-edge-pri-5 {marker-end:url(#arrow-5);stroke:#000000}
+.path-edge-sec-5 {marker-end:url(#arrow-5);stroke:#000000}
+.rect-edge-label-pri-5 {stroke:#000000}
+.rect-edge-label-sec-5 {stroke:#000000}
+.rect-node-background-5 {fill:#FFFFFF;opacity:0.3}
+.path-edge-pri-6 {marker-end:url(#arrow-6);stroke:#000000}
+.path-edge-sec-6 {marker-end:url(#arrow-6);stroke:#000000}
+.rect-edge-label-pri-6 {stroke:#000000}
+.rect-edge-label-sec-6 {stroke:#000000}
+.rect-node-background-6 {fill:#FFFFFF;opacity:0.3}
+.rect-node-root-6 {stroke:#000000}
+.rect-selected-node-root-6 {stroke:#000000}
+.text-edge-root-6 {fill:#000000}
+.capigraph-rendering-stats {font-family:arial; font-weight:normal; font-size:10px; text-anchor:start; alignment-baseline:hanging; fill:transparent;}</style>
+<rect class="viz-background" x="-10" y="-10" width="298" height="330"/>
+<path class="path-edge-pri path-edge-pri-1" d="m134.00,64.00 L26.00,114.00"/>
+<path class="path-edge-pri path-edge-pri-1" d="m134.00,64.00 L170.00,114.00"/>
+<path class="path-edge-pri path-edge-pri-1" d="m170.00,184.00 L170.00,234.00"/>
+<path class="path-edge-sec path-edge-sec-1" d="m232.00,184.00 C221.60,209.00 190.40,209.00 180.00,234.00"/>
+<path class="path-edge-sec path-edge-sec-6" d="m108.00,184.00 C118.40,209.00 149.60,209.00 160.00,234.00"/>
+<path class="path-edge-pri path-edge-pri-1" d="m134.00,64.00 L242.00,114.00"/>
+<a xlink:title="1">
+  <rect class="rect-node-background rect-node-background-1"  x="108.00" y="0.00" width="52.00" height="60.00"/>
+  <rect class="rect-node rect-node-root-1"  x="108.00" y="0.00" width="52.00" height="60.00" pointer-events="none"/>
+  <text class="text-node" x="128.00" y="20.00">1</text>
+</a>
+<a xlink:title="2">
+  <rect class="rect-node-background rect-node-background-1"  x="0.00" y="120.00" width="52.00" height="60.00"/>
+  <rect class="rect-node rect-node-root-1"  x="0.00" y="120.00" width="52.00" height="60.00" pointer-events="none"/>
+  <text class="text-node" x="20.00" y="140.00">2</text>
+</a>
+<a xlink:title="6">
+  <rect class="rect-node-background rect-node-background-6"  x="72.00" y="120.00" width="52.00" height="60.00"/>
+  <rect class="rect-node rect-node-root-6"  x="72.00" y="120.00" width="52.00" height="60.00" pointer-events="none"/>
+  <text class="text-node" x="92.00" y="140.00">6</text>
+</a>
+<a xlink:title="3">
+  <rect class="rect-node-background rect-node-background-1"  x="144.00" y="120.00" width="52.00" height="60.00"/>
+  <rect class="rect-node rect-node-root-1"  x="144.00" y="120.00" width="52.00" height="60.00" pointer-events="none"/>
+  <text class="text-node" x="164.00" y="140.00">3</text>
+</a>
+<a xlink:title="5">
+  <rect class="rect-node-background rect-node-background-1"  x="144.00" y="240.00" width="52.00" height="60.00"/>
+  <rect class="rect-node rect-node-root-1"  x="144.00" y="240.00" width="52.00" height="60.00" pointer-events="none"/>
+  <text class="text-node" x="164.00" y="260.00">5</text>
+</a>
+<a xlink:title="4">
+  <rect class="rect-node-background rect-node-background-1"  x="216.00" y="120.00" width="52.00" height="60.00"/>
+  <rect class="rect-node rect-node-root-1"  x="216.00" y="120.00" width="52.00" height="60.00" pointer-events="none"/>
+  <text class="text-node" x="236.00" y="140.00">4</text>
+</a>
+<text class="capigraph-rendering-stats" x="0" y="0">Perms 24, elapsed 0.000s, dist 144.0</text>
+</svg>

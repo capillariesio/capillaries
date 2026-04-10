@@ -14,7 +14,7 @@ func TestBasicMx(t *testing.T) {
 
 	vnh.buildNewRootSubtreeHierarchy(mx)
 	vnh.reuseRootSubtreeHierarchy(mx)
-	vnh.PopulateNodeTotalWidth()
+	vnh.populateNodeTotalWidth()
 
 	assert.Equal(t, 124.0, vnh.VizNodeMap[0].TotalW)
 	assert.Equal(t, 0.0, vnh.VizNodeMap[0].NodeW)
@@ -32,7 +32,7 @@ func TestBasicMx(t *testing.T) {
 	assert.Equal(t, 52.0, vnh.VizNodeMap[3].NodeW)
 	assert.Equal(t, 60.0, vnh.VizNodeMap[3].NodeH)
 
-	vnh.PopulateNodesXCoords()
+	vnh.populateNodesXCoords()
 
 	assert.Equal(t, 0.0, vnh.VizNodeMap[0].X)
 	assert.Equal(t, 0.0, vnh.VizNodeMap[1].X)
@@ -42,7 +42,7 @@ func TestBasicMx(t *testing.T) {
 	horShift := vnh.CalculateTotalHorizontalShift()
 	assert.Equal(t, 72.0, math.Round(horShift*100)/100.0)
 
-	vnh.PopulateEdgeLabelDimensions()
+	vnh.populateEdgeLabelDimensions()
 
 	assert.Equal(t, int16(1), vnh.VizNodeMap[2].IncomingVizEdges[0].Edge.SrcId)
 	assert.Equal(t, HierarchyPri, vnh.VizNodeMap[2].IncomingVizEdges[0].HierarchyType)
@@ -54,19 +54,19 @@ func TestBasicMx(t *testing.T) {
 	assert.Equal(t, 69.12, vnh.VizNodeMap[2].IncomingVizEdges[1].W)
 	assert.Equal(t, 36.0, vnh.VizNodeMap[2].IncomingVizEdges[1].H)
 
-	vnh.PopulateUpperLayerGapMap(DefaultEdgeLabelFontOptions().SizeInPixels)
+	vnh.populateUpperLayerGapMap(DefaultEdgeLabelFontOptions().SizeInPixels)
 
 	assert.Equal(t, 60.0, vnh.UpperLayerGapMap[0]) // Changed
 	assert.Equal(t, 216.0, vnh.UpperLayerGapMap[1])
 
-	vnh.PopulateNodesYCoords()
+	vnh.populateNodesYCoords()
 
 	assert.Equal(t, 0.0, vnh.VizNodeMap[0].Y)
 	assert.Equal(t, 0.0, vnh.VizNodeMap[1].Y)
 	assert.Equal(t, 276.0, vnh.VizNodeMap[2].Y)
 	assert.Equal(t, 0.0, vnh.VizNodeMap[3].Y)
 
-	vnh.PopulateEdgeLabelCoords()
+	vnh.populateEdgeLabelCoords()
 
 	assert.Equal(t, 26.0, vnh.VizNodeMap[2].IncomingVizEdges[0].X)
 	assert.Equal(t, 240.0, vnh.VizNodeMap[2].IncomingVizEdges[0].Y)

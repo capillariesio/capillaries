@@ -13,12 +13,12 @@ import (
 // 2:    3     5
 func TestTrivial(t *testing.T) {
 	nodeDefs := []NodeDef{
-		{0, "", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
-		{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
-		{2, "2", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
-		{3, "3", EdgeDef{2, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
-		{4, "4", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
-		{5, "5", EdgeDef{4, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{0, "", EdgeDef{}, nil, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""},
+		{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""},
+		{2, "2", EdgeDef{1, "", TextColorDefault}, nil, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""},
+		{3, "3", EdgeDef{2, "", TextColorDefault}, nil, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""},
+		{4, "4", EdgeDef{1, "", TextColorDefault}, nil, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""},
+		{5, "5", EdgeDef{4, "", TextColorDefault}, nil, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""},
 	}
 	priParentMap := buildPriParentMap(nodeDefs)
 
@@ -46,12 +46,12 @@ func TestTrivial(t *testing.T) {
 // 3:    3
 func TestOneFake(t *testing.T) {
 	nodeDefs := []NodeDef{
-		{0, "0", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
-		{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
-		{2, "2", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
-		{3, "3", EdgeDef{2, ""}, []EdgeDef{{5, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
-		{4, "4", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
-		{5, "5", EdgeDef{4, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{0, "0", EdgeDef{}, nil, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""},
+		{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""},
+		{2, "2", EdgeDef{1, "", TextColorDefault}, nil, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""},
+		{3, "3", EdgeDef{2, "", TextColorDefault}, []EdgeDef{{5, "", TextColorDefault}}, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""},
+		{4, "4", EdgeDef{1, "", TextColorDefault}, nil, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""},
+		{5, "5", EdgeDef{4, "", TextColorDefault}, nil, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""},
 	}
 	priParentMap := buildPriParentMap(nodeDefs)
 
@@ -83,13 +83,13 @@ func TestOneFake(t *testing.T) {
 // 4:    3
 func TestTwoFake(t *testing.T) {
 	nodeDefs := []NodeDef{
-		{0, "0", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
-		{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
-		{2, "2", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
-		{3, "3", EdgeDef{2, ""}, []EdgeDef{{6, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
-		{4, "4", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
-		{5, "5", EdgeDef{4, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
-		{6, "6", EdgeDef{5, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{0, "0", EdgeDef{}, nil, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""},
+		{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""},
+		{2, "2", EdgeDef{1, "", TextColorDefault}, nil, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""},
+		{3, "3", EdgeDef{2, "", TextColorDefault}, []EdgeDef{{6, "", TextColorDefault}}, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""},
+		{4, "4", EdgeDef{1, "", TextColorDefault}, nil, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""},
+		{5, "5", EdgeDef{4, "", TextColorDefault}, nil, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""},
+		{6, "6", EdgeDef{5, "", TextColorDefault}, nil, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""},
 	}
 	priParentMap := buildPriParentMap(nodeDefs)
 	mx := LayerMx{
@@ -127,13 +127,13 @@ func TestTwoFake(t *testing.T) {
 // 2:       5
 func TestParentless(t *testing.T) {
 	nodeDefs := []NodeDef{
-		{0, "0", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
-		{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
-		{2, "2", EdgeDef{1, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
-		{3, "3", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
-		{4, "4", EdgeDef{3, ""}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
-		{5, "5", EdgeDef{4, ""}, []EdgeDef{{6, ""}}, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
-		{6, "6", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""},
+		{0, "0", EdgeDef{}, nil, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""},
+		{1, "1", EdgeDef{}, nil, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""},
+		{2, "2", EdgeDef{1, "", TextColorDefault}, nil, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""},
+		{3, "3", EdgeDef{}, nil, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""},
+		{4, "4", EdgeDef{3, "", TextColorDefault}, nil, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""},
+		{5, "5", EdgeDef{4, "", TextColorDefault}, []EdgeDef{{6, "", TextColorDefault}}, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""},
+		{6, "6", EdgeDef{}, nil, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""},
 	}
 	priParentMap := buildPriParentMap(nodeDefs)
 	var mx LayerMx

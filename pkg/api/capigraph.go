@@ -270,7 +270,7 @@ func populateNodeDefs(scriptDef *sc.ScriptDef, nodeStringColorMap map[string]int
 		IconId:                "",
 		ColorOverride:         0,
 		BorderThickness:       capigraph.NodeBorderThick,
-		TextColorPreference:   capigraph.NodeTextColorDefault,
+		TextColorPreference:   capigraph.TextColorDefault,
 		BackgroundType:        capigraph.NodeBackgroundSolid,
 		CustomBackgroundClass: ""}
 	nodeNameMap := map[string]int16{}
@@ -326,7 +326,7 @@ func populateNodeDefs(scriptDef *sc.ScriptDef, nodeStringColorMap map[string]int
 			IconId:                nodeTypeIcon(node),
 			ColorOverride:         color,
 			BorderThickness:       nodeBorderThickness,
-			TextColorPreference:   capigraph.NodeTextColorDefault,
+			TextColorPreference:   capigraph.TextColorDefault,
 			BackgroundType:        capigraph.NodeBackgroundSolid,
 			CustomBackgroundClass: "",
 		}

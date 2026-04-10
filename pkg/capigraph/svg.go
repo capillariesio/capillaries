@@ -168,7 +168,7 @@ func drawNodesAndEdgeLabels(vizNodeMap []vizNode, curItem *vizNode, nodeFo FontO
 			if actualIconSize > 0.0 {
 				textX += actualIconSize + nodeFo.SizeInPixels*NodeTextIconInterval
 			}
-			if curItem.Def.TextColorPreference == NodeTextColorAsNode {
+			if curItem.Def.TextColorPreference == TextColorAsContainer {
 				fmt.Fprintf(&sb, `  <text class="text-node text-node-root-%d" %s x="%.2f" y="%.2f">%s</text>`+"\n",
 					curItem.RootId,
 					getStyleColorOverrideForNode("fill", curItem.Def.ColorOverride),
@@ -200,20 +200,36 @@ func drawNodesAndEdgeLabels(vizNodeMap []vizNode, curItem *vizNode, nodeFo FontO
 					parentItem.RootId,
 					edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H)
 				for i, r := range strings.Split(edgeItem.Edge.Text, "\n") {
-					fmt.Fprintf(&sb, `  <text class="text-edge-label" x="%.2f" y="%.2f">%s</text>`+"\n",
-						edgeItem.X+edgeFo.SizeInPixels*LabelTextDimensionMargin,
-						edgeItem.Y+edgeFo.SizeInPixels*LabelTextDimensionMargin+float64(i)*edgeFo.SizeInPixels*(1+edgeFo.Interval),
-						xmlReplacer.Replace(r))
+					if edgeItem.Edge.TextColorPreference == TextColorAsContainer {
+						fmt.Fprintf(&sb, `  <text class="text-edge-label text-edge-root-%d" x="%.2f" y="%.2f">%s</text>`+"\n",
+							parentItem.RootId,
+							edgeItem.X+edgeFo.SizeInPixels*LabelTextDimensionMargin,
+							edgeItem.Y+edgeFo.SizeInPixels*LabelTextDimensionMargin+float64(i)*edgeFo.SizeInPixels*(1+edgeFo.Interval),
+							xmlReplacer.Replace(r))
+					} else {
+						fmt.Fprintf(&sb, `  <text class="text-edge-label" x="%.2f" y="%.2f">%s</text>`+"\n",
+							edgeItem.X+edgeFo.SizeInPixels*LabelTextDimensionMargin,
+							edgeItem.Y+edgeFo.SizeInPixels*LabelTextDimensionMargin+float64(i)*edgeFo.SizeInPixels*(1+edgeFo.Interval),
+							xmlReplacer.Replace(r))
+					}
 				}
 			case HierarchyPri:
 				fmt.Fprintf(&sb, `  <rect class="rect-edge-label-pri rect-edge-label-pri-%d" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
 					parentItem.RootId,
 					edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H)
 				for i, r := range strings.Split(edgeItem.Edge.Text, "\n") {
-					fmt.Fprintf(&sb, `  <text class="text-edge-label" x="%.2f" y="%.2f">%s</text>`+"\n",
-						edgeItem.X+edgeFo.SizeInPixels*LabelTextDimensionMargin,
-						edgeItem.Y+edgeFo.SizeInPixels*LabelTextDimensionMargin+float64(i)*edgeFo.SizeInPixels*(1+edgeFo.Interval),
-						xmlReplacer.Replace(r))
+					if edgeItem.Edge.TextColorPreference == TextColorAsContainer {
+						fmt.Fprintf(&sb, `  <text class="text-edge-label text-edge-root-%d" x="%.2f" y="%.2f">%s</text>`+"\n",
+							parentItem.RootId,
+							edgeItem.X+edgeFo.SizeInPixels*LabelTextDimensionMargin,
+							edgeItem.Y+edgeFo.SizeInPixels*LabelTextDimensionMargin+float64(i)*edgeFo.SizeInPixels*(1+edgeFo.Interval),
+							xmlReplacer.Replace(r))
+					} else {
+						fmt.Fprintf(&sb, `  <text class="text-edge-label" x="%.2f" y="%.2f">%s</text>`+"\n",
+							edgeItem.X+edgeFo.SizeInPixels*LabelTextDimensionMargin,
+							edgeItem.Y+edgeFo.SizeInPixels*LabelTextDimensionMargin+float64(i)*edgeFo.SizeInPixels*(1+edgeFo.Interval),
+							xmlReplacer.Replace(r))
+					}
 				}
 			default:
 				fmt.Fprintf(&sb, `  <text class="text-edge-label" x="%.2f" y="%.2f">%s</text>`+"\n", edgeItem.X, edgeItem.Y, "unknown pri/sec type")
@@ -354,10 +370,10 @@ func drawVizNodes(vizNodeMap []vizNode, nodeFo FontOptions, edgeFo FontOptions, 
 	sb.WriteString("</defs>\n")
 	sb.WriteString("<style>\n")
 	sb.WriteString(".viz-background {fill:white;opacity:1.0}\n")
-	fmt.Fprintf(&sb, ".rect-node-background {fill:white; rx:%d; ry:%d; stroke-width:0;opacity:0.7}\n", int(nodeFo.SizeInPixels/2), int(nodeFo.SizeInPixels/2))
+	fmt.Fprintf(&sb, ".rect-node-background {fill:white; rx:%d; ry:%d; stroke-width:0;opacity:0.8}\n", int(nodeFo.SizeInPixels/2), int(nodeFo.SizeInPixels/2))
 	fmt.Fprintf(&sb, ".rect-node {fill:none; rx:%d; ry:%d; stroke:black; stroke-width:1;}\n", int(nodeFo.SizeInPixels/2), int(nodeFo.SizeInPixels/2))
 	fmt.Fprintf(&sb, ".rect-selected-node {fill:transparent; rx:%d; ry:%d; stroke-width:%d; stroke:black; opacity:1.0}\n", int(nodeFo.SizeInPixels/2), int(nodeFo.SizeInPixels/2), nodeFo.getSelectedNodeStrokeWidth())
-	sb.WriteString(".rect-edge-label-background {fill:white; rx:10; ry:10; stroke-width:0; opacity:0.7;}\n")
+	sb.WriteString(".rect-edge-label-background {fill:white; rx:10; ry:10; stroke-width:0; opacity:0.8;}\n")
 	sb.WriteString(".rect-edge-label-pri {fill:none; rx:10; ry:10; stroke:#606060; stroke-width:1;}\n")
 	sb.WriteString(".rect-edge-label-sec {fill:none; rx:10; ry:10; stroke:#606060; stroke-width:1; stroke-dasharray:5;}\n")
 	fmt.Fprintf(&sb, ".text-node {font-family:%s; font-weight:%s; font-size:%dpx; text-anchor:start; alignment-baseline:hanging; fill:black;stroke-width:0}\n", FontTypefaceToString(nodeFo.Typeface), FontWeightToString(nodeFo.Weight), int(nodeFo.SizeInPixels))
@@ -379,17 +395,18 @@ func drawVizNodes(vizNodeMap []vizNode, nodeFo FontOptions, edgeFo FontOptions, 
 		fmt.Fprintf(&sb, `.rect-edge-label-pri-%d {stroke:#%s}`+"\n", nodeId, getColorOverride("000000", int16(nodeId), rootColorMap))
 		fmt.Fprintf(&sb, `.rect-edge-label-sec-%d {stroke:#%s}`+"\n", nodeId, getColorOverride("000000", int16(nodeId), rootColorMap))
 
-		// Node color: background, stroke
+		// Solid node color background
 		if vizNodeMap[nodeId].Def.BackgroundType == NodeBackgroundSolid {
-			fmt.Fprintf(&sb, `.rect-node-background-%d {fill:#%s;opacity:0.2}`+"\n", nodeId, getColorOverride("FFFFFF", int16(nodeId), rootColorMap))
+			fmt.Fprintf(&sb, `.rect-node-background-%d {fill:#%s;opacity:0.3}`+"\n", nodeId, getColorOverride("FFFFFF", int16(nodeId), rootColorMap))
 		}
 		// For root nodes, create color classes
 		if nodeId == vizNodeMap[nodeId].RootId {
 			fmt.Fprintf(&sb, `.rect-node-root-%d {stroke:#%s}`+"\n", nodeId, getColorOverride("000000", int16(nodeId), rootColorMap))
 			fmt.Fprintf(&sb, `.rect-selected-node-root-%d {stroke:#%s}`+"\n", nodeId, getColorOverride("000000", int16(nodeId), rootColorMap))
-			if vizNodeMap[nodeId].Def.TextColorPreference == NodeTextColorAsNode {
+			if vizNodeMap[nodeId].Def.TextColorPreference == TextColorAsContainer {
 				fmt.Fprintf(&sb, `.text-node-root-%d {fill:#%s}`+"\n", nodeId, getColorOverride("000000", int16(nodeId), rootColorMap))
 			}
+			fmt.Fprintf(&sb, `.text-edge-root-%d {fill:#%s}`+"\n", nodeId, getColorOverride("000000", int16(nodeId), rootColorMap))
 		}
 	}
 	// Renderingstats
@@ -418,7 +435,7 @@ func Draw(ctx context.Context, nodeDefs []NodeDef, nodeFo FontOptions, edgeFo Fo
 		return "", fmt.Errorf("no nodes specified")
 	}
 	if nodeDefs[0].Id == 1 {
-		nodeDefs = slices.Insert(nodeDefs, 0, NodeDef{0, "top node", EdgeDef{}, nil, "", 0, NodeBorderRegular, NodeTextColorDefault, NodeBackgroundSolid, ""})
+		nodeDefs = slices.Insert(nodeDefs, 0, NodeDef{0, "top node", EdgeDef{}, nil, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""})
 	}
 	if err := checkNodeIds(nodeDefs); err != nil {
 		return "", err

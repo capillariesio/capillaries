@@ -40,11 +40,11 @@ func helperAll(t *testing.T,
 		}
 		fmt.Fprintf(&sbPerms, "{p%d: {%s}}", i, mxPerm.String())
 		vnh.reuseRootSubtreeHierarchy(mxPerm)
-		vnh.PopulateNodeTotalWidth()
-		vnh.PopulateNodesXCoords()
-		vnh.PopulateEdgeLabelDimensions()
-		vnh.PopulateUpperLayerGapMap(DefaultEdgeLabelFontOptions().SizeInPixels)
-		vnh.PopulateNodesYCoords()
+		vnh.populateNodeTotalWidth()
+		vnh.populateNodesXCoords()
+		vnh.populateEdgeLabelDimensions()
+		vnh.populateUpperLayerGapMap(DefaultEdgeLabelFontOptions().SizeInPixels)
+		vnh.populateNodesYCoords()
 		hierarchyString := vnh.String()
 		if hierarchyFirst == "" {
 			hierarchyFirst = hierarchyString

@@ -11,8 +11,9 @@ const MissingRootSubtreeHeight int = -3
 const MissingLayer int = -4
 
 type EdgeDef struct {
-	SrcId int16
-	Text  string
+	SrcId               int16
+	Text                string
+	TextColorPreference TextColorPreference
 }
 
 type NodeBackgroundType int
@@ -29,11 +30,11 @@ const (
 	NodeBorderThick
 )
 
-type NodeTextColorPreference int
+type TextColorPreference int
 
 const (
-	NodeTextColorDefault NodeTextColorPreference = iota
-	NodeTextColorAsNode
+	TextColorDefault TextColorPreference = iota
+	TextColorAsContainer
 )
 
 type NodeDef struct {
@@ -44,7 +45,7 @@ type NodeDef struct {
 	IconId                string
 	ColorOverride         int32
 	BorderThickness       NodeBorderThickness
-	TextColorPreference   NodeTextColorPreference // Sometimes, root color text is not very visible, so the user may want to leave it black
+	TextColorPreference   TextColorPreference // Sometimes, root color text is not very visible, so the user may want to leave it black
 	BackgroundType        NodeBackgroundType
 	CustomBackgroundClass string
 }
