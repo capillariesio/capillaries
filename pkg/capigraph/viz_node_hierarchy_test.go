@@ -10,7 +10,7 @@ import (
 func TestBasicMx(t *testing.T) {
 	mx := LayerMx{{1, 3}, {2}}
 
-	vnh := NewVizNodeHierarchy(testNodeDefsBasic, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions())
+	vnh := newVizNodeHierarchy(testNodeDefsBasic, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions())
 
 	vnh.buildNewRootSubtreeHierarchy(mx)
 	vnh.reuseRootSubtreeHierarchy(mx)

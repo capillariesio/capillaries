@@ -50,7 +50,7 @@ func (vnh *vizNodeHierarchy) String() string {
 	return sb.String()
 }
 
-func NewVizNodeHierarchy(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions) *vizNodeHierarchy {
+func newVizNodeHierarchy(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions) *vizNodeHierarchy {
 	vnh := vizNodeHierarchy{}
 	vnh.NodeDefs = nodeDefs
 	vnh.PriParentMap = buildPriParentMap(nodeDefs)
@@ -559,7 +559,7 @@ func getBestHierarchy(ctx context.Context, nodeDefs []NodeDef, nodeFo FontOption
 		return nil, int64(0), 0.0, 0.0, err
 	}
 
-	vnh := NewVizNodeHierarchy(nodeDefs, nodeFo, edgeFo)
+	vnh := newVizNodeHierarchy(nodeDefs, nodeFo, edgeFo)
 
 	vnh.buildNewRootSubtreeHierarchy(mx)
 

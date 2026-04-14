@@ -2,6 +2,7 @@ package capigraph
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"slices"
@@ -126,15 +127,18 @@ func drawNodesAndEdgeLabels(vizNodeMap []vizNode, curItem *vizNode, nodeFo FontO
 		title := strings.TrimSpace(xmlReplacer.Replace(fmt.Sprintf("%d %s", curItem.Def.Id, curItem.Def.IconId)))
 		fmt.Fprintf(&sb, `<a xlink:title="%s">`+"\n", title)
 		nodeX := curItem.X + curItem.TotalW/2 - curItem.NodeW/2
-		if curItem.Def.BackgroundType == NodeBackgroundSolid {
+		switch curItem.Def.BackgroundType {
+		case NodeBackgroundSolid:
 			fmt.Fprintf(&sb, `  <rect class="rect-node-background rect-node-background-%d" %s x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
 				curItem.RootId,
 				getStyleColorOverrideForNodeWithOpacity2("fill", curItem.Def.ColorOverride),
 				nodeX, curItem.Y, curItem.NodeW, curItem.NodeH)
-		} else if curItem.Def.BackgroundType == NodeBackgroundPattern {
+		case NodeBackgroundPattern:
 			fmt.Fprintf(&sb, `  <rect class="rect-node-background %s" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
 				curItem.Def.CustomBackgroundClass,
 				nodeX, curItem.Y, curItem.NodeW, curItem.NodeH)
+		default:
+
 		}
 		if curItem.Def.BorderThickness == NodeBorderRegular {
 			fmt.Fprintf(&sb, `  <rect class="rect-node rect-node-root-%d" %s x="%.2f" y="%.2f" width="%.2f" height="%.2f" pointer-events="none"/>`+"\n",
@@ -432,7 +436,7 @@ func drawVizNodes(vizNodeMap []vizNode, nodeFo FontOptions, edgeFo FontOptions, 
 
 func Draw(ctx context.Context, nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions, edgeOptions EdgeOptions, defsOverride string, cssOverride string, palette []int32, optimizationMode OptimizationMode) (string, error) {
 	if len(nodeDefs) == 0 {
-		return "", fmt.Errorf("no nodes specified")
+		return "", errors.New("no nodes specified")
 	}
 	if nodeDefs[0].Id == 1 {
 		nodeDefs = slices.Insert(nodeDefs, 0, NodeDef{0, "top node", EdgeDef{}, nil, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""})

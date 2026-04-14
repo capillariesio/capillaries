@@ -197,15 +197,16 @@ func Test40milPermsSvg(t *testing.T) {
 
 // Not a big diagram, but too many permutations
 func Test300bilPermsSvg(t *testing.T) {
-	_, err := Draw(context.TODO(), testNodeDefs300bilPerms, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), Optimize)
+	var err error
+	_, err = Draw(context.TODO(), testNodeDefs300bilPerms, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), Optimize)
 	assert.Contains(t, err.Error(), "313528320000")
 
 	drawCtx, drawCancel := context.WithTimeout(context.Background(), 15*time.Second)
-	svg, err := Draw(drawCtx, testNodeDefs300bilPerms, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), Optimize)
+	_, err = Draw(drawCtx, testNodeDefs300bilPerms, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), Optimize)
 	drawCancel()
 	assert.Contains(t, err.Error(), "313528320000")
 
-	svg, err = Draw(context.TODO(), testNodeDefs300bilPerms, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), DoNotOptimize)
+	svg, err := Draw(context.TODO(), testNodeDefs300bilPerms, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions(), DefaultEdgeOptions(), "", "", DefaultPalette(), DoNotOptimize)
 	assert.Equal(t, nil, err)
 	fmt.Printf("%s\n", svg)
 }
@@ -985,12 +986,13 @@ func TestReadmeMonochromeDiamond(t *testing.T) {
 		{6, "6", EdgeDef{}, nil, "", 0,
 			NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""},
 	}
-	svg, _ := Draw(context.TODO(),
+	svg, err := Draw(context.TODO(),
 		testNodeDefsDiamond,
 		DefaultNodeFontOptions(),
 		DefaultEdgeLabelFontOptions(),
 		DefaultEdgeOptions(),
 		"", "", nil, Optimize)
+	assert.Equal(t, nil, err)
 	fmt.Printf("%s\n", svg)
 }
 
@@ -1072,7 +1074,7 @@ func TestReadmeRootColors(t *testing.T) {
 			NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""},
 	}
 
-	svg, _ := Draw(context.TODO(),
+	svg, err := Draw(context.TODO(),
 		testDiagramWithOneEnclosedLevel,
 		nodeFontOptions,
 		edgeLabelFontOptions,
@@ -1080,6 +1082,7 @@ func TestReadmeRootColors(t *testing.T) {
 		defsToAdd,
 		cssOverrides,
 		rootNodePalette, Optimize)
+	assert.Equal(t, nil, err)
 	fmt.Printf("%s\n", svg)
 }
 
@@ -1155,7 +1158,7 @@ func TestReadmeCustomBackground(t *testing.T) {
 			nil, "", 0xEC0000,
 			NodeBorderRegular, TextColorDefault, NodeBackgroundPattern, "failed-background"},
 	}
-	svg, _ := Draw(context.TODO(),
+	svg, err := Draw(context.TODO(),
 		testNodeDefsOneSecondary,
 		DefaultNodeFontOptions(),
 		DefaultEdgeLabelFontOptions(),
@@ -1164,5 +1167,6 @@ func TestReadmeCustomBackground(t *testing.T) {
 		cssOverrides,
 		nil,
 		Optimize)
+	assert.Equal(t, nil, err)
 	fmt.Printf("%s\n", svg)
 }

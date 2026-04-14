@@ -28,7 +28,7 @@ func helperAll(t *testing.T,
 	assert.Equal(t, expectedStartMx, mx.String())
 
 	mxi, _ := NewLayerMxPermIterator(nodeDefs, mx)
-	vnh := NewVizNodeHierarchy(nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions())
+	vnh := newVizNodeHierarchy(nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions())
 
 	vnh.buildNewRootSubtreeHierarchy(mx)
 
