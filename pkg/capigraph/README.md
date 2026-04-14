@@ -4,9 +4,10 @@ It is pretty opinionated and it is used by Capillaries to draw process diagrams 
 ## Highlights and shortcomings
 
 What it does:
-- DAG only
+- Input: DAG only
+- Output: SVG with toooltips and animations
 - Each node can have zero or one incoming primary edge (solid arrows), and zero or more incoming secondary edges (dashed arrows)
-- Nodes are arranged as if they are executed in stages, top to bottom
+- Nodes are arranged as if they are executed in stages, top to bottom (Capillaries uses these diagrams to visualize batch processing)
 
 The good:
 - Coloring by root node
@@ -16,7 +17,11 @@ The good:
 - User-defined node backgrounds (SVG defs - fill patterns)
 
 The bad:
-- Secondary edges can overlap with nodes and other edges (this is why nodes and edge labels are semi-transparent)
+- Secondary edges can overlap with nodes and edge labels (this is why nodes and edge labels are semi-transparent, unless custom background is 100% opaque), and intersect with other edges
+- Limited font support: Arial, Courier (monospace support is compulsory!), Verdana
+- Limited character width handling, supported Unicode blocks: Basic Latin, Latin-1 Supplement, Latin Extended-A, Latin Extended-B, Greek and Coptic, Cyrillic (fallback character is 'X')
+
+The ugly:
 - Edge labels can overlap with each other (play with font size and node widths to mitigate this)
 
 ## Examples

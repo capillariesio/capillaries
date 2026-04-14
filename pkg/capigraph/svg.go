@@ -191,16 +191,16 @@ func drawNodesAndEdgeLabels(vizNodeMap []vizNode, curItem *vizNode, nodeFo FontO
 			if edgeItem.W == 0.0 {
 				continue
 			}
-			fmt.Fprintf(&sb, `<a xlink:title="%s">`+"\n", strings.TrimSpace(xmlReplacer.Replace(eolReplacer.Replace(edgeItem.Edge.Text))))
-			parentItem := &(vizNodeMap[edgeItem.Edge.SrcId])
+			fmt.Fprintf(&sb, `<a xlink:title="%s">`+"\n", strings.TrimSpace(xmlReplacer.Replace(eolReplacer.Replace(edgeItem.Def.Text))))
+			parentItem := &(vizNodeMap[edgeItem.Def.SrcId])
 			fmt.Fprintf(&sb, `  <rect class="rect-edge-label-background" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n", edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H)
 			switch edgeItem.HierarchyType {
 			case HierarchySec:
 				fmt.Fprintf(&sb, `  <rect class="rect-edge-label-sec rect-edge-label-sec-%d" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
 					parentItem.RootId,
 					edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H)
-				for i, r := range strings.Split(edgeItem.Edge.Text, "\n") {
-					if edgeItem.Edge.TextColorPreference == TextColorAsContainer {
+				for i, r := range strings.Split(edgeItem.Def.Text, "\n") {
+					if edgeItem.Def.TextColorPreference == TextColorAsContainer {
 						fmt.Fprintf(&sb, `  <text class="text-edge-label text-edge-root-%d" x="%.2f" y="%.2f">%s</text>`+"\n",
 							parentItem.RootId,
 							edgeItem.X+edgeFo.SizeInPixels*LabelTextDimensionMargin,
@@ -217,8 +217,8 @@ func drawNodesAndEdgeLabels(vizNodeMap []vizNode, curItem *vizNode, nodeFo FontO
 				fmt.Fprintf(&sb, `  <rect class="rect-edge-label-pri rect-edge-label-pri-%d" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
 					parentItem.RootId,
 					edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H)
-				for i, r := range strings.Split(edgeItem.Edge.Text, "\n") {
-					if edgeItem.Edge.TextColorPreference == TextColorAsContainer {
+				for i, r := range strings.Split(edgeItem.Def.Text, "\n") {
+					if edgeItem.Def.TextColorPreference == TextColorAsContainer {
 						fmt.Fprintf(&sb, `  <text class="text-edge-label text-edge-root-%d" x="%.2f" y="%.2f">%s</text>`+"\n",
 							parentItem.RootId,
 							edgeItem.X+edgeFo.SizeInPixels*LabelTextDimensionMargin,

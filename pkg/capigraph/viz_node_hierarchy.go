@@ -310,14 +310,14 @@ func (vnh *vizNodeHierarchy) populateEdgeLabelDimensions() {
 		incomingEdgeIdx := 0
 		if dstVizNode.Def.PriIn.SrcId != 0 {
 			labelRectDim := vnh.PriEdgeLabelDimMap[dstVizNode.Def.Id]
-			dstVizNode.IncomingVizEdges[incomingEdgeIdx] = vizEdge{dstVizNode.Def.PriIn, HierarchyPri, 0.0, 0.0, labelRectDim.W, labelRectDim.H}
+			dstVizNode.IncomingVizEdges[incomingEdgeIdx] = vizEdge{&dstVizNode.Def.PriIn, HierarchyPri, 0.0, 0.0, labelRectDim.W, labelRectDim.H}
 			incomingEdgeIdx++
 		}
 
 		// Sec edges
 		secLabelRectDims := vnh.SecEdgeLabelDimMap[dstVizNode.Def.Id]
 		for edgeIdx, edge := range dstVizNode.Def.SecIn {
-			dstVizNode.IncomingVizEdges[incomingEdgeIdx] = vizEdge{edge, HierarchySec, 0.0, 0.0, 0.0, 0.0}
+			dstVizNode.IncomingVizEdges[incomingEdgeIdx] = vizEdge{&edge, HierarchySec, 0.0, 0.0, 0.0, 0.0}
 			if secLabelRectDims[edgeIdx].W > 0.0 {
 				dstVizNode.IncomingVizEdges[incomingEdgeIdx].W = secLabelRectDims[edgeIdx].W
 				dstVizNode.IncomingVizEdges[incomingEdgeIdx].H = secLabelRectDims[edgeIdx].H
@@ -343,7 +343,7 @@ func (vnh *vizNodeHierarchy) populateUpperLayerGapMap(edgeFontSizeInPixels float
 			case HierarchySec:
 				// Make sure it's for the correspondent layer,
 				// otherwise it's not gonna work for cases when an edge goes up more than one level
-				layer := vnh.VizNodeMap[edge.Edge.SrcId].Layer + 1
+				layer := vnh.VizNodeMap[edge.Def.SrcId].Layer + 1
 				prevMaxEdgeLabelHeight := maxSecEdgeLabelHightMap[layer]
 				if prevMaxEdgeLabelHeight == -1 || prevMaxEdgeLabelHeight < edge.H {
 					maxSecEdgeLabelHightMap[layer] = edge.H
@@ -452,7 +452,7 @@ func (vnh *vizNodeHierarchy) populateEdgeLabelCoords() {
 			deltaX := endX - startX
 			deltaY := endY - startY
 			for i := range len(dstVizNode.IncomingVizEdges) {
-				if dstVizNode.IncomingVizEdges[i].Edge.SrcId == dstVizNode.Def.PriIn.SrcId {
+				if dstVizNode.IncomingVizEdges[i].Def.SrcId == dstVizNode.Def.PriIn.SrcId {
 					labelCenterY := endY - vnh.EdgeFo.SizeInPixels*2 - dstVizNode.IncomingVizEdges[i].H/2
 					labelCenterX := endX - (endY-labelCenterY)*deltaX/deltaY
 					dstVizNode.IncomingVizEdges[i].Y = labelCenterY - dstVizNode.IncomingVizEdges[i].H/2
@@ -482,7 +482,7 @@ func (vnh *vizNodeHierarchy) populateEdgeLabelCoords() {
 			deltaX := endX - startX
 			deltaY := endY - startY
 			for i := range len(dstVizNode.IncomingVizEdges) {
-				if dstVizNode.IncomingVizEdges[i].Edge.SrcId == edge.SrcId {
+				if dstVizNode.IncomingVizEdges[i].Def.SrcId == edge.SrcId {
 					labelCenterY := startY + vnh.EdgeFo.SizeInPixels*5 + dstVizNode.IncomingVizEdges[i].H/2
 					labelCenterX := startX + (labelCenterY-startY)*deltaX/deltaY
 					dstVizNode.IncomingVizEdges[i].Y = labelCenterY - dstVizNode.IncomingVizEdges[i].H/2
@@ -503,16 +503,16 @@ func (vnh *vizNodeHierarchy) removeDuplicateSecEdgeLabels() {
 			if e.HierarchyType != HierarchySec {
 				continue
 			}
-			edgeTextMap, ok := secLabelsFromItemMap[e.Edge.SrcId]
+			edgeTextMap, ok := secLabelsFromItemMap[e.Def.SrcId]
 			if !ok {
 				edgeTextMap = map[string][]*vizEdge{}
-				secLabelsFromItemMap[e.Edge.SrcId] = edgeTextMap
+				secLabelsFromItemMap[e.Def.SrcId] = edgeTextMap
 			}
-			_, ok = edgeTextMap[e.Edge.Text]
+			_, ok = edgeTextMap[e.Def.Text]
 			if !ok {
-				edgeTextMap[e.Edge.Text] = make([]*vizEdge, 0, 10)
+				edgeTextMap[e.Def.Text] = make([]*vizEdge, 0, 10)
 			}
-			edgeTextMap[e.Edge.Text] = append(edgeTextMap[e.Edge.Text], e)
+			edgeTextMap[e.Def.Text] = append(edgeTextMap[e.Def.Text], e)
 		}
 	}
 

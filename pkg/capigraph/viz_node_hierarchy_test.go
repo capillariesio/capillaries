@@ -44,12 +44,12 @@ func TestBasicMx(t *testing.T) {
 
 	vnh.populateEdgeLabelDimensions()
 
-	assert.Equal(t, int16(1), vnh.VizNodeMap[2].IncomingVizEdges[0].Edge.SrcId)
+	assert.Equal(t, int16(1), vnh.VizNodeMap[2].IncomingVizEdges[0].Def.SrcId)
 	assert.Equal(t, HierarchyPri, vnh.VizNodeMap[2].IncomingVizEdges[0].HierarchyType)
 	assert.Equal(t, 0.0, vnh.VizNodeMap[2].IncomingVizEdges[0].W) // No label text
 	assert.Equal(t, 0.0, vnh.VizNodeMap[2].IncomingVizEdges[0].H) // No label text
 
-	assert.Equal(t, int16(3), vnh.VizNodeMap[2].IncomingVizEdges[1].Edge.SrcId)
+	assert.Equal(t, int16(3), vnh.VizNodeMap[2].IncomingVizEdges[1].Def.SrcId)
 	assert.Equal(t, HierarchySec, vnh.VizNodeMap[2].IncomingVizEdges[1].HierarchyType)
 	assert.Equal(t, 69.12, vnh.VizNodeMap[2].IncomingVizEdges[1].W)
 	assert.Equal(t, 36.0, vnh.VizNodeMap[2].IncomingVizEdges[1].H)

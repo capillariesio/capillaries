@@ -38,7 +38,7 @@ func (vn *vizNode) String() string {
 		if e.HierarchyType == HierarchySec {
 			ht = "sec"
 		}
-		fmt.Fprintf(&sb, "{HT:%s SrcId:%d X:%.2f Y:%.2f W:%.2f H:%.2f}", ht, e.Edge.SrcId, e.X, e.Y, e.W, e.H)
+		fmt.Fprintf(&sb, "{HT:%s SrcId:%d X:%.2f Y:%.2f W:%.2f H:%.2f}", ht, e.Def.SrcId, e.X, e.Y, e.W, e.H)
 	}
 	sb.WriteString("] ")
 	sb.WriteString("PriRootOut:[")
@@ -62,7 +62,7 @@ func (vn *vizNode) cleanPropertiesSubjectToPermutation() {
 }
 
 type vizEdge struct {
-	Edge          EdgeDef
+	Def           *EdgeDef
 	HierarchyType HierarchyType
 	X             float64
 	Y             float64
