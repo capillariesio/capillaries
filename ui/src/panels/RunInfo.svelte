@@ -82,8 +82,8 @@
 		</tbody>
 	</table>
 {/if}
-<br/>
-<br/>
+<br />
+<br />
 {#if Object.keys(run_props).length > 0}
 	<table>
 		<tbody>

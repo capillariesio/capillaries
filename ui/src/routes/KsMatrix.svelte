@@ -1,5 +1,5 @@
 <script>
-	import Tabs from "../Tabs.svelte";
+	import Tabs from '../Tabs.svelte';
 	import { onDestroy, onMount } from 'svelte';
 	import { modals } from 'svelte-modals';
 	import dayjs from 'dayjs';
@@ -102,7 +102,7 @@
 		breadcrumbsPathElements = [
 			{ title: 'Keyspaces', link: rootLink() },
 			{ title: ks_name },
-			{ title: "runs and nodes" }
+			{ title: 'runs and nodes' }
 		];
 		fetchData();
 	});
@@ -117,123 +117,115 @@
 
 	function onNew() {
 		if (webapiData.run_lifespans.length > 0) {
-
 		}
 		modals.open(ModalStartRun, { ks_name: ks_name });
 	}
 	let tabs = [
-    { label: "Runs/nodes matrix",
-		 value: 1,
-		 component: tabMatrix
-		},
-		{ label: "Script node diagram",
-		 value: 2,
-		 component: tabViz
-		}
+		{ label: 'Runs/nodes matrix', value: 1, component: tabMatrix },
+		{ label: 'Script node diagram', value: 2, component: tabViz }
 	];
 </script>
 
 <!-- eslint-disable-next-line -->
 {#snippet tabMatrix()}
-<table>
-	<thead>
-		<tr>
-			<th>Nodes ({webapiData.nodes.length}) \ Runs ({webapiData.run_lifespans.length})</th>
-			{#each webapiData.run_lifespans as ls}
-				<th>
-					<a href={ksRunNodeHistoryLink(ks_name, ls.run_id)} title="Run {ls.run_id}">
-						{ls.run_id}
-						<br />
-						<img
-							src={runStatusToIconLink(ls.final_status)}
-							title={runStatusToText(ls.final_status)}
-							alt=""
-							style="margin-left:0px;"
-						/>
-					</a>
-				</th>
-			{/each}
-			<th
-				><button
-					title="Opens a popup to specify parameters (keyspace, script URL etc) for a new run"
-					onclick={onNew}>New</button
-				>
-			</th>
-		</tr>
-	</thead>
-	<tbody>
-		<tr>
-			<td></td>
-			{#each webapiData.run_lifespans as ls}
-				<td style="font-size:small;">{ls.elapsed}s</td>
-			{/each}
-			<td>&nbsp;</td>
-		</tr>
-		<tr>
-			<td></td>
-			{#each webapiData.run_lifespans as ls}
-				<td
-					>{#if ls.final_status != 3}<button
-							onclick={() => {
-								onStop(ls.run_id);
-							}}
-							title={ls.final_status === 1
-								? 'Stop run'
-								: 'Invalidate the results of a complete run so they cannot be used in depending runs'}
-							>{#if ls.final_status === 1}Stop{:else}Invalidate{/if}</button
-						>{:else}&nbsp;{/if}</td
-				>
-			{/each}
-			<td>&nbsp;</td>
-		</tr>
-		{#each webapiData.nodes as node}
+	<table>
+		<thead>
 			<tr>
-				<td>{node.node_name}: {node.node_desc}</td>
-				{#each node.node_statuses as ns}
-					<td>
-						{#if ns.status > 0}
-							<a href={ksRunNodeBatchHistoryLink(ks_name, ns.run_id, node.node_name)}>
-								<img
-									src={nodeStatusToIconLink(ns.status)}
-									title={nodeStatusToText(ns.status) + ' - ' + dayjs(ns.ts).format()}
-									alt=""
-								/>
-							</a>
-						{/if}
-					</td>
+				<th>Nodes ({webapiData.nodes.length}) \ Runs ({webapiData.run_lifespans.length})</th>
+				{#each webapiData.run_lifespans as ls}
+					<th>
+						<a href={ksRunNodeHistoryLink(ks_name, ls.run_id)} title="Run {ls.run_id}">
+							{ls.run_id}
+							<br />
+							<img
+								src={runStatusToIconLink(ls.final_status)}
+								title={runStatusToText(ls.final_status)}
+								alt=""
+								style="margin-left:0px;"
+							/>
+						</a>
+					</th>
+				{/each}
+				<th
+					><button
+						title="Opens a popup to specify parameters (keyspace, script URL etc) for a new run"
+						onclick={onNew}>New</button
+					>
+				</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td></td>
+				{#each webapiData.run_lifespans as ls}
+					<td style="font-size:small;">{ls.elapsed}s</td>
 				{/each}
 				<td>&nbsp;</td>
 			</tr>
-		{/each}
-	</tbody>
-</table>
+			<tr>
+				<td></td>
+				{#each webapiData.run_lifespans as ls}
+					<td
+						>{#if ls.final_status != 3}<button
+								onclick={() => {
+									onStop(ls.run_id);
+								}}
+								title={ls.final_status === 1
+									? 'Stop run'
+									: 'Invalidate the results of a complete run so they cannot be used in depending runs'}
+								>{#if ls.final_status === 1}Stop{:else}Invalidate{/if}</button
+							>{:else}&nbsp;{/if}</td
+					>
+				{/each}
+				<td>&nbsp;</td>
+			</tr>
+			{#each webapiData.nodes as node}
+				<tr>
+					<td>{node.node_name}: {node.node_desc}</td>
+					{#each node.node_statuses as ns}
+						<td>
+							{#if ns.status > 0}
+								<a href={ksRunNodeBatchHistoryLink(ks_name, ns.run_id, node.node_name)}>
+									<img
+										src={nodeStatusToIconLink(ns.status)}
+										title={nodeStatusToText(ns.status) + ' - ' + dayjs(ns.ts).format()}
+										alt=""
+									/>
+								</a>
+							{/if}
+						</td>
+					{/each}
+					<td>&nbsp;</td>
+				</tr>
+			{/each}
+		</tbody>
+	</table>
 {/snippet}
 
 {#snippet tabViz()}
-<p style="color:red;">{svgError}</p>
-{#if webapiData.run_lifespans.length > 0}
-	<p>
-		This diagram is static. To see it in a separate window, click <a
-			target="_blank"
-			href={scriptVizUrl(ks_name, webapiData.run_lifespans[0].run_id, false)}>here</a
-		>
-		for black and white, click
-		<a target="_blank" href={scriptVizUrl(ks_name, webapiData.run_lifespans[0].run_id, true)}
-			>here</a
-		> for colored by root node.
-	</p>
-{/if}
-<div style="width:100%">
-	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-	{@html svgScriptViz}
-</div>
+	<p style="color:red;">{svgError}</p>
+	{#if webapiData.run_lifespans.length > 0}
+		<p>
+			This diagram is static. To see it in a separate window, click <a
+				target="_blank"
+				href={scriptVizUrl(ks_name, webapiData.run_lifespans[0].run_id, false)}>here</a
+			>
+			for black and white, click
+			<a target="_blank" href={scriptVizUrl(ks_name, webapiData.run_lifespans[0].run_id, true)}
+				>here</a
+			> for colored by root node.
+		</p>
+	{/if}
+	<div style="width:100%">
+		<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+		{@html svgScriptViz}
+	</div>
 {/snippet}
 
 <Breadcrumbs path_elements={breadcrumbsPathElements} />
 <p style="color:red;">{responseError}</p>
 
-<Tabs items={tabs}/>
-
+<Tabs items={tabs} />
 
 <style>
 	img {

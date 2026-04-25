@@ -1,4 +1,4 @@
-FROM apache/activemq-classic:6.1.8
+FROM apache/activemq-classic:6.2.0
 
 # 1. Enable redeliveryPlugin
 # 2. No queue definition added

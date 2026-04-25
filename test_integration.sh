@@ -37,7 +37,7 @@ if [[ "$short_or_long_or_s3_or_all" = "short" || "$short_or_long_or_s3_or_all" =
 	pushd ./test/code/tag_and_denormalize
 	# 22 s
 	./test.sh https one
-	# 22 s
+	# 16+5=21 s
 	./test.sh https multi
 	popd
 fi
@@ -56,7 +56,7 @@ if [[ "$short_or_long_or_s3_or_all" = "long" || "$short_or_long_or_s3_or_all" = 
 	popd
 
 	pushd ./test/code/fannie_mae
-	# 4 threads total: one 149 s, multi 19+19+1+23+70=132 capimq one 137 multi 17+21+2+21+77=138
+	# 4 threads total: one 149 s, multi 19+19+143+23+70 capimq one 137 multi 17+21+2+21+77=138
 	./test.sh quick local fs multi
 	popd
 
@@ -88,7 +88,7 @@ if [[ "$short_or_long_or_s3_or_all" = "s3" || "$short_or_long_or_s3_or_all" = "a
 	popd
 
 	pushd ./test/code/fannie_mae
-	# 24+20+1+23+63 131 s
+	# 24+20+143+23+63s
 	./test.sh quick local s3 multi
 	popd
 fi

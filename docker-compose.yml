@@ -158,7 +158,7 @@ services:
 
   prometheus:
     container_name: capillaries_prometheus
-    image: prom/prometheus:v3.7.3
+    image: prom/prometheus:v3.11.2
     depends_on:
       - fluentd
     networks:
@@ -339,6 +339,10 @@ services:
 
 # Build one image
 # docker compose -p "test_capillaries_containers" build cassandra1
+
+# From README.md:
+# ./copy_demo_data.sh
+# docker compose -p "test_capillaries_containers" up
 
 # curl -s -w "\n" -d '{"script_url":"/tmp/capi_cfg/lookup_quicktest/script_quick.yaml", "script_params_url":"/tmp/capi_cfg/lookup_quicktest/script_params_quick_fs_one.yaml", "start_nodes":"read_orders,read_order_items"}' -H "Content-Type: application/json" -X POST "http://localhost:6543/ks/testks1/run"
 # /opt/activemq-artemis/bin/artemis queue create --name capillaries --address capillaries --auto-create-address --anycast --user artemis --password artemis --no-durable --preserve-on-no-consumers
