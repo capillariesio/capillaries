@@ -97,7 +97,7 @@ A custom processor must meet some requirements.
 2. When processing a source data row, it should not make any assumptions about other source or target data rows.
 
 ## py_calc processor
-Sample [custom processor](#table_custom_tfm_table) implementation in [pkg/custom/py_calc](../pkg/custom/py_calc). Performs arbitrary data processing on input data using user-supplied Python formulas. The functionality is well-covered in [py_calc integration test](../test/code/py_calc/README.md).  [Toolbelt and Daemon environment configuration](binconfig.md) settings:
+Sample [custom processor](#table_custom_tfm_table) implementation in [pkg/custom/pycalc](../pkg/custom/pycalc). Performs arbitrary data processing on input data using user-supplied Python formulas. The functionality is well-covered in [py_calc integration test](../test/code/py_calc/README.md).  [Toolbelt and Daemon environment configuration](binconfig.md) settings:
 
 ### python_interpreter_path
 Full path to Python interpreter
@@ -106,7 +106,7 @@ Full path to Python interpreter
 Parameters passed to Python interpreter 
 
 ## tag_and_denormalize processor
-Sample [custom processor](#table_custom_tfm_table) implementation in [pkg/custom/tag_and_denormalize](../pkg/custom/tag_and_denormalize). Denormalizes input data by checking tag criteria and producing a new data row for each matching tag. The functionality is well-covered in [tag_and_denormalize integration test](../test/code/tag_and_denormalize/README.md) and in the ["What it is"](what.md#sample-use) section.
+Sample [custom processor](#table_custom_tfm_table) implementation in [pkg/custom/taganddenormalize](../pkg/custom/taganddenormalize). Denormalizes input data by checking tag criteria and producing a new data row for each matching tag. The functionality is well-covered in [tag_and_denormalize integration test](../test/code/tag_and_denormalize/README.md) and in the ["What it is"](what.md#sample-use) section.
 
 [Toolbelt and Daemon environment configuration](binconfig.md) settings are discussed below.
 
