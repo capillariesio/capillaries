@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/capillariesio/capillaries/pkg/eval_capi"
+	"github.com/capillariesio/capillaries/pkg/evalcapi"
 )
 
 const (
@@ -38,8 +38,8 @@ type IdxComponentDef struct {
 	FieldName       string
 	CaseSensitivity IdxCaseSensitivity
 	SortOrder       IdxSortOrder
-	StringLen       int64                    // For string fields only, default 64
-	FieldType       eval_capi.TableFieldType // Populated from tgt_table def
+	StringLen       int64                   // For string fields only, default 64
+	FieldType       evalcapi.TableFieldType // Populated from tgt_table def
 }
 
 type IdxUniqueness string
@@ -80,7 +80,7 @@ func (idxDef *IdxDef) parseComponentExpr(fldExp *ast.Expr, fieldRefs *FieldRefs)
 		CaseSensitivity: IdxCaseSensitivityUnknown,
 		SortOrder:       IdxSortUnknown,
 		StringLen:       DefaultStringComponentLen, // Users can override it, see below
-		FieldType:       eval_capi.FieldTypeUnknown}
+		FieldType:       evalcapi.FieldTypeUnknown}
 
 	switch typedFldExp := (*fldExp).(type) {
 	case *ast.CallExpr:
@@ -118,7 +118,7 @@ func (idxDef *IdxDef) parseComponentExpr(fldExp *ast.Expr, fieldRefs *FieldRefs)
 			case *ast.BasicLit:
 				switch modifierExpType.Kind {
 				case token.INT:
-					if idxCompDef.FieldType != eval_capi.FieldTypeString {
+					if idxCompDef.FieldType != evalcapi.FieldTypeString {
 						return fmt.Errorf("invalid expression %v in %s, component length modifier is valid only for string fields, but %s has type %s",
 							modifierExpType, identExp.Name, idxCompDef.FieldName, idxCompDef.FieldType)
 					}
@@ -140,7 +140,7 @@ func (idxDef *IdxDef) parseComponentExpr(fldExp *ast.Expr, fieldRefs *FieldRefs)
 			}
 
 			// Check some rules
-			if idxCompDef.FieldType != eval_capi.FieldTypeString && idxCompDef.CaseSensitivity != IdxCaseSensitivityUnknown {
+			if idxCompDef.FieldType != evalcapi.FieldTypeString && idxCompDef.CaseSensitivity != IdxCaseSensitivityUnknown {
 				return fmt.Errorf(
 					"index component for field %s of type %s cannot have case sensitivity modifier %s, remove it from index component definition",
 					identExp.Name, idxCompDef.FieldType, idxCompDef.CaseSensitivity)
@@ -164,7 +164,7 @@ func (idxDef *IdxDef) parseComponentExpr(fldExp *ast.Expr, fieldRefs *FieldRefs)
 	}
 
 	// Apply defaults if no modifiers supplied: string -> case sensitive, ordered idx -> sort asc
-	if idxCompDef.FieldType == eval_capi.FieldTypeString && idxCompDef.CaseSensitivity == IdxCaseSensitivityUnknown {
+	if idxCompDef.FieldType == evalcapi.FieldTypeString && idxCompDef.CaseSensitivity == IdxCaseSensitivityUnknown {
 		idxCompDef.CaseSensitivity = IdxCaseSensitive
 	}
 

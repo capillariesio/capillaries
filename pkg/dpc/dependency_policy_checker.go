@@ -2,10 +2,10 @@ package dpc
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/capillariesio/capillaries/pkg/eval"
-	"github.com/capillariesio/capillaries/pkg/eval_capi"
+	"github.com/capillariesio/capillaries/pkg/evalcapi"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
@@ -21,11 +21,20 @@ func CheckDependencyPolicyAgainstNodeEventList(logger *l.CapiLogger, fullBatchId
 			return sc.NodeNogo, 0, -1, fmt.Errorf("unexpectedly, cannot build key to sort events: %s", err.Error())
 		}
 	}
-	sort.Slice(events, func(i, j int) bool { return events[i].SortKey < events[j].SortKey })
+	slices.SortFunc(events, func(l, r wfmodel.DependencyNodeEvent) int {
+		switch {
+		case l.SortKey < r.SortKey:
+			return -1
+		case l.SortKey > r.SortKey:
+			return 1
+		default:
+			return 0
+		}
+	})
 
 	for eventIdx := 0; eventIdx < len(events); eventIdx++ {
 		vars := wfmodel.NewVarsFromDepCtx(events[eventIdx])
-		eCtx := eval.NewPlainEvalCtx(eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, vars)
+		eCtx := eval.NewPlainEvalCtx(evalcapi.CapillariesEvalFunctions, evalcapi.CapillariesEvalConstants, vars)
 		for ruleIdx, rule := range targetNodeDepPol.Rules {
 			ruleMatched, err := eCtx.Eval(rule.ParsedExpression)
 			if err != nil {

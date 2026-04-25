@@ -1,6 +1,7 @@
 package capigraph
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -27,23 +28,23 @@ func helperAll(t *testing.T,
 	assert.Equal(t, expectedStartMx, mx.String())
 
 	mxi, _ := NewLayerMxPermIterator(nodeDefs, mx)
-	vnh := NewVizNodeHierarchy(nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions())
+	vnh := newVizNodeHierarchy(nodeDefs, DefaultNodeFontOptions(), DefaultEdgeLabelFontOptions())
 
 	vnh.buildNewRootSubtreeHierarchy(mx)
 
 	sbPerms := strings.Builder{}
 	var hierarchyFirst, hierarchyLast string
-	mxi.MxIterator(func(i int, mxPerm LayerMx) {
+	mxi.MxIterator(context.TODO(), func(i int, mxPerm LayerMx) {
 		if sbPerms.Len() != 0 {
 			sbPerms.WriteString(", ")
 		}
 		fmt.Fprintf(&sbPerms, "{p%d: {%s}}", i, mxPerm.String())
 		vnh.reuseRootSubtreeHierarchy(mxPerm)
-		vnh.PopulateNodeTotalWidth()
-		vnh.PopulateNodesXCoords()
-		vnh.PopulateEdgeLabelDimensions()
-		vnh.PopulateUpperLayerGapMap(DefaultEdgeLabelFontOptions().SizeInPixels)
-		vnh.PopulateNodesYCoords()
+		vnh.populateNodeTotalWidth()
+		vnh.populateNodesXCoords()
+		vnh.populateEdgeLabelDimensions()
+		vnh.populateUpperLayerGapMap(DefaultEdgeLabelFontOptions().SizeInPixels)
+		vnh.populateNodesYCoords()
 		hierarchyString := vnh.String()
 		if hierarchyFirst == "" {
 			hierarchyFirst = hierarchyString
@@ -74,7 +75,7 @@ func helperIteratorAndIncrementalCount(t *testing.T,
 	mxi, _ := NewLayerMxPermIterator(nodeDefs, mx)
 
 	cnt := int64(0)
-	mxi.MxIterator(func(_ int, _ LayerMx) {
+	mxi.MxIterator(context.TODO(), func(_ int, _ LayerMx) {
 		cnt++
 	})
 

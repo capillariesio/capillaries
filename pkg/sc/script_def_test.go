@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/capillariesio/capillaries/pkg/eval"
-	"github.com/capillariesio/capillaries/pkg/eval_capi"
+	"github.com/capillariesio/capillaries/pkg/evalcapi"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
@@ -684,13 +684,13 @@ func testCreatorFieldRefs(t *testing.T, scriptDef *ScriptDef) {
 	var tableFieldRef *FieldRef
 	tableFieldRef, _ = tableFieldRefs.FindByFieldName("field_int2")
 	assert.Equal(t, CreatorAlias, tableFieldRef.TableName)
-	assert.Equal(t, eval_capi.FieldTypeInt, tableFieldRef.FieldType)
+	assert.Equal(t, evalcapi.FieldTypeInt, tableFieldRef.FieldType)
 
 	fileFieldRefs := scriptDef.ScriptNodes["file_totals"].FileCreator.getFieldRefs()
 	var fileFieldRef *FieldRef
 	fileFieldRef, _ = fileFieldRefs.FindByFieldName("total_value")
 	assert.Equal(t, CreatorAlias, fileFieldRef.TableName)
-	assert.Equal(t, eval_capi.FieldTypeDecimal2, fileFieldRef.FieldType)
+	assert.Equal(t, evalcapi.FieldTypeDecimal2, fileFieldRef.FieldType)
 
 	// Duplicate creator
 
@@ -1044,7 +1044,7 @@ func testUniqueIndexesFieldRefs(t *testing.T, scriptDef *ScriptDef) {
 	if len(*fieldRefs) == 1 {
 		assert.Equal(t, "table2", (*fieldRefs)[0].TableName)
 		assert.Equal(t, "field_string2", (*fieldRefs)[0].FieldName)
-		assert.Equal(t, eval_capi.FieldTypeString, (*fieldRefs)[0].FieldType)
+		assert.Equal(t, evalcapi.FieldTypeString, (*fieldRefs)[0].FieldType)
 	}
 }
 

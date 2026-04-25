@@ -93,34 +93,34 @@ type EvalCtx struct {
 	evalVars      VarValuesMap
 }
 
-func (ectx *EvalCtx) IsAggFuncEnabled() bool {
-	return ectx.aggEnabled == AggFuncEnabled
+func (eCtx *EvalCtx) IsAggFuncEnabled() bool {
+	return eCtx.aggEnabled == AggFuncEnabled
 }
 
-func (ectx *EvalCtx) SetVars(vars VarValuesMap) {
-	ectx.evalVars = vars
+func (eCtx *EvalCtx) SetVars(vars VarValuesMap) {
+	eCtx.evalVars = vars
 }
 
-func (ectx *EvalCtx) SetRoundDec(roundDec int32) {
-	ectx.roundDec = roundDec
+func (eCtx *EvalCtx) SetRoundDec(roundDec int32) {
+	eCtx.roundDec = roundDec
 }
 
-func (ectx *EvalCtx) GetValue() any {
-	if ectx.aggEnabled == AggFuncEnabled && (ectx.aggFunc == AggCount || ectx.aggFunc == AggCountIf || ectx.aggFunc == AggSum || ectx.aggFunc == AggSumIf || ectx.aggFunc == AggAvg || ectx.aggFunc == AggAvgIf) && ectx.value == nil {
+func (eCtx *EvalCtx) GetValue() any {
+	if eCtx.aggEnabled == AggFuncEnabled && (eCtx.aggFunc == AggCount || eCtx.aggFunc == AggCountIf || eCtx.aggFunc == AggSum || eCtx.aggFunc == AggSumIf || eCtx.aggFunc == AggAvg || eCtx.aggFunc == AggAvgIf) && eCtx.value == nil {
 		return int64(0)
 	}
-	return ectx.value
+	return eCtx.value
 }
 
-func (ectx *EvalCtx) GetSafeValue(defaultValue any) any {
-	if ectx.aggEnabled == AggFuncEnabled && (ectx.aggFunc == AggCount || ectx.aggFunc == AggCountIf || ectx.aggFunc == AggSum || ectx.aggFunc == AggSumIf || ectx.aggFunc == AggAvg || ectx.aggFunc == AggAvgIf) {
-		return ectx.GetValue()
+func (eCtx *EvalCtx) GetSafeValue(defaultValue any) any {
+	if eCtx.aggEnabled == AggFuncEnabled && (eCtx.aggFunc == AggCount || eCtx.aggFunc == AggCountIf || eCtx.aggFunc == AggSum || eCtx.aggFunc == AggSumIf || eCtx.aggFunc == AggAvg || eCtx.aggFunc == AggAvgIf) {
+		return eCtx.GetValue()
 	}
-	if ectx.value == nil {
+	if eCtx.value == nil {
 		return defaultValue
 	}
 
-	return ectx.value
+	return eCtx.value
 }
 
 // Not ready to make these limits/defaults public
@@ -463,7 +463,7 @@ func (eCtx *EvalCtx) EvalBinaryBoolToBool(valLeftVolatile any, op token.Token, v
 		return false, fmt.Errorf("cannot evaluate binary bool expression '%v(%T) %v %v(%T)', invalid right arg", valLeft, valLeft, op, valRightVolatile, valRightVolatile)
 	}
 
-	if !(op == token.EQL || op == token.NEQ) {
+	if op != token.EQL && op != token.NEQ {
 		return false, fmt.Errorf("cannot evaluate binary bool expression, op %v not supported (and will never be)", op)
 	}
 
@@ -726,14 +726,16 @@ func (eCtx *EvalCtx) evalBinaryExp(exp *ast.BinaryExpr) (any, error) {
 	if err != nil {
 		return 0, err
 	}
-	if exp.Op == token.ADD || exp.Op == token.SUB || exp.Op == token.MUL || exp.Op == token.QUO || exp.Op == token.REM {
+	switch exp.Op {
+	case token.ADD, token.SUB, token.MUL, token.QUO, token.REM:
 		return eCtx.evalBinaryArithmeticExp(valLeftVolatile, exp, valRightVolatile)
-	} else if exp.Op == token.LOR || exp.Op == token.LAND {
+	case token.LOR, token.LAND:
 		return eCtx.evalBinaryBoolToBoolExp(valLeftVolatile, exp, valRightVolatile)
-	} else if exp.Op == token.GTR || exp.Op == token.GEQ || exp.Op == token.LSS || exp.Op == token.LEQ || exp.Op == token.EQL || exp.Op == token.NEQ {
+	case token.GTR, token.GEQ, token.LSS, token.LEQ, token.EQL, token.NEQ:
 		return eCtx.evalBinaryCompareExp(valLeftVolatile, exp, valRightVolatile)
+	default:
+		return nil, fmt.Errorf("cannot perform binary expression unknown op %v", exp.Op)
 	}
-	return nil, fmt.Errorf("cannot perform binary expression unknown op %v", exp.Op)
 }
 
 func (eCtx *EvalCtx) evalUnaryExp(exp *ast.UnaryExpr) (any, error) {

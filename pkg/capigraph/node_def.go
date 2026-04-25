@@ -11,18 +11,43 @@ const MissingRootSubtreeHeight int = -3
 const MissingLayer int = -4
 
 type EdgeDef struct {
-	SrcId int16
-	Text  string
+	SrcId               int16
+	Text                string
+	TextColorPreference TextColorPreference
 }
 
+type NodeBackgroundType int
+
+const (
+	NodeBackgroundSolid NodeBackgroundType = iota
+	NodeBackgroundPattern
+)
+
+type NodeBorderThickness int
+
+const (
+	NodeBorderRegular NodeBorderThickness = iota
+	NodeBorderThick
+)
+
+type TextColorPreference int
+
+const (
+	TextColorDefault TextColorPreference = iota
+	TextColorAsContainer
+)
+
 type NodeDef struct {
-	Id       int16
-	Text     string
-	PriIn    EdgeDef
-	SecIn    []EdgeDef
-	IconId   string
-	Color    int32
-	Selected bool
+	Id                    int16
+	Text                  string
+	PriIn                 EdgeDef
+	SecIn                 []EdgeDef
+	IconId                string
+	ColorOverride         int32
+	BorderThickness       NodeBorderThickness
+	TextColorPreference   TextColorPreference // Sometimes, root color text is not very visible, so the user may want to leave it black
+	BackgroundType        NodeBackgroundType
+	CustomBackgroundClass string
 }
 
 func buildPriParentMap(nodeDefs []NodeDef) []int16 {
@@ -189,7 +214,7 @@ func checkNodeDef(nodeId int16, nodeDefs []NodeDef) error {
 func checkNodeIds(nodeDefs []NodeDef) error {
 	for i := range nodeDefs {
 		if nodeDefs[i].Id != int16(i) {
-			return fmt.Errorf("cannot process node at index %d, it has id %d", i, nodeDefs[i].Id)
+			return fmt.Errorf("cannot process node at index %d, it has id %d; nodes must be arranged by id from 1", i, nodeDefs[i].Id)
 		}
 	}
 	return nil

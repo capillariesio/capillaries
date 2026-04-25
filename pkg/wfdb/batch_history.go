@@ -2,7 +2,7 @@ package wfdb
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
@@ -47,6 +47,7 @@ func HarvestLastStatusForBatch(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 	return lastStatus, lastTs, nil
 }
 
+// Used by Webapi to retrieve batch status history for a run/node pair
 func GetRunNodeBatchHistory(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16, nodeName string) ([]*wfmodel.BatchHistoryEvent, error) {
 	logger.PushF("wfdb.GetRunNodeBatchHistory")
 	defer logger.PopF()
@@ -70,8 +71,16 @@ func GetRunNodeBatchHistory(logger *l.CapiLogger, cqlSession gocqlshims.Session,
 		result[rowIdx] = rec
 	}
 
-	sort.Slice(result, func(i, j int) bool { return result[i].Ts.Before(result[j].Ts) })
-
+	slices.SortFunc(result, func(l, r *wfmodel.BatchHistoryEvent) int {
+		switch {
+		case l.Ts.Before(r.Ts):
+			return -1
+		case l.Ts.After(r.Ts):
+			return 1
+		default:
+			return 0
+		}
+	})
 	return result, nil
 }
 
@@ -119,10 +128,13 @@ func HarvestBatchStatusesForNode(logger *l.CapiLogger, pCtx *ctx.MessageProcessi
 			delete(batchesInProgress, rec.BatchIdx)
 		}
 
-		if rec.Status == wfmodel.NodeBatchFail {
+		switch rec.Status {
+		case wfmodel.NodeBatchFail:
 			failFound = true
-		} else if rec.Status == wfmodel.NodeBatchRunStopReceived {
+		case wfmodel.NodeBatchRunStopReceived:
 			stopReceivedFound = true
+		default:
+			// Nothing interesting yet
 		}
 	}
 

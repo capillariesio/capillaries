@@ -69,7 +69,7 @@ func (instr *FileInserter) checkWorkerOutputForErrors() error {
 }
 
 func (instr *FileInserter) waitForWorker(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) error {
-	logger.PushF("proc.waitForWorkers/FieInserter")
+	logger.PushF("proc.waitForWorkers/FileInserter")
 	defer logger.PopF()
 
 	// waitForWorker may be used for writing leftovers, handle them

@@ -132,55 +132,8 @@ func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 	return finalCmd, finalRunIdReader, finalRunIdLookup, nil
 }
 
-func safeProcessBatch(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, readerNodeRunId int16, lookupNodeRunId int16) (wfmodel.NodeBatchStatusType, proc.BatchStats, error) {
-	logger.PushF("wf.SafeProcessBatch")
-	defer logger.PopF()
-
-	var bs proc.BatchStats
-	var err error
-
-	switch pCtx.CurrentScriptNode.Type {
-	case sc.NodeTypeFileTable:
-		if pCtx.Msg.FirstToken != pCtx.Msg.LastToken || pCtx.Msg.FirstToken < 0 || pCtx.Msg.FirstToken >= int64(len(pCtx.CurrentScriptNode.FileReader.SrcFileUrls)) {
-			err = fmt.Errorf(
-				"startToken %d must equal endToken %d must be smaller than the number of files specified by file reader %d",
-				pCtx.Msg.FirstToken,
-				pCtx.Msg.LastToken,
-				len(pCtx.CurrentScriptNode.FileReader.SrcFileUrls))
-		} else {
-			bs, err = proc.RunReadFileForBatch(envConfig, logger, pCtx, int(pCtx.Msg.FirstToken))
-		}
-
-	case sc.NodeTypeTableTable:
-		bs, err = proc.RunCreateTableForBatch(envConfig, logger, pCtx, readerNodeRunId, pCtx.Msg.FirstToken, pCtx.Msg.LastToken)
-
-	case sc.NodeTypeDistinctTable:
-		bs, err = proc.RunCreateDistinctTableForBatch(envConfig, logger, pCtx, readerNodeRunId, pCtx.Msg.FirstToken, pCtx.Msg.LastToken)
-
-	case sc.NodeTypeTableLookupTable:
-		bs, err = proc.RunCreateTableRelForBatch(envConfig, logger, pCtx, readerNodeRunId, lookupNodeRunId, pCtx.Msg.FirstToken, pCtx.Msg.LastToken)
-
-	case sc.NodeTypeTableFile:
-		bs, err = proc.RunCreateFile(envConfig, logger, pCtx, readerNodeRunId, pCtx.Msg.FirstToken, pCtx.Msg.LastToken)
-
-	case sc.NodeTypeTableCustomTfmTable:
-		bs, err = proc.RunCreateTableForCustomProcessorForBatch(envConfig, logger, pCtx, readerNodeRunId, pCtx.Msg.FirstToken, pCtx.Msg.LastToken)
-
-	default:
-		err = fmt.Errorf("unsupported node %s type %s", pCtx.Msg.TargetNodeName, pCtx.CurrentScriptNode.Type)
-	}
-
-	if err != nil {
-		logger.DebugCtx(pCtx, "batch processed, error: %s", err.Error())
-		return wfmodel.NodeBatchFail, bs, fmt.Errorf("error running node %s of type %s in the script [%s]: [%s]", pCtx.Msg.TargetNodeName, pCtx.CurrentScriptNode.Type, pCtx.Msg.ScriptURL, err.Error())
-	}
-	logger.DebugCtx(pCtx, "batch processed ok")
-
-	return wfmodel.NodeBatchSuccess, bs, nil
-}
-
 func updateNodeStatusFromBatches(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) (wfmodel.NodeBatchStatusType, bool, error) {
-	logger.PushF("wf.UpdateNodeStatusFromBatches")
+	logger.PushF("wf.updateNodeStatusFromBatches")
 	defer logger.PopF()
 
 	// Check all batches for this run/node, mark node complete if needed
@@ -215,7 +168,7 @@ func updateNodeStatusFromBatches(logger *l.CapiLogger, pCtx *ctx.MessageProcessi
 }
 
 func updateRunStatusFromNodes(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) error {
-	logger.PushF("wf.UpdateRunStatusFromNodes")
+	logger.PushF("wf.updateRunStatusFromNodes")
 	defer logger.PopF()
 
 	// Let's see if this run is complete
@@ -549,7 +502,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wf
 		return mq.AcknowledgerCmdAck
 	}
 
-	batchStatus, batchStats, batchErr := safeProcessBatch(envConfig, logger, pCtx, readerNodeRunId, lookupNodeRunId)
+	batchStatus, batchStats, batchErr := proc.CallAppropriateProcessorForBatch(envConfig, logger, pCtx, readerNodeRunId, lookupNodeRunId)
 
 	// TODO: test only!!!
 	// if pCtx.BatchInfo.TargetNodeName == "order_item_date_inner" && pCtx.BatchInfo.BatchIdx == 3 {

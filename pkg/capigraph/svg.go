@@ -1,10 +1,11 @@
 package capigraph
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"math"
 	"slices"
-	"sort"
 	"strings"
 )
 
@@ -58,20 +59,21 @@ func getStyleColorOverrideForNodeWithOpacity2(attrName string, color int32) stri
 	return fmt.Sprintf(`style="%s:#%s;opacity:0.3;"`, attrName, intToCssColor(color))
 }
 
-func drawNodeSelections(vizNodeMap []VizNode, nodeFo FontOptions) string {
-	sb := strings.Builder{}
-	for i := range len(vizNodeMap) - 1 {
-		curItem := vizNodeMap[i+1]
-		nodeX := curItem.X + curItem.TotalW/2 - curItem.NodeW/2
-		if curItem.Def.Selected {
-			fmt.Fprintf(&sb, `<rect class="rect-selected-node" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
-				nodeX-SelectedNodeMargin*nodeFo.SizeInPixels, curItem.Y-SelectedNodeMargin*nodeFo.SizeInPixels, curItem.NodeW+SelectedNodeMargin*nodeFo.SizeInPixels*2, curItem.NodeH+SelectedNodeMargin*nodeFo.SizeInPixels*2)
-		}
-	}
-	return sb.String()
+// func drawNodeSelections(vizNodeMap []VizNode, nodeFo FontOptions) string {
+// 	sb := strings.Builder{}
+// 	for i := range len(vizNodeMap) - 1 {
+// 		curItem := vizNodeMap[i+1]
+// 		nodeX := curItem.X + curItem.TotalW/2 - curItem.NodeW/2
+// 		if curItem.Def.BorderThickness == NodeBorderThick {
+// 			fmt.Fprintf(&sb, `<rect class="rect-selected-node rect-selected-node-root-%d" x="%.2f" y="%.2f" width="%.2f" height="%.2f" pointer-events="none"/>`+"\n",
+// 				curItem.RootId,
+// 				nodeX, curItem.Y, curItem.NodeW, curItem.NodeH)
+// 		}
+// 	}
+// 	return sb.String()
 
-}
-func drawEdgeLines(vizNodeMap []VizNode, curItem *VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeOptions, rootStrokeColorMap []int32) string {
+// }
+func drawEdgeLines(vizNodeMap []vizNode, curItem *vizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeOptions, rootStrokeColorMap []int32) string {
 	sb := strings.Builder{}
 	if curItem.Def != nil {
 		for _, edge := range curItem.Def.SecIn {
@@ -118,27 +120,44 @@ func drawEdgeLines(vizNodeMap []VizNode, curItem *VizNode, nodeFo FontOptions, e
 	return sb.String()
 }
 
-func drawNodesAndEdgeLabels(vizNodeMap []VizNode, curItem *VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeOptions, rootColorMap []int32) string {
+func drawNodesAndEdgeLabels(vizNodeMap []vizNode, curItem *vizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeOptions, rootColorMap []int32) string {
 	xmlReplacer := strings.NewReplacer("\"", "&quot;", "'", "&apos;", "<", "&lt;", ">", "&gt;", "&", "&amp;")
 	sb := strings.Builder{}
 	if curItem.Def != nil {
 		title := strings.TrimSpace(xmlReplacer.Replace(fmt.Sprintf("%d %s", curItem.Def.Id, curItem.Def.IconId)))
 		fmt.Fprintf(&sb, `<a xlink:title="%s">`+"\n", title)
 		nodeX := curItem.X + curItem.TotalW/2 - curItem.NodeW/2
-		fmt.Fprintf(&sb, `  <rect class="rect-node-background rect-node-background-%d" %s x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
-			curItem.RootId,
-			getStyleColorOverrideForNodeWithOpacity2("fill", curItem.Def.Color),
-			nodeX, curItem.Y, curItem.NodeW, curItem.NodeH)
-		fmt.Fprintf(&sb, `  <rect class="rect-node rect-node-%d" %s x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
-			curItem.RootId,
-			getStyleColorOverrideForNode("stroke", curItem.Def.Color),
-			nodeX, curItem.Y, curItem.NodeW, curItem.NodeH)
+		switch curItem.Def.BackgroundType {
+		case NodeBackgroundSolid:
+			fmt.Fprintf(&sb, `  <rect class="rect-node-background rect-node-background-%d" %s x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
+				curItem.RootId,
+				getStyleColorOverrideForNodeWithOpacity2("fill", curItem.Def.ColorOverride),
+				nodeX, curItem.Y, curItem.NodeW, curItem.NodeH)
+		case NodeBackgroundPattern:
+			fmt.Fprintf(&sb, `  <rect class="rect-node-background %s" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
+				curItem.Def.CustomBackgroundClass,
+				nodeX, curItem.Y, curItem.NodeW, curItem.NodeH)
+		default:
+
+		}
+		if curItem.Def.BorderThickness == NodeBorderRegular {
+			fmt.Fprintf(&sb, `  <rect class="rect-node rect-node-root-%d" %s x="%.2f" y="%.2f" width="%.2f" height="%.2f" pointer-events="none"/>`+"\n",
+				curItem.RootId,
+				getStyleColorOverrideForNode("stroke", curItem.Def.ColorOverride),
+				nodeX, curItem.Y, curItem.NodeW, curItem.NodeH)
+		} else {
+			fmt.Fprintf(&sb, `  <rect class="rect-selected-node rect-selected-node-root-%d" %s x="%.2f" y="%.2f" width="%.2f" height="%.2f" pointer-events="none"/>`+"\n",
+				curItem.RootId,
+				getStyleColorOverrideForNode("stroke", curItem.Def.ColorOverride),
+				nodeX, curItem.Y, curItem.NodeW, curItem.NodeH)
+		}
+
 		actualIconSize := 0.0
 		if curItem.Def.IconId != "" {
 			actualIconSize = curItem.NodeH - nodeFo.SizeInPixels*NodeTextDimensionMargin*2
 			iconColorCssOverride := getStyleColorOverrideForRoot("fill", curItem.RootId, rootColorMap)
-			if curItem.Def.Color != 0 {
-				iconColorCssOverride = getStyleColorOverrideForNode("fill", curItem.Def.Color)
+			if curItem.Def.ColorOverride != 0 {
+				iconColorCssOverride = getStyleColorOverrideForNode("fill", curItem.Def.ColorOverride)
 			}
 			fmt.Fprintf(&sb, `  <g transform="translate(%.2f,%.2f)"><g transform="scale(%2f)">`+"\n    "+`<use xlink:href="#%s" %s/>`+"\n  </g></g>\n",
 				nodeX+nodeFo.SizeInPixels*NodeTextDimensionMargin,
@@ -153,10 +172,19 @@ func drawNodesAndEdgeLabels(vizNodeMap []VizNode, curItem *VizNode, nodeFo FontO
 			if actualIconSize > 0.0 {
 				textX += actualIconSize + nodeFo.SizeInPixels*NodeTextIconInterval
 			}
-			fmt.Fprintf(&sb, `  <text class="text-node" x="%.2f" y="%.2f">%s</text>`+"\n",
-				textX,
-				curItem.Y+nodeFo.SizeInPixels*NodeTextDimensionMargin+float64(i)*nodeFo.SizeInPixels*(1.0+nodeFo.Interval),
-				xmlReplacer.Replace(r))
+			if curItem.Def.TextColorPreference == TextColorAsContainer {
+				fmt.Fprintf(&sb, `  <text class="text-node text-node-root-%d" %s x="%.2f" y="%.2f">%s</text>`+"\n",
+					curItem.RootId,
+					getStyleColorOverrideForNode("fill", curItem.Def.ColorOverride),
+					textX,
+					curItem.Y+nodeFo.SizeInPixels*NodeTextDimensionMargin+float64(i)*nodeFo.SizeInPixels*(1.0+nodeFo.Interval),
+					xmlReplacer.Replace(r))
+			} else {
+				fmt.Fprintf(&sb, `  <text class="text-node" x="%.2f" y="%.2f">%s</text>`+"\n",
+					textX,
+					curItem.Y+nodeFo.SizeInPixels*NodeTextDimensionMargin+float64(i)*nodeFo.SizeInPixels*(1.0+nodeFo.Interval),
+					xmlReplacer.Replace(r))
+			}
 		}
 		sb.WriteString("</a>\n")
 
@@ -167,32 +195,48 @@ func drawNodesAndEdgeLabels(vizNodeMap []VizNode, curItem *VizNode, nodeFo FontO
 			if edgeItem.W == 0.0 {
 				continue
 			}
-			fmt.Fprintf(&sb, `<a xlink:title="%s">`+"\n", strings.TrimSpace(xmlReplacer.Replace(eolReplacer.Replace(edgeItem.Edge.Text))))
-			parentItem := &(vizNodeMap[edgeItem.Edge.SrcId])
-			if edgeItem.HierarchyType == HierarchySec {
-				fmt.Fprintf(&sb, `  <rect class="rect-edge-label-background" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
-					edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H)
+			fmt.Fprintf(&sb, `<a xlink:title="%s">`+"\n", strings.TrimSpace(xmlReplacer.Replace(eolReplacer.Replace(edgeItem.Def.Text))))
+			parentItem := &(vizNodeMap[edgeItem.Def.SrcId])
+			fmt.Fprintf(&sb, `  <rect class="rect-edge-label-background" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n", edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H)
+			switch edgeItem.HierarchyType {
+			case HierarchySec:
 				fmt.Fprintf(&sb, `  <rect class="rect-edge-label-sec rect-edge-label-sec-%d" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
 					parentItem.RootId,
 					edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H)
-				for i, r := range strings.Split(edgeItem.Edge.Text, "\n") {
-					fmt.Fprintf(&sb, `  <text class="text-edge-label" x="%.2f" y="%.2f">%s</text>`+"\n",
-						edgeItem.X+edgeFo.SizeInPixels*LabelTextDimensionMargin,
-						edgeItem.Y+edgeFo.SizeInPixels*LabelTextDimensionMargin+float64(i)*edgeFo.SizeInPixels*(1+edgeFo.Interval),
-						xmlReplacer.Replace(r))
+				for i, r := range strings.Split(edgeItem.Def.Text, "\n") {
+					if edgeItem.Def.TextColorPreference == TextColorAsContainer {
+						fmt.Fprintf(&sb, `  <text class="text-edge-label text-edge-root-%d" x="%.2f" y="%.2f">%s</text>`+"\n",
+							parentItem.RootId,
+							edgeItem.X+edgeFo.SizeInPixels*LabelTextDimensionMargin,
+							edgeItem.Y+edgeFo.SizeInPixels*LabelTextDimensionMargin+float64(i)*edgeFo.SizeInPixels*(1+edgeFo.Interval),
+							xmlReplacer.Replace(r))
+					} else {
+						fmt.Fprintf(&sb, `  <text class="text-edge-label" x="%.2f" y="%.2f">%s</text>`+"\n",
+							edgeItem.X+edgeFo.SizeInPixels*LabelTextDimensionMargin,
+							edgeItem.Y+edgeFo.SizeInPixels*LabelTextDimensionMargin+float64(i)*edgeFo.SizeInPixels*(1+edgeFo.Interval),
+							xmlReplacer.Replace(r))
+					}
 				}
-			} else if edgeItem.HierarchyType == HierarchyPri {
-				fmt.Fprintf(&sb, `  <rect class="rect-edge-label-background" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
-					edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H)
+			case HierarchyPri:
 				fmt.Fprintf(&sb, `  <rect class="rect-edge-label-pri rect-edge-label-pri-%d" x="%.2f" y="%.2f" width="%.2f" height="%.2f"/>`+"\n",
 					parentItem.RootId,
 					edgeItem.X, edgeItem.Y, edgeItem.W, edgeItem.H)
-				for i, r := range strings.Split(edgeItem.Edge.Text, "\n") {
-					fmt.Fprintf(&sb, `  <text class="text-edge-label" x="%.2f" y="%.2f">%s</text>`+"\n",
-						edgeItem.X+edgeFo.SizeInPixels*LabelTextDimensionMargin,
-						edgeItem.Y+edgeFo.SizeInPixels*LabelTextDimensionMargin+float64(i)*edgeFo.SizeInPixels*(1+edgeFo.Interval),
-						xmlReplacer.Replace(r))
+				for i, r := range strings.Split(edgeItem.Def.Text, "\n") {
+					if edgeItem.Def.TextColorPreference == TextColorAsContainer {
+						fmt.Fprintf(&sb, `  <text class="text-edge-label text-edge-root-%d" x="%.2f" y="%.2f">%s</text>`+"\n",
+							parentItem.RootId,
+							edgeItem.X+edgeFo.SizeInPixels*LabelTextDimensionMargin,
+							edgeItem.Y+edgeFo.SizeInPixels*LabelTextDimensionMargin+float64(i)*edgeFo.SizeInPixels*(1+edgeFo.Interval),
+							xmlReplacer.Replace(r))
+					} else {
+						fmt.Fprintf(&sb, `  <text class="text-edge-label" x="%.2f" y="%.2f">%s</text>`+"\n",
+							edgeItem.X+edgeFo.SizeInPixels*LabelTextDimensionMargin,
+							edgeItem.Y+edgeFo.SizeInPixels*LabelTextDimensionMargin+float64(i)*edgeFo.SizeInPixels*(1+edgeFo.Interval),
+							xmlReplacer.Replace(r))
+					}
 				}
+			default:
+				fmt.Fprintf(&sb, `  <text class="text-edge-label" x="%.2f" y="%.2f">%s</text>`+"\n", edgeItem.X, edgeItem.Y, "unknown pri/sec type")
 			}
 			sb.WriteString("</a>\n")
 		}
@@ -237,7 +281,7 @@ func DefaultPalette() []int32 {
 // 	}
 // }
 
-func buildRootColorMap(vizNodeMap []VizNode, palette []int32) []int32 {
+func buildRootColorMap(vizNodeMap []vizNode, palette []int32) []int32 {
 	rootIds := make([]int16, 0, len(vizNodeMap))
 	rootCountMap := make([]int, len(vizNodeMap))
 	for i := range len(vizNodeMap) - 1 {
@@ -247,8 +291,17 @@ func buildRootColorMap(vizNodeMap []VizNode, palette []int32) []int32 {
 		}
 		rootCountMap[vizNode.RootId]++
 	}
-	sort.Slice(rootIds, func(i, j int) bool {
-		return rootCountMap[rootIds[i]] > rootCountMap[rootIds[j]]
+
+	// Most common roots go first
+	slices.SortFunc(rootIds, func(l, r int16) int {
+		switch {
+		case rootCountMap[l] > rootCountMap[r]:
+			return -1
+		case rootCountMap[l] < rootCountMap[r]:
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	rootColorMap := slices.Repeat([]int32{-1}, len(vizNodeMap))
@@ -262,9 +315,7 @@ func buildRootColorMap(vizNodeMap []VizNode, palette []int32) []int32 {
 	return rootColorMap
 }
 
-const SelectedNodeMargin float64 = 0.0
-
-func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeOptions, defsXml string, css string, palette []int32, totalPermutations int64, elapsed float64, bestDist float64) string {
+func drawVizNodes(vizNodeMap []vizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeOptions, defsXml string, css string, palette []int32, totalPermutations int64, elapsed float64, bestDist float64) string {
 	topCoord := math.MaxFloat64
 	bottomCoord := -math.MaxFloat64
 	minLeft := math.MaxFloat64
@@ -283,12 +334,9 @@ func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeO
 		nodeRight := hi.X + hi.NodeW
 		nodeTop := hi.Y
 		nodeBottom := hi.Y + hi.NodeH
-		if hi.Def.Selected {
-			nodeLeft -= SelectedNodeMargin * nodeFo.SizeInPixels
-			nodeRight += SelectedNodeMargin * nodeFo.SizeInPixels
-			nodeTop -= SelectedNodeMargin * nodeFo.SizeInPixels
-			nodeBottom += SelectedNodeMargin * nodeFo.SizeInPixels
-		}
+
+		// TODO: if thick node borders require extra space, add it here to nodeLeft/Right/Top/Bottom
+
 		if nodeLeft < minLeft {
 			minLeft = nodeLeft
 		}
@@ -315,10 +363,10 @@ func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeO
 		`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="%d %d %d %d">`+"\n", vbLeft, vbTop, vbRight-vbLeft, vbBottom-vbTop)
 	sb.WriteString("<defs>\n")
 
-	for rootId := range len(rootColorMap) {
+	for nodeId := 1; nodeId < len(rootColorMap); nodeId++ {
 		fmt.Fprintf(&sb, `<marker id="arrow-%d" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse" fill="#%s"><path d="M 0 0 L 10 5 L 0 10 z" /></marker>`+"\n",
-			rootId,
-			getColorOverride("000000", int16(rootId), rootColorMap))
+			nodeId,
+			getColorOverride("000000", int16(nodeId), rootColorMap))
 	}
 
 	// Caller-provided defs (icons etc)
@@ -326,42 +374,50 @@ func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeO
 	sb.WriteString("</defs>\n")
 	sb.WriteString("<style>\n")
 	sb.WriteString(".viz-background {fill:white;opacity:1.0}\n")
-	fmt.Fprintf(&sb, ".rect-node-background {fill:white; rx:%d; ry:%d; stroke-width:0;opacity:0.7}\n", int(nodeFo.SizeInPixels/2), int(nodeFo.SizeInPixels/2))
+	fmt.Fprintf(&sb, ".rect-node-background {fill:white; rx:%d; ry:%d; stroke-width:0;opacity:0.8}\n", int(nodeFo.SizeInPixels/2), int(nodeFo.SizeInPixels/2))
 	fmt.Fprintf(&sb, ".rect-node {fill:none; rx:%d; ry:%d; stroke:black; stroke-width:1;}\n", int(nodeFo.SizeInPixels/2), int(nodeFo.SizeInPixels/2))
-	fmt.Fprintf(&sb, ".rect-selected-node {fill:transparent; rx:%d; ry:%d; stroke-width:%d; stroke:black; opacity:1.0}\n", int(nodeFo.SizeInPixels/2), int(nodeFo.SizeInPixels/2), int(nodeFo.SizeInPixels/4))
-	sb.WriteString(".rect-edge-label-background {fill:white; rx:10; ry:10; stroke-width:0; opacity:0.7;}\n")
+	fmt.Fprintf(&sb, ".rect-selected-node {fill:transparent; rx:%d; ry:%d; stroke-width:%d; stroke:black; opacity:1.0}\n", int(nodeFo.SizeInPixels/2), int(nodeFo.SizeInPixels/2), nodeFo.getSelectedNodeStrokeWidth())
+	sb.WriteString(".rect-edge-label-background {fill:white; rx:10; ry:10; stroke-width:0; opacity:0.8;}\n")
 	sb.WriteString(".rect-edge-label-pri {fill:none; rx:10; ry:10; stroke:#606060; stroke-width:1;}\n")
 	sb.WriteString(".rect-edge-label-sec {fill:none; rx:10; ry:10; stroke:#606060; stroke-width:1; stroke-dasharray:5;}\n")
-	fmt.Fprintf(&sb, ".text-node {font-family:%s; font-weight:%s; font-size:%dpx; text-anchor:start; alignment-baseline:hanging; fill:black;}\n", FontTypefaceToString(nodeFo.Typeface), FontWeightToString(nodeFo.Weight), int(nodeFo.SizeInPixels))
+	fmt.Fprintf(&sb, ".text-node {font-family:%s; font-weight:%s; font-size:%dpx; text-anchor:start; alignment-baseline:hanging; fill:black;stroke-width:0}\n", FontTypefaceToString(nodeFo.Typeface), FontWeightToString(nodeFo.Weight), int(nodeFo.SizeInPixels))
 	fmt.Fprintf(&sb, ".text-edge-label {font-family:%s; font-weight:%s; font-size:%dpx; text-anchor:start; alignment-baseline:hanging; fill:#606060;}\n", FontTypefaceToString(edgeFo.Typeface), FontWeightToString(edgeFo.Weight), int(edgeFo.SizeInPixels))
 	fmt.Fprintf(&sb, `.path-edge-pri {stroke-width:%.2f;fill:transparent;stroke:black;}`+"\n", eo.StrokeWidth)
 	fmt.Fprintf(&sb, `.path-edge-sec {stroke-width:%.2f;stroke-dasharray:5;fill:transparent;stroke:black;}`+"\n", eo.StrokeWidth)
 
+	// Caller-provided CSS overrides, before node colors
+	sb.WriteString(css)
+
 	// For each root, create a set of classes with proper color
-	for rootId := range len(rootColorMap) {
+	for nodeId := int16(1); nodeId < int16(len(rootColorMap)); nodeId++ {
 		// if rootColorMap[rootId] == -1 {
 		// 	continue
 		// }
 		// Edge coor: stroke (label border and connectors). Also, proper arrow marker color.
-		fmt.Fprintf(&sb, `.path-edge-pri-%d {marker-end:url(#arrow-%d);stroke:#%s}`+"\n", rootId, rootId, getColorOverride("000000", int16(rootId), rootColorMap))
-		fmt.Fprintf(&sb, `.path-edge-sec-%d {marker-end:url(#arrow-%d);stroke:#%s}`+"\n", rootId, rootId, getColorOverride("000000", int16(rootId), rootColorMap))
-		fmt.Fprintf(&sb, `.rect-edge-label-pri-%d {stroke:#%s}`+"\n", rootId, getColorOverride("000000", int16(rootId), rootColorMap))
-		fmt.Fprintf(&sb, `.rect-edge-label-sec-%d {stroke:#%s}`+"\n", rootId, getColorOverride("000000", int16(rootId), rootColorMap))
+		fmt.Fprintf(&sb, `.path-edge-pri-%d {marker-end:url(#arrow-%d);stroke:#%s}`+"\n", nodeId, nodeId, getColorOverride("000000", int16(nodeId), rootColorMap))
+		fmt.Fprintf(&sb, `.path-edge-sec-%d {marker-end:url(#arrow-%d);stroke:#%s}`+"\n", nodeId, nodeId, getColorOverride("000000", int16(nodeId), rootColorMap))
+		fmt.Fprintf(&sb, `.rect-edge-label-pri-%d {stroke:#%s}`+"\n", nodeId, getColorOverride("000000", int16(nodeId), rootColorMap))
+		fmt.Fprintf(&sb, `.rect-edge-label-sec-%d {stroke:#%s}`+"\n", nodeId, getColorOverride("000000", int16(nodeId), rootColorMap))
 
-		// Node color: background, stroke
-		fmt.Fprintf(&sb, `.rect-node-background-%d {fill:#%s;opacity:0.2}`+"\n", rootId, getColorOverride("FFFFFF", int16(rootId), rootColorMap))
-		fmt.Fprintf(&sb, `.rect-node-%d {stroke:#%s}`+"\n", rootId, getColorOverride("000000", int16(rootId), rootColorMap))
+		// Solid node color background
+		if vizNodeMap[nodeId].Def.BackgroundType == NodeBackgroundSolid {
+			fmt.Fprintf(&sb, `.rect-node-background-%d {fill:#%s;opacity:0.3}`+"\n", nodeId, getColorOverride("FFFFFF", int16(nodeId), rootColorMap))
+		}
+		// For root nodes, create color classes
+		if nodeId == vizNodeMap[nodeId].RootId {
+			fmt.Fprintf(&sb, `.rect-node-root-%d {stroke:#%s}`+"\n", nodeId, getColorOverride("000000", int16(nodeId), rootColorMap))
+			fmt.Fprintf(&sb, `.rect-selected-node-root-%d {stroke:#%s}`+"\n", nodeId, getColorOverride("000000", int16(nodeId), rootColorMap))
+			if vizNodeMap[nodeId].Def.TextColorPreference == TextColorAsContainer {
+				fmt.Fprintf(&sb, `.text-node-root-%d {fill:#%s}`+"\n", nodeId, getColorOverride("000000", int16(nodeId), rootColorMap))
+			}
+			fmt.Fprintf(&sb, `.text-edge-root-%d {fill:#%s}`+"\n", nodeId, getColorOverride("000000", int16(nodeId), rootColorMap))
+		}
 	}
 	// Renderingstats
 	sb.WriteString(`.capigraph-rendering-stats {font-family:arial; font-weight:normal; font-size:10px; text-anchor:start; alignment-baseline:hanging; fill:transparent;}`)
 
-	// Caller-provided CSS overrides
-	sb.WriteString(css)
 	sb.WriteString("</style>\n")
 	fmt.Fprintf(&sb, `<rect class="viz-background" x="%d" y="%d" width="%d" height="%d"/>`+"\n", vbLeft, vbTop, vbRight-vbLeft, vbBottom-vbTop)
-
-	// Node selections at the z-bottom
-	sb.WriteString(drawNodeSelections(vizNodeMap, nodeFo))
 
 	// Edge lines first, nodes and labels can overlap with them
 	topItem := &vizNodeMap[0]
@@ -369,45 +425,35 @@ func draw(vizNodeMap []VizNode, nodeFo FontOptions, edgeFo FontOptions, eo EdgeO
 	// Nodes and labels
 	sb.WriteString(drawNodesAndEdgeLabels(vizNodeMap, topItem, nodeFo, edgeFo, eo, rootColorMap))
 
+	// Node selections at the z-top (unused, we now draw outer rect together with the rest of the node)
+	// sb.WriteString(drawNodeSelections(vizNodeMap, nodeFo))
+
 	fmt.Fprintf(&sb, `<text class="capigraph-rendering-stats" x="0" y="0">Perms %d, elapsed %.3fs, dist %.1f</text>`+"\n", totalPermutations, elapsed, bestDist)
 
 	sb.WriteString("</svg>\n")
 	return sb.String()
 }
 
-func DrawOptimized(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions, edgeOptions EdgeOptions, defsOverride string, cssOverride string, palette []int32) (string, []VizNode, int64, float64, float64, error) {
+func Draw(ctx context.Context, nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions, edgeOptions EdgeOptions, defsOverride string, cssOverride string, palette []int32, optimizationMode OptimizationMode) (string, error) {
+	if len(nodeDefs) == 0 {
+		return "", errors.New("no nodes specified")
+	}
+	if nodeDefs[0].Id == 1 {
+		nodeDefs = slices.Insert(nodeDefs, 0, NodeDef{0, "top node", EdgeDef{}, nil, "", 0, NodeBorderRegular, TextColorDefault, NodeBackgroundSolid, ""})
+	}
 	if err := checkNodeIds(nodeDefs); err != nil {
-		return "", nil, int64(0), 0.0, 0.0, err
+		return "", err
 	}
 
 	for i := range len(nodeDefs) - 1 {
 		if err := checkNodeDef(int16(i+1), nodeDefs); err != nil {
-			return "", nil, int64(0), 0.0, 0.0, err
+			return "", err
 		}
 	}
-	vizNodeMap, totalPermutations, elapsed, bestDist, err := getBestHierarchy(nodeDefs, nodeFo, edgeFo, true)
+	vizNodeMap, totalPermutations, elapsed, bestDist, err := getBestHierarchy(ctx, nodeDefs, nodeFo, edgeFo, optimizationMode)
 	if err != nil {
-		return "", nil, int64(0), 0.0, 0.0, err
+		return "", err
 	}
-	svgString := draw(vizNodeMap, nodeFo, edgeFo, edgeOptions, defsOverride, cssOverride, palette, totalPermutations, elapsed, bestDist)
-	return svgString, vizNodeMap, totalPermutations, elapsed, bestDist, nil
-}
-
-func DrawUnoptimized(nodeDefs []NodeDef, nodeFo FontOptions, edgeFo FontOptions, edgeOptions EdgeOptions, defsOverride string, cssOverride string, palette []int32) (string, []VizNode, error) {
-	if err := checkNodeIds(nodeDefs); err != nil {
-		return "", nil, err
-	}
-
-	for i := range len(nodeDefs) - 1 {
-		if err := checkNodeDef(int16(i+1), nodeDefs); err != nil {
-			return "", nil, err
-		}
-	}
-
-	vizNodeMap, totalPermutations, elapsed, bestDist, err := getBestHierarchy(nodeDefs, nodeFo, edgeFo, false)
-	if err != nil {
-		return "", nil, err
-	}
-	svgString := draw(vizNodeMap, nodeFo, edgeFo, edgeOptions, defsOverride, cssOverride, palette, totalPermutations, elapsed, bestDist)
-	return svgString, vizNodeMap, nil
+	svgString := drawVizNodes(vizNodeMap, nodeFo, edgeFo, edgeOptions, defsOverride, cssOverride, palette, totalPermutations, elapsed, bestDist)
+	return svgString, nil
 }

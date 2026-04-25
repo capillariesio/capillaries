@@ -16,7 +16,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/capillariesio/capillaries/pkg/capimq_message_broker"
+	"github.com/capillariesio/capillaries/pkg/capimq"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/prometheus/client_golang/prometheus"
@@ -26,7 +26,7 @@ import (
 type UrlHandlerInstance struct {
 	Env *env.EnvConfig
 	L   *l.CapiLogger
-	Mb  *capimq_message_broker.MessageBroker
+	Mb  *capimq.MessageBroker
 }
 
 type ctxKey struct {
@@ -119,7 +119,7 @@ func WriteApiDatalessSuccess(logger *l.CapiLogger, wc *env.CapiMqBrokerConfig, r
 	w.Header().Set("Access-Control-Allow-Origin", pickAccessControlAllowOrigin(wc, r))
 }
 
-func WriteApiDataSuccess[T capimq_message_broker.CapimqResultType](logger *l.CapiLogger, wc *env.CapiMqBrokerConfig, r *http.Request, w http.ResponseWriter, data T) {
+func WriteApiDataSuccess[T capimq.CapimqResultType](logger *l.CapiLogger, wc *env.CapiMqBrokerConfig, r *http.Request, w http.ResponseWriter, data T) {
 	logger.PushF("WriteApiDataSuccess")
 	defer logger.PopF()
 
@@ -145,16 +145,16 @@ func (h *UrlHandlerInstance) qBulk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var msgs []*capimq_message_broker.CapimqMessage
+	var msgs []*capimq.CapimqMessage
 	if err = json.Unmarshal(bodyBytes, &msgs); err != nil {
 		WriteApiError(h.L, &h.Env.CapiMqBroker, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
 
 	now := time.Now().UnixMilli()
-	internalMsgs := make([]*capimq_message_broker.CapimqInternalMessage, len(msgs))
+	internalMsgs := make([]*capimq.CapimqInternalMessage, len(msgs))
 	for i := range len(msgs) {
-		internalMsgs[i] = &capimq_message_broker.CapimqInternalMessage{
+		internalMsgs[i] = &capimq.CapimqInternalMessage{
 			Id:                   msgs[i].Id,
 			CapimqWaitRetryGroup: msgs[i].CapimqWaitRetryGroup,
 			Ts:                   now,
@@ -238,22 +238,22 @@ func (h *UrlHandlerInstance) wipReturn(w http.ResponseWriter, r *http.Request) {
 	WriteApiDatalessSuccess(h.L, &h.Env.CapiMqBroker, r, w)
 }
 
-func getHeapTypeFromRequest(r *http.Request) (capimq_message_broker.HeapType, error) {
+func getHeapTypeFromRequest(r *http.Request) (capimq.HeapType, error) {
 	qOrWip, err := getFieldByIndexFromRequest(r, 0)
 	if err != nil {
-		return capimq_message_broker.HeapTypeUnknown, err
+		return capimq.HeapTypeUnknown, err
 	}
 
-	return capimq_message_broker.StringToHeapType(qOrWip)
+	return capimq.StringToHeapType(qOrWip)
 }
 
-func getQueueStartFromRequest(r *http.Request) (capimq_message_broker.QueueReadType, error) {
+func getQueueStartFromRequest(r *http.Request) (capimq.QueueReadType, error) {
 	headOrTail, err := getFieldByIndexFromRequest(r, 1)
 	if err != nil {
-		return capimq_message_broker.QueueReadUnknown, err
+		return capimq.QueueReadUnknown, err
 	}
 
-	return capimq_message_broker.StringToQueueReadType(headOrTail)
+	return capimq.StringToQueueReadType(headOrTail)
 }
 
 func getIdFromRequest(r *http.Request, idx int) (string, error) {
@@ -322,15 +322,15 @@ func (h *UrlHandlerInstance) headTailFilter(w http.ResponseWriter, r *http.Reque
 	}
 
 	switch queueRead {
-	case capimq_message_broker.QueueReadHead, capimq_message_broker.QueueReadTail:
+	case capimq.QueueReadHead, capimq.QueueReadTail:
 		from, count, err := getFromCountParamsFromQuery(r)
 		if err != nil {
 			WriteApiError(h.L, &h.Env.CapiMqBroker, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		}
-		WriteApiDataSuccess(h.L, &h.Env.CapiMqBroker, r, w, capimq_message_broker.ToCapimqMessages(h.Mb.HeadTail(heapType, queueRead, from, count)))
-	case capimq_message_broker.QueueReadFilter:
+		WriteApiDataSuccess(h.L, &h.Env.CapiMqBroker, r, w, capimq.ToCapimqMessages(h.Mb.HeadTail(heapType, queueRead, from, count)))
+	case capimq.QueueReadFilter:
 		waitRetryGroupPrefix := r.URL.Query().Get("waitRetryGroupPrefix")
-		WriteApiDataSuccess(h.L, &h.Env.CapiMqBroker, r, w, capimq_message_broker.ToCapimqMessages(h.Mb.Filter(heapType, waitRetryGroupPrefix)))
+		WriteApiDataSuccess(h.L, &h.Env.CapiMqBroker, r, w, capimq.ToCapimqMessages(h.Mb.Filter(heapType, waitRetryGroupPrefix)))
 	default:
 		WriteApiError(h.L, &h.Env.CapiMqBroker, r, w, r.URL.Path, fmt.Errorf("unexpected queueRead %s", queueRead), http.StatusInternalServerError)
 	}
@@ -373,7 +373,7 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	h := UrlHandlerInstance{Env: envConfig, L: logger, Mb: capimq_message_broker.NewMessageBroker(envConfig.CapiMqBroker.MaxMessages)}
+	h := UrlHandlerInstance{Env: envConfig, L: logger, Mb: capimq.NewMessageBroker(envConfig.CapiMqBroker.MaxMessages)}
 
 	routes = []route{
 		newRoute("POST", "/q/bulk[/]*", h.qBulk),

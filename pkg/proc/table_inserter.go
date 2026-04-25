@@ -14,10 +14,12 @@ import (
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/env"
-	"github.com/capillariesio/capillaries/pkg/eval_capi"
+	"github.com/capillariesio/capillaries/pkg/evalcapi"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
 )
+
+type TableRecord map[string]any
 
 type DataIdxSeqModeType int
 
@@ -31,7 +33,6 @@ type TableInserter struct {
 	TableCreator                 *sc.TableCreatorDef
 	RecordsIn                    chan WriteChannelItem // Channel to pass records from the main function like RunCreateTableForBatch, usig add(), to TableInserter
 	RecordWrittenStatuses        chan error
-	RecordWrittenStatusesMutex   sync.Mutex // Only to report on draining, otherwise useless
 	MachineHash                  int64
 	NumWorkers                   int
 	DrainerCapacity              int
@@ -155,8 +156,8 @@ func createInserterAndStartWorkers(logger *l.CapiLogger, envConfig *env.EnvConfi
 
 func CreateDataTableCql(keyspace string, runId int16, tableCreator *sc.TableCreatorDef) string {
 	qb := cql.NewQB()
-	qb.ColumnDef("rowid", eval_capi.FieldTypeInt)
-	qb.ColumnDef("batch_idx", eval_capi.FieldTypeInt)
+	qb.ColumnDef("rowid", evalcapi.FieldTypeInt)
+	qb.ColumnDef("batch_idx", evalcapi.FieldTypeInt)
 	for fieldName, fieldDef := range tableCreator.Fields {
 		qb.ColumnDef(fieldName, fieldDef.Type)
 	}
@@ -166,8 +167,8 @@ func CreateDataTableCql(keyspace string, runId int16, tableCreator *sc.TableCrea
 func CreateIdxTableCql(keyspace string, runId int16, idxName string, idxDef *sc.IdxDef, tableCreator *sc.TableCreatorDef) string {
 	qb := cql.NewQB()
 	qb.Keyspace(keyspace).
-		ColumnDef("key", eval_capi.FieldTypeString).
-		ColumnDef("rowid", eval_capi.FieldTypeInt)
+		ColumnDef("key", evalcapi.FieldTypeString).
+		ColumnDef("rowid", evalcapi.FieldTypeInt)
 	if idxDef.Uniqueness == sc.IdxUnique {
 		// Key must be unique, let Cassandra enforce it for us: PRIMARY KEY (key)
 		qb.PartitionKey("key")

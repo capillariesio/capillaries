@@ -12,20 +12,20 @@ const (
 	HierarchySec
 )
 
-type VizNode struct {
+type vizNode struct {
 	Def                         *NodeDef
-	IncomingVizEdges            []VizEdge
+	IncomingVizEdges            []vizEdge
 	RootId                      int16
 	Layer                       int
 	TotalW                      float64
-	X                           float64 // Total X
+	X                           float64 // Total X, not necessarily this node X
 	Y                           float64
 	NodeW                       float64
 	NodeH                       float64
-	PriChildrenAndEnclosedRoots []*VizNode
+	PriChildrenAndEnclosedRoots []*vizNode
 }
 
-func (vn *VizNode) String() string {
+func (vn *vizNode) String() string {
 	sb := strings.Builder{}
 	fmt.Fprintf(&sb, "{Id:%d RootId:%d Layer:%d ", vn.Def.Id, vn.RootId, vn.Layer)
 	fmt.Fprintf(&sb, "X:%.2f Y:%.2f TotalW:%.2f W:%.2f H:%.2f ", vn.X, vn.Y, vn.TotalW, vn.NodeW, vn.NodeH)
@@ -38,7 +38,7 @@ func (vn *VizNode) String() string {
 		if e.HierarchyType == HierarchySec {
 			ht = "sec"
 		}
-		fmt.Fprintf(&sb, "{HT:%s SrcId:%d X:%.2f Y:%.2f W:%.2f H:%.2f}", ht, e.Edge.SrcId, e.X, e.Y, e.W, e.H)
+		fmt.Fprintf(&sb, "{HT:%s SrcId:%d X:%.2f Y:%.2f W:%.2f H:%.2f}", ht, e.Def.SrcId, e.X, e.Y, e.W, e.H)
 	}
 	sb.WriteString("] ")
 	sb.WriteString("PriRootOut:[")
@@ -53,7 +53,7 @@ func (vn *VizNode) String() string {
 	return sb.String()
 }
 
-func (vn *VizNode) cleanPropertiesSubjectToPermutation() {
+func (vn *vizNode) cleanPropertiesSubjectToPermutation() {
 	// Do not clean up static properties like Def, NodeW, NodeH etc
 	vn.PriChildrenAndEnclosedRoots = vn.PriChildrenAndEnclosedRoots[:0] // Reset size, not capacity
 	vn.TotalW = 0.0
@@ -61,8 +61,8 @@ func (vn *VizNode) cleanPropertiesSubjectToPermutation() {
 	vn.Y = 0.0
 }
 
-type VizEdge struct {
-	Edge          EdgeDef
+type vizEdge struct {
+	Def           *EdgeDef
 	HierarchyType HierarchyType
 	X             float64
 	Y             float64

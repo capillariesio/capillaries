@@ -9,12 +9,12 @@ import (
 	"math"
 	"math/rand"
 	"os"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/capillariesio/capillaries/pkg/eval_capi"
+	"github.com/capillariesio/capillaries/pkg/evalcapi"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/storage"
 	"github.com/shopspring/decimal"
@@ -143,32 +143,32 @@ func shuffleAndSaveInOrders(inOrders []*Order, totalChunks int, basePath string,
 				if err != nil {
 					log.Fatalf("cannot create parquet writer: %s", err.Error())
 				}
-				if err := parquetWriter.AddColumn("order_id", eval_capi.FieldTypeString); err != nil {
+				if err := parquetWriter.AddColumn("order_id", evalcapi.FieldTypeString); err != nil {
 					log.Fatalf("cannot add column order_id %s", err.Error())
 				}
-				if err := parquetWriter.AddColumn("customer_id", eval_capi.FieldTypeString); err != nil {
+				if err := parquetWriter.AddColumn("customer_id", evalcapi.FieldTypeString); err != nil {
 					log.Fatalf("%s", err.Error())
 				}
-				if err := parquetWriter.AddColumn("order_status", eval_capi.FieldTypeString); err != nil {
+				if err := parquetWriter.AddColumn("order_status", evalcapi.FieldTypeString); err != nil {
 					log.Fatalf("%s", err.Error())
 				}
-				if err := parquetWriter.AddColumn("order_purchase_timestamp", eval_capi.FieldTypeDateTime); err != nil {
+				if err := parquetWriter.AddColumn("order_purchase_timestamp", evalcapi.FieldTypeDateTime); err != nil {
 					log.Fatalf("%s", err.Error())
 				}
-				if err := parquetWriter.AddColumn("order_approved_at", eval_capi.FieldTypeDateTime); err != nil {
+				if err := parquetWriter.AddColumn("order_approved_at", evalcapi.FieldTypeDateTime); err != nil {
 					log.Fatalf("%s", err.Error())
 				}
-				if err := parquetWriter.AddColumn("order_delivered_carrier_date", eval_capi.FieldTypeDateTime); err != nil {
+				if err := parquetWriter.AddColumn("order_delivered_carrier_date", evalcapi.FieldTypeDateTime); err != nil {
 					log.Fatalf("%s", err.Error())
 				}
-				if err := parquetWriter.AddColumn("order_delivered_customer_date", eval_capi.FieldTypeDateTime); err != nil {
+				if err := parquetWriter.AddColumn("order_delivered_customer_date", evalcapi.FieldTypeDateTime); err != nil {
 					log.Fatalf("%s", err.Error())
 				}
-				if err := parquetWriter.AddColumn("order_estimated_delivery_date", eval_capi.FieldTypeDateTime); err != nil {
+				if err := parquetWriter.AddColumn("order_estimated_delivery_date", evalcapi.FieldTypeDateTime); err != nil {
 					log.Fatalf("%s", err.Error())
 				}
 				// Test only
-				// if err := w.AddColumn("is_sent", eval_capi.FieldTypeBool); err != nil {
+				// if err := w.AddColumn("is_sent", evalcapi.FieldTypeBool); err != nil {
 				// 	log.Fatalf("%s", err.Error())
 				// }
 			}
@@ -267,25 +267,25 @@ func shuffleAndSaveInOrderItems(inOrderItems []*OrderItem, totalChunks int, base
 				if err != nil {
 					log.Fatalf("cannot create parquet writer: %s", err.Error())
 				}
-				if err := parquetWriter.AddColumn("order_id", eval_capi.FieldTypeString); err != nil {
+				if err := parquetWriter.AddColumn("order_id", evalcapi.FieldTypeString); err != nil {
 					log.Fatalf("cannot add column order_id %s", err.Error())
 				}
-				if err := parquetWriter.AddColumn("order_item_id", eval_capi.FieldTypeInt); err != nil {
+				if err := parquetWriter.AddColumn("order_item_id", evalcapi.FieldTypeInt); err != nil {
 					log.Fatalf("%s", err.Error())
 				}
-				if err := parquetWriter.AddColumn("product_id", eval_capi.FieldTypeString); err != nil {
+				if err := parquetWriter.AddColumn("product_id", evalcapi.FieldTypeString); err != nil {
 					log.Fatalf("%s", err.Error())
 				}
-				if err := parquetWriter.AddColumn("seller_id", eval_capi.FieldTypeString); err != nil {
+				if err := parquetWriter.AddColumn("seller_id", evalcapi.FieldTypeString); err != nil {
 					log.Fatalf("%s", err.Error())
 				}
-				if err := parquetWriter.AddColumn("shipping_limit_date", eval_capi.FieldTypeDateTime); err != nil {
+				if err := parquetWriter.AddColumn("shipping_limit_date", evalcapi.FieldTypeDateTime); err != nil {
 					log.Fatalf("%s", err.Error())
 				}
-				if err := parquetWriter.AddColumn("price", eval_capi.FieldTypeDecimal2); err != nil {
+				if err := parquetWriter.AddColumn("price", evalcapi.FieldTypeDecimal2); err != nil {
 					log.Fatalf("%s", err.Error())
 				}
-				if err := parquetWriter.AddColumn("freight_value", eval_capi.FieldTypeDecimal2); err != nil {
+				if err := parquetWriter.AddColumn("freight_value", evalcapi.FieldTypeDecimal2); err != nil {
 					log.Fatalf("%s", err.Error())
 				}
 			}
@@ -335,11 +335,22 @@ func shuffleAndSaveInOrderItems(inOrderItems []*OrderItem, totalChunks int, base
 
 func sortAndSaveNoGroup(items []*NoGroupItem, fileBase string, formats string) {
 	// "order": "order_id(asc),order_item_id(asc)"
-	sort.Slice(items, func(i, j int) bool {
-		if items[i].OrderId != items[j].OrderId {
-			return items[i].OrderId < items[j].OrderId
-		} else {
-			return items[i].OrderItemId < items[j].OrderItemId
+	slices.SortFunc(items, func(l, r *NoGroupItem) int {
+		switch {
+		case l.OrderId < r.OrderId:
+			return -1
+		case l.OrderId > r.OrderId:
+			return 1
+		default:
+			switch {
+			case l.OrderItemId < r.OrderItemId:
+				return -1
+			case l.OrderItemId > r.OrderItemId:
+				return 1
+			default:
+				return 0
+
+			}
 		}
 	})
 	if strings.Contains(formats, "csv") {
@@ -380,22 +391,22 @@ func sortAndSaveNoGroup(items []*NoGroupItem, fileBase string, formats string) {
 			log.Fatalf("cannot create parquet writer: %s", err.Error())
 		}
 
-		if err := w.AddColumn("order_id", eval_capi.FieldTypeString); err != nil {
+		if err := w.AddColumn("order_id", evalcapi.FieldTypeString); err != nil {
 			log.Fatalf("cannot add column order_id %s", err.Error())
 		}
-		if err := w.AddColumn("order_item_id", eval_capi.FieldTypeInt); err != nil {
+		if err := w.AddColumn("order_item_id", evalcapi.FieldTypeInt); err != nil {
 			log.Fatalf("%s", err.Error())
 		}
-		if err := w.AddColumn("product_id", eval_capi.FieldTypeString); err != nil {
+		if err := w.AddColumn("product_id", evalcapi.FieldTypeString); err != nil {
 			log.Fatalf("%s", err.Error())
 		}
-		if err := w.AddColumn("seller_id", eval_capi.FieldTypeString); err != nil {
+		if err := w.AddColumn("seller_id", evalcapi.FieldTypeString); err != nil {
 			log.Fatalf("%s", err.Error())
 		}
-		if err := w.AddColumn("shipping_limit_date", eval_capi.FieldTypeDateTime); err != nil {
+		if err := w.AddColumn("shipping_limit_date", evalcapi.FieldTypeDateTime); err != nil {
 			log.Fatalf("%s", err.Error())
 		}
-		if err := w.AddColumn("value", eval_capi.FieldTypeDecimal2); err != nil {
+		if err := w.AddColumn("value", evalcapi.FieldTypeDecimal2); err != nil {
 			log.Fatalf("%s", err.Error())
 		}
 
@@ -424,13 +435,29 @@ func sortAndSaveNoGroup(items []*NoGroupItem, fileBase string, formats string) {
 
 func sortAndSaveGroup(items []*GroupItem, fileBase string, formats string) {
 	// "order": "total_value(desc),order_purchase_timestamp(desc),order_id(desc)"
-	sort.Slice(items, func(i, j int) bool {
-		if !items[i].TotalOrderValue.Equal(items[j].TotalOrderValue) {
-			return items[i].TotalOrderValue.GreaterThan(items[j].TotalOrderValue)
-		} else if !items[i].OrderPurchaseTs.Equal(items[j].OrderPurchaseTs) {
-			return items[i].OrderPurchaseTs.After(items[j].OrderPurchaseTs)
-		} else {
-			return items[i].OrderId > items[j].OrderId
+	slices.SortFunc(items, func(l, r *GroupItem) int {
+		switch {
+		case l.TotalOrderValue.GreaterThan(r.TotalOrderValue):
+			return -1
+		case l.TotalOrderValue.LessThan(r.TotalOrderValue):
+			return 1
+		default:
+			switch {
+			case l.OrderPurchaseTs.After(r.OrderPurchaseTs):
+				return -1
+			case l.OrderPurchaseTs.Before(r.OrderPurchaseTs):
+				return 1
+			default:
+				switch {
+				case l.OrderId > l.OrderId:
+					return -1
+				case l.OrderId < l.OrderId:
+					return 1
+				default:
+					return -0
+				}
+			}
+
 		}
 	})
 
@@ -474,31 +501,31 @@ func sortAndSaveGroup(items []*GroupItem, fileBase string, formats string) {
 			log.Fatalf("cannot create parquet writer: %s", err.Error())
 		}
 
-		if err := w.AddColumn("total_value", eval_capi.FieldTypeDecimal2); err != nil {
+		if err := w.AddColumn("total_value", evalcapi.FieldTypeDecimal2); err != nil {
 			log.Fatalf("cannot add column total_value %s", err.Error())
 		}
-		if err := w.AddColumn("order_purchase_timestamp", eval_capi.FieldTypeDateTime); err != nil {
+		if err := w.AddColumn("order_purchase_timestamp", evalcapi.FieldTypeDateTime); err != nil {
 			log.Fatalf("%s", err.Error())
 		}
-		if err := w.AddColumn("order_id", eval_capi.FieldTypeString); err != nil {
+		if err := w.AddColumn("order_id", evalcapi.FieldTypeString); err != nil {
 			log.Fatalf("%s", err.Error())
 		}
-		if err := w.AddColumn("avg_value", eval_capi.FieldTypeDecimal2); err != nil {
+		if err := w.AddColumn("avg_value", evalcapi.FieldTypeDecimal2); err != nil {
 			log.Fatalf("%s", err.Error())
 		}
-		if err := w.AddColumn("min_value", eval_capi.FieldTypeDecimal2); err != nil {
+		if err := w.AddColumn("min_value", evalcapi.FieldTypeDecimal2); err != nil {
 			log.Fatalf("%s", err.Error())
 		}
-		if err := w.AddColumn("max_value", eval_capi.FieldTypeDecimal2); err != nil {
+		if err := w.AddColumn("max_value", evalcapi.FieldTypeDecimal2); err != nil {
 			log.Fatalf("%s", err.Error())
 		}
-		if err := w.AddColumn("min_product_id", eval_capi.FieldTypeString); err != nil {
+		if err := w.AddColumn("min_product_id", evalcapi.FieldTypeString); err != nil {
 			log.Fatalf("%s", err.Error())
 		}
-		if err := w.AddColumn("max_product_id", eval_capi.FieldTypeString); err != nil {
+		if err := w.AddColumn("max_product_id", evalcapi.FieldTypeString); err != nil {
 			log.Fatalf("%s", err.Error())
 		}
-		if err := w.AddColumn("item_count", eval_capi.FieldTypeInt); err != nil {
+		if err := w.AddColumn("item_count", evalcapi.FieldTypeInt); err != nil {
 			log.Fatalf("%s", err.Error())
 		}
 

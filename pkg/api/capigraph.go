@@ -1,17 +1,20 @@
 package api
 
 import (
+	"context"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
+	"time"
 
 	"github.com/capillariesio/capillaries/pkg/capigraph"
-	"github.com/capillariesio/capillaries/pkg/custom/py_calc"
-	"github.com/capillariesio/capillaries/pkg/custom/tag_and_denormalize"
+	"github.com/capillariesio/capillaries/pkg/custom/pycalc"
+	"github.com/capillariesio/capillaries/pkg/custom/taganddenormalize"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
+// See capillaries_capigraph_icons.svg
 const CapillariesIcons100x100 = `
 <g id="icon-database-table-distinct">
   <g transform="scale(0.56) translate(2,61)">
@@ -186,15 +189,15 @@ func nodeTypeDescription(node *sc.ScriptNodeDef) string {
 			shortenFileName(node.FileCreator.UrlTemplate))
 	case sc.NodeTypeTableCustomTfmTable:
 		switch node.CustomProcessorType {
-		case py_calc.ProcessorPyCalcName:
+		case pycalc.ProcessorPyCalcName:
 			return fmt.Sprintf(
 				"Processor: apply Python calculations\n"+
 					"Python file(s): %s\n"+
 					"Table created: %s",
-				shortenFileName(node.CustomProcessor.(*py_calc.PyCalcProcessorDef).PythonUrls[0]),
+				shortenFileName(node.CustomProcessor.(*pycalc.PyCalcProcessorDef).PythonUrls[0]),
 				node.TableCreator.Name)
-		case tag_and_denormalize.ProcessorTagAndDenormalizeName:
-			tagCriteriaUrl := shortenFileName(node.CustomProcessor.(*tag_and_denormalize.TagAndDenormalizeProcessorDef).RawTagCriteriaUrl)
+		case taganddenormalize.ProcessorTagAndDenormalizeName:
+			tagCriteriaUrl := shortenFileName(node.CustomProcessor.(*taganddenormalize.TagAndDenormalizeProcessorDef).RawTagCriteriaUrl)
 			if len(tagCriteriaUrl) == 0 {
 				tagCriteriaUrl = "(inline)"
 			}
@@ -233,17 +236,19 @@ func nodeTypeIcon(node *sc.ScriptNodeDef) string {
 	case sc.NodeTypeTableLookupTable:
 		return "icon-database-table-join"
 	case sc.NodeTypeTableFile:
-		if node.FileCreator.CreatorFileType == sc.CreatorFileTypeCsv {
+		switch node.FileCreator.CreatorFileType {
+		case sc.CreatorFileTypeCsv:
 			return "icon-csv"
-		} else if node.FileCreator.CreatorFileType == sc.CreatorFileTypeParquet {
+		case sc.CreatorFileTypeParquet:
 			return "icon-parquet"
+		default:
+			return ""
 		}
-		return ""
 	case sc.NodeTypeTableCustomTfmTable:
 		switch node.CustomProcessorType {
-		case py_calc.ProcessorPyCalcName:
+		case pycalc.ProcessorPyCalcName:
 			return "icon-database-table-py"
-		case tag_and_denormalize.ProcessorTagAndDenormalizeName:
+		case taganddenormalize.ProcessorTagAndDenormalizeName:
 			return "icon-database-table-tag"
 		default:
 			return ""
@@ -255,10 +260,19 @@ func nodeTypeIcon(node *sc.ScriptNodeDef) string {
 	}
 }
 
-// Used by Webapi and Toolbelt
-func GetCapigraphDiagram(scriptDef *sc.ScriptDef, showIdx bool, showFields bool, useRootPalette bool, nodeStringColorMap map[string]int32) string {
+func populateNodeDefs(scriptDef *sc.ScriptDef, nodeStringColorMap map[string]int32) ([]capigraph.NodeDef, map[string]int16) {
 	nodeDefs := make([]capigraph.NodeDef, len(scriptDef.ScriptNodes)+1)
-	nodeDefs[0] = capigraph.NodeDef{0, "", capigraph.EdgeDef{}, []capigraph.EdgeDef{}, "", 0, false}
+	nodeDefs[0] = capigraph.NodeDef{
+		Id:                    0,
+		Text:                  "",
+		PriIn:                 capigraph.EdgeDef{},
+		SecIn:                 []capigraph.EdgeDef{},
+		IconId:                "",
+		ColorOverride:         0,
+		BorderThickness:       capigraph.NodeBorderThick,
+		TextColorPreference:   capigraph.TextColorDefault,
+		BackgroundType:        capigraph.NodeBackgroundSolid,
+		CustomBackgroundClass: ""}
 	nodeNameMap := map[string]int16{}
 
 	// Populate nodes. Before that, sort node names, otherwise they may appear on the diagram in random order (when best distances are close)
@@ -268,7 +282,16 @@ func GetCapigraphDiagram(scriptDef *sc.ScriptDef, showIdx bool, showFields bool,
 		nodeNames[nodeIdx] = nodeName
 		nodeIdx++
 	}
-	sort.Slice(nodeNames, func(i, j int) bool { return nodeNames[i] < nodeNames[j] })
+	slices.SortFunc(nodeNames, func(l, r string) int {
+		switch {
+		case l < r:
+			return -1
+		case l > r:
+			return 1
+		default:
+			return 0
+		}
+	})
 
 	nodeIdx = int16(1)
 	for _, nodeName := range nodeNames {
@@ -281,26 +304,112 @@ func GetCapigraphDiagram(scriptDef *sc.ScriptDef, showIdx bool, showFields bool,
 
 		// This is a root node marked as "manual". Do not show "manual" marker,
 		// it is redundant in this case and may be confusing
-		isReallyStartedManually := !node.HasFileReader() && node.StartPolicy == sc.NodeStartManual
+		var nodeBorderThickness capigraph.NodeBorderThickness
+		if node.HasFileReader() && node.StartPolicy == sc.NodeStartManual {
+			nodeBorderThickness = capigraph.NodeBorderThick
+		} else {
+			nodeBorderThickness = capigraph.NodeBorderRegular
+		}
+		var nodeDefText string
 		if nodeStringColorMap != nil {
 			// Short desc
-			nodeDefs[nodeIdx] = capigraph.NodeDef{nodeIdx, fmt.Sprintf("\n%s\n", nodeName), capigraph.EdgeDef{}, []capigraph.EdgeDef{}, nodeTypeIcon(node), color, isReallyStartedManually}
+			nodeDefText = fmt.Sprintf("\n%s\n", nodeName)
 		} else {
 			// Full desc
-			nodeDefs[nodeIdx] = capigraph.NodeDef{nodeIdx, fmt.Sprintf("%s\n%s\n%s", nodeName, node.Desc, nodeTypeDescription(node)), capigraph.EdgeDef{}, []capigraph.EdgeDef{}, nodeTypeIcon(node), color, isReallyStartedManually}
+			nodeDefText = fmt.Sprintf("%s\n%s\n%s", nodeName, node.Desc, nodeTypeDescription(node))
+		}
+		nodeDefs[nodeIdx] = capigraph.NodeDef{
+			Id:                    nodeIdx,
+			Text:                  nodeDefText,
+			PriIn:                 capigraph.EdgeDef{},
+			SecIn:                 []capigraph.EdgeDef{},
+			IconId:                nodeTypeIcon(node),
+			ColorOverride:         color,
+			BorderThickness:       nodeBorderThickness,
+			TextColorPreference:   capigraph.TextColorDefault,
+			BackgroundType:        capigraph.NodeBackgroundSolid,
+			CustomBackgroundClass: "",
 		}
 		nodeIdx++
 	}
+	return nodeDefs, nodeNameMap
+}
 
-	// Populate direct parents and lookups
+func populateTableReaderNodeDefPriIn(scriptDef *sc.ScriptDef, nodeDefs []capigraph.NodeDef, allUsedFields sc.FieldRefs, node *sc.ScriptNodeDef, nodeIdx int16, nodeNameMap map[string]int16, showIdx bool, showFields bool) {
+	parentNode := scriptDef.TableCreatorNodeMap[node.TableReader.TableName]
+	parentNodeIdx := nodeNameMap[parentNode.Name]
+	nodeDefs[nodeIdx].PriIn.SrcId = parentNodeIdx
+	sb := strings.Builder{}
+	if showIdx {
+		if node.TableReader.ExpectedBatchesTotal > 1 {
+			fmt.Fprintf(&sb, "%s\n(%d batches)", node.TableReader.TableName, node.TableReader.ExpectedBatchesTotal)
+		} else {
+			fmt.Fprintf(&sb, "%s\n(no parallelism)", node.TableReader.TableName)
+		}
+	}
+	if showFields {
+		if showIdx {
+			sb.WriteString("\n")
+		}
+		slices.SortFunc(allUsedFields, func(l, r sc.FieldRef) int {
+			switch {
+			case l.FieldName < r.FieldName:
+				return -1
+			case l.FieldName > r.FieldName:
+				return 1
+			default:
+				return 0
+			}
+		})
+
+		for i := 0; i < len(allUsedFields); i++ {
+			if allUsedFields[i].TableName == sc.ReaderAlias {
+				if sb.Len() > 0 {
+					sb.WriteString("\n")
+				}
+				sb.WriteString(allUsedFields[i].FieldName)
+			}
+		}
+	}
+	nodeDefs[nodeIdx].PriIn.Text = sb.String()
+
+}
+
+func populateLookupNodeDefSecIn(scriptDef *sc.ScriptDef, nodeDefs []capigraph.NodeDef, allUsedFields sc.FieldRefs, node *sc.ScriptNodeDef, nodeIdx int16, nodeNameMap map[string]int16, showIdx bool, showFields bool) {
+	lkpParentNode := scriptDef.IndexNodeMap[node.Lookup.IndexName]
+	lkpParentNodeIdx := nodeNameMap[lkpParentNode.Name]
+
+	sb := strings.Builder{}
+	if showIdx {
+		fmt.Fprintf(&sb, "%s\n(lookup)", node.Lookup.IndexName)
+	}
+	if showFields {
+		if showIdx {
+			sb.WriteString("\n")
+		}
+		for i := 0; i < len(allUsedFields); i++ {
+			if allUsedFields[i].TableName == sc.LookupAlias {
+				if sb.Len() > 0 {
+					sb.WriteString("\n")
+				}
+				sb.WriteString(allUsedFields[i].FieldName)
+
+			}
+		}
+	}
+	nodeDefs[nodeIdx].SecIn = append(nodeDefs[nodeIdx].SecIn, capigraph.EdgeDef{SrcId: lkpParentNodeIdx, Text: sb.String()})
+
+}
+
+func populateDirectParentsAndLookups(scriptDef *sc.ScriptDef, nodeDefs []capigraph.NodeDef, nodeNameMap map[string]int16, showIdx bool, showFields bool) {
 	for _, node := range scriptDef.ScriptNodes {
 		nodeIdx := nodeNameMap[node.Name]
 		allUsedFields := sc.FieldRefs{}
-		if node.Type == sc.NodeTypeTableCustomTfmTable && node.CustomProcessorType == py_calc.ProcessorPyCalcName {
-			usedInPyExpressions := node.CustomProcessor.(*py_calc.PyCalcProcessorDef).GetUsedInTargetExpressionsFields()
+		if node.Type == sc.NodeTypeTableCustomTfmTable && node.CustomProcessorType == pycalc.ProcessorPyCalcName {
+			usedInPyExpressions := node.CustomProcessor.(*pycalc.PyCalcProcessorDef).GetUsedInTargetExpressionsFields()
 			allUsedFields.Append(*usedInPyExpressions)
-		} else if node.Type == sc.NodeTypeTableCustomTfmTable && node.CustomProcessorType == tag_and_denormalize.ProcessorTagAndDenormalizeName {
-			usedInTagExpressions := node.CustomProcessor.(*tag_and_denormalize.TagAndDenormalizeProcessorDef).GetUsedInTargetExpressionsFields()
+		} else if node.Type == sc.NodeTypeTableCustomTfmTable && node.CustomProcessorType == taganddenormalize.ProcessorTagAndDenormalizeName {
+			usedInTagExpressions := node.CustomProcessor.(*taganddenormalize.TagAndDenormalizeProcessorDef).GetUsedInTargetExpressionsFields()
 			allUsedFields.Append(*usedInTagExpressions)
 		}
 		if node.HasFileCreator() {
@@ -312,70 +421,32 @@ func GetCapigraphDiagram(scriptDef *sc.ScriptDef, showIdx bool, showFields bool,
 		}
 
 		if node.HasTableReader() {
-			parentNode := scriptDef.TableCreatorNodeMap[node.TableReader.TableName]
-			parentNodeIdx := nodeNameMap[parentNode.Name]
-			nodeDefs[nodeIdx].PriIn.SrcId = parentNodeIdx
-			sb := strings.Builder{}
-			if showIdx {
-				if node.TableReader.ExpectedBatchesTotal > 1 {
-					fmt.Fprintf(&sb, "%s\n(%d batches)", node.TableReader.TableName, node.TableReader.ExpectedBatchesTotal)
-				} else {
-					fmt.Fprintf(&sb, "%s\n(no parallelism)", node.TableReader.TableName)
-				}
-			}
-			if showFields {
-				if showIdx {
-					sb.WriteString("\n")
-				}
-				sort.Slice(allUsedFields, func(i, j int) bool { return allUsedFields[i].FieldName < allUsedFields[j].FieldName })
-				for i := 0; i < len(allUsedFields); i++ {
-					if allUsedFields[i].TableName == sc.ReaderAlias {
-						if sb.Len() > 0 {
-							sb.WriteString("\n")
-						}
-						sb.WriteString(allUsedFields[i].FieldName)
-					}
-				}
-			}
-			nodeDefs[nodeIdx].PriIn.Text = sb.String()
+			populateTableReaderNodeDefPriIn(scriptDef, nodeDefs, allUsedFields, node, nodeIdx, nodeNameMap, showIdx, showFields)
 		}
 		if node.HasLookup() {
-			lkpParentNode := scriptDef.IndexNodeMap[node.Lookup.IndexName]
-			lkpParentNodeIdx := nodeNameMap[lkpParentNode.Name]
-
-			sb := strings.Builder{}
-			if showIdx {
-				fmt.Fprintf(&sb, "%s\n(lookup)", node.Lookup.IndexName)
-			}
-			if showFields {
-				if showIdx {
-					sb.WriteString("\n")
-				}
-				for i := 0; i < len(allUsedFields); i++ {
-					if allUsedFields[i].TableName == sc.LookupAlias {
-						if sb.Len() > 0 {
-							sb.WriteString("\n")
-						}
-						sb.WriteString(allUsedFields[i].FieldName)
-
-					}
-				}
-			}
-			nodeDefs[nodeIdx].SecIn = append(nodeDefs[nodeIdx].SecIn, capigraph.EdgeDef{lkpParentNodeIdx, sb.String()})
+			populateLookupNodeDefSecIn(scriptDef, nodeDefs, allUsedFields, node, nodeIdx, nodeNameMap, showIdx, showFields)
 		}
 	}
+}
 
-	nodeFo := capigraph.FontOptions{capigraph.FontTypefaceVerdana, capigraph.FontWeightNormal, 20, 0.3}
-	edgeFo := capigraph.FontOptions{capigraph.FontTypefaceArial, capigraph.FontWeightNormal, 18, 0.3}
-	edgeOptions := capigraph.EdgeOptions{2.0}
+// Used by Webapi and Toolbelt
+func GetCapigraphDiagram(scriptDef *sc.ScriptDef, showIdx bool, showFields bool, useRootPalette bool, nodeStringColorMap map[string]int32) string {
+	nodeDefs, nodeNameMap := populateNodeDefs(scriptDef, nodeStringColorMap)
+	populateDirectParentsAndLookups(scriptDef, nodeDefs, nodeNameMap, showIdx, showFields)
+
+	nodeFo := capigraph.FontOptions{Typeface: capigraph.FontTypefaceVerdana, Weight: capigraph.FontWeightNormal, SizeInPixels: 20, Interval: 0.3}
+	edgeFo := capigraph.FontOptions{Typeface: capigraph.FontTypefaceArial, Weight: capigraph.FontWeightNormal, SizeInPixels: 18, Interval: 0.3}
+	edgeOptions := capigraph.EdgeOptions{StrokeWidth: 2.0}
 	palette := capigraph.DefaultPalette()
 	if nodeStringColorMap != nil || !useRootPalette {
 		palette = nil
 	}
-	svg, _, _, _, _, errOpt := capigraph.DrawOptimized(nodeDefs, nodeFo, edgeFo, edgeOptions, CapillariesIcons100x100, "", palette)
+	drawCtx, drawCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	svg, errOpt := capigraph.Draw(drawCtx, nodeDefs, nodeFo, edgeFo, edgeOptions, CapillariesIcons100x100, "", palette, capigraph.Optimize)
+	drawCancel()
 	if errOpt != nil {
 		var errUnopt error
-		svg, _, errUnopt = capigraph.DrawUnoptimized(nodeDefs, nodeFo, edgeFo, edgeOptions, CapillariesIcons100x100, "", palette)
+		svg, errUnopt = capigraph.Draw(context.TODO(), nodeDefs, nodeFo, edgeFo, edgeOptions, CapillariesIcons100x100, "", palette, capigraph.DoNotOptimize)
 		if errUnopt != nil {
 			svg = fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 500 200">
 <style>{font-family:arial; font-weight:normal; font-size:10px; text-anchor:start; alignment-baseline:hanging; fill:black;}</style>

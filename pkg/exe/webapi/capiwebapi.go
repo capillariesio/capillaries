@@ -9,7 +9,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,14 +17,15 @@ import (
 
 	"github.com/capillariesio/capillaries/pkg/api"
 	"github.com/capillariesio/capillaries/pkg/cql"
-	"github.com/capillariesio/capillaries/pkg/custom/py_calc"
-	"github.com/capillariesio/capillaries/pkg/custom/tag_and_denormalize"
+	"github.com/capillariesio/capillaries/pkg/custom/pycalc"
+	"github.com/capillariesio/capillaries/pkg/custom/taganddenormalize"
 	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/gocqlshims"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/mq"
 	"github.com/capillariesio/capillaries/pkg/sc"
+	"github.com/capillariesio/capillaries/pkg/wfdb"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/capillariesio/capillaries/pkg/xfer"
 	"github.com/prometheus/client_golang/prometheus"
@@ -39,10 +40,10 @@ func (f *StandardWebapiProcessorDefFactory) Create(processorType string) (sc.Cus
 	// If you develop your own processor(s), use your own ProcessorDefFactory that lists all processors,
 	// they all must implement CustomProcessorRunner interface
 	switch processorType {
-	case py_calc.ProcessorPyCalcName:
-		return &py_calc.PyCalcProcessorDef{}, true
-	case tag_and_denormalize.ProcessorTagAndDenormalizeName:
-		return &tag_and_denormalize.TagAndDenormalizeProcessorDef{}, true
+	case pycalc.ProcessorPyCalcName:
+		return &pycalc.PyCalcProcessorDef{}, true
+	case taganddenormalize.ProcessorTagAndDenormalizeName:
+		return &taganddenormalize.TagAndDenormalizeProcessorDef{}, true
 	default:
 		return nil, false
 	}
@@ -238,7 +239,7 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 	defer cqlSession.Close()
 
 	// Retrieve all runs that happened in this ks and find their current statuses
-	runLifespanMap, err := api.HarvestRunLifespans(h.L, cqlSession, keyspace, []int16{})
+	runLifespanMap, err := wfdb.HarvestRunLifespans(h.L, cqlSession, keyspace, []int16{})
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -251,7 +252,16 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 		mx.RunLifespans[runCount] = runLifespan
 		runCount++
 	}
-	sort.Slice(mx.RunLifespans, func(i, j int) bool { return mx.RunLifespans[i].RunId < mx.RunLifespans[j].RunId })
+	slices.SortFunc(mx.RunLifespans, func(l, r *wfmodel.RunLifespan) int {
+		switch {
+		case l.RunId < r.RunId:
+			return -1
+		case l.RunId > r.RunId:
+			return 1
+		default:
+			return 0
+		}
+	})
 
 	// Retrieve all node events for this ks, for all runs
 	nodeHistory, err := api.GetNodeHistoryForRuns(h.L, cqlSession, keyspace, []int16{})
@@ -298,19 +308,29 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 	// Sort nodes: started come first, sorted by start ts, other come after that, sorted by node name
 	// Ideally, they should be sorted geometrically from DAG, with start ts coming into play when DAG says nodes are equal.
 	// But this will require script analysis which takes too long.
-	sort.Slice(mx.Nodes, func(i, j int) bool {
-		leftTs, leftPresent := nodeStartTsMap[mx.Nodes[i].NodeName]
-		rightTs, rightPresent := nodeStartTsMap[mx.Nodes[j].NodeName]
+	slices.SortFunc(mx.Nodes, func(l, r WebapiNodeRunMatrixRow) int {
+		leftTs, leftPresent := nodeStartTsMap[l.NodeName]
+		rightTs, rightPresent := nodeStartTsMap[r.NodeName]
 		if !leftPresent && rightPresent {
-			return false
+			return 1
 		} else if leftPresent && !rightPresent {
-			return true
+			return -1
 		} else if leftPresent && rightPresent && !leftTs.Equal(rightTs) {
-			return leftTs.Before(rightTs)
+			if leftTs.Before(rightTs) {
+				return -1
+			}
+			return 1
 		}
 
 		// Sort by node name
-		return mx.Nodes[i].NodeName < mx.Nodes[j].NodeName
+		switch {
+		case l.NodeName < r.NodeName:
+			return -1
+		case l.NodeName > r.NodeName:
+			return 1
+		default:
+			return 0
+		}
 	})
 
 	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, mx)
@@ -331,7 +351,7 @@ func getRunProps(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace s
 	if okData && okTs && time.Since(oneRunPropsTs).Seconds() < 30 {
 		return oneRunProps, nil
 	}
-	allRunsProps, err := api.GetRunProperties(logger, cqlSession, keyspace, int16(runId))
+	allRunsProps, err := wfdb.GetRunProperties(logger, cqlSession, keyspace, int16(runId))
 	if err != nil {
 		return nil, err
 	}
@@ -363,7 +383,7 @@ func getRunPropsAndLifespans(logger *l.CapiLogger, cqlSession gocqlshims.Session
 
 	// Run status
 
-	runLifeSpans, err := api.HarvestRunLifespans(logger, cqlSession, keyspace, []int16{int16(runId)})
+	runLifeSpans, err := wfdb.HarvestRunLifespans(logger, cqlSession, keyspace, []int16{int16(runId)})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -420,7 +440,7 @@ func (h *UrlHandler) ksRunNodeBatchHistory(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	result.RunNodeBatchHistory, err = api.GetRunNodeBatchHistory(h.L, cqlSession, keyspace, int16(runId), nodeName)
+	result.RunNodeBatchHistory, err = wfdb.GetRunNodeBatchHistory(h.L, cqlSession, keyspace, int16(runId), nodeName)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -469,13 +489,21 @@ func (h *UrlHandler) ksRunNodeHistory(w http.ResponseWriter, r *http.Request) {
 
 	// Node history
 
-	result.RunNodeHistory, err = api.GetNodeHistoryForRun(h.L, cqlSession, keyspace, int16(runId))
+	result.RunNodeHistory, err = wfdb.GetNodeHistoryForRun(h.L, cqlSession, keyspace, int16(runId))
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
-	sort.Slice(result.RunNodeHistory, func(i, j int) bool { return result.RunNodeHistory[i].Ts.Before(result.RunNodeHistory[j].Ts) })
-
+	slices.SortFunc(result.RunNodeHistory, func(l, r *wfmodel.NodeHistoryEvent) int {
+		switch {
+		case l.Ts.Before(r.Ts):
+			return -1
+		case l.Ts.After(r.Ts):
+			return 1
+		default:
+			return 0
+		}
+	})
 	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, result)
 }
 
@@ -554,45 +582,6 @@ func (h *UrlHandler) ksRunViz(w http.ResponseWriter, r *http.Request) {
 		h.L.Error("cannot write svg response, error %s", err.Error())
 	}
 }
-
-// func (h *UrlHandler) ksRunStatusViz(w http.ResponseWriter, r *http.Request) {
-// 	keyspace, err := getField(r, 0)
-// 	if err != nil {
-// 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
-// 		return
-// 	}
-
-// 	cqlSession, err := db.NewSession(h.Env, keyspace, db.DoNotCreateKeyspaceOnConnect)
-// 	if err != nil {
-// 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
-// 		return
-// 	}
-// 	defer cqlSession.Close()
-
-// 	runIdString, err := getField(r, 1)
-// 	if err != nil {
-// 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
-// 		return
-// 	}
-
-// 	runId, err := strconv.Atoi(runIdString)
-// 	if err != nil {
-// 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
-// 		return
-// 	}
-
-// 	svg, err := h.getViz(h.ScriptCache, h.L, cqlSession, keyspace, int16(runId), true)
-// 	if err != nil {
-// 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
-// 		return
-// 	}
-
-// 	w.Header().Set("content-type", "image/svg+xml")
-// 	w.Header().Set("Access-Control-Allow-Origin", pickAccessControlAllowOrigin(&h.Env.Webapi, r))
-// 	if _, err := w.Write([]byte(svg)); err != nil {
-// 		h.L.Error("cannot write svg response, error %s", err.Error())
-// 	}
-// }
 
 type StartedRunInfo struct {
 	RunId int16 `json:"run_id"`

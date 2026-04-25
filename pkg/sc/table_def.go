@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/capillariesio/capillaries/pkg/eval_capi"
+	"github.com/capillariesio/capillaries/pkg/evalcapi"
 	"github.com/shopspring/decimal"
 	"gopkg.in/inf.v0"
 )
@@ -28,49 +28,49 @@ func DefaultDecimal2() decimal.Decimal   { return decimal.NewFromFloat(0.0) }
 func DefaultCassandraDecimal2() *inf.Dec { return inf.NewDec(0, 0) }
 func DefaultDateTime() time.Time         { return time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC) } // Same as time.Time default
 
-func GetDefaultFieldTypeValue(fieldType eval_capi.TableFieldType) any {
+func GetDefaultFieldTypeValue(fieldType evalcapi.TableFieldType) any {
 	switch fieldType {
-	case eval_capi.FieldTypeInt:
+	case evalcapi.FieldTypeInt:
 		return DefaultInt
-	case eval_capi.FieldTypeFloat:
+	case evalcapi.FieldTypeFloat:
 		return DefaultFloat
-	case eval_capi.FieldTypeString:
+	case evalcapi.FieldTypeString:
 		return DefaultString
-	case eval_capi.FieldTypeDecimal2:
+	case evalcapi.FieldTypeDecimal2:
 		return DefaultDecimal2()
-	case eval_capi.FieldTypeBool:
+	case evalcapi.FieldTypeBool:
 		return DefaultBool
-	case eval_capi.FieldTypeDateTime:
+	case evalcapi.FieldTypeDateTime:
 		return DefaultDateTime()
 	default:
 		return nil
 	}
 }
 
-func CheckValueType(val any, fieldType eval_capi.TableFieldType) error {
+func CheckValueType(val any, fieldType evalcapi.TableFieldType) error {
 	switch assertedValue := val.(type) {
 	case int64:
-		if fieldType != eval_capi.FieldTypeInt {
+		if fieldType != evalcapi.FieldTypeInt {
 			return fmt.Errorf("expected type %s, but got int64 (%d)", fieldType, assertedValue)
 		}
 	case float64:
-		if fieldType != eval_capi.FieldTypeFloat {
+		if fieldType != evalcapi.FieldTypeFloat {
 			return fmt.Errorf("expected type %s, but got float64 (%f)", fieldType, assertedValue)
 		}
 	case string:
-		if fieldType != eval_capi.FieldTypeString {
+		if fieldType != evalcapi.FieldTypeString {
 			return fmt.Errorf("expected type %s, but got string (%s)", fieldType, assertedValue)
 		}
 	case bool:
-		if fieldType != eval_capi.FieldTypeBool {
+		if fieldType != evalcapi.FieldTypeBool {
 			return fmt.Errorf("expected type %s, but got bool (%v)", fieldType, assertedValue)
 		}
 	case time.Time:
-		if fieldType != eval_capi.FieldTypeDateTime {
+		if fieldType != evalcapi.FieldTypeDateTime {
 			return fmt.Errorf("expected type %s, but got datetime (%s)", fieldType, assertedValue.String())
 		}
 	case decimal.Decimal:
-		if fieldType != eval_capi.FieldTypeDecimal2 {
+		if fieldType != evalcapi.FieldTypeDecimal2 {
 			return fmt.Errorf("expected type %s, but got decimal (%s)", fieldType, assertedValue.String())
 		}
 	default:

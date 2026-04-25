@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/capillariesio/capillaries/pkg/eval"
-	"github.com/capillariesio/capillaries/pkg/eval_capi"
+	"github.com/capillariesio/capillaries/pkg/evalcapi"
 )
 
 const (
@@ -37,7 +37,7 @@ type WriteParquetColumnSettings struct {
 type WriteFileColumnDef struct {
 	RawExpression    string                     `json:"expression" yaml:"expression"`
 	Name             string                     `json:"name"` // To be used in Having
-	Type             eval_capi.TableFieldType   `json:"type"` // To be checked when checking expressions and to be used in Having
+	Type             evalcapi.TableFieldType    `json:"type"` // To be checked when checking expressions and to be used in Having
 	Csv              WriteCsvColumnSettings     `json:"csv,omitempty"`
 	Parquet          WriteParquetColumnSettings `json:"parquet,omitempty"`
 	ParsedExpression ast.Expr                   `json:"-"`
@@ -144,7 +144,7 @@ func (creatorDef *FileCreatorDef) Deserialize(rawWriter json.RawMessage) error {
 		if (*colDef).ParsedExpression, err = ParseRawGolangExpressionStringAndHarvestFieldRefs((*colDef).RawExpression, &(*colDef).UsedFields); err != nil {
 			return fmt.Errorf("cannot parse column expression [%s]: [%s]", (*colDef).RawExpression, err.Error())
 		}
-		if !eval_capi.IsValidFieldType(colDef.Type) {
+		if !evalcapi.IsValidFieldType(colDef.Type) {
 			return fmt.Errorf("invalid column type [%s]", colDef.Type)
 		}
 	}
@@ -174,7 +174,7 @@ func (creatorDef *FileCreatorDef) CalculateFileRecordFromSrcVars(srcVars eval.Va
 	fileRecord := make([]any, len(creatorDef.Columns))
 
 	for colIdx := 0; colIdx < len(creatorDef.Columns); colIdx++ {
-		eCtx := eval.NewPlainEvalCtx(eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, srcVars)
+		eCtx := eval.NewPlainEvalCtx(evalcapi.CapillariesEvalFunctions, evalcapi.CapillariesEvalConstants, srcVars)
 		eCtx.SetRoundDec(2) // decimal2
 		valVolatile, err := eCtx.Eval(creatorDef.Columns[colIdx].ParsedExpression)
 		if err != nil {
@@ -207,7 +207,7 @@ func (creatorDef *FileCreatorDef) CheckFileRecordHavingCondition(fileRecord []an
 		vars[CreatorAlias][fieldName] = fieldValue
 	}
 
-	eCtx := eval.NewPlainEvalCtx(eval_capi.CapillariesEvalFunctions, eval_capi.CapillariesEvalConstants, vars)
+	eCtx := eval.NewPlainEvalCtx(evalcapi.CapillariesEvalFunctions, evalcapi.CapillariesEvalConstants, vars)
 	valVolatile, err := eCtx.Eval(creatorDef.Having)
 	if err != nil {
 		return false, fmt.Errorf("cannot evaluate 'having' expression: [%s]", err.Error())

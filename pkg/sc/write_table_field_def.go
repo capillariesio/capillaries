@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"go/ast"
 
-	"github.com/capillariesio/capillaries/pkg/eval_capi"
+	"github.com/capillariesio/capillaries/pkg/evalcapi"
 )
 
 type WriteTableFieldDef struct {
-	RawExpression    string                   `json:"expression" yaml:"expression"`
-	Type             eval_capi.TableFieldType `json:"type" yaml:"type"`
-	DefaultValue     string                   `json:"default_value,omitempty" yaml:"default_value,omitempty"` // Optional. If omitted, default zero value is used
-	ParsedExpression ast.Expr                 `json:"-"`
-	UsedFields       FieldRefs                `json:"-"`
+	RawExpression    string                  `json:"expression" yaml:"expression"`
+	Type             evalcapi.TableFieldType `json:"type" yaml:"type"`
+	DefaultValue     string                  `json:"default_value,omitempty" yaml:"default_value,omitempty"` // Optional. If omitted, default zero value is used
+	ParsedExpression ast.Expr                `json:"-"`
+	UsedFields       FieldRefs               `json:"-"`
 }
 
 func GetFieldRefsUsedInAllTargetExpressions(fieldDefMap map[string]*WriteTableFieldDef) FieldRefs {

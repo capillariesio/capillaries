@@ -11,7 +11,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
@@ -90,15 +90,14 @@ func UploadS3File(srcPath string, u *url.URL) error {
 		return err
 	}
 
-	client := s3.NewFromConfig(cfg)
-
-	uploader := manager.NewUploader(client)
-
-	_, err = uploader.Upload(context.TODO(), &s3.PutObjectInput{
+	s3Client := s3.NewFromConfig(cfg)
+	tmClient := transfermanager.New(s3Client, func(_ *transfermanager.Options) {})
+	_, err = tmClient.UploadObject(context.TODO(), &transfermanager.UploadObjectInput{
 		Bucket: aws.String(u.Host),
 		Key:    aws.String(strings.TrimLeft(u.Path, "/")),
 		Body:   f,
 	})
+
 	if err != nil {
 		return err
 	}

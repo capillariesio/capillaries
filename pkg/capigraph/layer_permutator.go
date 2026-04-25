@@ -48,21 +48,19 @@ func (lp *LayerPermutator) insertPermutationByIdx(perm []int16, itemToInsertSrcI
 // Execute swap perm strategy for a specific intervalLen and permIdx
 
 func (lp *LayerPermutator) swapPermutationByIdx(perm []int16, firstIdx int, intervalLen int, permIdx int) {
-	if intervalLen > MaxSupportedFact {
-		panic(fmt.Sprintf("permutationByIdx(): factorial value not supported %d, max supported %d", intervalLen, MaxSupportedFact))
-	}
-	if intervalLen == 2 {
+	switch intervalLen {
+	case 2:
 		if intervalLen-1 > lp.P[2][permIdx][0] {
 			swap(perm, firstIdx+intervalLen-1, firstIdx+lp.P[2][permIdx][0])
 		}
-	} else if intervalLen == 3 {
+	case 3:
 		if intervalLen-2 > lp.P[3][permIdx][0] {
 			swap(perm, firstIdx+intervalLen-2, firstIdx+lp.P[3][permIdx][0])
 		}
 		if intervalLen-1 > lp.P[3][permIdx][1] {
 			swap(perm, firstIdx+intervalLen-1, firstIdx+lp.P[3][permIdx][1])
 		}
-	} else if intervalLen == 4 {
+	case 4:
 		if intervalLen-3 > lp.P[4][permIdx][0] {
 			swap(perm, firstIdx+intervalLen-3, firstIdx+lp.P[4][permIdx][0])
 		}
@@ -72,7 +70,7 @@ func (lp *LayerPermutator) swapPermutationByIdx(perm []int16, firstIdx int, inte
 		if intervalLen-1 > lp.P[4][permIdx][2] {
 			swap(perm, firstIdx+intervalLen-1, firstIdx+lp.P[4][permIdx][2])
 		}
-	} else if intervalLen == 5 {
+	case 5:
 		if intervalLen-4 > lp.P[5][permIdx][0] {
 			swap(perm, firstIdx+intervalLen-4, firstIdx+lp.P[5][permIdx][0])
 		}
@@ -85,7 +83,7 @@ func (lp *LayerPermutator) swapPermutationByIdx(perm []int16, firstIdx int, inte
 		if intervalLen-1 > lp.P[5][permIdx][3] {
 			swap(perm, firstIdx+intervalLen-1, firstIdx+lp.P[5][permIdx][3])
 		}
-	} else if intervalLen == 6 {
+	case 6:
 		if intervalLen-5 > lp.P[6][permIdx][0] {
 			swap(perm, firstIdx+intervalLen-5, firstIdx+lp.P[6][permIdx][0])
 		}
@@ -101,6 +99,8 @@ func (lp *LayerPermutator) swapPermutationByIdx(perm []int16, firstIdx int, inte
 		if intervalLen-1 > lp.P[6][permIdx][4] {
 			swap(perm, firstIdx+intervalLen-1, firstIdx+lp.P[6][permIdx][4])
 		}
+	default:
+		panic(fmt.Sprintf("permutationByIdx(): factorial value not supported %d, max supported %d", intervalLen, MaxSupportedFact))
 	}
 }
 

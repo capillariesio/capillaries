@@ -126,7 +126,7 @@ func drawTableCreator(node *sc.ScriptNodeDef, recordFontSize int, penWidth strin
 		node.TableCreator.Name, penWidth, recordFontSize, fillColor, node.Name, node.TableCreator.Name, node.Desc)
 }
 
-// Used by Toolbelt and Webapi
+// Used by Toolbelt
 func GetDotDiagram(scriptDef *sc.ScriptDef, showIdx bool, showFields bool, nodeColorMap map[string]string) string {
 	var b strings.Builder
 

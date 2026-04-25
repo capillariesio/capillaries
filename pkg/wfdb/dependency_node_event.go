@@ -14,7 +14,7 @@ func BuildDependencyNodeEventLists(logger *l.CapiLogger, pCtx *ctx.MessageProces
 	logger.PushF("wfdb.buildDependencyNodeEventLists")
 	defer logger.PopF()
 
-	affectingRunIds, nodeAffectingRunIdsMap, err := HarvestRunIdsByAffectedNodes(logger, pCtx)
+	affectingRunIds, nodeAffectingRunIdsMap, err := harvestRunIdsByAffectedNodes(logger, pCtx)
 	if err != nil {
 		return nil, err
 	}

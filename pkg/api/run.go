@@ -24,7 +24,7 @@ func StopRun(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace strin
 	logger.PushF("api.StopRun")
 	defer logger.PopF()
 
-	if err := checkKeyspaceName(keyspace); err != nil {
+	if err := checkKeyspaceNameAllowed(keyspace); err != nil {
 		return err
 	}
 
@@ -37,7 +37,7 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, mqSender mq.MqProd
 	logger.PushF("api.StartRun")
 	defer logger.PopF()
 
-	if err := checkKeyspaceName(keyspace); err != nil {
+	if err := checkKeyspaceNameAllowed(keyspace); err != nil {
 		return 0, err
 	}
 

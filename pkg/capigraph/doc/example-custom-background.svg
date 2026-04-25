@@ -1,0 +1,160 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="-10 -10 634 572">
+<defs>
+<marker id="arrow-1" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse" fill="#000000"><path d="M 0 0 L 10 5 L 0 10 z" /></marker>
+<marker id="arrow-2" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse" fill="#000000"><path d="M 0 0 L 10 5 L 0 10 z" /></marker>
+<marker id="arrow-3" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse" fill="#000000"><path d="M 0 0 L 10 5 L 0 10 z" /></marker>
+<marker id="arrow-4" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse" fill="#000000"><path d="M 0 0 L 10 5 L 0 10 z" /></marker>
+<marker id="arrow-5" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse" fill="#000000"><path d="M 0 0 L 10 5 L 0 10 z" /></marker>
+<marker id="arrow-6" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse" fill="#000000"><path d="M 0 0 L 10 5 L 0 10 z" /></marker>
+
+<pattern id="diagonalBlueLines" patternUnits="userSpaceOnUse" width="10" height="10">
+	<line x1="10" y1="0" x2="20" y2="10" stroke="blue" opacity="0.3" stroke-width="2" stroke-linecap="square">
+	<animateTransform attributeType="xml" attributeName="transform" type="translate" from="0 0" to="10 0" begin="0" dur="1" repeatCount="indefinite"/>
+	</line>
+	<line x1="0" y1="0" x2="10" y2="10" stroke="blue" opacity="0.3" stroke-width="2" stroke-linecap="square">
+	<animateTransform attributeType="xml" attributeName="transform" type="translate" from="0 0" to="10 0" begin="0" dur="1" repeatCount="indefinite"/>
+	</line>
+	<line x1="-10" y1="0" x2="0" y2="10" stroke="blue" opacity="0.3" stroke-width="2" stroke-linecap="square">
+	<animateTransform attributeType="xml" attributeName="transform" type="translate" from="0 0" to="10 0" begin="0" dur="1" repeatCount="indefinite"/>
+	</line>
+	<line x1="-20" y1="0" x2="-10" y2="10" stroke="blue" opacity="0.3" stroke-width="2" stroke-linecap="square">
+	<animateTransform attributeType="xml" attributeName="transform" type="translate" from="0 0" to="10 0" begin="0" dur="1" repeatCount="indefinite"/>
+	</line>
+</pattern>
+<pattern id="topProgressBar" width="1" height="1" patternUnits="objectBoundingBox" patternContentUnits="objectBoundingBox">
+	<rect x="0" y="0" rx="0" ry="0" width="1" height="1" fill="blue" opacity="0.3"/>
+	<rect x="0.1" y="0.1" rx="0" ry="0" width=".8" height=".1" fill="#f2f2f2" opacity="1"/>
+	<rect x="0.1" y="0.1" rx="0" ry="0" width=".8" height=".1" fill="#2589d0" opacity="1">
+		<animate attributeName="x"
+			values="0.1;0.1;0.3;.9"
+			keyTimes="0;.4;.8;1"
+			keySplines="0 0 1 1;.3 .1 .8 1;.1 .1 .6 1"
+			dur="2s" repeatCount="indefinite" calcMode="spline"/>
+		<animate attributeName="width"
+			values="0;.6;.6;0"
+			keyTimes="0;.4;.8;1"
+			keySplines="0 0 1 1;.3 .1 .8 1;.1 .1 .6 1"
+			dur="2s" repeatCount="indefinite" calcMode="spline"/>
+	</rect>
+</pattern>
+<radialGradient id="redGradient" cx="50%" cy="50%" r="70%">
+	<stop offset="0%" stop-color="red">
+	<animate attributeName="stop-color" values="#ec0000;#ecca00;#ec0000" dur="1s" repeatCount="indefinite" />
+	<animate attributeName="offset" values="0%;50%;0%" dur="1s" repeatCount="indefinite" />
+	</stop>
+	<stop offset="100%" stop-color="#ecca00"></stop>
+</radialGradient>
+</defs>
+<style>
+.viz-background {fill:white;opacity:1.0}
+.rect-node-background {fill:white; rx:10; ry:10; stroke-width:0;opacity:0.8}
+.rect-node {fill:none; rx:10; ry:10; stroke:black; stroke-width:1;}
+.rect-selected-node {fill:transparent; rx:10; ry:10; stroke-width:5; stroke:black; opacity:1.0}
+.rect-edge-label-background {fill:white; rx:10; ry:10; stroke-width:0; opacity:0.8;}
+.rect-edge-label-pri {fill:none; rx:10; ry:10; stroke:#606060; stroke-width:1;}
+.rect-edge-label-sec {fill:none; rx:10; ry:10; stroke:#606060; stroke-width:1; stroke-dasharray:5;}
+.text-node {font-family:courier; font-weight:normal; font-size:20px; text-anchor:start; alignment-baseline:hanging; fill:black;stroke-width:0}
+.text-edge-label {font-family:arial; font-weight:normal; font-size:18px; text-anchor:start; alignment-baseline:hanging; fill:#606060;}
+.path-edge-pri {stroke-width:2.00;fill:transparent;stroke:black;}
+.path-edge-sec {stroke-width:2.00;stroke-dasharray:5;fill:transparent;stroke:black;}
+
+.diagonal-progress-background {fill:url(#diagonalBlueLines)}
+.top-progress-background {fill:url(#topProgressBar)}
+.failed-background {fill:url(#redGradient)}
+.path-edge-pri-1 {marker-end:url(#arrow-1);stroke:#000000}
+.path-edge-sec-1 {marker-end:url(#arrow-1);stroke:#000000}
+.rect-edge-label-pri-1 {stroke:#000000}
+.rect-edge-label-sec-1 {stroke:#000000}
+.rect-node-background-1 {fill:#FFFFFF;opacity:0.3}
+.rect-node-root-1 {stroke:#000000}
+.rect-selected-node-root-1 {stroke:#000000}
+.text-edge-root-1 {fill:#000000}
+.path-edge-pri-2 {marker-end:url(#arrow-2);stroke:#000000}
+.path-edge-sec-2 {marker-end:url(#arrow-2);stroke:#000000}
+.rect-edge-label-pri-2 {stroke:#000000}
+.rect-edge-label-sec-2 {stroke:#000000}
+.path-edge-pri-3 {marker-end:url(#arrow-3);stroke:#000000}
+.path-edge-sec-3 {marker-end:url(#arrow-3);stroke:#000000}
+.rect-edge-label-pri-3 {stroke:#000000}
+.rect-edge-label-sec-3 {stroke:#000000}
+.rect-node-background-3 {fill:#FFFFFF;opacity:0.3}
+.rect-node-root-3 {stroke:#000000}
+.rect-selected-node-root-3 {stroke:#000000}
+.text-edge-root-3 {fill:#000000}
+.path-edge-pri-4 {marker-end:url(#arrow-4);stroke:#000000}
+.path-edge-sec-4 {marker-end:url(#arrow-4);stroke:#000000}
+.rect-edge-label-pri-4 {stroke:#000000}
+.rect-edge-label-sec-4 {stroke:#000000}
+.path-edge-pri-5 {marker-end:url(#arrow-5);stroke:#000000}
+.path-edge-sec-5 {marker-end:url(#arrow-5);stroke:#000000}
+.rect-edge-label-pri-5 {stroke:#000000}
+.rect-edge-label-sec-5 {stroke:#000000}
+.rect-node-background-5 {fill:#FFFFFF;opacity:0.3}
+.path-edge-pri-6 {marker-end:url(#arrow-6);stroke:#000000}
+.path-edge-sec-6 {marker-end:url(#arrow-6);stroke:#000000}
+.rect-edge-label-pri-6 {stroke:#000000}
+.rect-edge-label-sec-6 {stroke:#000000}
+.rect-node-root-6 {stroke:#000000}
+.rect-selected-node-root-6 {stroke:#000000}
+.text-edge-root-6 {fill:#000000}
+.capigraph-rendering-stats {font-family:arial; font-weight:normal; font-size:10px; text-anchor:start; alignment-baseline:hanging; fill:transparent;}</style>
+<rect class="viz-background" x="-10" y="-10" width="634" height="572"/>
+<path class="path-edge-pri path-edge-pri-1" d="m92.00,64.00 L92.00,208.80"/>
+<path class="path-edge-pri path-edge-pri-3" d="m314.00,64.00 L314.00,208.80"/>
+<path class="path-edge-pri path-edge-pri-3" d="m314.00,278.80 L314.00,476.80"/>
+<path class="path-edge-sec path-edge-sec-6" d="m514.00,278.80 C476.00,377.80 362.00,377.80 324.00,476.80"/>
+<a xlink:title="1">
+  <rect class="rect-node-background rect-node-background-1" style="fill:#386641;opacity:0.3;" x="0.00" y="0.00" width="184.00" height="60.00"/>
+  <rect class="rect-node rect-node-root-1" style="stroke:#386641;" x="0.00" y="0.00" width="184.00" height="60.00" pointer-events="none"/>
+  <text class="text-node" x="20.00" y="20.00">1 - Complete</text>
+</a>
+<a xlink:title="2">
+  <rect class="rect-node-background diagonal-progress-background" x="6.00" y="214.80" width="172.00" height="60.00"/>
+  <rect class="rect-node rect-node-root-1" style="stroke:#0000FF;" x="6.00" y="214.80" width="172.00" height="60.00" pointer-events="none"/>
+  <text class="text-node" x="26.00" y="234.80">2 - Running</text>
+</a>
+<a xlink:title="Some data">
+  <rect class="rect-edge-label-background" x="59.42" y="119.40" width="65.16" height="59.40"/>
+  <rect class="rect-edge-label-pri rect-edge-label-pri-1" x="59.42" y="119.40" width="65.16" height="59.40"/>
+  <text class="text-edge-label" x="68.42" y="128.40">Some</text>
+  <text class="text-edge-label" x="68.42" y="151.80">data</text>
+</a>
+<a xlink:title="3">
+  <rect class="rect-node-background rect-node-background-3" style="fill:#386641;opacity:0.3;" x="222.00" y="0.00" width="184.00" height="60.00"/>
+  <rect class="rect-node rect-node-root-3" style="stroke:#386641;" x="222.00" y="0.00" width="184.00" height="60.00" pointer-events="none"/>
+  <text class="text-node" x="242.00" y="20.00">3 - Complete</text>
+</a>
+<a xlink:title="4">
+  <rect class="rect-node-background top-progress-background" x="228.00" y="214.80" width="172.00" height="60.00"/>
+  <rect class="rect-node rect-node-root-3" style="stroke:#0000FF;" x="228.00" y="214.80" width="172.00" height="60.00" pointer-events="none"/>
+  <text class="text-node" x="248.00" y="234.80">4 - Running</text>
+</a>
+<a xlink:title="Some other data">
+  <rect class="rect-edge-label-background" x="281.42" y="96.00" width="65.16" height="82.80"/>
+  <rect class="rect-edge-label-pri rect-edge-label-pri-3" x="281.42" y="96.00" width="65.16" height="82.80"/>
+  <text class="text-edge-label" x="290.42" y="105.00">Some</text>
+  <text class="text-edge-label" x="290.42" y="128.40">other</text>
+  <text class="text-edge-label" x="290.42" y="151.80">data</text>
+</a>
+<a xlink:title="5">
+  <rect class="rect-node-background rect-node-background-3"  x="204.00" y="482.80" width="220.00" height="60.00"/>
+  <rect class="rect-node rect-node-root-3"  x="204.00" y="482.80" width="220.00" height="60.00" pointer-events="none"/>
+  <text class="text-node" x="224.00" y="502.80">5 - Not started</text>
+</a>
+<a xlink:title="Some primary data">
+  <rect class="rect-edge-label-background" x="228.77" y="410.80" width="170.46" height="36.00"/>
+  <rect class="rect-edge-label-pri rect-edge-label-pri-3" x="228.77" y="410.80" width="170.46" height="36.00"/>
+  <text class="text-edge-label" x="237.77" y="419.80">Some primary data</text>
+</a>
+<a xlink:title="Some data to join">
+  <rect class="rect-edge-label-background" x="335.97" y="364.80" width="158.76" height="36.00"/>
+  <rect class="rect-edge-label-sec rect-edge-label-sec-6" x="335.97" y="364.80" width="158.76" height="36.00"/>
+  <text class="text-edge-label" x="344.97" y="373.80">Some data to join</text>
+</a>
+<a xlink:title="6">
+  <rect class="rect-node-background failed-background" x="444.00" y="214.80" width="160.00" height="60.00"/>
+  <rect class="rect-node rect-node-root-6" style="stroke:#EC0000;" x="444.00" y="214.80" width="160.00" height="60.00" pointer-events="none"/>
+  <text class="text-node" x="464.00" y="234.80">6 - Failed</text>
+</a>
+<text class="capigraph-rendering-stats" x="0" y="0">Perms 6, elapsed 0.000s, dist 240.0</text>
+</svg>

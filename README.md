@@ -111,4 +111,4 @@ See [Terraform script](./deploy/README.md) that creates Capillaries deployment i
 ### [Capillaries blog](https://capillaries.io/blog/index.html)
 ### [MIT License](LICENSE)
 
-(C) 2022-2025 KH (kleines.hertz[at]protonmail.com)
+(C) 2022-2026 KH (kleines.hertz[at]protonmail.com)

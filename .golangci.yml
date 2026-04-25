@@ -57,7 +57,7 @@ linters:
             - 30
         - name: function-result-limit
           arguments:
-            - 4
+            - 6
         - name: unhandled-error
           arguments:
             - "fmt.*"
@@ -68,7 +68,6 @@ linters:
             - "zap.Logger.Sync"
             - "net.Conn.Close"
 
-
   exclusions:
     warn-unused: true
     presets:
@@ -76,14 +75,8 @@ linters:
       - common-false-positives
     rules:
 
-      - path: .+\.go
-        text: "(QF1003: could use tagged switch)|(QF1001: could apply De Morgan)"
-        linters: [ staticcheck ]
       - path: pkg\/xfer\/ssh\.go
         text: "SA1019: x509.IsEncryptedPEMBlock|SA1019: x509.DecryptPEMBlock"
-        linters: [ staticcheck ]
-      - path: pkg\/xfer\/s3\.go
-        text: "superceded by feature/s3/transfermanager"
         linters: [ staticcheck ]
 
       - path: .+\.go
@@ -97,88 +90,17 @@ linters:
         text: use of `fmt.Print(|f|ln)` forbidden by pattern
         linters: [ forbidigo]
 
-      - path: .+\.go
-        text: struct literal uses unkeyed fields
-        linters: [ govet ]
-
-      - path: .+\.go
-        text: replace sort.Slice by slices.SortFunc
-        linters: [ revive ]
-      - path: .+\.go
-        text: that contains an underscore
-        linters: [ revive ]
-      - path: .+\.go
-        text: should have a package comment
-        linters: [ revive ]
-      - path: .+\.go
-        text: should be
-        linters: [ revive ]
-
-      - path: pkg\/gocqlmem\/keyspace\.go
-        text: maximum number of return results per function exceeded
-        linters: [ revive ]
-      - path: pkg\/gocqlmem\/parser\.go
+      - path: pkg\/gocqlmem\/.+\.go
         text: has (cognitive|cyclomatic) complexity
         linters: [ revive ]
-      - path: pkg\/gocqlmem\/parser\.go
-        text: this block is empty, you can remove it
-        linters: [ revive ]
-      - path: pkg\/gocqlmem\/session\.go
-        text: maximum number of return results per function exceeded
-        linters: [ revive ]
-      - path: pkg\/gocqlmem\/table\.go
-        text: maximum number of return results per function exceeded
-        linters: [ revive ]
-      - path: pkg\/gocqlmem\/table\.go
-        text: has (cognitive|cyclomatic) complexity
-        linters: [ revive ]
-      - path: pkg\/gocqlmem\/type_helpers\.go
-        text: function compareInternalInExpressions has cyclomatic complexity
-        linters: [ revive ]
-      - path: pkg\/gocqlmem\/type_helpers\.go
-        text: function compareInternalKnownType has cyclomatic complexity
-        linters: [ revive ]
-      - path: pkg\/gocqlmem\/type_helpers\.go
-        text: function clientTypedValueToProvidedPtr has cyclomatic complexity
-        linters: [ revive ]
-      - path: pkg\/proc\/proc_table_creator\.go
-        text: function RunCreateTableRelForBatch has (cyclomatic|cognitive) complexity
-        linters: [ revive ]
-      - path: pkg\/capigraph\/layering\.go
-        text: function buildLayerMap has cognitive complexity
-        linters: [ revive ]
-      - path: pkg\/api\/capigraph\.go
-        text: function GetCapigraphDiagram has (cognitive|cyclomatic) complexity
+      - path: pkg\/proc\/proc_table_creator_lookup\.go
+        text: function runCreateTableRelForBatch has (cyclomatic|cognitive) complexity
         linters: [ revive ]
       - path: pkg\/eval\/eval_ctx\.go
         text: function \(\*EvalCtx\)\.Eval has (cognitive|cyclomatic) complexity
         linters: [ revive ]
-      - path: pkg\/gocqlmem\/eval_gocqlmem_functions\.go
-        text: function callCast has cyclomatic complexity
-        linters: [ revive ]
-      - path: pkg\/capigraph\/svg\.go
-        text: maximum number of return results per function exceeded
-        linters: [ revive ]
-      - path: pkg\/capigraph\/viz_node_hierarchy\.go
-        text: maximum number of return results per function exceeded
-        linters: [ revive ]
-      - path: pkg\/sc\/script_def_loader.donotcover\.go
-        text: Filename script_def_loader.donotcover.go is not of the format
-        linters: [ revive ]
-      - path: pkg\/custom\/tag_and_denormalize\/tag_and_denormalize.donotcover\.go
-        text: Filename tag_and_denormalize.donotcover.go is not of the format
-        linters: [ revive ]
-      - path: pkg\/custom\/py_calc\/py_calc.donotcover\.go
-        text: Filename py_calc.donotcover.go is not of the format
-        linters: [ revive ]
-      - path: pkg\/proc\/proc_file_creator\.go
-        text: "unchecked-type-assertion: type cast result is unchecked in [^ ]+FileRecordHeapItem"
-        linters: [ revive ]
       - path: pkg\/api\/message_handler\.go
         text: function ProcessDataBatchMsg has cyclomatic complexity
         linters: [ revive ]
-      # - path: .+\.go
-      #   text: "unused-parameter: parameter '_"
-      #   linters: [ revive ]
 
         

@@ -2,7 +2,7 @@ package api
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/db"
@@ -32,14 +32,23 @@ func GetRunHistory(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace
 			return nil, fmt.Errorf("cannot deserialize run history row: %s, %s", err.Error(), q)
 		}
 	}
-	sort.Slice(result, func(i, j int) bool { return result[i].Ts.Before(result[j].Ts) })
+	slices.SortFunc(result, func(l, r *wfmodel.RunHistoryEvent) int {
+		switch {
+		case l.Ts.Before(r.Ts):
+			return -1
+		case l.Ts.After(r.Ts):
+			return 1
+		default:
+			return 0
+		}
+	})
 
 	return result, nil
 }
 
 // Used by Webapi and Toolbelt (get_node_history, get_run_status_diagram commands) to retrieve each node status history for multiple runs (used by WebUI main screen and in integration tests)
 func GetNodeHistoryForRuns(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runIds []int16) ([]*wfmodel.NodeHistoryEvent, error) {
-	logger.PushF("api.GetNodeHistory")
+	logger.PushF("api.GetNodeHistoryForRuns")
 	defer logger.PopF()
 
 	qb := cql.QueryBuilder{}
@@ -60,13 +69,22 @@ func GetNodeHistoryForRuns(logger *l.CapiLogger, cqlSession gocqlshims.Session, 
 			return nil, fmt.Errorf("cannot deserialize node history row: %s, %s", err.Error(), q)
 		}
 	}
-	sort.Slice(result, func(i, j int) bool { return result[i].Ts.Before(result[j].Ts) })
+	slices.SortFunc(result, func(l, r *wfmodel.NodeHistoryEvent) int {
+		switch {
+		case l.Ts.Before(r.Ts):
+			return -1
+		case l.Ts.After(r.Ts):
+			return 1
+		default:
+			return 0
+		}
+	})
 	return result, nil
 }
 
 // Used by Toolbelt (get_batch_history command) to retrieve batch status history for a subset of runs and nodes (not used in Webapi or tests at the moment, and may be deprecated)
 func GetBatchHistoryForRunsAndNodes(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runIds []int16, scriptNodes []string) ([]*wfmodel.BatchHistoryEvent, error) {
-	logger.PushF("api.GetBatchHistory")
+	logger.PushF("api.GetBatchHistoryForRunsAndNodes")
 	defer logger.PopF()
 
 	qb := cql.QueryBuilder{}
@@ -90,6 +108,15 @@ func GetBatchHistoryForRunsAndNodes(logger *l.CapiLogger, cqlSession gocqlshims.
 			return nil, fmt.Errorf("cannot deserialize batch history row: %s, %s", err.Error(), q)
 		}
 	}
-	sort.Slice(result, func(i, j int) bool { return result[i].Ts.Before(result[j].Ts) })
+	slices.SortFunc(result, func(l, r *wfmodel.BatchHistoryEvent) int {
+		switch {
+		case l.Ts.Before(r.Ts):
+			return -1
+		case l.Ts.After(r.Ts):
+			return 1
+		default:
+			return 0
+		}
+	})
 	return result, nil
 }

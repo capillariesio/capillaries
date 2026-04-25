@@ -2,7 +2,7 @@ package wfdb
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
@@ -43,7 +43,16 @@ func HarvestNodeStatusesForRun(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 		nodeEvents[idx] = rec
 	}
 
-	sort.Slice(nodeEvents, func(i, j int) bool { return nodeEvents[i].Ts.Before(nodeEvents[j].Ts) })
+	slices.SortFunc(nodeEvents, func(l, r *wfmodel.NodeHistoryEvent) int {
+		switch {
+		case l.Ts.Before(r.Ts):
+			return -1
+		case l.Ts.After(r.Ts):
+			return 1
+		default:
+			return 0
+		}
+	})
 
 	for _, e := range nodeEvents {
 		lastStatus, ok := nodeStatusMap[e.ScriptNode]
@@ -78,7 +87,7 @@ func HarvestNodeStatusesForRun(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 }
 
 func HarvestNodeLifespans(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, affectingRuns []int16, affectedNodes []string) (wfmodel.RunNodeLifespanMap, error) {
-	logger.PushF("wfdb.HarvestLastNodeStatuses")
+	logger.PushF("wfdb.HarvestNodeLifespans")
 	defer logger.PopF()
 
 	fields := []string{"ts", "run_id", "script_node", "status"}
@@ -152,6 +161,7 @@ func SetNodeStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, sta
 	return isApplied, nil
 }
 
+// Used by Webapi to retrieve each node status history for a run
 func GetNodeHistoryForRun(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16) ([]*wfmodel.NodeHistoryEvent, error) {
 	logger.PushF("wfdb.GetNodeHistoryForRun")
 	defer logger.PopF()

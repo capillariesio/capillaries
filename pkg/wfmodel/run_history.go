@@ -86,20 +86,6 @@ func NewRunHistoryEventFromMap(r map[string]any, fields []string) (*RunHistoryEv
 	return res, nil
 }
 
-// ToSpacedString - prints formatted field values, uses reflection, shoud not be used in prod
-// func (n RunHistoryEvent) ToSpacedString() string {
-// 	t := reflect.TypeOf(n)
-// 	formats := GetObjectModelFieldFormats(t)
-// 	values := make([]string, t.NumField())
-
-// 	v := reflect.ValueOf(&n).Elem()
-// 	for i := 0; i < v.NumField(); i++ {
-// 		fv := v.Field(i)
-// 		values[i] = fmt.Sprintf(formats[i], fv)
-// 	}
-// 	return strings.Join(values, PrintTableDelimiter)
-// }
-
 type RunLifespan struct {
 	RunId            int16         `json:"run_id"`
 	StartTs          time.Time     `json:"start_ts"`
@@ -131,14 +117,3 @@ func (m RunLifespanMap) ToString() string {
 	}
 	return fmt.Sprintf("{%s}", strings.Join(items, ", "))
 }
-
-// func InheritNodeBatchStatusToRunStatus(nodeBatchStatus NodeBatchStatusType) (RunStatusType, error) {
-// 	switch nodeBatchStatus {
-// 	case NodeBatchFail:
-// 		return RunFail, nil
-// 	case NodeBatchSuccess:
-// 		return RunSuccess, nil
-// 	default:
-// 		return RunNone, fmt.Errorf("cannot inherit run from node batch status %d", nodeBatchStatus)
-// 	}
-// }
