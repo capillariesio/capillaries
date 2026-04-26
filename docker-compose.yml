@@ -50,7 +50,7 @@ services:
 
   # mq:
   #   container_name: capillaries_rabbitmq4
-  #   image: rabbitmq:4.2.0-management-alpine
+  #   image: rabbitmq:4.3.0-management-alpine
   #   depends_on:
   #     - fluentd
   #   networks:
@@ -68,12 +68,13 @@ services:
   #     # Please note that this setup assumes that Capillaries Amqp10.address setting is set to "/queues/capidaemon" 
   #     # Some AMQP 1.0 details (like, why "/queues/capidaemon" and not just "my_simple_capillaries_queue") at https://www.rabbitmq.com/docs/amqp
   #     # Dead letter exchange circle of life explained at https://www.cloudamqp.com/blog/when-and-how-to-use-the-rabbitmq-dead-letter-exchange.html
-  #     - command: rabbitmqadmin declare exchange --vhost=/ name=capillaries type=direct durable=false
-  #     - command: rabbitmqadmin declare exchange --vhost=/ name=capillaries.dlx type=direct durable=false
-  #     - command: rabbitmqadmin declare queue --vhost=/ name=capidaemon durable=false arguments='{"x-dead-letter-exchange":"capillaries.dlx", "x-dead-letter-routing-key":"capidaemon.dlq"}'
-  #     - command: rabbitmqadmin declare queue --vhost=/ name=capidaemon.dlq durable=false arguments='{"x-message-ttl":5000, "x-dead-letter-exchange":"capillaries", "x-dead-letter-routing-key":"capidaemon"}'
-  #     - command: rabbitmqadmin --vhost=/ declare binding source="capillaries" destination_type="queue" destination="capidaemon" routing_key="capidaemon"
-  #     - command: rabbitmqadmin --vhost=/ declare binding source="capillaries.dlx" destination_type="queue" destination="capidaemon.dlq" routing_key="capidaemon.dlq"
+  #     # Use rabbitmqadmin v2 starting from RabbitMQ 4.3.0
+  #     - command: rabbitmqadmin --vhost="/" exchanges declare --name capillaries --type direct --durable false
+  #     - command: rabbitmqadmin --vhost="/" exchanges declare --name capillaries.dlx --type direct --durable false
+  #     - command: rabbitmqadmin --vhost "/" queues declare --name "capidaemon" --type "quorum" --durable true --arguments '{"x-dead-letter-exchange":"capillaries.dlx", "x-dead-letter-routing-key":"capidaemon.dlq"}'
+  #     - command: rabbitmqadmin --vhost "/" queues declare --name "capidaemon.dlq" --type "quorum" --durable true --arguments '{"x-message-ttl":5000, "x-dead-letter-exchange":"capillaries", "x-dead-letter-routing-key":"capidaemon"}'
+  #     - command: rabbitmqadmin --vhost="/" bindings declare --source "capillaries" --destination-type "queue" --destination "capidaemon" --routing-key "capidaemon"
+  #     - command: rabbitmqadmin --vhost="/" bindings declare --source "capillaries.dlx" --destination-type "queue" --destination "capidaemon.dlq" --routing-key "capidaemon.dlq"
   #   logging:
   #     driver: fluentd
   #     options:
