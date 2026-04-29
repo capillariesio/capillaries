@@ -18,8 +18,8 @@ if [ "$PROMETHEUS_NODE_EXPORTER_FILENAME" = "" ]; then
   echo Error, missing: PROMETHEUS_NODE_EXPORTER_FILENAME=node_exporter-1.9.1.linux-amd64.tar.gz
   exit 1
 fi
-if [ "$CASSANDRA_VERSION" = "" ]; then
-  echo Error, missing: CASSANDRA_VERSION=50x
+if [ "$CASSANDRA_FILENAME" = "" ]; then
+  echo Error, missing: CASSANDRA_FILENAME=cassandra_5.0.8_all.deb
   exit 1
 fi
 if [ "$CASSANDRA_HOSTS" = "" ]; then
@@ -88,25 +88,6 @@ sudo systemctl status node_exporter
 
 
 
-
-# Prepare to install Cassandra
-
-
-
-
-echo "deb https://debian.cassandra.apache.org $CASSANDRA_VERSION main" | sudo tee -a /etc/apt/sources.list.d/cassandra.sources.list
-# apt-key is deprecated. but still working, just silence it
-curl -s https://downloads.apache.org/cassandra/KEYS | sudo apt-key add - 2>/dev/null
-
-# To avoid "Key is stored in legacy trusted.gpg keyring" in stderr
-cd /etc/apt
-sudo cp trusted.gpg trusted.gpg.d
-
-sudo DEBIAN_FRONTEND=noninteractive apt-get update -y
-
-
-
-
 # Install iostat for troubleshooting
 
 
@@ -118,39 +99,33 @@ if [ "$?" -ne "0" ]; then
 fi
 
 
+# Install openjdk and Cassandra
 
 
-# Install Java, Cassandra requires Java 8
+cd /home/$SSH_USER
 
-
-
-# Anything above 8 gives "the security manager is deprecated and will be removed in a future release" error
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-8-jdk
+sudo DEBIAN_FRONTEND=noninteractive apt install -y openjdk-17-jdk-headless
 if [ "$?" -ne "0" ]; then
-    echo openjdk install error, exiting
+    echo openjdk 17 install error, exiting
     exit $?
 fi
 
+curl -LOs $CAPILLARIES_RELEASE_URL/$CASSANDRA_FILENAME
+if [ "$?" -ne "0" ]; then
+    echo Cannot download Cassandra, exiting
+    exit $?
+fi
 
-
-
-# Install Cassandra
-
-
-
-
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y cassandra
+sudo apt install cassandra -y ./$CASSANDRA_FILENAME
 if [ "$?" -ne "0" ]; then
     echo cassandra install error, exiting
     exit $?
 fi
-
 sudo systemctl status cassandra
 if [ "$?" -ne "0" ]; then
     echo Bad cassandra service status, exiting
     exit $?
 fi
-
 
 
 
@@ -414,6 +389,6 @@ fi
 
 sudo systemctl start cassandra
 if [ "$?" -ne "0" ]; then
-    echo Cannot start cassandra, exiting
+    echo Cannot start cassandra after reconfiguring, exiting
     exit $?
 fi

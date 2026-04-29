@@ -30,19 +30,19 @@ variable "cassandra_instance_type" {
 
 variable "number_of_cassandra_hosts" {
 	type        = number
-	description = "90 max, because IP address starts with 11, and 101 is a daemon"
+	description = "90 max, because IP address starts with 11, and 101 is a daemon; make sure cassandra_initial_tokens_map has correpondent entry"
 	default     = 4
 }
 
 variable "mq_type" {
 	type        = string
-	description = "capimq, amqp10"
+	description = "capimq for Cappillaries capimq , amqp10 for rabbitmq, activemq-classic, activemq-artemis"
 	default     = "amqp10"
 }
 
 variable "amqp10_server_flavor" {
 	type        = string
-	description = "rabbitmq, artemis, classic"
+	description = "rabbitmq, activemq-classic, activemq-artemis"
 	default     = "activemq-artemis"
 	validation  {
 		condition = contains (["rabbitmq", "activemq-classic", "activemq-artemis"], var.amqp10_server_flavor)
@@ -59,48 +59,52 @@ variable "amqp10_server_flavor" {
 
 variable "bastion_ami_name" {
 	type        = string
-	description = "arm64: ami-04474687c34a061cf Expires 2026-12-18 ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-20241218; amd64: ami-079cb33ef719a7b78 Expires 2026-12-18 ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20241218 // ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20240606"
-    default     =  "ami-04474687c34a061cf"
+	description = "arm64: ami-07ad186bc37b8dac4 Expires 2028-04-20 ubuntu/images/hvm-ssd-gp3/ubuntu-resolute-26.04-arm64-server-20260421; amd64: ami-091138d0f0d41ff90 Expires 2028-04-20 ubuntu/images/hvm-ssd-gp3/ubuntu-resolute-26.04-amd64-server-20260421"
+    default     =  "ami-07ad186bc37b8dac4"
 }
 
 variable "daemon_ami_name" {
 	type        = string
-	description = "arm64: ami-04474687c34a061cf Expires 2026-12-18 ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-20241218; amd64: ami-079cb33ef719a7b78 Expires 2026-12-18 ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20241218 // ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20240606"
-    default     =  "ami-04474687c34a061cf"
+	description = "arm64: ami-07ad186bc37b8dac4 Expires 2028-04-20 ubuntu/images/hvm-ssd-gp3/ubuntu-resolute-26.04-arm64-server-20260421; amd64: ami-091138d0f0d41ff90 Expires 2028-04-20 ubuntu/images/hvm-ssd-gp3/ubuntu-resolute-26.04-amd64-server-20260421"
+    default     =  "ami-07ad186bc37b8dac4"
 }
 
 variable "cassandra_ami_name" {
 	type        = string
-	description = "arm64: ami-04474687c34a061cf Expires 2026-12-18 ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-20241218; amd64: ami-079cb33ef719a7b78 Expires 2026-12-18 ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20241218 // ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20240606"
-    default     = "ami-04474687c34a061cf"
+	description = "arm64: ami-07ad186bc37b8dac4 Expires 2028-04-20 ubuntu/images/hvm-ssd-gp3/ubuntu-resolute-26.04-arm64-server-20260421; amd64: ami-091138d0f0d41ff90 Expires 2028-04-20 ubuntu/images/hvm-ssd-gp3/ubuntu-resolute-26.04-amd64-server-20260421"
+    default     = "ami-07ad186bc37b8dac4"
 }
 
-# When changing, make sure to also change in upload_dependencies.sh
+# When changing, make sure to also change in artifacts_download.sh, artifacts_upload.sh
+
 variable "amqp10_flavor_version_map" {
   type = map(string)
   default = {
-	"rabbitmq"            = "4.2.0-1"
-	"activemq-classic"    = "6.1.8"
-	"activemq-artemis"    = "2.44.0"
+	"rabbitmq"            = "4.3.0-1"
+	"activemq-classic"    = "6.2.5"
+	"activemq-artemis"    = "2.53.0"
   }
 }
 
-# When changing, make sure to also change in upload_dependencies.sh
 variable "rabbitmq_erlang_version" {
 	type        = string
-	description = "Erlang from cloudamqp"
-	default     = "27.3.4-1"
+	description = "Erlang from cloudamqp 27.3.4-1; erlang from ubuntu 27.3.4.6+dfsg-1" // "+" in the name requires special attention
+	default     = "27.3.4.6+dfsg-1"
 }
 
 variable "prometheus_node_exporter_version" {
 	type        = string
-	default     = "1.9.1"
+	default     = "1.11.1"
 }
 
-# When changing, make sure to also change in upload_dependencies.sh
+variable "rabbitmqadmin_version" {
+	type        = string
+	default     = "2.29.0"
+}
+
 variable "prometheus_server_version" {
 	type        = string
-	default     = "3.7.0"
+	default     = "3.11.3"
 }
 
 variable "prometheus_jmx_exporter_version" {
@@ -111,8 +115,8 @@ variable "prometheus_jmx_exporter_version" {
 
 variable "cassandra_version" {
 	type        = string
-	description = "4 or 5"
-	default     = "50x"
+	description = "5.0.8"
+	default     = "5.0.8"
 }
 
 
@@ -515,21 +519,26 @@ locals {
 	webapi_gomemlimit_gb       = ceil(var.instance_memory_map[var.bastion_instance_type] / 2 )
 } 
 
-# These should match names in upload_dependencies.sh
+# These should match names in artifacts_download.sh, artifacts_upload.sh
 locals {
 	prometheus_node_exporter_filename  = format("node_exporter-%s.linux-%s.tar.gz", var.prometheus_node_exporter_version, var.arch)
 	prometheus_node_exporter_url       = format("%s/%s", var.capillaries_release_url, local.prometheus_node_exporter_filename)
 	prometheus_jmx_exporter_filename   = format("jmx_prometheus_javaagent-%s.jar", var.prometheus_jmx_exporter_version)
 	prometheus_jmx_exporter_url        = format("%s/%s", var.capillaries_release_url, local.prometheus_jmx_exporter_filename)
+	cassandra_filename                 = format("cassandra_%s_all.deb", var.cassandra_version)
+	cassandra_url                      = format("%s/%s", var.capillaries_release_url, local.cassandra_filename)
 	prometheus_server_filename         = format("prometheus-%s.linux-%s.tar.gz", var.prometheus_server_version, var.arch)
 	prometheus_server_url              = format("%s/%s", var.capillaries_release_url, local.prometheus_server_filename)
 	rabbitmq_server_filename           = format("rabbitmq-server_%s_all.deb", var.amqp10_flavor_version_map["rabbitmq"])
 	rabbitmq_server_url                = format("%s/%s", var.capillaries_release_url, local.rabbitmq_server_filename)
+	rabbitmqadmin_filename             = format("rabbitmqadmin_%s_%s.deb", var.rabbitmqadmin_version, var.arch)
+	rabbitmqadmin_url                  = format("%s/%s", var.capillaries_release_url, local.rabbitmqadmin_filename)
 	activemq_classic_server_filename   = format("apache-activemq-%s-bin.tar.gz", var.amqp10_flavor_version_map["activemq-classic"])
 	activemq_classic_server_url        = format("%s/%s", var.capillaries_release_url, local.activemq_classic_server_filename)
 	activemq_artemis_server_filename   = format("apache-artemis-%s-bin.tar.gz", var.amqp10_flavor_version_map["activemq-artemis"])
 	activemq_artemis_server_url        = format("%s/%s", var.capillaries_release_url, local.activemq_artemis_server_filename)
-	rabbitmq_erlang_filename           = format("esl-erlang_%s_%s.deb", var.rabbitmq_erlang_version, var.arch)
+	// rabbitmq_erlang_filename           = format("esl-erlang_%s_%s.deb", var.rabbitmq_erlang_version, var.arch) // From cloudamqp
+	rabbitmq_erlang_filename           = format("erlang-base_%s_%s.deb", var.rabbitmq_erlang_version, var.arch) // from Ubuntu
 	rabbitmq_erlang_url                = format("%s/%s", var.capillaries_release_url, local.rabbitmq_erlang_filename)
 }
 

@@ -2,7 +2,7 @@
 
 echo Running cassandra.sh.tpl in $(pwd)...
 
-# Sometimes NAT gateway is not ready yet, wait until it is
+# Sometimes NAT gateway is not ready yet, wait until it is. NAT Gateway init may take up to 2 min.
 while true; do
   if ping -q -c 1 -W 1 8.8.8.8 > /dev/null 2>&1; then
     echo "Internet is available."
