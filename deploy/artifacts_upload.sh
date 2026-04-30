@@ -15,10 +15,6 @@ echo "Copying files to "$1
 aws s3 cp ../build/apache-activemq-6.2.5-bin.tar.gz $1/
 aws s3 cp ../build/apache-artemis-2.53.0-bin.tar.gz $1/
 
-# Erlang from cloudamqp (40mb)
-# aws s3 cp ../build/esl-erlang_27.3.4-1_amd64.deb $1/
-# aws s3 cp ../build/esl-erlang_27.3.4-1_arm64.deb $1/
-
 # Erlang from Ubuntu (11mb)
 aws s3 cp ../build/erlang-base_27.3.4.6+dfsg-1_amd64.deb $1/
 aws s3 cp ../build/erlang-base_27.3.4.6+dfsg-1_arm64.deb $1/
