@@ -305,7 +305,7 @@ func populateNodeDefs(scriptDef *sc.ScriptDef, nodeStringColorMap map[string]int
 		// This is a root node marked as "manual". Do not show "manual" marker,
 		// it is redundant in this case and may be confusing
 		var nodeBorderThickness capigraph.NodeBorderThickness
-		if node.HasFileReader() && node.StartPolicy == sc.NodeStartManual {
+		if node.StartPolicy == sc.NodeStartManual {
 			nodeBorderThickness = capigraph.NodeBorderThick
 		} else {
 			nodeBorderThickness = capigraph.NodeBorderRegular
