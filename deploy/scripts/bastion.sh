@@ -617,7 +617,7 @@ sudo tee $ACTIVEMQXML_FILE <<EOF
       <value>file:\${activemq.conf}/credentials.properties</value>
     </property>
   </bean>
-  <broker xmlns="http://activemq.apache.org/schema/core" brokerName="localhost" dataDirectory="\${activemq.data}" schedulerSupport="true">
+  <broker xmlns="http://activemq.apache.org/schema/core" brokerName="localhost" dataDirectory="\${activemq.data}" schedulerSupport="true" id="broker">
     <destinationPolicy>
       <policyMap>
         <policyEntries>
