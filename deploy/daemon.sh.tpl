@@ -2,7 +2,7 @@
 
 echo Running daemon.sh.tpl in $(pwd)...
 
-# Sometimes NAT gateway is not ready yet, wait until it is. NAT Gateway init may take up to 2 min.
+# NAT Gateway init may take up to 2 min.
 while true; do
   if ping -q -c 1 -W 1 8.8.8.8 > /dev/null 2>&1; then
     echo "Internet is available."
@@ -13,14 +13,24 @@ while true; do
   fi
 done
 
-sudo DEBIAN_FRONTEND=noninteractive apt-get update -y
+# ubuntu.com may be failing
+while true; do
+  if sudo DEBIAN_FRONTEND=noninteractive apt-get update -y > /dev/null 2>&1; then
+    echo "Updated ubuntu"
+    break
+  else
+    echo "Ubuntu update failed. Waiting..."
+    sleep 5
+  fi
+done
+
 sudo apt-get install -y unzip
 pushd /tmp
 if [ "${os_arch}" = "linux/arm64" ]; then
-  curl https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip -o awscliv2.zip
+  curl -Ls https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip -o awscliv2.zip --retry 5 --retry-delay 2 --retry-all-errors
 fi
 if [ "${os_arch}" = "linux/amd64" ]; then
-  curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip
+  curl -Ls https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip --retry 5 --retry-delay 2 --retry-all-errors
 fi
 unzip awscliv2.zip
 sudo ./aws/install

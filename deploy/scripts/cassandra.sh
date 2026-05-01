@@ -104,7 +104,7 @@ fi
 
 cd /home/$SSH_USER
 
-sudo DEBIAN_FRONTEND=noninteractive apt install -y openjdk-17-jdk-headless
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-17-jdk-headless
 if [ "$?" -ne "0" ]; then
     echo openjdk 17 install error, exiting
     exit $?
@@ -219,7 +219,7 @@ echo 'JVM_OPTS="$JVM_OPTS -javaagent:/usr/share/cassandra/lib/'$PROMETHEUS_JMX_E
 
 echo Stopping Cassandra after installation...
 sudo systemctl stop cassandra
-
+sleep 5
 
 
 
@@ -322,6 +322,7 @@ mount_device(){
     fi
 	sudo chown cassandra $mount_dir
 	sudo chmod 777 $mount_dir;
+  sleep 2
 }
 
 # "nvme[0-9]n[0-9] 558.8G"

@@ -14,7 +14,7 @@ variable "bastion_instance_type" {
 
 variable "daemon_instance_type" {
 	type        = string
-    default     = "c7g.large"
+    default     = "c7g.2xlarge"
 }
 
 variable "number_of_daemons" {
@@ -25,7 +25,7 @@ variable "number_of_daemons" {
 variable "cassandra_instance_type" {
 	type        = string
 	description = "Make sure it's in the nvme_regex_map list"
-    default     = "c7gd.2xlarge"
+    default     = "c7gd.8xlarge"
 }
 
 variable "number_of_cassandra_hosts" {
