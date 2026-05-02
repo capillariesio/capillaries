@@ -26,7 +26,16 @@ while true; do
   fi
 done
 
-sudo apt-get install -y unzip
+while true; do
+  if sudo DEBIAN_FRONTEND=noninteractive apt-get install -y unzip > /dev/null 2>&1; then
+    echo "Installed unzip"
+    break
+  else
+    echo "unzip installation failed. Waiting..."
+    sleep 5
+  fi
+done
+
 pushd /tmp
 if [ "${os_arch}" = "linux/arm64" ]; then
   curl -Ls https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip -o awscliv2.zip --retry 5 --retry-delay 2 --retry-all-errors
