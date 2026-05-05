@@ -123,17 +123,18 @@ const CapillariesIcons100x100 = `
 
 // Used by Webapi and Toolbelt
 func NodeBatchStatusToCapigraphColor(status wfmodel.NodeBatchStatusType) int32 {
+	// Use swagger-like palette
 	switch status {
 	case wfmodel.NodeBatchNone:
 		return 0 // not colored, white
 	case wfmodel.NodeBatchStart:
-		return 0x0000FF // blue
+		return 0x63AFFA // blue
 	case wfmodel.NodeBatchSuccess:
-		return 0x008000 // darkgreen
+		return 0x4CCC93 // darkgreen
 	case wfmodel.NodeBatchFail:
-		return 0xFF0000 // red
+		return 0xF84143 // red
 	case wfmodel.NodeBatchRunStopReceived:
-		return 0xFF8C00 // darkorange
+		return 0xFBA141 // darkorange
 	default:
 		return 0x2F4F4F // darkslategray
 	}

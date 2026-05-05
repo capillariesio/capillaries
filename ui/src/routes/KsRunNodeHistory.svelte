@@ -294,20 +294,20 @@
 		border-style: solid;
 	}
 	.success {
-		border-color: #008000;
-		background-color: #00800054;
+		border-color: #4CCC93;
+		background-color: #4CCC9354;
 	}
 	.started {
-		border-color: #0000ff;
-		background-color: #0000ff54;
+		border-color: #63AFFA;
+		background-color: #63AFFA54;
 	}
 	.failed {
-		border-color: #ff0000;
-		background-color: #ff000054;
+		border-color: #F84143;
+		background-color: #F8414354;
 	}
 	.stopped {
-		border-color: #ff8c00;
-		background-color: #ff8c0054;
+		border-color: #FBA141;
+		background-color: #FBA14154;
 	}
 	.notstarted {
 		border-color: #000000;

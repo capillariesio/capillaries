@@ -296,6 +296,7 @@
 			elapsedCVPercent = (elapsedStandardDeviation / elapsedAverage) * 100.0;
 		}
 	}
+
 	let tabs = [
 		{ label: 'Batch processing summary', value: 1, component: tabBatchProcessingSummary },
 		{ label: 'Batch processing history', value: 2, component: tabBatchProcessingHistory },
@@ -408,7 +409,30 @@
 					<td>{e.last_token}</td>
 					<td>{e.instance}</td>
 					<td>{e.thread}</td>
-					<td>{e.comment}</td>
+					<td>
+						<!-- See wfdb.SetBatchStatus() calls for all possible comment values -->
+						{#if e.status == 2}
+							{#each e.comment.split(';') as badgeContent}
+								{#if (badgeContent.trim().startsWith('row_reads'))}
+									<span class="badge row-ops">{badgeContent}</span>
+								{:else if (badgeContent.trim().startsWith('row_writes'))}
+									<span class="badge row-ops">{badgeContent}</span>
+								{:else if (badgeContent.trim().startsWith('data_inserts'))}
+									<span class="badge db-ops">{badgeContent}</span>
+								{:else if (badgeContent.trim().startsWith('idx_inserts'))}
+									<span class="badge db-ops">{badgeContent}</span>
+								{:else if (badgeContent && badgeContent.trim().length > 0)}
+									<span class="badge other">{badgeContent}</span>
+								{/if}
+							{/each}
+						{:else if e.status == 3}
+							<span class="badge failure">{e.comment}</span>
+						{:else if e.status == 104}
+							<span class="badge stopped">{e.comment}</span>
+						{:else}
+							{e.comment}
+						{/if}
+					</td>
 				</tr>
 			{/each}
 		</tbody>
@@ -426,5 +450,43 @@
 	}
 	img {
 		width: 20px;
+	}
+	.badge {
+		display: inline-block;
+		padding: 0.25em 0.4em;
+		font-size: 75%;
+		font-weight: 400;
+		line-height: 1;
+		text-align: center;
+		white-space: nowrap;
+		white-space-collapse: collapse;
+		text-wrap-mode: nowrap;
+		vertical-align: baseline;
+		border-radius: 0.25rem;
+		border-width: thin;
+		border-style: solid;
+		margin: 1px;
+	}
+	.row-ops {
+		background-color: #46923c;
+		border-color: transparent;
+		color: white;
+	}
+	.db-ops {
+		background-color: #8bca84;
+		border-color: transparent;
+		color: black;
+	}
+	.stopped {
+		background-color: #FBA141;
+		border-color: transparent;
+	}
+	.failure {
+		background-color: #F84143;
+		border-color: transparent;
+	}
+	.other {
+		background-color: #E0E0E0;
+		border-color: transparent;
 	}
 </style>

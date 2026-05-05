@@ -37,15 +37,16 @@ func (bs *BatchStats) UpdateElapsedStats(dur time.Duration, instr *TableInserter
 func (bs *BatchStats) ToString() string {
 	s := bs.Elapsed.Seconds()
 	sb := strings.Builder{}
-	fmt.Fprintf(&sb, " ", s, bs.RowsRead, float64(bs.RowsRead)/s, bs.Src, bs.Dst)
+	fmt.Fprintf(&sb, "inserter_elapsed: %.4f s; %s -> %s; row_reads: %d, %.1f r/s; ", s, bs.Src, bs.Dst, bs.RowsRead, float64(bs.RowsRead)/s)
+	// Display even zero writes when there is at least one read
 	if bs.RowsRead > 0 {
-		fmt.Fprintf(&sb, "row writes: %d, w/s: %.1f, ", bs.RowsWritten, float64(bs.RowsWritten)/s)
+		fmt.Fprintf(&sb, "row_writes: %d, %.1f w/s; ", bs.RowsWritten, float64(bs.RowsWritten)/s)
 	}
 	if bs.DataCount > 0 {
-		fmt.Fprintf(&sb, "data inserts: %d, min/avg/max: %.4fs/%.4fs/%.4fs, total: %.4fs, ", bs.DataCount, float64(bs.DataElapsedMin)/1000000000.0, bs.DataElapsedAvg, float64(bs.DataElapsedMax)/1000000000.0, float64(bs.DataElapsedTotal)/1000000000.0)
+		fmt.Fprintf(&sb, "data_inserts: %d, min/avg/max %.4f / %.4f / %.4f s, total %.4f s; ", bs.DataCount, float64(bs.DataElapsedMin)/1000000000.0, bs.DataElapsedAvg, float64(bs.DataElapsedMax)/1000000000.0, float64(bs.DataElapsedTotal)/1000000000.0)
 	}
 	if bs.IdxCount > 0 {
-		fmt.Fprintf(&sb, "idx inserts: %d, min/avg/max: %.4fs/%.4fs/%.4fs, total: %.4fs", bs.IdxCount, float64(bs.IdxElapsedMin)/1000000000.0, bs.IdxElapsedAvg, float64(bs.IdxElapsedMax)/1000000000.0, float64(bs.IdxElapsedTotal)/1000000000.0)
+		fmt.Fprintf(&sb, "idx_inserts: %d, min/avg/max %.4f / %.4f / %.4f s, total %.4f s", bs.IdxCount, float64(bs.IdxElapsedMin)/1000000000.0, bs.IdxElapsedAvg, float64(bs.IdxElapsedMax)/1000000000.0, float64(bs.IdxElapsedTotal)/1000000000.0)
 	}
 	return sb.String()
 }
