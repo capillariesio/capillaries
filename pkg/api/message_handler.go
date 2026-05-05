@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand/v2"
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
@@ -486,14 +487,64 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wf
 		return mq.AcknowledgerCmdAck
 	}
 
-	// At this point, we are ready to actually process the node
+	// At this point, we are ready to actually process the node. First, set node status
 
-	if _, err := wfdb.SetNodeStatus(logger, pCtx, wfmodel.NodeStart, "started"); err != nil {
+	// In theory, we can proceed straight to SetNodeStatus below, but if there are a lot of workers, Cassandra may return
+	// "cannot update node <run_id>/<node_name> status to 1, query:INSERT INTO ...;, dberror:CAS operation timed out: received 0 of 1 required responses after ... contention retries"
+	// because ts = toTimestamp(now()), apparently, is a very competitive Cassandra call.
+	// So avoid writing if node status is already "started"
+	nodeStatus, err := wfdb.GetNodeStatus(logger, pCtx)
+	if err != nil {
 		if db.IsDbConnError(err) {
 			return mq.AcknowledgerCmdRetry
 		}
 		return mq.AcknowledgerCmdAck
 	}
+
+	if nodeStatus == wfmodel.NodeBatchRunStopReceived || nodeStatus == wfmodel.NodeBatchFail {
+		logger.WarnCtx(pCtx, "node status for batch %s is %d, while expected %d or %d, probably marked stopped/failed after we checked node batches above, no big deal", pCtx.Msg.FullBatchId(), nodeStatus, wfmodel.NodeBatchNone, wfmodel.NodeBatchStart)
+		return mq.AcknowledgerCmdAck
+	}
+
+	if nodeStatus == wfmodel.NodeBatchSuccess {
+		logger.ErrorCtx(pCtx, "node status for batch %s is success, while expected none or started, this was unexpected", pCtx.Msg.FullBatchId(), nodeStatus)
+		return mq.AcknowledgerCmdAck
+	}
+
+	// Ok, set node status to "started"
+
+	if nodeStatus == wfmodel.NodeBatchNone {
+		// All daemons may want to set node status at once, so make it a bit random random, wait 0-0.5 sec
+		randomMillis := rand.IntN(500)
+		time.Sleep(time.Duration(randomMillis) * time.Millisecond)
+		contentionRetryAttempt := 0
+		maxContentionRetryAttempts := 100
+		for {
+			_, err := wfdb.SetNodeStatus(logger, pCtx, wfmodel.NodeStart, "started")
+			if err == nil {
+				break
+			}
+
+			if db.IsContentionRetryError(err) {
+				if contentionRetryAttempt == maxContentionRetryAttempts {
+					logger.ErrorCtx(pCtx, "max contention retry attempts reached (%d), giving up", maxContentionRetryAttempts)
+					return mq.AcknowledgerCmdAck
+				}
+				// Random wait 0-1 sec
+				randomMillis := rand.IntN(1000)
+				logger.WarnCtx(pCtx, "contention attempt %d failed, will wait for %d ms", contentionRetryAttempt, randomMillis)
+				time.Sleep(time.Duration(randomMillis) * time.Millisecond)
+				contentionRetryAttempt++
+			}
+
+			if db.IsDbConnError(err) {
+				return mq.AcknowledgerCmdRetry
+			}
+			return mq.AcknowledgerCmdAck
+		}
+	}
+
+	// Set batch status to "started" (no concurrency expected here, so do not bother reading it first)
 
 	if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeStart, ""); err != nil {
 		if db.IsDbConnError(err) {

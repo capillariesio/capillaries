@@ -14,6 +14,7 @@ while true; do
   fi
 done
 
+sleep 5
 
 # ubuntu.com may be failing
 while true; do
@@ -25,6 +26,8 @@ while true; do
     sleep 5
   fi
 done
+
+sleep 2
 
 while true; do
   if sudo DEBIAN_FRONTEND=noninteractive apt-get install -y unzip > /dev/null 2>&1; then

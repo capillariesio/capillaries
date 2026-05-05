@@ -38,6 +38,10 @@ func IsDbConnError(err error) bool {
 		strings.Contains(err.Error(), ErrorPrefixDb+"gocql: heartbeat failed")
 }
 
+func IsContentionRetryError(err error) bool {
+	return strings.Contains(err.Error(), "contention retries")
+}
+
 func createWfTable(cqlSession gocqlshims.Session, keyspace string, t reflect.Type, tableName string) error {
 	q := wfmodel.GetCreateTableCql(t, keyspace, tableName)
 	if err := cqlSession.Query(q).Exec(); err != nil {

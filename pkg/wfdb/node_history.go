@@ -136,6 +136,30 @@ func HarvestNodeLifespans(logger *l.CapiLogger, pCtx *ctx.MessageProcessingConte
 	return runNodeLifespanMap, nil
 }
 
+func GetNodeStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) (wfmodel.NodeBatchStatusType, error) {
+	logger.PushF("wfdb.GetNodeStatus")
+	defer logger.PopF()
+
+	q := (&cql.QueryBuilder{}).
+		Keyspace(pCtx.Msg.DataKeyspace).
+		Cond("run_id", "=", pCtx.Msg.RunId).
+		Cond("script_node", "=", pCtx.Msg.TargetNodeName).
+		Select(wfmodel.TableNameNodeHistory, []string{"status"})
+	rows, err := pCtx.CqlSession.Query(q).Iter().SliceMap()
+	if err != nil {
+		return wfmodel.NodeBatchNone, db.WrapDbErrorWithQuery("cannot get node status", q, err)
+	}
+	if len(rows) == 0 {
+		// No status yet, node was not started, all good
+		return wfmodel.NodeBatchNone, nil
+	}
+	nodeStatus, err := wfmodel.ReadNodeBatchStatusFromRow("status", rows[0])
+	if err != nil {
+		return wfmodel.NodeBatchNone, err
+	}
+	return nodeStatus, nil
+}
+
 func SetNodeStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, status wfmodel.NodeBatchStatusType, comment string) (bool, error) {
 	logger.PushF("wfdb.SetNodeStatus")
 	defer logger.PopF()
