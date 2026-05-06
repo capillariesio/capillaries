@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"math/rand/v2"
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
@@ -20,7 +19,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) (sc.ReadyToRunNodeCmdType, int16, int16, error) {
+func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) (sc.ReadyToRunNodeCmdType, int16, int16, int, int, error) {
 	logger.PushF("api.checkDependencyNodesReady")
 	defer logger.PopF()
 
@@ -31,7 +30,8 @@ func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 		if ok {
 			var cachedNodeCmdStr string
 			var cachedRunIdReader, cachedRunIdLookup int16
-			partCount, err := fmt.Sscanf(cachedState, CachedNodeStateFormat, &cachedNodeCmdStr, &cachedRunIdReader, &cachedRunIdLookup)
+			var cachedMatchedRuleIdxReader, cachedMatchedRuleIdxLookup int
+			partCount, err := fmt.Sscanf(cachedState, CachedNodeStateFormat, &cachedNodeCmdStr, &cachedRunIdReader, &cachedRunIdLookup, &cachedMatchedRuleIdxReader, &cachedMatchedRuleIdxLookup)
 			if err != nil {
 				logger.WarnCtx(pCtx, "cannot parse nodecmd and node ids from %s (%s), proceeding with querying state db", cachedState, err.Error())
 				NodeDependencyReadynessCache.Remove(nodeDependencyReadynessCacheKey)
@@ -42,7 +42,7 @@ func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 				cachedNodeCmd, err := sc.ReadyToRunNodeCmdTypeFromString(cachedNodeCmdStr)
 				if err == nil {
 					NodeDependencyReadynessHitCounter.Inc()
-					return cachedNodeCmd, cachedRunIdReader, cachedRunIdLookup, nil
+					return cachedNodeCmd, cachedRunIdReader, cachedRunIdLookup, cachedMatchedRuleIdxReader, cachedMatchedRuleIdxLookup, nil
 				}
 				logger.WarnCtx(pCtx, "invalid cached nodecmd %s (%s), proceeding with querying state db", cachedNodeCmdStr, err.Error())
 				NodeDependencyReadynessCache.Remove(nodeDependencyReadynessCacheKey)
@@ -57,7 +57,7 @@ func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 		tableToReadFrom := pCtx.CurrentScriptNode.TableReader.TableName
 		nodeToReadFrom, ok := pCtx.Script.TableCreatorNodeMap[tableToReadFrom]
 		if !ok {
-			return sc.NodeNone, 0, 0, fmt.Errorf("cannot find the node that creates reader table [%s]", tableToReadFrom)
+			return sc.NodeNone, 0, 0, -1, -1, fmt.Errorf("cannot find the node that creates reader table [%s]", tableToReadFrom)
 		}
 		depNodeNames[depNodeCount] = nodeToReadFrom.Name
 		depNodeCount++
@@ -66,14 +66,14 @@ func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 		tableToReadFrom := pCtx.CurrentScriptNode.Lookup.TableCreator.Name
 		nodeToReadFrom, ok := pCtx.Script.TableCreatorNodeMap[tableToReadFrom]
 		if !ok {
-			return sc.NodeNone, 0, 0, fmt.Errorf("cannot find the node that creates lookup table [%s]", tableToReadFrom)
+			return sc.NodeNone, 0, 0, -1, -1, fmt.Errorf("cannot find the node that creates lookup table [%s]", tableToReadFrom)
 		}
 		depNodeNames[depNodeCount] = nodeToReadFrom.Name
 		depNodeCount++
 	}
 
 	if depNodeCount == 0 {
-		return sc.NodeGo, 0, 0, nil
+		return sc.NodeGo, 0, 0, -1, -1, nil
 	}
 
 	startTime := time.Now()
@@ -82,23 +82,23 @@ func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 
 	nodeEventListMap, err := wfdb.BuildDependencyNodeEventLists(logger, pCtx, depNodeNames)
 	if err != nil {
-		return sc.NodeNone, 0, 0, err
+		return sc.NodeNone, 0, 0, -1, -1, err
 	}
 
 	logger.DebugCtx(pCtx, "nodeEventListMap %v", nodeEventListMap)
 
 	dependencyNodeCmds := make([]sc.ReadyToRunNodeCmdType, len(depNodeNames))
 	dependencyRunIds := make([]int16, len(depNodeNames))
+	matchedRuleIndexes := make([]int, len(depNodeNames))
 	for nodeIdx, depNodeName := range depNodeNames {
 		if len(nodeEventListMap[depNodeName]) == 0 {
-			return sc.NodeNogo, 0, 0, fmt.Errorf("target node %s, dep node %s not started yet, whoever started this run, failed to specify %s (or at least one of its dependencies) as start node", pCtx.Msg.TargetNodeName, depNodeName, depNodeName)
+			return sc.NodeNogo, 0, 0, -1, -1, fmt.Errorf("target node %s, dep node %s not started yet, whoever started this run, failed to specify %s (or at least one of its dependencies) as start node", pCtx.Msg.TargetNodeName, depNodeName, depNodeName)
 		}
-		var matchedRuleIdx int
-		dependencyNodeCmds[nodeIdx], dependencyRunIds[nodeIdx], matchedRuleIdx, err = dpc.CheckDependencyPolicyAgainstNodeEventList(logger, pCtx.Msg.FullBatchId(), pCtx.CurrentScriptNode.DepPolDef, nodeEventListMap[depNodeName])
+		dependencyNodeCmds[nodeIdx], dependencyRunIds[nodeIdx], matchedRuleIndexes[nodeIdx], err = dpc.CheckDependencyPolicyAgainstNodeEventList(logger, pCtx.Msg.FullBatchId(), pCtx.CurrentScriptNode.DepPolDef, nodeEventListMap[depNodeName])
 		if err != nil {
-			return sc.NodeNone, 0, 0, fmt.Errorf("cannot check dependencis for dependency node %s: %s", depNodeName, err.Error())
+			return sc.NodeNone, 0, 0, -1, -1, fmt.Errorf("cannot check dependencis for dependency node %s: %s", depNodeName, err.Error())
 		}
-		logger.DebugCtx(pCtx, "target node %s, dep node %s returned %s, matched rule %d", pCtx.Msg.TargetNodeName, depNodeName, dependencyNodeCmds[nodeIdx], matchedRuleIdx)
+		logger.DebugCtx(pCtx, "target node %s, dep node %s returned %s, matched rule %d", pCtx.Msg.TargetNodeName, depNodeName, dependencyNodeCmds[nodeIdx], matchedRuleIndexes[nodeIdx])
 	}
 
 	// depNodeNames can have size 1 or 2. If 2, we are guaranteed that [0] is the reader, and [1] is the lookup,
@@ -106,8 +106,11 @@ func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 	finalCmd := dependencyNodeCmds[0]
 	finalRunIdReader := dependencyRunIds[0]
 	finalRunIdLookup := int16(0)
+	matchedRuleIdxReader := matchedRuleIndexes[0]
+	matchedRuleIdxLookup := -1
 	if len(dependencyNodeCmds) == 2 {
 		finalRunIdLookup = dependencyRunIds[1]
+		matchedRuleIdxLookup = matchedRuleIndexes[1]
 		if dependencyNodeCmds[0] == sc.NodeNogo || dependencyNodeCmds[1] == sc.NodeNogo {
 			finalCmd = sc.NodeNogo
 		} else if dependencyNodeCmds[0] == sc.NodeWait || dependencyNodeCmds[1] == sc.NodeWait {
@@ -127,10 +130,10 @@ func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 
 	// Update cache
 	if NodeDependencyReadynessCache != nil {
-		NodeDependencyReadynessCache.Add(nodeDependencyReadynessCacheKey, fmt.Sprintf(CachedNodeStateFormat, finalCmd, finalRunIdReader, finalRunIdLookup))
+		NodeDependencyReadynessCache.Add(nodeDependencyReadynessCacheKey, fmt.Sprintf(CachedNodeStateFormat, finalCmd, finalRunIdReader, finalRunIdLookup, matchedRuleIdxReader, matchedRuleIdxLookup))
 	}
 
-	return finalCmd, finalRunIdReader, finalRunIdLookup, nil
+	return finalCmd, finalRunIdReader, finalRunIdLookup, matchedRuleIdxReader, matchedRuleIdxLookup, nil
 }
 
 func updateNodeStatusFromBatches(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) (wfmodel.NodeBatchStatusType, bool, error) {
@@ -148,13 +151,13 @@ func updateNodeStatusFromBatches(logger *l.CapiLogger, pCtx *ctx.MessageProcessi
 		var comment string
 		switch totalNodeStatus {
 		case wfmodel.NodeBatchSuccess:
-			comment = "completed - all batches ok"
+			comment = fmt.Sprintf("marked completed by batch %d / %d - all batches ok", pCtx.Msg.BatchIdx, pCtx.Msg.BatchesTotal)
 		case wfmodel.NodeBatchFail:
-			comment = "completed with some failed batches - check batch history"
+			comment = fmt.Sprintf("marked completed with some failed batches by batch %d / %d - check batch history", pCtx.Msg.BatchIdx, pCtx.Msg.BatchesTotal)
 		case wfmodel.NodeBatchRunStopReceived:
-			comment = "run was stopped,check run and batch history"
+			comment = fmt.Sprintf("run was stopped, marked by batch %d / %d, check run and batch history", pCtx.Msg.BatchIdx, pCtx.Msg.BatchesTotal)
 		default:
-			return wfmodel.NodeBatchNone, false, fmt.Errorf("unexpected totalNodeStatus %v", totalNodeStatus)
+			return wfmodel.NodeBatchNone, false, fmt.Errorf("unexpected totalNodeStatus %v by batch %d /%d", totalNodeStatus, pCtx.Msg.BatchIdx, pCtx.Msg.BatchesTotal)
 		}
 
 		isApplied, err := wfdb.SetNodeStatus(logger, pCtx, totalNodeStatus, comment)
@@ -177,14 +180,14 @@ func updateRunStatusFromNodes(logger *l.CapiLogger, pCtx *ctx.MessageProcessingC
 	if err != nil {
 		return err
 	}
-	combinedNodeStatus, nodeStatusString, err := wfdb.HarvestNodeStatusesForRun(logger, pCtx, affectedNodes)
+	combinedNodeStatus, nodeStatusMap, err := wfdb.HarvestNodeStatusesForRun(logger, pCtx, affectedNodes)
 	if err != nil {
 		return err
 	}
 
 	if combinedNodeStatus == wfmodel.NodeBatchSuccess || combinedNodeStatus == wfmodel.NodeBatchFail {
 		// Mark run as complete
-		if err := wfdb.SetRunStatus(logger, pCtx.CqlSession, pCtx.Msg.DataKeyspace, pCtx.Msg.RunId, wfmodel.RunComplete, nodeStatusString, cql.IgnoreIfExists); err != nil {
+		if err := wfdb.SetRunStatus(logger, pCtx.CqlSession, pCtx.Msg.DataKeyspace, pCtx.Msg.RunId, wfmodel.RunComplete, nodeStatusMap.ToString(), cql.IgnoreIfExists); err != nil {
 			return err
 		}
 	}
@@ -350,10 +353,10 @@ func checkLastBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingConte
 	}
 }
 
-func checkDependencyNogoOrWait(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, nodeReady sc.ReadyToRunNodeCmdType) FurtherProcessingCmd {
+func checkDependencyNogoOrWait(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, nodeReady sc.ReadyToRunNodeCmdType, matchedRuleIdxReader int, matchedRuleIdxLookup int) FurtherProcessingCmd {
 	switch nodeReady {
 	case sc.NodeNogo:
-		comment := fmt.Sprintf("some dependency nodes for %s are in bad state, or runs executing dependency nodes were stopped/invalidated, will not run this node; for details, check rules in dependency_policies and previous runs history", pCtx.Msg.FullBatchId())
+		comment := fmt.Sprintf("nogo, rules (%d,%d), some dependency nodes for %s are in bad state, or runs executing dependency nodes were stopped/invalidated, will not run this node; for details, check rules in dependency_policies and previous runs history", matchedRuleIdxReader, matchedRuleIdxLookup, pCtx.Msg.FullBatchId())
 		logger.InfoCtx(pCtx, "%s", comment)
 		if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeFail, comment); err != nil {
 			if db.IsDbConnError(err) {
@@ -367,7 +370,7 @@ func checkDependencyNogoOrWait(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 		return FurtherProcessingAck
 
 	case sc.NodeWait:
-		logger.InfoCtx(pCtx, "some dependency nodes for %s are not ready, will wait", pCtx.Msg.FullBatchId())
+		logger.InfoCtx(pCtx, "wait, rules (%d,%d), some dependency nodes for %s are not ready, will wait", matchedRuleIdxReader, matchedRuleIdxLookup, pCtx.Msg.FullBatchId())
 		return FurtherProcessingRetry
 
 	default:
@@ -456,7 +459,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wf
 
 	// At this point, we are assuming this batch processing either never started or was started and then abandoned
 
-	nodeReady, readerNodeRunId, lookupNodeRunId, err := checkDependencyNodesReady(logger, pCtx)
+	nodeReady, readerNodeRunId, lookupNodeRunId, matchedRuleIdxReader, matchedRuleIdxLookup, err := checkDependencyNodesReady(logger, pCtx)
 	if err != nil {
 		logger.ErrorCtx(pCtx, "cannot verify dependency nodes status for %s: %s", pCtx.Msg.FullBatchId(), err.Error())
 		if db.IsDbConnError(err) {
@@ -479,7 +482,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wf
 		return mq.AcknowledgerCmdAck
 	}
 
-	furtherProcCmd = checkDependencyNogoOrWait(logger, pCtx, nodeReady)
+	furtherProcCmd = checkDependencyNogoOrWait(logger, pCtx, nodeReady, matchedRuleIdxReader, matchedRuleIdxLookup)
 	switch furtherProcCmd {
 	case FurtherProcessingRetry:
 		return mq.AcknowledgerCmdRetry
@@ -488,60 +491,15 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wf
 	}
 
 	// At this point, we are ready to actually process the node. First, set node status
+	// Since every batch writes it's own "node started!" signal, this should not be a high-concurrency call
+	// unless, say 10 workers are trying to start the same run/node/batch at the same time, which should not happen.
+	// If you start seeing contention errors from Cassandra here, introduce random waits with some backoff.
 
-	// In theory, we can proceed straight to SetNodeStatus below, but if there are a lot of workers, Cassandra may return
-	// "cannot update node <run_id>/<node_name> status to 1, query:INSERT INTO ...;, dberror:CAS operation timed out: received 0 of 1 required responses after ... contention retries"
-	// because ts = toTimestamp(now()), apparently, is a very competitive Cassandra call.
-	// So avoid writing if node status is already "started"
-	nodeStatus, err := wfdb.GetNodeStatus(logger, pCtx)
-	if err != nil {
+	if _, err = wfdb.SetNodeStatus(logger, pCtx, wfmodel.NodeStart, fmt.Sprintf("marked started by batch %d / %d", pCtx.Msg.BatchIdx, pCtx.Msg.BatchesTotal)); err != nil {
 		if db.IsDbConnError(err) {
 			return mq.AcknowledgerCmdRetry
 		}
 		return mq.AcknowledgerCmdAck
-	}
-
-	if nodeStatus == wfmodel.NodeBatchRunStopReceived || nodeStatus == wfmodel.NodeBatchFail {
-		logger.WarnCtx(pCtx, "node status for batch %s is %d, while expected %d or %d, probably marked stopped/failed after we checked node batches above, no big deal", pCtx.Msg.FullBatchId(), nodeStatus, wfmodel.NodeBatchNone, wfmodel.NodeBatchStart)
-		return mq.AcknowledgerCmdAck
-	}
-
-	if nodeStatus == wfmodel.NodeBatchSuccess {
-		logger.ErrorCtx(pCtx, "node status for batch %s is success, while expected none or started, this was unexpected", pCtx.Msg.FullBatchId(), nodeStatus)
-		return mq.AcknowledgerCmdAck
-	}
-
-	// Ok, set node status to "started"
-
-	if nodeStatus == wfmodel.NodeBatchNone {
-		// All daemons may want to set node status at once, so make it a bit random random, wait 0-0.5 sec
-		randomMillis := rand.IntN(500)
-		time.Sleep(time.Duration(randomMillis) * time.Millisecond)
-		contentionRetryAttempt := 0
-		maxContentionRetryAttempts := 100
-		for {
-			_, err := wfdb.SetNodeStatus(logger, pCtx, wfmodel.NodeStart, "started")
-			if err == nil {
-				break
-			}
-
-			if db.IsContentionRetryError(err) {
-				if contentionRetryAttempt == maxContentionRetryAttempts {
-					logger.ErrorCtx(pCtx, "max contention retry attempts reached (%d), giving up", maxContentionRetryAttempts)
-					return mq.AcknowledgerCmdAck
-				}
-				// Random wait 0-1 sec
-				randomMillis := rand.IntN(1000)
-				logger.WarnCtx(pCtx, "contention attempt %d failed, will wait for %d ms", contentionRetryAttempt, randomMillis)
-				time.Sleep(time.Duration(randomMillis) * time.Millisecond)
-				contentionRetryAttempt++
-			}
-
-			if db.IsDbConnError(err) {
-				return mq.AcknowledgerCmdRetry
-			}
-			return mq.AcknowledgerCmdAck
-		}
 	}
 
 	// Set batch status to "started" (no concurrency expected here, so do not bother reading it first)

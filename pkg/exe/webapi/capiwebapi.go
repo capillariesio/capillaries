@@ -264,7 +264,7 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// Retrieve all node events for this ks, for all runs
-	nodeHistory, err := api.GetNodeHistoryForRuns(h.L, cqlSession, keyspace, []int16{})
+	sortedNodeEvents, err := api.GetNodeHistoryForRuns(h.L, cqlSession, keyspace, []int16{})
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -274,7 +274,7 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 
 	// For each node/run, harvest current node status, latest wins
 	nodeRunStatusMap := map[string]map[int16]WebapiNodeStatus{}
-	for _, nodeEvent := range nodeHistory {
+	for _, nodeEvent := range sortedNodeEvents {
 		if _, ok := nodeRunStatusMap[nodeEvent.ScriptNode]; !ok {
 			nodeRunStatusMap[nodeEvent.ScriptNode] = map[int16]WebapiNodeStatus{}
 		}
@@ -489,21 +489,11 @@ func (h *UrlHandler) ksRunNodeHistory(w http.ResponseWriter, r *http.Request) {
 
 	// Node history
 
-	result.RunNodeHistory, err = wfdb.GetNodeHistoryForRun(h.L, cqlSession, keyspace, int16(runId))
+	result.RunNodeHistory, err = api.GetNodeHistoryForRuns(h.L, cqlSession, keyspace, []int16{int16(runId)})
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
-	slices.SortFunc(result.RunNodeHistory, func(l, r *wfmodel.NodeHistoryEvent) int {
-		switch {
-		case l.Ts.Before(r.Ts):
-			return -1
-		case l.Ts.After(r.Ts):
-			return 1
-		default:
-			return 0
-		}
-	})
 	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, result)
 }
 
@@ -562,12 +552,17 @@ func (h *UrlHandler) ksRunViz(w http.ResponseWriter, r *http.Request) {
 	showFields := true
 	if isStatus {
 		nodeColorMap = map[string]int32{}
-		nodes, err := api.GetNodeHistoryForRuns(h.L, cqlSession, keyspace, []int16{int16(runId)})
+		sortedNodeEvents, err := api.GetNodeHistoryForRuns(h.L, cqlSession, keyspace, []int16{int16(runId)})
 		if err != nil {
 			WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		}
-		for _, node := range nodes {
-			nodeColorMap[node.ScriptNode] = api.NodeBatchStatusToCapigraphColor(node.Status)
+		allNodes := make([]string, 0)
+		for nodeName := range scriptDef.ScriptNodes {
+			allNodes = append(allNodes, nodeName)
+		}
+		_, nodeStatusMap := wfmodel.FigureOutRunStatusAndAffectedNodesStatusesFromNodeEvents(sortedNodeEvents, int16(runId), allNodes)
+		for nodeName, nodeStatus := range nodeStatusMap {
+			nodeColorMap[nodeName] = api.NodeBatchStatusToCapigraphColor(nodeStatus)
 		}
 		showIdx = false
 		showFields = false

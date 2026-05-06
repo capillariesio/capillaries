@@ -236,6 +236,7 @@
 			<tr>
 				<th>Timestamp</th>
 				<th>Node</th>
+				<th>Batch</th>
 				<th>Status</th>
 				<th>Elapsed</th>
 				<th>Comment</th>
@@ -250,6 +251,7 @@
 							>{e.script_node}</a
 						></td
 					>
+					<td>{e.written_by_batch_idx}</td>
 					<td
 						><img
 							src={nodeStatusToIconStatic(e.status)}

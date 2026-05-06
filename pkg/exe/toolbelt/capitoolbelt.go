@@ -263,8 +263,8 @@ func getNodeHistory(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 func getBatchHistory(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 	getBatchHistoryCmd := flag.NewFlagSet(CmdGetBatchHistory, flag.ExitOnError)
 	keyspace := getBatchHistoryCmd.String("keyspace", "", "Keyspace (session id)")
-	runIdsString := getBatchHistoryCmd.String("run_ids", "", "Limit results to specific run ids (optional), comma-separated list")
-	nodeNamesString := getBatchHistoryCmd.String("nodes", "", "Limit results to specific node names (optional), comma-separated list")
+	runIdString := getBatchHistoryCmd.String("run_id", "", "Limit results to specific run id")
+	nodeNameString := getBatchHistoryCmd.String("node", "", "Limit results to specific node name")
 	if err := getBatchHistoryCmd.Parse(os.Args[2:]); err != nil {
 		usage(getBatchHistoryCmd)
 		return 0
@@ -276,20 +276,18 @@ func getBatchHistory(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 		return 1
 	}
 
-	runIds, err := stringToArrayOfInt16(*runIdsString)
+	runId, err := strconv.ParseInt(strings.TrimSpace(*runIdString), 10, 16)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
 	}
 
-	var nodeNames []string
-	if len(strings.TrimSpace(*nodeNamesString)) > 0 {
-		nodeNames = strings.Split(*nodeNamesString, ",")
-	} else {
-		nodeNames = make([]string, 0)
+	if len(*nodeNameString) == 0 {
+		fmt.Fprintln(os.Stderr, "empty node name")
+		return 1
 	}
 
-	runs, err := api.GetBatchHistoryForRunsAndNodes(logger, cqlSession, *keyspace, runIds, nodeNames)
+	runs, err := api.GetRunNodeBatchHistory(logger, cqlSession, *keyspace, int16(runId), *nodeNameString)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1

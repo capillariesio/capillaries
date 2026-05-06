@@ -26,7 +26,8 @@ const DefaultPolicyCheckerConfJson string = `
 		{"cmd": "wait",   "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchStart"	},
 
 		{"cmd": "go",   "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchSuccess"	},
-		{"cmd": "nogo",   "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchFail"	}
+		{"cmd": "nogo", "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchFail"	},
+        {"cmd": "nogo", "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStop" }
 	]
 }`
 

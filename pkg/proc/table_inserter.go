@@ -18,7 +18,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
 
-	_ "unsafe"
+	_ "unsafe" // nanotime()
 )
 
 //go:linkname nanotime runtime.nanotime

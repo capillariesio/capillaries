@@ -46,7 +46,7 @@ func GetCurrentRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContex
 	return lastStatus, nil
 }
 
-// Used by Webapi to retrieve all runs that happened in this keyspace and their current status
+// Used by Webapi to retrieve all runs that happened in this keyspace and their current status, and by checkDependencyNodesReady
 func HarvestRunLifespans(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runIds []int16) (wfmodel.RunLifespanMap, error) {
 	logger.PushF("wfdb.HarvestRunLifespans")
 	defer logger.PopF()
@@ -127,4 +127,38 @@ func SetRunStatus(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace 
 
 	logger.Debug("run %d, status %s", runId, status.ToString())
 	return nil
+}
+
+func GetRunHistory(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string) ([]*wfmodel.RunHistoryEvent, error) {
+	logger.PushF("wfdb.GetRunHistory")
+	defer logger.PopF()
+
+	qb := cql.QueryBuilder{}
+	q := qb.
+		Keyspace(keyspace).
+		Select(wfmodel.TableNameRunHistory, wfmodel.RunHistoryEventAllFields())
+	rows, err := cqlSession.Query(q).Iter().SliceMap()
+	if err != nil {
+		return nil, db.WrapDbErrorWithQuery("cannot get run history", q, err)
+	}
+
+	result := make([]*wfmodel.RunHistoryEvent, len(rows))
+	for rowIdx, r := range rows {
+		result[rowIdx], err = wfmodel.NewRunHistoryEventFromMap(r, wfmodel.RunHistoryEventAllFields())
+		if err != nil {
+			return nil, fmt.Errorf("cannot deserialize run history row: %s, %s", err.Error(), q)
+		}
+	}
+	slices.SortFunc(result, func(l, r *wfmodel.RunHistoryEvent) int {
+		switch {
+		case l.Ts.Before(r.Ts):
+			return -1
+		case l.Ts.After(r.Ts):
+			return 1
+		default:
+			return 0
+		}
+	})
+
+	return result, nil
 }

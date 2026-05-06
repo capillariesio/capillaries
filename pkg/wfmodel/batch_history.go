@@ -81,7 +81,7 @@ func NewBatchHistoryEventFromMap(r map[string]any, fields []string) (*BatchHisto
 		case "comment":
 			res.Comment, err = ReadStringFromRow(fieldName, r)
 		default:
-			return nil, fmt.Errorf("unknown %s field %s", fieldName, TableNameNodeHistory)
+			return nil, fmt.Errorf("unknown %s field %s", TableNameBatchHistory, fieldName)
 		}
 		if err != nil {
 			return nil, err

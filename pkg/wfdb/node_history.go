@@ -2,7 +2,6 @@ package wfdb
 
 import (
 	"fmt"
-	"slices"
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
@@ -13,11 +12,11 @@ import (
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
-func HarvestNodeStatusesForRun(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, affectedNodes []string) (wfmodel.NodeBatchStatusType, string, error) {
+func HarvestNodeStatusesForRun(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, affectedNodes []string) (wfmodel.NodeBatchStatusType, wfmodel.NodeStatusMap, error) {
 	logger.PushF("wfdb.HarvestNodeStatusesForRun")
 	defer logger.PopF()
 
-	fields := []string{"script_node", "status"}
+	fields := []string{"ts", "run_id", "script_node", "written_by_batch_idx", "status"}
 	q := (&cql.QueryBuilder{}).
 		Keyspace(pCtx.Msg.DataKeyspace).
 		Cond("run_id", "=", pCtx.Msg.RunId).
@@ -25,65 +24,16 @@ func HarvestNodeStatusesForRun(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 		Select(wfmodel.TableNameNodeHistory, fields)
 	rows, err := pCtx.CqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		return wfmodel.NodeBatchNone, "", db.WrapDbErrorWithQuery(fmt.Sprintf("cannot get node history for %s", pCtx.Msg.FullBatchId()), q, err)
+		return wfmodel.NodeBatchNone, nil, db.WrapDbErrorWithQuery(fmt.Sprintf("cannot get node history for %s", pCtx.Msg.FullBatchId()), q, err)
 	}
 
-	nodeStatusMap := wfmodel.NodeStatusMap{}
-	for _, affectedNodeName := range affectedNodes {
-		nodeStatusMap[affectedNodeName] = wfmodel.NodeBatchNone
+	sortedNodeEvents, err := wfmodel.NodeHistoryRowsToNodeHistoryEvents(rows, fields)
+	if err != nil {
+		return wfmodel.NodeBatchNone, nil, err
 	}
 
-	nodeEvents := make([]*wfmodel.NodeHistoryEvent, len(rows))
-
-	for idx, r := range rows {
-		rec, err := wfmodel.NewNodeHistoryEventFromMap(r, fields)
-		if err != nil {
-			return wfmodel.NodeBatchNone, "", fmt.Errorf("cannot deserialize node history row %s, %s", err.Error(), q)
-		}
-		nodeEvents[idx] = rec
-	}
-
-	slices.SortFunc(nodeEvents, func(l, r *wfmodel.NodeHistoryEvent) int {
-		switch {
-		case l.Ts.Before(r.Ts):
-			return -1
-		case l.Ts.After(r.Ts):
-			return 1
-		default:
-			return 0
-		}
-	})
-
-	for _, e := range nodeEvents {
-		lastStatus, ok := nodeStatusMap[e.ScriptNode]
-		if !ok {
-			nodeStatusMap[e.ScriptNode] = e.Status
-		} else {
-			// Stopreceived is higher priority than anything else
-			if lastStatus != wfmodel.NodeBatchRunStopReceived {
-				nodeStatusMap[e.ScriptNode] = e.Status
-			}
-		}
-	}
-
-	highestStatus := wfmodel.NodeBatchNone
-	lowestStatus := wfmodel.NodeBatchRunStopReceived
-	for _, status := range nodeStatusMap {
-		if status > highestStatus {
-			highestStatus = status
-		}
-		if status < lowestStatus {
-			lowestStatus = status
-		}
-	}
-
-	if lowestStatus > wfmodel.NodeBatchStart {
-		logger.InfoCtx(pCtx, "run %d complete, status map %s", pCtx.Msg.RunId, nodeStatusMap.ToString())
-		return highestStatus, nodeStatusMap.ToString(), nil
-	}
-
-	logger.DebugCtx(pCtx, "run %d incomplete, lowest status %s, status map %s", pCtx.Msg.RunId, lowestStatus.ToString(), nodeStatusMap.ToString())
-	return lowestStatus, nodeStatusMap.ToString(), nil
+	runStatus, affectedNodesStatusMap := wfmodel.FigureOutRunStatusAndAffectedNodesStatusesFromNodeEvents(sortedNodeEvents, pCtx.Msg.RunId, affectedNodes)
+	return runStatus, affectedNodesStatusMap, nil
 }
 
 func HarvestNodeLifespans(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, affectingRuns []int16, affectedNodes []string) (wfmodel.RunNodeLifespanMap, error) {
@@ -136,30 +86,6 @@ func HarvestNodeLifespans(logger *l.CapiLogger, pCtx *ctx.MessageProcessingConte
 	return runNodeLifespanMap, nil
 }
 
-func GetNodeStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) (wfmodel.NodeBatchStatusType, error) {
-	logger.PushF("wfdb.GetNodeStatus")
-	defer logger.PopF()
-
-	q := (&cql.QueryBuilder{}).
-		Keyspace(pCtx.Msg.DataKeyspace).
-		Cond("run_id", "=", pCtx.Msg.RunId).
-		Cond("script_node", "=", pCtx.Msg.TargetNodeName).
-		Select(wfmodel.TableNameNodeHistory, []string{"status"})
-	rows, err := pCtx.CqlSession.Query(q).Iter().SliceMap()
-	if err != nil {
-		return wfmodel.NodeBatchNone, db.WrapDbErrorWithQuery("cannot get node status", q, err)
-	}
-	if len(rows) == 0 {
-		// No status yet, node was not started, all good
-		return wfmodel.NodeBatchNone, nil
-	}
-	nodeStatus, err := wfmodel.ReadNodeBatchStatusFromRow("status", rows[0])
-	if err != nil {
-		return wfmodel.NodeBatchNone, err
-	}
-	return nodeStatus, nil
-}
-
 func SetNodeStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, status wfmodel.NodeBatchStatusType, comment string) (bool, error) {
 	logger.PushF("wfdb.SetNodeStatus")
 	defer logger.PopF()
@@ -169,6 +95,7 @@ func SetNodeStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, sta
 		WriteForceUnquote("ts", "toTimestamp(now())").
 		Write("run_id", pCtx.Msg.RunId).
 		Write("script_node", pCtx.Msg.TargetNodeName).
+		Write("written_by_batch_idx", pCtx.Msg.BatchIdx).
 		Write("status", status).
 		Write("comment", comment).
 		InsertUnpreparedQuery(wfmodel.TableNameNodeHistory, cql.IgnoreIfExists) // If not exists. First one wins.
@@ -186,6 +113,7 @@ func SetNodeStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, sta
 }
 
 // Used by Webapi to retrieve each node status history for a run
+/*
 func GetNodeHistoryForRun(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16) ([]*wfmodel.NodeHistoryEvent, error) {
 	logger.PushF("wfdb.GetNodeHistoryForRun")
 	defer logger.PopF()
@@ -199,15 +127,30 @@ func GetNodeHistoryForRun(logger *l.CapiLogger, cqlSession gocqlshims.Session, k
 		return []*wfmodel.NodeHistoryEvent{}, db.WrapDbErrorWithQuery(fmt.Sprintf("cannot get node history for run %d", runId), q, err)
 	}
 
-	result := make([]*wfmodel.NodeHistoryEvent, len(rows))
-
-	for idx, r := range rows {
-		rec, err := wfmodel.NewNodeHistoryEventFromMap(r, wfmodel.NodeHistoryEventAllFields())
-		if err != nil {
-			return []*wfmodel.NodeHistoryEvent{}, fmt.Errorf("cannot deserialize node history row %s, %s", err.Error(), q)
-		}
-		result[idx] = rec
+	sortedNodeEvents, err := wfmodel.NodeHistoryRowsToNodeHistoryEvents(rows, wfmodel.NodeHistoryEventAllFields())
+	if err != nil {
+		return []*wfmodel.NodeHistoryEvent{}, err
 	}
 
-	return result, nil
+	return sortedNodeEvents, nil
+}
+*/
+
+func GetNodeHistoryForRuns(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runIds []int16) ([]*wfmodel.NodeHistoryEvent, error) {
+	logger.PushF("wfdb.GetNodeHistoryForRuns")
+	defer logger.PopF()
+
+	qb := cql.QueryBuilder{}
+	qb.Keyspace(keyspace)
+	if len(runIds) > 0 {
+		qb.CondInInt16("run_id", runIds)
+	}
+
+	q := qb.Select(wfmodel.TableNameNodeHistory, wfmodel.NodeHistoryEventAllFields())
+	rows, err := cqlSession.Query(q).Iter().SliceMap()
+	if err != nil {
+		return nil, db.WrapDbErrorWithQuery("cannot get node history", q, err)
+	}
+
+	return wfmodel.NodeHistoryRowsToNodeHistoryEvents(rows, wfmodel.NodeHistoryEventAllFields())
 }
