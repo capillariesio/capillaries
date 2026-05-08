@@ -48,10 +48,10 @@ func GetTablesCql(script *sc.ScriptDef, keyspace string, runId int16, startNodeN
 	fmt.Fprintf(&sb, "%s\n", wfmodel.GetCreateTableCql(reflect.TypeOf(wfmodel.BatchHistoryEvent{}), keyspace, wfmodel.TableNameBatchHistory))
 	fmt.Fprintf(&sb, "%s\n", wfmodel.GetCreateTableCql(reflect.TypeOf(wfmodel.NodeHistoryEvent{}), keyspace, wfmodel.TableNameNodeHistory))
 	fmt.Fprintf(&sb, "%s\n", wfmodel.GetCreateTableCql(reflect.TypeOf(wfmodel.RunHistoryEvent{}), keyspace, wfmodel.TableNameRunHistory))
-	fmt.Fprintf(&sb, "%s\n", wfmodel.GetCreateTableCql(reflect.TypeOf(wfmodel.RunProperties{}), keyspace, wfmodel.TableNameRunAffectedNodes))
+	fmt.Fprintf(&sb, "%s\n", wfmodel.GetCreateTableCql(reflect.TypeOf(wfmodel.RunProperties{}), keyspace, wfmodel.TableNameRunProperties))
 	fmt.Fprintf(&sb, "%s\n", wfmodel.GetCreateTableCql(reflect.TypeOf(wfmodel.RunCounter{}), keyspace, wfmodel.TableNameRunCounter))
 	qb := cql.QueryBuilder{}
-	fmt.Fprintf(&sb, "%s\n", qb.Keyspace(keyspace).Write("ks", keyspace).Write("last_run", 0).InsertUnpreparedQuery(wfmodel.TableNameRunCounter, cql.IgnoreIfExists))
+	fmt.Fprintf(&sb, "%s\n", qb.Keyspace(keyspace).Write("ks", keyspace).Write("last_run", 0).InsertUnpreparedQuery(wfmodel.TableNameRunCounter, cql.IfNotExistsLwt))
 
 	for _, nodeName := range script.GetAffectedNodes(startNodeNames) {
 		node, ok := script.ScriptNodes[nodeName]

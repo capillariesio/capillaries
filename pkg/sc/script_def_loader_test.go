@@ -277,19 +277,19 @@ func TestNewScriptFromFileBytes(t *testing.T) {
 
 	// Invalid dependency policy
 	_, _, err = NewScriptFromFileBytes("", nil,
-		"someScriptUrl.json", []byte(strings.ReplaceAll(parameterizedScriptJson, "run_is_current(desc),node_start_ts(desc)", "some_bad_event_priority_order")),
+		"someScriptUrl.json", []byte(strings.ReplaceAll(parameterizedScriptJson, "run_is_current(desc), run_id(desc)", "some_bad_event_priority_order")),
 		"someScriptParamsUrl.json", []byte(paramsJson),
 		&SomeTestCustomProcessorDefFactory{}, map[string]json.RawMessage{"some_test_custom_proc": []byte("{}")})
 	assert.Contains(t, err.Error(), "failed to deserialize dependency policy")
 
 	// Run (tweaked) dependency policy checker with some vanilla values and see if it works
 	_, _, err = NewScriptFromFileBytes("", nil,
-		"someScriptUrl.json", []byte(strings.ReplaceAll(parameterizedScriptJson, "e.run_final_status == wfmodel.RunStart", "e.run_final_status == true")),
+		"someScriptUrl.json", []byte(strings.ReplaceAll(parameterizedScriptJson, "nrs.run_status == wfmodel.RunStart", "nrs.run_status == true")),
 		"someScriptParamsUrl.json", []byte(paramsJson),
 		&SomeTestCustomProcessorDefFactory{}, map[string]json.RawMessage{"some_test_custom_proc": []byte("{}")})
 	assert.Contains(t, err.Error(), "failed to test dependency policy")
 
-	re := regexp.MustCompile(`"expression": "e\.run[^"]+"`)
+	re := regexp.MustCompile(`"expression": "nrs\.run[^"]+"`)
 	_, _, err = NewScriptFromFileBytes("", nil,
 		"someScriptUrl.json", []byte(re.ReplaceAllString(parameterizedScriptJson, `"expression": 1`)),
 		"someScriptParamsUrl.json", []byte(paramsJson),
@@ -303,10 +303,10 @@ func TestNewScriptFromFileBytes(t *testing.T) {
 	assert.Contains(t, err.Error(), "cannot parse rule expression 'a.aaa': all fields must be prefixed")
 
 	_, _, err = NewScriptFromFileBytes("", nil,
-		"someScriptUrl.json", []byte(re.ReplaceAllString(parameterizedScriptJson, `"expression": "e.aaa"`)),
+		"someScriptUrl.json", []byte(re.ReplaceAllString(parameterizedScriptJson, `"expression": "nrs.aaa"`)),
 		"someScriptParamsUrl.json", []byte(paramsJson),
 		&SomeTestCustomProcessorDefFactory{}, map[string]json.RawMessage{"some_test_custom_proc": []byte("{}")})
-	assert.Contains(t, err.Error(), "cannot parse rule expression 'e.aaa': field e.aaa not found")
+	assert.Contains(t, err.Error(), "cannot parse rule expression 'nrs.aaa': field nrs.aaa not found")
 
 	// Tweak lookup isGroup = false and get error
 	_, _, err = NewScriptFromFileBytes("", nil,

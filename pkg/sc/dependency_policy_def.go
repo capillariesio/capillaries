@@ -14,20 +14,20 @@ import (
 const DefaultPolicyCheckerConfJson string = `
 {
 	"is_default": true,
-	"event_priority_order": "run_is_current(desc),node_start_ts(desc)",
+	"event_priority_order": "run_is_current(desc), run_id(desc)",
 	"rules": [
-		{"cmd": "go",   "expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchSuccess"	},
-		{"cmd": "wait", "expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchNone"	    },
-		{"cmd": "wait", "expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchStart"	    },
-		{"cmd": "nogo", "expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchFail"	    },
+		{"cmd": "go",   "expression": "nrs.run_is_current == true && nrs.run_status == wfmodel.RunStart && nrs.node_status == wfmodel.NodeBatchSuccess"	},
+		{"cmd": "wait", "expression": "nrs.run_is_current == true && (nrs.run_status == wfmodel.RunStart || nrs.run_status == wfmodel.RunNone) && nrs.node_status == wfmodel.NodeBatchNone"	    },
+		{"cmd": "wait", "expression": "nrs.run_is_current == true && (nrs.run_status == wfmodel.RunStart || nrs.run_status == wfmodel.RunNone) && nrs.node_status == wfmodel.NodeBatchStart"	    },
+		{"cmd": "nogo", "expression": "nrs.run_is_current == true && nrs.run_status == wfmodel.RunStart && nrs.node_status == wfmodel.NodeBatchFail"	    },
 
-		{"cmd": "go",   "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchSuccess"	},
-		{"cmd": "wait",   "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchNone"	},
-		{"cmd": "wait",   "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchStart"	},
+		{"cmd": "go",   "expression": "nrs.run_is_current == false && nrs.run_status == wfmodel.RunStart && nrs.node_status == wfmodel.NodeBatchSuccess"	},
+		{"cmd": "wait",   "expression": "nrs.run_is_current == false && (nrs.run_status == wfmodel.RunStart || nrs.run_status == wfmodel.RunNone) && nrs.node_status == wfmodel.NodeBatchNone"	},
+		{"cmd": "wait",   "expression": "nrs.run_is_current == false && (nrs.run_status == wfmodel.RunStart || nrs.run_status == wfmodel.RunNone) && nrs.node_status == wfmodel.NodeBatchStart"	},
 
-		{"cmd": "go",   "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchSuccess"	},
-		{"cmd": "nogo", "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchFail"	},
-        {"cmd": "nogo", "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStop" }
+		{"cmd": "go",   "expression": "nrs.run_is_current == false && nrs.run_status == wfmodel.RunComplete && nrs.node_status == wfmodel.NodeBatchSuccess"	},
+		{"cmd": "nogo", "expression": "nrs.run_is_current == false && nrs.run_status == wfmodel.RunComplete && nrs.node_status == wfmodel.NodeBatchFail"	},
+        {"cmd": "nogo", "expression": "nrs.run_is_current == false && nrs.run_status == wfmodel.RunStop" }
 	]
 }`
 
@@ -70,16 +70,11 @@ type DependencyPolicyDef struct {
 
 func NewFieldRefsFromNodeEvent() *FieldRefs {
 	return &FieldRefs{
-		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "run_id", FieldType: evalcapi.FieldTypeInt},
-		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "run_is_current", FieldType: evalcapi.FieldTypeBool},
-		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "run_start_ts", FieldType: evalcapi.FieldTypeDateTime},
-		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "run_final_status", FieldType: evalcapi.FieldTypeInt},
-		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "run_completed_ts", FieldType: evalcapi.FieldTypeDateTime},
-		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "run_stopped_ts", FieldType: evalcapi.FieldTypeDateTime},
-		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "node_is_started", FieldType: evalcapi.FieldTypeBool},
-		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "node_start_ts", FieldType: evalcapi.FieldTypeDateTime},
-		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "node_status", FieldType: evalcapi.FieldTypeInt},
-		{TableName: wfmodel.DependencyNodeEventTableName, FieldName: "node_status_ts", FieldType: evalcapi.FieldTypeDateTime}}
+		{TableName: wfmodel.DependencyNodeRunStatusTableName, FieldName: "run_id", FieldType: evalcapi.FieldTypeInt},
+		{TableName: wfmodel.DependencyNodeRunStatusTableName, FieldName: "run_is_current", FieldType: evalcapi.FieldTypeBool},
+		{TableName: wfmodel.DependencyNodeRunStatusTableName, FieldName: "run_status", FieldType: evalcapi.FieldTypeInt},
+		{TableName: wfmodel.DependencyNodeRunStatusTableName, FieldName: "node_status", FieldType: evalcapi.FieldTypeInt},
+	}
 }
 
 func (polDef *DependencyPolicyDef) Deserialize(rawPol json.RawMessage, scriptType ScriptType) error {
@@ -91,7 +86,7 @@ func (polDef *DependencyPolicyDef) Deserialize(rawPol json.RawMessage, scriptTyp
 		return err
 	}
 
-	vars := wfmodel.NewVarsFromDepCtx(wfmodel.DependencyNodeEvent{})
+	vars := wfmodel.NewVarsFromDepCtx(wfmodel.DependencyNodeRunStatus{})
 	for ruleIdx := 0; ruleIdx < len(polDef.Rules); ruleIdx++ {
 		usedFieldRefs := FieldRefs{}
 		var err error
@@ -125,7 +120,7 @@ func (polDef *DependencyPolicyDef) parseEventPriorityOrderString() error {
 }
 
 func (polDef *DependencyPolicyDef) evalRuleExpressionsAndCheckType() error {
-	vars := wfmodel.NewVarsFromDepCtx(wfmodel.DependencyNodeEvent{})
+	vars := wfmodel.NewVarsFromDepCtx(wfmodel.DependencyNodeRunStatus{})
 	eCtx := eval.NewPlainEvalCtx(evalcapi.CapillariesEvalFunctions, evalcapi.CapillariesEvalConstants, vars)
 	for ruleIdx, rule := range polDef.Rules {
 		result, err := eCtx.Eval(rule.ParsedExpression)

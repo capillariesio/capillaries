@@ -109,7 +109,7 @@ func HarvestRunLifespans(logger *l.CapiLogger, cqlSession gocqlshims.Session, ke
 	return runLifespanMap, nil
 }
 
-func SetRunStatus(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16, status wfmodel.RunStatusType, comment string, ifNotExistsFlag cql.IfNotExistsType) error {
+func SetRunStatus(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16, status wfmodel.RunStatusType, comment string) error {
 	logger.PushF("wfdb.SetRunStatus")
 	defer logger.PopF()
 
@@ -119,7 +119,7 @@ func SetRunStatus(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace 
 		Write("run_id", runId).
 		Write("status", status).
 		Write("comment", comment).
-		InsertUnpreparedQuery(wfmodel.TableNameRunHistory, ifNotExistsFlag)
+		InsertUnpreparedQuery(wfmodel.TableNameRunHistory, cql.IfNotExistsLwt) // Potential contention
 	err := cqlSession.Query(q).Exec()
 	if err != nil {
 		return db.WrapDbErrorWithQuery("cannot write run status", q, err)
@@ -129,36 +129,19 @@ func SetRunStatus(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace 
 	return nil
 }
 
-func GetRunHistory(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string) ([]*wfmodel.RunHistoryEvent, error) {
+func GetRunHistory(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runIds []int16) ([]map[string]any, error) {
 	logger.PushF("wfdb.GetRunHistory")
 	defer logger.PopF()
 
-	qb := cql.QueryBuilder{}
-	q := qb.
-		Keyspace(keyspace).
-		Select(wfmodel.TableNameRunHistory, wfmodel.RunHistoryEventAllFields())
+	qb := (&cql.QueryBuilder{}).Keyspace(keyspace)
+	if len(runIds) > 0 {
+		qb.CondInInt16("run_id", runIds)
+	}
+	q := qb.Select(wfmodel.TableNameRunHistory, wfmodel.RunHistoryEventAllFields())
 	rows, err := cqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
 		return nil, db.WrapDbErrorWithQuery("cannot get run history", q, err)
 	}
 
-	result := make([]*wfmodel.RunHistoryEvent, len(rows))
-	for rowIdx, r := range rows {
-		result[rowIdx], err = wfmodel.NewRunHistoryEventFromMap(r, wfmodel.RunHistoryEventAllFields())
-		if err != nil {
-			return nil, fmt.Errorf("cannot deserialize run history row: %s, %s", err.Error(), q)
-		}
-	}
-	slices.SortFunc(result, func(l, r *wfmodel.RunHistoryEvent) int {
-		switch {
-		case l.Ts.Before(r.Ts):
-			return -1
-		case l.Ts.After(r.Ts):
-			return 1
-		default:
-			return 0
-		}
-	})
-
-	return result, nil
+	return rows, nil
 }

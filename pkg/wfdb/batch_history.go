@@ -2,7 +2,6 @@ package wfdb
 
 import (
 	"fmt"
-	"slices"
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
@@ -48,7 +47,7 @@ func HarvestLastStatusForBatch(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 }
 
 // Used by Webapi to retrieve batch status history for a run/node pair
-func GetRunNodeBatchHistory(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16, nodeName string) ([]*wfmodel.BatchHistoryEvent, error) {
+func GetBatchHistoryForRunAndNode(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16, nodeName string) ([]map[string]any, error) {
 	logger.PushF("wfdb.GetRunNodeBatchHistory")
 	defer logger.PopF()
 
@@ -59,29 +58,10 @@ func GetRunNodeBatchHistory(logger *l.CapiLogger, cqlSession gocqlshims.Session,
 		Select(wfmodel.TableNameBatchHistory, wfmodel.BatchHistoryEventAllFields())
 	rows, err := cqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		return []*wfmodel.BatchHistoryEvent{}, db.WrapDbErrorWithQuery("GetRunNodeBatchHistory: cannot get node batch history", q, err)
+		return nil, db.WrapDbErrorWithQuery("GetRunNodeBatchHistory: cannot get node batch history", q, err)
 	}
 
-	result := make([]*wfmodel.BatchHistoryEvent, len(rows))
-	for rowIdx, row := range rows {
-		rec, err := wfmodel.NewBatchHistoryEventFromMap(row, wfmodel.BatchHistoryEventAllFields())
-		if err != nil {
-			return []*wfmodel.BatchHistoryEvent{}, fmt.Errorf("cannot deserialize batch node history row %s, %s", err.Error(), q)
-		}
-		result[rowIdx] = rec
-	}
-
-	slices.SortFunc(result, func(l, r *wfmodel.BatchHistoryEvent) int {
-		switch {
-		case l.Ts.Before(r.Ts):
-			return -1
-		case l.Ts.After(r.Ts):
-			return 1
-		default:
-			return 0
-		}
-	})
-	return result, nil
+	return rows, err
 }
 
 func HarvestBatchStatusesForNode(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) (wfmodel.NodeBatchStatusType, error) {
@@ -176,7 +156,7 @@ func SetBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, st
 		qb.Write("comment", comment)
 	}
 
-	q := qb.InsertUnpreparedQuery(wfmodel.TableNameBatchHistory, cql.IgnoreIfExists) // If not exists. First one wins.
+	q := qb.InsertUnpreparedQuery(wfmodel.TableNameBatchHistory, cql.IfExistsOverwrite)
 	err := pCtx.CqlSession.Query(q).Exec()
 	if err != nil {
 		err := db.WrapDbErrorWithQuery(fmt.Sprintf("cannot write batch %s status %d", pCtx.Msg.FullBatchId(), status), q, err)

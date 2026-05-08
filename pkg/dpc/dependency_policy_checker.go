@@ -11,17 +11,17 @@ import (
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
-func CheckDependencyPolicyAgainstNodeEventList(logger *l.CapiLogger, fullBatchId string, targetNodeDepPol *sc.DependencyPolicyDef, events wfmodel.DependencyNodeEvents) (sc.ReadyToRunNodeCmdType, int16, int, error) {
+func CheckDependencyPolicyAgainstNodeEventList(logger *l.CapiLogger, fullBatchId string, targetNodeDepPol *sc.DependencyPolicyDef, events wfmodel.DependencyNodeRunStatusSlice) (sc.ReadyToRunNodeCmdType, int16, int, error) {
 	var err error
 
 	for eventIdx := 0; eventIdx < len(events); eventIdx++ {
 		vars := wfmodel.NewVarsFromDepCtx(events[eventIdx])
-		events[eventIdx].SortKey, err = sc.BuildKey(vars[wfmodel.DependencyNodeEventTableName], &targetNodeDepPol.OrderIdxDef)
+		events[eventIdx].SortKey, err = sc.BuildKey(vars[wfmodel.DependencyNodeRunStatusTableName], &targetNodeDepPol.OrderIdxDef)
 		if err != nil {
 			return sc.NodeNogo, 0, -1, fmt.Errorf("unexpectedly, cannot build key to sort events: %s", err.Error())
 		}
 	}
-	slices.SortFunc(events, func(l, r wfmodel.DependencyNodeEvent) int {
+	slices.SortFunc(events, func(l, r wfmodel.DependencyNodeRunStatus) int {
 		switch {
 		case l.SortKey < r.SortKey:
 			return -1
@@ -66,8 +66,8 @@ func CheckDependencyPolicyAgainstNodeEventList(logger *l.CapiLogger, fullBatchId
 	// Another dependency is 02_loan_ids, which was supposed to have run 2.
 	// So, something is off with the nodeEventListMap["02_loan_ids"].
 	// This rule was supposed to kick in, but it did not (run 2, node 02_loan_ids)
-	// {"cmd": "go",   "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchSuccess"	},
-	// Could there be a case that e.run_final_status == wfmodel.RunComplete but e.node_status == wfmodel.NodeBatchStart  because of Cassandra's eventual consistency?
+	// {"cmd": "go",   "expression": "nrs.run_is_current == false && nrs.run_status == wfmodel.RunComplete && nrs.node_status == wfmodel.NodeBatchSuccess"	},
+	// Could there be a case that nrs.run_status == wfmodel.RunComplete but nrs.node_status == wfmodel.NodeBatchStart  because of Cassandra's eventual consistency?
 	// Like, we wrote to Cassandra nodeStatus = Complete, then, runStatus = RunComplete, but when we read them back, we see only runStatus = RunComplete and nodeStatus = CompleteNodeBatchStart?
 	// If this is the case, we just wait for Cassandra to settle.
 

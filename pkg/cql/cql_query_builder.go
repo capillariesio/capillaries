@@ -15,8 +15,8 @@ import (
 type IfNotExistsType int
 
 const (
-	IgnoreIfExists IfNotExistsType = 1
-	ThrowIfExists  IfNotExistsType = 0
+	IfExistsOverwrite IfNotExistsType = 0
+	IfNotExistsLwt    IfNotExistsType = 1
 )
 
 type QuotePolicyType int
@@ -313,7 +313,7 @@ func (qb *QueryBuilder) InsertUnpreparedQuery(tableName string, ifNotExists IfNo
 }
 func (qb *QueryBuilder) insertRunUnpreparedQuery(tableName string, runId int16, ifNotExists IfNotExistsType) string {
 	ifNotExistsStr := ""
-	if ifNotExists == IgnoreIfExists {
+	if ifNotExists == IfNotExistsLwt {
 		ifNotExistsStr = "IF NOT EXISTS"
 	}
 	q := fmt.Sprintf("INSERT INTO %s%s%s ( %s ) VALUES ( %s ) %s;",
@@ -331,7 +331,7 @@ func (qb *QueryBuilder) insertRunUnpreparedQuery(tableName string, runId int16, 
 
 func (qb *QueryBuilder) InsertRunPreparedQuery(tableName string, runId int16, ifNotExists IfNotExistsType) (string, error) {
 	ifNotExistsStr := ""
-	if ifNotExists == IgnoreIfExists {
+	if ifNotExists == IfNotExistsLwt {
 		ifNotExistsStr = "IF NOT EXISTS"
 	}
 	columnCount := len(qb.PreparedColumnData.ColumnIdxMap)
@@ -442,7 +442,7 @@ func (qb *QueryBuilder) CreateRun(tableName string, runId int16, ifNotExists IfN
 		b.WriteString("INVALID runId: ")
 	}
 	b.WriteString("CREATE TABLE ")
-	if ifNotExists == IgnoreIfExists {
+	if ifNotExists == IfNotExistsLwt {
 		b.WriteString("IF NOT EXISTS ")
 	}
 	fmt.Fprintf(&b, "%s%s%s ( ", qb.FormattedKeyspace, tableName, RunIdSuffix(runId))

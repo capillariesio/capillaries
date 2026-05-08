@@ -11,7 +11,7 @@ if [[ "$short_or_long_or_s3_or_all" = "short" || "$short_or_long_or_s3_or_all" =
 	pushd ./test/code/lookup
 	# 13 s
 	./test.sh quick local fs one
-	# 1+9=10 s
+	# 2+7=9 s
 	./test.sh quick local fs multi
 	popd
 
@@ -23,14 +23,14 @@ if [[ "$short_or_long_or_s3_or_all" = "short" || "$short_or_long_or_s3_or_all" =
 	popd
 
 	pushd ./test/code/tag_and_denormalize
-	# 17 s
+	# 21 s
 	./test.sh fs one
-	# 7 s
+	# 16+5 s
 	./test.sh fs multi
 	popd
 
 	pushd ./test/code/proto_file_reader_creator
-	# 7 s
+	# 8 s
 	./test.sh
 	popd
 
@@ -44,19 +44,19 @@ fi
 
 if [[ "$short_or_long_or_s3_or_all" = "long" || "$short_or_long_or_s3_or_all" = "all" ]]; then
 	pushd ./test/code/lookup
-	# 4 threads total: 107 s capimq one 120
+	# 4 threads total: 114 s capimq one 120
 	./test.sh big local fs one
-	# 4 threads total: 26+72=98
+	# 4 threads total: 29+84
 	./test.sh big local fs multi
 	popd
 
 	pushd ./test/code/portfolio
-	# 4 threads total: one 97 s multi 55+4+11+18=88 capimq one 74
+	# 4 threads total: one 97 s multi 55+9+10+19 capimq one 74
 	./test.sh quick local fs multi
 	popd
 
 	pushd ./test/code/fannie_mae
-	# 4 threads total: one 149 s, multi 19+19+143+23+70 capimq one 137 multi 17+21+2+21+77=138
+	# 4 threads total: one 149 293 270 246 s, multi 20+22+107+27+74 capimq one 137 multi 17+21+2+21+77=138
 	./test.sh quick local fs multi
 	popd
 

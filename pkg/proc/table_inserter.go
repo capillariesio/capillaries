@@ -200,7 +200,7 @@ func CreateDataTableCql(keyspace string, runId int16, tableCreator *sc.TableCrea
 	for fieldName, fieldDef := range tableCreator.Fields {
 		qb.ColumnDef(fieldName, fieldDef.Type)
 	}
-	return qb.PartitionKey("rowid").Keyspace(keyspace).CreateRun(tableCreator.Name, runId, cql.IgnoreIfExists, tableCreator.CreateProperties)
+	return qb.PartitionKey("rowid").Keyspace(keyspace).CreateRun(tableCreator.Name, runId, cql.IfNotExistsLwt, tableCreator.CreateProperties)
 }
 
 func CreateIdxTableCql(keyspace string, runId int16, idxName string, idxDef *sc.IdxDef, tableCreator *sc.TableCreatorDef) string {
@@ -216,7 +216,7 @@ func CreateIdxTableCql(keyspace string, runId int16, idxName string, idxDef *sc.
 		qb.PartitionKey("key")
 		qb.ClusteringKey("rowid")
 	}
-	return qb.CreateRun(idxName, runId, cql.IgnoreIfExists, tableCreator.CreateProperties)
+	return qb.CreateRun(idxName, runId, cql.IfNotExistsLwt, tableCreator.CreateProperties)
 }
 
 type InserterDrainStrategy int
@@ -409,7 +409,7 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, tabl
 		pq.Query, err = pq.Qb.InsertRunPreparedQuery(
 			instr.TableCreator.Name,
 			instr.PCtx.Msg.RunId,
-			cql.IgnoreIfExists) // INSERT IF NOT EXISTS; if exists,  returned isApplied = false
+			cql.IfNotExistsLwt) // INSERT IF NOT EXISTS; if exists,  returned isApplied = false
 		if err != nil {
 			return fmt.Errorf("cannot prepare insert data query string: %s", err.Error())
 		}
@@ -565,9 +565,9 @@ func (instr *TableInserter) insertIdxRecordWithRowid(logger *l.CapiLogger, idxNa
 	curIdxExpBackoffFactor := int64(1.0)
 	var err error
 
-	ifNotExistsFlag := cql.ThrowIfExists
+	ifNotExistsFlag := cql.IfExistsOverwrite
 	if idxUniqueness == sc.IdxUnique {
-		ifNotExistsFlag = cql.IgnoreIfExists
+		ifNotExistsFlag = cql.IfNotExistsLwt
 	}
 
 	// Prepare generic idx insert query, do this once for all indexes and rows

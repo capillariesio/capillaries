@@ -2,9 +2,10 @@ package wfmodel
 
 import (
 	"fmt"
+	"strings"
 )
 
-const TableNameRunAffectedNodes = "wf_run_affected_nodes"
+const TableNameRunProperties = "wf_run_properties"
 
 // Object model with tags that allow to create cql CREATE TABLE queries and to print object
 type RunProperties struct {
@@ -38,7 +39,7 @@ func NewRunPropertiesFromMap(r map[string]any, fields []string) (*RunProperties,
 		case "run_description":
 			res.RunDescription, err = ReadStringFromRow(fieldName, r)
 		default:
-			return nil, fmt.Errorf("unknown %s field %s", fieldName, TableNameRunAffectedNodes)
+			return nil, fmt.Errorf("unknown %s field %s", fieldName, TableNameRunProperties)
 		}
 		if err != nil {
 			return nil, err
@@ -60,3 +61,38 @@ func NewRunPropertiesFromMap(r map[string]any, fields []string) (*RunProperties,
 // 	}
 // 	return strings.Join(values, PrintTableDelimiter)
 // }
+
+func intersectTwoSlicesOfStrings(slice1, slice2 []string) []string {
+	map1 := make(map[string]bool)
+	for _, v := range slice1 {
+		map1[v] = true
+	}
+
+	var result []string
+	for _, v := range slice2 {
+		if map1[v] {
+			result = append(result, v)
+			delete(map1, v)
+		}
+	}
+	return result
+}
+
+func MultipleRunsPropertiesToDependencies(rows []map[string]any, depNodeNames []string) ([]int16, map[int16][]string, error) {
+	depRunIds := make([]int16, 0)
+	depRunNodesMap := map[int16][]string{}
+	for _, r := range rows {
+		rec, err := NewRunPropertiesFromMap(r, RunPropertiesAllFields())
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Take only dependency nodes (0, 1 or 2 - since there can be only a reader and a lookot dependency)
+		affectedDepNodes := intersectTwoSlicesOfStrings(strings.Split(rec.AffectedNodes, ","), depNodeNames)
+		if len(affectedDepNodes) > 0 {
+			depRunIds = append(depRunIds, rec.RunId)
+			depRunNodesMap[rec.RunId] = intersectTwoSlicesOfStrings(strings.Split(rec.AffectedNodes, ","), depNodeNames)
+		}
+	}
+	return depRunIds, depRunNodesMap, nil
+}

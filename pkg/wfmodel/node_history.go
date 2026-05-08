@@ -49,6 +49,7 @@ func (m NodeStatusMap) ToString() string {
 	return sb.String()
 }
 
+/*
 type RunBatchStatusMap map[int16]NodeBatchStatusType
 
 func (m RunBatchStatusMap) ToString() string {
@@ -60,7 +61,9 @@ func (m RunBatchStatusMap) ToString() string {
 	sb.WriteString("}")
 	return sb.String()
 }
+*/
 
+/*
 type NodeRunBatchStatusMap map[string]RunBatchStatusMap
 
 func (m NodeRunBatchStatusMap) ToString() string {
@@ -72,11 +75,12 @@ func (m NodeRunBatchStatusMap) ToString() string {
 	sb.WriteString("}")
 	return sb.String()
 }
+*/
 
 // Object model with tags that allow to create cql CREATE TABLE queries and to print object
 type NodeHistoryEvent struct {
 	Ts                time.Time           `header:"ts" format:"%-33v" column:"ts" type:"timestamp" json:"ts"`
-	RunId             int16               `header:"run_id" format:"%6d" column:"run_id" type:"int" key:"true" json:"run_id"`
+	RunId             int16               `header:"run_id" format:"%6d" column:"run_id" type:"int" key:"true" json:"run_id"` // Partitioning key - we use it in WHERE
 	ScriptNode        string              `header:"script_node" format:"%20v" column:"script_node" type:"text" key:"true" json:"script_node"`
 	WrittenByBatchIdx int16               `header:"written_by_batch_idx" format:"%5v" column:"written_by_batch_idx" type:"int" key:"true" json:"written_by_batch_idx"`
 	Status            NodeBatchStatusType `header:"sts" format:"%3v" column:"status" type:"tinyint" key:"true" json:"status"`
@@ -113,16 +117,85 @@ func NewNodeHistoryEventFromMap(r map[string]any, fields []string) (*NodeHistory
 	return res, nil
 }
 
-// Converts returned rows to a slice of events and sorts them by ts/run_id/written_by_batch_idx
-func NodeHistoryRowsToNodeHistoryEvents(rows []map[string]any, fields []string) ([]*NodeHistoryEvent, error) {
-	nodeEvents := make([]*NodeHistoryEvent, len(rows))
+// Converts returned rows to a slice of events, removes duplicates and sorts them by ts/run_id/written_by_batch_idx
+func NodeHistoryRowsToEvents(rows []map[string]any) ([]*NodeHistoryEvent, error) {
+	nodeEvents := make([]*NodeHistoryEvent, 0)
 
-	for idx, r := range rows {
+	// Here we pay for our decision to save multiple "node start" events, one for each batch.
+	// The caller is only interested in the first "node start" event, ignore the other, so we can avoid managing thousands of useless records
+	nodeStartMap := map[int16]map[string]*NodeHistoryEvent{}
+	nodeSuccessMap := map[int16]map[string]*NodeHistoryEvent{}
+	nodeFailMap := map[int16]map[string]*NodeHistoryEvent{}
+	nodeStopMap := map[int16]map[string]*NodeHistoryEvent{}
+
+	fields := NodeHistoryEventAllFields()
+	for _, r := range rows {
 		rec, err := NewNodeHistoryEventFromMap(r, fields)
 		if err != nil {
-			return nodeEvents, fmt.Errorf("cannot deserialize node history row: %s", err.Error())
+			return nodeEvents, fmt.Errorf("cannot deserialize node history row %v: %s", r, err.Error())
 		}
-		nodeEvents[idx] = rec
+		switch rec.Status {
+		case NodeBatchStart:
+			// Save the earliest "node start" for run/node in the map, but do not add it to nodeEvents
+			if _, ok := nodeStartMap[rec.RunId]; !ok {
+				nodeStartMap[rec.RunId] = map[string]*NodeHistoryEvent{}
+			}
+			runNodeStartEvent, ok := nodeStartMap[rec.RunId][rec.ScriptNode]
+			if !ok || ok && runNodeStartEvent.Ts.After(rec.Ts) {
+				nodeStartMap[rec.RunId][rec.ScriptNode] = rec
+			}
+		case NodeBatchSuccess:
+			// Save the latest "node success" for run/node in the map, but do not add it to nodeEvents
+			if _, ok := nodeSuccessMap[rec.RunId]; !ok {
+				nodeSuccessMap[rec.RunId] = map[string]*NodeHistoryEvent{}
+			}
+			runNodeSuccessEvent, ok := nodeSuccessMap[rec.RunId][rec.ScriptNode]
+			if !ok || ok && rec.Ts.After(runNodeSuccessEvent.Ts) {
+				nodeSuccessMap[rec.RunId][rec.ScriptNode] = rec
+			}
+		case NodeBatchFail:
+			// Save the latest "node fail" for run/node in the map, but do not add it to nodeEvents
+			if _, ok := nodeFailMap[rec.RunId]; !ok {
+				nodeFailMap[rec.RunId] = map[string]*NodeHistoryEvent{}
+			}
+			runNodeFailEvent, ok := nodeFailMap[rec.RunId][rec.ScriptNode]
+			if !ok || ok && rec.Ts.After(runNodeFailEvent.Ts) {
+				nodeFailMap[rec.RunId][rec.ScriptNode] = rec
+			}
+		case NodeBatchRunStopReceived:
+			// Save the latest "node run stopped" for run/node in the map, but do not add it to nodeEvents
+			if _, ok := nodeStopMap[rec.RunId]; !ok {
+				nodeStopMap[rec.RunId] = map[string]*NodeHistoryEvent{}
+			}
+			runNodeStopEvent, ok := nodeStopMap[rec.RunId][rec.ScriptNode]
+			if !ok || ok && rec.Ts.After(runNodeStopEvent.Ts) {
+				nodeStopMap[rec.RunId][rec.ScriptNode] = rec
+			}
+		default:
+			// Do nothing
+		}
+	}
+
+	// Add events from maps
+	for _, nodeMap := range nodeStartMap {
+		for _, rec := range nodeMap {
+			nodeEvents = append(nodeEvents, rec)
+		}
+	}
+	for _, nodeMap := range nodeSuccessMap {
+		for _, rec := range nodeMap {
+			nodeEvents = append(nodeEvents, rec)
+		}
+	}
+	for _, nodeMap := range nodeFailMap {
+		for _, rec := range nodeMap {
+			nodeEvents = append(nodeEvents, rec)
+		}
+	}
+	for _, nodeMap := range nodeStopMap {
+		for _, rec := range nodeMap {
+			nodeEvents = append(nodeEvents, rec)
+		}
 	}
 
 	slices.SortFunc(nodeEvents, func(l, r *NodeHistoryEvent) int {
@@ -204,6 +277,7 @@ func FigureOutRunStatusAndAffectedNodesStatusesFromNodeEvents(sortedNodeEvents [
 	return lowestStatus, nodeStatusMap
 }
 
+/*
 type NodeLifespan struct {
 	StartTs      time.Time
 	LastStatus   NodeBatchStatusType
@@ -240,3 +314,4 @@ func (m RunNodeLifespanMap) ToString() string {
 	}
 	return fmt.Sprintf("{%s}", strings.Join(items, ", "))
 }
+*/

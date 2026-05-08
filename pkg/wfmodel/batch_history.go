@@ -2,6 +2,7 @@ package wfmodel
 
 import (
 	"fmt"
+	"slices"
 	"time"
 )
 
@@ -103,3 +104,26 @@ func NewBatchHistoryEventFromMap(r map[string]any, fields []string) (*BatchHisto
 // 	}
 // 	return strings.Join(values, PrintTableDelimiter)
 // }
+
+func BatchHistoryRowsToEvents(rows []map[string]any) ([]*BatchHistoryEvent, error) {
+	result := make([]*BatchHistoryEvent, len(rows))
+	for rowIdx, row := range rows {
+		rec, err := NewBatchHistoryEventFromMap(row, BatchHistoryEventAllFields())
+		if err != nil {
+			return nil, fmt.Errorf("cannot deserialize batch history row %v: %s", row, err.Error())
+		}
+		result[rowIdx] = rec
+	}
+
+	slices.SortFunc(result, func(l, r *BatchHistoryEvent) int {
+		switch {
+		case l.Ts.Before(r.Ts):
+			return -1
+		case l.Ts.After(r.Ts):
+			return 1
+		default:
+			return 0
+		}
+	})
+	return result, nil
+}

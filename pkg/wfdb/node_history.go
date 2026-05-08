@@ -2,7 +2,6 @@ package wfdb
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
@@ -12,15 +11,36 @@ import (
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
-func HarvestNodeStatusesForRun(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, affectedNodes []string) (wfmodel.NodeBatchStatusType, wfmodel.NodeStatusMap, error) {
+func GetNodeHistoryForRuns(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runIds []int16, nodeNames []string) ([]map[string]any, error) {
+	logger.PushF("wfdb.GetNodeHistoryForRuns")
+	defer logger.PopF()
+
+	qb := (&cql.QueryBuilder{}).Keyspace(keyspace)
+	if len(runIds) > 0 {
+		qb.CondInInt16("run_id", runIds)
+	}
+	if len(nodeNames) > 0 {
+		qb.CondInString("script_node", nodeNames)
+	}
+	q := qb.Select(wfmodel.TableNameNodeHistory, wfmodel.NodeHistoryEventAllFields())
+	rows, err := cqlSession.Query(q).Iter().SliceMap()
+	if err != nil {
+		return nil, db.WrapDbErrorWithQuery(fmt.Sprintf("cannot get node history for %s, %v, %v", keyspace, runIds, nodeNames), q, err)
+	}
+
+	return rows, nil
+}
+
+/*
+func HarvestNodeStatusesForRuns(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, affectingRuns []int16, depNodes []string) (wfmodel.NodeBatchStatusType, wfmodel.NodeStatusMap, error) {
 	logger.PushF("wfdb.HarvestNodeStatusesForRun")
 	defer logger.PopF()
 
 	fields := []string{"ts", "run_id", "script_node", "written_by_batch_idx", "status"}
 	q := (&cql.QueryBuilder{}).
 		Keyspace(pCtx.Msg.DataKeyspace).
-		Cond("run_id", "=", pCtx.Msg.RunId).
-		CondInString("script_node", affectedNodes). // TODO: Is this really necessary? Shouldn't run id be enough? Of course, it's safer to be extra cautious, but...?
+		CondInInt16("run_id", affectingRuns).
+		CondInString("script_node", depNodes).
 		Select(wfmodel.TableNameNodeHistory, fields)
 	rows, err := pCtx.CqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
@@ -32,10 +52,11 @@ func HarvestNodeStatusesForRun(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 		return wfmodel.NodeBatchNone, nil, err
 	}
 
-	runStatus, affectedNodesStatusMap := wfmodel.FigureOutRunStatusAndAffectedNodesStatusesFromNodeEvents(sortedNodeEvents, pCtx.Msg.RunId, affectedNodes)
+	runStatus, affectedNodesStatusMap := wfmodel.FigureOutRunStatusAndAffectedNodesStatusesFromNodeEvents(sortedNodeEvents, pCtx.Msg.RunId, depNodes)
 	return runStatus, affectedNodesStatusMap, nil
 }
-
+*/
+/*
 func HarvestNodeLifespans(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, affectingRuns []int16, affectedNodes []string) (wfmodel.RunNodeLifespanMap, error) {
 	logger.PushF("wfdb.HarvestNodeLifespans")
 	defer logger.PopF()
@@ -85,8 +106,9 @@ func HarvestNodeLifespans(logger *l.CapiLogger, pCtx *ctx.MessageProcessingConte
 	}
 	return runNodeLifespanMap, nil
 }
+*/
 
-func SetNodeStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, status wfmodel.NodeBatchStatusType, comment string) (bool, error) {
+func SetNodeStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, status wfmodel.NodeBatchStatusType, comment string) error {
 	logger.PushF("wfdb.SetNodeStatus")
 	defer logger.PopF()
 
@@ -98,18 +120,19 @@ func SetNodeStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, sta
 		Write("written_by_batch_idx", pCtx.Msg.BatchIdx).
 		Write("status", status).
 		Write("comment", comment).
-		InsertUnpreparedQuery(wfmodel.TableNameNodeHistory, cql.IgnoreIfExists) // If not exists. First one wins.
+		InsertUnpreparedQuery(wfmodel.TableNameNodeHistory, cql.IfExistsOverwrite) // To avoid contention, overwrite
 
-	existingDataRow := map[string]any{}
-	isApplied, err := pCtx.CqlSession.Query(q).MapScanCAS(existingDataRow)
+	//existingDataRow := map[string]any{}
+	// isApplied, err := pCtx.CqlSession.Query(q).MapScanCAS(existingDataRow)
+	err := pCtx.CqlSession.Query(q).Exec()
 
 	if err != nil {
 		err = db.WrapDbErrorWithQuery(fmt.Sprintf("cannot update node %d/%s status to %d", pCtx.Msg.RunId, pCtx.Msg.TargetNodeName, status), q, err)
 		logger.ErrorCtx(pCtx, "%s", err.Error())
-		return false, err
+		return err
 	}
-	logger.DebugCtx(pCtx, "%d/%s, %s, isApplied=%t", pCtx.Msg.RunId, pCtx.Msg.TargetNodeName, status.ToString(), isApplied)
-	return isApplied, nil
+	//logger.DebugCtx(pCtx, "%d/%s, %s, isApplied=%t", pCtx.Msg.RunId, pCtx.Msg.TargetNodeName, status.ToString(), isApplied)
+	return nil
 }
 
 // Used by Webapi to retrieve each node status history for a run
@@ -136,6 +159,7 @@ func GetNodeHistoryForRun(logger *l.CapiLogger, cqlSession gocqlshims.Session, k
 }
 */
 
+/*
 func GetNodeHistoryForRuns(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runIds []int16) ([]*wfmodel.NodeHistoryEvent, error) {
 	logger.PushF("wfdb.GetNodeHistoryForRuns")
 	defer logger.PopF()
@@ -154,3 +178,4 @@ func GetNodeHistoryForRuns(logger *l.CapiLogger, cqlSession gocqlshims.Session, 
 
 	return wfmodel.NodeHistoryRowsToNodeHistoryEvents(rows, wfmodel.NodeHistoryEventAllFields())
 }
+*/

@@ -2,6 +2,7 @@ package wfmodel
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 )
@@ -54,7 +55,7 @@ func (m RunStatusMap) ToString() string {
 // Object model with tags that allow to create cql CREATE TABLE queries and to print object
 type RunHistoryEvent struct {
 	Ts      time.Time     `header:"ts" format:"%-33v" column:"ts" type:"timestamp" json:"ts"`
-	RunId   int16         `header:"run_id" format:"%6d" column:"run_id" type:"int" key:"true" json:"run_id"`
+	RunId   int16         `header:"run_id" format:"%6d" column:"run_id" type:"int" key:"true" json:"run_id"` // Partitioning key, used in IN()
 	Status  RunStatusType `header:"sts" format:"%3v" column:"status" type:"tinyint" key:"true" json:"status"`
 	Comment string        `header:"comment" format:"%v" column:"comment" type:"text" json:"comment"`
 }
@@ -116,4 +117,48 @@ func (m RunLifespanMap) ToString() string {
 		itemIdx++
 	}
 	return fmt.Sprintf("{%s}", strings.Join(items, ", "))
+}
+
+func RunHistoryEventsToRunStatusMap(sortedRunHistoryEvents []*RunHistoryEvent) map[int16]RunStatusType {
+	runStatusMap := map[int16]RunStatusType{}
+	for _, e := range sortedRunHistoryEvents {
+		curRunStatus, ok := runStatusMap[e.RunId]
+		if !ok {
+			runStatusMap[e.RunId] = e.Status
+		} else {
+			if e.Status == RunStop {
+				runStatusMap[e.RunId] = RunStop
+			} else if e.Status == RunComplete && curRunStatus != RunStop {
+				runStatusMap[e.RunId] = RunComplete
+			} else if e.Status == RunStart && curRunStatus != RunStop && curRunStatus != RunComplete {
+				runStatusMap[e.RunId] = RunStart
+			} else {
+				runStatusMap[e.RunId] = RunNone
+			}
+		}
+	}
+	return runStatusMap
+}
+
+func RunHistoryRowsToEvents(rows []map[string]any) ([]*RunHistoryEvent, error) {
+	result := make([]*RunHistoryEvent, len(rows))
+	for rowIdx, r := range rows {
+		var err error
+		result[rowIdx], err = NewRunHistoryEventFromMap(r, RunHistoryEventAllFields())
+		if err != nil {
+			return nil, fmt.Errorf("cannot deserialize run history row %v: %s", r, err.Error())
+		}
+	}
+	slices.SortFunc(result, func(l, r *RunHistoryEvent) int {
+		switch {
+		case l.Ts.Before(r.Ts):
+			return -1
+		case l.Ts.After(r.Ts):
+			return 1
+		default:
+			return 0
+		}
+	})
+
+	return result, nil
 }

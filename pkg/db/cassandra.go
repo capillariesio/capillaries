@@ -221,7 +221,7 @@ func NewGocqlSession(envConfig *env.EnvConfig, keyspace string, createKeyspace C
 			if err = createWfTable(genericSession, keyspace, reflect.TypeOf(wfmodel.RunHistoryEvent{}), wfmodel.TableNameRunHistory); err != nil {
 				return nil, cassandraEngine, err
 			}
-			if err = createWfTable(genericSession, keyspace, reflect.TypeOf(wfmodel.RunProperties{}), wfmodel.TableNameRunAffectedNodes); err != nil {
+			if err = createWfTable(genericSession, keyspace, reflect.TypeOf(wfmodel.RunProperties{}), wfmodel.TableNameRunProperties); err != nil {
 				return nil, cassandraEngine, err
 			}
 			if err = createWfTable(genericSession, keyspace, reflect.TypeOf(wfmodel.RunCounter{}), wfmodel.TableNameRunCounter); err != nil {
@@ -233,7 +233,7 @@ func NewGocqlSession(envConfig *env.EnvConfig, keyspace string, createKeyspace C
 					wfmodel.TableNameBatchHistory,
 					wfmodel.TableNameNodeHistory,
 					wfmodel.TableNameRunHistory,
-					wfmodel.TableNameRunAffectedNodes,
+					wfmodel.TableNameRunProperties,
 					wfmodel.TableNameRunCounter}); checkTableErr != nil {
 					return nil, cassandraEngine, checkTableErr
 				}
@@ -244,7 +244,7 @@ func NewGocqlSession(envConfig *env.EnvConfig, keyspace string, createKeyspace C
 				Keyspace(keyspace).
 				Write("ks", keyspace).
 				Write("last_run", 0)
-			q := qb.InsertUnpreparedQuery(wfmodel.TableNameRunCounter, cql.IgnoreIfExists) // If not exists. Insert only once.
+			q := qb.InsertUnpreparedQuery(wfmodel.TableNameRunCounter, cql.IfNotExistsLwt) // If not exists. Insert only once.
 			err = gocqlSession.Query(q).Exec()
 			if err != nil {
 				return nil, cassandraEngine, WrapDbErrorWithQuery("cannot initialize run counter", q, err)
@@ -276,7 +276,7 @@ func NewSession(envConfig *env.EnvConfig, keyspace string, createKeyspace Create
 				if err = createWfTable(testGocqlmemSession, keyspace, reflect.TypeOf(wfmodel.RunHistoryEvent{}), wfmodel.TableNameRunHistory); err != nil {
 					return nil, CassandraEngineCassandra, err
 				}
-				if err = createWfTable(testGocqlmemSession, keyspace, reflect.TypeOf(wfmodel.RunProperties{}), wfmodel.TableNameRunAffectedNodes); err != nil {
+				if err = createWfTable(testGocqlmemSession, keyspace, reflect.TypeOf(wfmodel.RunProperties{}), wfmodel.TableNameRunProperties); err != nil {
 					return nil, CassandraEngineCassandra, err
 				}
 				if err = createWfTable(testGocqlmemSession, keyspace, reflect.TypeOf(wfmodel.RunCounter{}), wfmodel.TableNameRunCounter); err != nil {
@@ -287,7 +287,7 @@ func NewSession(envConfig *env.EnvConfig, keyspace string, createKeyspace Create
 					Keyspace(keyspace).
 					Write("ks", keyspace).
 					Write("last_run", 0)
-				q := qb.InsertUnpreparedQuery(wfmodel.TableNameRunCounter, cql.IgnoreIfExists) // If not exists. Insert only once.
+				q := qb.InsertUnpreparedQuery(wfmodel.TableNameRunCounter, cql.IfNotExistsLwt) // If not exists. Insert only once.
 				err = testGocqlmemSession.Query(q).Exec()
 				if err != nil {
 					return nil, CassandraEngineCassandra, WrapDbErrorWithQuery("cannot initialize run counter", q, err)

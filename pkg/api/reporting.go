@@ -11,19 +11,31 @@ import (
 func GetRunHistory(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string) ([]*wfmodel.RunHistoryEvent, error) {
 	logger.PushF("api.GetRunHistory")
 	defer logger.PopF()
-	return wfdb.GetRunHistory(logger, cqlSession, keyspace)
+	rows, err := wfdb.GetRunHistory(logger, cqlSession, keyspace, nil)
+	if err != nil {
+		return nil, err
+	}
+	return wfmodel.RunHistoryRowsToEvents(rows)
 }
 
 // Used by Webapi and Toolbelt (get_node_history, get_run_status_diagram commands) to retrieve each node status history for multiple runs (used by WebUI main screen and in integration tests)
 func GetNodeHistoryForRuns(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runIds []int16) ([]*wfmodel.NodeHistoryEvent, error) {
 	logger.PushF("api.GetNodeHistoryForRuns")
 	defer logger.PopF()
-	return wfdb.GetNodeHistoryForRuns(logger, cqlSession, keyspace, runIds)
+	rows, err := wfdb.GetNodeHistoryForRuns(logger, cqlSession, keyspace, runIds, nil)
+	if err != nil {
+		return nil, err
+	}
+	return wfmodel.NodeHistoryRowsToEvents(rows)
 }
 
 // Used in Toolbelt (get_batch_history command)
-func GetRunNodeBatchHistory(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16, nodeName string) ([]*wfmodel.BatchHistoryEvent, error) {
+func GetBatchHistoryForRunAndNode(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16, nodeName string) ([]*wfmodel.BatchHistoryEvent, error) {
 	logger.PushF("api.GetRunNodeBatchHistory")
 	defer logger.PopF()
-	return wfdb.GetRunNodeBatchHistory(logger, cqlSession, keyspace, runId, nodeName)
+	rows, err := wfdb.GetBatchHistoryForRunAndNode(logger, cqlSession, keyspace, runId, nodeName)
+	if err != nil {
+		return nil, err
+	}
+	return wfmodel.BatchHistoryRowsToEvents(rows)
 }

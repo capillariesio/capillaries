@@ -297,47 +297,47 @@
     "dependency_policies": {
         "current_active_first_stopped_nogo": {
             "is_default": true,
-            "event_priority_order": "run_is_current(desc), node_start_ts(desc)",
+            "event_priority_order": "run_is_current(desc), run_id(desc)",
             "rules": [
                 {
                     "cmd": "go",
-                    "expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchSuccess"
+                    "expression": "nrs.run_is_current == true && nrs.run_status == wfmodel.RunStart && nrs.node_status == wfmodel.NodeBatchSuccess"
                 },
                 {
                     "cmd": "wait",
-                    "expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchNone"
+                    "expression": "nrs.run_is_current == true && (nrs.run_status == wfmodel.RunStart || nrs.run_status == wfmodel.RunNone) && nrs.node_status == wfmodel.NodeBatchNone"
                 },
                 {
                     "cmd": "wait",
-                    "expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchStart"
+                    "expression": "nrs.run_is_current == true && (nrs.run_status == wfmodel.RunStart || nrs.run_status == wfmodel.RunNone) && nrs.node_status == wfmodel.NodeBatchStart"
                 },
                 {
                     "cmd": "nogo",
-                    "expression": "e.run_is_current == true && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchFail"
+                    "expression": "nrs.run_is_current == true && nrs.run_status == wfmodel.RunStart && nrs.node_status == wfmodel.NodeBatchFail"
                 },
                 {
                     "cmd": "go",
-                    "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchSuccess"
+                    "expression": "nrs.run_is_current == false && nrs.run_status == wfmodel.RunStart && nrs.node_status == wfmodel.NodeBatchSuccess"
                 },
                 {
                     "cmd": "wait",
-                    "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchNone"
+                    "expression": "nrs.run_is_current == false && (nrs.run_status == wfmodel.RunStart || nrs.run_status == wfmodel.RunNone) && nrs.node_status == wfmodel.NodeBatchNone"
                 },
                 {
                     "cmd": "wait",
-                    "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStart && e.node_status == wfmodel.NodeBatchStart"
+                    "expression": "nrs.run_is_current == false && (nrs.run_status == wfmodel.RunStart || nrs.run_status == wfmodel.RunNone) && nrs.node_status == wfmodel.NodeBatchStart"
                 },
                 {
                     "cmd": "go",
-                    "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchSuccess"
+                    "expression": "nrs.run_is_current == false && nrs.run_status == wfmodel.RunComplete && nrs.node_status == wfmodel.NodeBatchSuccess"
                 },
                 {
                     "cmd": "nogo",
-                    "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchFail"
+                    "expression": "nrs.run_is_current == false && nrs.run_status == wfmodel.RunComplete && nrs.node_status == wfmodel.NodeBatchFail"
                 },
                 {
                     "cmd": "nogo",
-                    "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunStop"
+                    "expression": "nrs.run_is_current == false && nrs.run_status == wfmodel.RunStop"
                 }
             ]
         }

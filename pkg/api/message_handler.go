@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/dpc"
@@ -35,7 +34,7 @@ func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 			if err != nil {
 				logger.WarnCtx(pCtx, "cannot parse nodecmd and node ids from %s (%s), proceeding with querying state db", cachedState, err.Error())
 				NodeDependencyReadynessCache.Remove(nodeDependencyReadynessCacheKey)
-			} else if partCount != 3 {
+			} else if partCount != 5 {
 				logger.WarnCtx(pCtx, "cannot parse nodecmd and node ids from %s (parsed component count %d), proceeding with querying state db", cachedState, partCount)
 				NodeDependencyReadynessCache.Remove(nodeDependencyReadynessCacheKey)
 			} else {
@@ -80,21 +79,22 @@ func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 
 	depNodeNames = depNodeNames[:depNodeCount]
 
-	nodeEventListMap, err := wfdb.BuildDependencyNodeEventLists(logger, pCtx, depNodeNames)
+	// { nodeReader: [{run1, RunComplete, NodeSuccess}], nodeLookup: [{run2, RunStopped, NodeSuccess}, {run3, RunComplete, NodeSuccess}]
+	nodeRunStatusMap, err := wfdb.BuildDependencyNodeRunStatusMap(logger, pCtx, depNodeNames)
 	if err != nil {
 		return sc.NodeNone, 0, 0, -1, -1, err
 	}
 
-	logger.DebugCtx(pCtx, "nodeEventListMap %v", nodeEventListMap)
+	logger.DebugCtx(pCtx, "nodeEventListMap %v", nodeRunStatusMap)
 
 	dependencyNodeCmds := make([]sc.ReadyToRunNodeCmdType, len(depNodeNames))
 	dependencyRunIds := make([]int16, len(depNodeNames))
 	matchedRuleIndexes := make([]int, len(depNodeNames))
 	for nodeIdx, depNodeName := range depNodeNames {
-		if len(nodeEventListMap[depNodeName]) == 0 {
+		if len(nodeRunStatusMap[depNodeName]) == 0 {
 			return sc.NodeNogo, 0, 0, -1, -1, fmt.Errorf("target node %s, dep node %s not started yet, whoever started this run, failed to specify %s (or at least one of its dependencies) as start node", pCtx.Msg.TargetNodeName, depNodeName, depNodeName)
 		}
-		dependencyNodeCmds[nodeIdx], dependencyRunIds[nodeIdx], matchedRuleIndexes[nodeIdx], err = dpc.CheckDependencyPolicyAgainstNodeEventList(logger, pCtx.Msg.FullBatchId(), pCtx.CurrentScriptNode.DepPolDef, nodeEventListMap[depNodeName])
+		dependencyNodeCmds[nodeIdx], dependencyRunIds[nodeIdx], matchedRuleIndexes[nodeIdx], err = dpc.CheckDependencyPolicyAgainstNodeEventList(logger, pCtx.Msg.FullBatchId(), pCtx.CurrentScriptNode.DepPolDef, nodeRunStatusMap[depNodeName])
 		if err != nil {
 			return sc.NodeNone, 0, 0, -1, -1, fmt.Errorf("cannot check dependencis for dependency node %s: %s", depNodeName, err.Error())
 		}
@@ -136,14 +136,14 @@ func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 	return finalCmd, finalRunIdReader, finalRunIdLookup, matchedRuleIdxReader, matchedRuleIdxLookup, nil
 }
 
-func updateNodeStatusFromBatches(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) (wfmodel.NodeBatchStatusType, bool, error) {
+func updateNodeStatusFromBatches(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) (wfmodel.NodeBatchStatusType, error) {
 	logger.PushF("wf.updateNodeStatusFromBatches")
 	defer logger.PopF()
 
 	// Check all batches for this run/node, mark node complete if needed
 	totalNodeStatus, err := wfdb.HarvestBatchStatusesForNode(logger, pCtx)
 	if err != nil {
-		return wfmodel.NodeBatchNone, false, err
+		return wfmodel.NodeBatchNone, err
 	}
 
 	if totalNodeStatus == wfmodel.NodeBatchFail || totalNodeStatus == wfmodel.NodeBatchSuccess || totalNodeStatus == wfmodel.NodeBatchRunStopReceived {
@@ -157,18 +157,18 @@ func updateNodeStatusFromBatches(logger *l.CapiLogger, pCtx *ctx.MessageProcessi
 		case wfmodel.NodeBatchRunStopReceived:
 			comment = fmt.Sprintf("run was stopped, marked by batch %d / %d, check run and batch history", pCtx.Msg.BatchIdx, pCtx.Msg.BatchesTotal)
 		default:
-			return wfmodel.NodeBatchNone, false, fmt.Errorf("unexpected totalNodeStatus %v by batch %d /%d", totalNodeStatus, pCtx.Msg.BatchIdx, pCtx.Msg.BatchesTotal)
+			return wfmodel.NodeBatchNone, fmt.Errorf("unexpected totalNodeStatus %v by batch %d /%d", totalNodeStatus, pCtx.Msg.BatchIdx, pCtx.Msg.BatchesTotal)
 		}
 
-		isApplied, err := wfdb.SetNodeStatus(logger, pCtx, totalNodeStatus, comment)
+		err := wfdb.SetNodeStatus(logger, pCtx, totalNodeStatus, comment)
 		if err != nil {
-			return wfmodel.NodeBatchNone, false, err
+			return wfmodel.NodeBatchNone, err
 		}
 
-		return totalNodeStatus, isApplied, nil
+		return totalNodeStatus, nil
 	}
 
-	return totalNodeStatus, false, nil
+	return totalNodeStatus, nil
 }
 
 func updateRunStatusFromNodes(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) error {
@@ -180,14 +180,21 @@ func updateRunStatusFromNodes(logger *l.CapiLogger, pCtx *ctx.MessageProcessingC
 	if err != nil {
 		return err
 	}
-	combinedNodeStatus, nodeStatusMap, err := wfdb.HarvestNodeStatusesForRun(logger, pCtx, affectedNodes)
+	rows, err := wfdb.GetNodeHistoryForRuns(logger, pCtx.CqlSession, pCtx.Msg.DataKeyspace, []int16{pCtx.Msg.RunId}, affectedNodes)
 	if err != nil {
 		return err
 	}
 
+	sortedNodeEvents, err := wfmodel.NodeHistoryRowsToEvents(rows)
+	if err != nil {
+		return err
+	}
+
+	combinedNodeStatus, affectedNodesStatusMap := wfmodel.FigureOutRunStatusAndAffectedNodesStatusesFromNodeEvents(sortedNodeEvents, pCtx.Msg.RunId, affectedNodes)
+
 	if combinedNodeStatus == wfmodel.NodeBatchSuccess || combinedNodeStatus == wfmodel.NodeBatchFail {
 		// Mark run as complete
-		if err := wfdb.SetRunStatus(logger, pCtx.CqlSession, pCtx.Msg.DataKeyspace, pCtx.Msg.RunId, wfmodel.RunComplete, nodeStatusMap.ToString(), cql.IgnoreIfExists); err != nil {
+		if err := wfdb.SetRunStatus(logger, pCtx.CqlSession, pCtx.Msg.DataKeyspace, pCtx.Msg.RunId, wfmodel.RunComplete, affectedNodesStatusMap.ToString()); err != nil {
 			return err
 		}
 	}
@@ -199,7 +206,7 @@ func refreshNodeAndRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingCo
 	logger.PushF("wf.refreshNodeAndRunStatus")
 	defer logger.PopF()
 
-	_, _, err := updateNodeStatusFromBatches(logger, pCtx)
+	_, err := updateNodeStatusFromBatches(logger, pCtx)
 	if err != nil {
 		logger.ErrorCtx(pCtx, "cannot refresh run/node status: %s", err.Error())
 		return err
@@ -495,7 +502,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wf
 	// unless, say 10 workers are trying to start the same run/node/batch at the same time, which should not happen.
 	// If you start seeing contention errors from Cassandra here, introduce random waits with some backoff.
 
-	if _, err = wfdb.SetNodeStatus(logger, pCtx, wfmodel.NodeStart, fmt.Sprintf("marked started by batch %d / %d", pCtx.Msg.BatchIdx, pCtx.Msg.BatchesTotal)); err != nil {
+	if err = wfdb.SetNodeStatus(logger, pCtx, wfmodel.NodeStart, fmt.Sprintf("marked started by batch %d / %d", pCtx.Msg.BatchIdx, pCtx.Msg.BatchesTotal)); err != nil {
 		if db.IsDbConnError(err) {
 			return mq.AcknowledgerCmdRetry
 		}

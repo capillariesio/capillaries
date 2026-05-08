@@ -2,11 +2,9 @@ package wfdb
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
-	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/gocqlshims"
 	"github.com/capillariesio/capillaries/pkg/l"
@@ -17,55 +15,58 @@ func GetRunAffectedNodes(logger *l.CapiLogger, cqlSession gocqlshims.Session, ke
 	logger.PushF("wfdb.GetRunAffectedNodes")
 	defer logger.PopF()
 
-	runPropsList, err := GetRunProperties(logger, cqlSession, keyspace, runId)
+	runProps, err := GetRunProperties(logger, cqlSession, keyspace, runId)
 	if err != nil {
 		return []string{}, err
 	}
-	if len(runPropsList) != 1 {
-		return []string{}, fmt.Errorf("run affected nodes for ks %s, run id %d returned wrong number of rows (%d), expected 1", keyspace, runId, len(runPropsList))
-	}
-	return strings.Split(runPropsList[0].AffectedNodes, ","), nil
+	return strings.Split(runProps.AffectedNodes, ","), nil
 }
 
 // Used by Webapi to retrieve static run properties
-func GetRunProperties(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16) ([]*wfmodel.RunProperties, error) {
+func GetRunProperties(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16) (*wfmodel.RunProperties, error) {
 	logger.PushF("wfdb.GetRunProperties")
 	defer logger.PopF()
 
+	if runId == 0 {
+		return nil, fmt.Errorf("cannot retrieve properties of run 0 for keyspace %s", keyspace)
+	}
+
 	qb := cql.QueryBuilder{}
 	qb.Keyspace(keyspace)
-	if runId > 0 {
-		qb.Cond("run_id", "=", runId)
-	}
-	q := qb.Select(wfmodel.TableNameRunAffectedNodes, wfmodel.RunPropertiesAllFields())
+	qb.Cond("run_id", "=", runId)
+	q := qb.Select(wfmodel.TableNameRunProperties, wfmodel.RunPropertiesAllFields())
 	rows, err := cqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		return []*wfmodel.RunProperties{}, db.WrapDbErrorWithQuery("cannot get all runs properties", q, err)
+		return nil, db.WrapDbErrorWithQuery("cannot get all runs properties", q, err)
 	}
 
-	runs := make([]*wfmodel.RunProperties, len(rows))
-	for rowIdx, row := range rows {
-		rec, err := wfmodel.NewRunPropertiesFromMap(row, wfmodel.RunPropertiesAllFields())
-		if err != nil {
-			return []*wfmodel.RunProperties{}, fmt.Errorf("%s, %s", err.Error(), q)
-		}
-		runs[rowIdx] = rec
+	if len(rows) == 0 {
+		return nil, fmt.Errorf("cannot retrieve properties of run %d for keyspace %s, no such run", runId, keyspace)
 	}
 
-	slices.SortFunc(runs, func(l, r *wfmodel.RunProperties) int {
-		switch {
-		case l.RunId < r.RunId:
-			return -1
-		case l.RunId > r.RunId:
-			return 1
-		default:
-			return 0
-		}
-	})
+	rec, err := wfmodel.NewRunPropertiesFromMap(rows[0], wfmodel.RunPropertiesAllFields())
+	if err != nil {
+		return nil, fmt.Errorf("%s, %s", err.Error(), q)
+	}
 
-	return runs, nil
+	return rec, nil
 }
 
+func GetAllRunsProperties(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string) ([]map[string]any, error) {
+	logger.PushF("wfdb.GetAllRunsAffectedNodes")
+	defer logger.PopF()
+
+	q := (&cql.QueryBuilder{}).
+		Keyspace(keyspace).
+		Select(wfmodel.TableNameRunProperties, wfmodel.RunPropertiesAllFields())
+	rows, err := cqlSession.Query(q).Iter().SliceMap()
+	if err != nil {
+		return nil, db.WrapDbErrorWithQuery("cannot get runs", q, err)
+	}
+	return rows, nil
+}
+
+/*
 func harvestRunIdsByAffectedNodes(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) ([]int16, map[string][]int16, error) {
 	logger.PushF("wfdb.HarvestRunIdsByAffectedNodes")
 	defer logger.PopF()
@@ -105,6 +106,65 @@ func harvestRunIdsByAffectedNodes(logger *l.CapiLogger, pCtx *ctx.MessageProcess
 
 	return runIds, nodeAffectingRunIdsMap, nil
 }
+*/
+
+/*
+func harvestRunStatuses(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runIds []int16) (map[int16]wfmodel.RunStatusType, error) {
+	sortedRunHistoryEvents, err := GetRunHistory(logger, cqlSession, keyspace, runIds)
+	if err != nil {
+		return nil, err
+	}
+
+	runStatusMap := map[int16]wfmodel.RunStatusType{}
+	for _, e := range sortedRunHistoryEvents {
+		curRunStatus, ok := runStatusMap[e.RunId]
+		if !ok {
+			curRunStatus = wfmodel.RunNone
+			runStatusMap[e.RunId] = curRunStatus
+		} else {
+			if e.Status == wfmodel.RunStop {
+				runStatusMap[e.RunId] = wfmodel.RunStop
+			} else if e.Status == wfmodel.RunComplete && curRunStatus != wfmodel.RunStop {
+				runStatusMap[e.RunId] = wfmodel.RunComplete
+			} else if e.Status == wfmodel.RunStart && curRunStatus != wfmodel.RunStop && curRunStatus != wfmodel.RunComplete {
+				runStatusMap[e.RunId] = wfmodel.RunStart
+			} else {
+				runStatusMap[e.RunId] = wfmodel.RunNone
+			}
+		}
+	}
+	return runStatusMap, nil
+}
+*/
+
+/*
+func harvestDependencyRunsAndNodes(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, depNodeNames []string) ([]int16, map[int16][]string, error) {
+	logger.PushF("wfdb.harvestAffectedNodesAndRuns")
+	defer logger.PopF()
+
+	fields := []string{"run_id", "affected_nodes"}
+	q := (&cql.QueryBuilder{}).
+		Keyspace(pCtx.Msg.DataKeyspace).
+		Select(wfmodel.TableNameRunProperties, fields)
+	rows, err := pCtx.CqlSession.Query(q).Iter().SliceMap()
+	if err != nil {
+		return nil, nil, db.WrapDbErrorWithQuery("cannot get runs for affected nodes", q, err)
+	}
+
+	runNodesMap := map[int16][]string{}
+	runIds := make([]int16, 0)
+	for _, r := range rows {
+		rec, err := wfmodel.NewRunPropertiesFromMap(r, fields)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%s, %s", err.Error(), q)
+		}
+		runIds = append(runIds, rec.RunId)
+		// Take only dependency nodes (0, 1 or 2 - since there can be only a reader and a lookot dependency)
+		runNodesMap[rec.RunId] = intersectTwoSlicesOfStrings(strings.Split(rec.AffectedNodes, ","), depNodeNames)
+	}
+	return runIds, runNodesMap, nil
+}
+*/
 
 func WriteRunProperties(cqlSession gocqlshims.Session, keyspace string, runId int16, startNodes []string, affectedNodes []string, scriptUrl string, scriptParamsUrl string, runDescription string) error {
 	q := (&cql.QueryBuilder{}).
@@ -115,7 +175,7 @@ func WriteRunProperties(cqlSession gocqlshims.Session, keyspace string, runId in
 		Write("script_url", scriptUrl).
 		Write("script_params_url", scriptParamsUrl).
 		Write("run_description", runDescription).
-		InsertUnpreparedQuery(wfmodel.TableNameRunAffectedNodes, cql.IgnoreIfExists) // If not exists. First one wins.
+		InsertUnpreparedQuery(wfmodel.TableNameRunProperties, cql.IfNotExistsLwt) // If not exists. First one wins. Potential contention
 	err := cqlSession.Query(q).Exec()
 	if err != nil {
 		return db.WrapDbErrorWithQuery("cannot write affected nodes", q, err)

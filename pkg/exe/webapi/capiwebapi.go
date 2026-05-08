@@ -351,25 +351,21 @@ func getRunProps(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace s
 	if okData && okTs && time.Since(oneRunPropsTs).Seconds() < 30 {
 		return oneRunProps, nil
 	}
-	allRunsProps, err := wfdb.GetRunProperties(logger, cqlSession, keyspace, int16(runId))
+	runProps, err := wfdb.GetRunProperties(logger, cqlSession, keyspace, int16(runId))
 	if err != nil {
 		return nil, err
 	}
-	if len(allRunsProps) != 1 {
-		return nil, fmt.Errorf("invalid number of matching runs (%d), expected 1; this usually happens when webapi caller makes wrong assumptions about the process status", len(allRunsProps))
-	}
-
 	RunPropsCacheLock.Lock()
 	if len(RunPropsCache) > 1000 {
 		for k := range RunPropsCache {
 			delete(RunPropsCache, k)
 		}
 	}
-	RunPropsCache[runPropsCacheKey] = allRunsProps[0]
+	RunPropsCache[runPropsCacheKey] = runProps
 	RunPropsCacheTs[runPropsCacheKey] = time.Now()
 	RunPropsCacheLock.Unlock()
 
-	return allRunsProps[0], nil
+	return runProps, nil
 }
 
 func getRunPropsAndLifespans(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16) (*wfmodel.RunProperties, *wfmodel.RunLifespan, error) {
@@ -440,11 +436,12 @@ func (h *UrlHandler) ksRunNodeBatchHistory(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	result.RunNodeBatchHistory, err = wfdb.GetRunNodeBatchHistory(h.L, cqlSession, keyspace, int16(runId), nodeName)
+	result.RunNodeBatchHistory, err = api.GetBatchHistoryForRunAndNode(h.L, cqlSession, keyspace, int16(runId), nodeName)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
+
 	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, result)
 }
 

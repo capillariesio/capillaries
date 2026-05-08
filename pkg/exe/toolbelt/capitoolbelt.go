@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/api"
-	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/custom/pycalc"
 	"github.com/capillariesio/capillaries/pkg/custom/taganddenormalize"
 	"github.com/capillariesio/capillaries/pkg/db"
@@ -287,7 +286,7 @@ func getBatchHistory(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 		return 1
 	}
 
-	runs, err := api.GetRunNodeBatchHistory(logger, cqlSession, *keyspace, int16(runId), *nodeNameString)
+	runs, err := api.GetBatchHistoryForRunAndNode(logger, cqlSession, *keyspace, int16(runId), *nodeNameString)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
@@ -692,8 +691,7 @@ func runNode(envConfig *env.EnvConfig, logger *l.CapiLogger, nodeName string, ru
 		return 0, err
 	}
 
-	// Write status 'start', fail if a record for run_id is already there (too many operators)
-	if err := wfdb.SetRunStatus(logger, cqlSession, keyspace, runId, wfmodel.RunStart, fmt.Sprintf("Toolbelt RunNode(%s)", nodeName), cql.ThrowIfExists); err != nil {
+	if err := wfdb.SetRunStatus(logger, cqlSession, keyspace, runId, wfmodel.RunStart, fmt.Sprintf("Toolbelt RunNode(%s)", nodeName)); err != nil {
 		return 0, err
 	}
 
@@ -744,7 +742,7 @@ func runNode(envConfig *env.EnvConfig, logger *l.CapiLogger, nodeName string, ru
 		}
 		logger.Info("BatchComplete: [%d,%d], %.3fs", intervals[i][0], intervals[i][1], time.Since(now).Seconds())
 	}
-	if err := wfdb.SetRunStatus(logger, cqlSession, keyspace, runId, wfmodel.RunComplete, fmt.Sprintf("Toolbelt RunNode(%s), run successful", nodeName), cql.IgnoreIfExists); err != nil {
+	if err := wfdb.SetRunStatus(logger, cqlSession, keyspace, runId, wfmodel.RunComplete, fmt.Sprintf("Toolbelt RunNode(%s), run successful", nodeName)); err != nil {
 		return 0, err
 	}
 
