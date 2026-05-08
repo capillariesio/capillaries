@@ -42,7 +42,7 @@ func HarvestLastStatusForBatch(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 		}
 	}
 
-	logger.DebugCtx(pCtx, "batch %s, status %s", pCtx.Msg.FullBatchId(), lastStatus.ToString())
+	logger.DebugCtx(pCtx, "batch %s, status %s", pCtx.Msg.FullBatchId(), wfmodel.NodeBatchStatusToString(lastStatus))
 	return lastStatus, lastTs, nil
 }
 
@@ -126,7 +126,7 @@ func HarvestBatchStatusesForNode(logger *l.CapiLogger, pCtx *ctx.MessageProcessi
 		if failFound {
 			nodeStatus = wfmodel.NodeBatchFail
 		}
-		logger.InfoCtx(pCtx, "node %d/%s complete, status %s", pCtx.Msg.RunId, pCtx.Msg.TargetNodeName, nodeStatus.ToString())
+		logger.InfoCtx(pCtx, "node %d/%s complete, status %s", pCtx.Msg.RunId, pCtx.Msg.TargetNodeName, wfmodel.NodeBatchStatusToString(nodeStatus))
 		return nodeStatus, nil
 	}
 
@@ -164,6 +164,6 @@ func SetBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, st
 		return err
 	}
 
-	logger.DebugCtx(pCtx, "batch %s, set status %s", pCtx.Msg.FullBatchId(), status.ToString())
+	logger.DebugCtx(pCtx, "batch %s, set status %s", pCtx.Msg.FullBatchId(), wfmodel.NodeBatchStatusToString(status))
 	return nil
 }

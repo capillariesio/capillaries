@@ -39,3 +39,21 @@ func GetBatchHistoryForRunAndNode(logger *l.CapiLogger, cqlSession gocqlshims.Se
 	}
 	return wfmodel.BatchHistoryRowsToEvents(rows)
 }
+
+// Used by Webapi to retrieve all runs that happened in this keyspace and their current status, and by checkDependencyNodesReady
+func HarvestRunLifespans(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runIds []int16) (wfmodel.RunLifespanMap, error) {
+	logger.PushF("api.HarvestRunLifespans")
+	defer logger.PopF()
+
+	rows, err := wfdb.GetRunHistory(logger, cqlSession, keyspace, runIds)
+	if err != nil {
+		return nil, err
+	}
+
+	events, err := wfmodel.RunHistoryRowsToEvents(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	return wfmodel.RunHistoryEventsToLifespanMap(events)
+}

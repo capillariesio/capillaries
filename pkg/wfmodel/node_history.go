@@ -7,19 +7,20 @@ import (
 	"time"
 )
 
+const TableNameNodeHistory = "wf_node_history"
+
+/*
 const (
-	NodehNone           NodeBatchStatusType = 0
+	NodeNone           NodeBatchStatusType = 0
 	NodeStart           NodeBatchStatusType = 1
 	NodeSuccess         NodeBatchStatusType = 2
 	NodeFail            NodeBatchStatusType = 3
 	NodeRunStopReceived NodeBatchStatusType = 104
 )
 
-const TableNameNodeHistory = "wf_node_history"
-
 func (status NodeBatchStatusType) ToString() string {
 	switch status {
-	case NodehNone:
+	case NodeNone:
 		return "none"
 	case NodeStart:
 		return "start"
@@ -33,6 +34,7 @@ func (status NodeBatchStatusType) ToString() string {
 		return "unknown"
 	}
 }
+*/
 
 type NodeStatusMap map[string]NodeBatchStatusType
 
@@ -43,39 +45,11 @@ func (m NodeStatusMap) ToString() string {
 		if sb.Len() > 1 {
 			sb.WriteString(",")
 		}
-		fmt.Fprintf(&sb, `"%s":"%s"`, nodeName, nodeStatus.ToString())
+		fmt.Fprintf(&sb, `"%s":"%s"`, nodeName, NodeBatchStatusToString(nodeStatus))
 	}
 	sb.WriteString("}")
 	return sb.String()
 }
-
-/*
-type RunBatchStatusMap map[int16]NodeBatchStatusType
-
-func (m RunBatchStatusMap) ToString() string {
-	sb := strings.Builder{}
-	sb.WriteString("{")
-	for runId, nodeStatus := range m {
-		fmt.Fprintf(&sb, "%d:%s ", runId, nodeStatus.ToString())
-	}
-	sb.WriteString("}")
-	return sb.String()
-}
-*/
-
-/*
-type NodeRunBatchStatusMap map[string]RunBatchStatusMap
-
-func (m NodeRunBatchStatusMap) ToString() string {
-	sb := strings.Builder{}
-	sb.WriteString("{")
-	for nodeName, runBatchStatusMap := range m {
-		fmt.Fprintf(&sb, "%s:%s ", nodeName, runBatchStatusMap.ToString())
-	}
-	sb.WriteString("}")
-	return sb.String()
-}
-*/
 
 // Object model with tags that allow to create cql CREATE TABLE queries and to print object
 type NodeHistoryEvent struct {
@@ -276,42 +250,3 @@ func FigureOutRunStatusAndAffectedNodesStatusesFromNodeEvents(sortedNodeEvents [
 	// Some of the affected nodes are none/started, returtn the lowest of none/started
 	return lowestStatus, nodeStatusMap
 }
-
-/*
-type NodeLifespan struct {
-	StartTs      time.Time
-	LastStatus   NodeBatchStatusType
-	LastStatusTs time.Time
-}
-
-func (ls NodeLifespan) ToString() string {
-	return fmt.Sprintf("{start_ts:%s, last_status:%s, last_status_ts:%s}",
-		ls.StartTs.Format(LogTsFormatQuoted),
-		ls.LastStatus.ToString(),
-		ls.LastStatusTs.Format(LogTsFormatQuoted))
-}
-
-type NodeLifespanMap map[string]*NodeLifespan
-
-func (m NodeLifespanMap) ToString() string {
-	items := make([]string, len(m))
-	nodeIdx := 0
-	for nodeName, ls := range m {
-		items[nodeIdx] = fmt.Sprintf("%s:%s", nodeName, ls.ToString())
-		nodeIdx++
-	}
-	return fmt.Sprintf("{%s}", strings.Join(items, ", "))
-}
-
-type RunNodeLifespanMap map[int16]NodeLifespanMap
-
-func (m RunNodeLifespanMap) ToString() string {
-	items := make([]string, len(m))
-	runIdx := 0
-	for runId, ls := range m {
-		items[runIdx] = fmt.Sprintf("%d:%s", runId, ls.ToString())
-		runIdx++
-	}
-	return fmt.Sprintf("{%s}", strings.Join(items, ", "))
-}
-*/

@@ -2,7 +2,6 @@ package wfdb
 
 import (
 	"fmt"
-	"slices"
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
@@ -46,6 +45,7 @@ func GetCurrentRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContex
 	return lastStatus, nil
 }
 
+/*
 // Used by Webapi to retrieve all runs that happened in this keyspace and their current status, and by checkDependencyNodesReady
 func HarvestRunLifespans(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runIds []int16) (wfmodel.RunLifespanMap, error) {
 	logger.PushF("wfdb.HarvestRunLifespans")
@@ -108,6 +108,7 @@ func HarvestRunLifespans(logger *l.CapiLogger, cqlSession gocqlshims.Session, ke
 
 	return runLifespanMap, nil
 }
+*/
 
 func SetRunStatus(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16, status wfmodel.RunStatusType, comment string) error {
 	logger.PushF("wfdb.SetRunStatus")

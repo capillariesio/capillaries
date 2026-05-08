@@ -35,7 +35,7 @@ func (e *DependencyNodeRunStatus) ToString() string {
 	fmt.Fprintf(&sb, "run_id:%d,", e.RunId)
 	fmt.Fprintf(&sb, "run_is_current:%t,", e.RunIsCurrent)
 	fmt.Fprintf(&sb, "run_status:%s,", e.RunStatus.ToString())
-	fmt.Fprintf(&sb, "node_status:%s,", e.NodeStatus.ToString())
+	fmt.Fprintf(&sb, "node_status:%s,", NodeBatchStatusToString(e.NodeStatus))
 	sb.WriteString("}")
 	return sb.String()
 }

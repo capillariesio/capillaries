@@ -239,7 +239,7 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 	defer cqlSession.Close()
 
 	// Retrieve all runs that happened in this ks and find their current statuses
-	runLifespanMap, err := wfdb.HarvestRunLifespans(h.L, cqlSession, keyspace, []int16{})
+	runLifespanMap, err := api.HarvestRunLifespans(h.L, cqlSession, keyspace, []int16{})
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -379,7 +379,7 @@ func getRunPropsAndLifespans(logger *l.CapiLogger, cqlSession gocqlshims.Session
 
 	// Run status
 
-	runLifeSpans, err := wfdb.HarvestRunLifespans(logger, cqlSession, keyspace, []int16{int16(runId)})
+	runLifeSpans, err := api.HarvestRunLifespans(logger, cqlSession, keyspace, []int16{int16(runId)})
 	if err != nil {
 		return nil, nil, err
 	}

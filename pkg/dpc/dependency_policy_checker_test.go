@@ -126,7 +126,7 @@ func TestDefaultDependencyPolicyChecker(t *testing.T) {
 
 	// Failures
 
-	re := regexp.MustCompile(`"expression": "e\.run[^"]+"`)
+	re := regexp.MustCompile(`"expression": "nrs\.run[^"]+"`)
 	err = polDef.Deserialize([]byte(re.ReplaceAllString(sc.DefaultPolicyCheckerConfJson, `"expression": "1"`)), sc.ScriptJson)
 	assert.Nil(t, err)
 	_, _, _, err = CheckDependencyPolicyAgainstNodeEventList(nil, fullBatchId, &polDef, events)

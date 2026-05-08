@@ -271,7 +271,7 @@ func checkRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, ms
 
 	case wfmodel.RunStop:
 		// If the user signaled stop to this proc, all results of the run are invalidated
-		comment := fmt.Sprintf("run stopped, batch %s marked %s", msg.FullBatchId(), wfmodel.NodeBatchRunStopReceived.ToString())
+		comment := fmt.Sprintf("run stopped, batch %s marked %s", msg.FullBatchId(), wfmodel.NodeBatchStatusToString(wfmodel.NodeBatchRunStopReceived))
 		if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeBatchRunStopReceived, comment); err != nil {
 			if db.IsDbConnError(err) {
 				return FurtherProcessingRetry
@@ -330,7 +330,7 @@ func checkLastBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingConte
 				}
 				comment := fmt.Sprintf("cannot clean up leftovers of the previous processing of batch %s, giving up, will try to set batch status to failed: %s", pCtx.Msg.FullBatchId(), deleteErr.Error())
 				logger.ErrorCtx(pCtx, "%s", comment)
-				if setBatchStatusErr := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeFail, comment); setBatchStatusErr != nil {
+				if setBatchStatusErr := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeBatchFail, comment); setBatchStatusErr != nil {
 					logger.ErrorCtx(pCtx, "cannot set batch status: %s", setBatchStatusErr.Error())
 				}
 				return FurtherProcessingAck
@@ -365,7 +365,7 @@ func checkDependencyNogoOrWait(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 	case sc.NodeNogo:
 		comment := fmt.Sprintf("nogo, rules (%d,%d), some dependency nodes for %s are in bad state, or runs executing dependency nodes were stopped/invalidated, will not run this node; for details, check rules in dependency_policies and previous runs history", matchedRuleIdxReader, matchedRuleIdxLookup, pCtx.Msg.FullBatchId())
 		logger.InfoCtx(pCtx, "%s", comment)
-		if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeFail, comment); err != nil {
+		if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeBatchFail, comment); err != nil {
 			if db.IsDbConnError(err) {
 				return FurtherProcessingRetry
 			}
@@ -502,7 +502,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wf
 	// unless, say 10 workers are trying to start the same run/node/batch at the same time, which should not happen.
 	// If you start seeing contention errors from Cassandra here, introduce random waits with some backoff.
 
-	if err = wfdb.SetNodeStatus(logger, pCtx, wfmodel.NodeStart, fmt.Sprintf("marked started by batch %d / %d", pCtx.Msg.BatchIdx, pCtx.Msg.BatchesTotal)); err != nil {
+	if err = wfdb.SetNodeStatus(logger, pCtx, wfmodel.NodeBatchStart, fmt.Sprintf("marked started by batch %d / %d", pCtx.Msg.BatchIdx, pCtx.Msg.BatchesTotal)); err != nil {
 		if db.IsDbConnError(err) {
 			return mq.AcknowledgerCmdRetry
 		}
@@ -511,7 +511,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wf
 
 	// Set batch status to "started" (no concurrency expected here, so do not bother reading it first)
 
-	if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeStart, ""); err != nil {
+	if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeBatchStart, ""); err != nil {
 		if db.IsDbConnError(err) {
 			return mq.AcknowledgerCmdRetry
 		}

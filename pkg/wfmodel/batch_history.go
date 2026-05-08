@@ -91,20 +91,6 @@ func NewBatchHistoryEventFromMap(r map[string]any, fields []string) (*BatchHisto
 	return res, nil
 }
 
-// ToSpacedString - prints formatted field values, uses reflection, shoud not be used in prod
-// func (n BatchHistoryEvent) ToSpacedString() string {
-// 	t := reflect.TypeOf(n)
-// 	formats := GetObjectModelFieldFormats(t)
-// 	values := make([]string, t.NumField())
-
-// 	v := reflect.ValueOf(&n).Elem()
-// 	for i := 0; i < v.NumField(); i++ {
-// 		fv := v.Field(i)
-// 		values[i] = fmt.Sprintf(formats[i], fv)
-// 	}
-// 	return strings.Join(values, PrintTableDelimiter)
-// }
-
 func BatchHistoryRowsToEvents(rows []map[string]any) ([]*BatchHistoryEvent, error) {
 	result := make([]*BatchHistoryEvent, len(rows))
 	for rowIdx, row := range rows {
