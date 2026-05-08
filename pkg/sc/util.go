@@ -10,10 +10,17 @@ import (
 
 func convertToStringMap(i any) any {
 	switch x := i.(type) {
-	case map[any]any:
+	// Not sure about this: Json unmarshal does not support it, and we unmarshal Yaml via Json
+	// case map[any]any:
+	// 	m2 := map[any]any{}
+	// 	for k, v := range x {
+	// 		m2[k] = convertToStringMap(v)
+	// 	}
+	// 	return m2
+	case map[string]any:
 		m2 := map[string]any{}
 		for k, v := range x {
-			m2[k.(string)] = convertToStringMap(v)
+			m2[k] = convertToStringMap(v)
 		}
 		return m2
 	case []any:

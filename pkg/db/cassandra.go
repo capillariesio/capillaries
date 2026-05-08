@@ -25,6 +25,40 @@ const (
 
 const ErrorPrefixDb string = "dberror:"
 
+func GetCreateTableCql(t reflect.Type, keyspace string, tableName string) string {
+	columnDefs := make([]string, t.NumField())
+	keyDefs := make([]string, t.NumField())
+	keyCount := 0
+
+	for i := 0; i < t.NumField(); i++ {
+		field := t.FieldByIndex([]int{i})
+		cqlColumn, ok := field.Tag.Lookup("column")
+		if ok {
+			cqlType, ok := field.Tag.Lookup("type")
+			if ok {
+				columnDefs[i] = fmt.Sprintf("%s %s", cqlColumn, cqlType)
+				cqlKeyFlag, ok := field.Tag.Lookup("key")
+				if ok && cqlKeyFlag == "true" {
+					keyDefs[keyCount] = cqlColumn
+					keyCount++
+				}
+			} else {
+				columnDefs[i] = fmt.Sprintf("no type for field %s", field.Name)
+			}
+		} else {
+			columnDefs[i] = fmt.Sprintf("no column name for field %s", field.Name)
+		}
+	}
+
+	// For Amazon Keyspaces, you may add
+	// WITH CUSTOM_PROPERTIES = {'capacity_mode':{'throughput_mode':'PROVISIONED','write_capacity_units':1000,'read_capacity_units':1000}}
+	return fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s.%s (%s, PRIMARY KEY(%s));",
+		keyspace,
+		tableName,
+		strings.Join(columnDefs, ", "),
+		strings.Join(keyDefs[:keyCount], ", "))
+}
+
 func WrapDbErrorWithQuery(msg string, query string, dbErr error) error {
 	if len(query) > 500 {
 		query = query[:500]
@@ -39,7 +73,7 @@ func IsDbConnError(err error) bool {
 }
 
 func createWfTable(cqlSession gocqlshims.Session, keyspace string, t reflect.Type, tableName string) error {
-	q := wfmodel.GetCreateTableCql(t, keyspace, tableName)
+	q := GetCreateTableCql(t, keyspace, tableName)
 	if err := cqlSession.Query(q).Exec(); err != nil {
 		return WrapDbErrorWithQuery("failed to create WF table", q, err)
 	}

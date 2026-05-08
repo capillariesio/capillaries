@@ -48,20 +48,6 @@ func NewRunPropertiesFromMap(r map[string]any, fields []string) (*RunProperties,
 	return res, nil
 }
 
-// ToSpacedString - prints formatted field values, uses reflection, shoud not be used in prod
-// func (n RunProperties) ToSpacedString() string {
-// 	t := reflect.TypeOf(n)
-// 	formats := GetObjectModelFieldFormats(t)
-// 	values := make([]string, t.NumField())
-
-// 	v := reflect.ValueOf(&n).Elem()
-// 	for i := 0; i < v.NumField(); i++ {
-// 		fv := v.Field(i)
-// 		values[i] = fmt.Sprintf(formats[i], fv)
-// 	}
-// 	return strings.Join(values, PrintTableDelimiter)
-// }
-
 func intersectTwoSlicesOfStrings(slice1, slice2 []string) []string {
 	map1 := make(map[string]bool)
 	for _, v := range slice1 {
@@ -81,6 +67,7 @@ func intersectTwoSlicesOfStrings(slice1, slice2 []string) []string {
 func MultipleRunsPropertiesToDependencies(rows []map[string]any, depNodeNames []string) ([]int16, map[int16][]string, error) {
 	depRunIds := make([]int16, 0)
 	depRunNodesMap := map[int16][]string{}
+	depNodePresentInAffectedMap := map[string]struct{}{}
 	for _, r := range rows {
 		rec, err := NewRunPropertiesFromMap(r, RunPropertiesAllFields())
 		if err != nil {
@@ -88,10 +75,26 @@ func MultipleRunsPropertiesToDependencies(rows []map[string]any, depNodeNames []
 		}
 
 		// Take only dependency nodes (0, 1 or 2 - since there can be only a reader and a lookot dependency)
-		affectedDepNodes := intersectTwoSlicesOfStrings(strings.Split(rec.AffectedNodes, ","), depNodeNames)
+		affectedNodes := strings.Split(rec.AffectedNodes, ",")
+		affectedDepNodes := intersectTwoSlicesOfStrings(affectedNodes, depNodeNames)
 		if len(affectedDepNodes) > 0 {
 			depRunIds = append(depRunIds, rec.RunId)
-			depRunNodesMap[rec.RunId] = intersectTwoSlicesOfStrings(strings.Split(rec.AffectedNodes, ","), depNodeNames)
+			depRunNodesMap[rec.RunId] = affectedDepNodes
+		}
+		for _, depNodeName := range depNodeNames {
+			for _, affectedNodeName := range affectedNodes {
+				if depNodeName == affectedNodeName {
+					depNodePresentInAffectedMap[depNodeName] = struct{}{}
+				}
+			}
+		}
+
+	}
+
+	// Verify that all dep nodes are present at least once among run affected nodes
+	for _, depNodeName := range depNodeNames {
+		if _, ok := depNodePresentInAffectedMap[depNodeName]; !ok {
+			return nil, nil, fmt.Errorf("unexpectedly, dependency node %s is not present in affected node lists for runs %v, depRunNodesMap: %v. Probably an error in the way the user chose start nodes for runs: one of the dependency nodes was never touched by runs that were executed so far.", depNodeName, depRunIds, depRunNodesMap)
 		}
 	}
 	return depRunIds, depRunNodesMap, nil

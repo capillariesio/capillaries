@@ -86,7 +86,7 @@ func (polDef *DependencyPolicyDef) Deserialize(rawPol json.RawMessage, scriptTyp
 		return err
 	}
 
-	vars := wfmodel.NewVarsFromDepCtx(wfmodel.DependencyNodeRunStatus{})
+	vars := wfmodel.DependencyCheckerNodeVars(wfmodel.DependencyNodeRunStatus{})
 	for ruleIdx := 0; ruleIdx < len(polDef.Rules); ruleIdx++ {
 		usedFieldRefs := FieldRefs{}
 		var err error
@@ -120,7 +120,7 @@ func (polDef *DependencyPolicyDef) parseEventPriorityOrderString() error {
 }
 
 func (polDef *DependencyPolicyDef) evalRuleExpressionsAndCheckType() error {
-	vars := wfmodel.NewVarsFromDepCtx(wfmodel.DependencyNodeRunStatus{})
+	vars := wfmodel.DependencyCheckerNodeVars(wfmodel.DependencyNodeRunStatus{})
 	eCtx := eval.NewPlainEvalCtx(evalcapi.CapillariesEvalFunctions, evalcapi.CapillariesEvalConstants, vars)
 	for ruleIdx, rule := range polDef.Rules {
 		result, err := eCtx.Eval(rule.ParsedExpression)

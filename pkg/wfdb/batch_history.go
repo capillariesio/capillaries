@@ -12,20 +12,17 @@ import (
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
-func HarvestLastStatusForBatch(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) (wfmodel.NodeBatchStatusType, time.Time, error) {
-	logger.PushF("wfdb.HarvestLastStatusForBatch")
-	defer logger.PopF()
-
+func HarvestLastStatusForBatch(cqlSession gocqlshims.Session, msg *wfmodel.Message) (wfmodel.NodeBatchStatusType, time.Time, error) {
 	fields := []string{"ts", "status"}
 	q := (&cql.QueryBuilder{}).
-		Keyspace(pCtx.Msg.DataKeyspace).
-		Cond("run_id", "=", pCtx.Msg.RunId).
-		Cond("script_node", "=", pCtx.Msg.TargetNodeName).
-		Cond("batch_idx", "=", pCtx.Msg.BatchIdx).
+		Keyspace(msg.DataKeyspace).
+		Cond("run_id", "=", msg.RunId).
+		Cond("script_node", "=", msg.TargetNodeName).
+		Cond("batch_idx", "=", msg.BatchIdx).
 		Select(wfmodel.TableNameBatchHistory, fields)
-	rows, err := pCtx.CqlSession.Query(q).Iter().SliceMap()
+	rows, err := cqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		return wfmodel.NodeBatchNone, time.Unix(0, 0), db.WrapDbErrorWithQuery(fmt.Sprintf("HarvestLastStatusForBatch: cannot get batch history for batch %s", pCtx.Msg.FullBatchId()), q, err)
+		return wfmodel.NodeBatchNone, time.Unix(0, 0), db.WrapDbErrorWithQuery(fmt.Sprintf("HarvestLastStatusForBatch: cannot get batch history for batch %s", msg.FullBatchId()), q, err)
 	}
 
 	lastStatus := wfmodel.NodeBatchNone
@@ -41,16 +38,11 @@ func HarvestLastStatusForBatch(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 			lastStatus = wfmodel.NodeBatchStatusType(rec.Status)
 		}
 	}
-
-	logger.DebugCtx(pCtx, "batch %s, status %s", pCtx.Msg.FullBatchId(), wfmodel.NodeBatchStatusToString(lastStatus))
 	return lastStatus, lastTs, nil
 }
 
 // Used by Webapi to retrieve batch status history for a run/node pair
-func GetBatchHistoryForRunAndNode(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16, nodeName string) ([]map[string]any, error) {
-	logger.PushF("wfdb.GetRunNodeBatchHistory")
-	defer logger.PopF()
-
+func GetBatchHistoryForRunAndNode(cqlSession gocqlshims.Session, keyspace string, runId int16, nodeName string) ([]map[string]any, error) {
 	q := (&cql.QueryBuilder{}).
 		Keyspace(keyspace).
 		Cond("run_id", "=", runId).

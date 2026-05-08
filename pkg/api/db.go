@@ -45,11 +45,11 @@ func checkKeyspaceNameAllowed(keyspace string) error {
 func GetTablesCql(script *sc.ScriptDef, keyspace string, runId int16, startNodeNames []string) string {
 	sb := strings.Builder{}
 	sb.WriteString("-- Workflow\n")
-	fmt.Fprintf(&sb, "%s\n", wfmodel.GetCreateTableCql(reflect.TypeOf(wfmodel.BatchHistoryEvent{}), keyspace, wfmodel.TableNameBatchHistory))
-	fmt.Fprintf(&sb, "%s\n", wfmodel.GetCreateTableCql(reflect.TypeOf(wfmodel.NodeHistoryEvent{}), keyspace, wfmodel.TableNameNodeHistory))
-	fmt.Fprintf(&sb, "%s\n", wfmodel.GetCreateTableCql(reflect.TypeOf(wfmodel.RunHistoryEvent{}), keyspace, wfmodel.TableNameRunHistory))
-	fmt.Fprintf(&sb, "%s\n", wfmodel.GetCreateTableCql(reflect.TypeOf(wfmodel.RunProperties{}), keyspace, wfmodel.TableNameRunProperties))
-	fmt.Fprintf(&sb, "%s\n", wfmodel.GetCreateTableCql(reflect.TypeOf(wfmodel.RunCounter{}), keyspace, wfmodel.TableNameRunCounter))
+	fmt.Fprintf(&sb, "%s\n", db.GetCreateTableCql(reflect.TypeOf(wfmodel.BatchHistoryEvent{}), keyspace, wfmodel.TableNameBatchHistory))
+	fmt.Fprintf(&sb, "%s\n", db.GetCreateTableCql(reflect.TypeOf(wfmodel.NodeHistoryEvent{}), keyspace, wfmodel.TableNameNodeHistory))
+	fmt.Fprintf(&sb, "%s\n", db.GetCreateTableCql(reflect.TypeOf(wfmodel.RunHistoryEvent{}), keyspace, wfmodel.TableNameRunHistory))
+	fmt.Fprintf(&sb, "%s\n", db.GetCreateTableCql(reflect.TypeOf(wfmodel.RunProperties{}), keyspace, wfmodel.TableNameRunProperties))
+	fmt.Fprintf(&sb, "%s\n", db.GetCreateTableCql(reflect.TypeOf(wfmodel.RunCounter{}), keyspace, wfmodel.TableNameRunCounter))
 	qb := cql.QueryBuilder{}
 	fmt.Fprintf(&sb, "%s\n", qb.Keyspace(keyspace).Write("ks", keyspace).Write("last_run", 0).InsertUnpreparedQuery(wfmodel.TableNameRunCounter, cql.IfNotExistsLwt))
 

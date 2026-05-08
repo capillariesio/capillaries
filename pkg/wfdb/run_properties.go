@@ -7,58 +7,32 @@ import (
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/gocqlshims"
-	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
-func GetRunAffectedNodes(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16) ([]string, error) {
-	logger.PushF("wfdb.GetRunAffectedNodes")
-	defer logger.PopF()
-
-	runProps, err := GetRunProperties(logger, cqlSession, keyspace, runId)
-	if err != nil {
-		return []string{}, err
-	}
-	return strings.Split(runProps.AffectedNodes, ","), nil
-}
-
 // Used by Webapi to retrieve static run properties
-func GetRunProperties(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16) (*wfmodel.RunProperties, error) {
-	logger.PushF("wfdb.GetRunProperties")
-	defer logger.PopF()
-
-	if runId == 0 {
+func GetRunProperties(cqlSession gocqlshims.Session, keyspace string, runId int16) (map[string]any, error) {
+	if runId <= 0 {
 		return nil, fmt.Errorf("cannot retrieve properties of run 0 for keyspace %s", keyspace)
 	}
 
-	qb := cql.QueryBuilder{}
-	qb.Keyspace(keyspace)
-	qb.Cond("run_id", "=", runId)
+	qb := (&cql.QueryBuilder{}).Keyspace(keyspace).Cond("run_id", "=", runId)
 	q := qb.Select(wfmodel.TableNameRunProperties, wfmodel.RunPropertiesAllFields())
 	rows, err := cqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
 		return nil, db.WrapDbErrorWithQuery("cannot get all runs properties", q, err)
 	}
 
-	if len(rows) == 0 {
-		return nil, fmt.Errorf("cannot retrieve properties of run %d for keyspace %s, no such run", runId, keyspace)
+	if len(rows) != 1 {
+		return nil, fmt.Errorf("cannot retrieve properties of run %d for keyspace %s, exactly one row expected, got %d", runId, keyspace, len(rows))
 	}
 
-	rec, err := wfmodel.NewRunPropertiesFromMap(rows[0], wfmodel.RunPropertiesAllFields())
-	if err != nil {
-		return nil, fmt.Errorf("%s, %s", err.Error(), q)
-	}
-
-	return rec, nil
+	return rows[0], nil
 }
 
-func GetAllRunsProperties(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string) ([]map[string]any, error) {
-	logger.PushF("wfdb.GetAllRunsAffectedNodes")
-	defer logger.PopF()
-
-	q := (&cql.QueryBuilder{}).
-		Keyspace(keyspace).
-		Select(wfmodel.TableNameRunProperties, wfmodel.RunPropertiesAllFields())
+// Used by daemon for dependency checking
+func GetAllRunsProperties(cqlSession gocqlshims.Session, keyspace string) ([]map[string]any, error) {
+	q := (&cql.QueryBuilder{}).Keyspace(keyspace).Select(wfmodel.TableNameRunProperties, wfmodel.RunPropertiesAllFields())
 	rows, err := cqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
 		return nil, db.WrapDbErrorWithQuery("cannot get runs", q, err)

@@ -43,7 +43,7 @@ func (msg *Message) Deserialize(jsonBytes []byte) error {
 	return json.Unmarshal(jsonBytes, msg)
 }
 
-func (msg Message) Serialize() ([]byte, error) {
+func (msg *Message) Serialize() ([]byte, error) {
 	var jsonBytes []byte
 	jsonBytes, err := json.Marshal(msg)
 	if err != nil {

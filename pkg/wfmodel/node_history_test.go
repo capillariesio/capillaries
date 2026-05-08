@@ -257,5 +257,5 @@ func TestNodeStatusMapToString(t *testing.T) {
 		"node2": NodeBatchNone,
 	}
 	s := nodeStatusMap.ToString()
-	assert.True(t, `{"node1":"fail","node2":"none"}` == s || `{"node2":"fail","node1":"none"}` == s)
+	assert.True(t, `{"node1":"fail","node2":"none"}` == s || `{"node2":"none","node1":"fail"}` == s)
 }

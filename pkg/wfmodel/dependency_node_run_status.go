@@ -7,10 +7,10 @@ import (
 	"github.com/capillariesio/capillaries/pkg/eval"
 )
 
-// Fictional table, used by dependency checker
+// Fictional table, used by dependency checker, look for this name in Capillaries scripts with dependency check strategy json/yaml
 const DependencyNodeRunStatusTableName string = "nrs"
 
-// nrs.run_is_current == true && nrs.run_status == wfmodel.RunStart && nrs.node_status
+// Used by dependency checker: nrs.run_is_current == true && nrs.run_status == wfmodel.RunStart && nrs.node_status
 type DependencyNodeRunStatus struct {
 	RunId        int16
 	RunIsCurrent bool
@@ -19,16 +19,7 @@ type DependencyNodeRunStatus struct {
 	SortKey      string
 }
 
-func (e *DependencyNodeRunStatus) ToVars() eval.VarValuesMap {
-	return eval.VarValuesMap{
-		DependencyNodeRunStatusTableName: map[string]any{
-			"run_id":         int64(e.RunId),
-			"run_is_current": e.RunIsCurrent,
-			"run_status":     int64(e.RunStatus),
-			"node_status":    int64(e.NodeStatus),
-		}}
-}
-
+// Used for logging only
 func (e *DependencyNodeRunStatus) ToString() string {
 	sb := strings.Builder{}
 	sb.WriteString("{")
@@ -40,8 +31,10 @@ func (e *DependencyNodeRunStatus) ToString() string {
 	return sb.String()
 }
 
+// This slice is passed to CheckDependencyPolicyAgainstNodeEventList
 type DependencyNodeRunStatusSlice []DependencyNodeRunStatus
 
+// Used for logging only
 func (statuses DependencyNodeRunStatusSlice) ToString() string {
 	items := make([]string, len(statuses))
 	for eventIdx := 0; eventIdx < len(statuses); eventIdx++ {
@@ -50,7 +43,8 @@ func (statuses DependencyNodeRunStatusSlice) ToString() string {
 	return fmt.Sprintf("[%s]", strings.Join(items, ", "))
 }
 
-func NewVarsFromDepCtx(e DependencyNodeRunStatus) eval.VarValuesMap {
+// From DependencyNodeRunStatus struct to a db-style map that can be used by expression evaluator in dependency checker
+func DependencyCheckerNodeVars(nrs DependencyNodeRunStatus) eval.VarValuesMap {
 	m := eval.VarValuesMap{}
 	m[WfmodelNamespace] = map[string]any{
 		"NodeBatchNone":            int64(NodeBatchNone),
@@ -63,10 +57,10 @@ func NewVarsFromDepCtx(e DependencyNodeRunStatus) eval.VarValuesMap {
 		"RunComplete":              int64(RunComplete),
 		"RunStop":                  int64(RunStop)}
 	m[DependencyNodeRunStatusTableName] = map[string]any{
-		"run_id":         int64(e.RunId),
-		"run_is_current": e.RunIsCurrent,
-		"run_status":     int64(e.RunStatus),
-		"node_status":    int64(e.NodeStatus),
+		"run_id":         int64(nrs.RunId),
+		"run_is_current": nrs.RunIsCurrent,
+		"run_status":     int64(nrs.RunStatus),
+		"node_status":    int64(nrs.NodeStatus),
 	}
 	return m
 }

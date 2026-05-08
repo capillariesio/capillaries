@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/ctx"
@@ -176,10 +177,18 @@ func updateRunStatusFromNodes(logger *l.CapiLogger, pCtx *ctx.MessageProcessingC
 	defer logger.PopF()
 
 	// Let's see if this run is complete
-	affectedNodes, err := wfdb.GetRunAffectedNodes(logger, pCtx.CqlSession, pCtx.Msg.DataKeyspace, pCtx.Msg.RunId)
+	runPropsRow, err := wfdb.GetRunProperties(pCtx.CqlSession, pCtx.Msg.DataKeyspace, pCtx.Msg.RunId)
 	if err != nil {
 		return err
 	}
+
+	runProps, err := wfmodel.NewRunPropertiesFromMap(runPropsRow, wfmodel.RunPropertiesAllFields())
+	if err != nil {
+		return err
+	}
+
+	affectedNodes := strings.Split(runProps.AffectedNodes, ",")
+
 	rows, err := wfdb.GetNodeHistoryForRuns(logger, pCtx.CqlSession, pCtx.Msg.DataKeyspace, []int16{pCtx.Msg.RunId}, affectedNodes)
 	if err != nil {
 		return err
@@ -447,7 +456,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wf
 
 	logger.DebugCtx(pCtx, "started processing batch %s", msg.FullBatchId())
 
-	lastBatchStatus, lastBatchTs, err := wfdb.HarvestLastStatusForBatch(logger, pCtx)
+	lastBatchStatus, lastBatchTs, err := wfdb.HarvestLastStatusForBatch(pCtx.CqlSession, &pCtx.Msg)
 	if err != nil {
 		if db.IsDbConnError(err) {
 			return mq.AcknowledgerCmdRetry

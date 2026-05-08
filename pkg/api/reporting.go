@@ -33,7 +33,7 @@ func GetNodeHistoryForRuns(logger *l.CapiLogger, cqlSession gocqlshims.Session, 
 func GetBatchHistoryForRunAndNode(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16, nodeName string) ([]*wfmodel.BatchHistoryEvent, error) {
 	logger.PushF("api.GetRunNodeBatchHistory")
 	defer logger.PopF()
-	rows, err := wfdb.GetBatchHistoryForRunAndNode(logger, cqlSession, keyspace, runId, nodeName)
+	rows, err := wfdb.GetBatchHistoryForRunAndNode(cqlSession, keyspace, runId, nodeName)
 	if err != nil {
 		return nil, err
 	}

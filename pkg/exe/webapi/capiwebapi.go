@@ -351,10 +351,16 @@ func getRunProps(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace s
 	if okData && okTs && time.Since(oneRunPropsTs).Seconds() < 30 {
 		return oneRunProps, nil
 	}
-	runProps, err := wfdb.GetRunProperties(logger, cqlSession, keyspace, int16(runId))
+	runPropsRow, err := wfdb.GetRunProperties(cqlSession, keyspace, int16(runId))
 	if err != nil {
 		return nil, err
 	}
+
+	runProps, err := wfmodel.NewRunPropertiesFromMap(runPropsRow, wfmodel.RunPropertiesAllFields())
+	if err != nil {
+		return nil, err
+	}
+
 	RunPropsCacheLock.Lock()
 	if len(RunPropsCache) > 1000 {
 		for k := range RunPropsCache {

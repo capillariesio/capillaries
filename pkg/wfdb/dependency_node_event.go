@@ -11,7 +11,7 @@ func BuildDependencyNodeRunStatusMap(logger *l.CapiLogger, pCtx *ctx.MessageProc
 	defer logger.PopF()
 
 	// All runs in this ks with their properties
-	rows, err := GetAllRunsProperties(logger, pCtx.CqlSession, pCtx.Msg.DataKeyspace)
+	rows, err := GetAllRunsProperties(pCtx.CqlSession, pCtx.Msg.DataKeyspace)
 	if err != nil {
 		return nil, err
 	}
