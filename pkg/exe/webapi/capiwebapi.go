@@ -182,7 +182,7 @@ var NodeDescCache = map[string]string{}
 var NodeDescCacheTs = map[string]time.Time{}
 var NodeDescCacheLock = sync.RWMutex{}
 
-func (h *UrlHandler) getNodeDesc(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16, nodeName string) (string, error) {
+func (h *UrlHandler) getNodeDesc(cqlSession gocqlshims.Session, keyspace string, runId int16, nodeName string) (string, error) {
 
 	nodeKey := keyspace + ":" + nodeName
 	NodeDescCacheLock.RLock()
@@ -194,8 +194,8 @@ func (h *UrlHandler) getNodeDesc(logger *l.CapiLogger, cqlSession gocqlshims.Ses
 	}
 
 	// Static run props
-
-	runProps, err := getRunProps(logger, cqlSession, keyspace, runId)
+	runPropsFields := []string{"run_id", "script_url", "script_params_url"}
+	runProps, err := getRunProps(cqlSession, keyspace, runId, runPropsFields)
 	if err != nil {
 		return "", err
 	}
@@ -291,7 +291,7 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 	mx.Nodes = make([]WebapiNodeRunMatrixRow, len(nodeRunStatusMap))
 	nodeCount := 0
 	for nodeName, runNodeStatusMap := range nodeRunStatusMap {
-		nodeDesc, err := h.getNodeDesc(h.L, cqlSession, keyspace, runLifespanMap[1].RunId, nodeName)
+		nodeDesc, err := h.getNodeDesc(cqlSession, keyspace, runLifespanMap[1].RunId, nodeName)
 		if err != nil {
 			WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot get node description: %s", err.Error()), http.StatusInternalServerError)
 			return
@@ -341,7 +341,7 @@ var RunPropsCache = map[string]*wfmodel.RunProperties{}
 var RunPropsCacheTs = map[string]time.Time{}
 var RunPropsCacheLock = sync.RWMutex{}
 
-func getRunProps(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16) (*wfmodel.RunProperties, error) {
+func getRunProps(cqlSession gocqlshims.Session, keyspace string, runId int16, runPropertiesFields []string) (*wfmodel.RunProperties, error) {
 	runPropsCacheKey := keyspace + ":" + fmt.Sprintf("%d", runId)
 	RunPropsCacheLock.RLock()
 	oneRunProps, okData := RunPropsCache[runPropsCacheKey]
@@ -351,12 +351,13 @@ func getRunProps(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace s
 	if okData && okTs && time.Since(oneRunPropsTs).Seconds() < 30 {
 		return oneRunProps, nil
 	}
-	runPropsRow, err := wfdb.GetRunProperties(cqlSession, keyspace, int16(runId))
+
+	runPropsRow, err := wfdb.GetRunProperties(cqlSession, keyspace, int16(runId), runPropertiesFields)
 	if err != nil {
 		return nil, err
 	}
 
-	runProps, err := wfmodel.NewRunPropertiesFromMap(runPropsRow, wfmodel.RunPropertiesAllFields())
+	runProps, err := wfmodel.NewRunPropertiesFromMap(runPropsRow, runPropertiesFields)
 	if err != nil {
 		return nil, err
 	}
@@ -378,7 +379,7 @@ func getRunPropsAndLifespans(logger *l.CapiLogger, cqlSession gocqlshims.Session
 
 	// Static run props
 
-	runProps, err := getRunProps(logger, cqlSession, keyspace, runId)
+	runProps, err := getRunProps(cqlSession, keyspace, runId, wfmodel.RunPropertiesAllFields())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -539,7 +540,8 @@ func (h *UrlHandler) ksRunViz(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Extract script URL from run props
-	runProps, err := getRunProps(h.L, cqlSession, keyspace, int16(runId))
+	runPropsFields := []string{"run_id", "script_url", "script_params_url"}
+	runProps, err := getRunProps(cqlSession, keyspace, int16(runId), runPropsFields)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 	}

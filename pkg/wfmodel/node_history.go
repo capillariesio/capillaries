@@ -91,11 +91,38 @@ func NewNodeHistoryEventFromMap(r map[string]any, fields []string) (*NodeHistory
 	return res, nil
 }
 
+func appendNodeEventsFromMap(nodeEventMaps map[int16]map[string]*NodeHistoryEvent, nodeEvents []*NodeHistoryEvent) []*NodeHistoryEvent {
+	for _, nodeMap := range nodeEventMaps {
+		for _, rec := range nodeMap {
+			nodeEvents = append(nodeEvents, rec)
+		}
+	}
+	return nodeEvents
+}
+
+func earliestEventToNodeMap(rec *NodeHistoryEvent, nodeEventMaps map[int16]map[string]*NodeHistoryEvent) {
+	if _, ok := nodeEventMaps[rec.RunId]; !ok {
+		nodeEventMaps[rec.RunId] = map[string]*NodeHistoryEvent{}
+	}
+	runNodeEvent, ok := nodeEventMaps[rec.RunId][rec.ScriptNode]
+	if !ok || ok && runNodeEvent.Ts.After(rec.Ts) {
+		nodeEventMaps[rec.RunId][rec.ScriptNode] = rec
+	}
+}
+
+func lastEventToNodeMap(rec *NodeHistoryEvent, nodeEventMaps map[int16]map[string]*NodeHistoryEvent) {
+	if _, ok := nodeEventMaps[rec.RunId]; !ok {
+		nodeEventMaps[rec.RunId] = map[string]*NodeHistoryEvent{}
+	}
+	runNodeEvent, ok := nodeEventMaps[rec.RunId][rec.ScriptNode]
+	if !ok || ok && runNodeEvent.Ts.Before(rec.Ts) {
+		nodeEventMaps[rec.RunId][rec.ScriptNode] = rec
+	}
+}
+
 // Converts returned rows to a slice of events, removes duplicates and sorts them by ts/run_id/written_by_batch_idx
 func NodeHistoryRowsToEvents(rows []map[string]any) ([]*NodeHistoryEvent, error) {
-	nodeEvents := make([]*NodeHistoryEvent, 0)
-
-	// Here we pay for our decision to save multiple "node start" events, one for each batch.
+	// Here we pay for our decision to save multiple "node start" events, one for each batch, to avoid contention errors.
 	// The caller is only interested in the first "node start" event, ignore the other, so we can avoid managing thousands of useless records
 	nodeStartMap := map[int16]map[string]*NodeHistoryEvent{}
 	nodeSuccessMap := map[int16]map[string]*NodeHistoryEvent{}
@@ -106,71 +133,32 @@ func NodeHistoryRowsToEvents(rows []map[string]any) ([]*NodeHistoryEvent, error)
 	for _, r := range rows {
 		rec, err := NewNodeHistoryEventFromMap(r, fields)
 		if err != nil {
-			return nodeEvents, fmt.Errorf("cannot deserialize node history row %v: %s", r, err.Error())
+			return nil, fmt.Errorf("cannot deserialize node history row %v: %s", r, err.Error())
 		}
 		switch rec.Status {
 		case NodeBatchStart:
 			// Save the earliest "node start" for run/node in the map, but do not add it to nodeEvents
-			if _, ok := nodeStartMap[rec.RunId]; !ok {
-				nodeStartMap[rec.RunId] = map[string]*NodeHistoryEvent{}
-			}
-			runNodeStartEvent, ok := nodeStartMap[rec.RunId][rec.ScriptNode]
-			if !ok || ok && runNodeStartEvent.Ts.After(rec.Ts) {
-				nodeStartMap[rec.RunId][rec.ScriptNode] = rec
-			}
+			earliestEventToNodeMap(rec, nodeStartMap)
 		case NodeBatchSuccess:
 			// Save the latest "node success" for run/node in the map, but do not add it to nodeEvents
-			if _, ok := nodeSuccessMap[rec.RunId]; !ok {
-				nodeSuccessMap[rec.RunId] = map[string]*NodeHistoryEvent{}
-			}
-			runNodeSuccessEvent, ok := nodeSuccessMap[rec.RunId][rec.ScriptNode]
-			if !ok || ok && rec.Ts.After(runNodeSuccessEvent.Ts) {
-				nodeSuccessMap[rec.RunId][rec.ScriptNode] = rec
-			}
+			lastEventToNodeMap(rec, nodeSuccessMap)
 		case NodeBatchFail:
 			// Save the latest "node fail" for run/node in the map, but do not add it to nodeEvents
-			if _, ok := nodeFailMap[rec.RunId]; !ok {
-				nodeFailMap[rec.RunId] = map[string]*NodeHistoryEvent{}
-			}
-			runNodeFailEvent, ok := nodeFailMap[rec.RunId][rec.ScriptNode]
-			if !ok || ok && rec.Ts.After(runNodeFailEvent.Ts) {
-				nodeFailMap[rec.RunId][rec.ScriptNode] = rec
-			}
+			lastEventToNodeMap(rec, nodeFailMap)
 		case NodeBatchRunStopReceived:
 			// Save the latest "node run stopped" for run/node in the map, but do not add it to nodeEvents
-			if _, ok := nodeStopMap[rec.RunId]; !ok {
-				nodeStopMap[rec.RunId] = map[string]*NodeHistoryEvent{}
-			}
-			runNodeStopEvent, ok := nodeStopMap[rec.RunId][rec.ScriptNode]
-			if !ok || ok && rec.Ts.After(runNodeStopEvent.Ts) {
-				nodeStopMap[rec.RunId][rec.ScriptNode] = rec
-			}
+			lastEventToNodeMap(rec, nodeStopMap)
 		default:
-			// Do nothing
+			// NodeBatchNone, Do nothing
 		}
 	}
 
-	// Add events from maps
-	for _, nodeMap := range nodeStartMap {
-		for _, rec := range nodeMap {
-			nodeEvents = append(nodeEvents, rec)
-		}
-	}
-	for _, nodeMap := range nodeSuccessMap {
-		for _, rec := range nodeMap {
-			nodeEvents = append(nodeEvents, rec)
-		}
-	}
-	for _, nodeMap := range nodeFailMap {
-		for _, rec := range nodeMap {
-			nodeEvents = append(nodeEvents, rec)
-		}
-	}
-	for _, nodeMap := range nodeStopMap {
-		for _, rec := range nodeMap {
-			nodeEvents = append(nodeEvents, rec)
-		}
-	}
+	// Collect events from maps into nodeEvents
+	nodeEvents := make([]*NodeHistoryEvent, 0)
+	nodeEvents = appendNodeEventsFromMap(nodeStartMap, nodeEvents)
+	nodeEvents = appendNodeEventsFromMap(nodeSuccessMap, nodeEvents)
+	nodeEvents = appendNodeEventsFromMap(nodeFailMap, nodeEvents)
+	nodeEvents = appendNodeEventsFromMap(nodeStopMap, nodeEvents)
 
 	slices.SortFunc(nodeEvents, func(l, r *NodeHistoryEvent) int {
 		switch {

@@ -41,24 +41,25 @@ func TestMultipleRunsPropertiesToDependencies(t *testing.T) {
 			AffectedNodes: "affNode21,affNode22",
 		}).ToMap(),
 	}
+	runPropertiesFields := []string{"run_id", "affected_nodes"}
 
-	depRunIds, depRunNodesMap, err := MultipleRunsPropertiesToDependencies(rows, []string{"affNode12", "affNode22"})
+	depRunIds, depRunNodesMap, err := MultipleRunsPropertiesToDependencies(rows, []string{"affNode12", "affNode22"}, runPropertiesFields)
 	assert.Nil(t, err)
 	assert.Equal(t, "[1 2]", fmt.Sprintf("%v", depRunIds))
 	assert.Equal(t, 2, len(depRunNodesMap))
 	assert.Equal(t, "affNode12", strings.Join(depRunNodesMap[1], ","))
 	assert.Equal(t, "affNode22", strings.Join(depRunNodesMap[2], ","))
 
-	depRunIds, depRunNodesMap, err = MultipleRunsPropertiesToDependencies(rows, []string{"affNode12"})
+	depRunIds, depRunNodesMap, err = MultipleRunsPropertiesToDependencies(rows, []string{"affNode12"}, runPropertiesFields)
 	assert.Nil(t, err)
 	assert.Equal(t, "[1]", fmt.Sprintf("%v", depRunIds))
 	assert.Equal(t, 1, len(depRunNodesMap))
 	assert.Equal(t, "affNode12", strings.Join(depRunNodesMap[1], ","))
 
-	depRunIds, depRunNodesMap, err = MultipleRunsPropertiesToDependencies(rows, []string{"affNode12", "affNodeExtra"})
+	_, _, err = MultipleRunsPropertiesToDependencies(rows, []string{"affNode12", "affNodeExtra"}, runPropertiesFields)
 	assert.Contains(t, err.Error(), "dependency node affNodeExtra is not present")
 
 	rows[0]["run_id"] = "a"
-	depRunIds, depRunNodesMap, err = MultipleRunsPropertiesToDependencies(rows, []string{"affNode12", "affNodeExtra"})
+	_, _, err = MultipleRunsPropertiesToDependencies(rows, []string{"affNode12", "affNodeExtra"}, runPropertiesFields)
 	assert.Contains(t, err.Error(), "cannot read int16 run_id")
 }

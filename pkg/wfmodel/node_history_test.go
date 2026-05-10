@@ -38,35 +38,35 @@ func TestNodeHistoryRowsToEventsGood(t *testing.T) {
 			Ts:                time.Date(2001, 1, 1, 1, 1, 1, 0, time.UTC),
 			RunId:             int16(1),
 			ScriptNode:        "node1",
-			WrittenByBatchIdx: 0,
+			WrittenByBatchIdx: int16(0),
 			Status:            NodeBatchStart,
 		}).ToMap(),
 		(&NodeHistoryEvent{
 			Ts:                time.Date(2001, 1, 1, 1, 1, 2, 0, time.UTC),
 			RunId:             int16(1),
 			ScriptNode:        "node1",
-			WrittenByBatchIdx: 1,
+			WrittenByBatchIdx: int16(1),
 			Status:            NodeBatchStart,
 		}).ToMap(),
 		(&NodeHistoryEvent{
 			Ts:                time.Date(2001, 1, 1, 1, 1, 3, 0, time.UTC),
 			RunId:             int16(1),
 			ScriptNode:        "node1",
-			WrittenByBatchIdx: 1,
+			WrittenByBatchIdx: int16(1),
 			Status:            NodeBatchSuccess,
 		}).ToMap(),
 		(&NodeHistoryEvent{
 			Ts:                time.Date(2001, 1, 1, 1, 1, 4, 0, time.UTC),
 			RunId:             int16(1),
 			ScriptNode:        "node1",
-			WrittenByBatchIdx: 100,
+			WrittenByBatchIdx: int16(100),
 			Status:            NodeBatchRunStopReceived,
 		}).ToMap(),
 		(&NodeHistoryEvent{
 			Ts:                time.Date(2001, 1, 1, 1, 1, 5, 0, time.UTC),
 			RunId:             int16(1),
 			ScriptNode:        "node1",
-			WrittenByBatchIdx: 101,
+			WrittenByBatchIdx: int16(101),
 			Status:            NodeBatchRunStopReceived,
 		}).ToMap(),
 
@@ -76,35 +76,35 @@ func TestNodeHistoryRowsToEventsGood(t *testing.T) {
 			Ts:                time.Date(2002, 1, 1, 1, 1, 1, 0, time.UTC),
 			RunId:             int16(2),
 			ScriptNode:        "node1",
-			WrittenByBatchIdx: 0,
+			WrittenByBatchIdx: int16(0),
 			Status:            NodeBatchStart,
 		}).ToMap(),
 		(&NodeHistoryEvent{
 			Ts:                time.Date(2002, 1, 1, 1, 1, 2, 0, time.UTC),
 			RunId:             int16(2),
 			ScriptNode:        "node1",
-			WrittenByBatchIdx: 1,
+			WrittenByBatchIdx: int16(1),
 			Status:            NodeBatchStart,
 		}).ToMap(),
 		(&NodeHistoryEvent{
 			Ts:                time.Date(2002, 1, 1, 1, 1, 3, 0, time.UTC),
 			RunId:             int16(2),
 			ScriptNode:        "node1",
-			WrittenByBatchIdx: 1,
+			WrittenByBatchIdx: int16(1),
 			Status:            NodeBatchFail,
 		}).ToMap(),
 		(&NodeHistoryEvent{
 			Ts:                time.Date(2002, 1, 1, 1, 1, 4, 0, time.UTC),
 			RunId:             int16(2),
 			ScriptNode:        "node1",
-			WrittenByBatchIdx: 100,
+			WrittenByBatchIdx: int16(100),
 			Status:            NodeBatchRunStopReceived,
 		}).ToMap(),
 		(&NodeHistoryEvent{
 			Ts:                time.Date(2002, 1, 1, 1, 1, 5, 0, time.UTC),
 			RunId:             int16(2),
 			ScriptNode:        "node1",
-			WrittenByBatchIdx: 101,
+			WrittenByBatchIdx: int16(101),
 			Status:            NodeBatchRunStopReceived,
 		}).ToMap(),
 	}
@@ -126,7 +126,7 @@ func TestNodeHistoryRowsToEventsBad(t *testing.T) {
 			Ts:                time.Date(2001, 1, 1, 1, 1, 1, 0, time.UTC),
 			RunId:             int16(1),
 			ScriptNode:        "node1",
-			WrittenByBatchIdx: 0,
+			WrittenByBatchIdx: int16(0),
 			Status:            NodeBatchStart,
 		}).ToMap(),
 	}
@@ -144,21 +144,21 @@ func TestNodeHistoryRowsToEventsSorting(t *testing.T) {
 			Ts:                time.Date(2001, 1, 1, 1, 1, 1, 0, time.UTC),
 			RunId:             int16(2),
 			ScriptNode:        "node1",
-			WrittenByBatchIdx: 0,
+			WrittenByBatchIdx: int16(0),
 			Status:            NodeBatchStart,
 		}).ToMap(),
 		(&NodeHistoryEvent{
 			Ts:                time.Date(2001, 1, 1, 1, 1, 1, 0, time.UTC),
 			RunId:             int16(1),
 			ScriptNode:        "node1",
-			WrittenByBatchIdx: 1,
+			WrittenByBatchIdx: int16(1),
 			Status:            NodeBatchSuccess,
 		}).ToMap(),
 		(&NodeHistoryEvent{
 			Ts:                time.Date(2001, 1, 1, 1, 1, 1, 0, time.UTC),
 			RunId:             int16(1),
 			ScriptNode:        "node1",
-			WrittenByBatchIdx: 2,
+			WrittenByBatchIdx: int16(2),
 			Status:            NodeBatchFail,
 		}).ToMap(),
 	}
@@ -205,7 +205,7 @@ func TestFigureOutRunStatusAndAffectedNodesStatusesFromNodeEvents(t *testing.T) 
 			Ts:                time.Date(2001, 1, 1, 1, 1, 5, 0, time.UTC),
 			RunId:             int16(1),
 			ScriptNode:        "node2",
-			WrittenByBatchIdx: 1,
+			WrittenByBatchIdx: int16(1),
 			Status:            NodeBatchFail,
 		}),
 		(&NodeHistoryEvent{
@@ -257,5 +257,5 @@ func TestNodeStatusMapToString(t *testing.T) {
 		"node2": NodeBatchNone,
 	}
 	s := nodeStatusMap.ToString()
-	assert.True(t, `{"node1":"fail","node2":"none"}` == s || `{"node2":"none","node1":"fail"}` == s)
+	assert.True(t, s == `{"node1":"fail","node2":"none"}` || s == `{"node2":"none","node1":"fail"}`)
 }

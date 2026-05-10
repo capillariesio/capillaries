@@ -142,12 +142,18 @@ func updateNodeStatusFromBatches(logger *l.CapiLogger, pCtx *ctx.MessageProcessi
 	defer logger.PopF()
 
 	// Check all batches for this run/node, mark node complete if needed
-	totalNodeStatus, err := wfdb.HarvestBatchStatusesForNode(logger, pCtx)
+	rows, err := wfdb.GetBatchHistoryForRunAndNode(pCtx.CqlSession, pCtx.Msg.DataKeyspace, pCtx.Msg.RunId, pCtx.Msg.TargetNodeName)
+	if err != nil {
+		return wfmodel.NodeBatchNone, err
+	}
+
+	totalNodeStatus, batchesInProgress, batchesTotal, err := wfmodel.BatchHistoryRowsToNodeStatus(rows)
 	if err != nil {
 		return wfmodel.NodeBatchNone, err
 	}
 
 	if totalNodeStatus == wfmodel.NodeBatchFail || totalNodeStatus == wfmodel.NodeBatchSuccess || totalNodeStatus == wfmodel.NodeBatchRunStopReceived {
+		logger.InfoCtx(pCtx, "node %d/%s complete, status %s", pCtx.Msg.RunId, pCtx.Msg.TargetNodeName, wfmodel.NodeBatchStatusToString(totalNodeStatus))
 		// Node processing completed, mark whole node as complete
 		var comment string
 		switch totalNodeStatus {
@@ -161,12 +167,12 @@ func updateNodeStatusFromBatches(logger *l.CapiLogger, pCtx *ctx.MessageProcessi
 			return wfmodel.NodeBatchNone, fmt.Errorf("unexpected totalNodeStatus %v by batch %d /%d", totalNodeStatus, pCtx.Msg.BatchIdx, pCtx.Msg.BatchesTotal)
 		}
 
-		err := wfdb.SetNodeStatus(logger, pCtx, totalNodeStatus, comment)
+		err := wfdb.SetNodeStatus(pCtx.CqlSession, &pCtx.Msg, totalNodeStatus, comment)
 		if err != nil {
 			return wfmodel.NodeBatchNone, err
 		}
-
-		return totalNodeStatus, nil
+	} else {
+		logger.DebugCtx(pCtx, "node %d/%s incomplete, still waiting for %d/%d batches", pCtx.Msg.RunId, pCtx.Msg.TargetNodeName, batchesInProgress, batchesTotal)
 	}
 
 	return totalNodeStatus, nil
@@ -176,13 +182,14 @@ func updateRunStatusFromNodes(logger *l.CapiLogger, pCtx *ctx.MessageProcessingC
 	logger.PushF("wf.updateRunStatusFromNodes")
 	defer logger.PopF()
 
-	// Let's see if this run is complete
-	runPropsRow, err := wfdb.GetRunProperties(pCtx.CqlSession, pCtx.Msg.DataKeyspace, pCtx.Msg.RunId)
+	// Let's see if this run is complete, get affected nodes for this run
+	runPropertiesFields := []string{"run_id", "affected_nodes"}
+	runPropsRow, err := wfdb.GetRunProperties(pCtx.CqlSession, pCtx.Msg.DataKeyspace, pCtx.Msg.RunId, runPropertiesFields)
 	if err != nil {
 		return err
 	}
 
-	runProps, err := wfmodel.NewRunPropertiesFromMap(runPropsRow, wfmodel.RunPropertiesAllFields())
+	runProps, err := wfmodel.NewRunPropertiesFromMap(runPropsRow, runPropertiesFields)
 	if err != nil {
 		return err
 	}
@@ -511,7 +518,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wf
 	// unless, say 10 workers are trying to start the same run/node/batch at the same time, which should not happen.
 	// If you start seeing contention errors from Cassandra here, introduce random waits with some backoff.
 
-	if err = wfdb.SetNodeStatus(logger, pCtx, wfmodel.NodeBatchStart, fmt.Sprintf("marked started by batch %d / %d", pCtx.Msg.BatchIdx, pCtx.Msg.BatchesTotal)); err != nil {
+	if err = wfdb.SetNodeStatus(pCtx.CqlSession, &pCtx.Msg, wfmodel.NodeBatchStart, fmt.Sprintf("marked started by batch %d / %d", pCtx.Msg.BatchIdx, pCtx.Msg.BatchesTotal)); err != nil {
 		if db.IsDbConnError(err) {
 			return mq.AcknowledgerCmdRetry
 		}

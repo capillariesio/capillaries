@@ -11,13 +11,14 @@ func BuildDependencyNodeRunStatusMap(logger *l.CapiLogger, pCtx *ctx.MessageProc
 	defer logger.PopF()
 
 	// All runs in this ks with their properties
-	rows, err := GetAllRunsProperties(pCtx.CqlSession, pCtx.Msg.DataKeyspace)
+	runPropertiesFields := []string{"run_id", "affected_nodes"}
+	rows, err := GetAllRunsProperties(pCtx.CqlSession, pCtx.Msg.DataKeyspace, runPropertiesFields)
 	if err != nil {
 		return nil, err
 	}
 
 	// Say, for current run 4 we may get [run1, run2, run3 ] and { run1: ["nodeReader"], run2: ["nodeLookup"], run3: ["nodeLookup"] }
-	depRunIds, depeRunNodesMap, err := wfmodel.MultipleRunsPropertiesToDependencies(rows, depNodeNames)
+	depRunIds, depeRunNodesMap, err := wfmodel.MultipleRunsPropertiesToDependencies(rows, depNodeNames, runPropertiesFields)
 	if err != nil {
 		return nil, err
 	}
@@ -29,6 +30,9 @@ func BuildDependencyNodeRunStatusMap(logger *l.CapiLogger, pCtx *ctx.MessageProc
 	}
 
 	sortedRunHistoryEvents, err := wfmodel.RunHistoryRowsToEvents(rows)
+	if err != nil {
+		return nil, err
+	}
 
 	// Get { run1: complete, run2: stopped, run3: complete }
 	runStatusMap := wfmodel.RunHistoryEventsToRunStatusMap(sortedRunHistoryEvents)

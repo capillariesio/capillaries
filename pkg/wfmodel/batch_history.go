@@ -113,3 +113,59 @@ func BatchHistoryRowsToEvents(rows []map[string]any) ([]*BatchHistoryEvent, erro
 	})
 	return result, nil
 }
+
+func BatchHistoryRowsToNodeStatus(rows []map[string]any) (NodeBatchStatusType, int, int, error) {
+	foundBatchesTotal := int16(-1)
+	batchesInProgress := map[int16]struct{}{}
+
+	failFound := false
+	stopReceivedFound := false
+	for _, r := range rows {
+		rec, err := NewBatchHistoryEventFromMap(r, BatchHistoryEventAllFields())
+		if err != nil {
+			return NodeBatchNone, 0, 0, fmt.Errorf("cannot deserialize batch history row [%v]: %s", r, err.Error())
+		}
+		if foundBatchesTotal == -1 {
+			foundBatchesTotal = rec.BatchesTotal
+			for i := int16(0); i < rec.BatchesTotal; i++ {
+				batchesInProgress[i] = struct{}{}
+			}
+		} else if rec.BatchesTotal != foundBatchesTotal {
+			return NodeBatchNone, 0, 0, fmt.Errorf("conflicting batches total value, was %d, now %d", foundBatchesTotal, rec.BatchesTotal)
+		}
+
+		if rec.BatchIdx >= rec.BatchesTotal || rec.BatchesTotal < 0 || rec.BatchesTotal <= 0 {
+			return NodeBatchNone, 0, 0, fmt.Errorf("invalid batch idx/total(%d/%d) when processing [%v]", rec.BatchIdx, rec.BatchesTotal, r)
+		}
+
+		if rec.Status == NodeBatchSuccess ||
+			rec.Status == NodeBatchFail ||
+			rec.Status == NodeBatchRunStopReceived {
+			delete(batchesInProgress, rec.BatchIdx)
+		}
+
+		switch rec.Status {
+		case NodeBatchFail:
+			failFound = true
+		case NodeBatchRunStopReceived:
+			stopReceivedFound = true
+		default:
+			// Nothing interesting yet
+		}
+	}
+
+	if len(batchesInProgress) == 0 {
+		nodeStatus := NodeBatchSuccess
+		if stopReceivedFound {
+			nodeStatus = NodeBatchRunStopReceived
+		}
+		// Fail has upper hand over stopped
+		if failFound {
+			nodeStatus = NodeBatchFail
+		}
+		return nodeStatus, len(batchesInProgress), int(foundBatchesTotal), nil
+	}
+
+	// Some batches are still not complete, consider it in progress until all batches are complete (via success/fail/stop)
+	return NodeBatchStart, len(batchesInProgress), int(foundBatchesTotal), nil
+}

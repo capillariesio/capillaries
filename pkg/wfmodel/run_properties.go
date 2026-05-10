@@ -64,12 +64,12 @@ func intersectTwoSlicesOfStrings(slice1, slice2 []string) []string {
 	return result
 }
 
-func MultipleRunsPropertiesToDependencies(rows []map[string]any, depNodeNames []string) ([]int16, map[int16][]string, error) {
+func MultipleRunsPropertiesToDependencies(rows []map[string]any, depNodeNames []string, runPropsFieldNames []string) ([]int16, map[int16][]string, error) {
 	depRunIds := make([]int16, 0)
 	depRunNodesMap := map[int16][]string{}
 	depNodePresentInAffectedMap := map[string]struct{}{}
 	for _, r := range rows {
-		rec, err := NewRunPropertiesFromMap(r, RunPropertiesAllFields())
+		rec, err := NewRunPropertiesFromMap(r, runPropsFieldNames)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -94,7 +94,7 @@ func MultipleRunsPropertiesToDependencies(rows []map[string]any, depNodeNames []
 	// Verify that all dep nodes are present at least once among run affected nodes
 	for _, depNodeName := range depNodeNames {
 		if _, ok := depNodePresentInAffectedMap[depNodeName]; !ok {
-			return nil, nil, fmt.Errorf("unexpectedly, dependency node %s is not present in affected node lists for runs %v, depRunNodesMap: %v. Probably an error in the way the user chose start nodes for runs: one of the dependency nodes was never touched by runs that were executed so far.", depNodeName, depRunIds, depRunNodesMap)
+			return nil, nil, fmt.Errorf("unexpectedly, dependency node %s is not present in affected node lists for runs %v, depRunNodesMap: %v; probably an error in the way the user chose start nodes for runs: one of the dependency nodes was never touched by runs that were executed so far", depNodeName, depRunIds, depRunNodesMap)
 		}
 	}
 	return depRunIds, depRunNodesMap, nil

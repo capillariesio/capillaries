@@ -50,12 +50,13 @@ func GetBatchHistoryForRunAndNode(cqlSession gocqlshims.Session, keyspace string
 		Select(wfmodel.TableNameBatchHistory, wfmodel.BatchHistoryEventAllFields())
 	rows, err := cqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		return nil, db.WrapDbErrorWithQuery("GetRunNodeBatchHistory: cannot get node batch history", q, err)
+		return nil, db.WrapDbErrorWithQuery(fmt.Sprintf("cannot get node %s/%d/%s batch history", keyspace, runId, nodeName), q, err)
 	}
 
 	return rows, err
 }
 
+/*
 func HarvestBatchStatusesForNode(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) (wfmodel.NodeBatchStatusType, error) {
 	logger.PushF("wfdb.HarvestBatchStatusesForNode")
 	defer logger.PopF()
@@ -126,6 +127,7 @@ func HarvestBatchStatusesForNode(logger *l.CapiLogger, pCtx *ctx.MessageProcessi
 	logger.DebugCtx(pCtx, "node %d/%s incomplete, still waiting for %d/%d batches", pCtx.Msg.RunId, pCtx.Msg.TargetNodeName, len(batchesInProgress), foundBatchesTotal)
 	return wfmodel.NodeBatchStart, nil
 }
+*/
 
 func SetBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, status wfmodel.NodeBatchStatusType, comment string) error {
 	logger.PushF("wfdb.SetBatchStatus")
