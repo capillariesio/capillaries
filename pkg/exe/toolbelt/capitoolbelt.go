@@ -200,7 +200,7 @@ func stopRun(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 	return 0
 }
 
-func getRunHistory(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
+func getRunHistory(envConfig *env.EnvConfig) int {
 	getRunsCmd := flag.NewFlagSet(CmdGetRunHistory, flag.ExitOnError)
 	keyspace := getRunsCmd.String("keyspace", "", "Keyspace (session id)")
 	if err := getRunsCmd.Parse(os.Args[2:]); err != nil {
@@ -214,7 +214,7 @@ func getRunHistory(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 		return 1
 	}
 
-	runs, err := api.GetRunHistory(logger, cqlSession, *keyspace)
+	runs, err := api.GetRunHistory(cqlSession, *keyspace)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
@@ -691,7 +691,7 @@ func runNode(envConfig *env.EnvConfig, logger *l.CapiLogger, nodeName string, ru
 		return 0, err
 	}
 
-	if err := wfdb.SetRunStatus(logger, cqlSession, keyspace, runId, wfmodel.RunStart, fmt.Sprintf("Toolbelt RunNode(%s)", nodeName)); err != nil {
+	if err := wfdb.SetRunStatus(cqlSession, keyspace, runId, wfmodel.RunStart, fmt.Sprintf("Toolbelt RunNode(%s)", nodeName)); err != nil {
 		return 0, err
 	}
 
@@ -742,7 +742,7 @@ func runNode(envConfig *env.EnvConfig, logger *l.CapiLogger, nodeName string, ru
 		}
 		logger.Info("BatchComplete: [%d,%d], %.3fs", intervals[i][0], intervals[i][1], time.Since(now).Seconds())
 	}
-	if err := wfdb.SetRunStatus(logger, cqlSession, keyspace, runId, wfmodel.RunComplete, fmt.Sprintf("Toolbelt RunNode(%s), run successful", nodeName)); err != nil {
+	if err := wfdb.SetRunStatus(cqlSession, keyspace, runId, wfmodel.RunComplete, fmt.Sprintf("Toolbelt RunNode(%s), run successful", nodeName)); err != nil {
 		return 0, err
 	}
 
@@ -787,7 +787,7 @@ func main() {
 		os.Exit(stopRun(envConfig, logger))
 
 	case CmdGetRunHistory:
-		os.Exit(getRunHistory(envConfig, logger))
+		os.Exit(getRunHistory(envConfig))
 
 	case CmdGetNodeHistory:
 		os.Exit(getNodeHistory(envConfig, logger))

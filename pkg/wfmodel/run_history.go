@@ -172,3 +172,22 @@ func RunHistoryEventsToLifespanMap(events []*RunHistoryEvent) (RunLifespanMap, e
 
 	return runLifespanMap, nil
 }
+
+func RunHistoryRowsToStatus(rows []map[string]any) (RunStatusType, error) {
+	lastStatus := RunNone
+	lastTs := time.Unix(0, 0)
+	fields := []string{"ts", "status"}
+	for _, r := range rows {
+		rec, err := NewRunHistoryEventFromMap(r, fields)
+		if err != nil {
+			return RunNone, fmt.Errorf("cannot deserialize status from run history row %v: %s", r, err.Error())
+		}
+
+		if rec.Ts.After(lastTs) {
+			lastTs = rec.Ts
+			lastStatus = RunStatusType(rec.Status)
+		}
+	}
+
+	return lastStatus, nil
+}

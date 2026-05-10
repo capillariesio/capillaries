@@ -6,14 +6,15 @@ import (
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/gocqlshims"
-	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
-func GetNodeHistoryForRuns(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runIds []int16, nodeNames []string) ([]map[string]any, error) {
-	logger.PushF("wfdb.GetNodeHistoryForRuns")
-	defer logger.PopF()
-
+// Used in daemon:
+//   - to update single run status from nodes
+//   - in depe checker, to obtain dependency nodes statuses
+//
+// Used by Webapi and Toolbelt (get_node_history, get_run_status_diagram commands) to retrieve each node status history for multiple runs (used by WebUI main screen and in integration tests)
+func GetNodeHistoryForRuns(cqlSession gocqlshims.Session, keyspace string, runIds []int16, nodeNames []string) ([]map[string]any, error) {
 	qb := (&cql.QueryBuilder{}).Keyspace(keyspace)
 	if len(runIds) > 0 {
 		qb.CondInInt16("run_id", runIds)
@@ -30,6 +31,9 @@ func GetNodeHistoryForRuns(logger *l.CapiLogger, cqlSession gocqlshims.Session, 
 	return rows, nil
 }
 
+// Used in daemon:
+// - to mark node as started
+// - to update node status from batches
 func SetNodeStatus(cqlSession gocqlshims.Session, msg *wfmodel.Message, status wfmodel.NodeBatchStatusType, comment string) error {
 	q := (&cql.QueryBuilder{}).
 		Keyspace(msg.DataKeyspace).
@@ -43,7 +47,7 @@ func SetNodeStatus(cqlSession gocqlshims.Session, msg *wfmodel.Message, status w
 	err := cqlSession.Query(q).Exec()
 
 	if err != nil {
-		err = db.WrapDbErrorWithQuery(fmt.Sprintf("cannot update node %d/%s status to %d", msg.RunId, msg.TargetNodeName, status), q, err)
+		err = db.WrapDbErrorWithQuery(fmt.Sprintf("cannot update node status to %d, processing batch %s", status, msg.FullBatchId()), q, err)
 		return err
 	}
 	return nil

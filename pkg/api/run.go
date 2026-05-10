@@ -28,7 +28,7 @@ func StopRun(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace strin
 		return err
 	}
 
-	return wfdb.SetRunStatus(logger, cqlSession, keyspace, runId, wfmodel.RunStop, comment)
+	return wfdb.SetRunStatus(cqlSession, keyspace, runId, wfmodel.RunStop, comment)
 }
 
 // Used by Webapi and Toolbelt (start_run command). This is the way to start Capillaries processing.
@@ -135,7 +135,7 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, mqSender mq.MqProd
 		allMsgs = append(allMsgs, msgs...)
 	}
 
-	if err := wfdb.SetRunStatus(logger, cqlSession, keyspace, runId, wfmodel.RunStart, "api.StartRun"); err != nil {
+	if err := wfdb.SetRunStatus(cqlSession, keyspace, runId, wfmodel.RunStart, "api.StartRun"); err != nil {
 		return 0, err
 	}
 

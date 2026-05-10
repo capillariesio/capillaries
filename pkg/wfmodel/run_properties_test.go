@@ -63,3 +63,23 @@ func TestMultipleRunsPropertiesToDependencies(t *testing.T) {
 	_, _, err = MultipleRunsPropertiesToDependencies(rows, []string{"affNode12", "affNodeExtra"}, runPropertiesFields)
 	assert.Contains(t, err.Error(), "cannot read int16 run_id")
 }
+
+func TestNewRunPropertiesFromMap(t *testing.T) {
+	row := (&RunProperties{
+		RunId:           int16(1),
+		StartNodes:      "startNode11,startNode12",
+		AffectedNodes:   "affNode11,affNode12",
+		ScriptUrl:       "scripturl",
+		ScriptParamsUrl: "scriptparamsurl",
+		RunDescription:  "rundesc",
+	}).ToMap()
+
+	runProps, err := NewRunPropertiesFromMap(row, RunPropertiesAllFields())
+	assert.Nil(t, err)
+	assert.Equal(t, row["run_id"], runProps.RunId)
+	assert.Equal(t, row["start_nodes"], runProps.StartNodes)
+	assert.Equal(t, row["affected_nodes"], runProps.AffectedNodes)
+	assert.Equal(t, row["script_url"], runProps.ScriptUrl)
+	assert.Equal(t, row["script_params_url"], runProps.ScriptParamsUrl)
+	assert.Equal(t, row["run_description"], runProps.RunDescription)
+}

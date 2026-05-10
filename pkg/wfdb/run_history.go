@@ -2,117 +2,37 @@ package wfdb
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
-	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/gocqlshims"
-	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
-func GetCurrentRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) (wfmodel.RunStatusType, error) {
-	logger.PushF("wfdb.GetCurrentRunStatus")
-	defer logger.PopF()
+// Used by daemon ProcessDataBatchMsg just to get run status
+func GetRunStatusRows(cqlSession gocqlshims.Session, keyspace string, runId int16) ([]map[string]any, error) {
+	if runId <= 0 {
+		return nil, fmt.Errorf("cannot retrieve status of run 0 for keyspace %s", keyspace)
+	}
 
 	fields := []string{"ts", "status"}
 	qb := cql.QueryBuilder{}
 	q := qb.
-		Keyspace(pCtx.Msg.DataKeyspace).
-		Cond("run_id", "=", pCtx.Msg.RunId).
+		Keyspace(keyspace).
+		Cond("run_id", "=", runId).
 		Select(wfmodel.TableNameRunHistory, fields)
-	rows, err := pCtx.CqlSession.Query(q).Iter().SliceMap()
-	if err != nil {
-		return wfmodel.RunNone, db.WrapDbErrorWithQuery(fmt.Sprintf("cannot query run status for %s", pCtx.Msg.FullBatchId()), q, err)
-	}
-
-	lastStatus := wfmodel.RunNone
-	lastTs := time.Unix(0, 0)
-	for _, r := range rows {
-		rec, err := wfmodel.NewRunHistoryEventFromMap(r, fields)
-		if err != nil {
-			return wfmodel.RunNone, fmt.Errorf("%s, %s", err.Error(), q)
-		}
-
-		if rec.Ts.After(lastTs) {
-			lastTs = rec.Ts
-			lastStatus = wfmodel.RunStatusType(rec.Status)
-		}
-	}
-
-	logger.DebugCtx(pCtx, "batch %s, run status %s", pCtx.Msg.FullBatchId(), lastStatus.ToString())
-	return lastStatus, nil
-}
-
-/*
-// Used by Webapi to retrieve all runs that happened in this keyspace and their current status, and by checkDependencyNodesReady
-func HarvestRunLifespans(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runIds []int16) (wfmodel.RunLifespanMap, error) {
-	logger.PushF("wfdb.HarvestRunLifespans")
-	defer logger.PopF()
-
-	qb := (&cql.QueryBuilder{}).Keyspace(keyspace)
-	if len(runIds) > 0 {
-		qb.CondInInt16("run_id", runIds)
-	}
-	q := qb.Select(wfmodel.TableNameRunHistory, wfmodel.RunHistoryEventAllFields())
 	rows, err := cqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		return nil, db.WrapDbErrorWithQuery("cannot get run statuses for a list of run ids", q, err)
+		return nil, db.WrapDbErrorWithQuery(fmt.Sprintf("cannot query run status for %s/%d", keyspace, runId), q, err)
 	}
-
-	events := make([]*wfmodel.RunHistoryEvent, len(rows))
-
-	for idx, r := range rows {
-		rec, err := wfmodel.NewRunHistoryEventFromMap(r, wfmodel.RunHistoryEventAllFields())
-		if err != nil {
-			return nil, fmt.Errorf("%s, %s", err.Error(), q)
-		}
-		events[idx] = rec
-	}
-
-	slices.SortFunc(events, func(l, r *wfmodel.RunHistoryEvent) int {
-		switch {
-		case l.Ts.Before(r.Ts):
-			return -1
-		case l.Ts.After(r.Ts):
-			return 1
-		default:
-			return 0
-		}
-	})
-
-	runLifespanMap := wfmodel.RunLifespanMap{}
-	emptyUnix := time.Time{}.Unix()
-	for _, e := range events {
-		if e.Status == wfmodel.RunStart {
-			runLifespanMap[e.RunId] = &wfmodel.RunLifespan{RunId: e.RunId, StartTs: e.Ts, StartComment: e.Comment, FinalStatus: wfmodel.RunStart, CompletedTs: time.Time{}, StoppedTs: time.Time{}}
-		} else {
-			_, ok := runLifespanMap[e.RunId]
-			if !ok {
-				return nil, fmt.Errorf("unexpected sequence of run status events: %v, %s", events, q)
-			}
-			if e.Status == wfmodel.RunComplete && runLifespanMap[e.RunId].CompletedTs.Unix() == emptyUnix {
-				runLifespanMap[e.RunId].CompletedTs = e.Ts
-				runLifespanMap[e.RunId].CompletedComment = e.Comment
-				if runLifespanMap[e.RunId].StoppedTs.Unix() == emptyUnix {
-					runLifespanMap[e.RunId].FinalStatus = wfmodel.RunComplete // If it was not stopped so far, consider it complete
-				}
-			} else if e.Status == wfmodel.RunStop && runLifespanMap[e.RunId].StoppedTs.Unix() == emptyUnix {
-				runLifespanMap[e.RunId].StoppedTs = e.Ts
-				runLifespanMap[e.RunId].StoppedComment = e.Comment
-				runLifespanMap[e.RunId].FinalStatus = wfmodel.RunStop // Stop always wins as final status, it may be sign for dependency checker to declare results invalid (depending on the rules)
-			}
-		}
-	}
-
-	return runLifespanMap, nil
+	return rows, nil
 }
-*/
 
-func SetRunStatus(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16, status wfmodel.RunStatusType, comment string) error {
-	logger.PushF("wfdb.SetRunStatus")
-	defer logger.PopF()
+// Used by daemon ProcessDataBatchMsg to update run status, by webapi/toolbelt to stop_run, webapi/toolbelt to start_run
+func SetRunStatus(cqlSession gocqlshims.Session, keyspace string, runId int16, status wfmodel.RunStatusType, comment string) error {
+	if runId <= 0 {
+		return fmt.Errorf("cannot set status of run 0 for keyspace %s", keyspace)
+	}
 
 	q := (&cql.QueryBuilder{}).
 		Keyspace(keyspace).
@@ -125,15 +45,13 @@ func SetRunStatus(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace 
 	if err != nil {
 		return db.WrapDbErrorWithQuery("cannot write run status", q, err)
 	}
-
-	logger.Debug("run %d, status %s", runId, status.ToString())
 	return nil
 }
 
-func GetRunHistory(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runIds []int16) ([]map[string]any, error) {
-	logger.PushF("wfdb.GetRunHistory")
-	defer logger.PopF()
-
+// Used by Toolbelt (get_run_history command)
+// Used by Webapi to retrieve all runs that happened in this keyspace and their current status, and by checkDependencyNodesReady
+// Used by daemon when checking dependencies
+func GetRunHistory(cqlSession gocqlshims.Session, keyspace string, runIds []int16) ([]map[string]any, error) {
 	qb := (&cql.QueryBuilder{}).Keyspace(keyspace)
 	if len(runIds) > 0 {
 		qb.CondInInt16("run_id", runIds)

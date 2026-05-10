@@ -8,10 +8,8 @@ import (
 )
 
 // Used by Toolbelt (get_run_history command) to retrieve run status history for a keyspace (used in integration tests)
-func GetRunHistory(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string) ([]*wfmodel.RunHistoryEvent, error) {
-	logger.PushF("api.GetRunHistory")
-	defer logger.PopF()
-	rows, err := wfdb.GetRunHistory(logger, cqlSession, keyspace, nil)
+func GetRunHistory(cqlSession gocqlshims.Session, keyspace string) ([]*wfmodel.RunHistoryEvent, error) {
+	rows, err := wfdb.GetRunHistory(cqlSession, keyspace, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -22,7 +20,7 @@ func GetRunHistory(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace
 func GetNodeHistoryForRuns(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runIds []int16) ([]*wfmodel.NodeHistoryEvent, error) {
 	logger.PushF("api.GetNodeHistoryForRuns")
 	defer logger.PopF()
-	rows, err := wfdb.GetNodeHistoryForRuns(logger, cqlSession, keyspace, runIds, nil)
+	rows, err := wfdb.GetNodeHistoryForRuns(cqlSession, keyspace, runIds, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +31,7 @@ func GetNodeHistoryForRuns(logger *l.CapiLogger, cqlSession gocqlshims.Session, 
 func GetBatchHistoryForRunAndNode(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16, nodeName string) ([]*wfmodel.BatchHistoryEvent, error) {
 	logger.PushF("api.GetRunNodeBatchHistory")
 	defer logger.PopF()
-	rows, err := wfdb.GetBatchHistoryForRunAndNode(cqlSession, keyspace, runId, nodeName)
+	rows, err := wfdb.GetAllBatchHistoryForRunAndNode(cqlSession, keyspace, runId, nodeName, wfmodel.BatchHistoryEventAllFields())
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +43,7 @@ func HarvestRunLifespans(logger *l.CapiLogger, cqlSession gocqlshims.Session, ke
 	logger.PushF("api.HarvestRunLifespans")
 	defer logger.PopF()
 
-	rows, err := wfdb.GetRunHistory(logger, cqlSession, keyspace, runIds)
+	rows, err := wfdb.GetRunHistory(cqlSession, keyspace, runIds)
 	if err != nil {
 		return nil, err
 	}

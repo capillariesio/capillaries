@@ -142,12 +142,13 @@ func updateNodeStatusFromBatches(logger *l.CapiLogger, pCtx *ctx.MessageProcessi
 	defer logger.PopF()
 
 	// Check all batches for this run/node, mark node complete if needed
-	rows, err := wfdb.GetBatchHistoryForRunAndNode(pCtx.CqlSession, pCtx.Msg.DataKeyspace, pCtx.Msg.RunId, pCtx.Msg.TargetNodeName)
+	fields := []string{"batch_idx", "batches_total", "status"}
+	rows, err := wfdb.GetAllBatchHistoryForRunAndNode(pCtx.CqlSession, pCtx.Msg.DataKeyspace, pCtx.Msg.RunId, pCtx.Msg.TargetNodeName, fields)
 	if err != nil {
 		return wfmodel.NodeBatchNone, err
 	}
 
-	totalNodeStatus, batchesInProgress, batchesTotal, err := wfmodel.BatchHistoryRowsToNodeStatus(rows)
+	totalNodeStatus, batchesInProgress, batchesTotal, err := wfmodel.AllBatchHistoryRowsToNodeStatus(rows, fields)
 	if err != nil {
 		return wfmodel.NodeBatchNone, err
 	}
@@ -196,7 +197,7 @@ func updateRunStatusFromNodes(logger *l.CapiLogger, pCtx *ctx.MessageProcessingC
 
 	affectedNodes := strings.Split(runProps.AffectedNodes, ",")
 
-	rows, err := wfdb.GetNodeHistoryForRuns(logger, pCtx.CqlSession, pCtx.Msg.DataKeyspace, []int16{pCtx.Msg.RunId}, affectedNodes)
+	rows, err := wfdb.GetNodeHistoryForRuns(pCtx.CqlSession, pCtx.Msg.DataKeyspace, []int16{pCtx.Msg.RunId}, affectedNodes)
 	if err != nil {
 		return err
 	}
@@ -210,7 +211,7 @@ func updateRunStatusFromNodes(logger *l.CapiLogger, pCtx *ctx.MessageProcessingC
 
 	if combinedNodeStatus == wfmodel.NodeBatchSuccess || combinedNodeStatus == wfmodel.NodeBatchFail {
 		// Mark run as complete
-		if err := wfdb.SetRunStatus(logger, pCtx.CqlSession, pCtx.Msg.DataKeyspace, pCtx.Msg.RunId, wfmodel.RunComplete, affectedNodesStatusMap.ToString()); err != nil {
+		if err := wfdb.SetRunStatus(pCtx.CqlSession, pCtx.Msg.DataKeyspace, pCtx.Msg.RunId, wfmodel.RunComplete, affectedNodesStatusMap.ToString()); err != nil {
 			return err
 		}
 	}
@@ -426,13 +427,19 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wf
 	}
 	defer pCtx.DbClose()
 
-	runStatus, err := wfdb.GetCurrentRunStatus(logger, pCtx)
+	rows, err := wfdb.GetRunStatusRows(pCtx.CqlSession, pCtx.Msg.DataKeyspace, pCtx.Msg.RunId)
 	if err != nil {
 		if db.IsDbConnError(err) {
 			logger.ErrorCtx(pCtx, "cannot get current run status for batch %s, will let other instance to retry: %s", msg.FullBatchId(), err.Error())
 			return mq.AcknowledgerCmdRetry
 		}
 		logger.ErrorCtx(pCtx, "cannot get current run status for batch %s, will ack with error: %s", msg.FullBatchId(), err.Error())
+		return mq.AcknowledgerCmdAck
+	}
+
+	runStatus, err := wfmodel.RunHistoryRowsToStatus(rows)
+	if err != nil {
+		logger.ErrorCtx(pCtx, "cannot read current run status for batch %s, will ack with error: %s", msg.FullBatchId(), err.Error())
 		return mq.AcknowledgerCmdAck
 	}
 
@@ -463,11 +470,17 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wf
 
 	logger.DebugCtx(pCtx, "started processing batch %s", msg.FullBatchId())
 
-	lastBatchStatus, lastBatchTs, err := wfdb.HarvestLastStatusForBatch(pCtx.CqlSession, &pCtx.Msg)
+	fields := []string{"ts", "status"}
+	rows, err = wfdb.GetSingleBatchStatusRows(pCtx.CqlSession, pCtx.Msg.DataKeyspace, pCtx.Msg.RunId, pCtx.Msg.TargetNodeName, pCtx.Msg.BatchIdx, fields)
 	if err != nil {
 		if db.IsDbConnError(err) {
 			return mq.AcknowledgerCmdRetry
 		}
+		return mq.AcknowledgerCmdAck
+	}
+
+	lastBatchStatus, lastBatchTs, err := wfmodel.SingleBatchHistoryRowsToLastBatchStatus(rows, fields)
+	if err != nil {
 		return mq.AcknowledgerCmdAck
 	}
 

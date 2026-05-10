@@ -91,6 +91,7 @@ func NewBatchHistoryEventFromMap(r map[string]any, fields []string) (*BatchHisto
 	return res, nil
 }
 
+// Used in Toolbelt (get_batch_history command)
 func BatchHistoryRowsToEvents(rows []map[string]any) ([]*BatchHistoryEvent, error) {
 	result := make([]*BatchHistoryEvent, len(rows))
 	for rowIdx, row := range rows {
@@ -114,14 +115,33 @@ func BatchHistoryRowsToEvents(rows []map[string]any) ([]*BatchHistoryEvent, erro
 	return result, nil
 }
 
-func BatchHistoryRowsToNodeStatus(rows []map[string]any) (NodeBatchStatusType, int, int, error) {
+// Used by daemon in the beginning of the batch processing
+func SingleBatchHistoryRowsToLastBatchStatus(rows []map[string]any, fields []string) (NodeBatchStatusType, time.Time, error) {
+	lastStatus := NodeBatchNone
+	lastTs := time.Unix(0, 0)
+	for _, r := range rows {
+		rec, err := NewBatchHistoryEventFromMap(r, fields)
+		if err != nil {
+			return NodeBatchNone, time.Unix(0, 0), fmt.Errorf("cannot deserialize batch history row %v: %s", r, err.Error())
+		}
+
+		if rec.Ts.After(lastTs) {
+			lastTs = rec.Ts
+			lastStatus = NodeBatchStatusType(rec.Status)
+		}
+	}
+	return lastStatus, lastTs, nil
+}
+
+// Used by daemon in the end of the batch processing
+func AllBatchHistoryRowsToNodeStatus(rows []map[string]any, fields []string) (NodeBatchStatusType, int, int, error) {
 	foundBatchesTotal := int16(-1)
 	batchesInProgress := map[int16]struct{}{}
 
 	failFound := false
 	stopReceivedFound := false
 	for _, r := range rows {
-		rec, err := NewBatchHistoryEventFromMap(r, BatchHistoryEventAllFields())
+		rec, err := NewBatchHistoryEventFromMap(r, fields)
 		if err != nil {
 			return NodeBatchNone, 0, 0, fmt.Errorf("cannot deserialize batch history row [%v]: %s", r, err.Error())
 		}

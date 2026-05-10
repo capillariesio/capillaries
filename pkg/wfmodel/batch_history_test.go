@@ -133,9 +133,10 @@ func TestBatchHistoryRowsToNodeStatus(t *testing.T) {
 			Status:       NodeBatchSuccess,
 		}).ToMap(),
 	}
+	fields := []string{"batch_idx", "batches_total", "status"}
 
 	// First batch fail: result fail
-	nodeStatus, batchesInProgress, batchesTotal, err := BatchHistoryRowsToNodeStatus(rows)
+	nodeStatus, batchesInProgress, batchesTotal, err := AllBatchHistoryRowsToNodeStatus(rows, fields)
 	assert.Nil(t, err)
 	assert.Equal(t, NodeBatchFail, nodeStatus)
 	assert.Equal(t, 0, batchesInProgress)
@@ -143,7 +144,7 @@ func TestBatchHistoryRowsToNodeStatus(t *testing.T) {
 
 	// First batch stopped: result stopped
 	rows[1]["status"] = int8(NodeBatchRunStopReceived)
-	nodeStatus, batchesInProgress, batchesTotal, err = BatchHistoryRowsToNodeStatus(rows)
+	nodeStatus, batchesInProgress, batchesTotal, err = AllBatchHistoryRowsToNodeStatus(rows, fields)
 	assert.Nil(t, err)
 	assert.Equal(t, NodeBatchRunStopReceived, nodeStatus)
 	assert.Equal(t, 0, batchesInProgress)
@@ -151,7 +152,7 @@ func TestBatchHistoryRowsToNodeStatus(t *testing.T) {
 
 	// Second batch fail: result fail
 	rows[3]["status"] = int8(NodeBatchFail)
-	nodeStatus, batchesInProgress, batchesTotal, err = BatchHistoryRowsToNodeStatus(rows)
+	nodeStatus, batchesInProgress, batchesTotal, err = AllBatchHistoryRowsToNodeStatus(rows, fields)
 	assert.Nil(t, err)
 	assert.Equal(t, NodeBatchFail, nodeStatus)
 	assert.Equal(t, 0, batchesInProgress)
@@ -160,7 +161,7 @@ func TestBatchHistoryRowsToNodeStatus(t *testing.T) {
 	// Both just started: result started
 	rows[1]["status"] = int8(NodeBatchStart)
 	rows[3]["status"] = int8(NodeBatchStart)
-	nodeStatus, batchesInProgress, batchesTotal, err = BatchHistoryRowsToNodeStatus(rows)
+	nodeStatus, batchesInProgress, batchesTotal, err = AllBatchHistoryRowsToNodeStatus(rows, fields)
 	assert.Nil(t, err)
 	assert.Equal(t, NodeBatchStart, nodeStatus)
 	assert.Equal(t, 2, batchesInProgress)
@@ -168,7 +169,7 @@ func TestBatchHistoryRowsToNodeStatus(t *testing.T) {
 
 	// First start, second stop: result started
 	rows[3]["status"] = int8(NodeBatchRunStopReceived)
-	nodeStatus, batchesInProgress, batchesTotal, err = BatchHistoryRowsToNodeStatus(rows)
+	nodeStatus, batchesInProgress, batchesTotal, err = AllBatchHistoryRowsToNodeStatus(rows, fields)
 	assert.Nil(t, err)
 	assert.Equal(t, NodeBatchStart, nodeStatus)
 	assert.Equal(t, 1, batchesInProgress)
@@ -177,16 +178,44 @@ func TestBatchHistoryRowsToNodeStatus(t *testing.T) {
 	// Bad input
 
 	rows[3]["status"] = "a"
-	_, _, _, err = BatchHistoryRowsToNodeStatus(rows)
+	_, _, _, err = AllBatchHistoryRowsToNodeStatus(rows, fields)
 	assert.Contains(t, err.Error(), "cannot read node/batch status")
 
 	rows[3]["status"] = int8(NodeBatchRunStopReceived)
 	rows[0]["batches_total"] = 100
-	_, _, _, err = BatchHistoryRowsToNodeStatus(rows)
+	_, _, _, err = AllBatchHistoryRowsToNodeStatus(rows, fields)
 	assert.Contains(t, err.Error(), "conflicting batches total value, was 100, now 2")
 
 	rows[0]["batches_total"] = 2
 	rows[3]["batch_idx"] = 2
-	_, _, _, err = BatchHistoryRowsToNodeStatus(rows)
+	_, _, _, err = AllBatchHistoryRowsToNodeStatus(rows, fields)
 	assert.Contains(t, err.Error(), "invalid batch idx/total(2/2)")
+}
+
+func TestSingleBatchHistoryRowsToLastBatchStatus(t *testing.T) {
+	rows := []map[string]any{
+		(&BatchHistoryEvent{
+			Ts:     time.Date(2001, 1, 1, 1, 1, 1, 0, time.UTC),
+			Status: NodeBatchStart,
+		}).ToMap(),
+		(&BatchHistoryEvent{
+			Ts:     time.Date(2001, 1, 1, 1, 1, 2, 0, time.UTC),
+			Status: NodeBatchFail,
+		}).ToMap(),
+		(&BatchHistoryEvent{
+			Ts:     time.Date(2001, 1, 1, 1, 1, 3, 0, time.UTC),
+			Status: NodeBatchRunStopReceived,
+		}).ToMap(),
+	}
+
+	fields := []string{"ts", "status"}
+
+	lastBatchStatus, lastBatchTs, err := SingleBatchHistoryRowsToLastBatchStatus(rows, fields)
+	assert.Nil(t, err)
+	assert.Equal(t, NodeBatchRunStopReceived, lastBatchStatus)
+	assert.Equal(t, rows[2]["ts"], lastBatchTs)
+
+	rows[0]["status"] = "aaa"
+	_, _, err = SingleBatchHistoryRowsToLastBatchStatus(rows, fields)
+	assert.Contains(t, err.Error(), "cannot read node/batch status status")
 }

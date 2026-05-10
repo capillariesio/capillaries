@@ -138,3 +138,28 @@ func TestRunStatusToString(t *testing.T) {
 	assert.Equal(t, "complete", RunComplete.ToString())
 	assert.Equal(t, "stop", RunStop.ToString())
 }
+
+func TestRunHistoryRowToStatus(t *testing.T) {
+	rows := []map[string]any{
+		(&RunHistoryEvent{
+			Ts:     time.Date(2001, 1, 1, 1, 1, 1, 0, time.UTC),
+			Status: RunStart,
+		}).ToMap(),
+		(&RunHistoryEvent{
+			Ts:     time.Date(2001, 1, 1, 1, 1, 2, 0, time.UTC),
+			Status: RunComplete,
+		}).ToMap(),
+		(&RunHistoryEvent{
+			Ts:     time.Date(2001, 1, 1, 1, 1, 3, 0, time.UTC),
+			Status: RunStop,
+		}).ToMap(),
+	}
+
+	status, err := RunHistoryRowsToStatus(rows)
+	assert.Nil(t, err)
+	assert.Equal(t, RunStop, status)
+
+	rows[0]["status"] = "aaa"
+	_, err = RunHistoryRowsToStatus(rows)
+	assert.Contains(t, err.Error(), "cannot read run status status")
+}

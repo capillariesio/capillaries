@@ -24,7 +24,7 @@ func BuildDependencyNodeRunStatusMap(logger *l.CapiLogger, pCtx *ctx.MessageProc
 	}
 
 	// Run history only for "dependency" runs
-	rows, err = GetRunHistory(logger, pCtx.CqlSession, pCtx.Msg.DataKeyspace, depRunIds)
+	rows, err = GetRunHistory(pCtx.CqlSession, pCtx.Msg.DataKeyspace, depRunIds)
 	if err != nil {
 		return nil, err
 	}
@@ -37,14 +37,7 @@ func BuildDependencyNodeRunStatusMap(logger *l.CapiLogger, pCtx *ctx.MessageProc
 	// Get { run1: complete, run2: stopped, run3: complete }
 	runStatusMap := wfmodel.RunHistoryEventsToRunStatusMap(sortedRunHistoryEvents)
 
-	// Get dependency node status change events
-	// q := (&cql.QueryBuilder{}).
-	// 	Keyspace(pCtx.Msg.DataKeyspace).
-	// 	CondInInt16("run_id", depRunIds).
-	// 	CondInString("script_node", depNodeNames).
-	// 	Select(wfmodel.TableNameNodeHistory, wfmodel.NodeHistoryEventAllFields())
-	// rows, err := pCtx.CqlSession.Query(q).Iter().SliceMap()
-	rows, err = GetNodeHistoryForRuns(logger, pCtx.CqlSession, pCtx.Msg.DataKeyspace, depRunIds, depNodeNames)
+	rows, err = GetNodeHistoryForRuns(pCtx.CqlSession, pCtx.Msg.DataKeyspace, depRunIds, depNodeNames)
 	if err != nil {
 		return nil, err
 	}
