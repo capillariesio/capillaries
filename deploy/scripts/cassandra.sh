@@ -393,3 +393,22 @@ if [ "$?" -ne "0" ]; then
     echo Cannot start cassandra after reconfiguring, exiting
     exit $?
 fi
+
+# "sudo systemctl status cassandra" keeps returning "active(exited)"". No idea why, but restaring helps.
+
+sleep 2
+
+sudo systemctl stop cassandra
+if [ "$?" -ne "0" ]; then
+    echo Cannot start cassandra after reconfiguring, exiting
+    exit $?
+fi
+
+sleep 2
+
+sudo systemctl start cassandra
+if [ "$?" -ne "0" ]; then
+    echo Cannot start cassandra after reconfiguring, exiting
+    exit $?
+fi
+

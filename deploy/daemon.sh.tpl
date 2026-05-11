@@ -28,6 +28,19 @@ done
 
 sleep 2
 
+# ubuntu.com may be failing, yes, even after success, don't ask me how
+while true; do
+  if sudo DEBIAN_FRONTEND=noninteractive apt-get update -y > /dev/null 2>&1; then
+    echo "Updated ubuntu"
+    break
+  else
+    echo "Ubuntu update failed. Waiting..."
+    sleep 5
+  fi
+done
+
+sleep 2
+
 while true; do
   if sudo DEBIAN_FRONTEND=noninteractive apt-get install -y unzip > /dev/null 2>&1; then
     echo "Installed unzip"
