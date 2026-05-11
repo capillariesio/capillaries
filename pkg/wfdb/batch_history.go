@@ -2,8 +2,6 @@ package wfdb
 
 import (
 	"fmt"
-	"slices"
-	"time"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
@@ -13,146 +11,35 @@ import (
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
-func HarvestLastStatusForBatch(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) (wfmodel.NodeBatchStatusType, time.Time, error) {
-	logger.PushF("wfdb.HarvestLastStatusForBatch")
-	defer logger.PopF()
-
-	fields := []string{"ts", "status"}
-	q := (&cql.QueryBuilder{}).
-		Keyspace(pCtx.Msg.DataKeyspace).
-		Cond("run_id", "=", pCtx.Msg.RunId).
-		Cond("script_node", "=", pCtx.Msg.TargetNodeName).
-		Cond("batch_idx", "=", pCtx.Msg.BatchIdx).
-		Select(wfmodel.TableNameBatchHistory, fields)
-	rows, err := pCtx.CqlSession.Query(q).Iter().SliceMap()
-	if err != nil {
-		return wfmodel.NodeBatchNone, time.Unix(0, 0), db.WrapDbErrorWithQuery(fmt.Sprintf("HarvestLastStatusForBatch: cannot get batch history for batch %s", pCtx.Msg.FullBatchId()), q, err)
-	}
-
-	lastStatus := wfmodel.NodeBatchNone
-	lastTs := time.Unix(0, 0)
-	for _, r := range rows {
-		rec, err := wfmodel.NewBatchHistoryEventFromMap(r, fields)
-		if err != nil {
-			return wfmodel.NodeBatchNone, time.Unix(0, 0), fmt.Errorf("HarvestLastStatusForBatch: : cannot deserialize batch history row: %s, %s", err.Error(), q)
-		}
-
-		if rec.Ts.After(lastTs) {
-			lastTs = rec.Ts
-			lastStatus = wfmodel.NodeBatchStatusType(rec.Status)
-		}
-	}
-
-	logger.DebugCtx(pCtx, "batch %s, status %s", pCtx.Msg.FullBatchId(), lastStatus.ToString())
-	return lastStatus, lastTs, nil
-}
-
-// Used by Webapi to retrieve batch status history for a run/node pair
-func GetRunNodeBatchHistory(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16, nodeName string) ([]*wfmodel.BatchHistoryEvent, error) {
-	logger.PushF("wfdb.GetRunNodeBatchHistory")
-	defer logger.PopF()
-
+// Used by daemon in the beginnig of the batch processing
+func GetSingleBatchStatusRows(cqlSession gocqlshims.Session, keyspace string, runId int16, nodeName string, batchIdx int16, fields []string) ([]map[string]any, error) {
 	q := (&cql.QueryBuilder{}).
 		Keyspace(keyspace).
 		Cond("run_id", "=", runId).
 		Cond("script_node", "=", nodeName).
-		Select(wfmodel.TableNameBatchHistory, wfmodel.BatchHistoryEventAllFields())
+		Cond("batch_idx", "=", batchIdx).
+		Select(wfmodel.TableNameBatchHistory, fields)
 	rows, err := cqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		return []*wfmodel.BatchHistoryEvent{}, db.WrapDbErrorWithQuery("GetRunNodeBatchHistory: cannot get node batch history", q, err)
+		return nil, db.WrapDbErrorWithQuery(fmt.Sprintf("cannot get batch history for batch %s/%d/%s/%d", keyspace, runId, nodeName, batchIdx), q, err)
 	}
 
-	result := make([]*wfmodel.BatchHistoryEvent, len(rows))
-	for rowIdx, row := range rows {
-		rec, err := wfmodel.NewBatchHistoryEventFromMap(row, wfmodel.BatchHistoryEventAllFields())
-		if err != nil {
-			return []*wfmodel.BatchHistoryEvent{}, fmt.Errorf("cannot deserialize batch node history row %s, %s", err.Error(), q)
-		}
-		result[rowIdx] = rec
-	}
-
-	slices.SortFunc(result, func(l, r *wfmodel.BatchHistoryEvent) int {
-		switch {
-		case l.Ts.Before(r.Ts):
-			return -1
-		case l.Ts.After(r.Ts):
-			return 1
-		default:
-			return 0
-		}
-	})
-	return result, nil
+	return rows, nil
 }
 
-func HarvestBatchStatusesForNode(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) (wfmodel.NodeBatchStatusType, error) {
-	logger.PushF("wfdb.HarvestBatchStatusesForNode")
-	defer logger.PopF()
-
-	fields := []string{"status", "batch_idx", "batches_total"}
+// Used by Webapi to retrieve batch status history for a run/node pair
+func GetAllBatchHistoryForRunAndNode(cqlSession gocqlshims.Session, keyspace string, runId int16, nodeName string, fields []string) ([]map[string]any, error) {
 	q := (&cql.QueryBuilder{}).
-		Keyspace(pCtx.Msg.DataKeyspace).
-		Cond("run_id", "=", pCtx.Msg.RunId).
-		Cond("script_node", "=", pCtx.Msg.TargetNodeName).
+		Keyspace(keyspace).
+		Cond("run_id", "=", runId).
+		Cond("script_node", "=", nodeName).
 		Select(wfmodel.TableNameBatchHistory, fields)
-	rows, err := pCtx.CqlSession.Query(q).Iter().SliceMap()
+	rows, err := cqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		return wfmodel.NodeBatchNone, db.WrapDbErrorWithQuery(fmt.Sprintf("harvestBatchStatusesForNode: cannot get node batch history for node %s", pCtx.Msg.FullBatchId()), q, err)
+		return nil, db.WrapDbErrorWithQuery(fmt.Sprintf("cannot get node %s/%d/%s batch history", keyspace, runId, nodeName), q, err)
 	}
 
-	foundBatchesTotal := int16(-1)
-	batchesInProgress := map[int16]struct{}{}
-
-	failFound := false
-	stopReceivedFound := false
-	for _, r := range rows {
-		rec, err := wfmodel.NewBatchHistoryEventFromMap(r, fields)
-		if err != nil {
-			return wfmodel.NodeBatchNone, fmt.Errorf("harvestBatchStatusesForNode: cannot deserialize batch history row %s, %s", err.Error(), q)
-		}
-		if foundBatchesTotal == -1 {
-			foundBatchesTotal = rec.BatchesTotal
-			for i := int16(0); i < rec.BatchesTotal; i++ {
-				batchesInProgress[i] = struct{}{}
-			}
-		} else if rec.BatchesTotal != foundBatchesTotal {
-			return wfmodel.NodeBatchNone, fmt.Errorf("conflicting batches total value, was %d, now %d: %s, %s", foundBatchesTotal, rec.BatchesTotal, q, pCtx.Msg.ToString())
-		}
-
-		if rec.BatchIdx >= rec.BatchesTotal || rec.BatchesTotal < 0 || rec.BatchesTotal <= 0 {
-			return wfmodel.NodeBatchNone, fmt.Errorf("invalid batch idx/total(%d/%d) when processing [%v]: %s, %s", rec.BatchIdx, rec.BatchesTotal, r, q, pCtx.Msg.ToString())
-		}
-
-		if rec.Status == wfmodel.NodeBatchSuccess ||
-			rec.Status == wfmodel.NodeBatchFail ||
-			rec.Status == wfmodel.NodeBatchRunStopReceived {
-			delete(batchesInProgress, rec.BatchIdx)
-		}
-
-		switch rec.Status {
-		case wfmodel.NodeBatchFail:
-			failFound = true
-		case wfmodel.NodeBatchRunStopReceived:
-			stopReceivedFound = true
-		default:
-			// Nothing interesting yet
-		}
-	}
-
-	if len(batchesInProgress) == 0 {
-		nodeStatus := wfmodel.NodeBatchSuccess
-		if stopReceivedFound {
-			nodeStatus = wfmodel.NodeBatchRunStopReceived
-		}
-		if failFound {
-			nodeStatus = wfmodel.NodeBatchFail
-		}
-		logger.InfoCtx(pCtx, "node %d/%s complete, status %s", pCtx.Msg.RunId, pCtx.Msg.TargetNodeName, nodeStatus.ToString())
-		return nodeStatus, nil
-	}
-
-	// Some batches are still not complete, and no run stop/fail/success for the whole node was signaled
-	logger.DebugCtx(pCtx, "node %d/%s incomplete, still waiting for %d/%d batches", pCtx.Msg.RunId, pCtx.Msg.TargetNodeName, len(batchesInProgress), foundBatchesTotal)
-	return wfmodel.NodeBatchStart, nil
+	return rows, err
 }
 
 func SetBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, status wfmodel.NodeBatchStatusType, comment string) error {
@@ -176,7 +63,7 @@ func SetBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, st
 		qb.Write("comment", comment)
 	}
 
-	q := qb.InsertUnpreparedQuery(wfmodel.TableNameBatchHistory, cql.IgnoreIfExists) // If not exists. First one wins.
+	q := qb.InsertUnpreparedQuery(wfmodel.TableNameBatchHistory, cql.IfExistsOverwrite)
 	err := pCtx.CqlSession.Query(q).Exec()
 	if err != nil {
 		err := db.WrapDbErrorWithQuery(fmt.Sprintf("cannot write batch %s status %d", pCtx.Msg.FullBatchId(), status), q, err)
@@ -184,6 +71,6 @@ func SetBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, st
 		return err
 	}
 
-	logger.DebugCtx(pCtx, "batch %s, set status %s", pCtx.Msg.FullBatchId(), status.ToString())
+	logger.DebugCtx(pCtx, "batch %s, set status %s", pCtx.Msg.FullBatchId(), wfmodel.NodeBatchStatusToString(status))
 	return nil
 }

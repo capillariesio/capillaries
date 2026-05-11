@@ -1,5 +1,5 @@
 <script>
-	import Tabs from "../Tabs.svelte";
+	import Tabs from '../Tabs.svelte';
 	import dayjs from 'dayjs';
 	import { onDestroy, onMount } from 'svelte';
 	import RunInfo from '../panels/RunInfo.svelte';
@@ -71,9 +71,9 @@
 		breadcrumbsPathElements = [
 			{ title: 'Keyspaces', link: rootLink() },
 			{ title: ks_name, link: ksMatrixLink(ks_name) },
-			{ title: 'run ' + run_id},
+			{ title: 'run ' + run_id },
 			{ title: 'node ' + node_name },
-			{ title: 'batch processing'}
+			{ title: 'batch processing' }
 		];
 		fetchData();
 	});
@@ -149,13 +149,12 @@
 		return result;
 	}
 
-	function trimZeroAndHundred(val){
-		if (val > 0 && val < 1.0){
+	function trimZeroAndHundred(val) {
+		if (val > 0 && val < 1.0) {
 			return 1.0;
-		} else if (val > 99 && val < 100){
+		} else if (val > 99 && val < 100) {
 			return 99.0;
-		}
-		else return val;
+		} else return val;
 	}
 
 	function calculateElapsed(batch_history) {
@@ -198,14 +197,17 @@
 		let nonStartedBatchesArray = [...Array(batch_history[0].batches_total).keys()].filter(
 			(i) => !(i in batchStartMap)
 		);
-		nonStartedBatchesPercent = trimZeroAndHundred((nonStartedBatchesArray.length.toString() / batch_history[0].batches_total.toString()) * 100);
+		nonStartedBatchesPercent = trimZeroAndHundred(
+			(nonStartedBatchesArray.length.toString() / batch_history[0].batches_total.toString()) * 100
+		);
 		nonStartedBatchesRatio =
 			nonStartedBatchesArray.length.toString() + '/' + batch_history[0].batches_total.toString();
 		nonStartedBatches = arrayToReadable(nonStartedBatchesArray);
 
 		let startedBatchesArray = Array.from(Object.keys(batchStartMap));
 		startedBatchesPercent = trimZeroAndHundred(
-			(startedBatchesArray.length.toString() / batch_history[0].batches_total.toString()) * 100);
+			(startedBatchesArray.length.toString() / batch_history[0].batches_total.toString()) * 100
+		);
 		startedBatchesRatio =
 			startedBatchesArray.length.toString() + '/' + batch_history[0].batches_total.toString();
 		startedBatches = arrayToReadable(startedBatchesArray);
@@ -214,14 +216,16 @@
 			return a - b;
 		});
 		runningBatchesPercent = trimZeroAndHundred(
-			(runningBatchesArray.length.toString() / batch_history[0].batches_total.toString()) * 100);
+			(runningBatchesArray.length.toString() / batch_history[0].batches_total.toString()) * 100
+		);
 		runningBatchesRatio =
 			runningBatchesArray.length.toString() + '/' + batch_history[0].batches_total.toString();
 		runningBatches = arrayToReadable(runningBatchesArray);
 
 		let finishedBatchesArray = Array.from(Object.keys(batchEndMap));
 		finishedBatchesPercent = trimZeroAndHundred(
-			(finishedBatchesArray.length.toString() / batch_history[0].batches_total.toString()) * 100);
+			(finishedBatchesArray.length.toString() / batch_history[0].batches_total.toString()) * 100
+		);
 		finishedBatchesRatio =
 			finishedBatchesArray.length.toString() + '/' + batch_history[0].batches_total.toString();
 		finishedBatches = arrayToReadable(finishedBatchesArray);
@@ -279,32 +283,24 @@
 		}
 
 		if (elapsed.length > 0) {
-			elapsedAverage = (elapsedSum / elapsed.length);
+			elapsedAverage = elapsedSum / elapsed.length;
 			elapsedMedian = findMedian(elapsed);
 
 			let deviationSum = 0;
 			for (let i = 0; i < batch_history.length; i++) {
 				let e = batch_history[i].elapsed;
-				deviationSum += (e-elapsedAverage)*(e-elapsedAverage)
+				deviationSum += (e - elapsedAverage) * (e - elapsedAverage);
 			}
-			let variance = deviationSum/elapsed.length;
+			let variance = deviationSum / elapsed.length;
 			elapsedStandardDeviation = Math.sqrt(variance);
-			elapsedCVPercent = (elapsedStandardDeviation/elapsedAverage*100.0);
+			elapsedCVPercent = (elapsedStandardDeviation / elapsedAverage) * 100.0;
 		}
 	}
+
 	let tabs = [
-		{ label: "Batch processing summary",
-		 value: 1,
-		 component: tabBatchProcessingSummary
-		},
-		{ label: "Batch processing history",
-		 value: 2,
-		 component: tabBatchProcessingHistory
-		},
-    	{ label: "Run info",
-		 value: 3,
-		 component: tabRunInfo
-		}
+		{ label: 'Batch processing summary', value: 1, component: tabBatchProcessingSummary },
+		{ label: 'Batch processing history', value: 2, component: tabBatchProcessingHistory },
+		{ label: 'Run info', value: 3, component: tabRunInfo }
 	];
 </script>
 
@@ -312,114 +308,138 @@
 <p style="color:red;">{responseError}</p>
 
 {#snippet tabRunInfo()}
-<RunInfo run_lifespan={webapiData.run_lifespan} run_props={webapiData.run_props} {ks_name} />
+	<RunInfo run_lifespan={webapiData.run_lifespan} run_props={webapiData.run_props} {ks_name} />
 {/snippet}
 
 {#snippet tabBatchProcessingSummary()}
-{#if executionDetailsVisible}
-<table>
-	<tbody>
-		<tr>
-			<td style="width:250px">Elapsed total:</td>
-			<td style="width:150px; text-align: right;">{nodeElapsed}s</td>
-			<td colspan="2">(not very useful, usually skewed by other nodes/runs/scripts)</td>
-		</tr>
-		<tr>
-			<td>Elapsed average:</td>
-			<td style="text-align: right;">{elapsedAverage.toFixed(1)}s</td>
-			<td colspan="2"></td>
-		</tr>
-		<tr>
-			<td>Elapsed standard deviation and CV:</td>
-			<td style="text-wrap-mode: nowrap;text-align: right;">{elapsedStandardDeviation.toFixed(2)}s ({elapsedCVPercent.toFixed(1)}%)</td>
-			<td colspan="2">(small SD means no data skew and even distribution of the CPU load)</td>
-		</tr>
-		<tr>
-			<td>Elapsed median:</td>
-			<td style="text-align: right;">{elapsedMedian.toFixed(1)}s</td>
-			<td colspan="2"></td>
-		</tr>
-		<tr>
-			<td>Batches not started:</td>
-			<td style="text-align: right;">{nonStartedBatchesPercent.toFixed(0)}%</td>
-			<td style="text-align: right; width:100px;">{nonStartedBatchesRatio}</td>
-			<td style="text-align: right; ">{nonStartedBatches}</td>
-		</tr>
-		<tr>
-			<td>Batches started:</td>
-			<td style="text-align: right;">{startedBatchesPercent.toFixed(0)}%</td>
-			<td style="text-align: right;">{startedBatchesRatio}</td>
-			<td style="text-align: right;">{startedBatches}</td>
-		</tr>
-		<tr>
-			<td>Batches running:</td>
-			<td style="text-align: right;">{runningBatchesPercent.toFixed(0)}%</td>
-			<td style="text-align: right;">{runningBatchesRatio}</td>
-			<td style="text-align: right;">{runningBatches}</td>
-		</tr>
-		<tr>
-			<td>Batches finished:</td>
-			<td style="text-align: right;">{finishedBatchesPercent.toFixed(0)}%</td>
-			<td style="text-align: right;">{finishedBatchesRatio}</td>
-			<td style="text-align: right;">{finishedBatches}</td>
-		</tr>
-	</tbody>
-</table>
-{/if}
-<div style="width:100%">
-	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-	{@html svgSummary}
+	{#if executionDetailsVisible}
+		<table>
+			<tbody>
+				<tr>
+					<td style="width:250px">Elapsed total:</td>
+					<td style="width:150px; text-align: right;">{nodeElapsed}s</td>
+					<td colspan="2">(not very useful, usually skewed by other nodes/runs/scripts)</td>
+				</tr>
+				<tr>
+					<td>Elapsed average:</td>
+					<td style="text-align: right;">{elapsedAverage.toFixed(1)}s</td>
+					<td colspan="2"></td>
+				</tr>
+				<tr>
+					<td>Elapsed standard deviation and CV:</td>
+					<td style="text-wrap-mode: nowrap;text-align: right;"
+						>{elapsedStandardDeviation.toFixed(2)}s ({elapsedCVPercent.toFixed(1)}%)</td
+					>
+					<td colspan="2">(small SD means no data skew and even distribution of the CPU load)</td>
+				</tr>
+				<tr>
+					<td>Elapsed median:</td>
+					<td style="text-align: right;">{elapsedMedian.toFixed(1)}s</td>
+					<td colspan="2"></td>
+				</tr>
+				<tr>
+					<td>Batches not started:</td>
+					<td style="text-align: right;">{nonStartedBatchesPercent.toFixed(0)}%</td>
+					<td style="text-align: right; width:100px;">{nonStartedBatchesRatio}</td>
+					<td style="text-align: right; ">{nonStartedBatches}</td>
+				</tr>
+				<tr>
+					<td>Batches started:</td>
+					<td style="text-align: right;">{startedBatchesPercent.toFixed(0)}%</td>
+					<td style="text-align: right;">{startedBatchesRatio}</td>
+					<td style="text-align: right;">{startedBatches}</td>
+				</tr>
+				<tr>
+					<td>Batches running:</td>
+					<td style="text-align: right;">{runningBatchesPercent.toFixed(0)}%</td>
+					<td style="text-align: right;">{runningBatchesRatio}</td>
+					<td style="text-align: right;">{runningBatches}</td>
+				</tr>
+				<tr>
+					<td>Batches finished:</td>
+					<td style="text-align: right;">{finishedBatchesPercent.toFixed(0)}%</td>
+					<td style="text-align: right;">{finishedBatchesRatio}</td>
+					<td style="text-align: right;">{finishedBatches}</td>
+				</tr>
+			</tbody>
+		</table>
+	{/if}
+	<div style="width:100%">
+		<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+		{@html svgSummary}
 
-	<div style="float: left;">{dayjs(earliestDatetime).format('MMM D, YYYY HH:mm:ss.SSS Z')}</div>
-	<div style="float: right;">{dayjs(latestDatetime).format('MMM D, YYYY HH:mm:ss.SSS Z')}</div>
-	
-</div>
+		<div style="float: left;">{dayjs(earliestDatetime).format('MMM D, YYYY HH:mm:ss.SSS Z')}</div>
+		<div style="float: right;">{dayjs(latestDatetime).format('MMM D, YYYY HH:mm:ss.SSS Z')}</div>
+	</div>
 {/snippet}
 
 {#snippet tabBatchProcessingHistory()}
-<table>
-	<thead>
-		<tr>
-			<th>Timestamp</th>
-			<th>Batch</th>
-			<th>Status</th>
-			<th>Elapsed</th>
-			<th>First token</th>
-			<th>Last token</th>
-			<th>Host/Instance</th>
-			<th>Thread</th>
-			<th>Comment</th>
-		</tr>
-	</thead>
-	<tbody>
-		{#each webapiData.batch_history as e}
+	<table>
+		<thead>
 			<tr>
-				<td style="white-space: nowrap;">{dayjs(e.ts).format('MMM D, YYYY HH:mm:ss.SSS Z')}</td>
-				<td>{e.batch_idx} / {e.batches_total}</td>
-				<td
-					><img
-						src={nodeStatusToIconStatic(e.status)}
-						title={nodeStatusToText(e.status)}
-						alt=""
-					/></td
-				>
-				<td
-					>{#if e.elapsed > 0}
-						{e.elapsed}
-					{/if}</td
-				>
-				<td>{e.first_token}</td>
-				<td>{e.last_token}</td>
-				<td>{e.instance}</td>
-				<td>{e.thread}</td>
-				<td>{e.comment}</td>
+				<th>Timestamp</th>
+				<th>Batch</th>
+				<th>Status</th>
+				<th>Elapsed</th>
+				<th>First token</th>
+				<th>Last token</th>
+				<th>Host/Instance</th>
+				<th>Thread</th>
+				<th>Comment</th>
 			</tr>
-		{/each}
-	</tbody>
-</table>
+		</thead>
+		<tbody>
+			{#each webapiData.batch_history as e}
+				<tr>
+					<td style="white-space: nowrap;">{dayjs(e.ts).format('MMM D, YYYY HH:mm:ss.SSS Z')}</td>
+					<td>{e.batch_idx} / {e.batches_total}</td>
+					<td
+						><img
+							src={nodeStatusToIconStatic(e.status)}
+							title={nodeStatusToText(e.status)}
+							alt=""
+						/></td
+					>
+					<td
+						>{#if e.elapsed > 0}
+							{e.elapsed}
+						{/if}</td
+					>
+					<td>{e.first_token}</td>
+					<td>{e.last_token}</td>
+					<td>{e.instance}</td>
+					<td>{e.thread}</td>
+					<td>
+						<!-- See wfdb.SetBatchStatus() calls for all possible comment values -->
+						{#if e.status == 2}
+							{#each e.comment.split(';') as badgeContent}
+								{#if (badgeContent.trim().startsWith('row_reads'))}
+									<span class="badge row-ops">{badgeContent}</span>
+								{:else if (badgeContent.trim().startsWith('row_writes'))}
+									<span class="badge row-ops">{badgeContent}</span>
+								{:else if (badgeContent.trim().startsWith('data_inserts'))}
+									<span class="badge db-ops">{badgeContent}</span>
+								{:else if (badgeContent.trim().startsWith('idx_inserts'))}
+									<span class="badge db-ops">{badgeContent}</span>
+								{:else if (badgeContent && badgeContent.trim().length > 0)}
+									<span class="badge other">{badgeContent}</span>
+								{/if}
+							{/each}
+						{:else if e.status == 3}
+							<span class="badge failure">{e.comment}</span>
+						{:else if e.status == 104}
+							<span class="badge stopped">{e.comment}</span>
+						{:else}
+							{e.comment}
+						{/if}
+					</td>
+				</tr>
+			{/each}
+		</tbody>
+	</table>
 {/snippet}
 
-<Tabs items={tabs}/>
+<Tabs items={tabs} />
 
 <style>
 	th {
@@ -430,5 +450,43 @@
 	}
 	img {
 		width: 20px;
+	}
+	.badge {
+		display: inline-block;
+		padding: 0.25em 0.4em;
+		font-size: 75%;
+		font-weight: 400;
+		line-height: 1;
+		text-align: center;
+		white-space: nowrap;
+		white-space-collapse: collapse;
+		text-wrap-mode: nowrap;
+		vertical-align: baseline;
+		border-radius: 0.25rem;
+		border-width: thin;
+		border-style: solid;
+		margin: 1px;
+	}
+	.row-ops {
+		background-color: #46923c;
+		border-color: transparent;
+		color: white;
+	}
+	.db-ops {
+		background-color: #8bca84;
+		border-color: transparent;
+		color: black;
+	}
+	.stopped {
+		background-color: #FBA141;
+		border-color: transparent;
+	}
+	.failure {
+		background-color: #F84143;
+		border-color: transparent;
+	}
+	.other {
+		background-color: #E0E0E0;
+		border-color: transparent;
 	}
 </style>

@@ -25,7 +25,7 @@ func TestInsertRunParams(t *testing.T) {
 	qb := NewQB()
 	assert.Nil(t, qb.WritePreparedColumn("param_name"))
 	assert.Nil(t, qb.WritePreparedValue("param_name", "param_value"))
-	q, err := qb.Keyspace("ks1").InsertRunPreparedQuery("table1", 1, IgnoreIfExists)
+	q, err := qb.Keyspace("ks1").InsertRunPreparedQuery("table1", 1, IfNotExistsLwt)
 	assert.Nil(t, err)
 	assert.Equal(t, "INSERT INTO ks1.table1_00001 ( param_name ) VALUES ( ? ) IF NOT EXISTS;", q)
 
@@ -39,7 +39,7 @@ func TestInsert(t *testing.T) {
 		Write("col1", "val1").
 		Write("col2", 2).
 		WriteForceUnquote("col3", "now()")
-	assert.Equal(t, fmt.Sprintf(qTemplate, "_00123"), qb.insertRunUnpreparedQuery("table1", 123, IgnoreIfExists))
+	assert.Equal(t, fmt.Sprintf(qTemplate, "_00123"), qb.insertRunUnpreparedQuery("table1", 123, IfNotExistsLwt))
 }
 
 func TestDropKeyspace(t *testing.T) {
@@ -95,7 +95,7 @@ func TestCreateRun(t *testing.T) {
 		ColumnDef("col_float", evalcapi.FieldTypeFloat).
 		PartitionKey("col_int", "col_decimal2").
 		ClusteringKey("col_bool", "col_float")
-	assert.Equal(t, fmt.Sprintf(qTemplate, "_00123"), qb.CreateRun("table1", 123, IgnoreIfExists, "WITH PROPERTIES BLA"))
+	assert.Equal(t, fmt.Sprintf(qTemplate, "_00123"), qb.CreateRun("table1", 123, IfNotExistsLwt, "WITH PROPERTIES BLA"))
 }
 
 func TestInsertPrepared(t *testing.T) {
@@ -104,7 +104,7 @@ func TestInsertPrepared(t *testing.T) {
 	assert.Nil(t, err)
 	err = dataQb.WritePreparedValue("col_int", 2)
 	assert.Nil(t, err)
-	s, _ := dataQb.InsertRunPreparedQuery("table1", 123, IgnoreIfExists)
+	s, _ := dataQb.InsertRunPreparedQuery("table1", 123, IfNotExistsLwt)
 	assert.Equal(t, "INSERT INTO table1_00123 ( col_int ) VALUES ( ? ) IF NOT EXISTS;", s)
 }
 

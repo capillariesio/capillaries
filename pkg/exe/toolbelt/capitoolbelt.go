@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/api"
-	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/custom/pycalc"
 	"github.com/capillariesio/capillaries/pkg/custom/taganddenormalize"
 	"github.com/capillariesio/capillaries/pkg/db"
@@ -201,7 +200,7 @@ func stopRun(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 	return 0
 }
 
-func getRunHistory(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
+func getRunHistory(envConfig *env.EnvConfig) int {
 	getRunsCmd := flag.NewFlagSet(CmdGetRunHistory, flag.ExitOnError)
 	keyspace := getRunsCmd.String("keyspace", "", "Keyspace (session id)")
 	if err := getRunsCmd.Parse(os.Args[2:]); err != nil {
@@ -215,7 +214,7 @@ func getRunHistory(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 		return 1
 	}
 
-	runs, err := api.GetRunHistory(logger, cqlSession, *keyspace)
+	runs, err := api.GetRunHistory(cqlSession, *keyspace)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
@@ -263,8 +262,8 @@ func getNodeHistory(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 func getBatchHistory(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 	getBatchHistoryCmd := flag.NewFlagSet(CmdGetBatchHistory, flag.ExitOnError)
 	keyspace := getBatchHistoryCmd.String("keyspace", "", "Keyspace (session id)")
-	runIdsString := getBatchHistoryCmd.String("run_ids", "", "Limit results to specific run ids (optional), comma-separated list")
-	nodeNamesString := getBatchHistoryCmd.String("nodes", "", "Limit results to specific node names (optional), comma-separated list")
+	runIdString := getBatchHistoryCmd.String("run_id", "", "Limit results to specific run id")
+	nodeNameString := getBatchHistoryCmd.String("node", "", "Limit results to specific node name")
 	if err := getBatchHistoryCmd.Parse(os.Args[2:]); err != nil {
 		usage(getBatchHistoryCmd)
 		return 0
@@ -276,20 +275,18 @@ func getBatchHistory(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 		return 1
 	}
 
-	runIds, err := stringToArrayOfInt16(*runIdsString)
+	runId, err := strconv.ParseInt(strings.TrimSpace(*runIdString), 10, 16)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
 	}
 
-	var nodeNames []string
-	if len(strings.TrimSpace(*nodeNamesString)) > 0 {
-		nodeNames = strings.Split(*nodeNamesString, ",")
-	} else {
-		nodeNames = make([]string, 0)
+	if len(*nodeNameString) == 0 {
+		fmt.Fprintln(os.Stderr, "empty node name")
+		return 1
 	}
 
-	runs, err := api.GetBatchHistoryForRunsAndNodes(logger, cqlSession, *keyspace, runIds, nodeNames)
+	runs, err := api.GetBatchHistoryForRunAndNode(logger, cqlSession, *keyspace, int16(runId), *nodeNameString)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
@@ -694,8 +691,7 @@ func runNode(envConfig *env.EnvConfig, logger *l.CapiLogger, nodeName string, ru
 		return 0, err
 	}
 
-	// Write status 'start', fail if a record for run_id is already there (too many operators)
-	if err := wfdb.SetRunStatus(logger, cqlSession, keyspace, runId, wfmodel.RunStart, fmt.Sprintf("Toolbelt RunNode(%s)", nodeName), cql.ThrowIfExists); err != nil {
+	if err := wfdb.SetRunStatus(cqlSession, keyspace, runId, wfmodel.RunStart, fmt.Sprintf("Toolbelt RunNode(%s)", nodeName)); err != nil {
 		return 0, err
 	}
 
@@ -746,7 +742,7 @@ func runNode(envConfig *env.EnvConfig, logger *l.CapiLogger, nodeName string, ru
 		}
 		logger.Info("BatchComplete: [%d,%d], %.3fs", intervals[i][0], intervals[i][1], time.Since(now).Seconds())
 	}
-	if err := wfdb.SetRunStatus(logger, cqlSession, keyspace, runId, wfmodel.RunComplete, fmt.Sprintf("Toolbelt RunNode(%s), run successful", nodeName), cql.IgnoreIfExists); err != nil {
+	if err := wfdb.SetRunStatus(cqlSession, keyspace, runId, wfmodel.RunComplete, fmt.Sprintf("Toolbelt RunNode(%s), run successful", nodeName)); err != nil {
 		return 0, err
 	}
 
@@ -791,7 +787,7 @@ func main() {
 		os.Exit(stopRun(envConfig, logger))
 
 	case CmdGetRunHistory:
-		os.Exit(getRunHistory(envConfig, logger))
+		os.Exit(getRunHistory(envConfig))
 
 	case CmdGetNodeHistory:
 		os.Exit(getNodeHistory(envConfig, logger))

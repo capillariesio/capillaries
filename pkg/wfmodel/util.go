@@ -2,8 +2,6 @@ package wfmodel
 
 import (
 	"fmt"
-	"reflect"
-	"strings"
 	"time"
 )
 
@@ -11,81 +9,6 @@ const WfmodelNamespace string = "wfmodel"
 const PrintTableDelimiter = "/"
 
 const LogTsFormatQuoted = `"2006-01-02T15:04:05.000-0700"`
-
-// GetSpacedHeader - prints formatted struct field names, uses reflection, shoud not be used in prod
-func GetSpacedHeader(n any) string {
-	t := reflect.TypeOf(n)
-	columns := make([]string, t.NumField())
-	for i := 0; i < t.NumField(); i++ {
-		field := t.FieldByIndex([]int{i})
-		h, ok := field.Tag.Lookup("header")
-		if ok {
-			f, ok := field.Tag.Lookup("format")
-			if ok {
-				columns[i] = fmt.Sprintf(f, h)
-			} else {
-				columns[i] = fmt.Sprintf("%v", h)
-			}
-		} else {
-			columns[i] = "N/A"
-		}
-
-	}
-	return strings.Join(columns, PrintTableDelimiter)
-}
-
-/*
-GetObjectModelFieldFormats - helper to get formats for each field of an object model
-*/
-func GetObjectModelFieldFormats(t reflect.Type) []string {
-	formats := make([]string, t.NumField())
-
-	for i := 0; i < t.NumField(); i++ {
-		field := t.FieldByIndex([]int{i})
-		f, ok := field.Tag.Lookup("format")
-		if ok {
-			formats[i] = f
-		} else {
-			formats[i] = "%v"
-		}
-	}
-	return formats
-}
-
-func GetCreateTableCql(t reflect.Type, keyspace string, tableName string) string {
-
-	columnDefs := make([]string, t.NumField())
-	keyDefs := make([]string, t.NumField())
-	keyCount := 0
-
-	for i := 0; i < t.NumField(); i++ {
-		field := t.FieldByIndex([]int{i})
-		cqlColumn, ok := field.Tag.Lookup("column")
-		if ok {
-			cqlType, ok := field.Tag.Lookup("type")
-			if ok {
-				columnDefs[i] = fmt.Sprintf("%s %s", cqlColumn, cqlType)
-				cqlKeyFlag, ok := field.Tag.Lookup("key")
-				if ok && cqlKeyFlag == "true" {
-					keyDefs[keyCount] = cqlColumn
-					keyCount++
-				}
-			} else {
-				columnDefs[i] = fmt.Sprintf("no type for field %s", field.Name)
-			}
-		} else {
-			columnDefs[i] = fmt.Sprintf("no column name for field %s", field.Name)
-		}
-	}
-
-	// For Amazon Keyspaces, you may add
-	// WITH CUSTOM_PROPERTIES = {'capacity_mode':{'throughput_mode':'PROVISIONED','write_capacity_units':1000,'read_capacity_units':1000}}
-	return fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s.%s (%s, PRIMARY KEY(%s));",
-		keyspace,
-		tableName,
-		strings.Join(columnDefs, ", "),
-		strings.Join(keyDefs[:keyCount], ", "))
-}
 
 func ReadTimeFromRow(fieldName string, r map[string]any) (time.Time, error) {
 	v, ok := r[fieldName].(time.Time)

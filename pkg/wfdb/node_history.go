@@ -2,188 +2,53 @@ package wfdb
 
 import (
 	"fmt"
-	"slices"
-	"time"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
-	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/gocqlshims"
-	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
-func HarvestNodeStatusesForRun(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, affectedNodes []string) (wfmodel.NodeBatchStatusType, string, error) {
-	logger.PushF("wfdb.HarvestNodeStatusesForRun")
-	defer logger.PopF()
-
-	fields := []string{"script_node", "status"}
-	q := (&cql.QueryBuilder{}).
-		Keyspace(pCtx.Msg.DataKeyspace).
-		Cond("run_id", "=", pCtx.Msg.RunId).
-		CondInString("script_node", affectedNodes). // TODO: Is this really necessary? Shouldn't run id be enough? Of course, it's safer to be extra cautious, but...?
-		Select(wfmodel.TableNameNodeHistory, fields)
-	rows, err := pCtx.CqlSession.Query(q).Iter().SliceMap()
-	if err != nil {
-		return wfmodel.NodeBatchNone, "", db.WrapDbErrorWithQuery(fmt.Sprintf("cannot get node history for %s", pCtx.Msg.FullBatchId()), q, err)
+// Used in daemon:
+//   - to update single run status from nodes
+//   - in depe checker, to obtain dependency nodes statuses
+//
+// Used by Webapi and Toolbelt (get_node_history, get_run_status_diagram commands) to retrieve each node status history for multiple runs (used by WebUI main screen and in integration tests)
+func GetNodeHistoryForRuns(cqlSession gocqlshims.Session, keyspace string, runIds []int16, nodeNames []string) ([]map[string]any, error) {
+	qb := (&cql.QueryBuilder{}).Keyspace(keyspace)
+	if len(runIds) > 0 {
+		qb.CondInInt16("run_id", runIds)
 	}
-
-	nodeStatusMap := wfmodel.NodeStatusMap{}
-	for _, affectedNodeName := range affectedNodes {
-		nodeStatusMap[affectedNodeName] = wfmodel.NodeBatchNone
+	if len(nodeNames) > 0 {
+		qb.CondInString("script_node", nodeNames)
 	}
-
-	nodeEvents := make([]*wfmodel.NodeHistoryEvent, len(rows))
-
-	for idx, r := range rows {
-		rec, err := wfmodel.NewNodeHistoryEventFromMap(r, fields)
-		if err != nil {
-			return wfmodel.NodeBatchNone, "", fmt.Errorf("cannot deserialize node history row %s, %s", err.Error(), q)
-		}
-		nodeEvents[idx] = rec
-	}
-
-	slices.SortFunc(nodeEvents, func(l, r *wfmodel.NodeHistoryEvent) int {
-		switch {
-		case l.Ts.Before(r.Ts):
-			return -1
-		case l.Ts.After(r.Ts):
-			return 1
-		default:
-			return 0
-		}
-	})
-
-	for _, e := range nodeEvents {
-		lastStatus, ok := nodeStatusMap[e.ScriptNode]
-		if !ok {
-			nodeStatusMap[e.ScriptNode] = e.Status
-		} else {
-			// Stopreceived is higher priority than anything else
-			if lastStatus != wfmodel.NodeBatchRunStopReceived {
-				nodeStatusMap[e.ScriptNode] = e.Status
-			}
-		}
-	}
-
-	highestStatus := wfmodel.NodeBatchNone
-	lowestStatus := wfmodel.NodeBatchRunStopReceived
-	for _, status := range nodeStatusMap {
-		if status > highestStatus {
-			highestStatus = status
-		}
-		if status < lowestStatus {
-			lowestStatus = status
-		}
-	}
-
-	if lowestStatus > wfmodel.NodeBatchStart {
-		logger.InfoCtx(pCtx, "run %d complete, status map %s", pCtx.Msg.RunId, nodeStatusMap.ToString())
-		return highestStatus, nodeStatusMap.ToString(), nil
-	}
-
-	logger.DebugCtx(pCtx, "run %d incomplete, lowest status %s, status map %s", pCtx.Msg.RunId, lowestStatus.ToString(), nodeStatusMap.ToString())
-	return lowestStatus, nodeStatusMap.ToString(), nil
-}
-
-func HarvestNodeLifespans(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, affectingRuns []int16, affectedNodes []string) (wfmodel.RunNodeLifespanMap, error) {
-	logger.PushF("wfdb.HarvestNodeLifespans")
-	defer logger.PopF()
-
-	fields := []string{"ts", "run_id", "script_node", "status"}
-	q := (&cql.QueryBuilder{}).
-		Keyspace(pCtx.Msg.DataKeyspace).
-		CondInInt16("run_id", affectingRuns).
-		CondInString("script_node", affectedNodes).
-		Select(wfmodel.TableNameNodeHistory, fields)
-	rows, err := pCtx.CqlSession.Query(q).Iter().SliceMap()
-	if err != nil {
-		return nil, db.WrapDbErrorWithQuery("cannot get node history", q, err)
-	}
-
-	runNodeLifespanMap := wfmodel.RunNodeLifespanMap{}
-	for _, runId := range affectingRuns {
-		runNodeLifespanMap[runId] = wfmodel.NodeLifespanMap{}
-		for _, nodeName := range affectedNodes {
-			runNodeLifespanMap[runId][nodeName] = &wfmodel.NodeLifespan{
-				StartTs:      time.Time{},
-				LastStatus:   wfmodel.NodeBatchNone,
-				LastStatusTs: time.Time{}}
-		}
-	}
-
-	for _, r := range rows {
-		rec, err := wfmodel.NewNodeHistoryEventFromMap(r, fields)
-		if err != nil {
-			return nil, fmt.Errorf("%s, %s", err.Error(), q)
-		}
-
-		nodeLifespanMap, ok := runNodeLifespanMap[rec.RunId]
-		if !ok {
-			return nil, fmt.Errorf("unexpected run_id %d in the result %s", rec.RunId, q)
-		}
-
-		if rec.Status == wfmodel.NodeStart {
-			nodeLifespanMap[rec.ScriptNode].StartTs = rec.Ts
-		}
-
-		// Later status wins, Stop always wins
-		if rec.Ts.After(nodeLifespanMap[rec.ScriptNode].LastStatusTs) || rec.Status == wfmodel.NodeBatchRunStopReceived {
-			nodeLifespanMap[rec.ScriptNode].LastStatus = rec.Status
-			nodeLifespanMap[rec.ScriptNode].LastStatusTs = rec.Ts
-		}
-	}
-	return runNodeLifespanMap, nil
-}
-
-func SetNodeStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, status wfmodel.NodeBatchStatusType, comment string) (bool, error) {
-	logger.PushF("wfdb.SetNodeStatus")
-	defer logger.PopF()
-
-	q := (&cql.QueryBuilder{}).
-		Keyspace(pCtx.Msg.DataKeyspace).
-		WriteForceUnquote("ts", "toTimestamp(now())").
-		Write("run_id", pCtx.Msg.RunId).
-		Write("script_node", pCtx.Msg.TargetNodeName).
-		Write("status", status).
-		Write("comment", comment).
-		InsertUnpreparedQuery(wfmodel.TableNameNodeHistory, cql.IgnoreIfExists) // If not exists. First one wins.
-
-	existingDataRow := map[string]any{}
-	isApplied, err := pCtx.CqlSession.Query(q).MapScanCAS(existingDataRow)
-
-	if err != nil {
-		err = db.WrapDbErrorWithQuery(fmt.Sprintf("cannot update node %d/%s status to %d", pCtx.Msg.RunId, pCtx.Msg.TargetNodeName, status), q, err)
-		logger.ErrorCtx(pCtx, "%s", err.Error())
-		return false, err
-	}
-	logger.DebugCtx(pCtx, "%d/%s, %s, isApplied=%t", pCtx.Msg.RunId, pCtx.Msg.TargetNodeName, status.ToString(), isApplied)
-	return isApplied, nil
-}
-
-// Used by Webapi to retrieve each node status history for a run
-func GetNodeHistoryForRun(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16) ([]*wfmodel.NodeHistoryEvent, error) {
-	logger.PushF("wfdb.GetNodeHistoryForRun")
-	defer logger.PopF()
-
-	q := (&cql.QueryBuilder{}).
-		Keyspace(keyspace).
-		Cond("run_id", "=", runId).
-		Select(wfmodel.TableNameNodeHistory, wfmodel.NodeHistoryEventAllFields())
+	q := qb.Select(wfmodel.TableNameNodeHistory, wfmodel.NodeHistoryEventAllFields())
 	rows, err := cqlSession.Query(q).Iter().SliceMap()
 	if err != nil {
-		return []*wfmodel.NodeHistoryEvent{}, db.WrapDbErrorWithQuery(fmt.Sprintf("cannot get node history for run %d", runId), q, err)
+		return nil, db.WrapDbErrorWithQuery(fmt.Sprintf("cannot get node history for %s, %v, %v", keyspace, runIds, nodeNames), q, err)
 	}
 
-	result := make([]*wfmodel.NodeHistoryEvent, len(rows))
+	return rows, nil
+}
 
-	for idx, r := range rows {
-		rec, err := wfmodel.NewNodeHistoryEventFromMap(r, wfmodel.NodeHistoryEventAllFields())
-		if err != nil {
-			return []*wfmodel.NodeHistoryEvent{}, fmt.Errorf("cannot deserialize node history row %s, %s", err.Error(), q)
-		}
-		result[idx] = rec
+// Used in daemon:
+// - to mark node as started
+// - to update node status from batches
+func SetNodeStatus(cqlSession gocqlshims.Session, msg *wfmodel.Message, status wfmodel.NodeBatchStatusType, comment string) error {
+	q := (&cql.QueryBuilder{}).
+		Keyspace(msg.DataKeyspace).
+		WriteForceUnquote("ts", "toTimestamp(now())").
+		Write("run_id", msg.RunId).
+		Write("script_node", msg.TargetNodeName).
+		Write("written_by_batch_idx", msg.BatchIdx).
+		Write("status", status).
+		Write("comment", comment).
+		InsertUnpreparedQuery(wfmodel.TableNameNodeHistory, cql.IfExistsOverwrite) // To avoid contention, overwrite
+	err := cqlSession.Query(q).Exec()
+
+	if err != nil {
+		err = db.WrapDbErrorWithQuery(fmt.Sprintf("cannot update node status to %d, processing batch %s", status, msg.FullBatchId()), q, err)
+		return err
 	}
-
-	return result, nil
+	return nil
 }

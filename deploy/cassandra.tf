@@ -11,7 +11,7 @@ resource "aws_network_interface" "cassandra_internal_ip" {
 
 locals {
   # Make sure it matched the list of expected variables in cassandra.sh (cassandra_internal_ip_map, cassandra_initial_token_map, cassandra_nvme_regex_map add to it too)
-  cassandra_provisioner_common_vars = "SSH_USER=${var.ssh_user} S3_LOG_URL=${var.s3_log_url} PROMETHEUS_JMX_EXPORTER_FILENAME=${local.prometheus_jmx_exporter_filename} PROMETHEUS_NODE_EXPORTER_FILENAME=${local.prometheus_node_exporter_filename} CASSANDRA_VERSION=${var.cassandra_version} CASSANDRA_HOSTS=${local.cassandra_hosts} CAPILLARIES_RELEASE_URL=${var.capillaries_release_url}"
+  cassandra_provisioner_common_vars = "SSH_USER=${var.ssh_user} S3_LOG_URL=${var.s3_log_url} PROMETHEUS_JMX_EXPORTER_FILENAME=${local.prometheus_jmx_exporter_filename} PROMETHEUS_NODE_EXPORTER_FILENAME=${local.prometheus_node_exporter_filename} CASSANDRA_FILENAME=${local.cassandra_filename} CASSANDRA_HOSTS=${local.cassandra_hosts} CAPILLARIES_RELEASE_URL=${var.capillaries_release_url}"
   cassandra_internal_ip_map   = { for i in range(var.number_of_cassandra_hosts): i => format("CASSANDRA_INTERNAL_IP=10.5.0.%02s", i+11) }
   cassandra_initial_token_map = { for i in range(var.number_of_cassandra_hosts): i => format("CASSANDRA_INITIAL_TOKEN=%s", local.cassandra_initial_tokens[i]) }
   cassandra_nvme_regex_map    = { for i in range(var.number_of_cassandra_hosts): i => format("CASSANDRA_NVME_REGEX=\"%s\"", var.nvme_regex_map[var.cassandra_instance_type]) }
@@ -27,9 +27,8 @@ resource "aws_instance" "cassandra" {
   ami                    = var.cassandra_ami_name
   count                  = var.number_of_cassandra_hosts
   key_name               = var.ssh_keypair_name
-  network_interface {
+  primary_network_interface {
     network_interface_id = aws_network_interface.cassandra_internal_ip[count.index].id
-    device_index         = 0
   }
   # Cassandra node needs to assume this role to access S3 bucket to get cloud-init cassandra.sh
   iam_instance_profile = aws_iam_instance_profile.capillaries_instance_profile.name

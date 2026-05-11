@@ -182,7 +182,7 @@ var NodeDescCache = map[string]string{}
 var NodeDescCacheTs = map[string]time.Time{}
 var NodeDescCacheLock = sync.RWMutex{}
 
-func (h *UrlHandler) getNodeDesc(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16, nodeName string) (string, error) {
+func (h *UrlHandler) getNodeDesc(cqlSession gocqlshims.Session, keyspace string, runId int16, nodeName string) (string, error) {
 
 	nodeKey := keyspace + ":" + nodeName
 	NodeDescCacheLock.RLock()
@@ -194,8 +194,8 @@ func (h *UrlHandler) getNodeDesc(logger *l.CapiLogger, cqlSession gocqlshims.Ses
 	}
 
 	// Static run props
-
-	runProps, err := getRunProps(logger, cqlSession, keyspace, runId)
+	runPropsFields := []string{"run_id", "script_url", "script_params_url"}
+	runProps, err := getRunProps(cqlSession, keyspace, runId, runPropsFields)
 	if err != nil {
 		return "", err
 	}
@@ -239,7 +239,7 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 	defer cqlSession.Close()
 
 	// Retrieve all runs that happened in this ks and find their current statuses
-	runLifespanMap, err := wfdb.HarvestRunLifespans(h.L, cqlSession, keyspace, []int16{})
+	runLifespanMap, err := api.HarvestRunLifespans(h.L, cqlSession, keyspace, []int16{})
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -264,7 +264,7 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// Retrieve all node events for this ks, for all runs
-	nodeHistory, err := api.GetNodeHistoryForRuns(h.L, cqlSession, keyspace, []int16{})
+	sortedNodeEvents, err := api.GetNodeHistoryForRuns(h.L, cqlSession, keyspace, []int16{})
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -274,7 +274,7 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 
 	// For each node/run, harvest current node status, latest wins
 	nodeRunStatusMap := map[string]map[int16]WebapiNodeStatus{}
-	for _, nodeEvent := range nodeHistory {
+	for _, nodeEvent := range sortedNodeEvents {
 		if _, ok := nodeRunStatusMap[nodeEvent.ScriptNode]; !ok {
 			nodeRunStatusMap[nodeEvent.ScriptNode] = map[int16]WebapiNodeStatus{}
 		}
@@ -291,7 +291,7 @@ func (h *UrlHandler) ksMatrix(w http.ResponseWriter, r *http.Request) {
 	mx.Nodes = make([]WebapiNodeRunMatrixRow, len(nodeRunStatusMap))
 	nodeCount := 0
 	for nodeName, runNodeStatusMap := range nodeRunStatusMap {
-		nodeDesc, err := h.getNodeDesc(h.L, cqlSession, keyspace, runLifespanMap[1].RunId, nodeName)
+		nodeDesc, err := h.getNodeDesc(cqlSession, keyspace, runLifespanMap[1].RunId, nodeName)
 		if err != nil {
 			WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot get node description: %s", err.Error()), http.StatusInternalServerError)
 			return
@@ -341,7 +341,7 @@ var RunPropsCache = map[string]*wfmodel.RunProperties{}
 var RunPropsCacheTs = map[string]time.Time{}
 var RunPropsCacheLock = sync.RWMutex{}
 
-func getRunProps(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16) (*wfmodel.RunProperties, error) {
+func getRunProps(cqlSession gocqlshims.Session, keyspace string, runId int16, runPropertiesFields []string) (*wfmodel.RunProperties, error) {
 	runPropsCacheKey := keyspace + ":" + fmt.Sprintf("%d", runId)
 	RunPropsCacheLock.RLock()
 	oneRunProps, okData := RunPropsCache[runPropsCacheKey]
@@ -351,12 +351,15 @@ func getRunProps(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace s
 	if okData && okTs && time.Since(oneRunPropsTs).Seconds() < 30 {
 		return oneRunProps, nil
 	}
-	allRunsProps, err := wfdb.GetRunProperties(logger, cqlSession, keyspace, int16(runId))
+
+	runPropsRow, err := wfdb.GetRunProperties(cqlSession, keyspace, int16(runId), runPropertiesFields)
 	if err != nil {
 		return nil, err
 	}
-	if len(allRunsProps) != 1 {
-		return nil, fmt.Errorf("invalid number of matching runs (%d), expected 1; this usually happens when webapi caller makes wrong assumptions about the process status", len(allRunsProps))
+
+	runProps, err := wfmodel.NewRunPropertiesFromMap(runPropsRow, runPropertiesFields)
+	if err != nil {
+		return nil, err
 	}
 
 	RunPropsCacheLock.Lock()
@@ -365,25 +368,25 @@ func getRunProps(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace s
 			delete(RunPropsCache, k)
 		}
 	}
-	RunPropsCache[runPropsCacheKey] = allRunsProps[0]
+	RunPropsCache[runPropsCacheKey] = runProps
 	RunPropsCacheTs[runPropsCacheKey] = time.Now()
 	RunPropsCacheLock.Unlock()
 
-	return allRunsProps[0], nil
+	return runProps, nil
 }
 
 func getRunPropsAndLifespans(logger *l.CapiLogger, cqlSession gocqlshims.Session, keyspace string, runId int16) (*wfmodel.RunProperties, *wfmodel.RunLifespan, error) {
 
 	// Static run props
 
-	runProps, err := getRunProps(logger, cqlSession, keyspace, runId)
+	runProps, err := getRunProps(cqlSession, keyspace, runId, wfmodel.RunPropertiesAllFields())
 	if err != nil {
 		return nil, nil, err
 	}
 
 	// Run status
 
-	runLifeSpans, err := wfdb.HarvestRunLifespans(logger, cqlSession, keyspace, []int16{int16(runId)})
+	runLifeSpans, err := api.HarvestRunLifespans(logger, cqlSession, keyspace, []int16{int16(runId)})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -440,11 +443,12 @@ func (h *UrlHandler) ksRunNodeBatchHistory(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	result.RunNodeBatchHistory, err = wfdb.GetRunNodeBatchHistory(h.L, cqlSession, keyspace, int16(runId), nodeName)
+	result.RunNodeBatchHistory, err = api.GetBatchHistoryForRunAndNode(h.L, cqlSession, keyspace, int16(runId), nodeName)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
+
 	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, result)
 }
 
@@ -489,21 +493,11 @@ func (h *UrlHandler) ksRunNodeHistory(w http.ResponseWriter, r *http.Request) {
 
 	// Node history
 
-	result.RunNodeHistory, err = wfdb.GetNodeHistoryForRun(h.L, cqlSession, keyspace, int16(runId))
+	result.RunNodeHistory, err = api.GetNodeHistoryForRuns(h.L, cqlSession, keyspace, []int16{int16(runId)})
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
 	}
-	slices.SortFunc(result.RunNodeHistory, func(l, r *wfmodel.NodeHistoryEvent) int {
-		switch {
-		case l.Ts.Before(r.Ts):
-			return -1
-		case l.Ts.After(r.Ts):
-			return 1
-		default:
-			return 0
-		}
-	})
 	WriteApiSuccess(h.L, &h.Env.Webapi, r, w, result)
 }
 
@@ -546,7 +540,8 @@ func (h *UrlHandler) ksRunViz(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Extract script URL from run props
-	runProps, err := getRunProps(h.L, cqlSession, keyspace, int16(runId))
+	runPropsFields := []string{"run_id", "script_url", "script_params_url"}
+	runProps, err := getRunProps(cqlSession, keyspace, int16(runId), runPropsFields)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 	}
@@ -562,12 +557,17 @@ func (h *UrlHandler) ksRunViz(w http.ResponseWriter, r *http.Request) {
 	showFields := true
 	if isStatus {
 		nodeColorMap = map[string]int32{}
-		nodes, err := api.GetNodeHistoryForRuns(h.L, cqlSession, keyspace, []int16{int16(runId)})
+		sortedNodeEvents, err := api.GetNodeHistoryForRuns(h.L, cqlSession, keyspace, []int16{int16(runId)})
 		if err != nil {
 			WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		}
-		for _, node := range nodes {
-			nodeColorMap[node.ScriptNode] = api.NodeBatchStatusToCapigraphColor(node.Status)
+		allNodes := make([]string, 0)
+		for nodeName := range scriptDef.ScriptNodes {
+			allNodes = append(allNodes, nodeName)
+		}
+		_, nodeStatusMap := wfmodel.FigureOutRunStatusAndAffectedNodesStatusesFromNodeEvents(sortedNodeEvents, int16(runId), allNodes)
+		for nodeName, nodeStatus := range nodeStatusMap {
+			nodeColorMap[nodeName] = api.NodeBatchStatusToCapigraphColor(nodeStatus)
 		}
 		showIdx = false
 		showFields = false

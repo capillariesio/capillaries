@@ -15,7 +15,7 @@ Get workflow status from [workflow tables](glossary.md#workflow-table):
 ```
 go run capitoolbelt.go get_run_history -keyspace=<keyspace_name>
 go run capitoolbelt.go get_node_history -keyspace=<keyspace_name> -run_ids=<comma_separated_list_of_run_ids>
-go run capitoolbelt.go get_batch_history -keyspace=<keyspace_name> -run_ids=<comma_separated_list_of_run_ids> -nodes=<comma_separated_list_of_node_names>
+go run capitoolbelt.go get_batch_history -keyspace=<keyspace_name> -run_id=<run_id> -node=<node_name>
 ```
 
 Initiate/terminate workflow - start/stop a [run](glossary.md#run):

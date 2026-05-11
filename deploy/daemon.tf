@@ -19,9 +19,8 @@ resource "aws_instance" "daemon" {
   ami                    = var.daemon_ami_name
   count                  = var.number_of_daemons
   key_name               = var.ssh_keypair_name
-  network_interface {
+  primary_network_interface {
     network_interface_id = aws_network_interface.daemon_internal_ip[count.index].id
-    device_index         = 0
   }
 
   # Daemon needs to assume this role to access S3 bucket to get cloud-init daemon.sh and read/write data

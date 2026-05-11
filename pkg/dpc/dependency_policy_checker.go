@@ -11,17 +11,17 @@ import (
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
-func CheckDependencyPolicyAgainstNodeEventList(logger *l.CapiLogger, fullBatchId string, targetNodeDepPol *sc.DependencyPolicyDef, events wfmodel.DependencyNodeEvents) (sc.ReadyToRunNodeCmdType, int16, int, error) {
+func CheckDependencyPolicyAgainstNodeEventList(logger *l.CapiLogger, fullBatchId string, targetNodeDepPol *sc.DependencyPolicyDef, depNodeRunStatuses wfmodel.DependencyNodeRunStatusSlice) (sc.ReadyToRunNodeCmdType, int16, int, error) {
 	var err error
 
-	for eventIdx := 0; eventIdx < len(events); eventIdx++ {
-		vars := wfmodel.NewVarsFromDepCtx(events[eventIdx])
-		events[eventIdx].SortKey, err = sc.BuildKey(vars[wfmodel.DependencyNodeEventTableName], &targetNodeDepPol.OrderIdxDef)
+	for eventIdx := 0; eventIdx < len(depNodeRunStatuses); eventIdx++ {
+		vars := wfmodel.DependencyCheckerNodeVars(depNodeRunStatuses[eventIdx])
+		depNodeRunStatuses[eventIdx].SortKey, err = sc.BuildKey(vars[wfmodel.DependencyNodeRunStatusTableName], &targetNodeDepPol.OrderIdxDef)
 		if err != nil {
 			return sc.NodeNogo, 0, -1, fmt.Errorf("unexpectedly, cannot build key to sort events: %s", err.Error())
 		}
 	}
-	slices.SortFunc(events, func(l, r wfmodel.DependencyNodeEvent) int {
+	slices.SortFunc(depNodeRunStatuses, func(l, r wfmodel.DependencyNodeRunStatus) int {
 		switch {
 		case l.SortKey < r.SortKey:
 			return -1
@@ -32,23 +32,23 @@ func CheckDependencyPolicyAgainstNodeEventList(logger *l.CapiLogger, fullBatchId
 		}
 	})
 
-	for eventIdx := 0; eventIdx < len(events); eventIdx++ {
-		vars := wfmodel.NewVarsFromDepCtx(events[eventIdx])
+	for eventIdx := 0; eventIdx < len(depNodeRunStatuses); eventIdx++ {
+		vars := wfmodel.DependencyCheckerNodeVars(depNodeRunStatuses[eventIdx])
 		eCtx := eval.NewPlainEvalCtx(evalcapi.CapillariesEvalFunctions, evalcapi.CapillariesEvalConstants, vars)
 		for ruleIdx, rule := range targetNodeDepPol.Rules {
 			ruleMatched, err := eCtx.Eval(rule.ParsedExpression)
 			if err != nil {
-				return sc.NodeNogo, 0, -1, fmt.Errorf("cannot check rule %d '%s' against event %s for batch %s, eval failed: %s", ruleIdx, rule.RawExpression, events[eventIdx].ToString(), fullBatchId, err.Error())
+				return sc.NodeNogo, 0, -1, fmt.Errorf("cannot check rule %d '%s' against event %s for batch %s, eval failed: %s", ruleIdx, rule.RawExpression, depNodeRunStatuses[eventIdx].ToString(), fullBatchId, err.Error())
 			}
 			ruleMatchedBool, ok := ruleMatched.(bool)
 			if !ok {
-				return sc.NodeNogo, 0, -1, fmt.Errorf("cannot check rule %d '%s' against event %s for batch %s: expected result type was bool, got %T", ruleIdx, rule.RawExpression, events[eventIdx].ToString(), fullBatchId, ruleMatched)
+				return sc.NodeNogo, 0, -1, fmt.Errorf("cannot check rule %d '%s' against event %s for batch %s: expected result type was bool, got %T", ruleIdx, rule.RawExpression, depNodeRunStatuses[eventIdx].ToString(), fullBatchId, ruleMatched)
 			}
 			if ruleMatchedBool {
 				if logger != nil {
-					logger.Debug("matched rule %d(%s) '%s' against event %d(%s) for batch %s, all events %s", ruleIdx, rule.Cmd, rule.RawExpression, eventIdx, events[eventIdx].ToString(), fullBatchId, events.ToString())
+					logger.Debug("matched rule %d(%s) '%s' against event %d(%s) for batch %s, all events %s", ruleIdx, rule.Cmd, rule.RawExpression, eventIdx, depNodeRunStatuses[eventIdx].ToString(), fullBatchId, depNodeRunStatuses.ToString())
 				}
-				return rule.Cmd, events[eventIdx].RunId, ruleIdx, nil
+				return rule.Cmd, depNodeRunStatuses[eventIdx].RunId, ruleIdx, nil
 			}
 		}
 	}
@@ -66,16 +66,16 @@ func CheckDependencyPolicyAgainstNodeEventList(logger *l.CapiLogger, fullBatchId
 	// Another dependency is 02_loan_ids, which was supposed to have run 2.
 	// So, something is off with the nodeEventListMap["02_loan_ids"].
 	// This rule was supposed to kick in, but it did not (run 2, node 02_loan_ids)
-	// {"cmd": "go",   "expression": "e.run_is_current == false && e.run_final_status == wfmodel.RunComplete && e.node_status == wfmodel.NodeBatchSuccess"	},
-	// Could there be a case that e.run_final_status == wfmodel.RunComplete but e.node_status == wfmodel.NodeBatchStart  because of Cassandra's eventual consistency?
+	// {"cmd": "go",   "expression": "nrs.run_is_current == false && nrs.run_status == wfmodel.RunComplete && nrs.node_status == wfmodel.NodeBatchSuccess"	},
+	// Could there be a case that nrs.run_status == wfmodel.RunComplete but nrs.node_status == wfmodel.NodeBatchStart  because of Cassandra's eventual consistency?
 	// Like, we wrote to Cassandra nodeStatus = Complete, then, runStatus = RunComplete, but when we read them back, we see only runStatus = RunComplete and nodeStatus = CompleteNodeBatchStart?
 	// If this is the case, we just wait for Cassandra to settle.
 
 	// len(nodeEventListMap[depNodeName]) check in the caller guarantees we have at leas one event in the list. All events in the list have the same runId.
 	if logger != nil {
-		logger.Warn("assuming wait for batch %s, no rules matched against events %s", fullBatchId, events.ToString())
+		logger.Warn("assuming wait for batch %s, no rules matched against events %s", fullBatchId, depNodeRunStatuses.ToString())
 	}
 
 	// In two words: we do not know what is going on exactly, we assume that if we wait, the db will come to some coherent state
-	return sc.NodeWait, events[0].RunId, -1, nil
+	return sc.NodeWait, depNodeRunStatuses[0].RunId, -1, nil
 }

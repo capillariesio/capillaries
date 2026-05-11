@@ -1,5 +1,5 @@
 <script>
-	import Tabs from "../Tabs.svelte";
+	import Tabs from '../Tabs.svelte';
 	import dayjs from 'dayjs';
 	import { onDestroy, onMount } from 'svelte';
 	import RunInfo from '../panels/RunInfo.svelte';
@@ -180,8 +180,8 @@
 		breadcrumbsPathElements = [
 			{ title: 'Keyspaces', link: rootLink() },
 			{ title: ks_name, link: ksMatrixLink(ks_name) },
-			{ title: 'run ' + run_id},
-			{ title: 'node processing'}
+			{ title: 'run ' + run_id },
+			{ title: 'node processing' }
 		];
 		fetchData();
 		fetchSvg();
@@ -193,18 +193,9 @@
 	});
 
 	let tabs = [
-		{ label: "Node status diagram",
-		 value: 1,
-		 component: tabDiagram
-		},
-		{ label: "Node processing history",
-		 value: 2,
-		 component: tabHistory
-		},
-		{ label: "Run info",
-		 value: 3,
-		 component: tabRunInfo
-		}
+		{ label: 'Node status diagram', value: 1, component: tabDiagram },
+		{ label: 'Node processing history', value: 2, component: tabHistory },
+		{ label: 'Run info', value: 3, component: tabRunInfo }
 	];
 </script>
 
@@ -212,72 +203,75 @@
 <p style="color:red;">{responseError}</p>
 
 {#snippet tabRunInfo()}
-<RunInfo run_lifespan={webapiData.run_lifespan} run_props={webapiData.run_props} {ks_name} />
+	<RunInfo run_lifespan={webapiData.run_lifespan} run_props={webapiData.run_props} {ks_name} />
 {/snippet}
 
 {#snippet tabDiagram()}
-<p>
-	This diagram is dynamic and evolves as nodes are processed by this run. Color legend:
-	<span class="badge started">node started</span>,
-	<span class="badge success">node completed successfully</span>,
-	<span class="badge failed">node failed</span>,
-	<span class="badge stopped">stop signal received</span>
-	<span class="badge notstarted">node not processed as part of this run (maybe yet)</span>.
-	Nodes that require manual start are marked with a thicker border.
-	To see a static copy of it in a separate window,
-	click <a target="_blank" href={statusVizUrl(ks_name, run_id)}>here</a>.
-	To see detailed script diagram not reflecting run status,
-	click <a target="_blank" href={scriptVizUrl(ks_name, run_id, false)}>here</a> for black and white,
-	or <a target="_blank" href={scriptVizUrl(ks_name, run_id, true)}>here</a> for colored by root node.
-</p>
+	<p>
+		This diagram is dynamic and evolves as nodes are processed by this run. Color legend:
+		<span class="badge started">node started</span>,
+		<span class="badge success">node completed successfully</span>,
+		<span class="badge failed">node failed</span>,
+		<span class="badge stopped">stop signal received</span>
+		<span class="badge notstarted">node not processed as part of this run (maybe yet)</span>. Nodes
+		that require manual start are marked with a thicker border. To see a static copy of it in a
+		separate window, click <a target="_blank" href={statusVizUrl(ks_name, run_id)}>here</a>. To see
+		detailed script diagram not reflecting run status, click
+		<a target="_blank" href={scriptVizUrl(ks_name, run_id, false)}>here</a>
+		for black and white, or <a target="_blank" href={scriptVizUrl(ks_name, run_id, true)}>here</a> for
+		colored by root node.
+	</p>
 
-<p style="color:red;">{svgError}</p>
+	<p style="color:red;">{svgError}</p>
 
-<div style="width:100%">
-	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-	{@html svgStatusViz}
-</div>
+	<div style="width:100%">
+		<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+		{@html svgStatusViz}
+	</div>
 {/snippet}
 
 {#snippet tabHistory()}
-<table>
-	<thead>
-		<tr>
-			<th>Timestamp</th>
-			<th>Node</th>
-			<th>Status</th>
-			<th>Elapsed</th>
-			<th>Comment</th>
-		</tr>
-	</thead>
-	<tbody>
-		{#each webapiData.node_history as e}
+	<table>
+		<thead>
 			<tr>
-				<td style="white-space: nowrap;">{dayjs(e.ts).format('MMM D, YYYY HH:mm:ss.SSS Z')}</td>
-				<td
-					><a href={ksRunNodeBatchHistoryLink(ks_name, e.run_id, e.script_node)}>{e.script_node}</a
-					></td
-				>
-				<td
-					><img
-						src={nodeStatusToIconStatic(e.status)}
-						title={nodeStatusToText(e.status)}
-						alt=""
-					/></td
-				>
-				<td
-					>{#if e.elapsed > 0}
-						{e.elapsed}
-					{/if}</td
-				>
-				<td>{e.comment}</td>
+				<th>Timestamp</th>
+				<th>Node</th>
+				<th>Batch</th>
+				<th>Status</th>
+				<th>Elapsed</th>
+				<th>Comment</th>
 			</tr>
-		{/each}
-	</tbody>
-</table>
+		</thead>
+		<tbody>
+			{#each webapiData.node_history as e}
+				<tr>
+					<td style="white-space: nowrap;">{dayjs(e.ts).format('MMM D, YYYY HH:mm:ss.SSS Z')}</td>
+					<td
+						><a href={ksRunNodeBatchHistoryLink(ks_name, e.run_id, e.script_node)}
+							>{e.script_node}</a
+						></td
+					>
+					<td>{e.written_by_batch_idx}</td>
+					<td
+						><img
+							src={nodeStatusToIconStatic(e.status)}
+							title={nodeStatusToText(e.status)}
+							alt=""
+						/></td
+					>
+					<td
+						>{#if e.elapsed > 0}
+							{e.elapsed}
+						{/if}</td
+					>
+					<td>{e.comment}</td>
+				</tr>
+			{/each}
+		</tbody>
+	</table>
 {/snippet}
 
-<Tabs items={tabs}/>
+<Tabs items={tabs} />
 
 <style>
 	th {
@@ -288,7 +282,7 @@
 	}
 	.badge {
 		display: inline-block;
-		padding: .25em .4em;
+		padding: 0.25em 0.4em;
 		font-size: 75%;
 		font-weight: 400;
 		line-height: 1;
@@ -297,28 +291,28 @@
 		white-space-collapse: collapse;
 		text-wrap-mode: nowrap;
 		vertical-align: baseline;
-		border-radius: .25rem;
+		border-radius: 0.25rem;
 		border-width: thin;
 		border-style: solid;
 	}
 	.success {
-		border-color:#008000;
-		background-color:#00800054;
+		border-color: #4CCC93;
+		background-color: #4CCC9354;
 	}
 	.started {
-		border-color:#0000FF;
-		background-color:#0000FF54;
+		border-color: #63AFFA;
+		background-color: #63AFFA54;
 	}
 	.failed {
-		border-color:#FF0000;
-		background-color:#FF000054;
+		border-color: #F84143;
+		background-color: #F8414354;
 	}
 	.stopped {
-		border-color:#FF8C00;
-		background-color:#FF8C0054;
+		border-color: #FBA141;
+		background-color: #FBA14154;
 	}
 	.notstarted {
-		border-color:#000000;
-		background-color:#FFFFFF54;
+		border-color: #000000;
+		background-color: #ffffff54;
 	}
 </style>

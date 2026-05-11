@@ -2,6 +2,7 @@ package wfmodel
 
 import (
 	"fmt"
+	"slices"
 	"time"
 )
 
@@ -81,7 +82,7 @@ func NewBatchHistoryEventFromMap(r map[string]any, fields []string) (*BatchHisto
 		case "comment":
 			res.Comment, err = ReadStringFromRow(fieldName, r)
 		default:
-			return nil, fmt.Errorf("unknown %s field %s", fieldName, TableNameNodeHistory)
+			return nil, fmt.Errorf("unknown %s field %s", TableNameBatchHistory, fieldName)
 		}
 		if err != nil {
 			return nil, err
@@ -90,16 +91,101 @@ func NewBatchHistoryEventFromMap(r map[string]any, fields []string) (*BatchHisto
 	return res, nil
 }
 
-// ToSpacedString - prints formatted field values, uses reflection, shoud not be used in prod
-// func (n BatchHistoryEvent) ToSpacedString() string {
-// 	t := reflect.TypeOf(n)
-// 	formats := GetObjectModelFieldFormats(t)
-// 	values := make([]string, t.NumField())
+// Used in Toolbelt (get_batch_history command)
+func BatchHistoryRowsToEvents(rows []map[string]any) ([]*BatchHistoryEvent, error) {
+	result := make([]*BatchHistoryEvent, len(rows))
+	for rowIdx, row := range rows {
+		rec, err := NewBatchHistoryEventFromMap(row, BatchHistoryEventAllFields())
+		if err != nil {
+			return nil, fmt.Errorf("cannot deserialize batch history row %v: %s", row, err.Error())
+		}
+		result[rowIdx] = rec
+	}
 
-// 	v := reflect.ValueOf(&n).Elem()
-// 	for i := 0; i < v.NumField(); i++ {
-// 		fv := v.Field(i)
-// 		values[i] = fmt.Sprintf(formats[i], fv)
-// 	}
-// 	return strings.Join(values, PrintTableDelimiter)
-// }
+	slices.SortFunc(result, func(l, r *BatchHistoryEvent) int {
+		switch {
+		case l.Ts.Before(r.Ts):
+			return -1
+		case l.Ts.After(r.Ts):
+			return 1
+		default:
+			return 0
+		}
+	})
+	return result, nil
+}
+
+// Used by daemon in the beginning of the batch processing
+func SingleBatchHistoryRowsToLastBatchStatus(rows []map[string]any, fields []string) (NodeBatchStatusType, time.Time, error) {
+	lastStatus := NodeBatchNone
+	lastTs := time.Unix(0, 0)
+	for _, r := range rows {
+		rec, err := NewBatchHistoryEventFromMap(r, fields)
+		if err != nil {
+			return NodeBatchNone, time.Unix(0, 0), fmt.Errorf("cannot deserialize batch history row %v: %s", r, err.Error())
+		}
+
+		if rec.Ts.After(lastTs) {
+			lastTs = rec.Ts
+			lastStatus = NodeBatchStatusType(rec.Status)
+		}
+	}
+	return lastStatus, lastTs, nil
+}
+
+// Used by daemon in the end of the batch processing
+func AllBatchHistoryRowsToNodeStatus(rows []map[string]any, fields []string) (NodeBatchStatusType, int, int, error) {
+	foundBatchesTotal := int16(-1)
+	batchesInProgress := map[int16]struct{}{}
+
+	failFound := false
+	stopReceivedFound := false
+	for _, r := range rows {
+		rec, err := NewBatchHistoryEventFromMap(r, fields)
+		if err != nil {
+			return NodeBatchNone, 0, 0, fmt.Errorf("cannot deserialize batch history row [%v]: %s", r, err.Error())
+		}
+		if foundBatchesTotal == -1 {
+			foundBatchesTotal = rec.BatchesTotal
+			for i := int16(0); i < rec.BatchesTotal; i++ {
+				batchesInProgress[i] = struct{}{}
+			}
+		} else if rec.BatchesTotal != foundBatchesTotal {
+			return NodeBatchNone, 0, 0, fmt.Errorf("conflicting batches total value, was %d, now %d", foundBatchesTotal, rec.BatchesTotal)
+		}
+
+		if rec.BatchIdx >= rec.BatchesTotal || rec.BatchesTotal < 0 || rec.BatchesTotal <= 0 {
+			return NodeBatchNone, 0, 0, fmt.Errorf("invalid batch idx/total(%d/%d) when processing [%v]", rec.BatchIdx, rec.BatchesTotal, r)
+		}
+
+		if rec.Status == NodeBatchSuccess ||
+			rec.Status == NodeBatchFail ||
+			rec.Status == NodeBatchRunStopReceived {
+			delete(batchesInProgress, rec.BatchIdx)
+		}
+
+		switch rec.Status {
+		case NodeBatchFail:
+			failFound = true
+		case NodeBatchRunStopReceived:
+			stopReceivedFound = true
+		default:
+			// Nothing interesting yet
+		}
+	}
+
+	if len(batchesInProgress) == 0 {
+		nodeStatus := NodeBatchSuccess
+		if stopReceivedFound {
+			nodeStatus = NodeBatchRunStopReceived
+		}
+		// Fail has upper hand over stopped
+		if failFound {
+			nodeStatus = NodeBatchFail
+		}
+		return nodeStatus, len(batchesInProgress), int(foundBatchesTotal), nil
+	}
+
+	// Some batches are still not complete, consider it in progress until all batches are complete (via success/fail/stop)
+	return NodeBatchStart, len(batchesInProgress), int(foundBatchesTotal), nil
+}

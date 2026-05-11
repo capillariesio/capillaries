@@ -17,7 +17,12 @@ import (
 	"github.com/capillariesio/capillaries/pkg/evalcapi"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
+
+	_ "unsafe" // nanotime()
 )
+
+//go:linkname nanotime runtime.nanotime
+func nanotime() int64
 
 type TableRecord map[string]any
 
@@ -27,6 +32,38 @@ const (
 	DataIdxSeqModeDataFirst        DataIdxSeqModeType = iota
 	DataIdxSeqModeDistinctIdxFirst                    // Tells us to use idx as a uniqness vehicle for Distinct processor
 )
+
+// All stats in nanos
+type writeStats struct {
+	Count        int64
+	ElapsedMin   int64
+	ElapsedMax   int64
+	ElapsedTotal int64
+	Lock         sync.RWMutex
+}
+
+func (ws *writeStats) AddSample(elapsedNanos int64) {
+	ws.Lock.Lock()
+	ws.Count++
+	ws.ElapsedTotal += elapsedNanos
+	if elapsedNanos > ws.ElapsedMax {
+		ws.ElapsedMax = elapsedNanos
+	}
+	if ws.ElapsedMin == 0 || elapsedNanos < ws.ElapsedMin {
+		ws.ElapsedMin = elapsedNanos
+	}
+	ws.Lock.Unlock()
+}
+
+func (ws *writeStats) GetStats() (int64, int64, int64, int64, float64) {
+	defer ws.Lock.Unlock()
+	ws.Lock.Lock()
+
+	if ws.Count == 0 {
+		return 0, 0, 0, 0, float64(0.0)
+	}
+	return ws.Count, ws.ElapsedMin, ws.ElapsedMax, ws.ElapsedTotal, float64(ws.ElapsedTotal) / 1000000000.0 / float64(ws.Count)
+}
 
 type TableInserter struct {
 	PCtx                         *ctx.MessageProcessingContext
@@ -49,6 +86,8 @@ type TableInserter struct {
 	DrainerCancelSignal          chan error
 	DrainerCompleteSignal        chan error
 	DrainerDoneSignal            chan error
+	DataStats                    writeStats
+	IdxStats                     writeStats
 }
 
 type TableRecordItem struct {
@@ -161,7 +200,7 @@ func CreateDataTableCql(keyspace string, runId int16, tableCreator *sc.TableCrea
 	for fieldName, fieldDef := range tableCreator.Fields {
 		qb.ColumnDef(fieldName, fieldDef.Type)
 	}
-	return qb.PartitionKey("rowid").Keyspace(keyspace).CreateRun(tableCreator.Name, runId, cql.IgnoreIfExists, tableCreator.CreateProperties)
+	return qb.PartitionKey("rowid").Keyspace(keyspace).CreateRun(tableCreator.Name, runId, cql.IfNotExistsLwt, tableCreator.CreateProperties)
 }
 
 func CreateIdxTableCql(keyspace string, runId int16, idxName string, idxDef *sc.IdxDef, tableCreator *sc.TableCreatorDef) string {
@@ -177,7 +216,7 @@ func CreateIdxTableCql(keyspace string, runId int16, idxName string, idxDef *sc.
 		qb.PartitionKey("key")
 		qb.ClusteringKey("rowid")
 	}
-	return qb.CreateRun(idxName, runId, cql.IgnoreIfExists, tableCreator.CreateProperties)
+	return qb.CreateRun(idxName, runId, cql.IfNotExistsLwt, tableCreator.CreateProperties)
 }
 
 type InserterDrainStrategy int
@@ -370,7 +409,7 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, tabl
 		pq.Query, err = pq.Qb.InsertRunPreparedQuery(
 			instr.TableCreator.Name,
 			instr.PCtx.Msg.RunId,
-			cql.IgnoreIfExists) // INSERT IF NOT EXISTS; if exists,  returned isApplied = false
+			cql.IfNotExistsLwt) // INSERT IF NOT EXISTS; if exists,  returned isApplied = false
 		if err != nil {
 			return fmt.Errorf("cannot prepare insert data query string: %s", err.Error())
 		}
@@ -397,7 +436,9 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, tabl
 
 		existingDataRow := map[string]any{}
 		var isApplied bool
+		writeStart := nanotime()
 		isApplied, err = instr.PCtx.CqlSession.Query(pq.Query, preparedDataQueryParams...).MapScanCAS(existingDataRow)
+		instr.DataStats.AddSample(nanotime() - writeStart)
 
 		// TEST ONLY (comment out pq.Qb.InsertRunParams() and instr.PCtx.CqlSession.Query() above)
 		// var err error
@@ -524,9 +565,9 @@ func (instr *TableInserter) insertIdxRecordWithRowid(logger *l.CapiLogger, idxNa
 	curIdxExpBackoffFactor := int64(1.0)
 	var err error
 
-	ifNotExistsFlag := cql.ThrowIfExists
+	ifNotExistsFlag := cql.IfExistsOverwrite
 	if idxUniqueness == sc.IdxUnique {
-		ifNotExistsFlag = cql.IgnoreIfExists
+		ifNotExistsFlag = cql.IfNotExistsLwt
 	}
 
 	// Prepare generic idx insert query, do this once for all indexes and rows
@@ -564,6 +605,7 @@ func (instr *TableInserter) insertIdxRecordWithRowid(logger *l.CapiLogger, idxNa
 		existingIdxRow := map[string]any{}
 		var isApplied = true
 
+		writeStart := nanotime()
 		if idxUniqueness == sc.IdxUnique {
 			// Unique idx assumed, check isApplied
 			isApplied, err = instr.PCtx.CqlSession.Query(pq.Query, preparedIdxQueryParams...).MapScanCAS(existingIdxRow)
@@ -571,6 +613,7 @@ func (instr *TableInserter) insertIdxRecordWithRowid(logger *l.CapiLogger, idxNa
 			// No uniqueness assumed, just insert
 			err = instr.PCtx.CqlSession.Query(pq.Query, preparedIdxQueryParams...).Exec()
 		}
+		instr.IdxStats.AddSample(nanotime() - writeStart)
 
 		// TEST ONLY (comment out if idxUniqueness == sc.IdxUnique {...} else {...} above)
 		// var err error

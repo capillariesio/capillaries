@@ -151,7 +151,7 @@ func runCreateTableForCustomProcessorForBatch(envConfig *env.EnvConfig,
 
 	} // for each source table batch
 
-	bs.Elapsed = time.Since(totalStartTime)
+	bs.UpdateElapsedStats(time.Since(totalStartTime), instr)
 	reportWriteTableComplete(logger, pCtx, bs.RowsRead, bs.RowsWritten, bs.Elapsed, len(node.TableCreator.Indexes), instr.NumWorkers)
 
 	return bs, nil

@@ -3,7 +3,6 @@ package dpc
 import (
 	"regexp"
 	"testing"
-	"time"
 
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
@@ -11,18 +10,14 @@ import (
 )
 
 func TestDefaultDependencyPolicyChecker(t *testing.T) {
-	events := wfmodel.DependencyNodeEvents{
+	events := wfmodel.DependencyNodeRunStatusSlice{
 		{
-			RunId:          10,
-			RunIsCurrent:   true,
-			RunStartTs:     time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
-			RunFinalStatus: wfmodel.RunStart,
-			RunCompletedTs: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
-			RunStoppedTs:   time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
-			NodeIsStarted:  true,
-			NodeStartTs:    time.Date(2000, 1, 1, 0, 0, 1, 0, time.UTC),
-			NodeStatus:     wfmodel.NodeBatchNone,
-			NodeStatusTs:   time.Date(2000, 1, 1, 0, 0, 2, 0, time.UTC)}}
+			RunId:        10,
+			RunIsCurrent: true,
+			RunStatus:    wfmodel.RunStart,
+			NodeStatus:   wfmodel.NodeBatchNone,
+		},
+	}
 
 	polDef := sc.DependencyPolicyDef{}
 	if err := polDef.Deserialize([]byte(sc.DefaultPolicyCheckerConfJson), sc.ScriptJson); err != nil {
@@ -99,7 +94,7 @@ func TestDefaultDependencyPolicyChecker(t *testing.T) {
 	assert.Equal(t, 6, matchedRuleIdx) // "matched rule 6(wait)"
 
 	// Previous run completed
-	events[0].RunFinalStatus = wfmodel.RunComplete
+	events[0].RunStatus = wfmodel.RunComplete
 
 	events[0].NodeStatus = wfmodel.NodeBatchSuccess
 	cmd, runId, matchedRuleIdx, err = CheckDependencyPolicyAgainstNodeEventList(nil, fullBatchId, &polDef, events)
@@ -131,7 +126,7 @@ func TestDefaultDependencyPolicyChecker(t *testing.T) {
 
 	// Failures
 
-	re := regexp.MustCompile(`"expression": "e\.run[^"]+"`)
+	re := regexp.MustCompile(`"expression": "nrs\.run[^"]+"`)
 	err = polDef.Deserialize([]byte(re.ReplaceAllString(sc.DefaultPolicyCheckerConfJson, `"expression": "1"`)), sc.ScriptJson)
 	assert.Nil(t, err)
 	_, _, _, err = CheckDependencyPolicyAgainstNodeEventList(nil, fullBatchId, &polDef, events)

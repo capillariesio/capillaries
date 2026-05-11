@@ -216,7 +216,7 @@ func runCreateFile(envConfig *env.EnvConfig,
 		return bs, fmt.Errorf("cannot save record batch from %s to %s(temp %s): [%s]", node.TableReader.TableName, instr.FinalFileUrl, instr.TempFilePath, err.Error())
 	}
 
-	bs.Elapsed = time.Since(totalStartTime)
+	bs.UpdateElapsedStats(time.Since(totalStartTime), nil)
 	logger.InfoCtx(pCtx, "WriteFileComplete: read %d, wrote %d items in %.3fs (%.0f items/s)", bs.RowsRead, bs.RowsWritten, bs.Elapsed.Seconds(), float64(bs.RowsWritten)/bs.Elapsed.Seconds())
 
 	if instr.TempFilePath == "" {

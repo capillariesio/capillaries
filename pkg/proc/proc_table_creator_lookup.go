@@ -611,7 +611,7 @@ func runCreateTableRelForBatch(envConfig *env.EnvConfig,
 		return bs, err
 	}
 
-	bs.Elapsed = time.Since(totalStartTime)
+	bs.UpdateElapsedStats(time.Since(totalStartTime), instr)
 	reportWriteTableComplete(logger, pCtx, bs.RowsRead, bs.RowsWritten, bs.Elapsed, len(node.TableCreator.Indexes), instr.NumWorkers)
 
 	// TEST ONLY

@@ -30,7 +30,7 @@ check "prometheus_server" {
 
 check "rabbitmq_erlang" {
 	data "external" "check_rabbitmq_erlang_url" {
-		program = ["bash", "${path.module}/check_url.sh", local.rabbitmq_erlang_url]
+		program = ["bash", "${path.module}/check_url.sh", replace(local.rabbitmq_erlang_url, "+", "%2B")]
 	}
 	assert {
 		condition     = data.external.check_rabbitmq_erlang_url.result.url_exists == "true"
@@ -45,6 +45,16 @@ check "rabbitmq_server" {
 	assert {
 		condition     = data.external.check_rabbitmq_server_url.result.url_exists == "true"
 		error_message = format("rabbitmq server %s is not accessible, run upload_dependencies.sh if needed", local.rabbitmq_server_url)
+	}
+}
+
+check "rabbitmqadmin" {
+	data "external" "check_rabbitmqadmin_url" {
+		program = ["bash", "${path.module}/check_url.sh", local.rabbitmqadmin_url]
+	}
+	assert {
+		condition     = data.external.check_rabbitmqadmin_url.result.url_exists == "true"
+		error_message = format("rabbitmqadmin %s is not accessible, run upload_dependencies.sh if needed", local.rabbitmqadmin_url)
 	}
 }
 
@@ -65,5 +75,15 @@ check "activemq_artemis_server" {
 	assert {
 		condition     = data.external.check_activemq_artemis_server_url.result.url_exists == "true"
 		error_message = format("activemq_artemis server %s is not accessible, run upload_dependencies.sh if needed", local.activemq_artemis_server_url)
+	}
+}
+
+check "cassandra" {
+	data "external" "check_cassandra_url" {
+		program = ["bash", "${path.module}/check_url.sh", local.cassandra_url]
+	}
+	assert {
+		condition     = data.external.check_cassandra_url.result.url_exists == "true"
+		error_message = format("cassandra %s is not accessible, run upload_dependencies.sh if needed", local.cassandra_url)
 	}
 }

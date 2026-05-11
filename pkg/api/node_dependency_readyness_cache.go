@@ -6,7 +6,7 @@ import (
 	"github.com/hashicorp/golang-lru/v2/expirable"
 )
 
-const CachedNodeStateFormat string = "%s %d %d"
+const CachedNodeStateFormat string = "%s %d %d %d %d" //  finalCmd, finalRunIdReader, finalRunIdLookup, matchedRuleIdxReader, matchedRuleIdxLookup
 const NodeDependencyReadynessCacheMaxElements int = 1000
 const NodeDependencyReadynessCacheElementLife time.Duration = 1
 

@@ -206,14 +206,14 @@ wait_run_webapi()
     do
       runNodeHistoryCmd="curl -s -X GET ""$webapiUrl/ks/$keyspace/run/$runIdToCheck/node_history"""
       runNodeHistory=$($runNodeHistoryCmd)
+      duration=$SECONDS
       if [[ $runNodeHistory == *"\"final_status\":1"* ]]; then
-        duration=$SECONDS
         echo -e "\e[1A\e[KWaiting for run $runIdToCheck, ${duration} s ..." >&2
       elif [[ $runNodeHistory == *"\"final_status\":2"* ]]; then
-        echo "Run $runIdToCheck successfully completed" >&2
+        echo -e "Run $runIdToCheck successfully completed after \033[93m${duration}\033[0m s" >&2
         break
       elif [[ $runNodeHistory == *"\"final_status\":3"* ]]; then
-        echo "Run $runIdToCheck was stopped" >&2
+        echo -e "Run $runIdToCheck was stopped after \033[93m${duration}\033[0m s" >&2
         break
       fi
       sleep 1

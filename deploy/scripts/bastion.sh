@@ -127,11 +127,15 @@ if [ "$PROMETHEUS_GO_TARGETS" = "" ]; then
   exit 1
 fi
 if [ "$RABBITMQ_ERLANG_FILENAME" = "" ]; then
-  echo Error, missing: RABBITMQ_ERLANG_FILENAME=esl-erlang_27.3.4-1_arm64.deb
+  echo Error, missing: RABBITMQ_ERLANG_FILENAME=esl-erlang_27.3.4-1_arm64.deb or 'erlang-base_27.3.4.6+dfsg-1_amd64.deb'
   exit 1
 fi
 if [ "$RABBITMQ_SERVER_FILENAME" = "" ]; then
   echo Error, missing: RABBITMQ_SERVER_FILENAME=rabbitmq-server_4.2.0-1_all.deb
+  exit 1
+fi
+if [ "$RABBITMQADMIN_FILENAME" = "" ]; then
+  echo Error, missing: RABBITMQADMIN_FILENAME=rabbitmqadmin_2.29.0_arm64.deb
   exit 1
 fi
 if [ "$ACTIVEMQ_CLASSIC_SERVER_FILENAME" = "" ]; then
@@ -559,7 +563,7 @@ elif [ "$AMQP10_SERVER_FLAVOR" = "activemq-classic" ]; then
 
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-17-jdk
 if [ "$?" -ne "0" ]; then
-    echo openjdk install error, exiting
+    echo openjdk 17 install error, exiting
     exit $?
 fi
 
@@ -613,7 +617,7 @@ sudo tee $ACTIVEMQXML_FILE <<EOF
       <value>file:\${activemq.conf}/credentials.properties</value>
     </property>
   </bean>
-  <broker xmlns="http://activemq.apache.org/schema/core" brokerName="localhost" dataDirectory="\${activemq.data}" schedulerSupport="true">
+  <broker xmlns="http://activemq.apache.org/schema/core" brokerName="localhost" dataDirectory="\${activemq.data}" schedulerSupport="true" id="broker">
     <destinationPolicy>
       <policyMap>
         <policyEntries>
@@ -696,7 +700,7 @@ elif [ "$AMQP10_SERVER_FLAVOR" = "activemq-artemis" ]; then
 
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-21-jdk
 if [ "$?" -ne "0" ]; then
-    echo openjdk install error, exiting
+    echo openjdk 21 install error, exiting
     exit $?
 fi
 
@@ -881,17 +885,26 @@ sudo systemctl restart activemq-artemis
 
 elif [ "$AMQP10_SERVER_FLAVOR" = "rabbitmq" ]; then
 
-curl -LOs $CAPILLARIES_RELEASE_URL/$RABBITMQ_ERLANG_FILENAME
-sudo DEBIAN_FRONTEND=noninteractive apt install -y ./$RABBITMQ_ERLANG_FILENAME
+# Handle "+" in the file name with jq
+RABBITMQ_ERLANG_URL=$CAPILLARIES_RELEASE_URL/$(echo -n "$RABBITMQ_ERLANG_FILENAME" | jq -sRr @uri)
+curl -Ls $RABBITMQ_ERLANG_URL -o $RABBITMQ_ERLANG_FILENAME
+sudo DEBIAN_FRONTEND=noninteractive apt install -y "./$RABBITMQ_ERLANG_FILENAME"
 if [ "$?" -ne "0" ]; then
-    echo erlang install error, exiting
+    echo erlang install error from "./$RABBITMQ_ERLANG_FILENAME", exiting
     exit $?
 fi
 
 curl -LOs $CAPILLARIES_RELEASE_URL/$RABBITMQ_SERVER_FILENAME
 sudo DEBIAN_FRONTEND=noninteractive apt install -y ./$RABBITMQ_SERVER_FILENAME
 if [ "$?" -ne "0" ]; then
-    echo rabbitmq install error, exiting
+    echo rabbitmq server install error, exiting
+    exit $?
+fi
+
+curl -LOs $CAPILLARIES_RELEASE_URL/$RABBITMQADMIN_FILENAME
+sudo DEBIAN_FRONTEND=noninteractive apt install -y ./$RABBITMQADMIN_FILENAME
+if [ "$?" -ne "0" ]; then
+    echo rabbitmqadmin v2 install error, exiting
     exit $?
 fi
 
@@ -932,23 +945,33 @@ sudo rabbitmqctl delete_user guest
 sudo rabbitmqctl add_user $AMQP10_USER_NAME $AMQP10_USER_PASS
 sudo rabbitmqctl set_permissions -p / $AMQP10_USER_NAME ".*" ".*" ".*"
 
-# Install rabbitmqadmin v1 (Python script)
-sudo rabbitmq-plugins enable rabbitmq_management
-sudo curl -Lo /usr/local/bin/rabbitmqadmin https://raw.githubusercontent.com/rabbitmq/rabbitmq-management/v3.7.8/bin/rabbitmqadmin
-sudo sed -i -e "s~env python~env python3~g" /usr/local/bin/rabbitmqadmin
-sudo chmod 777 /usr/local/bin/rabbitmqadmin
+# Install rabbitmqadmin v1 (Python script). For rabbitmq v2, see deb installation above.
+# sudo rabbitmq-plugins enable rabbitmq_management
+# sudo curl -Lo /usr/local/bin/rabbitmqadmin https://raw.githubusercontent.com/rabbitmq/rabbitmq-management/v3.7.8/bin/rabbitmqadmin
+# sudo sed -i -e "s~env python~env python3~g" /usr/local/bin/rabbitmqadmin
+# sudo chmod 777 /usr/local/bin/rabbitmqadmin
 
 # The following commands set up RabbitMQ dead letter queue infrastructure (no ActiveMQ-style redelivery-delay shortcut in RabbitMQ). Very fragile.
 # The only parameter you may want to play with is x-message-ttl.
 # Please note that this setup assumes that Capillaries Amqp10.address setting is set to "/queues/capidaemon" 
 # Some AMQP 1.0 details (like, why "/queues/capidaemon" and not just "my_simple_capillaries_queue") at https://www.rabbitmq.com/docs/amqp
 # Dead letter exchange circle of life explained at https://www.cloudamqp.com/blog/when-and-how-to-use-the-rabbitmq-dead-letter-exchange.html
-sudo rabbitmqadmin declare exchange --vhost=/ name=capillaries type=direct durable=false -u capiadmin -p capiadminpass
-sudo rabbitmqadmin declare exchange --vhost=/ name=capillaries.dlx type=direct durable=false -u capiadmin -p capiadminpass
-sudo rabbitmqadmin declare queue --vhost=/ name=capidaemon durable=false arguments='{"x-dead-letter-exchange":"capillaries.dlx", "x-dead-letter-routing-key":"capidaemon.dlq"}' -u capiadmin -p capiadminpass
-sudo rabbitmqadmin declare queue --vhost=/ name=capidaemon.dlq durable=false arguments='{"x-message-ttl":5000, "x-dead-letter-exchange":"capillaries", "x-dead-letter-routing-key":"capidaemon"}' -u capiadmin -p capiadminpass
-sudo rabbitmqadmin --vhost=/ declare binding source="capillaries" destination_type="queue" destination="capidaemon" routing_key="capidaemon" -u capiadmin -p capiadminpass
-sudo rabbitmqadmin --vhost=/ declare binding source="capillaries.dlx" destination_type="queue" destination="capidaemon.dlq" routing_key="capidaemon.dlq" -u capiadmin -p capiadminpass
+
+# rabbitmqadmin v1
+# sudo rabbitmqadmin declare exchange --vhost=/ name=capillaries type=direct durable=false -u capiadmin -p capiadminpass
+# sudo rabbitmqadmin declare exchange --vhost=/ name=capillaries.dlx type=direct durable=false -u capiadmin -p capiadminpass
+# sudo rabbitmqadmin declare queue --vhost=/ name=capidaemon durable=false arguments='{"x-dead-letter-exchange":"capillaries.dlx", "x-dead-letter-routing-key":"capidaemon.dlq"}' -u capiadmin -p capiadminpass
+# sudo rabbitmqadmin declare queue --vhost=/ name=capidaemon.dlq durable=false arguments='{"x-message-ttl":5000, "x-dead-letter-exchange":"capillaries", "x-dead-letter-routing-key":"capidaemon"}' -u capiadmin -p capiadminpass
+# sudo rabbitmqadmin --vhost=/ declare binding source="capillaries" destination_type="queue" destination="capidaemon" routing_key="capidaemon" -u capiadmin -p capiadminpass
+# sudo rabbitmqadmin --vhost=/ declare binding source="capillaries.dlx" destination_type="queue" destination="capidaemon.dlq" routing_key="capidaemon.dlq" -u capiadmin -p capiadminpass
+
+# Use rabbitmqadmin v2 starting from RabbitMQ 4.3.0
+sudo rabbitmqadmin -u $AMQP10_ADMIN_NAME -p $AMQP10_ADMIN_PASS --vhost="/" exchanges declare --name capillaries --type direct --durable false 
+sudo rabbitmqadmin -u $AMQP10_ADMIN_NAME -p $AMQP10_ADMIN_PASS --vhost="/" exchanges declare --name capillaries.dlx --type direct --durable false
+sudo rabbitmqadmin -u $AMQP10_ADMIN_NAME -p $AMQP10_ADMIN_PASS --vhost "/" queues declare --name "capidaemon" --type "quorum" --durable true --arguments '{"x-dead-letter-exchange":"capillaries.dlx", "x-dead-letter-routing-key":"capidaemon.dlq"}'
+sudo rabbitmqadmin -u $AMQP10_ADMIN_NAME -p $AMQP10_ADMIN_PASS --vhost "/" queues declare --name "capidaemon.dlq" --type "quorum" --durable true --arguments '{"x-message-ttl":5000, "x-dead-letter-exchange":"capillaries", "x-dead-letter-routing-key":"capidaemon"}'
+sudo rabbitmqadmin -u $AMQP10_ADMIN_NAME -p $AMQP10_ADMIN_PASS --vhost="/" bindings declare --source "capillaries" --destination-type "queue" --destination "capidaemon" --routing-key "capidaemon"
+sudo rabbitmqadmin -u $AMQP10_ADMIN_NAME -p $AMQP10_ADMIN_PASS --vhost="/" bindings declare --source "capillaries.dlx" --destination-type "queue" --destination "capidaemon.dlq" --routing-key "capidaemon.dlq"
 
 curl -s http://localhost:15672
 if [ "$?" -ne "0" ]; then

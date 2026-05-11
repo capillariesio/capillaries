@@ -51,7 +51,7 @@ func noooooTestRun(t *testing.T) {
 	assert.Nil(t, err)
 
 	var runStatus wfmodel.RunStatusType
-	runHistory, err := GetRunHistory(logger, gocqlmemSession, "testkeyspace")
+	runHistory, err := GetRunHistory(gocqlmemSession, "testkeyspace")
 	assert.Nil(t, err)
 
 	runStatus = runHistory[len(runHistory)-1].Status
@@ -70,7 +70,7 @@ func noooooTestRun(t *testing.T) {
 		} else {
 			mqProducer.MoveHeadToTail()
 		}
-		runHistory, err := GetRunHistory(logger, gocqlmemSession, "testkeyspace")
+		runHistory, err := GetRunHistory(gocqlmemSession, "testkeyspace")
 		assert.Nil(t, err)
 
 		runStatus = runHistory[len(runHistory)-1].Status

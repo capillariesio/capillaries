@@ -1,4 +1,4 @@
-FROM apache/activemq-artemis:2.43.0
+FROM apache/activemq-artemis:2.44.0
 
 # 1. Do not use /var/lib/artemis-instance/etc directly
 # 2. Queue definition in broker.xml is surprisingly verbose: we had to tweak address-settings, queues and addresses

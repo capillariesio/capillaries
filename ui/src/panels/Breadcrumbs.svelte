@@ -7,7 +7,7 @@
 		src="i/logo.svg"
 		style="width:20px;padding-right:15px;padding-bottom:10px;"
 		alt=""
-		title="Capillaries-UI"
+		title="Capillaries-UI {__GIT_HASH__}"
 	/>
 	{#each path_elements as e, i}
 		{#if !!e.link}
