@@ -10,7 +10,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
-// Used by Webapi to retrieve static run properties
+// Used by Webapi to retrieve static run properties, used by daemon in updateRunStatusFromNodes
 func GetRunProperties(cqlSession gocqlshims.Session, keyspace string, runId int16, fieldNames []string) (map[string]any, error) {
 	if runId <= 0 {
 		return nil, fmt.Errorf("cannot retrieve properties of run 0 for keyspace %s", keyspace)
