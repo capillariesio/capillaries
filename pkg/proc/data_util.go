@@ -8,8 +8,8 @@ import (
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/db"
-	"github.com/capillariesio/capillaries/pkg/gocqlshims"
 	"github.com/capillariesio/capillaries/pkg/l"
+	"github.com/capillariesio/gocqlmem/gocqlshims"
 )
 
 const MaxAmazonKeyspacesBatchLen int = 30
