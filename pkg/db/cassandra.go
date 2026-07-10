@@ -328,6 +328,8 @@ func newCassandraGocqlSession(envConfig *env.EnvConfig, keyspace string, createK
 }
 
 // Singleton: used within StartRun and ProcessDataBatchMsg
+// The only reason to use gocqlmem/gocqlshims is the api_test.go
+// If it proves useless, consider removing gocqlmem/gocqlshims dependency from Capillaries altogether.
 var testGocqlmemSession gocqlshims.Session
 
 func NewSession(envConfig *env.EnvConfig, keyspace string, createKeyspace CreateKeyspaceEnumType) (gocqlshims.Session, CassandraEngineType, error) {
