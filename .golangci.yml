@@ -87,9 +87,6 @@ linters:
         text: use of `fmt.Print(|f|ln)` forbidden by pattern
         linters: [ forbidigo]
 
-      - path: pkg\/gocqlmem\/.+\.go
-        text: has (cognitive|cyclomatic) complexity
-        linters: [ revive ]
       - path: pkg\/proc\/proc_table_creator_lookup\.go
         text: function runCreateTableRelForBatch has (cyclomatic|cognitive) complexity
         linters: [ revive ]

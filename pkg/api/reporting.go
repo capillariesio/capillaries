@@ -1,9 +1,9 @@
 package api
 
 import (
-	"github.com/capillariesio/capillaries/pkg/gocqlshims"
 	"github.com/capillariesio/capillaries/pkg/wfdb"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
+	"github.com/capillariesio/gocqlmem/gocqlshims"
 )
 
 // Used by Toolbelt (get_run_history command) to retrieve run status history for a keyspace (used in integration tests)

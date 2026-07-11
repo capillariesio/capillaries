@@ -6,8 +6,8 @@ import (
 
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/db"
-	"github.com/capillariesio/capillaries/pkg/gocqlshims"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
+	"github.com/capillariesio/gocqlmem/gocqlshims"
 )
 
 // Used by Webapi to retrieve static run properties, used by daemon in updateRunStatusFromNodes

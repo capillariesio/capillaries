@@ -10,9 +10,9 @@ import (
 	gocql "github.com/apache/cassandra-gocql-driver/v2"
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/env"
-	"github.com/capillariesio/capillaries/pkg/gocqlmem"
-	"github.com/capillariesio/capillaries/pkg/gocqlshims"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
+	"github.com/capillariesio/gocqlmem"
+	"github.com/capillariesio/gocqlmem/gocqlshims"
 )
 
 type CassandraEngineType int
@@ -178,7 +178,46 @@ func VerifyAmazonKeyspacesTablesReady(cqlSession gocqlshims.Session, keyspace st
 	return WrapDbErrorWithQuery("failed to check tables, giving up", tableCheckQuery, errors.New("number of check attempts reached"))
 }
 
-func NewGocqlSession(envConfig *env.EnvConfig, keyspace string, createKeyspace CreateKeyspaceEnumType) (gocqlshims.Session, CassandraEngineType, error) {
+// Memory-based GoCQLMem
+func newTestGocqlmemSession(keyspace string, createKeyspace CreateKeyspaceEnumType) (gocqlshims.Session, CassandraEngineType, error) {
+	testGocqlmemSession = gocqlmem.NewGocqlmemSession()
+	var err error
+	if createKeyspace == CreateKeyspaceOnConnect {
+		if err = testGocqlmemSession.Query("CREATE KEYSPACE " + keyspace).Exec(); err != nil {
+			return nil, CassandraEngineCassandra, err
+		}
+		// Create WF tables if needed
+		if err = createWfTable(testGocqlmemSession, keyspace, reflect.TypeOf(wfmodel.BatchHistoryEvent{}), wfmodel.TableNameBatchHistory); err != nil {
+			return nil, CassandraEngineCassandra, err
+		}
+		if err = createWfTable(testGocqlmemSession, keyspace, reflect.TypeOf(wfmodel.NodeHistoryEvent{}), wfmodel.TableNameNodeHistory); err != nil {
+			return nil, CassandraEngineCassandra, err
+		}
+		if err = createWfTable(testGocqlmemSession, keyspace, reflect.TypeOf(wfmodel.RunHistoryEvent{}), wfmodel.TableNameRunHistory); err != nil {
+			return nil, CassandraEngineCassandra, err
+		}
+		if err = createWfTable(testGocqlmemSession, keyspace, reflect.TypeOf(wfmodel.RunProperties{}), wfmodel.TableNameRunProperties); err != nil {
+			return nil, CassandraEngineCassandra, err
+		}
+		if err = createWfTable(testGocqlmemSession, keyspace, reflect.TypeOf(wfmodel.RunCounter{}), wfmodel.TableNameRunCounter); err != nil {
+			return nil, CassandraEngineCassandra, err
+		}
+		qb := cql.QueryBuilder{}
+		qb.
+			Keyspace(keyspace).
+			Write("ks", keyspace).
+			Write("last_run", 0)
+		q := qb.InsertUnpreparedQuery(wfmodel.TableNameRunCounter, cql.IfNotExistsLwt) // If not exists. Insert only once.
+		err = testGocqlmemSession.Query(q).Exec()
+		if err != nil {
+			return nil, CassandraEngineCassandra, WrapDbErrorWithQuery("cannot initialize run counter", q, err)
+		}
+	}
+	return testGocqlmemSession, CassandraEngineCassandra, nil
+}
+
+// True GoCQL
+func newCassandraGocqlSession(envConfig *env.EnvConfig, keyspace string, createKeyspace CreateKeyspaceEnumType) (gocqlshims.Session, CassandraEngineType, error) {
 	dataCluster := gocql.NewCluster(envConfig.Cassandra.Hosts...)
 	dataCluster.Port = envConfig.Cassandra.Port
 
@@ -289,47 +328,18 @@ func NewGocqlSession(envConfig *env.EnvConfig, keyspace string, createKeyspace C
 }
 
 // Singleton: used within StartRun and ProcessDataBatchMsg
+// The only reason to use gocqlmem/gocqlshims is the api_test.go
+// If it proves useless, consider removing gocqlmem/gocqlshims dependency from Capillaries altogether.
 var testGocqlmemSession gocqlshims.Session
 
 func NewSession(envConfig *env.EnvConfig, keyspace string, createKeyspace CreateKeyspaceEnumType) (gocqlshims.Session, CassandraEngineType, error) {
 	if envConfig.UseGocqlmem {
-		var err error
-		if testGocqlmemSession == nil {
-			testGocqlmemSession = gocqlmem.NewGocqlmemSession()
-			if createKeyspace == CreateKeyspaceOnConnect {
-				if err = testGocqlmemSession.Query("CREATE KEYSPACE " + keyspace).Exec(); err != nil {
-					return nil, CassandraEngineCassandra, err
-				}
-				// Create WF tables if needed
-				if err = createWfTable(testGocqlmemSession, keyspace, reflect.TypeOf(wfmodel.BatchHistoryEvent{}), wfmodel.TableNameBatchHistory); err != nil {
-					return nil, CassandraEngineCassandra, err
-				}
-				if err = createWfTable(testGocqlmemSession, keyspace, reflect.TypeOf(wfmodel.NodeHistoryEvent{}), wfmodel.TableNameNodeHistory); err != nil {
-					return nil, CassandraEngineCassandra, err
-				}
-				if err = createWfTable(testGocqlmemSession, keyspace, reflect.TypeOf(wfmodel.RunHistoryEvent{}), wfmodel.TableNameRunHistory); err != nil {
-					return nil, CassandraEngineCassandra, err
-				}
-				if err = createWfTable(testGocqlmemSession, keyspace, reflect.TypeOf(wfmodel.RunProperties{}), wfmodel.TableNameRunProperties); err != nil {
-					return nil, CassandraEngineCassandra, err
-				}
-				if err = createWfTable(testGocqlmemSession, keyspace, reflect.TypeOf(wfmodel.RunCounter{}), wfmodel.TableNameRunCounter); err != nil {
-					return nil, CassandraEngineCassandra, err
-				}
-				qb := cql.QueryBuilder{}
-				qb.
-					Keyspace(keyspace).
-					Write("ks", keyspace).
-					Write("last_run", 0)
-				q := qb.InsertUnpreparedQuery(wfmodel.TableNameRunCounter, cql.IfNotExistsLwt) // If not exists. Insert only once.
-				err = testGocqlmemSession.Query(q).Exec()
-				if err != nil {
-					return nil, CassandraEngineCassandra, WrapDbErrorWithQuery("cannot initialize run counter", q, err)
-				}
-
-			}
+		if testGocqlmemSession != nil {
+			return testGocqlmemSession, CassandraEngineCassandra, nil
 		}
+		var err error
+		testGocqlmemSession, _, err = newTestGocqlmemSession(keyspace, createKeyspace)
 		return testGocqlmemSession, CassandraEngineCassandra, err
 	}
-	return NewGocqlSession(envConfig, keyspace, createKeyspace)
+	return newCassandraGocqlSession(envConfig, keyspace, createKeyspace)
 }
