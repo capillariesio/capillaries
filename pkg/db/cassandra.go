@@ -179,7 +179,7 @@ func VerifyAmazonKeyspacesTablesReady(cqlSession gocqlshims.Session, keyspace st
 }
 
 // Memory-based GoCQLMem
-func newTestGocqlmemSession(envConfig *env.EnvConfig, keyspace string, createKeyspace CreateKeyspaceEnumType) (gocqlshims.Session, CassandraEngineType, error) {
+func newTestGocqlmemSession(keyspace string, createKeyspace CreateKeyspaceEnumType) (gocqlshims.Session, CassandraEngineType, error) {
 	testGocqlmemSession = gocqlmem.NewGocqlmemSession()
 	var err error
 	if createKeyspace == CreateKeyspaceOnConnect {
@@ -338,7 +338,7 @@ func NewSession(envConfig *env.EnvConfig, keyspace string, createKeyspace Create
 			return testGocqlmemSession, CassandraEngineCassandra, nil
 		}
 		var err error
-		testGocqlmemSession, _, err = newTestGocqlmemSession(envConfig, keyspace, createKeyspace)
+		testGocqlmemSession, _, err = newTestGocqlmemSession(keyspace, createKeyspace)
 		return testGocqlmemSession, CassandraEngineCassandra, err
 	}
 	return newCassandraGocqlSession(envConfig, keyspace, createKeyspace)
