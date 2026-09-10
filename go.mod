@@ -27,6 +27,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
+replace github.com/capillariesio/gocqlmem => ../gocqlmem
+
 require (
 	github.com/aws/aws-sdk-go-v2/service/signin v1.0.10 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect

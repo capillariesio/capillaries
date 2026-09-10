@@ -205,7 +205,7 @@ func runCreateFile(envConfig *env.EnvConfig,
 
 	bs, err := readAndInsert(logger, pCtx, node.TableReader.TableName, rs, instr, readerNodeRunId, startToken, endToken, node.TableReader.RowsetSize)
 	if err != nil {
-		if closeErr := instr.waitForWorkerAndCloseErrorsOut(logger, pCtx); err != nil {
+		if closeErr := instr.waitForWorkerAndCloseErrorsOut(logger, pCtx); closeErr != nil {
 			logger.ErrorCtx(pCtx, "unexpected error while calling waitForWorkerAndCloseErrorsOut: %s", closeErr.Error())
 		}
 		return bs, err

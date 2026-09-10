@@ -20,10 +20,31 @@ test TestIdxNotAppliedSamePresentSecondRetryLookup
 test TestIdxNotAppliedDiffPresentLookup
 
 test TestTableDoesNotExistFannieMae
+test TestOperationTimedOutFannieMae
+test TestDataSeriousErrorFannieMae
+test TestIdxSeriousErrorFannieMae
+test TestDataNotAppliedFannieMae
+test TestIdxNotAppliedSamePresentFirstRetryFannieMae
+test TestIdxNotAppliedSamePresentSecondRetryFannieMae
 
 mkdir -p /var/tmp/capi_test/test_api_merged
 rm -fR /var/tmp/capi_test/test_api_merged/*
-go tool covdata merge -i=/var/tmp/capi_test/TestTableDoesNotExistLookup,/var/tmp/capi_test/TestOperationTimedOutLookup,/var/tmp/capi_test/TestIdxSeriousErrorLookup,/var/tmp/capi_test/TestDataNotAppliedLookup,/var/tmp/capi_test/TestIdxNotAppliedSamePresentFirstRetryLookup,/var/tmp/capi_test/TestIdxNotAppliedSamePresentSecondRetryLookup,/var/tmp/capi_test/TestIdxNotAppliedDiffPresentLookup,/var/tmp/capi_test/TestTableDoesNotExistFannieMae -o=/var/tmp/capi_test/test_api_merged
+go tool covdata merge -i=\
+/var/tmp/capi_test/TestTableDoesNotExistLookup,\
+/var/tmp/capi_test/TestOperationTimedOutLookup,\
+/var/tmp/capi_test/TestIdxSeriousErrorLookup,\
+/var/tmp/capi_test/TestDataNotAppliedLookup,\
+/var/tmp/capi_test/TestIdxNotAppliedSamePresentFirstRetryLookup,\
+/var/tmp/capi_test/TestIdxNotAppliedSamePresentSecondRetryLookup,\
+/var/tmp/capi_test/TestIdxNotAppliedDiffPresentLookup,\
+/var/tmp/capi_test/TestTableDoesNotExistFannieMae,\
+/var/tmp/capi_test/TestOperationTimedOutFannieMae,\
+/var/tmp/capi_test/TestDataSeriousErrorFannieMae,\
+/var/tmp/capi_test/TestIdxSeriousErrorFannieMae,\
+/var/tmp/capi_test/TestDataNotAppliedFannieMae,\
+/var/tmp/capi_test/TestIdxNotAppliedSamePresentFirstRetryFannieMae,\
+/var/tmp/capi_test/TestIdxNotAppliedSamePresentSecondRetryFannieMae \
+-o=/var/tmp/capi_test/test_api_merged
 go tool covdata textfmt -i=/var/tmp/capi_test/test_api_merged -o=/var/tmp/capi_test/test_api.out
 go tool cover -html=/var/tmp/capi_test/test_api.out -o=/var/tmp/test_api.html
 

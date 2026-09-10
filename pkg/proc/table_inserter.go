@@ -832,10 +832,13 @@ func (instr *TableInserter) insertIdxRecordWithRowid(logger *l.CapiLogger, idxNa
 				}
 				if retryCount == 0 {
 					// This is the first attempt, and the record we neeed is already there (key and rowid are the same). Doesn't sound right.
+					// Unless it's a DISTINCT idx. For DISTINCT, calling code will catch the ErrDuplicateKey and handle it gracefully, see
+					// insertDistinctIdxAndDataRecords(), else if errors.Is(errInsertIdx, ErrDuplicateKey) part.
 					errorToReturn = fmt.Errorf("cannot write duplicate index key [%s] and proper rowid with %s,%d on retry %d, existing record [%v], assuming it was some other writer, throwing error %w", pq.Query, idxKey, curRowid, retryCount, existingIdxRow, ErrDuplicateKey)
 					break
 				}
-				// Assuming Cassandra managed to insert the record on the previous attempt but returned an error (don't ask me how this may happen, but, apparently, it does)
+				fmt.Printf("outquery: %s, %v\n", pq.Query, preparedIdxQueryParams)
+				// Assuming Cassandra managed to insert the record on the previous attempt but returned an error (don't ask me how this may happen, but, apparently, it may)
 				logger.WarnCtx(instr.PCtx, "duplicate idx record found (%s) in idx %s on retry %d when writing (%d,'%s'), assuming this retry was successful, proceeding as usual", idxName, existingIdxRow, retryCount, curRowid, idxKey)
 			}
 			// Success or not - we are done
