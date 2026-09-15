@@ -1,6 +1,7 @@
 {
 	"nodes": {
 		"01_read_payments": {
+			"max_batch_processing_time": 100,
 			"type": "file_table",
 			"desc": "Read source files to a table",
 			"r": {
@@ -144,6 +145,7 @@
 		},
 
 		"02_loan_ids": {
+			"max_batch_processing_time": 100,
 			"type": "distinct_table",
 			"desc": "Select distinct loan ids",
 			"start_policy": "{manual_if_multi}",
@@ -200,6 +202,7 @@
 			}
 		},
 		"02_deal_names": {
+			"max_batch_processing_time": 100,
 			"type": "distinct_table",
 			"desc": "Select distinct deal names",
 			"start_policy": "{manual_if_multi}",
@@ -223,6 +226,7 @@
 			}
 		},
 		"02_deal_sellers": {
+			"max_batch_processing_time": 100,
 			"type": "distinct_table",
 			"desc": "Select distinct sellers",
 			"start_policy": "{manual_if_multi}",
@@ -251,6 +255,7 @@
 		},
 
 		"03_deal_total_upbs": {
+			"max_batch_processing_time": 100,
 			"type": "table_lookup_table",
 			"desc": "For each deal, calculate total UPBs",
 			"start_policy": "{manual_if_multi}",
@@ -294,6 +299,7 @@
 		},
 
 		"04_loan_payment_summaries": {
+			"max_batch_processing_time": 100,
 			"type": "table_lookup_table",
 			"desc": "For each loan, merge all payments into single json string",
 			"start_policy": "{manual_if_multi}",
@@ -355,6 +361,7 @@
 		},
 
 		"04_loan_smrs_clcltd": {
+			"max_batch_processing_time": 100,
 			"type": "table_custom_tfm_table",
 			"custom_proc_type": "py_calc",
 			"desc": "Apply Python calculations to loan summaries",
@@ -454,6 +461,7 @@
 			}
 		},
 		"04_write_file_loan_smrs_clcltd": {
+			"max_batch_processing_time": 100,
 			"type": "table_file",
 			"desc": "Write from table to file loan_summaries.csv",
 			"r": {
@@ -548,6 +556,7 @@
 		},
 
 		"05_deal_seller_summaries": {
+			"max_batch_processing_time": 100,
 			"type": "table_lookup_table",
 			"desc": "For each deal/seller, calculate aggregates from calculated loan summaries",
 			"start_policy": "{manual_if_multi}",
@@ -741,6 +750,7 @@
 		},
 
 		"05_deal_summaries": {
+			"max_batch_processing_time": 100,
 			"type": "table_lookup_table",
 			"desc": "For each deal, calculate aggregates from calculated loan summaries",
 			"start_policy": "{manual_if_multi}",

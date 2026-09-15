@@ -233,9 +233,6 @@ func (scriptDef *ScriptDef) checkFieldUsageInCreator(node *ScriptNodeDef) error 
 	var processorFieldRefs *FieldRefs
 	if node.HasCustomProcessor() {
 		processorFieldRefs = node.CustomProcessor.GetFieldRefs()
-		if err != nil {
-			return fmt.Errorf("cannot resolve processor field refs: [%s]", err.Error())
-		}
 	}
 
 	var lookupFieldRefs *FieldRefs

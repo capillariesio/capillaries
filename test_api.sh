@@ -26,6 +26,8 @@ test TestIdxSeriousErrorFannieMae
 test TestDataNotAppliedFannieMae
 test TestIdxNotAppliedSamePresentFirstRetryFannieMae
 test TestIdxNotAppliedSamePresentSecondRetryFannieMae
+test TestProcesorCrashLookup
+test TestProcesorCrashFannieMae
 
 mkdir -p /var/tmp/capi_test/test_api_merged
 rm -fR /var/tmp/capi_test/test_api_merged/*
@@ -43,7 +45,9 @@ go tool covdata merge -i=\
 /var/tmp/capi_test/TestIdxSeriousErrorFannieMae,\
 /var/tmp/capi_test/TestDataNotAppliedFannieMae,\
 /var/tmp/capi_test/TestIdxNotAppliedSamePresentFirstRetryFannieMae,\
-/var/tmp/capi_test/TestIdxNotAppliedSamePresentSecondRetryFannieMae \
+/var/tmp/capi_test/TestIdxNotAppliedSamePresentSecondRetryFannieMae,\
+/var/tmp/capi_test/TestProcesorCrashLookup,\
+/var/tmp/capi_test/TestProcesorCrashFannieMae \
 -o=/var/tmp/capi_test/test_api_merged
 go tool covdata textfmt -i=/var/tmp/capi_test/test_api_merged -o=/var/tmp/capi_test/test_api.out
 go tool cover -html=/var/tmp/capi_test/test_api.out -o=/var/tmp/test_api.html

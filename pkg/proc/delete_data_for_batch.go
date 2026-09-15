@@ -98,6 +98,8 @@ func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.Messag
 
 	var pageState []byte
 	var err error
+	// TODO: here, we potentially have to select ALL rows (not just rows added for this batch), which may take forever.
+	// If we could attach batch_idx to every data row and filter by it in selectBatchPagedAllRowids, that would help.
 	for {
 		pageState, err = selectBatchPagedAllRowids(logger,
 			pCtx,
@@ -147,7 +149,6 @@ func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.Messag
 		}
 
 		if rowIdsToDeleteCount > 0 {
-
 			// Trim unused empty rowid slots
 			rowIdsToDelete = rowIdsToDelete[:rowIdsToDeleteCount]
 
@@ -159,6 +160,15 @@ func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.Messag
 			for idxName, idxKeysToDelete := range uniqueKeysToDeleteMap {
 				// Trim unused empty key slots
 				trimmedIdxKeysToDelete := idxKeysToDelete[:rowIdsToDeleteCount]
+
+				// // Show all idx records here
+				// qb := cql.QueryBuilder{}
+				// q := qb.Keyspace(pCtx.Msg.DataKeyspace).SelectRun(idxName, pCtx.Msg.RunId, []string{"key", "rowid"})
+				// it := pCtx.CqlSession.Query(q).Iter()
+				// rows, _ := it.SliceMap()
+				// logger.Error("found %d in %s: %v", len(rows), idxName, rows)
+				// logger.Error("deleting %d from %s: %s", len(trimmedIdxKeysToDelete), idxName, trimmedIdxKeysToDelete)
+
 				logger.DebugCtx(pCtx, "deleting %d idx %s records from %d/%s idx %s for batch_idx %d: '%s'", len(rowIdsToDelete), idxName, pCtx.Msg.RunId, pCtx.Msg.TargetNodeName, idxName, pCtx.Msg.BatchIdx, strings.Join(trimmedIdxKeysToDelete, `','`))
 				if err := deleteIdxRecordByKey(pCtx, idxName, trimmedIdxKeysToDelete); err != nil {
 					return err
@@ -170,16 +180,18 @@ func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.Messag
 			if err := deleteDataRecordByRowid(pCtx, rowIdsToDelete); err != nil {
 				return err
 			}
-
-			// TODO: assuming Delete won't interfere with paging used above;
-			// do we need to reset the pageState? After all, we have deleted some records from that table.
-			// On the other hand, if we reset it, we will have to walk through thousands of rows that do not belong to this batch, again.
 		}
 
 		// Amazon Keyspaces: do not rely on the retrieved row count, use pagestate
-		if len(pageState) == 0 {
+		if pCtx.CassandraEngine == db.CassandraEngineAmazonKeyspaces && len(pageState) == 0 {
 			break
 		}
+
+		// Reset pageState, DELETE above messed with it. Yes, we will have to walk through many rows from other batches AGAIN, but this is the price we have to pay
+		if rowIdsToDeleteCount > 0 {
+			pageState = []byte{}
+		}
+
 	}
 
 	logger.DebugCtx(pCtx, "deleted data records for %s, elapsed %v", pCtx.Msg.FullBatchId(), time.Since(deleteStartTime))

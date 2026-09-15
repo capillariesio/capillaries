@@ -12,20 +12,6 @@ import (
 	"gopkg.in/inf.v0"
 )
 
-type IfNotExistsType int
-
-const (
-	IfExistsOverwrite IfNotExistsType = 0
-	IfNotExistsLwt    IfNotExistsType = 1
-)
-
-type QuotePolicyType int
-
-const (
-	LeaveQuoteAsIs QuotePolicyType = iota
-	ForceUnquote
-)
-
 func SumOfExpBackoffDelaysMs(startDelayMs int64, expBackoffFactorMultiplier int64, iteration int) int64 {
 	s := int64(0)
 	for i := range iteration + 1 {
@@ -38,14 +24,6 @@ type PreparedQuery struct {
 	Qb    *QueryBuilder
 	Query string
 }
-
-// These errors mimic Cassandra errors, so do not change these strings
-const (
-	ErrorDoesNotExist                 string = "does not exist"
-	ErrorOperationTimedOut            string = "Operation timed out"
-	ErrorAmazonKeyspacesZeroResponses string = "Operation failed - received 0 responses and 1 failures" // Saw this from Amazon Keyspaces, slow down
-	ErrorSomeSeriousError             string = "some serious Cassandra error"
-)
 
 /*
 Data/idx table name for each run needs run id as a suffix
@@ -477,7 +455,8 @@ func (qb *QueryBuilder) CreateRun(tableName string, runId int16, ifNotExists IfN
 	// If needed, can add for Amazon Keyspaces
 	// WITH CUSTOM_PROPERTIES = {'capacity_mode':{'throughput_mode':'PROVISIONED','write_capacity_units':1000,'read_capacity_units':1000}}
 	if strings.Trim(createProperties, " ") != "" {
-		b.WriteString(" " + strings.Trim(createProperties, " "))
+		b.WriteString(" ")
+		b.WriteString(strings.Trim(createProperties, " "))
 	}
 	b.WriteString(";")
 

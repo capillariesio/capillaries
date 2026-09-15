@@ -182,7 +182,7 @@ func TestTableDoesNotExistLookup(t *testing.T) {
 
 	logger, err := l.NewLoggerFromEnvConfig(&envConfig, "unittest")
 	assert.Nil(t, err)
-	logger.PushF("TestTableDoesNotExistLookup")
+	logger.PushF("TestTableDoesNotExistFannieMae")
 	defer logger.PopF()
 
 	mqProducer := mq.TestInmemProducer{}
@@ -491,7 +491,7 @@ func TestOperationTimedOutFannieMae(t *testing.T) {
 
 	logger, err := l.NewLoggerFromEnvConfig(&envConfig, "unittest")
 	assert.Nil(t, err)
-	logger.PushF("TestOperationTimedOutLookup")
+	logger.PushF("TestOperationTimedOutFannieMae")
 	defer logger.PopF()
 
 	mqProducer := mq.TestInmemProducer{}
@@ -699,7 +699,7 @@ func TestDataSeriousErrorFannieMae(t *testing.T) {
 
 	logger, err := l.NewLoggerFromEnvConfig(&envConfig, "unittest")
 	assert.Nil(t, err)
-	logger.PushF("TestDataSeriousErrorLookup")
+	logger.PushF("TestDataSeriousErrorFannieMae")
 	defer logger.PopF()
 
 	mqProducer := mq.TestInmemProducer{}
@@ -911,7 +911,7 @@ func TestIdxSeriousErrorFannieMae(t *testing.T) {
 
 	logger, err := l.NewLoggerFromEnvConfig(&envConfig, "unittest")
 	assert.Nil(t, err)
-	logger.PushF("TestIdxSeriousErrorLookup")
+	logger.PushF("TestIdxSeriousErrorFannieMae")
 	defer logger.PopF()
 
 	mqProducer := mq.TestInmemProducer{}
@@ -1115,7 +1115,7 @@ func TestDataNotAppliedFannieMae(t *testing.T) {
 
 	logger, err := l.NewLoggerFromEnvConfig(&envConfig, "unittest")
 	assert.Nil(t, err)
-	logger.PushF("TestDataNotAppliedLookup")
+	logger.PushF("TestDataNotAppliedFannieMae")
 	defer logger.PopF()
 
 	mqProducer := mq.TestInmemProducer{}
@@ -1318,7 +1318,7 @@ func TestIdxNotAppliedSamePresentFirstRetryFannieMae(t *testing.T) {
 
 	logger, err := l.NewLoggerFromEnvConfig(&envConfig, "unittest")
 	assert.Nil(t, err)
-	logger.PushF("TestIdxSeriousErrorLookup")
+	logger.PushF("TestIdxSeriousErrorFannieMae")
 	defer logger.PopF()
 
 	mqProducer := mq.TestInmemProducer{}
@@ -1527,7 +1527,7 @@ func TestIdxNotAppliedSamePresentSecondRetryFannieMae(t *testing.T) {
 
 	logger, err := l.NewLoggerFromEnvConfig(&envConfig, "unittest")
 	assert.Nil(t, err)
-	logger.PushF("TestIdxSeriousErrorLookup")
+	logger.PushF("TestIdxSeriousErrorFannieMae")
 	defer logger.PopF()
 
 	mqProducer := mq.TestInmemProducer{}
@@ -1698,6 +1698,364 @@ func TestIdxNotAppliedDiffPresentLookup(t *testing.T) {
 			}
 		}
 	}
+	assert.Nil(t, gocqlmemSession.Query(fmt.Sprintf("DROP keyspace %s;", ks)).Exec())
+	gocqlmemSession.Close()
+}
+
+func TestIdxNotAppliedDiffPresentFannieMae(t *testing.T) {
+	os.Remove("/tmp/capi_out/fannie_mae_apitest/deal_seller_summaries.csv")
+	os.Remove("/tmp/capi_out/fannie_mae_apitest/deal_summaries.csv")
+	os.Remove("/tmp/capi_out/fannie_mae_apitest/loan_smrs_clcltd.csv")
+
+	ks := "ks_idx_not_applied_diff_present_fannie_mae"
+
+	envConfig := env.EnvConfig{
+		Cassandra:                         env.CassandraConfig{WriterWorkers: 2},
+		Log:                               env.LogConfig{Level: "INFO"},
+		CustomProcessorDefFactoryInstance: &TestProcessorDefFactory{},
+		CustomProcessorsSettings:          getTestProcessorSettings(),
+		UseGocqlmem:                       true,
+	}
+	sc.ScriptDefCache = sc.NewScriptDefCache()
+	NodeDependencyReadynessCache = NewNodeDependencyReadynessCache()
+
+	logger, err := l.NewLoggerFromEnvConfig(&envConfig, "unittest")
+	assert.Nil(t, err)
+	logger.PushF("TestIdxSeriousErrorFannieMae")
+	defer logger.PopF()
+
+	mqProducer := mq.TestInmemProducer{}
+
+	gocqlmemSession, cassandraEngineType, err := db.NewSession(&envConfig, ks, db.CreateKeyspaceOnConnect)
+	assert.Nil(t, err)
+
+	_, err = StartRun(&envConfig, logger, &mqProducer, "/tmp/capi_cfg/fannie_mae_apitest/script_api.json", "/tmp/capi_cfg/fannie_mae_apitest/script_params_api.json", gocqlmemSession, cassandraEngineType, ks, []string{"01_read_payments"}, "test run")
+	assert.Nil(t, err)
+
+	var runStatus wfmodel.RunStatusType
+
+	// Verify run status
+	runHistory, err := GetRunHistory(gocqlmemSession, ks)
+	assert.Nil(t, err)
+	runStatus = runHistory[len(runHistory)-1].Status
+	assert.Equal(t, wfmodel.RunStart, runStatus)
+
+	for {
+		msg := mqProducer.PeekHead()
+		if msg == nil {
+			break
+		}
+		queryPerformer := TableInserterQueryPerformerTestIdxNotAppliedDiffPresent{}
+		ackCmd := ProcessDataBatchMsg(&envConfig, logger, msg, 0, nil, ctx.TableInserterProperties{
+			QueryPerformer:               &queryPerformer,
+			DoesNotExistPauseMillis:      10, // speed it up for testing
+			OperationTimedOutPauseMillis: 10, // speed it up for testing
+		})
+		if ackCmd == mq.AcknowledgerCmdAck {
+			mqProducer.RemoveHead()
+		} else {
+			mqProducer.MoveHeadToTail()
+		}
+	}
+
+	// Verify run status
+	runHistory, err = GetRunHistory(gocqlmemSession, ks)
+	assert.Nil(t, err)
+	runStatus = runHistory[len(runHistory)-1].Status
+	assert.Equal(t, wfmodel.RunComplete, runStatus)
+
+	// Verify node statuses
+	nodeHistory, err := GetNodeHistoryForRuns(gocqlmemSession, ks, []int16{int16(1)})
+	assert.Nil(t, err)
+	newNodeRunStatusMap := map[string]wfmodel.NodeBatchStatusType{}
+	for _, nodeEvent := range nodeHistory {
+		newNodeRunStatusMap[nodeEvent.ScriptNode] = nodeEvent.Status
+	}
+
+	// For each node, verify batch statuses
+	for nodeName, nodeStatus := range newNodeRunStatusMap {
+		assert.Equal(t, wfmodel.NodeBatchFail, nodeStatus, fmt.Sprintf("node %s supposed to fail", nodeName))
+		// Make sure all batches for this node started then failed
+		batchEvents, err := GetBatchHistoryForRunAndNode(gocqlmemSession, ks, int16(1), nodeName)
+		assert.Nil(t, err)
+		if nodeName == "01_read_payments" {
+			// These nodes start and fail
+			assert.Equal(t, 2, len(batchEvents), nodeName)
+			assert.Equal(t, wfmodel.NodeBatchStart, batchEvents[0].Status, nodeName)
+			assert.Equal(t, wfmodel.NodeBatchFail, batchEvents[1].Status, nodeName)
+			assert.True(t, strings.Contains(batchEvents[1].Comment, "rowid is different, throwing error duplicate key"))
+		} else {
+			// These nodes failed without starting
+			for _, event := range batchEvents {
+				assert.Equal(t, wfmodel.NodeBatchFail, event.Status, nodeName)
+				assert.True(t, strings.Contains(event.Comment, "some dependency nodes"))
+			}
+		}
+	}
+	assert.Nil(t, gocqlmemSession.Query(fmt.Sprintf("DROP keyspace %s;", ks)).Exec())
+	gocqlmemSession.Close()
+}
+
+// Simulate processor crash
+
+func TestProcesorCrashLookup(t *testing.T) {
+	os.Remove("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_inner.csv")
+	os.Remove("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_left_outer.csv")
+	os.Remove("/tmp/capi_out/lookup_quicktest/order_item_date_inner.csv")
+	os.Remove("/tmp/capi_out/lookup_quicktest/order_item_date_left_outer.csv")
+
+	ks := "ks_processor_crash_lookup"
+
+	envConfig := env.EnvConfig{
+		Cassandra:                         env.CassandraConfig{WriterWorkers: 1},
+		Log:                               env.LogConfig{Level: "INFO"},
+		CustomProcessorDefFactoryInstance: &TestProcessorDefFactory{},
+		CustomProcessorsSettings:          getTestProcessorSettings(),
+		UseGocqlmem:                       true,
+	}
+	sc.ScriptDefCache = sc.NewScriptDefCache()
+	NodeDependencyReadynessCache = NewNodeDependencyReadynessCache()
+
+	logger, err := l.NewLoggerFromEnvConfig(&envConfig, "unittest")
+	assert.Nil(t, err)
+	logger.PushF("TestProcesorCrashLookup")
+	defer logger.PopF()
+
+	mqProducer := mq.TestInmemProducer{}
+
+	gocqlmemSession, cassandraEngineType, err := db.NewSession(&envConfig, ks, db.CreateKeyspaceOnConnect)
+	assert.Nil(t, err)
+
+	_, err = StartRun(&envConfig, logger, &mqProducer, "/tmp/capi_cfg/lookup_quicktest/script_quick.yaml", "/tmp/capi_cfg/lookup_quicktest/script_params_quick_fs_one.yaml", gocqlmemSession, cassandraEngineType, ks, []string{"read_orders", "read_order_items"}, "test run")
+	assert.Nil(t, err)
+
+	var runStatus wfmodel.RunStatusType
+
+	// Verify run status
+	runHistory, err := GetRunHistory(gocqlmemSession, ks)
+	assert.Nil(t, err)
+	runStatus = runHistory[len(runHistory)-1].Status
+	assert.Equal(t, wfmodel.RunStart, runStatus)
+
+	fakeFailedBatchMap := map[string]struct{}{}
+	for {
+		msg := mqProducer.PeekHead()
+		if msg == nil {
+			break
+		}
+		queryPerformer := db.TableInserterQueryPerformerProduction{}
+		ackCmd := ProcessDataBatchMsg(&envConfig, logger, msg, 0, nil, ctx.TableInserterProperties{
+			QueryPerformer:               &queryPerformer,
+			DoesNotExistPauseMillis:      10,  // speed it up for testing
+			OperationTimedOutPauseMillis: 100, // speed it up for testing
+		})
+		if ackCmd == mq.AcknowledgerCmdAck {
+			if _, ok := fakeFailedBatchMap[msg.FullBatchId()]; !strings.HasPrefix(msg.TargetNodeName, "file") && !ok {
+				fakeFailedBatchMap[msg.FullBatchId()] = struct{}{}
+				// Simulate failure and re-process. Rewrite history:
+				// - remove batch completed record
+				// - remove node complete record
+				s, _, err := db.NewSession(&envConfig, msg.DataKeyspace, db.DoNotCreateKeyspaceOnConnect)
+				assert.Nil(t, err)
+
+				// Verify the batch marked complete
+				batchEvents, err := GetBatchHistoryForRunAndNode(s, msg.DataKeyspace, msg.RunId, msg.TargetNodeName)
+				assert.Nil(t, err)
+
+				var batchSuccessful bool
+				for _, e := range batchEvents {
+					if e.BatchIdx == msg.BatchIdx && e.Status == wfmodel.NodeBatchSuccess {
+						batchSuccessful = true
+						break
+					}
+				}
+				assert.True(t, batchSuccessful)
+
+				// Rewrite hisory: unmark this batch as complete
+				err = s.Query(fmt.Sprintf(`DELETE FROM %s.%s WHERE run_id = %d AND script_node = '%s' AND batch_idx = %d AND status = %d;`, msg.DataKeyspace, wfmodel.TableNameBatchHistory, msg.RunId, msg.TargetNodeName, msg.BatchIdx, wfmodel.NodeBatchSuccess)).Exec()
+				assert.Nil(t, err)
+
+				// Was node marked marked complete?
+				nodeEvents, err := GetNodeHistoryForRuns(s, msg.DataKeyspace, []int16{msg.RunId})
+				assert.Nil(t, err)
+				for _, e := range nodeEvents {
+					if e.ScriptNode == msg.TargetNodeName && e.Status == wfmodel.NodeBatchSuccess {
+						// Node was declared successfully completed, but we will revert it
+						err = s.Query(fmt.Sprintf(`DELETE FROM %s.%s WHERE run_id = %d AND script_node = '%s' AND status = %d;`, msg.DataKeyspace, wfmodel.TableNameNodeHistory, msg.RunId, msg.TargetNodeName, wfmodel.NodeBatchSuccess)).Exec()
+						assert.Nil(t, err)
+						break
+					}
+				}
+				s.Close()
+
+				// Send back to processing again
+				mqProducer.MoveHeadToTail()
+			} else {
+				mqProducer.RemoveHead()
+			}
+		} else {
+			mqProducer.MoveHeadToTail()
+		}
+	}
+
+	// Verify run status
+	runHistory, err = GetRunHistory(gocqlmemSession, ks)
+	assert.Nil(t, err)
+	runStatus = runHistory[len(runHistory)-1].Status
+	assert.Equal(t, wfmodel.RunComplete, runStatus)
+
+	err = compareCsvs("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_inner_baseline.csv", "/tmp/capi_out/lookup_quicktest/order_date_value_grouped_inner.csv")
+	assert.Nil(t, err)
+	err = compareCsvs("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_left_outer_baseline.csv", "/tmp/capi_out/lookup_quicktest/order_date_value_grouped_left_outer.csv")
+	assert.Nil(t, err)
+	err = compareCsvs("/tmp/capi_out/lookup_quicktest/order_item_date_inner_baseline.csv", "/tmp/capi_out/lookup_quicktest/order_item_date_inner.csv")
+	assert.Nil(t, err)
+	err = compareCsvs("/tmp/capi_out/lookup_quicktest/order_item_date_left_outer_baseline.csv", "/tmp/capi_out/lookup_quicktest/order_item_date_left_outer.csv")
+	assert.Nil(t, err)
+
+	assert.Nil(t, gocqlmemSession.Query(fmt.Sprintf("DROP keyspace %s;", ks)).Exec())
+	gocqlmemSession.Close()
+}
+
+func TestProcesorCrashFannieMae(t *testing.T) {
+	os.Remove("/tmp/capi_out/fannie_mae_apitest/deal_seller_summaries.csv")
+	os.Remove("/tmp/capi_out/fannie_mae_apitest/deal_summaries.csv")
+	os.Remove("/tmp/capi_out/fannie_mae_apitest/loan_smrs_clcltd.csv")
+
+	ks := "ks_processor_crash_fannie_mae"
+
+	envConfig := env.EnvConfig{
+		Cassandra:                         env.CassandraConfig{WriterWorkers: 2},
+		Log:                               env.LogConfig{Level: "INFO"},
+		CustomProcessorDefFactoryInstance: &TestProcessorDefFactory{},
+		CustomProcessorsSettings:          getTestProcessorSettings(),
+		UseGocqlmem:                       true,
+	}
+	sc.ScriptDefCache = sc.NewScriptDefCache()
+	NodeDependencyReadynessCache = NewNodeDependencyReadynessCache()
+
+	logger, err := l.NewLoggerFromEnvConfig(&envConfig, "unittest")
+	assert.Nil(t, err)
+	logger.PushF("TestIdxSeriousErrorFannieMae")
+	defer logger.PopF()
+
+	mqProducer := mq.TestInmemProducer{}
+
+	gocqlmemSession, cassandraEngineType, err := db.NewSession(&envConfig, ks, db.CreateKeyspaceOnConnect)
+	assert.Nil(t, err)
+
+	_, err = StartRun(&envConfig, logger, &mqProducer, "/tmp/capi_cfg/fannie_mae_apitest/script_api.json", "/tmp/capi_cfg/fannie_mae_apitest/script_params_api.json", gocqlmemSession, cassandraEngineType, ks, []string{"01_read_payments"}, "test run")
+	assert.Nil(t, err)
+
+	var runStatus wfmodel.RunStatusType
+
+	// Verify run status
+	runHistory, err := GetRunHistory(gocqlmemSession, ks)
+	assert.Nil(t, err)
+	runStatus = runHistory[len(runHistory)-1].Status
+	assert.Equal(t, wfmodel.RunStart, runStatus)
+
+	fakeFailedBatchMap := map[string]struct{}{}
+	for {
+		msg := mqProducer.PeekHead()
+		if msg == nil {
+			break
+		}
+		queryPerformer := db.TableInserterQueryPerformerProduction{}
+		ackCmd := ProcessDataBatchMsg(&envConfig, logger, msg, 0, nil, ctx.TableInserterProperties{
+			QueryPerformer:               &queryPerformer,
+			DoesNotExistPauseMillis:      10,  // speed it up for testing
+			OperationTimedOutPauseMillis: 100, // speed it up for testing
+		})
+		if ackCmd == mq.AcknowledgerCmdAck {
+			if _, ok := fakeFailedBatchMap[msg.FullBatchId()]; !strings.HasPrefix(msg.TargetNodeName, "file") && !ok {
+				fakeFailedBatchMap[msg.FullBatchId()] = struct{}{}
+				// Simulate failure and re-process. Rewrite history:
+				// - remove batch completed record
+				// - remove node complete record
+				s, _, err := db.NewSession(&envConfig, msg.DataKeyspace, db.DoNotCreateKeyspaceOnConnect)
+				assert.Nil(t, err)
+
+				// Verify the batch marked complete
+				batchEvents, err := GetBatchHistoryForRunAndNode(s, msg.DataKeyspace, msg.RunId, msg.TargetNodeName)
+				assert.Nil(t, err)
+
+				var batchSuccessful bool
+				for _, e := range batchEvents {
+					if e.BatchIdx == msg.BatchIdx && e.Status == wfmodel.NodeBatchSuccess {
+						batchSuccessful = true
+						break
+					}
+				}
+				if batchSuccessful {
+					// Rewrite hisory: unmark this batch as complete
+					err = s.Query(fmt.Sprintf(`DELETE FROM %s.%s WHERE run_id = %d AND script_node = '%s' AND batch_idx = %d AND status = %d;`, msg.DataKeyspace, wfmodel.TableNameBatchHistory, msg.RunId, msg.TargetNodeName, msg.BatchIdx, wfmodel.NodeBatchSuccess)).Exec()
+					assert.Nil(t, err)
+
+					// Was node marked marked complete?
+					nodeEvents, err := GetNodeHistoryForRuns(s, msg.DataKeyspace, []int16{msg.RunId})
+					assert.Nil(t, err)
+					for _, e := range nodeEvents {
+						if e.ScriptNode == msg.TargetNodeName && e.Status == wfmodel.NodeBatchSuccess {
+							// Node was declared successfully completed, but we will revert it
+							err = s.Query(fmt.Sprintf(`DELETE FROM %s.%s WHERE run_id = %d AND script_node = '%s' AND status = %d;`, msg.DataKeyspace, wfmodel.TableNameNodeHistory, msg.RunId, msg.TargetNodeName, wfmodel.NodeBatchSuccess)).Exec()
+							assert.Nil(t, err)
+							break
+						}
+					}
+					s.Close()
+
+					// Send back to processing again
+					mqProducer.MoveHeadToTail()
+				} else {
+					mqProducer.RemoveHead()
+				}
+			} else {
+				mqProducer.RemoveHead()
+			}
+		} else {
+			mqProducer.MoveHeadToTail()
+		}
+	}
+
+	// Verify run status
+	runHistory, err = GetRunHistory(gocqlmemSession, ks)
+	assert.Nil(t, err)
+	runStatus = runHistory[len(runHistory)-1].Status
+	assert.Equal(t, wfmodel.RunComplete, runStatus)
+
+	// Verify node statuses
+	nodeHistory, err := GetNodeHistoryForRuns(gocqlmemSession, ks, []int16{int16(1)})
+	assert.Nil(t, err)
+	newNodeRunStatusMap := map[string]wfmodel.NodeBatchStatusType{}
+	for _, nodeEvent := range nodeHistory {
+		newNodeRunStatusMap[nodeEvent.ScriptNode] = nodeEvent.Status
+	}
+
+	// For each node, verify batch statuses
+	for _, nhe := range nodeHistory {
+		if nhe.Status != wfmodel.NodeBatchStart {
+			switch nhe.ScriptNode {
+			case "02_loan_ids", "02_deal_names", "02_deal_sellers", "05_deal_seller_summaries":
+				assert.Equal(t, wfmodel.NodeBatchFail, nhe.Status, fmt.Sprintf("node %s supposed to fail", nhe.ScriptNode))
+				// Make sure all batches for this node started then failed
+				batchEvents, err := GetBatchHistoryForRunAndNode(gocqlmemSession, ks, int16(1), nhe.ScriptNode)
+				assert.Nil(t, err)
+				for _, be := range batchEvents {
+					if be.Status == wfmodel.NodeBatchFail {
+						if nhe.ScriptNode == "02_loan_ids" {
+							assert.Equal(t, ErrorNotProcessingAbandonedBatch, be.Comment)
+						} else {
+							assert.Contains(t, be.Comment, "some dependency nodes")
+						}
+					}
+				}
+			case "01_read_payments":
+				assert.Equal(t, wfmodel.NodeBatchSuccess, nhe.Status)
+			}
+		}
+	}
+
 	assert.Nil(t, gocqlmemSession.Query(fmt.Sprintf("DROP keyspace %s;", ks)).Exec())
 	gocqlmemSession.Close()
 }
