@@ -354,21 +354,7 @@ func checkLastBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingConte
 				logger.WarnCtx(pCtx, "will wait for another %dms until %dms timeout, some other instance may still be handling this batch", durationToWaitMore.Milliseconds(), pCtx.CurrentScriptNode.MaxBatchProcessingTime)
 				return FurtherProcessingRetry, FurtherProcessingBatchNone
 			}
-
-			logger.WarnCtx(pCtx, "grace period %dms for potential other client is over, we will clean up and re-process", pCtx.CurrentScriptNode.MaxBatchProcessingTime)
-			if deleteErr := proc.DeleteDataAndUniqueIndexesByBatchIdx(logger, pCtx); deleteErr != nil {
-				if db.IsDbConnError(deleteErr) {
-					return FurtherProcessingRetry, FurtherProcessingBatchNone
-				}
-				comment := fmt.Sprintf("cannot clean up leftovers of the previous processing of batch %s, giving up, will try to set batch status to failed: %s", pCtx.Msg.FullBatchId(), deleteErr.Error())
-				logger.ErrorCtx(pCtx, "%s", comment)
-				if setBatchStatusErr := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeBatchFail, comment); setBatchStatusErr != nil {
-					logger.ErrorCtx(pCtx, "cannot set batch status: %s", setBatchStatusErr.Error())
-				}
-				return FurtherProcessingAck, FurtherProcessingBatchNone
-			}
-
-			// Clean up successful, process this batch anew
+			// Clean up and process this batch anew
 			return FurtherProcessingProceed, FurtherProcessingBatchWasAbadoned
 
 		case sc.NodeFail:
@@ -535,6 +521,22 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wf
 			}
 		}
 		return mq.AcknowledgerCmdAck
+
+	case FurtherProcessingProceed:
+		if furtherProcBatchScenario == FurtherProcessingBatchWasAbadoned {
+			logger.WarnCtx(pCtx, "grace period %dms for potential other client is over, we will clean up and re-process", pCtx.CurrentScriptNode.MaxBatchProcessingTime)
+			if deleteErr := proc.DeleteDataAndUniqueIndexesByBatchIdx(logger, pCtx); deleteErr != nil {
+				if db.IsDbConnError(deleteErr) {
+					return mq.AcknowledgerCmdRetry
+				}
+				comment := fmt.Sprintf("cannot clean up leftovers of the previous processing of batch %s, giving up, will try to set batch status to failed: %s", pCtx.Msg.FullBatchId(), deleteErr.Error())
+				logger.ErrorCtx(pCtx, "%s", comment)
+				if setBatchStatusErr := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeBatchFail, comment); setBatchStatusErr != nil {
+					logger.ErrorCtx(pCtx, "cannot set batch status: %s", setBatchStatusErr.Error())
+				}
+				return mq.AcknowledgerCmdAck
+			}
+		}
 	}
 
 	// At this point, we are assuming this batch processing either never started or was started and then abandoned
@@ -608,11 +610,6 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wf
 	}
 
 	batchStatus, batchStats, batchErr := proc.CallAppropriateProcessorForBatch(envConfig, logger, pCtx, readerNodeRunId, lookupNodeRunId)
-
-	// if pCtx.TestScenario == ctx.TestProcessDataBatchError {
-	// 	logger.InfoCtx(pCtx, "test error: ProcessDataBatchMsg")
-	// 	return mq.AcknowledgerCmdRetry
-	// }
 
 	if batchErr != nil {
 		logger.ErrorCtx(pCtx, "safeProcessBatch: %s", batchErr.Error())
