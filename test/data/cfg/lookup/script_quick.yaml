@@ -1,6 +1,7 @@
 ---
   nodes: 
-    read_orders: 
+    read_orders:
+      max_batch_processing_time: 100
       type: "file_table"
       desc: "Load order data from CSV file"
       r: 
@@ -39,6 +40,7 @@
         indexes: 
           idx_orders_order_id_to_check_uniq: "unique(order_id(case_sensitive))"
     read_order_items: 
+      max_batch_processing_time: 100
       type: "file_table"
       desc: "Load order item data from CSV file"
       r: 
@@ -112,6 +114,7 @@
         indexes: 
           idx_order_items_order_id: "non_unique(order_id(case_sensitive))"
     order_item_date_inner: 
+      max_batch_processing_time: 100
       type: "table_lookup_table"
       start_policy: "{manual_if_multi|string}"
       desc: "For each order, look up order items and perform inner join without grouping or aggregation"
@@ -148,6 +151,7 @@
             expression: "l.value"
             type: "decimal2"
     order_item_date_left_outer: 
+      max_batch_processing_time: 100
       type: "table_lookup_table"
       start_policy: "{manual_if_multi|string}"
       desc: "For each order, look up order items and perform left outer join without grouping or aggregation"
@@ -187,6 +191,7 @@
             default_value: "{default_order_item_value}"
             type: "decimal2"
     order_date_value_grouped_inner: 
+      max_batch_processing_time: 100
       type: "table_lookup_table"
       start_policy: "{manual_if_multi|string}"
       desc: "For each order, look up order items and perform inner join with grouping and aggregation"
@@ -229,6 +234,7 @@
             expression: "count()"
             type: "int"
     order_date_value_grouped_left_outer: 
+      max_batch_processing_time: 100
       type: "table_lookup_table"
       start_policy: "{manual_if_multi|string}"
       desc: "For each order, look up order items and perform left outer join with grouping and aggregation"
@@ -271,6 +277,7 @@
             expression: "count()"
             type: "int"
     file_order_item_date_inner: 
+      max_batch_processing_time: 100
       type: "table_file"
       desc: "Write the results of inner join without grouping to CSV file"
       r: 
@@ -323,6 +330,7 @@
             expression: "r.value"
             type: "decimal2"
     file_order_item_date_left_outer: 
+      max_batch_processing_time: 100
       type: "table_file"
       desc: "Write the results of left oter join without grouping to CSV file"
       r: 
@@ -375,6 +383,7 @@
             expression: "r.value"
             type: "decimal2"
     file_order_date_value_grouped_inner: 
+      max_batch_processing_time: 100
       type: "table_file"
       desc: "Write the results of inner join with grouping to CSV file"
       r: 
@@ -448,6 +457,7 @@
             expression: "r.item_count"
             type: "int"
     file_order_date_value_grouped_left_outer: 
+      max_batch_processing_time: 100
       type: "table_file"
       desc: "Write the results of left outer join with grouping to CSV file"
       r: 

@@ -346,7 +346,7 @@ func checkLastBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingConte
 		// This run/node/batch has been already picked up by another processor that presumably crashed before marking success/fail
 		switch pCtx.CurrentScriptNode.RerunPolicy {
 		case sc.NodeRerun:
-			// We cannot be 100% sure that no other worker is currently handling this batch.
+			// We cannot be 100% sure that no other worker is currently handling this batch: what if the mq declared it abandoned, but it actually completed?
 			// Do our best: give that worker some time to complete.
 			durationToWaitMore := time.Until(lastBatchTs.Add(time.Duration(pCtx.CurrentScriptNode.MaxBatchProcessingTime) * time.Millisecond))
 
