@@ -110,6 +110,7 @@ func selectBatchFromDataTablePaged(logger *l.CapiLogger,
 	return nextPageState, nil
 }
 
+// Used only in DeleteDataAndUniqueIndexesByBatchIdx
 func selectBatchPagedAllRowids(logger *l.CapiLogger,
 	pCtx *ctx.MessageProcessingContext,
 	rs *Rowset,

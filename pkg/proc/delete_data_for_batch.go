@@ -10,23 +10,11 @@ import (
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/db"
-	"github.com/capillariesio/capillaries/pkg/evalcapi"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
 )
 
 const HarvestForDeleteRowsetSize = 1000 // Do not let users tweak it, maybe too sensitive
-
-// func initRowidsAndKeysToDelete(rowCount int, indexesMap sc.IdxDefMap) ([]int64, map[string][]string) {
-// 	rowIdsToDelete := make([]int64, rowCount)
-// 	uniqueKeysToDeleteMap := map[string][]string{} // unique_idx_name -> list_of_keys_to_delete
-// 	for idxName, idxDef := range indexesMap {
-// 		if idxDef.Uniqueness == sc.IdxUnique {
-// 			uniqueKeysToDeleteMap[idxName] = make([]string, rowCount)
-// 		}
-// 	}
-// 	return rowIdsToDelete, uniqueKeysToDeleteMap
-// }
 
 func populateUniqueKeysToDeleteMap(uniqueKeysToDeleteMap map[string][]string, indexesMap sc.IdxDefMap, rowIdsToDeleteCount int, tableRecord map[string]any) error {
 	for idxName, idxDef := range indexesMap {
@@ -101,19 +89,20 @@ func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.Messag
 	totalDataRowsDeleted := 0
 	totalIdxRowsDeleted := 0
 
-	// TODO: here, we potentially have to select ALL rows (not just rows added for this batch), which may take forever.
+	// IMPORTANT!
+	// Here, we potentially have to select ALL rows (not just rows added for this batch), which may take forever.
 	// If we want to select by batch_idx only, we should make it partitioning key.
 	// but in this case, we will not be able to use token(rowid), which we heavily rely on when going through data records (see selectBatchFromTableByToken).
 	// And if we add rowid to the partition key to be able to query rows by token(batch_idx,rowid), then we lose the possibility to query just be batch_idx
 	// because Cassandra cannot filter by partial partitioning key.
 	// So, for a billion-rows scenarios, resort to the no-rerun policy, and re-run the whole node when needed.
 
-	// retrieve all fields that are involved in building unique indexes.
+	// retrieve all fields that are involved in building unique indexes, and batch_idx - we will manually filter by it
 	uniqueIdxFieldRefs := pCtx.CurrentScriptNode.GetUniqueIndexesFieldRefs()
 	rs := NewRowsetFromFieldRefs(
 		sc.FieldRefs{sc.RowidFieldRef(pCtx.CurrentScriptNode.TableCreator.Name)},
 		*uniqueIdxFieldRefs,
-		sc.FieldRefs{sc.FieldRef{TableName: pCtx.CurrentScriptNode.TableCreator.Name, FieldName: "batch_idx", FieldType: evalcapi.FieldTypeInt}})
+		sc.FieldRefs{sc.BatchIdxFieldRef(pCtx.CurrentScriptNode.TableCreator.Name)})
 
 	var pageState []byte
 	var err error
