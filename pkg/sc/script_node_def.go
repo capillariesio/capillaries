@@ -283,15 +283,15 @@ func (node *ScriptNodeDef) Deserialize(customProcessorDefFactory CustomProcessor
 		foundErrors = append(foundErrors, err.Error())
 	}
 
-	// Distinct table
-	if node.Type == NodeTypeDistinctTable {
-		if node.RerunPolicy != NodeFail {
-			foundErrors = append(foundErrors, "distinct_table node must have fail policy, no reruns possible")
-		}
-		if _, _, err := node.TableCreator.GetSingleUniqueIndexDef(); err != nil {
-			foundErrors = append(foundErrors, err.Error())
-		}
-	}
+	// // Distinct table
+	// if node.Type == NodeTypeDistinctTable {
+	// 	if node.RerunPolicy != NodeFail {
+	// 		foundErrors = append(foundErrors, "distinct_table node must have fail policy, no reruns possible")
+	// 	}
+	// 	if _, _, err := node.TableCreator.GetSingleUniqueIndexDef(); err != nil {
+	// 		foundErrors = append(foundErrors, err.Error())
+	// 	}
+	// }
 
 	if len(foundErrors) > 0 {
 		return fmt.Errorf("%s", strings.Join(foundErrors, "; "))
@@ -387,6 +387,29 @@ func (node *ScriptNodeDef) GetUniqueIndexesFieldRefs() *FieldRefs {
 			for _, idxComponentDef := range idxDef.Components {
 				fieldTypeMap[idxComponentDef.FieldName] = idxComponentDef.FieldType
 			}
+		}
+	}
+	fieldRefs := make(FieldRefs, len(fieldTypeMap))
+	fieldRefIdx := 0
+	for fieldName, fieldType := range fieldTypeMap {
+		fieldRefs[fieldRefIdx] = FieldRef{
+			FieldName: fieldName,
+			FieldType: fieldType,
+			TableName: node.TableCreator.Name}
+		fieldRefIdx++
+	}
+
+	return &fieldRefs
+}
+
+func (node *ScriptNodeDef) GetAllIndexesFieldRefs() *FieldRefs {
+	if !node.HasTableCreator() {
+		return &FieldRefs{}
+	}
+	fieldTypeMap := map[string]evalcapi.TableFieldType{}
+	for _, idxDef := range node.TableCreator.Indexes {
+		for _, idxComponentDef := range idxDef.Components {
+			fieldTypeMap[idxComponentDef.FieldName] = idxComponentDef.FieldType
 		}
 	}
 	fieldRefs := make(FieldRefs, len(fieldTypeMap))

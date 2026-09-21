@@ -149,7 +149,7 @@
 			"type": "distinct_table",
 			"desc": "Select distinct loan ids",
 			"start_policy": "{manual_if_multi}",
-			"rerun_policy": "fail",
+			"rerun_policy": "rerun",
 			"r": {
 				"table": "payments",
 				"rowset_size": 10000,
@@ -206,7 +206,7 @@
 			"type": "distinct_table",
 			"desc": "Select distinct deal names",
 			"start_policy": "{manual_if_multi}",
-			"rerun_policy": "fail",
+			"rerun_policy": "rerun",
 			"r": {
 				"table": "loan_ids",
 				"rowset_size": 10000,
@@ -230,7 +230,7 @@
 			"type": "distinct_table",
 			"desc": "Select distinct sellers",
 			"start_policy": "{manual_if_multi}",
-			"rerun_policy": "fail",
+			"rerun_policy": "rerun",
 			"r": {
 				"table": "loan_ids",
 				"rowset_size": 10000,
@@ -560,7 +560,7 @@
 			"type": "table_lookup_table",
 			"desc": "For each deal/seller, calculate aggregates from calculated loan summaries",
 			"start_policy": "{manual_if_multi}",
-			"rerun_policy": "fail",
+			"rerun_policy": "rerun",
 			"r": {
 				"table": "deal_sellers",
 				"expected_batches_total": "{expected_batches|number}"
@@ -638,6 +638,7 @@
 			}
 		},
 		"05_write_file_deal_seller_summaries": {
+			"max_batch_processing_time": 100,
 			"type": "table_file",
 			"desc": "Write from table to file deal_seller_summaries.csv",
 			"r": {
@@ -835,6 +836,7 @@
 			}
 		},
 		"05_write_file_deal_summaries": {
+			"max_batch_processing_time": 100,
 			"type": "table_file",
 			"desc": "Write from table to file deal_summaries.csv",
 			"r": {

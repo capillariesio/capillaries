@@ -774,8 +774,8 @@ func TestDataSeriousErrorFannieMae(t *testing.T) {
 		if nodeName == "01_read_payments" {
 			// These nodes start and fail
 			assert.Equal(t, 2, len(batchEvents), nodeName)
-			assert.Equal(t, wfmodel.NodeBatchStart, batchEvents[0].Status, nodeName)
-			assert.Equal(t, wfmodel.NodeBatchFail, batchEvents[1].Status, nodeName)
+			assert.Equal(t, wfmodel.NodeBatchStart, batchEvents[0].Status, fmt.Sprintf("%s status[0] is %d, expected %d", nodeName, batchEvents[0].Status, wfmodel.NodeBatchStart))
+			assert.Equal(t, wfmodel.NodeBatchFail, batchEvents[1].Status, fmt.Sprintf("%s status[1] is %d, expected %d", nodeName, batchEvents[1].Status, wfmodel.NodeBatchFail))
 			assert.True(t, strings.Contains(batchEvents[1].Comment, cql.ErrorSomeSeriousError))
 		} else {
 			// These nodes failed without starting
@@ -1985,7 +1985,7 @@ func TestProcesorCrashFannieMae(t *testing.T) {
 			OperationTimedOutPauseMillis: 100, // speed it up for testing
 		})
 		if ackCmd == mq.AcknowledgerCmdAck {
-			if _, ok := fakeFailedBatchMap[msg.FullBatchId()]; !strings.HasPrefix(msg.TargetNodeName, "file") && !ok {
+			if _, ok := fakeFailedBatchMap[msg.FullBatchId()]; !strings.Contains(msg.TargetNodeName, "write_file") && !ok {
 				fakeFailedBatchMap[msg.FullBatchId()] = struct{}{}
 				// Simulate failure and re-process. Rewrite history:
 				// - remove batch completed record
@@ -2041,37 +2041,44 @@ func TestProcesorCrashFannieMae(t *testing.T) {
 	runStatus = runHistory[len(runHistory)-1].Status
 	assert.Equal(t, wfmodel.RunComplete, runStatus)
 
-	// Verify node statuses
-	nodeHistory, err := GetNodeHistoryForRuns(gocqlmemSession, ks, []int16{int16(1)})
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	newNodeRunStatusMap := map[string]wfmodel.NodeBatchStatusType{}
-	for _, nodeEvent := range nodeHistory {
-		newNodeRunStatusMap[nodeEvent.ScriptNode] = nodeEvent.Status
-	}
+	// // Verify node statuses
+	// nodeHistory, err := GetNodeHistoryForRuns(gocqlmemSession, ks, []int16{int16(1)})
+	// assert.Nil(t, err, fmt.Sprintf("%v", err))
+	// newNodeRunStatusMap := map[string]wfmodel.NodeBatchStatusType{}
+	// for _, nodeEvent := range nodeHistory {
+	// 	newNodeRunStatusMap[nodeEvent.ScriptNode] = nodeEvent.Status
+	// }
 
-	// For each node, verify batch statuses
-	for _, nhe := range nodeHistory {
-		if nhe.Status != wfmodel.NodeBatchStart {
-			switch nhe.ScriptNode {
-			case "02_loan_ids", "02_deal_names", "02_deal_sellers", "05_deal_seller_summaries":
-				assert.Equal(t, wfmodel.NodeBatchFail, nhe.Status, fmt.Sprintf("node %s supposed to fail", nhe.ScriptNode))
-				// Make sure all batches for this node started then failed
-				batchEvents, err := GetBatchHistoryForRunAndNode(gocqlmemSession, ks, int16(1), nhe.ScriptNode)
-				assert.Nil(t, err, fmt.Sprintf("%v", err))
-				for _, be := range batchEvents {
-					if be.Status == wfmodel.NodeBatchFail {
-						if nhe.ScriptNode == "02_loan_ids" {
-							assert.Equal(t, ErrorNotProcessingAbandonedBatch, be.Comment)
-						} else {
-							assert.Contains(t, be.Comment, "some dependency nodes")
-						}
-					}
-				}
-			case "01_read_payments":
-				assert.Equal(t, wfmodel.NodeBatchSuccess, nhe.Status)
-			}
-		}
-	}
+	// // For each node, verify batch statuses
+	// for _, nhe := range nodeHistory {
+	// 	if nhe.Status != wfmodel.NodeBatchStart {
+	// 		switch nhe.ScriptNode {
+	// 		case "02_loan_ids", "02_deal_names", "02_deal_sellers", "05_deal_seller_summaries":
+	// 			assert.Equal(t, wfmodel.NodeBatchFail, nhe.Status, fmt.Sprintf("node %s supposed to fail", nhe.ScriptNode))
+	// 			// Make sure all batches for this node started then failed
+	// 			batchEvents, err := GetBatchHistoryForRunAndNode(gocqlmemSession, ks, int16(1), nhe.ScriptNode)
+	// 			assert.Nil(t, err, fmt.Sprintf("%v", err))
+	// 			for _, be := range batchEvents {
+	// 				if be.Status == wfmodel.NodeBatchFail {
+	// 					if nhe.ScriptNode == "02_loan_ids" {
+	// 						assert.Equal(t, ErrorNotProcessingAbandonedBatch, be.Comment)
+	// 					} else {
+	// 						assert.Contains(t, be.Comment, "some dependency nodes")
+	// 					}
+	// 				}
+	// 			}
+	// 		case "01_read_payments":
+	// 			assert.Equal(t, wfmodel.NodeBatchSuccess, nhe.Status)
+	// 		}
+	// 	}
+	// }
+
+	err = compareCsvs("/tmp/capi_out/fannie_mae_apitest/deal_seller_summaries_baseline.csv", "/tmp/capi_out/fannie_mae_apitest/deal_seller_summaries.csv")
+	assert.Nil(t, err, fmt.Sprintf("%v", err))
+	err = compareCsvs("/tmp/capi_out/fannie_mae_apitest/deal_summaries_baseline.csv", "/tmp/capi_out/fannie_mae_apitest/deal_summaries.csv")
+	assert.Nil(t, err, fmt.Sprintf("%v", err))
+	err = compareCsvs("/tmp/capi_out/fannie_mae_apitest/loan_smrs_clcltd_baseline.csv", "/tmp/capi_out/fannie_mae_apitest/loan_smrs_clcltd.csv")
+	assert.Nil(t, err, fmt.Sprintf("%v", err))
 
 	assert.Nil(t, gocqlmemSession.Query(fmt.Sprintf("DROP keyspace %s;", ks)).Exec())
 	gocqlmemSession.Close()

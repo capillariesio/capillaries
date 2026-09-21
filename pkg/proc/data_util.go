@@ -96,7 +96,7 @@ func selectBatchFromDataTablePaged(logger *l.CapiLogger,
 		}
 
 		isTimedOut := strings.Contains(err.Error(), cql.ErrorOperationTimedOut)
-		isInconsistentAndStillRetrying := strings.Contains(err.Error(), "Cannot achieve consistency level") && selectRetryIdx < 3
+		isInconsistentAndStillRetrying := strings.Contains(err.Error(), cql.ErrorCannotAchieveConsistencyLevel) && selectRetryIdx < 3
 		if !isTimedOut && !isInconsistentAndStillRetrying {
 			// The error was not a timeout, and not "inconsistent" while retrying, so it's either some unknown error or the number of retries is too high
 			return nil, db.WrapDbErrorWithQuery(fmt.Sprintf("paged data scanner cannot select %d rows from %s%s after %d attempts; another worker may retry this batch later, but, if some unique idx records has been written already by current worker, the next worker handling this batch will throw an error on them and there is nothing we can do about it;", batchSize, tableName, cql.RunIdSuffix(lookupNodeRunId), selectRetryIdx+1), q, err)
@@ -305,7 +305,7 @@ func selectBatchFromTableByToken(logger *l.CapiLogger,
 		endTokenRowIds = append(endTokenRowIds, rowid)
 	}
 	if len(endTokenRowIds) > 1 {
-		// Epilogue contains two or more rowids with the same toke, this is rare, but possible.
+		// Epilogue contains two or more rowids with the same token, this is rare, but possible.
 		// If you see this warning, this "overlap" handling code is working as expected
 		logger.WarnCtx(pCtx, "found rowset with two or more epilogue rowids witht he same token(rowid) %d, rowids %v", lastRetrievedToken, endTokenRowIds)
 	}
@@ -333,22 +333,50 @@ func selectBatchFromTableByToken(logger *l.CapiLogger,
 	return lastRetrievedToken, endTokenRowIds, nil
 }
 
-// IMPORTANT: we could make it support non-unique indexes too if we could add batch_idx to idx tables.
-// Unfirtunately, it will break the !isApplied logic in insertIdxRecordWithRowid:
-// we need to check that key(part.)+rowid(clust.) uniqueness for unique indexes, and making it key(part.)+batch_idx(clust.)+rowid(clust.)
-// add randomizing batch_idx to Cassandra checks.
-func deleteIdxRecordByKey(pCtx *ctx.MessageProcessingContext, idxName string, keys []string) error {
+func deleteIdxRecordByKey(pCtx *ctx.MessageProcessingContext, idxName string, key string) error {
 	if pCtx.CassandraEngine == db.CassandraEngineAmazonKeyspaces {
 		// Amazon Keyspaces supports unlogged batch commands with up to 30 commands in the batch
 		sb := strings.Builder{}
-		for i, key := range keys {
+		sb.WriteString(
+			(&cql.QueryBuilder{}).
+				Keyspace(pCtx.Msg.DataKeyspace).
+				Cond("key", "=", key).
+				DeleteRun(idxName, pCtx.Msg.RunId))
+		sb.WriteString(";")
+		batchStmt := "BEGIN UNLOGGED BATCH " + sb.String() + " APPLY BATCH"
+		if err := pCtx.CqlSession.Query(batchStmt).Exec(); err != nil {
+			return db.WrapDbErrorWithQuery("cannot delete from idx table", batchStmt, err)
+		}
+		sb.Reset()
+
+	} else {
+		q := (&cql.QueryBuilder{}).
+			Keyspace(pCtx.Msg.DataKeyspace).
+			CondInString("key", []string{key}).
+			DeleteRun(idxName, pCtx.Msg.RunId)
+		if err := pCtx.CqlSession.Query(q).Exec(); err != nil {
+			return db.WrapDbErrorWithQuery("cannot delete from idx table", q, err)
+		}
+	}
+	return nil
+}
+
+func deleteIdxRecordByKeyAndRowid(pCtx *ctx.MessageProcessingContext, idxName string, keyRowidPairs []*keyRowidPair) error {
+	// Delete one by one to avoid massive DELETE ... WHERE key==key1 AND rowid==rowid1 OR ... key==key1000 AND rowid==rowid1000,
+	// as those multiple hits may invoke Cassandra quorum mechanisms
+	// Rumors say 5 is "ok", 10 "requires caution", 100 "too many"
+	if pCtx.CassandraEngine == db.CassandraEngineAmazonKeyspaces {
+		// Amazon Keyspaces supports unlogged batch commands with up to 30 commands in the batch
+		sb := strings.Builder{}
+		for i, pair := range keyRowidPairs {
 			sb.WriteString(
 				(&cql.QueryBuilder{}).
 					Keyspace(pCtx.Msg.DataKeyspace).
-					Cond("key", "=", key).
+					Cond("key", "=", pair.key).
+					Cond("rowid", "=", pair.rowid).
 					DeleteRun(idxName, pCtx.Msg.RunId))
 			sb.WriteString(";")
-			if (i+1)%MaxAmazonKeyspacesBatchLen == 0 || i == len(keys)-1 {
+			if (i+1)%MaxAmazonKeyspacesBatchLen == 0 || i == len(keyRowidPairs)-1 {
 				batchStmt := "BEGIN UNLOGGED BATCH " + sb.String() + " APPLY BATCH"
 				if err := pCtx.CqlSession.Query(batchStmt).Exec(); err != nil {
 					return db.WrapDbErrorWithQuery("cannot delete from idx table", batchStmt, err)
@@ -357,12 +385,15 @@ func deleteIdxRecordByKey(pCtx *ctx.MessageProcessingContext, idxName string, ke
 			}
 		}
 	} else {
-		q := (&cql.QueryBuilder{}).
-			Keyspace(pCtx.Msg.DataKeyspace).
-			CondInString("key", keys).
-			DeleteRun(idxName, pCtx.Msg.RunId)
-		if err := pCtx.CqlSession.Query(q).Exec(); err != nil {
-			return db.WrapDbErrorWithQuery("cannot delete from idx table", q, err)
+		for _, pair := range keyRowidPairs {
+			q := (&cql.QueryBuilder{}).
+				Keyspace(pCtx.Msg.DataKeyspace).
+				Cond("key", "=", pair.key).
+				Cond("rowid", "=", pair.rowid).
+				DeleteRun(idxName, pCtx.Msg.RunId)
+			if err := pCtx.CqlSession.Query(q).Exec(); err != nil {
+				return db.WrapDbErrorWithQuery("cannot delete from idx table", q, err)
+			}
 		}
 	}
 	return nil

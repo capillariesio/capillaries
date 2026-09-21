@@ -649,7 +649,7 @@ func (instr *TableInserter) insertDistinctIdxAndDataRecords(logger *l.CapiLogger
 			// claimed keyValue, so without removing it the next attempt's idx insert would
 			// fail ErrDuplicateKey and we would treat the key as "already done" and silently
 			// lose this data row.
-			errDelete := deleteIdxRecordByKey(pCtx, idxName, []string{keyValue})
+			errDelete := deleteIdxRecordByKey(pCtx, idxName, keyValue)
 			if errDelete != nil {
 				return curRowid, errDelete
 			}
@@ -675,7 +675,7 @@ func (instr *TableInserter) insertDistinctIdxAndDataRecords(logger *l.CapiLogger
 			}
 			// Orphan idx record: the data row it points to is missing. Delete the stale idx record and retry.
 			logger.WarnCtx(pCtx, "found orphan distinct idx record for key %s (idx present, data row missing), deleting it and retrying", keyValue)
-			if errDelete := deleteIdxRecordByKey(pCtx, idxName, []string{keyValue}); errDelete != nil {
+			if errDelete := deleteIdxRecordByKey(pCtx, idxName, keyValue); errDelete != nil {
 				return curRowid, errDelete
 			}
 			continue

@@ -16,9 +16,11 @@ const (
 
 // These errors mimic Cassandra errors, so do not change these strings
 const (
-	ErrorDoesNotExist                 string = "does not exist"
-	ErrorOperationTimedOut            string = "Operation timed out"
-	ErrorAmazonKeyspacesZeroResponses string = "Operation failed - received 0 responses and 1 failures" // Saw this from Amazon Keyspaces, slow down
-	ErrorSomeSeriousError             string = "some serious Cassandra error"                           // Well, this does not mimic any Cassandra error
-	ErrorCannotUpsertDuplicate        string = "dberror:cannot upsert duplicate"
+	ErrorDoesNotExist                  string = "does not exist"
+	ErrorOperationTimedOut             string = "Operation timed out"
+	ErrorAmazonKeyspacesZeroResponses  string = "Operation failed - received 0 responses and 1 failures" // Saw this from Amazon Keyspaces, slow down
+	ErrorSomeSeriousError              string = "some serious Cassandra error"                           // Well, this does not mimic any Cassandra error
+	ErrorCannotUpsertDuplicate         string = "dberror:cannot upsert duplicate"
+	ErrorPrefixDb                      string = "dberror:"
+	ErrorCannotAchieveConsistencyLevel string = "Cannot achieve consistency level"
 )
