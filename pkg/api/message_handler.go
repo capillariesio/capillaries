@@ -537,6 +537,20 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wf
 				return mq.AcknowledgerCmdAck
 			}
 		}
+	default:
+		err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeBatchFail, fmt.Sprintf("unknown processor cmd from checkLastBatchStatus: %d", furtherProcCmd))
+		if err != nil {
+			if db.IsDbConnError(err) {
+				return mq.AcknowledgerCmdRetry
+			} else if !strings.Contains(err.Error(), cql.ErrorCannotUpsertDuplicate) {
+				logger.ErrorCtx(pCtx, "unknown processor cmd from checkLastBatchStatus %d, and cannot set batch status to failed because of an error: %s", furtherProcCmd, err.Error())
+				return mq.AcknowledgerCmdAck
+			}
+		}
+		err = refreshNodeAndRunStatus(logger, pCtx)
+		if err != nil && db.IsDbConnError(err) {
+			return mq.AcknowledgerCmdRetry
+		}
 	}
 
 	// At this point, we are assuming this batch processing either never started or was started and then abandoned
@@ -594,17 +608,18 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wf
 		if db.IsDbConnError(err) {
 			return mq.AcknowledgerCmdRetry
 		}
-		if strings.Contains(err.Error(), cql.ErrorCannotUpsertDuplicate) {
-			// This may be a valid case if we have just picked up a batch that was started by a worker who suddenly died.
-			if furtherProcBatchScenario != FurtherProcessingBatchWasAbadoned {
-				// This batch is hopeless, mark it as failed
-				if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeBatchFail, "unexpected: batch status is wfmodel.NodeBatchStart (got a duplicate error), but the batch was not abandoned"); err != nil {
-					logger.ErrorCtx(pCtx, "cannot set batch status to fail: %s", err.Error())
-				}
-				return mq.AcknowledgerCmdAck
-			}
-		} else {
+
+		if !strings.Contains(err.Error(), cql.ErrorCannotUpsertDuplicate) {
 			logger.ErrorCtx(pCtx, "unexpected: cannot set batch status, unknown error %s", err.Error())
+			return mq.AcknowledgerCmdAck
+		}
+
+		// Duplicate: this may be a valid case if we have just picked up a batch that was started by a worker who suddenly died.
+		if furtherProcBatchScenario != FurtherProcessingBatchWasAbadoned {
+			// This batch is hopeless, mark it as failed
+			if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeBatchFail, "unexpected: batch status is wfmodel.NodeBatchStart (got a duplicate error), but the batch was not abandoned"); err != nil {
+				logger.ErrorCtx(pCtx, "cannot set batch status to fail: %s", err.Error())
+			}
 			return mq.AcknowledgerCmdAck
 		}
 	}
