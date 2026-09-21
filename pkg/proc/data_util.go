@@ -333,6 +333,10 @@ func selectBatchFromTableByToken(logger *l.CapiLogger,
 	return lastRetrievedToken, endTokenRowIds, nil
 }
 
+// IMPORTANT: we could make it support non-unique indexes too if we could add batch_idx to idx tables.
+// Unfirtunately, it will break the !isApplied logic in insertIdxRecordWithRowid:
+// we need to check that key(part.)+rowid(clust.) uniqueness for unique indexes, and making it key(part.)+batch_idx(clust.)+rowid(clust.)
+// add randomizing batch_idx to Cassandra checks.
 func deleteIdxRecordByKey(pCtx *ctx.MessageProcessingContext, idxName string, keys []string) error {
 	if pCtx.CassandraEngine == db.CassandraEngineAmazonKeyspaces {
 		// Amazon Keyspaces supports unlogged batch commands with up to 30 commands in the batch
