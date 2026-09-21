@@ -32,9 +32,9 @@ type LookupDef struct {
 }
 
 const (
-	defaultIdxBatchSize         int = 3000 // TODO: Uses IN() for partition key, so consider making it 5 to avoid long quorum mechanism kicked in
+	defaultIdxBatchSize         int = 3000
 	maxIdxBatchSize             int = 20000
-	defaultRightLookupBatchSize int = 3000 // TODO: Uses IN() for partition key, so consider making it 5 to avoid long quorum mechanism kicked in
+	defaultRightLookupBatchSize int = 3000
 	maxRightLookupReadBatchSize int = 20000
 )
 

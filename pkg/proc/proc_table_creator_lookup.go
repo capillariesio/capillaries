@@ -14,8 +14,6 @@ import (
 	"github.com/capillariesio/capillaries/pkg/sc"
 )
 
-const MaxAmazonKeyspacesInElements int = 100
-
 func buildKeysToFindInTheLookupIndex(rsLeft *Rowset, scriptNodeLookup sc.LookupDef) ([]string, map[string][]int, error) {
 	// Build keys to find in the lookup index, one key may yield multiple rowids
 	keyToLeftRowIdxMap := map[string][]int{}
@@ -286,7 +284,7 @@ func splitKeysIntoChunks(allKeys []string, chunkSize int) [][]string {
 		for {
 			keysChunks[chunkIdx] = append(keysChunks[chunkIdx], allKeys[keyIdx])
 			keyIdx++
-			if keyIdx == len(allKeys) || keyIdx%MaxAmazonKeyspacesBatchLen == 0 {
+			if keyIdx == len(allKeys) || keyIdx%chunkSize == 0 {
 				break
 			}
 		}
@@ -403,7 +401,7 @@ func runCreateTableRelForBatch(envConfig *env.EnvConfig,
 			sc.FieldRefs{sc.KeyTokenFieldRef()},
 			sc.FieldRefs{sc.IdxKeyFieldRef()})
 
-		keysToFindChunks := splitKeysIntoChunks(allKeysToFind, MaxAmazonKeyspacesBatchLen)
+		keysToFindChunks := splitKeysIntoChunks(allKeysToFind, MaxKeysForSelectInCondition)
 		for _, keysToFind := range keysToFindChunks {
 			var idxPageState []byte
 			rightIdxPageIdx := 0
@@ -452,7 +450,7 @@ func runCreateTableRelForBatch(envConfig *env.EnvConfig,
 						lookupNodeRunId,
 						node.Lookup.RightLookupReadBatchSize,
 						rightPageState,
-						getFirstIntsFromSet(rightRowidsToFind, MaxAmazonKeyspacesInElements)) // Amazon Keyspaces allows max 100 IN elements
+						getFirstIntsFromSet(rightRowidsToFind, MaxKeysForSelectInCondition))
 					if err != nil {
 						instr.cancelDrainer(fmt.Errorf("cannot select batch from right-side table, node %s: %s", node.Name, err.Error()))
 						return bs, instr.waitForDrainer()

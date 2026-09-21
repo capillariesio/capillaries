@@ -261,8 +261,6 @@
 			"l": {
 				"index_name": "idx_loan_ids_deal_name",
 				"join_on": "r.deal_name",
-				"idx_read_batch_size": 10000,
-				"right_lookup_read_batch_size": 10000,
 				"group": true,
 				"join_type": "left"
 			},
