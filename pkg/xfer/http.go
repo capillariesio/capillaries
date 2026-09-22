@@ -11,12 +11,6 @@ import (
 	"time"
 )
 
-const UrlSchemeFile string = "file"
-const UrlSchemeHttp string = "http"
-const UrlSchemeHttps string = "https"
-const UrlSchemeSftp string = "sftp"
-const UrlSchemeS3 string = "s3"
-
 func GetHttpReadCloser(fileUrl string, scheme string, certDir string) (io.ReadCloser, error) {
 	var caCertPool *x509.CertPool
 	// tls.Config doc: If RootCAs is nil, TLS uses the host's root CA set.

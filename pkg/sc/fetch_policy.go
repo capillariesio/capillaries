@@ -1,4 +1,4 @@
-package xfer
+package sc
 
 import (
 	"errors"
@@ -7,6 +7,13 @@ import (
 	"net/url"
 	"strings"
 )
+
+// fetch policy-related constants, not to be confused with a similar set in xfer
+const urlSchemeFile string = "file"
+const urlSchemeHttp string = "http"
+const urlSchemeHttps string = "https"
+const urlSchemeSftp string = "sftp"
+const urlSchemeS3 string = "s3"
 
 // FetchPolicy gates which URLs the framework is willing to fetch for top-level, externally
 // supplied resources - specifically the script URL and script-params URL submitted with a run.
@@ -47,7 +54,7 @@ func (fp *FetchPolicy) CheckUrl(fileUrl string) error {
 
 	scheme := u.Scheme
 	if scheme == "" {
-		scheme = UrlSchemeFile
+		scheme = urlSchemeFile
 	}
 
 	allowed := false
@@ -61,7 +68,7 @@ func (fp *FetchPolicy) CheckUrl(fileUrl string) error {
 		return fmt.Errorf("fetching url scheme %q is not allowed by fetch policy (allowed schemes: %v)", scheme, fp.AllowedSchemes)
 	}
 
-	if !fp.AllowPrivateHosts && (scheme == UrlSchemeHttp || scheme == UrlSchemeHttps) {
+	if !fp.AllowPrivateHosts && (scheme == urlSchemeHttp || scheme == urlSchemeHttps || scheme == urlSchemeSftp) {
 		if err := checkHostIsPublic(u.Hostname()); err != nil {
 			return err
 		}

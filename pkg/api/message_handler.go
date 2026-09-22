@@ -17,7 +17,6 @@ import (
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/wfdb"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
-	"github.com/capillariesio/capillaries/pkg/xfer"
 	"go.uber.org/zap"
 )
 
@@ -248,7 +247,7 @@ func refreshNodeAndRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingCo
 	return nil
 }
 
-func initCtxScript(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, fetchPolicy *xfer.FetchPolicy, caPath string, privateKeys map[string]string, msg *wfmodel.Message, customProcFactory sc.CustomProcessorDefFactory, customProcSettings map[string]json.RawMessage) FurtherProcessingCmd {
+func initCtxScript(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, fetchPolicy *sc.FetchPolicy, caPath string, privateKeys map[string]string, msg *wfmodel.Message, customProcFactory sc.CustomProcessorDefFactory, customProcSettings map[string]json.RawMessage) FurtherProcessingCmd {
 	var initProblem sc.ScriptInitProblemType
 	var err error
 	pCtx.Script, initProblem, err = sc.NewScriptFromFiles(fetchPolicy, caPath, privateKeys, msg.ScriptURL, msg.ScriptParamsURL, customProcFactory, customProcSettings)

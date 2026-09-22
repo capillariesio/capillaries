@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/capillariesio/capillaries/pkg/sc"
-	"github.com/capillariesio/capillaries/pkg/xfer"
 	"github.com/sethvargo/go-envconfig"
 )
 
@@ -20,7 +19,7 @@ type EnvConfig struct {
 	Log                               LogConfig                    `json:"log"`
 	CaPath                            string                       `json:"ca_path" env:"CAPI_CA_PATH, overwrite"`           // Used for HTTP, host's CA dir if empty
 	PrivateKeys                       map[string]string            `json:"private_keys" env:"CAPI_PRIVATE_KEYS, overwrite"` // Used for SFTP only
-	FetchPolicy                       xfer.FetchPolicy             `json:"fetch_policy,omitempty"`                          // Gates script/params URL fetches (SSRF/local-file hardening); disabled if empty
+	FetchPolicy                       sc.FetchPolicy               `json:"fetch_policy,omitempty"`                          // Gates script/params URL fetches (SSRF/local-file hardening); disabled if empty
 	Daemon                            DaemonConfig                 `json:"daemon,omitempty"`
 	Webapi                            WebapiConfig                 `json:"webapi,omitempty"`
 	CustomProcessorsSettings          map[string]json.RawMessage   `json:"custom_processors"`

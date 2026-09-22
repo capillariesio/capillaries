@@ -13,7 +13,7 @@ type ScriptInitResult struct {
 	Err         error
 }
 
-func NewScriptFromFiles(fetchPolicy *xfer.FetchPolicy, caPath string, privateKeys map[string]string, scriptUrl string, scriptParamsUrl string, customProcessorDefFactoryInstance CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage) (*ScriptDef, ScriptInitProblemType, error) {
+func NewScriptFromFiles(fetchPolicy *FetchPolicy, caPath string, privateKeys map[string]string, scriptUrl string, scriptParamsUrl string, customProcessorDefFactoryInstance CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage) (*ScriptDef, ScriptInitProblemType, error) {
 
 	// Gate externally supplied script/params URLs before fetching anything (SSRF / local-file disclosure hardening).
 	// A nil or unconfigured policy allows everything (legacy behavior).

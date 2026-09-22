@@ -1,4 +1,4 @@
-package xfer
+package sc
 
 import (
 	"testing"
@@ -21,7 +21,7 @@ func TestCheckUrl(t *testing.T) {
 		expectErr bool
 	}
 
-	allSchemes := []string{UrlSchemeFile, UrlSchemeHttp, UrlSchemeHttps, UrlSchemeS3}
+	allSchemes := []string{urlSchemeFile, urlSchemeHttp, urlSchemeHttps, urlSchemeS3, urlSchemeSftp}
 
 	cases := []testCase{
 		// --- Disabled policy: allows everything (legacy behavior) ---
@@ -47,31 +47,31 @@ func TestCheckUrl(t *testing.T) {
 		// --- Scheme allow-listing ---
 		{
 			name:      "explicit file scheme allowed",
-			policy:    &FetchPolicy{AllowedSchemes: []string{UrlSchemeFile}},
+			policy:    &FetchPolicy{AllowedSchemes: []string{urlSchemeFile}},
 			url:       "file:///tmp/script.json",
 			expectErr: false,
 		},
 		{
 			name:      "empty scheme is treated as file and allowed",
-			policy:    &FetchPolicy{AllowedSchemes: []string{UrlSchemeFile}},
+			policy:    &FetchPolicy{AllowedSchemes: []string{urlSchemeFile}},
 			url:       "/tmp/script.json",
 			expectErr: false,
 		},
 		{
 			name:      "empty scheme blocked when file not allowed",
-			policy:    &FetchPolicy{AllowedSchemes: []string{UrlSchemeHttps}},
+			policy:    &FetchPolicy{AllowedSchemes: []string{urlSchemeHttps}},
 			url:       "/etc/passwd",
 			expectErr: true,
 		},
 		{
 			name:      "scheme not in allow-list is blocked",
-			policy:    &FetchPolicy{AllowedSchemes: []string{UrlSchemeHttps}},
+			policy:    &FetchPolicy{AllowedSchemes: []string{urlSchemeHttps}},
 			url:       "sftp://host/path",
 			expectErr: true,
 		},
 		{
 			name:      "s3 scheme allowed",
-			policy:    &FetchPolicy{AllowedSchemes: []string{UrlSchemeS3}},
+			policy:    &FetchPolicy{AllowedSchemes: []string{urlSchemeS3}},
 			url:       "s3://bucket/key",
 			expectErr: false,
 		},
