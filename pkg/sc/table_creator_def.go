@@ -41,14 +41,14 @@ func (tcDef *TableCreatorDef) GetSingleUniqueIndexDef() (string, *IdxDef, error)
 	for idxName, idxDef := range tcDef.Indexes {
 		if idxDef.Uniqueness == IdxUnique {
 			if len(distinctIdxName) > 0 {
-				return "", nil, fmt.Errorf("cannot process distinct_table node configuration %s with more than one unique index, expected exactly one unique idx definition", tcDef.Name)
+				return "", nil, fmt.Errorf("cannot process distinct_table node configuration %s with more than one unique index, expected exactly one unique idx definition, found at least two: %s, %s", tcDef.Name, distinctIdxName, idxName)
 			}
 			distinctIdxName = idxName
 			distinctIdxDef = idxDef
 		}
 	}
 	if len(distinctIdxName) == 0 {
-		return "", nil, fmt.Errorf("cannot process distinct_table node configuration %s with no unique indexes, expected exactly one unique idx definition", tcDef.Name)
+		return "", nil, fmt.Errorf("cannot process distinct_table node configuration %s with no unique indexes, expected exactly one unique idx definition, found none", tcDef.Name)
 	}
 	return distinctIdxName, distinctIdxDef, nil
 }

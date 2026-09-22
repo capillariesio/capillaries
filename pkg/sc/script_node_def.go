@@ -283,15 +283,12 @@ func (node *ScriptNodeDef) Deserialize(customProcessorDefFactory CustomProcessor
 		foundErrors = append(foundErrors, err.Error())
 	}
 
-	// // Distinct table
-	// if node.Type == NodeTypeDistinctTable {
-	// 	if node.RerunPolicy != NodeFail {
-	// 		foundErrors = append(foundErrors, "distinct_table node must have fail policy, no reruns possible")
-	// 	}
-	// 	if _, _, err := node.TableCreator.GetSingleUniqueIndexDef(); err != nil {
-	// 		foundErrors = append(foundErrors, err.Error())
-	// 	}
-	// }
+	// Distinct table
+	if node.Type == NodeTypeDistinctTable {
+		if _, _, err := node.TableCreator.GetSingleUniqueIndexDef(); err != nil {
+			foundErrors = append(foundErrors, err.Error())
+		}
+	}
 
 	if len(foundErrors) > 0 {
 		return fmt.Errorf("%s", strings.Join(foundErrors, "; "))
