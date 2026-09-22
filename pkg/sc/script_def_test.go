@@ -1048,15 +1048,28 @@ func testUniqueIndexesFieldRefs(t *testing.T, scriptDef *ScriptDef) {
 	}
 }
 
-func TestUniqueIndexesFieldRefsJson(t *testing.T) {
+func testAllIndexesFieldRefs(t *testing.T, scriptDef *ScriptDef) {
+	fileReaderNodeDef := scriptDef.ScriptNodes["read_table2"]
+	fieldRefs := fileReaderNodeDef.GetAllIndexesFieldRefs()
+	assert.Equal(t, 1, len(*fieldRefs))
+	if len(*fieldRefs) == 1 {
+		assert.Equal(t, "table2", (*fieldRefs)[0].TableName)
+		assert.Equal(t, "field_string2", (*fieldRefs)[0].FieldName)
+		assert.Equal(t, evalcapi.FieldTypeString, (*fieldRefs)[0].FieldType)
+	}
+}
+
+func TestIndexesFieldRefsJson(t *testing.T) {
 	scriptDef := &ScriptDef{}
 	assert.Nil(t, scriptDef.Deserialize([]byte(plainScriptJson), ScriptJson, nil, nil, "", nil))
 	testUniqueIndexesFieldRefs(t, scriptDef)
+	testAllIndexesFieldRefs(t, scriptDef)
 }
 
-func TestUniqueIndexesFieldRefsYaml(t *testing.T) {
+func TestIndexesFieldRefsYaml(t *testing.T) {
 	scriptDef := jsonToYamlToScriptDef(t)
 	testUniqueIndexesFieldRefs(t, scriptDef)
+	testAllIndexesFieldRefs(t, scriptDef)
 }
 
 func testAffectedNodes(t *testing.T, scriptDef *ScriptDef) {

@@ -14,7 +14,7 @@ To run API tests against gocqlmem (takes a while):
 ./test_api.sh
 ```
 
-Code covergae report will be generated, watch the messages.
+Code coverage report will be generated, watch the messages.
 
 
 ## Integration tests
