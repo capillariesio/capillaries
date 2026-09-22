@@ -2,13 +2,13 @@
   "projectBaseUrl":"${workspaceFolder}",
   "ignorePatterns": [
     {
-      "pattern": "^https://coveralls.io/github/capillariesio/capillaries?branch=main"
+      "pattern": "^https://coveralls.io/github/capillariesio/capillaries"
     },
     {
       "pattern": "^http://10.0.0.1"
     },
     {
-      "pattern": "^https://pkg.go.dev/github.com/gocql/gocql#ClusterConfig"
+      "pattern": "^https://pkg.go.dev/github.com/gocql/gocql"
     }
   ],
   "replacementPatterns": [
