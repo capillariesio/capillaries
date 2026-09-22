@@ -13,4 +13,4 @@ jobs:
     - uses: actions/checkout@v4
     - uses: tcort/github-action-markdown-link-check@v1
       with:
-        config-file: 'md-config.json'
+        config-file: '.github/workflows/md-config.json'
