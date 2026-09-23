@@ -206,7 +206,7 @@ func (h *UrlHandler) getNodeDesc(cqlSession gocqlshims.Session, keyspace string,
 
 	// Now we have script URL, load it
 
-	script, _, err := sc.NewScriptFromFiles(&h.Env.FetchPolicy, h.Env.CaPath, h.Env.PrivateKeys, runProps.ScriptUrl, runProps.ScriptParamsUrl, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
+	script, _, err := sc.NewScriptFromFiles(&h.Env.AccessPolicy.FetchPolicy, h.Env.CaPath, h.Env.PrivateKeys, runProps.ScriptUrl, runProps.ScriptParamsUrl, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
 	if err != nil {
 		return "", err
 	}
@@ -557,7 +557,7 @@ func (h *UrlHandler) ksRunViz(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Now we have script URL, load it
-	scriptDef, _, err := sc.NewScriptFromFiles(&h.Env.FetchPolicy, h.Env.CaPath, h.Env.PrivateKeys, runProps.ScriptUrl, runProps.ScriptParamsUrl, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
+	scriptDef, _, err := sc.NewScriptFromFiles(&h.Env.AccessPolicy.FetchPolicy, h.Env.CaPath, h.Env.PrivateKeys, runProps.ScriptUrl, runProps.ScriptParamsUrl, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 	}

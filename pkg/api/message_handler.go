@@ -465,7 +465,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wf
 	}
 
 	// Script/params must be valid
-	furtherProcCmd = initCtxScript(logger, pCtx, &envConfig.FetchPolicy, envConfig.CaPath, envConfig.PrivateKeys, msg, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
+	furtherProcCmd = initCtxScript(logger, pCtx, &envConfig.AccessPolicy.FetchPolicy, envConfig.CaPath, envConfig.PrivateKeys, msg, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
 	switch furtherProcCmd {
 	case FurtherProcessingRetry:
 		return mq.AcknowledgerCmdRetry

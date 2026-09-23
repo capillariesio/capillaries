@@ -189,6 +189,14 @@ func runCreateFile(envConfig *env.EnvConfig,
 		return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("cannot parse file url %s: %s", instr.FinalFileUrl, err.Error())
 	}
 
+	// Confine the destination to the operator-approved allowlist (local dirs and/or remote prefixes).
+	// The script author controls url_template, so this prevents a run from overwriting arbitrary
+	// files or remote objects the daemon can reach (path traversal / arbitrary-file-overwrite). The
+	// url_template placeholders are already substituted in instr.FinalFileUrl. No-op when unset.
+	if err := sc.CheckOutputPathAllowed(envConfig.AccessPolicy.OutputPaths, instr.FinalFileUrl); err != nil {
+		return BatchStats{RowsRead: 0, RowsWritten: 0}, fmt.Errorf("cannot create file %s: %s", instr.FinalFileUrl, err.Error())
+	}
+
 	switch node.FileCreator.CreatorFileType {
 
 	case sc.CreatorFileTypeCsv:

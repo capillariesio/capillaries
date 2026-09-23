@@ -17,7 +17,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/capillariesio/gocqlmem/gocqlshims"
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/custom/pycalc"
@@ -28,6 +27,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/mq"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
+	"github.com/capillariesio/gocqlmem/gocqlshims"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -246,6 +246,11 @@ func startTestRun(t *testing.T, scn scenario, ksSuffix string, writerWorkers int
 		CustomProcessorDefFactoryInstance: &TestProcessorDefFactory{},
 		CustomProcessorsSettings:          getTestProcessorSettings(),
 		UseGocqlmem:                       true,
+		AccessPolicy: sc.AccessPolicy{
+			FetchPolicy: sc.FetchPolicy{
+				AllowedSchemes: []string{sc.FetchUrlSchemeFile},
+			},
+		},
 	}
 	sc.ScriptDefCache = sc.NewScriptDefCache()
 	NodeDependencyReadynessCache = NewNodeDependencyReadynessCache()

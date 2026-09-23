@@ -50,8 +50,44 @@ func NewScriptFromFiles(fetchPolicy *FetchPolicy, caPath string, privateKeys map
 	}
 
 	scriptDef, initProblem, err := NewScriptFromFileBytes(caPath, privateKeys, scriptUrl, jsonBytesScript, scriptParamsUrl, jsonBytesParams, customProcessorDefFactoryInstance, customProcessorsSettings)
+
+	// Gate the file URLs embedded in the script itself - file_reader "urls" and file_creator
+	// "url_template" - with the same policy that guards the top-level script/params URLs above.
+	// Without this, the top-level gate only vets where the script came from, not the local paths
+	// and network endpoints the script then makes the daemon read from and write to (SSRF /
+	// local-file read / arbitrary-file overwrite). Only meaningful once we have a fully parsed def.
+	if err == nil && initProblem == ScriptInitNoProblem && scriptDef != nil {
+		if urlErr := checkNodeFileUrls(fetchPolicy, scriptDef); urlErr != nil {
+			// Treat a policy violation like the top-level URL gate: reject and do not cache.
+			return nil, ScriptInitConnectivityProblem, urlErr
+		}
+	}
+
 	if ScriptDefCache != nil && initProblem != ScriptInitConnectivityProblem {
 		ScriptDefCache.Add(scriptCacheKey, ScriptInitResult{scriptDef, initProblem, err})
 	}
 	return scriptDef, initProblem, err
+}
+
+// checkNodeFileUrls applies fetchPolicy to every file URL a script would make the daemon touch at
+// run time: each file_reader source url ("urls") and each file_creator destination ("url_template").
+// url_template may still contain {run_id}/{batch_idx} placeholders at this point; those live in the
+// path portion of the URL, so scheme/host gating is unaffected. A nil/unconfigured policy allows
+// everything (legacy behavior), matching FetchPolicy.CheckUrl.
+func checkNodeFileUrls(fetchPolicy *FetchPolicy, scriptDef *ScriptDef) error {
+	for nodeName, node := range scriptDef.ScriptNodes {
+		if node.HasFileReader() {
+			for _, srcUrl := range node.FileReader.SrcFileUrls {
+				if err := fetchPolicy.CheckUrl(srcUrl); err != nil {
+					return fmt.Errorf("node %s: file reader source url %s is not allowed: %s", nodeName, srcUrl, err.Error())
+				}
+			}
+		}
+		if node.HasFileCreator() {
+			if err := fetchPolicy.CheckUrl(node.FileCreator.UrlTemplate); err != nil {
+				return fmt.Errorf("node %s: file creator url_template %s is not allowed: %s", nodeName, node.FileCreator.UrlTemplate, err.Error())
+			}
+		}
+	}
+	return nil
 }

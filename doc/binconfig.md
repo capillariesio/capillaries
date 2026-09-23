@@ -75,21 +75,33 @@ Proper `ca_path` setting is crucial for running HTTPS version of Capillaries [ta
 
 If ca_path is empty, Go uses the host's root CA set (/usr/ssl/certs etc).
 
-## fetch_policy
+## access_policy
+
+AccessPolicy is the single place that governs which external resources the framework may touch. It embeds FetchPolicy (the scheme + SSRF host gate applied to the script URL, the params URL, and the file URLs embedded in a script, enforced at load time) and adds the run-time location allowlists that confine where file_reader may read from (InputPaths) and file_creator may write to (OutputPaths).
+
+### fetch_policy
 
 This section allows checking script and script params URLs.
 
-### allowed_schemes
+#### allowed_schemes
 
 Prevents Capillaries from trying to read arbitrary local files like `/etc/passwd` or cloud-based files like `http://169.254.169.254/latest/meta-data`.
 
 Default: ["file", "http", "https", "s3"] (very permissive, revisit before using in prod)
 
-### allow_private_hosts
+#### allow_private_hosts
 
 Prevents Capillaries from trying to read from private networks: http://10.0.0.1/
 
 Default: true (very permissive, revisit before using in prod)
+
+### input_paths
+
+Prefixes for the URLs allowed for reading
+
+### output_paths
+
+Prefixes for the URLs allowed for writing
 
 ## daemon
 

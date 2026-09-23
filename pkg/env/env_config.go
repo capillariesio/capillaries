@@ -19,7 +19,7 @@ type EnvConfig struct {
 	Log                               LogConfig                    `json:"log"`
 	CaPath                            string                       `json:"ca_path" env:"CAPI_CA_PATH, overwrite"`           // Used for HTTP, host's CA dir if empty
 	PrivateKeys                       map[string]string            `json:"private_keys" env:"CAPI_PRIVATE_KEYS, overwrite"` // Used for SFTP only
-	FetchPolicy                       sc.FetchPolicy               `json:"fetch_policy,omitempty"`                          // Gates script/params URL fetches (SSRF/local-file hardening); disabled if empty
+	AccessPolicy                      sc.AccessPolicy              `json:"access_policy,omitempty"`                         // Governs external resource access: scheme/SSRF gate (embedded FetchPolicy) plus file_reader input and file_creator output location allowlists
 	Daemon                            DaemonConfig                 `json:"daemon,omitempty"`
 	Webapi                            WebapiConfig                 `json:"webapi,omitempty"`
 	CustomProcessorsSettings          map[string]json.RawMessage   `json:"custom_processors"`

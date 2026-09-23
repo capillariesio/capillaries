@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestCheckUrl exercises the FetchPolicy value space: the disabled (allow-everything) modes,
+// TestCheckUrl exercises the FetchPolicy value space: the unconfigured (safe built-in default) mode,
 // scheme allow-listing, the empty/"file" scheme aliasing, and the http(s) private-host guard.
 //
 // The host-resolution cases deliberately use IP *literals* as hosts: net.LookupIP short-circuits
@@ -21,57 +21,75 @@ func TestCheckUrl(t *testing.T) {
 		expectErr bool
 	}
 
-	allSchemes := []string{urlSchemeFile, urlSchemeHttp, urlSchemeHttps, urlSchemeS3, urlSchemeSftp}
+	allSchemes := []string{FetchUrlSchemeFile, FetchUrlSchemeHttp, FetchUrlSchemeHttps, FetchUrlSchemeS3, FetchUrlSchemeSftp}
 
 	cases := []testCase{
-		// --- Disabled policy: allows everything (legacy behavior) ---
+		// --- Unconfigured policy: safe built-in default (schemes {https,s3}, private hosts blocked) ---
 		{
-			name:      "nil policy allows any url",
+			name:      "nil policy allows public https (default scheme)",
 			policy:    nil,
-			url:       "http://10.0.0.1/secret",
+			url:       "https://8.8.8.8/script.json",
 			expectErr: false,
 		},
 		{
-			name:      "empty allowed schemes disables the policy",
+			name:      "nil policy allows s3 (default scheme)",
+			policy:    nil,
+			url:       "s3://bucket/key",
+			expectErr: false,
+		},
+		{
+			name:      "nil policy blocks http (not a default scheme)",
+			policy:    nil,
+			url:       "http://8.8.8.8/secret",
+			expectErr: true,
+		},
+		{
+			name:      "nil policy blocks file scheme by default",
+			policy:    nil,
+			url:       "file:///etc/passwd",
+			expectErr: true,
+		},
+		{
+			name:      "empty allowed schemes falls back to the default (file blocked)",
 			policy:    &FetchPolicy{AllowedSchemes: nil, AllowPrivateHosts: false},
 			url:       "file:///etc/passwd",
-			expectErr: false,
+			expectErr: true,
 		},
 		{
-			name:      "empty allowed schemes ignores private hosts too",
-			policy:    &FetchPolicy{AllowedSchemes: []string{}, AllowPrivateHosts: false},
-			url:       "http://127.0.0.1/metadata",
-			expectErr: false,
+			name:      "empty allowed schemes still blocks private hosts over https",
+			policy:    &FetchPolicy{AllowedSchemes: []string{}, AllowPrivateHosts: true},
+			url:       "https://127.0.0.1/metadata",
+			expectErr: true,
 		},
 
 		// --- Scheme allow-listing ---
 		{
 			name:      "explicit file scheme allowed",
-			policy:    &FetchPolicy{AllowedSchemes: []string{urlSchemeFile}},
+			policy:    &FetchPolicy{AllowedSchemes: []string{FetchUrlSchemeFile}},
 			url:       "file:///tmp/script.json",
 			expectErr: false,
 		},
 		{
 			name:      "empty scheme is treated as file and allowed",
-			policy:    &FetchPolicy{AllowedSchemes: []string{urlSchemeFile}},
+			policy:    &FetchPolicy{AllowedSchemes: []string{FetchUrlSchemeFile}},
 			url:       "/tmp/script.json",
 			expectErr: false,
 		},
 		{
 			name:      "empty scheme blocked when file not allowed",
-			policy:    &FetchPolicy{AllowedSchemes: []string{urlSchemeHttps}},
+			policy:    &FetchPolicy{AllowedSchemes: []string{FetchUrlSchemeHttps}},
 			url:       "/etc/passwd",
 			expectErr: true,
 		},
 		{
 			name:      "scheme not in allow-list is blocked",
-			policy:    &FetchPolicy{AllowedSchemes: []string{urlSchemeHttps}},
+			policy:    &FetchPolicy{AllowedSchemes: []string{FetchUrlSchemeHttps}},
 			url:       "sftp://host/path",
 			expectErr: true,
 		},
 		{
 			name:      "s3 scheme allowed",
-			policy:    &FetchPolicy{AllowedSchemes: []string{urlSchemeS3}},
+			policy:    &FetchPolicy{AllowedSchemes: []string{FetchUrlSchemeS3}},
 			url:       "s3://bucket/key",
 			expectErr: false,
 		},
