@@ -47,15 +47,14 @@
     "allow_private_hosts": true,
     "input_paths": [
       "/tmp/capi_in",
-      "/tmp/capi_cfg",
+      "file:///tmp/capi_cfg",
       "https://raw.githubusercontent.com/capillariesio/capillaries/",
-      "file:///srv/capillaries/shared/in",
-      "s3://example-corp-datalake/raw/capillaries/"
+      "s3://$CAPILLARIES_AWS_TESTBUCKET/capi_in/",
+      "s3://$CAPILLARIES_AWS_TESTBUCKET/capi_cfg/"
     ],
     "output_paths": [
       "/tmp/capi_out",
-      "file:///srv/capillaries/shared/out",
-      "s3://example-corp-datalake/processed/capillaries/"
+      "s3://$CAPILLARIES_AWS_TESTBUCKET/capi_out/"
     ]
   },
   "custom_processors": {
