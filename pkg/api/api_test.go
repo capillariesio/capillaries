@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/capillariesio/gocqlmem/gocqlshims"
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/custom/pycalc"
@@ -27,9 +28,12 @@ import (
 	"github.com/capillariesio/capillaries/pkg/mq"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
-	"github.com/capillariesio/gocqlmem/gocqlshims"
 	"github.com/stretchr/testify/assert"
 )
+
+// -----------------------------------------------------------------------------
+// CSV comparison helpers
+// -----------------------------------------------------------------------------
 
 func openFileWithRetries(filename string) (*os.File, error) {
 	for range 5 {
@@ -120,6 +124,10 @@ func compareCsvs(file1 string, file2 string) error {
 	return nil
 }
 
+// -----------------------------------------------------------------------------
+// Custom processor plumbing shared by all tests
+// -----------------------------------------------------------------------------
+
 type TestProcessorDefFactory struct {
 }
 
@@ -144,7 +152,296 @@ func getTestProcessorSettings() map[string]json.RawMessage {
 	return result
 }
 
-// Table does not exist
+// -----------------------------------------------------------------------------
+// Test scenarios
+//
+// Every test drives one of two scripts. A scenario captures everything that
+// differs between them: the script/params files, the nodes the run starts
+// with, and the output files to clean up and compare against a baseline.
+// -----------------------------------------------------------------------------
+
+type scenario struct {
+	scriptPath string
+	paramsPath string
+	startNodes []string
+	outDir     string
+	outFiles   []string // basenames without the ".csv" suffix
+
+	// isStartNode reports whether a node is one that actually starts a batch
+	// (and therefore, in the failure tests, starts-then-fails) as opposed to a
+	// downstream node that fails without ever starting.
+	isStartNode func(nodeName string) bool
+}
+
+var lookupScenario = scenario{
+	scriptPath: "/tmp/capi_cfg/lookup_quicktest/script_quick.yaml",
+	paramsPath: "/tmp/capi_cfg/lookup_quicktest/script_params_quick_fs_one.yaml",
+	startNodes: []string{"read_orders", "read_order_items"},
+	outDir:     "/tmp/capi_out/lookup_quicktest",
+	outFiles: []string{
+		"order_date_value_grouped_inner",
+		"order_date_value_grouped_left_outer",
+		"order_item_date_inner",
+		"order_item_date_left_outer",
+	},
+	isStartNode: func(n string) bool { return n == "read_orders" || n == "read_order_items" },
+}
+
+var fannieMaeScenario = scenario{
+	scriptPath: "/tmp/capi_cfg/fannie_mae_apitest/script_api.json",
+	paramsPath: "/tmp/capi_cfg/fannie_mae_apitest/script_params_api.json",
+	startNodes: []string{"01_read_payments"},
+	outDir:     "/tmp/capi_out/fannie_mae_apitest",
+	outFiles: []string{
+		"deal_seller_summaries",
+		"deal_summaries",
+		"loan_smrs_clcltd",
+	},
+	isStartNode: func(n string) bool { return n == "01_read_payments" },
+}
+
+func (s scenario) outPath(base string) string      { return s.outDir + "/" + base + ".csv" }
+func (s scenario) baselinePath(base string) string { return s.outDir + "/" + base + "_baseline.csv" }
+
+func (s scenario) removeOutputs() {
+	for _, f := range s.outFiles {
+		os.Remove(s.outPath(f))
+	}
+}
+
+func (s scenario) compareOutputs(t *testing.T) {
+	for _, f := range s.outFiles {
+		err := compareCsvs(s.baselinePath(f), s.outPath(f))
+		assert.Nil(t, err, fmt.Sprintf("%v", err))
+	}
+}
+
+// -----------------------------------------------------------------------------
+// Test run harness
+//
+// testRun owns the boilerplate that every test repeats: cleaning outputs,
+// building the env config, resetting caches, opening a session, kicking off the
+// run and draining the message queue.
+// -----------------------------------------------------------------------------
+
+type testRun struct {
+	t       *testing.T
+	scn     scenario
+	ks      string
+	ec      env.EnvConfig
+	logger  *l.CapiLogger
+	prod    *mq.TestInmemProducer
+	session gocqlshims.Session
+}
+
+// startTestRun cleans outputs, starts a run for the given scenario and asserts
+// it entered RunStart. Callers should `defer r.cleanup()`.
+func startTestRun(t *testing.T, scn scenario, ksSuffix string, writerWorkers int) *testRun {
+	scn.removeOutputs()
+
+	ks := "ks_" + ksSuffix
+	ec := env.EnvConfig{
+		Cassandra:                         env.CassandraConfig{WriterWorkers: writerWorkers},
+		Log:                               env.LogConfig{Level: "INFO"},
+		CustomProcessorDefFactoryInstance: &TestProcessorDefFactory{},
+		CustomProcessorsSettings:          getTestProcessorSettings(),
+		UseGocqlmem:                       true,
+	}
+	sc.ScriptDefCache = sc.NewScriptDefCache()
+	NodeDependencyReadynessCache = NewNodeDependencyReadynessCache()
+
+	logger, err := l.NewLoggerFromEnvConfig(&ec, "unittest")
+	assert.Nil(t, err, fmt.Sprintf("%v", err))
+	logger.PushF(t.Name())
+
+	prod := &mq.TestInmemProducer{}
+
+	session, engineType, err := db.NewSession(&ec, ks, db.CreateKeyspaceOnConnect)
+	assert.Nil(t, err, fmt.Sprintf("%v", err))
+
+	_, err = StartRun(&ec, logger, prod, scn.scriptPath, scn.paramsPath, session, engineType, ks, scn.startNodes, "test run")
+	assert.Nil(t, err, fmt.Sprintf("%v", err))
+
+	r := &testRun{t: t, scn: scn, ks: ks, ec: ec, logger: logger, prod: prod, session: session}
+	r.assertRunStatus(wfmodel.RunStart)
+	return r
+}
+
+func (r *testRun) cleanup() {
+	assert.Nil(r.t, r.session.Query(fmt.Sprintf("DROP keyspace %s;", r.ks)).Exec())
+	r.session.Close()
+	r.logger.PopF()
+}
+
+func (r *testRun) assertRunStatus(expected wfmodel.RunStatusType) {
+	runHistory, err := GetRunHistory(r.session, r.ks)
+	assert.Nil(r.t, err, fmt.Sprintf("%v", err))
+	assert.Equal(r.t, expected, runHistory[len(runHistory)-1].Status)
+}
+
+// finish asserts the run reached RunComplete.
+func (r *testRun) finish() { r.assertRunStatus(wfmodel.RunComplete) }
+
+// verifyFunc runs per-message assertions after a batch has been processed.
+type verifyFunc func(msg *wfmodel.Message)
+
+// processAll drains the queue, processing every batch with a fresh query
+// performer. newHandler returns that performer together with an optional
+// verifyFunc (may be nil) that inspects the performer after processing.
+func (r *testRun) processAll(newHandler func() (db.TableInserterQueryPerformer, verifyFunc)) {
+	for {
+		msg := r.prod.PeekHead()
+		if msg == nil {
+			break
+		}
+		qp, verify := newHandler()
+		ackCmd := ProcessDataBatchMsg(&r.ec, r.logger, msg, 0, nil, ctx.TableInserterProperties{
+			QueryPerformer:               qp,
+			DoesNotExistPauseMillis:      10,  // speed it up for testing
+			OperationTimedOutPauseMillis: 100, // speed it up for testing
+		})
+		if ackCmd == mq.AcknowledgerCmdAck {
+			r.prod.RemoveHead()
+		} else {
+			r.prod.MoveHeadToTail()
+		}
+		if verify != nil {
+			verify(msg)
+		}
+	}
+}
+
+// assertSimulatedErrorCount checks that a simulated error was (or was not)
+// introduced for a node: exactly one when expected, none otherwise.
+func assertSimulatedErrorCount(t *testing.T, msg *wfmodel.Message, actual int, expectError bool) {
+	want := 0
+	if expectError {
+		want = 1
+	}
+	assert.Equal(t, want, actual, msg.TargetNodeName)
+}
+
+// assertAllNodesFailed verifies the failure-mode expectations shared by every
+// "serious error" / "not applied" test: every node ends in NodeBatchFail. Nodes
+// that actually started go Start->Fail with failComment; downstream nodes fail
+// without starting, blamed on "some dependency nodes".
+func (r *testRun) assertAllNodesFailed(failComment string) {
+	t := r.t
+	nodeHistory, err := GetNodeHistoryForRuns(r.session, r.ks, []int16{int16(1)})
+	assert.Nil(t, err, fmt.Sprintf("%v", err))
+
+	nodeStatus := map[string]wfmodel.NodeBatchStatusType{}
+	for _, nodeEvent := range nodeHistory {
+		nodeStatus[nodeEvent.ScriptNode] = nodeEvent.Status
+	}
+
+	for nodeName, status := range nodeStatus {
+		assert.Equal(t, wfmodel.NodeBatchFail, status, fmt.Sprintf("node %s supposed to fail", nodeName))
+		batchEvents, err := GetBatchHistoryForRunAndNode(r.session, r.ks, int16(1), nodeName)
+		assert.Nil(t, err, fmt.Sprintf("%v", err))
+		if r.scn.isStartNode(nodeName) {
+			// These nodes start and fail
+			assert.Equal(t, 2, len(batchEvents), nodeName)
+			assert.Equal(t, wfmodel.NodeBatchStart, batchEvents[0].Status, nodeName)
+			assert.Equal(t, wfmodel.NodeBatchFail, batchEvents[1].Status, nodeName)
+			assert.True(t, strings.Contains(batchEvents[1].Comment, failComment))
+		} else {
+			// These nodes failed without starting
+			for _, event := range batchEvents {
+				assert.Equal(t, wfmodel.NodeBatchFail, event.Status, nodeName)
+				assert.True(t, strings.Contains(event.Comment, "some dependency nodes"))
+			}
+		}
+	}
+}
+
+// processAllWithSimulatedCrash drains the queue using the production query
+// performer, but for the first ack of each non-file batch it rewrites history to
+// pretend the processor crashed after committing, then re-queues the batch. This
+// exercises re-processing of already-completed batches.
+func (r *testRun) processAllWithSimulatedCrash(isWriteFileNode func(nodeName string) bool, requireBatchSuccess bool) {
+	fakeFailedBatchMap := map[string]struct{}{}
+	for {
+		msg := r.prod.PeekHead()
+		if msg == nil {
+			break
+		}
+		queryPerformer := db.TableInserterQueryPerformerProduction{}
+		ackCmd := ProcessDataBatchMsg(&r.ec, r.logger, msg, 0, nil, ctx.TableInserterProperties{
+			QueryPerformer:               &queryPerformer,
+			DoesNotExistPauseMillis:      10,  // speed it up for testing
+			OperationTimedOutPauseMillis: 100, // speed it up for testing
+		})
+		if ackCmd != mq.AcknowledgerCmdAck {
+			r.prod.MoveHeadToTail()
+			continue
+		}
+
+		_, alreadyFailed := fakeFailedBatchMap[msg.FullBatchId()]
+		if isWriteFileNode(msg.TargetNodeName) || alreadyFailed {
+			r.prod.RemoveHead()
+			continue
+		}
+
+		fakeFailedBatchMap[msg.FullBatchId()] = struct{}{}
+		if r.rewriteHistoryToSimulateCrash(msg, requireBatchSuccess) {
+			// Send back to processing again
+			r.prod.MoveHeadToTail()
+		} else {
+			r.prod.RemoveHead()
+		}
+	}
+}
+
+// rewriteHistoryToSimulateCrash removes the batch-complete and node-complete
+// records for msg's batch so it will be re-processed. It reports whether the
+// batch had actually been marked complete. When requireBatchSuccess is set, that
+// is additionally asserted.
+func (r *testRun) rewriteHistoryToSimulateCrash(msg *wfmodel.Message, requireBatchSuccess bool) bool {
+	t := r.t
+	s, _, err := db.NewSession(&r.ec, msg.DataKeyspace, db.DoNotCreateKeyspaceOnConnect)
+	assert.Nil(t, err, fmt.Sprintf("%v", err))
+	defer s.Close()
+
+	// Verify the batch marked complete
+	batchEvents, err := GetBatchHistoryForRunAndNode(s, msg.DataKeyspace, msg.RunId, msg.TargetNodeName)
+	assert.Nil(t, err, fmt.Sprintf("%v", err))
+
+	var batchSuccessful bool
+	for _, e := range batchEvents {
+		if e.BatchIdx == msg.BatchIdx && e.Status == wfmodel.NodeBatchSuccess {
+			batchSuccessful = true
+			break
+		}
+	}
+	if requireBatchSuccess {
+		assert.True(t, batchSuccessful)
+	}
+	if !batchSuccessful {
+		return false
+	}
+
+	// Rewrite hisory: unmark this batch as complete
+	err = s.Query(fmt.Sprintf(`DELETE FROM %s.%s WHERE run_id = %d AND script_node = '%s' AND batch_idx = %d AND status = %d;`, msg.DataKeyspace, wfmodel.TableNameBatchHistory, msg.RunId, msg.TargetNodeName, msg.BatchIdx, wfmodel.NodeBatchSuccess)).Exec()
+	assert.Nil(t, err, fmt.Sprintf("%v", err))
+
+	// Was node marked marked complete?
+	nodeEvents, err := GetNodeHistoryForRuns(s, msg.DataKeyspace, []int16{msg.RunId})
+	assert.Nil(t, err, fmt.Sprintf("%v", err))
+	for _, e := range nodeEvents {
+		if e.ScriptNode == msg.TargetNodeName && e.Status == wfmodel.NodeBatchSuccess {
+			// Node was declared successfully completed, but we will revert it
+			err = s.Query(fmt.Sprintf(`DELETE FROM %s.%s WHERE run_id = %d AND script_node = '%s' AND status = %d;`, msg.DataKeyspace, wfmodel.TableNameNodeHistory, msg.RunId, msg.TargetNodeName, wfmodel.NodeBatchSuccess)).Exec()
+			assert.Nil(t, err, fmt.Sprintf("%v", err))
+			break
+		}
+	}
+	return true
+}
+
+// -----------------------------------------------------------------------------
+// Table does not exist: first data/idx write reports "does not exist", retry succeeds
+// -----------------------------------------------------------------------------
 
 type TableInserterQueryPerformerTestDataAndIdxDoesNotExist struct {
 	TotalDataHits           int
@@ -178,190 +475,49 @@ func (qp *TableInserterQueryPerformerTestDataAndIdxDoesNotExist) PerformInsertId
 }
 
 func TestTableDoesNotExistLookup(t *testing.T) {
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_inner.csv")
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_left_outer.csv")
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_item_date_inner.csv")
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_item_date_left_outer.csv")
+	r := startTestRun(t, lookupScenario, "table_does_not_exist_lookup", 2)
+	defer r.cleanup()
 
-	ks := "ks_table_does_not_exist_lookup"
-
-	envConfig := env.EnvConfig{
-		Cassandra:                         env.CassandraConfig{WriterWorkers: 2},
-		Log:                               env.LogConfig{Level: "INFO"},
-		CustomProcessorDefFactoryInstance: &TestProcessorDefFactory{},
-		CustomProcessorsSettings:          getTestProcessorSettings(),
-		UseGocqlmem:                       true,
-	}
-	sc.ScriptDefCache = sc.NewScriptDefCache()
-	NodeDependencyReadynessCache = NewNodeDependencyReadynessCache()
-
-	logger, err := l.NewLoggerFromEnvConfig(&envConfig, "unittest")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	logger.PushF("TestTableDoesNotExistFannieMae")
-	defer logger.PopF()
-
-	mqProducer := mq.TestInmemProducer{}
-
-	gocqlmemSession, cassandraEngineType, err := db.NewSession(&envConfig, ks, db.CreateKeyspaceOnConnect)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	_, err = StartRun(&envConfig, logger, &mqProducer, "/tmp/capi_cfg/lookup_quicktest/script_quick.yaml", "/tmp/capi_cfg/lookup_quicktest/script_params_quick_fs_one.yaml", gocqlmemSession, cassandraEngineType, ks, []string{"read_orders", "read_order_items"}, "test run")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	var runStatus wfmodel.RunStatusType
-
-	// Verify run status
-	runHistory, err := GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunStart, runStatus)
-
-	for {
-		msg := mqProducer.PeekHead()
-		if msg == nil {
-			break
-		}
-		queryPerformer := TableInserterQueryPerformerTestDataAndIdxDoesNotExist{}
-		ackCmd := ProcessDataBatchMsg(&envConfig, logger, msg, 0, nil, ctx.TableInserterProperties{
-			QueryPerformer:               &queryPerformer,
-			DoesNotExistPauseMillis:      10,  // speed it up for testing
-			OperationTimedOutPauseMillis: 100, // speed it up for testing
-		})
-		if ackCmd == mq.AcknowledgerCmdAck {
-			mqProducer.RemoveHead()
-		} else {
-			mqProducer.MoveHeadToTail()
-		}
-
-		// Make sure that fake errors were actually introduced
-		if queryPerformer.TotalDataHits > 0 {
-			if strings.HasPrefix(msg.TargetNodeName, "file_") {
-				assert.Equal(t, 0, queryPerformer.SimulatedDataErrorCount, msg.TargetNodeName)
-			} else {
-				assert.Equal(t, 1, queryPerformer.SimulatedDataErrorCount, msg.TargetNodeName)
+	r.processAll(func() (db.TableInserterQueryPerformer, verifyFunc) {
+		qp := &TableInserterQueryPerformerTestDataAndIdxDoesNotExist{}
+		return qp, func(msg *wfmodel.Message) {
+			if qp.TotalDataHits > 0 {
+				assertSimulatedErrorCount(t, msg, qp.SimulatedDataErrorCount, !strings.HasPrefix(msg.TargetNodeName, "file_"))
+			}
+			if qp.TotalIdxHits > 0 {
+				assertSimulatedErrorCount(t, msg, qp.SimulatedIdxErrorCount, strings.HasPrefix(msg.TargetNodeName, "read_"))
 			}
 		}
+	})
 
-		if queryPerformer.TotalIdxHits > 0 {
-			if strings.HasPrefix(msg.TargetNodeName, "read_") {
-				assert.Equal(t, 1, queryPerformer.SimulatedIdxErrorCount, msg.TargetNodeName)
-			} else {
-				assert.Equal(t, 0, queryPerformer.SimulatedIdxErrorCount, msg.TargetNodeName)
-			}
-		}
-	}
-
-	// Verify run status
-	runHistory, err = GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunComplete, runStatus)
-
-	err = compareCsvs("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_inner_baseline.csv", "/tmp/capi_out/lookup_quicktest/order_date_value_grouped_inner.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	err = compareCsvs("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_left_outer_baseline.csv", "/tmp/capi_out/lookup_quicktest/order_date_value_grouped_left_outer.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	err = compareCsvs("/tmp/capi_out/lookup_quicktest/order_item_date_inner_baseline.csv", "/tmp/capi_out/lookup_quicktest/order_item_date_inner.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	err = compareCsvs("/tmp/capi_out/lookup_quicktest/order_item_date_left_outer_baseline.csv", "/tmp/capi_out/lookup_quicktest/order_item_date_left_outer.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	assert.Nil(t, gocqlmemSession.Query(fmt.Sprintf("DROP keyspace %s;", ks)).Exec())
-	gocqlmemSession.Close()
+	r.finish()
+	r.scn.compareOutputs(t)
 }
 
 func TestTableDoesNotExistFannieMae(t *testing.T) {
-	os.Remove("/tmp/capi_out/fannie_mae_apitest/deal_seller_summaries.csv")
-	os.Remove("/tmp/capi_out/fannie_mae_apitest/deal_summaries.csv")
-	os.Remove("/tmp/capi_out/fannie_mae_apitest/loan_smrs_clcltd.csv")
+	r := startTestRun(t, fannieMaeScenario, "table_does_not_exist_fannie_mae", 4)
+	defer r.cleanup()
 
-	ks := "ks_table_does_not_exist_fannie_mae"
-
-	envConfig := env.EnvConfig{
-		Cassandra:                         env.CassandraConfig{WriterWorkers: 4},
-		Log:                               env.LogConfig{Level: "INFO"},
-		CustomProcessorDefFactoryInstance: &TestProcessorDefFactory{},
-		CustomProcessorsSettings:          getTestProcessorSettings(),
-		UseGocqlmem:                       true,
-	}
-	sc.ScriptDefCache = sc.NewScriptDefCache()
-	NodeDependencyReadynessCache = NewNodeDependencyReadynessCache()
-
-	logger, err := l.NewLoggerFromEnvConfig(&envConfig, "unittest")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	logger.PushF("TestTableDoesNotExistFannieMae")
-	defer logger.PopF()
-
-	mqProducer := mq.TestInmemProducer{}
-
-	gocqlmemSession, cassandraEngineType, err := db.NewSession(&envConfig, ks, db.CreateKeyspaceOnConnect)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	_, err = StartRun(&envConfig, logger, &mqProducer, "/tmp/capi_cfg/fannie_mae_apitest/script_api.json", "/tmp/capi_cfg/fannie_mae_apitest/script_params_api.json", gocqlmemSession, cassandraEngineType, ks, []string{"01_read_payments"}, "test run")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	var runStatus wfmodel.RunStatusType
-
-	// Verify run status
-	runHistory, err := GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunStart, runStatus)
-
-	for {
-		msg := mqProducer.PeekHead()
-		if msg == nil {
-			break
-		}
-		queryPerformer := TableInserterQueryPerformerTestDataAndIdxDoesNotExist{}
-		ackCmd := ProcessDataBatchMsg(&envConfig, logger, msg, 0, nil, ctx.TableInserterProperties{
-			QueryPerformer:               &queryPerformer,
-			DoesNotExistPauseMillis:      10,  // speed it up for testing
-			OperationTimedOutPauseMillis: 100, // speed it up for testing
-		})
-		if ackCmd == mq.AcknowledgerCmdAck {
-			mqProducer.RemoveHead()
-			logger.Info("batch processed %s", msg.FullBatchId())
-		} else {
-			mqProducer.MoveHeadToTail()
-		}
-
-		// Make sure that fake errors were actually introduced
-		if queryPerformer.TotalDataHits > 0 {
-			if strings.Contains(msg.TargetNodeName, "write_file_") {
-				assert.Equal(t, 0, queryPerformer.SimulatedDataErrorCount, msg.TargetNodeName)
-			} else {
-				assert.Equal(t, 1, queryPerformer.SimulatedDataErrorCount, msg.TargetNodeName)
+	r.processAll(func() (db.TableInserterQueryPerformer, verifyFunc) {
+		qp := &TableInserterQueryPerformerTestDataAndIdxDoesNotExist{}
+		return qp, func(msg *wfmodel.Message) {
+			if qp.TotalDataHits > 0 {
+				assertSimulatedErrorCount(t, msg, qp.SimulatedDataErrorCount, !strings.Contains(msg.TargetNodeName, "write_file_"))
+			}
+			if qp.TotalIdxHits > 0 {
+				isIdxErrorNode := strings.HasPrefix(msg.TargetNodeName, "01_") || strings.HasPrefix(msg.TargetNodeName, "02_") || msg.TargetNodeName == "04_loan_smrs_clcltd"
+				assertSimulatedErrorCount(t, msg, qp.SimulatedIdxErrorCount, isIdxErrorNode)
 			}
 		}
+	})
 
-		if queryPerformer.TotalIdxHits > 0 {
-			if strings.HasPrefix(msg.TargetNodeName, "01_") || strings.HasPrefix(msg.TargetNodeName, "02_") || msg.TargetNodeName == "04_loan_smrs_clcltd" {
-				assert.Equal(t, 1, queryPerformer.SimulatedIdxErrorCount, msg.TargetNodeName)
-			} else {
-				assert.Equal(t, 0, queryPerformer.SimulatedIdxErrorCount, msg.TargetNodeName)
-			}
-		}
-	}
-
-	// Verify run status
-	runHistory, err = GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunComplete, runStatus)
-
-	err = compareCsvs("/tmp/capi_out/fannie_mae_apitest/deal_seller_summaries_baseline.csv", "/tmp/capi_out/fannie_mae_apitest/deal_seller_summaries.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	err = compareCsvs("/tmp/capi_out/fannie_mae_apitest/deal_summaries_baseline.csv", "/tmp/capi_out/fannie_mae_apitest/deal_summaries.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	err = compareCsvs("/tmp/capi_out/fannie_mae_apitest/loan_smrs_clcltd_baseline.csv", "/tmp/capi_out/fannie_mae_apitest/loan_smrs_clcltd.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	assert.Nil(t, gocqlmemSession.Query(fmt.Sprintf("DROP keyspace %s;", ks)).Exec())
-	gocqlmemSession.Close()
+	r.finish()
+	r.scn.compareOutputs(t)
 }
 
-// OperationTimedOut
+// -----------------------------------------------------------------------------
+// OperationTimedOut: first data/idx write times out, retry succeeds
+// -----------------------------------------------------------------------------
 
 type TableInserterQueryPerformerTestOperationTimedOut struct {
 	TotalDataHits           int
@@ -395,189 +551,49 @@ func (qp *TableInserterQueryPerformerTestOperationTimedOut) PerformInsertIdxReco
 }
 
 func TestOperationTimedOutLookup(t *testing.T) {
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_inner.csv")
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_left_outer.csv")
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_item_date_inner.csv")
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_item_date_left_outer.csv")
+	r := startTestRun(t, lookupScenario, "operation_timed_out_lookup", 2)
+	defer r.cleanup()
 
-	ks := "ks_operation_timed_out_lookup"
-
-	envConfig := env.EnvConfig{
-		Cassandra:                         env.CassandraConfig{WriterWorkers: 2},
-		Log:                               env.LogConfig{Level: "INFO"},
-		CustomProcessorDefFactoryInstance: &TestProcessorDefFactory{},
-		CustomProcessorsSettings:          getTestProcessorSettings(),
-		UseGocqlmem:                       true,
-	}
-	sc.ScriptDefCache = sc.NewScriptDefCache()
-	NodeDependencyReadynessCache = NewNodeDependencyReadynessCache()
-
-	logger, err := l.NewLoggerFromEnvConfig(&envConfig, "unittest")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	logger.PushF("TestOperationTimedOutLookup")
-	defer logger.PopF()
-
-	mqProducer := mq.TestInmemProducer{}
-
-	gocqlmemSession, cassandraEngineType, err := db.NewSession(&envConfig, ks, db.CreateKeyspaceOnConnect)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	_, err = StartRun(&envConfig, logger, &mqProducer, "/tmp/capi_cfg/lookup_quicktest/script_quick.yaml", "/tmp/capi_cfg/lookup_quicktest/script_params_quick_fs_one.yaml", gocqlmemSession, cassandraEngineType, ks, []string{"read_orders", "read_order_items"}, "test run")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	var runStatus wfmodel.RunStatusType
-
-	// Verify run status
-	runHistory, err := GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunStart, runStatus)
-
-	for {
-		msg := mqProducer.PeekHead()
-		if msg == nil {
-			break
-		}
-		queryPerformer := TableInserterQueryPerformerTestOperationTimedOut{}
-		ackCmd := ProcessDataBatchMsg(&envConfig, logger, msg, 0, nil, ctx.TableInserterProperties{
-			QueryPerformer:               &queryPerformer,
-			DoesNotExistPauseMillis:      10,  // speed it up for testing
-			OperationTimedOutPauseMillis: 100, // speed it up for testing
-		})
-		if ackCmd == mq.AcknowledgerCmdAck {
-			mqProducer.RemoveHead()
-		} else {
-			mqProducer.MoveHeadToTail()
-		}
-
-		// Make sure that fake errors were actually introduced
-		if queryPerformer.TotalDataHits > 0 {
-			if strings.Contains(msg.TargetNodeName, "write_file_") {
-				assert.Equal(t, 0, queryPerformer.SimulatedDataErrorCount, msg.TargetNodeName)
-			} else {
-				assert.Equal(t, 1, queryPerformer.SimulatedDataErrorCount, msg.TargetNodeName)
+	r.processAll(func() (db.TableInserterQueryPerformer, verifyFunc) {
+		qp := &TableInserterQueryPerformerTestOperationTimedOut{}
+		return qp, func(msg *wfmodel.Message) {
+			if qp.TotalDataHits > 0 {
+				assertSimulatedErrorCount(t, msg, qp.SimulatedDataErrorCount, !strings.Contains(msg.TargetNodeName, "write_file_"))
+			}
+			if qp.TotalIdxHits > 0 {
+				assertSimulatedErrorCount(t, msg, qp.SimulatedIdxErrorCount, strings.HasPrefix(msg.TargetNodeName, "read_"))
 			}
 		}
+	})
 
-		if queryPerformer.TotalIdxHits > 0 {
-			if strings.HasPrefix(msg.TargetNodeName, "read_") {
-				assert.Equal(t, 1, queryPerformer.SimulatedIdxErrorCount, msg.TargetNodeName)
-			} else {
-				assert.Equal(t, 0, queryPerformer.SimulatedIdxErrorCount, msg.TargetNodeName)
-			}
-		}
-	}
-
-	// Verify run status
-	runHistory, err = GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunComplete, runStatus)
-
-	err = compareCsvs("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_inner_baseline.csv", "/tmp/capi_out/lookup_quicktest/order_date_value_grouped_inner.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	err = compareCsvs("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_left_outer_baseline.csv", "/tmp/capi_out/lookup_quicktest/order_date_value_grouped_left_outer.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	err = compareCsvs("/tmp/capi_out/lookup_quicktest/order_item_date_inner_baseline.csv", "/tmp/capi_out/lookup_quicktest/order_item_date_inner.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	err = compareCsvs("/tmp/capi_out/lookup_quicktest/order_item_date_left_outer_baseline.csv", "/tmp/capi_out/lookup_quicktest/order_item_date_left_outer.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	assert.Nil(t, gocqlmemSession.Query(fmt.Sprintf("DROP keyspace %s;", ks)).Exec())
-	gocqlmemSession.Close()
+	r.finish()
+	r.scn.compareOutputs(t)
 }
 
 func TestOperationTimedOutFannieMae(t *testing.T) {
-	os.Remove("/tmp/capi_out/fannie_mae_apitest/deal_seller_summaries.csv")
-	os.Remove("/tmp/capi_out/fannie_mae_apitest/deal_summaries.csv")
-	os.Remove("/tmp/capi_out/fannie_mae_apitest/loan_smrs_clcltd.csv")
+	r := startTestRun(t, fannieMaeScenario, "operation_timed_out_fannie_mae", 2)
+	defer r.cleanup()
 
-	ks := "ks_operation_timed_out_fannie_mae"
-
-	envConfig := env.EnvConfig{
-		Cassandra:                         env.CassandraConfig{WriterWorkers: 2},
-		Log:                               env.LogConfig{Level: "INFO"},
-		CustomProcessorDefFactoryInstance: &TestProcessorDefFactory{},
-		CustomProcessorsSettings:          getTestProcessorSettings(),
-		UseGocqlmem:                       true,
-	}
-	sc.ScriptDefCache = sc.NewScriptDefCache()
-	NodeDependencyReadynessCache = NewNodeDependencyReadynessCache()
-
-	logger, err := l.NewLoggerFromEnvConfig(&envConfig, "unittest")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	logger.PushF("TestOperationTimedOutFannieMae")
-	defer logger.PopF()
-
-	mqProducer := mq.TestInmemProducer{}
-
-	gocqlmemSession, cassandraEngineType, err := db.NewSession(&envConfig, ks, db.CreateKeyspaceOnConnect)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	_, err = StartRun(&envConfig, logger, &mqProducer, "/tmp/capi_cfg/fannie_mae_apitest/script_api.json", "/tmp/capi_cfg/fannie_mae_apitest/script_params_api.json", gocqlmemSession, cassandraEngineType, ks, []string{"01_read_payments"}, "test run")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	var runStatus wfmodel.RunStatusType
-
-	// Verify run status
-	runHistory, err := GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunStart, runStatus)
-
-	for {
-		msg := mqProducer.PeekHead()
-		if msg == nil {
-			break
-		}
-		queryPerformer := TableInserterQueryPerformerTestOperationTimedOut{}
-		ackCmd := ProcessDataBatchMsg(&envConfig, logger, msg, 0, nil, ctx.TableInserterProperties{
-			QueryPerformer:               &queryPerformer,
-			DoesNotExistPauseMillis:      10,  // speed it up for testing
-			OperationTimedOutPauseMillis: 100, // speed it up for testing
-		})
-		if ackCmd == mq.AcknowledgerCmdAck {
-			mqProducer.RemoveHead()
-		} else {
-			mqProducer.MoveHeadToTail()
-		}
-
-		// Make sure that fake errors were actually introduced
-		if queryPerformer.TotalDataHits > 0 {
-			if strings.Contains(msg.TargetNodeName, "write_file_") {
-				assert.Equal(t, 0, queryPerformer.SimulatedDataErrorCount, msg.TargetNodeName)
-			} else {
-				assert.Equal(t, 1, queryPerformer.SimulatedDataErrorCount, msg.TargetNodeName)
+	r.processAll(func() (db.TableInserterQueryPerformer, verifyFunc) {
+		qp := &TableInserterQueryPerformerTestOperationTimedOut{}
+		return qp, func(msg *wfmodel.Message) {
+			if qp.TotalDataHits > 0 {
+				assertSimulatedErrorCount(t, msg, qp.SimulatedDataErrorCount, !strings.Contains(msg.TargetNodeName, "write_file_"))
+			}
+			if qp.TotalIdxHits > 0 {
+				isIdxErrorNode := strings.HasPrefix(msg.TargetNodeName, "01_") || strings.HasPrefix(msg.TargetNodeName, "02_") || msg.TargetNodeName == "04_loan_smrs_clcltd"
+				assertSimulatedErrorCount(t, msg, qp.SimulatedIdxErrorCount, isIdxErrorNode)
 			}
 		}
+	})
 
-		if queryPerformer.TotalIdxHits > 0 {
-			if strings.HasPrefix(msg.TargetNodeName, "01_") || strings.HasPrefix(msg.TargetNodeName, "02_") || msg.TargetNodeName == "04_loan_smrs_clcltd" {
-				assert.Equal(t, 1, queryPerformer.SimulatedIdxErrorCount, msg.TargetNodeName)
-			} else {
-				assert.Equal(t, 0, queryPerformer.SimulatedIdxErrorCount, msg.TargetNodeName)
-			}
-		}
-	}
-
-	// Verify run status
-	runHistory, err = GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunComplete, runStatus)
-
-	err = compareCsvs("/tmp/capi_out/fannie_mae_apitest/deal_seller_summaries_baseline.csv", "/tmp/capi_out/fannie_mae_apitest/deal_seller_summaries.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	err = compareCsvs("/tmp/capi_out/fannie_mae_apitest/deal_summaries_baseline.csv", "/tmp/capi_out/fannie_mae_apitest/deal_summaries.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	err = compareCsvs("/tmp/capi_out/fannie_mae_apitest/loan_smrs_clcltd_baseline.csv", "/tmp/capi_out/fannie_mae_apitest/loan_smrs_clcltd.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	assert.Nil(t, gocqlmemSession.Query(fmt.Sprintf("DROP keyspace %s;", ks)).Exec())
-	gocqlmemSession.Close()
+	r.finish()
+	r.scn.compareOutputs(t)
 }
 
-// Data serious error
+// -----------------------------------------------------------------------------
+// Data serious error: first data write hits a fatal error, run fails
+// -----------------------------------------------------------------------------
 
 type TableInserterQueryPerformerTestDataSeriousError struct {
 	TotalDataHits           int
@@ -601,195 +617,32 @@ func (qp *TableInserterQueryPerformerTestDataSeriousError) PerformInsertIdxRecor
 }
 
 func TestDataSeriousErrorLookup(t *testing.T) {
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_inner.csv")
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_left_outer.csv")
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_item_date_inner.csv")
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_item_date_left_outer.csv")
+	r := startTestRun(t, lookupScenario, "data_serious_error_lookup", 1)
+	defer r.cleanup()
 
-	ks := "ks_data_serious_error_lookup"
+	r.processAll(func() (db.TableInserterQueryPerformer, verifyFunc) {
+		return &TableInserterQueryPerformerTestDataSeriousError{}, nil
+	})
 
-	envConfig := env.EnvConfig{
-		Cassandra:                         env.CassandraConfig{WriterWorkers: 1},
-		Log:                               env.LogConfig{Level: "INFO"},
-		CustomProcessorDefFactoryInstance: &TestProcessorDefFactory{},
-		CustomProcessorsSettings:          getTestProcessorSettings(),
-		UseGocqlmem:                       true,
-	}
-	sc.ScriptDefCache = sc.NewScriptDefCache()
-	NodeDependencyReadynessCache = NewNodeDependencyReadynessCache()
-
-	logger, err := l.NewLoggerFromEnvConfig(&envConfig, "unittest")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	logger.PushF("TestDataSeriousErrorLookup")
-	defer logger.PopF()
-
-	mqProducer := mq.TestInmemProducer{}
-
-	gocqlmemSession, cassandraEngineType, err := db.NewSession(&envConfig, ks, db.CreateKeyspaceOnConnect)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	_, err = StartRun(&envConfig, logger, &mqProducer, "/tmp/capi_cfg/lookup_quicktest/script_quick.yaml", "/tmp/capi_cfg/lookup_quicktest/script_params_quick_fs_one.yaml", gocqlmemSession, cassandraEngineType, ks, []string{"read_orders", "read_order_items"}, "test run")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	var runStatus wfmodel.RunStatusType
-
-	// Verify run status
-	runHistory, err := GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunStart, runStatus)
-
-	for {
-		msg := mqProducer.PeekHead()
-		if msg == nil {
-			break
-		}
-		queryPerformer := TableInserterQueryPerformerTestDataSeriousError{}
-		ackCmd := ProcessDataBatchMsg(&envConfig, logger, msg, 0, nil, ctx.TableInserterProperties{
-			QueryPerformer:               &queryPerformer,
-			DoesNotExistPauseMillis:      10,  // speed it up for testing
-			OperationTimedOutPauseMillis: 100, // speed it up for testing
-		})
-		if ackCmd == mq.AcknowledgerCmdAck {
-			mqProducer.RemoveHead()
-		} else {
-			mqProducer.MoveHeadToTail()
-		}
-	}
-
-	// Verify run status
-	runHistory, err = GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunComplete, runStatus)
-
-	// Verify node statuses
-	nodeHistory, err := GetNodeHistoryForRuns(gocqlmemSession, ks, []int16{int16(1)})
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	newNodeRunStatusMap := map[string]wfmodel.NodeBatchStatusType{}
-	for _, nodeEvent := range nodeHistory {
-		newNodeRunStatusMap[nodeEvent.ScriptNode] = nodeEvent.Status
-	}
-
-	// For each node, verify batch statuses
-	for nodeName, nodeStatus := range newNodeRunStatusMap {
-		assert.Equal(t, wfmodel.NodeBatchFail, nodeStatus, fmt.Sprintf("node %s supposed to fail", nodeName))
-		// Make sure all batches for this node started then failed
-		batchEvents, err := GetBatchHistoryForRunAndNode(gocqlmemSession, ks, int16(1), nodeName)
-		assert.Nil(t, err, fmt.Sprintf("%v", err))
-		if nodeName == "read_orders" || nodeName == "read_order_items" {
-			// These nodes start and fail
-			assert.Equal(t, 2, len(batchEvents), nodeName)
-			assert.Equal(t, wfmodel.NodeBatchStart, batchEvents[0].Status, nodeName)
-			assert.Equal(t, wfmodel.NodeBatchFail, batchEvents[1].Status, nodeName)
-			assert.True(t, strings.Contains(batchEvents[1].Comment, cql.ErrorSomeSeriousError))
-		} else {
-			// These nodes failed without starting
-			for _, event := range batchEvents {
-				assert.Equal(t, wfmodel.NodeBatchFail, event.Status, nodeName)
-				assert.True(t, strings.Contains(event.Comment, "some dependency nodes"))
-			}
-		}
-	}
-	assert.Nil(t, gocqlmemSession.Query(fmt.Sprintf("DROP keyspace %s;", ks)).Exec())
-	gocqlmemSession.Close()
+	r.finish()
+	r.assertAllNodesFailed(cql.ErrorSomeSeriousError)
 }
 
 func TestDataSeriousErrorFannieMae(t *testing.T) {
-	os.Remove("/tmp/capi_out/fannie_mae_apitest/deal_seller_summaries.csv")
-	os.Remove("/tmp/capi_out/fannie_mae_apitest/deal_summaries.csv")
-	os.Remove("/tmp/capi_out/fannie_mae_apitest/loan_smrs_clcltd.csv")
+	r := startTestRun(t, fannieMaeScenario, "data_serious_error_fannie_mae", 1)
+	defer r.cleanup()
 
-	ks := "ks_data_serious_error_fannie_mae"
+	r.processAll(func() (db.TableInserterQueryPerformer, verifyFunc) {
+		return &TableInserterQueryPerformerTestDataSeriousError{}, nil
+	})
 
-	envConfig := env.EnvConfig{
-		Cassandra:                         env.CassandraConfig{WriterWorkers: 1},
-		Log:                               env.LogConfig{Level: "INFO"},
-		CustomProcessorDefFactoryInstance: &TestProcessorDefFactory{},
-		CustomProcessorsSettings:          getTestProcessorSettings(),
-		UseGocqlmem:                       true,
-	}
-	sc.ScriptDefCache = sc.NewScriptDefCache()
-	NodeDependencyReadynessCache = NewNodeDependencyReadynessCache()
-
-	logger, err := l.NewLoggerFromEnvConfig(&envConfig, "unittest")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	logger.PushF("TestDataSeriousErrorFannieMae")
-	defer logger.PopF()
-
-	mqProducer := mq.TestInmemProducer{}
-
-	gocqlmemSession, cassandraEngineType, err := db.NewSession(&envConfig, ks, db.CreateKeyspaceOnConnect)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	_, err = StartRun(&envConfig, logger, &mqProducer, "/tmp/capi_cfg/fannie_mae_apitest/script_api.json", "/tmp/capi_cfg/fannie_mae_apitest/script_params_api.json", gocqlmemSession, cassandraEngineType, ks, []string{"01_read_payments"}, "test run")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	var runStatus wfmodel.RunStatusType
-
-	// Verify run status
-	runHistory, err := GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunStart, runStatus)
-
-	for {
-		msg := mqProducer.PeekHead()
-		if msg == nil {
-			break
-		}
-		queryPerformer := TableInserterQueryPerformerTestDataSeriousError{}
-		ackCmd := ProcessDataBatchMsg(&envConfig, logger, msg, 0, nil, ctx.TableInserterProperties{
-			QueryPerformer:               &queryPerformer,
-			DoesNotExistPauseMillis:      10,  // speed it up for testing
-			OperationTimedOutPauseMillis: 100, // speed it up for testing
-		})
-		if ackCmd == mq.AcknowledgerCmdAck {
-			mqProducer.RemoveHead()
-		} else {
-			mqProducer.MoveHeadToTail()
-		}
-	}
-
-	// Verify run status
-	runHistory, err = GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunComplete, runStatus)
-
-	// Verify node statuses
-	nodeHistory, err := GetNodeHistoryForRuns(gocqlmemSession, ks, []int16{int16(1)})
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	newNodeRunStatusMap := map[string]wfmodel.NodeBatchStatusType{}
-	for _, nodeEvent := range nodeHistory {
-		newNodeRunStatusMap[nodeEvent.ScriptNode] = nodeEvent.Status
-	}
-
-	// For each node, verify batch statuses
-	for nodeName, nodeStatus := range newNodeRunStatusMap {
-		assert.Equal(t, wfmodel.NodeBatchFail, nodeStatus, fmt.Sprintf("node %s supposed to fail", nodeName))
-		// Make sure all batches for this node started then failed
-		batchEvents, err := GetBatchHistoryForRunAndNode(gocqlmemSession, ks, int16(1), nodeName)
-		assert.Nil(t, err, fmt.Sprintf("%v", err))
-		if nodeName == "01_read_payments" {
-			// These nodes start and fail
-			assert.Equal(t, 2, len(batchEvents), nodeName)
-			assert.Equal(t, wfmodel.NodeBatchStart, batchEvents[0].Status, fmt.Sprintf("%s status[0] is %d, expected %d", nodeName, batchEvents[0].Status, wfmodel.NodeBatchStart))
-			assert.Equal(t, wfmodel.NodeBatchFail, batchEvents[1].Status, fmt.Sprintf("%s status[1] is %d, expected %d", nodeName, batchEvents[1].Status, wfmodel.NodeBatchFail))
-			assert.True(t, strings.Contains(batchEvents[1].Comment, cql.ErrorSomeSeriousError))
-		} else {
-			// These nodes failed without starting
-			for _, event := range batchEvents {
-				assert.Equal(t, wfmodel.NodeBatchFail, event.Status, nodeName)
-				assert.True(t, strings.Contains(event.Comment, "some dependency nodes"))
-			}
-		}
-	}
-	assert.Nil(t, gocqlmemSession.Query(fmt.Sprintf("DROP keyspace %s;", ks)).Exec())
-	gocqlmemSession.Close()
+	r.finish()
+	r.assertAllNodesFailed(cql.ErrorSomeSeriousError)
 }
 
-// Idx serious error
+// -----------------------------------------------------------------------------
+// Idx serious error: first idx write hits a fatal error, run fails
+// -----------------------------------------------------------------------------
 
 type TableInserterQueryPerformerTestIdxSeriousError struct {
 	TotalIdxHits           int
@@ -813,195 +666,33 @@ func (qp *TableInserterQueryPerformerTestIdxSeriousError) PerformInsertIdxRecord
 }
 
 func TestIdxSeriousErrorLookup(t *testing.T) {
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_inner.csv")
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_left_outer.csv")
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_item_date_inner.csv")
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_item_date_left_outer.csv")
+	r := startTestRun(t, lookupScenario, "idx_serious_error_lookup", 1)
+	defer r.cleanup()
 
-	ks := "ks_idx_serious_error_lookup"
+	r.processAll(func() (db.TableInserterQueryPerformer, verifyFunc) {
+		return &TableInserterQueryPerformerTestIdxSeriousError{}, nil
+	})
 
-	envConfig := env.EnvConfig{
-		Cassandra:                         env.CassandraConfig{WriterWorkers: 1},
-		Log:                               env.LogConfig{Level: "INFO"},
-		CustomProcessorDefFactoryInstance: &TestProcessorDefFactory{},
-		CustomProcessorsSettings:          getTestProcessorSettings(),
-		UseGocqlmem:                       true,
-	}
-	sc.ScriptDefCache = sc.NewScriptDefCache()
-	NodeDependencyReadynessCache = NewNodeDependencyReadynessCache()
-
-	logger, err := l.NewLoggerFromEnvConfig(&envConfig, "unittest")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	logger.PushF("TestIdxSeriousErrorLookup")
-	defer logger.PopF()
-
-	mqProducer := mq.TestInmemProducer{}
-
-	gocqlmemSession, cassandraEngineType, err := db.NewSession(&envConfig, ks, db.CreateKeyspaceOnConnect)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	_, err = StartRun(&envConfig, logger, &mqProducer, "/tmp/capi_cfg/lookup_quicktest/script_quick.yaml", "/tmp/capi_cfg/lookup_quicktest/script_params_quick_fs_one.yaml", gocqlmemSession, cassandraEngineType, ks, []string{"read_orders", "read_order_items"}, "test run")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	var runStatus wfmodel.RunStatusType
-
-	// Verify run status
-	runHistory, err := GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunStart, runStatus)
-
-	for {
-		msg := mqProducer.PeekHead()
-		if msg == nil {
-			break
-		}
-		queryPerformer := TableInserterQueryPerformerTestIdxSeriousError{}
-		ackCmd := ProcessDataBatchMsg(&envConfig, logger, msg, 0, nil, ctx.TableInserterProperties{
-			QueryPerformer:               &queryPerformer,
-			DoesNotExistPauseMillis:      10,  // speed it up for testing
-			OperationTimedOutPauseMillis: 100, // speed it up for testing
-		})
-		if ackCmd == mq.AcknowledgerCmdAck {
-			mqProducer.RemoveHead()
-		} else {
-			mqProducer.MoveHeadToTail()
-		}
-	}
-
-	// Verify run status
-	runHistory, err = GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunComplete, runStatus)
-
-	// Verify node statuses
-	nodeHistory, err := GetNodeHistoryForRuns(gocqlmemSession, ks, []int16{int16(1)})
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	newNodeRunStatusMap := map[string]wfmodel.NodeBatchStatusType{}
-	for _, nodeEvent := range nodeHistory {
-		newNodeRunStatusMap[nodeEvent.ScriptNode] = nodeEvent.Status
-	}
-
-	// For each node, verify batch statuses
-	for nodeName, nodeStatus := range newNodeRunStatusMap {
-		assert.Equal(t, wfmodel.NodeBatchFail, nodeStatus, fmt.Sprintf("node %s supposed to fail", nodeName))
-		// Make sure all batches for this node started then failed
-		batchEvents, err := GetBatchHistoryForRunAndNode(gocqlmemSession, ks, int16(1), nodeName)
-		assert.Nil(t, err, fmt.Sprintf("%v", err))
-		if nodeName == "read_orders" || nodeName == "read_order_items" {
-			// These nodes start and fail
-			assert.Equal(t, 2, len(batchEvents), nodeName)
-			assert.Equal(t, wfmodel.NodeBatchStart, batchEvents[0].Status, nodeName)
-			assert.Equal(t, wfmodel.NodeBatchFail, batchEvents[1].Status, nodeName)
-			assert.True(t, strings.Contains(batchEvents[1].Comment, cql.ErrorSomeSeriousError))
-		} else {
-			// These nodes failed without starting
-			for _, event := range batchEvents {
-				assert.Equal(t, wfmodel.NodeBatchFail, event.Status, nodeName)
-				assert.True(t, strings.Contains(event.Comment, "some dependency nodes"))
-			}
-		}
-	}
-	assert.Nil(t, gocqlmemSession.Query(fmt.Sprintf("DROP keyspace %s;", ks)).Exec())
-	gocqlmemSession.Close()
+	r.finish()
+	r.assertAllNodesFailed(cql.ErrorSomeSeriousError)
 }
 
 func TestIdxSeriousErrorFannieMae(t *testing.T) {
-	os.Remove("/tmp/capi_out/fannie_mae_apitest/deal_seller_summaries.csv")
-	os.Remove("/tmp/capi_out/fannie_mae_apitest/deal_summaries.csv")
-	os.Remove("/tmp/capi_out/fannie_mae_apitest/loan_smrs_clcltd.csv")
+	r := startTestRun(t, fannieMaeScenario, "idx_serious_error_fannie_mae", 1)
+	defer r.cleanup()
 
-	ks := "ks_idx_serious_error_fannie_mae"
+	r.processAll(func() (db.TableInserterQueryPerformer, verifyFunc) {
+		return &TableInserterQueryPerformerTestIdxSeriousError{}, nil
+	})
 
-	envConfig := env.EnvConfig{
-		Cassandra:                         env.CassandraConfig{WriterWorkers: 1},
-		Log:                               env.LogConfig{Level: "INFO"},
-		CustomProcessorDefFactoryInstance: &TestProcessorDefFactory{},
-		CustomProcessorsSettings:          getTestProcessorSettings(),
-		UseGocqlmem:                       true,
-	}
-	sc.ScriptDefCache = sc.NewScriptDefCache()
-	NodeDependencyReadynessCache = NewNodeDependencyReadynessCache()
-
-	logger, err := l.NewLoggerFromEnvConfig(&envConfig, "unittest")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	logger.PushF("TestIdxSeriousErrorFannieMae")
-	defer logger.PopF()
-
-	mqProducer := mq.TestInmemProducer{}
-
-	gocqlmemSession, cassandraEngineType, err := db.NewSession(&envConfig, ks, db.CreateKeyspaceOnConnect)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	_, err = StartRun(&envConfig, logger, &mqProducer, "/tmp/capi_cfg/fannie_mae_apitest/script_api.json", "/tmp/capi_cfg/fannie_mae_apitest/script_params_api.json", gocqlmemSession, cassandraEngineType, ks, []string{"01_read_payments"}, "test run")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	var runStatus wfmodel.RunStatusType
-
-	// Verify run status
-	runHistory, err := GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunStart, runStatus)
-
-	for {
-		msg := mqProducer.PeekHead()
-		if msg == nil {
-			break
-		}
-		queryPerformer := TableInserterQueryPerformerTestIdxSeriousError{}
-		ackCmd := ProcessDataBatchMsg(&envConfig, logger, msg, 0, nil, ctx.TableInserterProperties{
-			QueryPerformer:               &queryPerformer,
-			DoesNotExistPauseMillis:      10,  // speed it up for testing
-			OperationTimedOutPauseMillis: 100, // speed it up for testing
-		})
-		if ackCmd == mq.AcknowledgerCmdAck {
-			mqProducer.RemoveHead()
-		} else {
-			mqProducer.MoveHeadToTail()
-		}
-	}
-
-	// Verify run status
-	runHistory, err = GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunComplete, runStatus)
-
-	// Verify node statuses
-	nodeHistory, err := GetNodeHistoryForRuns(gocqlmemSession, ks, []int16{int16(1)})
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	newNodeRunStatusMap := map[string]wfmodel.NodeBatchStatusType{}
-	for _, nodeEvent := range nodeHistory {
-		newNodeRunStatusMap[nodeEvent.ScriptNode] = nodeEvent.Status
-	}
-
-	// For each node, verify batch statuses
-	for nodeName, nodeStatus := range newNodeRunStatusMap {
-		assert.Equal(t, wfmodel.NodeBatchFail, nodeStatus, fmt.Sprintf("node %s supposed to fail", nodeName))
-		// Make sure all batches for this node started then failed
-		batchEvents, err := GetBatchHistoryForRunAndNode(gocqlmemSession, ks, int16(1), nodeName)
-		assert.Nil(t, err, fmt.Sprintf("%v", err))
-		if nodeName == "01_read_payments" {
-			// These nodes start and fail
-			assert.Equal(t, 2, len(batchEvents), nodeName)
-			assert.Equal(t, wfmodel.NodeBatchStart, batchEvents[0].Status, nodeName)
-			assert.Equal(t, wfmodel.NodeBatchFail, batchEvents[1].Status, nodeName)
-			assert.True(t, strings.Contains(batchEvents[1].Comment, cql.ErrorSomeSeriousError))
-		} else {
-			// These nodes failed without starting
-			for _, event := range batchEvents {
-				assert.Equal(t, wfmodel.NodeBatchFail, event.Status, nodeName)
-				assert.True(t, strings.Contains(event.Comment, "some dependency nodes"))
-			}
-		}
-	}
-	assert.Nil(t, gocqlmemSession.Query(fmt.Sprintf("DROP keyspace %s;", ks)).Exec())
-	gocqlmemSession.Close()
+	r.finish()
+	r.assertAllNodesFailed(cql.ErrorSomeSeriousError)
 }
 
-// Data not applied
+// -----------------------------------------------------------------------------
+// Data not applied: first data write is a non-fatal duplicate rowid, retry with
+// a new rowid succeeds
+// -----------------------------------------------------------------------------
 
 type TableInserterQueryPerformerTestDataNotApplied struct {
 	TotalDataHits           int
@@ -1027,174 +718,43 @@ func (qp *TableInserterQueryPerformerTestDataNotApplied) PerformInsertIdxRecordW
 }
 
 func TestDataNotAppliedLookup(t *testing.T) {
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_inner.csv")
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_left_outer.csv")
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_item_date_inner.csv")
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_item_date_left_outer.csv")
+	r := startTestRun(t, lookupScenario, "data_not_applied_lookup", 2)
+	defer r.cleanup()
 
-	ks := "ks_data_not_applied_lookup"
-
-	envConfig := env.EnvConfig{
-		Cassandra:                         env.CassandraConfig{WriterWorkers: 2},
-		Log:                               env.LogConfig{Level: "INFO"},
-		CustomProcessorDefFactoryInstance: &TestProcessorDefFactory{},
-		CustomProcessorsSettings:          getTestProcessorSettings(),
-		UseGocqlmem:                       true,
-	}
-	sc.ScriptDefCache = sc.NewScriptDefCache()
-	NodeDependencyReadynessCache = NewNodeDependencyReadynessCache()
-
-	logger, err := l.NewLoggerFromEnvConfig(&envConfig, "unittest")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	logger.PushF("TestDataNotAppliedLookup")
-	defer logger.PopF()
-
-	mqProducer := mq.TestInmemProducer{}
-
-	gocqlmemSession, cassandraEngineType, err := db.NewSession(&envConfig, ks, db.CreateKeyspaceOnConnect)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	_, err = StartRun(&envConfig, logger, &mqProducer, "/tmp/capi_cfg/lookup_quicktest/script_quick.yaml", "/tmp/capi_cfg/lookup_quicktest/script_params_quick_fs_one.yaml", gocqlmemSession, cassandraEngineType, ks, []string{"read_orders", "read_order_items"}, "test run")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	var runStatus wfmodel.RunStatusType
-
-	// Verify run status
-	runHistory, err := GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunStart, runStatus)
-
-	for {
-		msg := mqProducer.PeekHead()
-		if msg == nil {
-			break
-		}
-		queryPerformer := TableInserterQueryPerformerTestDataNotApplied{}
-		ackCmd := ProcessDataBatchMsg(&envConfig, logger, msg, 0, nil, ctx.TableInserterProperties{
-			QueryPerformer:               &queryPerformer,
-			DoesNotExistPauseMillis:      10,  // speed it up for testing
-			OperationTimedOutPauseMillis: 100, // speed it up for testing
-		})
-		if ackCmd == mq.AcknowledgerCmdAck {
-			mqProducer.RemoveHead()
-		} else {
-			mqProducer.MoveHeadToTail()
-		}
-
-		// Make sure that fake errors were actually introduced
-		if queryPerformer.TotalDataHits > 0 {
-			if strings.HasPrefix(msg.TargetNodeName, "file_") {
-				assert.Equal(t, 0, queryPerformer.SimulatedDataErrorCount, msg.TargetNodeName)
-			} else {
-				assert.Equal(t, 1, queryPerformer.SimulatedDataErrorCount, msg.TargetNodeName)
+	r.processAll(func() (db.TableInserterQueryPerformer, verifyFunc) {
+		qp := &TableInserterQueryPerformerTestDataNotApplied{}
+		return qp, func(msg *wfmodel.Message) {
+			if qp.TotalDataHits > 0 {
+				assertSimulatedErrorCount(t, msg, qp.SimulatedDataErrorCount, !strings.HasPrefix(msg.TargetNodeName, "file_"))
 			}
 		}
-	}
+	})
 
-	// Verify run status
-	runHistory, err = GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunComplete, runStatus)
-
-	err = compareCsvs("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_inner_baseline.csv", "/tmp/capi_out/lookup_quicktest/order_date_value_grouped_inner.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	err = compareCsvs("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_left_outer_baseline.csv", "/tmp/capi_out/lookup_quicktest/order_date_value_grouped_left_outer.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	err = compareCsvs("/tmp/capi_out/lookup_quicktest/order_item_date_inner_baseline.csv", "/tmp/capi_out/lookup_quicktest/order_item_date_inner.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	err = compareCsvs("/tmp/capi_out/lookup_quicktest/order_item_date_left_outer_baseline.csv", "/tmp/capi_out/lookup_quicktest/order_item_date_left_outer.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	assert.Nil(t, gocqlmemSession.Query(fmt.Sprintf("DROP keyspace %s;", ks)).Exec())
-	gocqlmemSession.Close()
+	r.finish()
+	r.scn.compareOutputs(t)
 }
 
 func TestDataNotAppliedFannieMae(t *testing.T) {
-	os.Remove("/tmp/capi_out/fannie_mae_apitest/deal_seller_summaries.csv")
-	os.Remove("/tmp/capi_out/fannie_mae_apitest/deal_summaries.csv")
-	os.Remove("/tmp/capi_out/fannie_mae_apitest/loan_smrs_clcltd.csv")
+	r := startTestRun(t, fannieMaeScenario, "data_not_applied_fannie_mae", 2)
+	defer r.cleanup()
 
-	ks := "ks_data_not_applied_fannie_mae"
-
-	envConfig := env.EnvConfig{
-		Cassandra:                         env.CassandraConfig{WriterWorkers: 2},
-		Log:                               env.LogConfig{Level: "INFO"},
-		CustomProcessorDefFactoryInstance: &TestProcessorDefFactory{},
-		CustomProcessorsSettings:          getTestProcessorSettings(),
-		UseGocqlmem:                       true,
-	}
-	sc.ScriptDefCache = sc.NewScriptDefCache()
-	NodeDependencyReadynessCache = NewNodeDependencyReadynessCache()
-
-	logger, err := l.NewLoggerFromEnvConfig(&envConfig, "unittest")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	logger.PushF("TestDataNotAppliedFannieMae")
-	defer logger.PopF()
-
-	mqProducer := mq.TestInmemProducer{}
-
-	gocqlmemSession, cassandraEngineType, err := db.NewSession(&envConfig, ks, db.CreateKeyspaceOnConnect)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	_, err = StartRun(&envConfig, logger, &mqProducer, "/tmp/capi_cfg/fannie_mae_apitest/script_api.json", "/tmp/capi_cfg/fannie_mae_apitest/script_params_api.json", gocqlmemSession, cassandraEngineType, ks, []string{"01_read_payments"}, "test run")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	var runStatus wfmodel.RunStatusType
-
-	// Verify run status
-	runHistory, err := GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunStart, runStatus)
-
-	for {
-		msg := mqProducer.PeekHead()
-		if msg == nil {
-			break
-		}
-		queryPerformer := TableInserterQueryPerformerTestDataNotApplied{}
-		ackCmd := ProcessDataBatchMsg(&envConfig, logger, msg, 0, nil, ctx.TableInserterProperties{
-			QueryPerformer:               &queryPerformer,
-			DoesNotExistPauseMillis:      10,  // speed it up for testing
-			OperationTimedOutPauseMillis: 100, // speed it up for testing
-		})
-		if ackCmd == mq.AcknowledgerCmdAck {
-			mqProducer.RemoveHead()
-		} else {
-			mqProducer.MoveHeadToTail()
-		}
-
-		// Make sure that fake errors were actually introduced
-		if queryPerformer.TotalDataHits > 0 {
-			if strings.Contains(msg.TargetNodeName, "write_file") {
-				assert.Equal(t, 0, queryPerformer.SimulatedDataErrorCount, msg.TargetNodeName)
-			} else {
-				assert.Equal(t, 1, queryPerformer.SimulatedDataErrorCount, msg.TargetNodeName)
+	r.processAll(func() (db.TableInserterQueryPerformer, verifyFunc) {
+		qp := &TableInserterQueryPerformerTestDataNotApplied{}
+		return qp, func(msg *wfmodel.Message) {
+			if qp.TotalDataHits > 0 {
+				assertSimulatedErrorCount(t, msg, qp.SimulatedDataErrorCount, !strings.Contains(msg.TargetNodeName, "write_file"))
 			}
 		}
-	}
+	})
 
-	// Verify run status
-	runHistory, err = GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunComplete, runStatus)
-
-	err = compareCsvs("/tmp/capi_out/fannie_mae_apitest/deal_seller_summaries_baseline.csv", "/tmp/capi_out/fannie_mae_apitest/deal_seller_summaries.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	err = compareCsvs("/tmp/capi_out/fannie_mae_apitest/deal_summaries_baseline.csv", "/tmp/capi_out/fannie_mae_apitest/deal_summaries.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	err = compareCsvs("/tmp/capi_out/fannie_mae_apitest/loan_smrs_clcltd_baseline.csv", "/tmp/capi_out/fannie_mae_apitest/loan_smrs_clcltd.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	assert.Nil(t, gocqlmemSession.Query(fmt.Sprintf("DROP keyspace %s;", ks)).Exec())
-	gocqlmemSession.Close()
+	r.finish()
+	r.scn.compareOutputs(t)
 }
 
+// -----------------------------------------------------------------------------
 // IdxNotAppliedSamePresentFirstRetry
 // This exercises "cannot write duplicate index key "
+// -----------------------------------------------------------------------------
 
 type TableInserterQueryPerformerTestIdxNotAppliedSamePresentFirstRetry struct {
 	TotalIdxHits           int
@@ -1221,195 +781,33 @@ func (qp *TableInserterQueryPerformerTestIdxNotAppliedSamePresentFirstRetry) Per
 }
 
 func TestIdxNotAppliedSamePresentFirstRetryLookup(t *testing.T) {
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_inner.csv")
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_left_outer.csv")
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_item_date_inner.csv")
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_item_date_left_outer.csv")
+	r := startTestRun(t, lookupScenario, "idx_not_applied_same_present_first_retry_lookup", 1)
+	defer r.cleanup()
 
-	ks := "ks_idx_not_applied_same_present_first_retry_lookup"
+	r.processAll(func() (db.TableInserterQueryPerformer, verifyFunc) {
+		return &TableInserterQueryPerformerTestIdxNotAppliedSamePresentFirstRetry{}, nil
+	})
 
-	envConfig := env.EnvConfig{
-		Cassandra:                         env.CassandraConfig{WriterWorkers: 1},
-		Log:                               env.LogConfig{Level: "INFO"},
-		CustomProcessorDefFactoryInstance: &TestProcessorDefFactory{},
-		CustomProcessorsSettings:          getTestProcessorSettings(),
-		UseGocqlmem:                       true,
-	}
-	sc.ScriptDefCache = sc.NewScriptDefCache()
-	NodeDependencyReadynessCache = NewNodeDependencyReadynessCache()
-
-	logger, err := l.NewLoggerFromEnvConfig(&envConfig, "unittest")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	logger.PushF("TestIdxSeriousErrorLookup")
-	defer logger.PopF()
-
-	mqProducer := mq.TestInmemProducer{}
-
-	gocqlmemSession, cassandraEngineType, err := db.NewSession(&envConfig, ks, db.CreateKeyspaceOnConnect)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	_, err = StartRun(&envConfig, logger, &mqProducer, "/tmp/capi_cfg/lookup_quicktest/script_quick.yaml", "/tmp/capi_cfg/lookup_quicktest/script_params_quick_fs_one.yaml", gocqlmemSession, cassandraEngineType, ks, []string{"read_orders", "read_order_items"}, "test run")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	var runStatus wfmodel.RunStatusType
-
-	// Verify run status
-	runHistory, err := GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunStart, runStatus)
-
-	for {
-		msg := mqProducer.PeekHead()
-		if msg == nil {
-			break
-		}
-		queryPerformer := TableInserterQueryPerformerTestIdxNotAppliedSamePresentFirstRetry{}
-		ackCmd := ProcessDataBatchMsg(&envConfig, logger, msg, 0, nil, ctx.TableInserterProperties{
-			QueryPerformer:               &queryPerformer,
-			DoesNotExistPauseMillis:      10,  // speed it up for testing
-			OperationTimedOutPauseMillis: 100, // speed it up for testing
-		})
-		if ackCmd == mq.AcknowledgerCmdAck {
-			mqProducer.RemoveHead()
-		} else {
-			mqProducer.MoveHeadToTail()
-		}
-	}
-
-	// Verify run status
-	runHistory, err = GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunComplete, runStatus)
-
-	// Verify node statuses
-	nodeHistory, err := GetNodeHistoryForRuns(gocqlmemSession, ks, []int16{int16(1)})
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	newNodeRunStatusMap := map[string]wfmodel.NodeBatchStatusType{}
-	for _, nodeEvent := range nodeHistory {
-		newNodeRunStatusMap[nodeEvent.ScriptNode] = nodeEvent.Status
-	}
-
-	// For each node, verify batch statuses
-	for nodeName, nodeStatus := range newNodeRunStatusMap {
-		assert.Equal(t, wfmodel.NodeBatchFail, nodeStatus, fmt.Sprintf("node %s supposed to fail", nodeName))
-		// Make sure all batches for this node started then failed
-		batchEvents, err := GetBatchHistoryForRunAndNode(gocqlmemSession, ks, int16(1), nodeName)
-		assert.Nil(t, err, fmt.Sprintf("%v", err))
-		if nodeName == "read_orders" || nodeName == "read_order_items" {
-			// These nodes start and fail
-			assert.Equal(t, 2, len(batchEvents), nodeName)
-			assert.Equal(t, wfmodel.NodeBatchStart, batchEvents[0].Status, nodeName)
-			assert.Equal(t, wfmodel.NodeBatchFail, batchEvents[1].Status, nodeName)
-			assert.True(t, strings.Contains(batchEvents[1].Comment, "cannot write duplicate index key "))
-		} else {
-			// These nodes failed without starting
-			for _, event := range batchEvents {
-				assert.Equal(t, wfmodel.NodeBatchFail, event.Status, nodeName)
-				assert.True(t, strings.Contains(event.Comment, "some dependency nodes"))
-			}
-		}
-	}
-	assert.Nil(t, gocqlmemSession.Query(fmt.Sprintf("DROP keyspace %s;", ks)).Exec())
-	gocqlmemSession.Close()
+	r.finish()
+	r.assertAllNodesFailed("cannot write duplicate index key ")
 }
 
 func TestIdxNotAppliedSamePresentFirstRetryFannieMae(t *testing.T) {
-	os.Remove("/tmp/capi_out/fannie_mae_apitest/deal_seller_summaries.csv")
-	os.Remove("/tmp/capi_out/fannie_mae_apitest/deal_summaries.csv")
-	os.Remove("/tmp/capi_out/fannie_mae_apitest/loan_smrs_clcltd.csv")
+	r := startTestRun(t, fannieMaeScenario, "idx_not_applied_same_present_first_retry_fannie_mae", 1)
+	defer r.cleanup()
 
-	ks := "ks_idx_not_applied_same_present_first_retry_fannie_mae"
+	r.processAll(func() (db.TableInserterQueryPerformer, verifyFunc) {
+		return &TableInserterQueryPerformerTestIdxNotAppliedSamePresentFirstRetry{}, nil
+	})
 
-	envConfig := env.EnvConfig{
-		Cassandra:                         env.CassandraConfig{WriterWorkers: 1},
-		Log:                               env.LogConfig{Level: "INFO"},
-		CustomProcessorDefFactoryInstance: &TestProcessorDefFactory{},
-		CustomProcessorsSettings:          getTestProcessorSettings(),
-		UseGocqlmem:                       true,
-	}
-	sc.ScriptDefCache = sc.NewScriptDefCache()
-	NodeDependencyReadynessCache = NewNodeDependencyReadynessCache()
-
-	logger, err := l.NewLoggerFromEnvConfig(&envConfig, "unittest")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	logger.PushF("TestIdxSeriousErrorFannieMae")
-	defer logger.PopF()
-
-	mqProducer := mq.TestInmemProducer{}
-
-	gocqlmemSession, cassandraEngineType, err := db.NewSession(&envConfig, ks, db.CreateKeyspaceOnConnect)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	_, err = StartRun(&envConfig, logger, &mqProducer, "/tmp/capi_cfg/fannie_mae_apitest/script_api.json", "/tmp/capi_cfg/fannie_mae_apitest/script_params_api.json", gocqlmemSession, cassandraEngineType, ks, []string{"01_read_payments"}, "test run")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	var runStatus wfmodel.RunStatusType
-
-	// Verify run status
-	runHistory, err := GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunStart, runStatus)
-
-	for {
-		msg := mqProducer.PeekHead()
-		if msg == nil {
-			break
-		}
-		queryPerformer := TableInserterQueryPerformerTestIdxNotAppliedSamePresentFirstRetry{}
-		ackCmd := ProcessDataBatchMsg(&envConfig, logger, msg, 0, nil, ctx.TableInserterProperties{
-			QueryPerformer:               &queryPerformer,
-			DoesNotExistPauseMillis:      10,  // speed it up for testing
-			OperationTimedOutPauseMillis: 100, // speed it up for testing
-		})
-		if ackCmd == mq.AcknowledgerCmdAck {
-			mqProducer.RemoveHead()
-		} else {
-			mqProducer.MoveHeadToTail()
-		}
-	}
-
-	// Verify run status
-	runHistory, err = GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunComplete, runStatus)
-
-	// Verify node statuses
-	nodeHistory, err := GetNodeHistoryForRuns(gocqlmemSession, ks, []int16{int16(1)})
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	newNodeRunStatusMap := map[string]wfmodel.NodeBatchStatusType{}
-	for _, nodeEvent := range nodeHistory {
-		newNodeRunStatusMap[nodeEvent.ScriptNode] = nodeEvent.Status
-	}
-
-	// For each node, verify batch statuses
-	for nodeName, nodeStatus := range newNodeRunStatusMap {
-		assert.Equal(t, wfmodel.NodeBatchFail, nodeStatus, fmt.Sprintf("node %s supposed to fail", nodeName))
-		// Make sure all batches for this node started then failed
-		batchEvents, err := GetBatchHistoryForRunAndNode(gocqlmemSession, ks, int16(1), nodeName)
-		assert.Nil(t, err, fmt.Sprintf("%v", err))
-		if nodeName == "01_read_payments" {
-			// These nodes start and fail
-			assert.Equal(t, 2, len(batchEvents), nodeName)
-			assert.Equal(t, wfmodel.NodeBatchStart, batchEvents[0].Status, nodeName)
-			assert.Equal(t, wfmodel.NodeBatchFail, batchEvents[1].Status, nodeName)
-			assert.True(t, strings.Contains(batchEvents[1].Comment, "cannot write duplicate index key "))
-		} else {
-			// These nodes failed without starting
-			for _, event := range batchEvents {
-				assert.Equal(t, wfmodel.NodeBatchFail, event.Status, nodeName)
-				assert.True(t, strings.Contains(event.Comment, "some dependency nodes"))
-			}
-		}
-	}
-	assert.Nil(t, gocqlmemSession.Query(fmt.Sprintf("DROP keyspace %s;", ks)).Exec())
-	gocqlmemSession.Close()
+	r.finish()
+	r.assertAllNodesFailed("cannot write duplicate index key ")
 }
 
-// IdxNotAppliedSamePresentSecondRetry
+// -----------------------------------------------------------------------------
+// IdxNotAppliedSamePresentSecondRetry: not-applied on the first retry, succeeds
+// on the second (non-unique idx re-drive)
+// -----------------------------------------------------------------------------
 
 type TableInserterQueryPerformerTestIdxNotAppliedSamePresentSecondRetry struct {
 	TotalIdxHits           int
@@ -1449,156 +847,33 @@ func (qp *TableInserterQueryPerformerTestIdxNotAppliedSamePresentSecondRetry) Pe
 }
 
 func TestIdxNotAppliedSamePresentSecondRetryLookup(t *testing.T) {
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_inner.csv")
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_left_outer.csv")
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_item_date_inner.csv")
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_item_date_left_outer.csv")
+	r := startTestRun(t, lookupScenario, "idx_not_applied_same_present_second_retry_lookup", 2)
+	defer r.cleanup()
 
-	ks := "ks_idx_not_applied_same_present_second_retry_lookup"
+	r.processAll(func() (db.TableInserterQueryPerformer, verifyFunc) {
+		return &TableInserterQueryPerformerTestIdxNotAppliedSamePresentSecondRetry{}, nil
+	})
 
-	envConfig := env.EnvConfig{
-		Cassandra:                         env.CassandraConfig{WriterWorkers: 2},
-		Log:                               env.LogConfig{Level: "INFO"},
-		CustomProcessorDefFactoryInstance: &TestProcessorDefFactory{},
-		CustomProcessorsSettings:          getTestProcessorSettings(),
-		UseGocqlmem:                       true,
-	}
-	sc.ScriptDefCache = sc.NewScriptDefCache()
-	NodeDependencyReadynessCache = NewNodeDependencyReadynessCache()
-
-	logger, err := l.NewLoggerFromEnvConfig(&envConfig, "unittest")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	logger.PushF("TestIdxSeriousErrorLookup")
-	defer logger.PopF()
-
-	mqProducer := mq.TestInmemProducer{}
-
-	gocqlmemSession, cassandraEngineType, err := db.NewSession(&envConfig, ks, db.CreateKeyspaceOnConnect)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	_, err = StartRun(&envConfig, logger, &mqProducer, "/tmp/capi_cfg/lookup_quicktest/script_quick.yaml", "/tmp/capi_cfg/lookup_quicktest/script_params_quick_fs_one.yaml", gocqlmemSession, cassandraEngineType, ks, []string{"read_orders", "read_order_items"}, "test run")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	var runStatus wfmodel.RunStatusType
-
-	// Verify run status
-	runHistory, err := GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunStart, runStatus)
-
-	for {
-		msg := mqProducer.PeekHead()
-		if msg == nil {
-			break
-		}
-		queryPerformer := TableInserterQueryPerformerTestIdxNotAppliedSamePresentSecondRetry{}
-		ackCmd := ProcessDataBatchMsg(&envConfig, logger, msg, 0, nil, ctx.TableInserterProperties{
-			QueryPerformer:               &queryPerformer,
-			DoesNotExistPauseMillis:      10,  // speed it up for testing
-			OperationTimedOutPauseMillis: 100, // speed it up for testing
-		})
-		if ackCmd == mq.AcknowledgerCmdAck {
-			mqProducer.RemoveHead()
-		} else {
-			mqProducer.MoveHeadToTail()
-		}
-	}
-
-	// Verify run status
-	runHistory, err = GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunComplete, runStatus)
-
-	err = compareCsvs("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_inner_baseline.csv", "/tmp/capi_out/lookup_quicktest/order_date_value_grouped_inner.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	err = compareCsvs("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_left_outer_baseline.csv", "/tmp/capi_out/lookup_quicktest/order_date_value_grouped_left_outer.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	err = compareCsvs("/tmp/capi_out/lookup_quicktest/order_item_date_inner_baseline.csv", "/tmp/capi_out/lookup_quicktest/order_item_date_inner.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	err = compareCsvs("/tmp/capi_out/lookup_quicktest/order_item_date_left_outer_baseline.csv", "/tmp/capi_out/lookup_quicktest/order_item_date_left_outer.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	assert.Nil(t, gocqlmemSession.Query(fmt.Sprintf("DROP keyspace %s;", ks)).Exec())
-	gocqlmemSession.Close()
+	r.finish()
+	r.scn.compareOutputs(t)
 }
 
 func TestIdxNotAppliedSamePresentSecondRetryFannieMae(t *testing.T) {
-	os.Remove("/tmp/capi_out/fannie_mae_apitest/deal_seller_summaries.csv")
-	os.Remove("/tmp/capi_out/fannie_mae_apitest/deal_summaries.csv")
-	os.Remove("/tmp/capi_out/fannie_mae_apitest/loan_smrs_clcltd.csv")
+	r := startTestRun(t, fannieMaeScenario, "idx_not_applied_same_present_second_retry_fannie_mae", 1)
+	defer r.cleanup()
 
-	ks := "ks_idx_not_applied_same_present_second_retry_fannie_mae"
+	r.processAll(func() (db.TableInserterQueryPerformer, verifyFunc) {
+		return &TableInserterQueryPerformerTestIdxNotAppliedSamePresentSecondRetry{}, nil
+	})
 
-	envConfig := env.EnvConfig{
-		Cassandra:                         env.CassandraConfig{WriterWorkers: 1},
-		Log:                               env.LogConfig{Level: "INFO"},
-		CustomProcessorDefFactoryInstance: &TestProcessorDefFactory{},
-		CustomProcessorsSettings:          getTestProcessorSettings(),
-		UseGocqlmem:                       true,
-	}
-	sc.ScriptDefCache = sc.NewScriptDefCache()
-	NodeDependencyReadynessCache = NewNodeDependencyReadynessCache()
-
-	logger, err := l.NewLoggerFromEnvConfig(&envConfig, "unittest")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	logger.PushF("TestIdxSeriousErrorFannieMae")
-	defer logger.PopF()
-
-	mqProducer := mq.TestInmemProducer{}
-
-	gocqlmemSession, cassandraEngineType, err := db.NewSession(&envConfig, ks, db.CreateKeyspaceOnConnect)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	_, err = StartRun(&envConfig, logger, &mqProducer, "/tmp/capi_cfg/fannie_mae_apitest/script_api.json", "/tmp/capi_cfg/fannie_mae_apitest/script_params_api.json", gocqlmemSession, cassandraEngineType, ks, []string{"01_read_payments"}, "test run")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	var runStatus wfmodel.RunStatusType
-
-	// Verify run status
-	runHistory, err := GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunStart, runStatus)
-
-	for {
-		msg := mqProducer.PeekHead()
-		if msg == nil {
-			break
-		}
-		queryPerformer := TableInserterQueryPerformerTestIdxNotAppliedSamePresentSecondRetry{}
-		ackCmd := ProcessDataBatchMsg(&envConfig, logger, msg, 0, nil, ctx.TableInserterProperties{
-			QueryPerformer:               &queryPerformer,
-			DoesNotExistPauseMillis:      10,  // speed it up for testing
-			OperationTimedOutPauseMillis: 100, // speed it up for testing
-		})
-		if ackCmd == mq.AcknowledgerCmdAck {
-			mqProducer.RemoveHead()
-		} else {
-			mqProducer.MoveHeadToTail()
-		}
-	}
-
-	// Verify run status
-	runHistory, err = GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunComplete, runStatus)
-
-	err = compareCsvs("/tmp/capi_out/fannie_mae_apitest/deal_seller_summaries_baseline.csv", "/tmp/capi_out/fannie_mae_apitest/deal_seller_summaries.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	err = compareCsvs("/tmp/capi_out/fannie_mae_apitest/deal_summaries_baseline.csv", "/tmp/capi_out/fannie_mae_apitest/deal_summaries.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	err = compareCsvs("/tmp/capi_out/fannie_mae_apitest/loan_smrs_clcltd_baseline.csv", "/tmp/capi_out/fannie_mae_apitest/loan_smrs_clcltd.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	assert.Nil(t, gocqlmemSession.Query(fmt.Sprintf("DROP keyspace %s;", ks)).Exec())
-	gocqlmemSession.Close()
+	r.finish()
+	r.scn.compareOutputs(t)
 }
 
+// -----------------------------------------------------------------------------
 // TestIdxNotAppliedDiffPresent
-// This exerises "cannot write index key "
+// This exercises "cannot write index key "
+// -----------------------------------------------------------------------------
 
 type TableInserterQueryPerformerTestIdxNotAppliedDiffPresent struct {
 	TotalIdxHits           int
@@ -1625,461 +900,52 @@ func (qp *TableInserterQueryPerformerTestIdxNotAppliedDiffPresent) PerformInsert
 }
 
 func TestIdxNotAppliedDiffPresentLookup(t *testing.T) {
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_inner.csv")
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_left_outer.csv")
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_item_date_inner.csv")
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_item_date_left_outer.csv")
+	r := startTestRun(t, lookupScenario, "idx_not_applied_diff_present_lookup", 1)
+	defer r.cleanup()
 
-	ks := "ks_idx_not_applied_diff_present_lookup"
+	r.processAll(func() (db.TableInserterQueryPerformer, verifyFunc) {
+		return &TableInserterQueryPerformerTestIdxNotAppliedDiffPresent{}, nil
+	})
 
-	envConfig := env.EnvConfig{
-		Cassandra:                         env.CassandraConfig{WriterWorkers: 1},
-		Log:                               env.LogConfig{Level: "INFO"},
-		CustomProcessorDefFactoryInstance: &TestProcessorDefFactory{},
-		CustomProcessorsSettings:          getTestProcessorSettings(),
-		UseGocqlmem:                       true,
-	}
-	sc.ScriptDefCache = sc.NewScriptDefCache()
-	NodeDependencyReadynessCache = NewNodeDependencyReadynessCache()
-
-	logger, err := l.NewLoggerFromEnvConfig(&envConfig, "unittest")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	logger.PushF("TestIdxSeriousErrorLookup")
-	defer logger.PopF()
-
-	mqProducer := mq.TestInmemProducer{}
-
-	gocqlmemSession, cassandraEngineType, err := db.NewSession(&envConfig, ks, db.CreateKeyspaceOnConnect)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	_, err = StartRun(&envConfig, logger, &mqProducer, "/tmp/capi_cfg/lookup_quicktest/script_quick.yaml", "/tmp/capi_cfg/lookup_quicktest/script_params_quick_fs_one.yaml", gocqlmemSession, cassandraEngineType, ks, []string{"read_orders", "read_order_items"}, "test run")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	var runStatus wfmodel.RunStatusType
-
-	// Verify run status
-	runHistory, err := GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunStart, runStatus)
-
-	for {
-		msg := mqProducer.PeekHead()
-		if msg == nil {
-			break
-		}
-		queryPerformer := TableInserterQueryPerformerTestIdxNotAppliedDiffPresent{}
-		ackCmd := ProcessDataBatchMsg(&envConfig, logger, msg, 0, nil, ctx.TableInserterProperties{
-			QueryPerformer:               &queryPerformer,
-			DoesNotExistPauseMillis:      10,  // speed it up for testing
-			OperationTimedOutPauseMillis: 100, // speed it up for testing
-		})
-		if ackCmd == mq.AcknowledgerCmdAck {
-			mqProducer.RemoveHead()
-		} else {
-			mqProducer.MoveHeadToTail()
-		}
-	}
-
-	// Verify run status
-	runHistory, err = GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunComplete, runStatus)
-
-	// Verify node statuses
-	nodeHistory, err := GetNodeHistoryForRuns(gocqlmemSession, ks, []int16{int16(1)})
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	newNodeRunStatusMap := map[string]wfmodel.NodeBatchStatusType{}
-	for _, nodeEvent := range nodeHistory {
-		newNodeRunStatusMap[nodeEvent.ScriptNode] = nodeEvent.Status
-	}
-
-	// For each node, verify batch statuses
-	for nodeName, nodeStatus := range newNodeRunStatusMap {
-		assert.Equal(t, wfmodel.NodeBatchFail, nodeStatus, fmt.Sprintf("node %s supposed to fail", nodeName))
-		// Make sure all batches for this node started then failed
-		batchEvents, err := GetBatchHistoryForRunAndNode(gocqlmemSession, ks, int16(1), nodeName)
-		assert.Nil(t, err, fmt.Sprintf("%v", err))
-		if nodeName == "read_orders" || nodeName == "read_order_items" {
-			// These nodes start and fail
-			assert.Equal(t, 2, len(batchEvents), nodeName)
-			assert.Equal(t, wfmodel.NodeBatchStart, batchEvents[0].Status, nodeName)
-			assert.Equal(t, wfmodel.NodeBatchFail, batchEvents[1].Status, nodeName)
-			assert.True(t, strings.Contains(batchEvents[1].Comment, "cannot write duplicate unique index key"))
-		} else {
-			// These nodes failed without starting
-			for _, event := range batchEvents {
-				assert.Equal(t, wfmodel.NodeBatchFail, event.Status, nodeName)
-				assert.True(t, strings.Contains(event.Comment, "some dependency nodes"))
-			}
-		}
-	}
-	assert.Nil(t, gocqlmemSession.Query(fmt.Sprintf("DROP keyspace %s;", ks)).Exec())
-	gocqlmemSession.Close()
+	r.finish()
+	r.assertAllNodesFailed("cannot write duplicate unique index key")
 }
 
 func TestIdxNotAppliedDiffPresentFannieMae(t *testing.T) {
-	os.Remove("/tmp/capi_out/fannie_mae_apitest/deal_seller_summaries.csv")
-	os.Remove("/tmp/capi_out/fannie_mae_apitest/deal_summaries.csv")
-	os.Remove("/tmp/capi_out/fannie_mae_apitest/loan_smrs_clcltd.csv")
+	r := startTestRun(t, fannieMaeScenario, "idx_not_applied_diff_present_fannie_mae", 2)
+	defer r.cleanup()
 
-	ks := "ks_idx_not_applied_diff_present_fannie_mae"
+	r.processAll(func() (db.TableInserterQueryPerformer, verifyFunc) {
+		return &TableInserterQueryPerformerTestIdxNotAppliedDiffPresent{}, nil
+	})
 
-	envConfig := env.EnvConfig{
-		Cassandra:                         env.CassandraConfig{WriterWorkers: 2},
-		Log:                               env.LogConfig{Level: "INFO"},
-		CustomProcessorDefFactoryInstance: &TestProcessorDefFactory{},
-		CustomProcessorsSettings:          getTestProcessorSettings(),
-		UseGocqlmem:                       true,
-	}
-	sc.ScriptDefCache = sc.NewScriptDefCache()
-	NodeDependencyReadynessCache = NewNodeDependencyReadynessCache()
-
-	logger, err := l.NewLoggerFromEnvConfig(&envConfig, "unittest")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	logger.PushF("TestIdxSeriousErrorFannieMae")
-	defer logger.PopF()
-
-	mqProducer := mq.TestInmemProducer{}
-
-	gocqlmemSession, cassandraEngineType, err := db.NewSession(&envConfig, ks, db.CreateKeyspaceOnConnect)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	_, err = StartRun(&envConfig, logger, &mqProducer, "/tmp/capi_cfg/fannie_mae_apitest/script_api.json", "/tmp/capi_cfg/fannie_mae_apitest/script_params_api.json", gocqlmemSession, cassandraEngineType, ks, []string{"01_read_payments"}, "test run")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	var runStatus wfmodel.RunStatusType
-
-	// Verify run status
-	runHistory, err := GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunStart, runStatus)
-
-	for {
-		msg := mqProducer.PeekHead()
-		if msg == nil {
-			break
-		}
-		queryPerformer := TableInserterQueryPerformerTestIdxNotAppliedDiffPresent{}
-		ackCmd := ProcessDataBatchMsg(&envConfig, logger, msg, 0, nil, ctx.TableInserterProperties{
-			QueryPerformer:               &queryPerformer,
-			DoesNotExistPauseMillis:      10,  // speed it up for testing
-			OperationTimedOutPauseMillis: 100, // speed it up for testing
-		})
-		if ackCmd == mq.AcknowledgerCmdAck {
-			mqProducer.RemoveHead()
-		} else {
-			mqProducer.MoveHeadToTail()
-		}
-	}
-
-	// Verify run status
-	runHistory, err = GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunComplete, runStatus)
-
-	// Verify node statuses
-	nodeHistory, err := GetNodeHistoryForRuns(gocqlmemSession, ks, []int16{int16(1)})
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	newNodeRunStatusMap := map[string]wfmodel.NodeBatchStatusType{}
-	for _, nodeEvent := range nodeHistory {
-		newNodeRunStatusMap[nodeEvent.ScriptNode] = nodeEvent.Status
-	}
-
-	// For each node, verify batch statuses
-	for nodeName, nodeStatus := range newNodeRunStatusMap {
-		assert.Equal(t, wfmodel.NodeBatchFail, nodeStatus, fmt.Sprintf("node %s supposed to fail", nodeName))
-		// Make sure all batches for this node started then failed
-		batchEvents, err := GetBatchHistoryForRunAndNode(gocqlmemSession, ks, int16(1), nodeName)
-		assert.Nil(t, err, fmt.Sprintf("%v", err))
-		if nodeName == "01_read_payments" {
-			// These nodes start and fail
-			assert.Equal(t, 2, len(batchEvents), nodeName)
-			assert.Equal(t, wfmodel.NodeBatchStart, batchEvents[0].Status, nodeName)
-			assert.Equal(t, wfmodel.NodeBatchFail, batchEvents[1].Status, nodeName)
-			assert.True(t, strings.Contains(batchEvents[1].Comment, "cannot write duplicate unique index key"))
-		} else {
-			// These nodes failed without starting
-			for _, event := range batchEvents {
-				assert.Equal(t, wfmodel.NodeBatchFail, event.Status, nodeName)
-				assert.True(t, strings.Contains(event.Comment, "some dependency nodes"))
-			}
-		}
-	}
-	assert.Nil(t, gocqlmemSession.Query(fmt.Sprintf("DROP keyspace %s;", ks)).Exec())
-	gocqlmemSession.Close()
+	r.finish()
+	r.assertAllNodesFailed("cannot write duplicate unique index key")
 }
 
-// Simulate processor crash
+// -----------------------------------------------------------------------------
+// Simulate processor crash: re-process batches that were already committed
+// -----------------------------------------------------------------------------
 
 func TestProcesorCrashLookup(t *testing.T) {
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_inner.csv")
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_left_outer.csv")
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_item_date_inner.csv")
-	os.Remove("/tmp/capi_out/lookup_quicktest/order_item_date_left_outer.csv")
+	r := startTestRun(t, lookupScenario, "processor_crash_lookup", 1)
+	defer r.cleanup()
 
-	ks := "ks_processor_crash_lookup"
+	r.processAllWithSimulatedCrash(func(n string) bool { return strings.HasPrefix(n, "file") }, true)
 
-	envConfig := env.EnvConfig{
-		Cassandra:                         env.CassandraConfig{WriterWorkers: 1},
-		Log:                               env.LogConfig{Level: "INFO"},
-		CustomProcessorDefFactoryInstance: &TestProcessorDefFactory{},
-		CustomProcessorsSettings:          getTestProcessorSettings(),
-		UseGocqlmem:                       true,
-	}
-	sc.ScriptDefCache = sc.NewScriptDefCache()
-	NodeDependencyReadynessCache = NewNodeDependencyReadynessCache()
-
-	logger, err := l.NewLoggerFromEnvConfig(&envConfig, "unittest")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	logger.PushF("TestProcesorCrashLookup")
-	defer logger.PopF()
-
-	mqProducer := mq.TestInmemProducer{}
-
-	gocqlmemSession, cassandraEngineType, err := db.NewSession(&envConfig, ks, db.CreateKeyspaceOnConnect)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	_, err = StartRun(&envConfig, logger, &mqProducer, "/tmp/capi_cfg/lookup_quicktest/script_quick.yaml", "/tmp/capi_cfg/lookup_quicktest/script_params_quick_fs_one.yaml", gocqlmemSession, cassandraEngineType, ks, []string{"read_orders", "read_order_items"}, "test run")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	var runStatus wfmodel.RunStatusType
-
-	// Verify run status
-	runHistory, err := GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunStart, runStatus)
-
-	fakeFailedBatchMap := map[string]struct{}{}
-	for {
-		msg := mqProducer.PeekHead()
-		if msg == nil {
-			break
-		}
-		queryPerformer := db.TableInserterQueryPerformerProduction{}
-		ackCmd := ProcessDataBatchMsg(&envConfig, logger, msg, 0, nil, ctx.TableInserterProperties{
-			QueryPerformer:               &queryPerformer,
-			DoesNotExistPauseMillis:      10,  // speed it up for testing
-			OperationTimedOutPauseMillis: 100, // speed it up for testing
-		})
-		if ackCmd == mq.AcknowledgerCmdAck {
-			if _, ok := fakeFailedBatchMap[msg.FullBatchId()]; !strings.HasPrefix(msg.TargetNodeName, "file") && !ok {
-				fakeFailedBatchMap[msg.FullBatchId()] = struct{}{}
-				// Simulate failure and re-process. Rewrite history:
-				// - remove batch completed record
-				// - remove node complete record
-				s, _, err := db.NewSession(&envConfig, msg.DataKeyspace, db.DoNotCreateKeyspaceOnConnect)
-				assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-				// Verify the batch marked complete
-				batchEvents, err := GetBatchHistoryForRunAndNode(s, msg.DataKeyspace, msg.RunId, msg.TargetNodeName)
-				assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-				var batchSuccessful bool
-				for _, e := range batchEvents {
-					if e.BatchIdx == msg.BatchIdx && e.Status == wfmodel.NodeBatchSuccess {
-						batchSuccessful = true
-						break
-					}
-				}
-				assert.True(t, batchSuccessful)
-
-				// Rewrite hisory: unmark this batch as complete
-				err = s.Query(fmt.Sprintf(`DELETE FROM %s.%s WHERE run_id = %d AND script_node = '%s' AND batch_idx = %d AND status = %d;`, msg.DataKeyspace, wfmodel.TableNameBatchHistory, msg.RunId, msg.TargetNodeName, msg.BatchIdx, wfmodel.NodeBatchSuccess)).Exec()
-				assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-				// Was node marked marked complete?
-				nodeEvents, err := GetNodeHistoryForRuns(s, msg.DataKeyspace, []int16{msg.RunId})
-				assert.Nil(t, err, fmt.Sprintf("%v", err))
-				for _, e := range nodeEvents {
-					if e.ScriptNode == msg.TargetNodeName && e.Status == wfmodel.NodeBatchSuccess {
-						// Node was declared successfully completed, but we will revert it
-						err = s.Query(fmt.Sprintf(`DELETE FROM %s.%s WHERE run_id = %d AND script_node = '%s' AND status = %d;`, msg.DataKeyspace, wfmodel.TableNameNodeHistory, msg.RunId, msg.TargetNodeName, wfmodel.NodeBatchSuccess)).Exec()
-						assert.Nil(t, err, fmt.Sprintf("%v", err))
-						break
-					}
-				}
-				s.Close()
-
-				// Send back to processing again
-				mqProducer.MoveHeadToTail()
-			} else {
-				mqProducer.RemoveHead()
-			}
-		} else {
-			mqProducer.MoveHeadToTail()
-		}
-	}
-
-	// Verify run status
-	runHistory, err = GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunComplete, runStatus)
-
-	err = compareCsvs("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_inner_baseline.csv", "/tmp/capi_out/lookup_quicktest/order_date_value_grouped_inner.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	err = compareCsvs("/tmp/capi_out/lookup_quicktest/order_date_value_grouped_left_outer_baseline.csv", "/tmp/capi_out/lookup_quicktest/order_date_value_grouped_left_outer.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	err = compareCsvs("/tmp/capi_out/lookup_quicktest/order_item_date_inner_baseline.csv", "/tmp/capi_out/lookup_quicktest/order_item_date_inner.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	err = compareCsvs("/tmp/capi_out/lookup_quicktest/order_item_date_left_outer_baseline.csv", "/tmp/capi_out/lookup_quicktest/order_item_date_left_outer.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	assert.Nil(t, gocqlmemSession.Query(fmt.Sprintf("DROP keyspace %s;", ks)).Exec())
-	gocqlmemSession.Close()
+	r.finish()
+	r.scn.compareOutputs(t)
 }
 
 func TestProcesorCrashFannieMae(t *testing.T) {
-	os.Remove("/tmp/capi_out/fannie_mae_apitest/deal_seller_summaries.csv")
-	os.Remove("/tmp/capi_out/fannie_mae_apitest/deal_summaries.csv")
-	os.Remove("/tmp/capi_out/fannie_mae_apitest/loan_smrs_clcltd.csv")
+	r := startTestRun(t, fannieMaeScenario, "processor_crash_fannie_mae", 2)
+	defer r.cleanup()
 
-	ks := "ks_processor_crash_fannie_mae"
+	r.processAllWithSimulatedCrash(func(n string) bool { return strings.Contains(n, "write_file") }, false)
 
-	envConfig := env.EnvConfig{
-		Cassandra:                         env.CassandraConfig{WriterWorkers: 2},
-		Log:                               env.LogConfig{Level: "INFO"},
-		CustomProcessorDefFactoryInstance: &TestProcessorDefFactory{},
-		CustomProcessorsSettings:          getTestProcessorSettings(),
-		UseGocqlmem:                       true,
-	}
-	sc.ScriptDefCache = sc.NewScriptDefCache()
-	NodeDependencyReadynessCache = NewNodeDependencyReadynessCache()
-
-	logger, err := l.NewLoggerFromEnvConfig(&envConfig, "unittest")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	logger.PushF("TestIdxSeriousErrorFannieMae")
-	defer logger.PopF()
-
-	mqProducer := mq.TestInmemProducer{}
-
-	gocqlmemSession, cassandraEngineType, err := db.NewSession(&envConfig, ks, db.CreateKeyspaceOnConnect)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	_, err = StartRun(&envConfig, logger, &mqProducer, "/tmp/capi_cfg/fannie_mae_apitest/script_api.json", "/tmp/capi_cfg/fannie_mae_apitest/script_params_api.json", gocqlmemSession, cassandraEngineType, ks, []string{"01_read_payments"}, "test run")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	var runStatus wfmodel.RunStatusType
-
-	// Verify run status
-	runHistory, err := GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunStart, runStatus)
-
-	fakeFailedBatchMap := map[string]struct{}{}
-	for {
-		msg := mqProducer.PeekHead()
-		if msg == nil {
-			break
-		}
-		queryPerformer := db.TableInserterQueryPerformerProduction{}
-		ackCmd := ProcessDataBatchMsg(&envConfig, logger, msg, 0, nil, ctx.TableInserterProperties{
-			QueryPerformer:               &queryPerformer,
-			DoesNotExistPauseMillis:      10,  // speed it up for testing
-			OperationTimedOutPauseMillis: 100, // speed it up for testing
-		})
-		if ackCmd == mq.AcknowledgerCmdAck {
-			if _, ok := fakeFailedBatchMap[msg.FullBatchId()]; !strings.Contains(msg.TargetNodeName, "write_file") && !ok {
-				fakeFailedBatchMap[msg.FullBatchId()] = struct{}{}
-				// Simulate failure and re-process. Rewrite history:
-				// - remove batch completed record
-				// - remove node complete record
-				s, _, err := db.NewSession(&envConfig, msg.DataKeyspace, db.DoNotCreateKeyspaceOnConnect)
-				assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-				// Verify the batch marked complete
-				batchEvents, err := GetBatchHistoryForRunAndNode(s, msg.DataKeyspace, msg.RunId, msg.TargetNodeName)
-				assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-				var batchSuccessful bool
-				for _, e := range batchEvents {
-					if e.BatchIdx == msg.BatchIdx && e.Status == wfmodel.NodeBatchSuccess {
-						batchSuccessful = true
-						break
-					}
-				}
-				if batchSuccessful {
-					// Rewrite hisory: unmark this batch as complete
-					err = s.Query(fmt.Sprintf(`DELETE FROM %s.%s WHERE run_id = %d AND script_node = '%s' AND batch_idx = %d AND status = %d;`, msg.DataKeyspace, wfmodel.TableNameBatchHistory, msg.RunId, msg.TargetNodeName, msg.BatchIdx, wfmodel.NodeBatchSuccess)).Exec()
-					assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-					// Was node marked marked complete?
-					nodeEvents, err := GetNodeHistoryForRuns(s, msg.DataKeyspace, []int16{msg.RunId})
-					assert.Nil(t, err, fmt.Sprintf("%v", err))
-					for _, e := range nodeEvents {
-						if e.ScriptNode == msg.TargetNodeName && e.Status == wfmodel.NodeBatchSuccess {
-							// Node was declared successfully completed, but we will revert it
-							err = s.Query(fmt.Sprintf(`DELETE FROM %s.%s WHERE run_id = %d AND script_node = '%s' AND status = %d;`, msg.DataKeyspace, wfmodel.TableNameNodeHistory, msg.RunId, msg.TargetNodeName, wfmodel.NodeBatchSuccess)).Exec()
-							assert.Nil(t, err, fmt.Sprintf("%v", err))
-							break
-						}
-					}
-					s.Close()
-
-					// Send back to processing again
-					mqProducer.MoveHeadToTail()
-				} else {
-					mqProducer.RemoveHead()
-				}
-			} else {
-				mqProducer.RemoveHead()
-			}
-		} else {
-			mqProducer.MoveHeadToTail()
-		}
-	}
-
-	// Verify run status
-	runHistory, err = GetRunHistory(gocqlmemSession, ks)
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	runStatus = runHistory[len(runHistory)-1].Status
-	assert.Equal(t, wfmodel.RunComplete, runStatus)
-
-	// // Verify node statuses
-	// nodeHistory, err := GetNodeHistoryForRuns(gocqlmemSession, ks, []int16{int16(1)})
-	// assert.Nil(t, err, fmt.Sprintf("%v", err))
-	// newNodeRunStatusMap := map[string]wfmodel.NodeBatchStatusType{}
-	// for _, nodeEvent := range nodeHistory {
-	// 	newNodeRunStatusMap[nodeEvent.ScriptNode] = nodeEvent.Status
-	// }
-
-	// // For each node, verify batch statuses
-	// for _, nhe := range nodeHistory {
-	// 	if nhe.Status != wfmodel.NodeBatchStart {
-	// 		switch nhe.ScriptNode {
-	// 		case "02_loan_ids", "02_deal_names", "02_deal_sellers", "05_deal_seller_summaries":
-	// 			assert.Equal(t, wfmodel.NodeBatchFail, nhe.Status, fmt.Sprintf("node %s supposed to fail", nhe.ScriptNode))
-	// 			// Make sure all batches for this node started then failed
-	// 			batchEvents, err := GetBatchHistoryForRunAndNode(gocqlmemSession, ks, int16(1), nhe.ScriptNode)
-	// 			assert.Nil(t, err, fmt.Sprintf("%v", err))
-	// 			for _, be := range batchEvents {
-	// 				if be.Status == wfmodel.NodeBatchFail {
-	// 					if nhe.ScriptNode == "02_loan_ids" {
-	// 						assert.Equal(t, ErrorNotProcessingAbandonedBatch, be.Comment)
-	// 					} else {
-	// 						assert.Contains(t, be.Comment, "some dependency nodes")
-	// 					}
-	// 				}
-	// 			}
-	// 		case "01_read_payments":
-	// 			assert.Equal(t, wfmodel.NodeBatchSuccess, nhe.Status)
-	// 		}
-	// 	}
-	// }
-
-	err = compareCsvs("/tmp/capi_out/fannie_mae_apitest/deal_seller_summaries_baseline.csv", "/tmp/capi_out/fannie_mae_apitest/deal_seller_summaries.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	err = compareCsvs("/tmp/capi_out/fannie_mae_apitest/deal_summaries_baseline.csv", "/tmp/capi_out/fannie_mae_apitest/deal_summaries.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-	err = compareCsvs("/tmp/capi_out/fannie_mae_apitest/loan_smrs_clcltd_baseline.csv", "/tmp/capi_out/fannie_mae_apitest/loan_smrs_clcltd.csv")
-	assert.Nil(t, err, fmt.Sprintf("%v", err))
-
-	assert.Nil(t, gocqlmemSession.Query(fmt.Sprintf("DROP keyspace %s;", ks)).Exec())
-	gocqlmemSession.Close()
+	r.finish()
+	// Node-status verification is intentionally skipped here: with re-driven
+	// batches the per-node fail/success pattern is nondeterministic, so we only
+	// assert the run completes and the outputs match the baseline.
+	r.scn.compareOutputs(t)
 }
