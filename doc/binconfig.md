@@ -81,7 +81,7 @@ AccessPolicy is the single place that governs which external resources the frame
 
 ### fetch_policy
 
-This section allows checking script and script params URLs.
+This section allows checking script and script params URL schemes and hosts.
 
 #### allowed_schemes
 
@@ -141,7 +141,7 @@ Message signing configuration
 
 #### active_kid
 
-Currently used key id.
+Currently used key id. If empty, the message is not signed and is sent as raw wfmodel.Message, instead of msgsig.SignedEnvelope. The receiving part (the daemon) can handle both scenarios.
 
 Default: empty (no message signing)
 
