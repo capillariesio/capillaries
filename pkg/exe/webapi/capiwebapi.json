@@ -43,6 +43,10 @@
     "heartbeat_interval": 1000
   },
   "webapi": {
+    "message_sign": {
+      "active_kid": "dummy-key-do-not-use-in-production-see-msgsig-test-go-for-details",
+      "private_key": "MR91SD8QblIm25yuuF1hHfzZ1mn89NwgjTMGQ2g7Gr4="
+    },
     "webapi_port": 6543,
     "access_control_allow_origin": "http://localhost:8080,http://127.0.0.1:8080"
   },
@@ -58,10 +62,6 @@
     ],
     "output_paths": [
     ]
-  },
-  "message_sign": {
-    "active_kid": "dummy-key-do-not-use-in-production-see-msgsig-test-go-for-details",
-    "private_key": "MR91SD8QblIm25yuuF1hHfzZ1mn89NwgjTMGQ2g7Gr4="
   },
   "custom_processors": {
     "py_calc": {

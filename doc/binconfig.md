@@ -101,11 +101,27 @@ Prefixes for the URLs allowed for reading
 
 ### output_paths
 
-Prefixes for the URLs allowed for writing
+Prefixes for the URLs allowed for writing. Used by [Daemon](glossary.md#daemon), not used by [Webapi](glossary.md#webapi) (Webapi does not write results to files).
 
 ## daemon
 
 This section is required by [Daemon](glossary.md#daemon) only.
+
+### message_verify
+
+Message signature verification config.
+
+#### mode
+
+off | permissive | require
+
+Default: empty (off, no signature is checked)
+
+#### public_keys
+
+Map of key ids (multiple keys can be used for rotation). For example: `{"key-1": "<base64-encoded pub key 1>", "key-2": "<base64-encoded pub key 2>"}`
+
+Default: empty
 
 ### thread_pool_size
 Number of threads processing messages consumed by the binary. Choose this setting according to your hardware environment specifics.
@@ -117,7 +133,23 @@ Directly deserialized to [zap.Config](https://pkg.go.dev/go.uber.org/zap#Config)
 
 ## webapi
 
-This section is required by [Webapi](glossary.md#webapi) only.
+This section is required by [Webapi](glossary.md#webapi) only. Some parts of it (message signing) also used by the toolbelt. 
+
+### message_sign
+
+Message signing configuration
+
+#### active_kid
+
+Currently used key id.
+
+Default: empty (no message signing)
+
+#### private_key
+
+Base64-encoded private key.
+
+Default: empty (no message signing)
 
 ### webapi_port
 Webapi uses this port for incomig HTTP requests.

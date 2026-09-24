@@ -152,7 +152,7 @@ func startRun(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 	if envConfig.MqType == string(mq.MqClientCapimq) {
 		mqProducer = mq.NewCapimqProducer(envConfig.CapiMqClient.URL)
 	} else {
-		signer, err := envConfig.MessageSign.NewSigner()
+		signer, err := envConfig.Webapi.MessageSign.NewSigner()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "cannot configure message signer: %s\n", err.Error())
 			return 1

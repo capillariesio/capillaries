@@ -623,7 +623,7 @@ func (h *UrlHandler) ksStartRun(w http.ResponseWriter, r *http.Request) {
 	if h.Env.MqType == string(mq.MqClientCapimq) {
 		mqProducer = mq.NewCapimqProducer(h.Env.CapiMqClient.URL)
 	} else {
-		signer, err := h.Env.MessageSign.NewSigner()
+		signer, err := h.Env.Webapi.MessageSign.NewSigner()
 		if err != nil {
 			WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot configure message signer: %s", err.Error()), http.StatusInternalServerError)
 			return

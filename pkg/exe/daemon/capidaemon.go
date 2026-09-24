@@ -132,7 +132,7 @@ func main() {
 		if envConfig.Amqp10.MinCreditWindow == 0 {
 			envConfig.Amqp10.MinCreditWindow = uint32(envConfig.Daemon.ThreadPoolSize)
 		}
-		verifier, err := envConfig.MessageVerify.NewVerifier()
+		verifier, err := envConfig.Daemon.MessageVerify.NewVerifier()
 		if err != nil {
 			log.Fatalf("cannot configure message verifier: %s", err.Error())
 		}

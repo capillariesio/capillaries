@@ -57,10 +57,6 @@
       "s3://$CAPILLARIES_AWS_TESTBUCKET/capi_out/"
     ]
   },
-  "message_verify": {
-    "mode": "permissive",
-    "public_keys": {"dummy-key-do-not-use-in-production-see-msgsig-test-go-for-details": "5tqw/Q6L9+sCUljNDTG3mhHY+vOOVWKI0EsPop8OSkg="}
-  },
   "custom_processors": {
     "py_calc": {
       "python_interpreter_path": "python",
@@ -72,6 +68,10 @@
     "tag_and_denormalize": {}
   },
   "daemon": {
+    "message_verify": {
+      "mode": "permissive",
+      "public_keys": {"dummy-key-do-not-use-in-production-see-msgsig-test-go-for-details": "5tqw/Q6L9+sCUljNDTG3mhHY+vOOVWKI0EsPop8OSkg="}
+    },
     "thread_pool_size": 2
   },
   "log": {
