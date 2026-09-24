@@ -152,7 +152,12 @@ func startRun(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 	if envConfig.MqType == string(mq.MqClientCapimq) {
 		mqProducer = mq.NewCapimqProducer(envConfig.CapiMqClient.URL)
 	} else {
-		mqProducer = mq.NewAmqp10Producer(envConfig.Amqp10.URL, envConfig.Amqp10.Address)
+		signer, err := envConfig.MessageSign.NewSigner()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "cannot configure message signer: %s\n", err.Error())
+			return 1
+		}
+		mqProducer = mq.NewAmqp10Producer(envConfig.Amqp10.URL, envConfig.Amqp10.Address, signer)
 	}
 
 	err = mqProducer.Open()
@@ -413,7 +418,8 @@ func checkQueueConnectivity(envConfig *env.EnvConfig) int {
 	var mqUrl string
 	var mqProducer mq.MqProducer
 	if envConfig.Amqp10.URL != "" && envConfig.Amqp10.Address != "" {
-		mqProducer = mq.NewAmqp10Producer(envConfig.Amqp10.URL, envConfig.Amqp10.Address)
+		// Connectivity check only - no messages are sent, so no signer is needed.
+		mqProducer = mq.NewAmqp10Producer(envConfig.Amqp10.URL, envConfig.Amqp10.Address, nil)
 		mqUrl = envConfig.Amqp10.URL
 	} else if envConfig.CapiMqClient.URL != "" {
 		mqProducer = mq.NewCapimqProducer(envConfig.CapiMqClient.URL)

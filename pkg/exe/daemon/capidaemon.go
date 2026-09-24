@@ -18,6 +18,7 @@ import (
 	"github.com/capillariesio/capillaries/pkg/env"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/mq"
+	"github.com/capillariesio/capillaries/pkg/msgsig"
 	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"github.com/capillariesio/capillaries/pkg/xfer"
@@ -90,6 +91,7 @@ func main() {
 		prometheus.MustRegister(sc.ScriptDefCacheHitCounter, sc.ScriptDefCacheMissCounter)
 		prometheus.MustRegister(api.NodeDependencyReadynessHitCounter, api.NodeDependencyReadynessMissCounter, api.NodeDependencyReadynessGetDuration, api.NodeDependencyNoneCounter, api.NodeDependencyWaitCounter, api.NodeDependencyGoCounter, api.NodeDependencyNogoCounter)
 		prometheus.MustRegister(MsgAckCounter, MsgRetryCounter, MsgHeartbeatCounter)
+		prometheus.MustRegister(msgsig.VerifyFailCounter, msgsig.VerifyUnsignedCounter)
 		go func() {
 			http.Handle("/metrics", promhttp.Handler())
 			if err := http.ListenAndServe(fmt.Sprintf(":%d", envConfig.Log.PrometheusExporterPort), nil); err != nil {
@@ -130,7 +132,11 @@ func main() {
 		if envConfig.Amqp10.MinCreditWindow == 0 {
 			envConfig.Amqp10.MinCreditWindow = uint32(envConfig.Daemon.ThreadPoolSize)
 		}
-		asyncConsumer = mq.NewAmqp10Consumer(envConfig.Amqp10.URL, envConfig.Amqp10.Address, ackMethod, envConfig.Daemon.ThreadPoolSize)
+		verifier, err := envConfig.MessageVerify.NewVerifier()
+		if err != nil {
+			log.Fatalf("cannot configure message verifier: %s", err.Error())
+		}
+		asyncConsumer = mq.NewAmqp10Consumer(envConfig.Amqp10.URL, envConfig.Amqp10.Address, ackMethod, envConfig.Daemon.ThreadPoolSize, verifier)
 	}
 
 	// This is essentially a buffer of size one, and we do not want msgs to spend time in the buffer (remember: no prefetch!), so make it minimal

@@ -12,6 +12,7 @@ import (
 
 	amqp10 "github.com/Azure/go-amqp"
 	"github.com/capillariesio/capillaries/pkg/l"
+	"github.com/capillariesio/capillaries/pkg/msgsig"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
@@ -68,6 +69,7 @@ type Amqp10AsyncConsumer struct {
 	address                     string
 	ackMethod                   RetryMethodType
 	maxProcessors               int
+	verifier                    *msgsig.Verifier // nil / ModeOff passes messages through unverified (legacy)
 	activeProcessors            atomic.Int32
 	listener                    Amqp10Consumer
 	acknowledger                Amqp10Consumer
@@ -77,12 +79,16 @@ type Amqp10AsyncConsumer struct {
 	amqpMessagesInHandlingMutex sync.RWMutex
 }
 
-func NewAmqp10Consumer(brokerUrl string, address string, ackMethod RetryMethodType, maxProcessors int) *Amqp10AsyncConsumer {
+// NewAmqp10Consumer creates an async consumer. A non-nil verifier authenticates every incoming
+// message before it is handed to a processor; a nil verifier (or one in ModeOff) accepts messages
+// as-is (legacy behavior).
+func NewAmqp10Consumer(brokerUrl string, address string, ackMethod RetryMethodType, maxProcessors int, verifier *msgsig.Verifier) *Amqp10AsyncConsumer {
 	return &Amqp10AsyncConsumer{
 		brokerUrl:                   brokerUrl,
 		address:                     address,
 		ackMethod:                   ackMethod,
 		maxProcessors:               maxProcessors,
+		verifier:                    verifier,
 		listener:                    Amqp10Consumer{},
 		acknowledger:                Amqp10Consumer{},
 		listenerStopping:            false,
@@ -111,21 +117,25 @@ func (dc *Amqp10AsyncConsumer) listenerReceive(logger *l.CapiLogger, listenerCha
 		amqpMsg, recErr := dc.listener.receiver.Receive(recCtx, nil)
 		recCancel()
 		if recErr == nil {
-			var wfmodelMsg wfmodel.Message
-			if err := json.Unmarshal(slices.Concat(amqpMsg.Data...), &wfmodelMsg); err != nil {
-				logger.Error("cannot unmarshal wfmodel.Message, will ack this mq message: %s, %v", err.Error(), amqpMsg)
-				ackCtx, ackCancel := context.WithTimeout(context.Background(), Amqp10ListenerAckTimeout*time.Millisecond)
-				if err = dc.listener.receiver.AcceptMessage(ackCtx, amqpMsg); err != nil {
-					logger.Error("cannot ack unmarshaled mq message, will abandon it: %s", err.Error())
-				}
-				ackCancel()
+			// Authenticate the message before acting on it. A forged/malformed/unsigned (in require
+			// mode) message can never become valid, so ack-and-drop it rather than retry.
+			payload, verifyErr := dc.verifier.Open(slices.Concat(amqpMsg.Data...))
+			if verifyErr != nil {
+				logger.Error("rejecting mq message that failed signature verification, will ack it: %s", verifyErr.Error())
+				dc.ackAndDrop(logger, amqpMsg)
 			} else {
-				dc.amqpMessagesInHandlingMutex.Lock()
-				dc.amqpMessagesInHandling[wfmodelMsg.Id] = amqpMsg
-				dc.amqpMessagesInHandlingMutex.Unlock()
-				// WARNING: make sure the caller does not close listenerChannel before listenerWorker() completes
-				listenerChannel <- &wfmodelMsg
-				dc.activeProcessors.Add(1)
+				var wfmodelMsg wfmodel.Message
+				if err := json.Unmarshal(payload, &wfmodelMsg); err != nil {
+					logger.Error("cannot unmarshal wfmodel.Message, will ack this mq message: %s, %v", err.Error(), amqpMsg)
+					dc.ackAndDrop(logger, amqpMsg)
+				} else {
+					dc.amqpMessagesInHandlingMutex.Lock()
+					dc.amqpMessagesInHandling[wfmodelMsg.Id] = amqpMsg
+					dc.amqpMessagesInHandlingMutex.Unlock()
+					// WARNING: make sure the caller does not close listenerChannel before listenerWorker() completes
+					listenerChannel <- &wfmodelMsg
+					dc.activeProcessors.Add(1)
+				}
 			}
 
 		} else {
@@ -148,6 +158,17 @@ func (dc *Amqp10AsyncConsumer) listenerReceive(logger *l.CapiLogger, listenerCha
 			time.Sleep(Amqp10FullListenerChannelTimeout * time.Millisecond)
 		}
 	}
+}
+
+// ackAndDrop accepts (acks) an mq message on the listener link without handing it to a processor.
+// Used for messages we intentionally discard (unparseable or failing verification) so the broker
+// does not redeliver them.
+func (dc *Amqp10AsyncConsumer) ackAndDrop(logger *l.CapiLogger, amqpMsg *amqp10.Message) {
+	ackCtx, ackCancel := context.WithTimeout(context.Background(), Amqp10ListenerAckTimeout*time.Millisecond)
+	if err := dc.listener.receiver.AcceptMessage(ackCtx, amqpMsg); err != nil {
+		logger.Error("cannot ack dropped mq message, will abandon it: %s", err.Error())
+	}
+	ackCancel()
 }
 
 func (dc *Amqp10AsyncConsumer) listenerWorker(logger *l.CapiLogger, listenerChannel chan *wfmodel.Message) {

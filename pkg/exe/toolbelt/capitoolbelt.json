@@ -58,6 +58,10 @@
       "s3://$CAPILLARIES_AWS_TESTBUCKET/capi_out/"
     ]
   },
+  "message_sign": {
+    "active_kid": "dummy-key-do-not-use-in-production-see-msgsig-test-go-for-details",
+    "private_key": "MR91SD8QblIm25yuuF1hHfzZ1mn89NwgjTMGQ2g7Gr4="
+  },
   "custom_processors": {
     "py_calc": {
       "python_interpreter_path": "some_non_empty_python_path"
