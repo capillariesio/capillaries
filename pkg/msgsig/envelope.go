@@ -13,6 +13,7 @@
 package msgsig
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -53,11 +54,11 @@ func signedRegion(version int, alg, kid string, payload []byte) []byte {
 // retry - a forged or malformed message will never become valid), but they are distinct so the
 // cause can be logged and metered.
 var (
-	ErrUnsigned           = fmt.Errorf("message is not signed")
-	ErrUnsupportedVersion = fmt.Errorf("unsupported envelope version")
-	ErrUnsupportedAlg     = fmt.Errorf("unsupported signature algorithm")
-	ErrUnknownKey         = fmt.Errorf("unknown signing key id")
-	ErrBadSignature       = fmt.Errorf("signature verification failed")
+	ErrUnsigned           = errors.New("message is not signed")
+	ErrUnsupportedVersion = errors.New("unsupported envelope version")
+	ErrUnsupportedAlg     = errors.New("unsupported signature algorithm")
+	ErrUnknownKey         = errors.New("unknown signing key id")
+	ErrBadSignature       = errors.New("signature verification failed")
 )
 
 // Metrics. Registered by the daemon (the only executable that verifies).

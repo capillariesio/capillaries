@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 // newKeyPair returns a signer for kid and a verifier ring holding that kid's public key.
@@ -122,7 +123,8 @@ func TestTamperedKidRejected(t *testing.T) {
 	sealed, _ := signer.Seal([]byte("data"))
 
 	var env SignedEnvelope
-	json.Unmarshal(sealed, &env)
+	err := json.Unmarshal(sealed, &env)
+	assert.Nil(t, err)
 	env.KeyId = "someone-else" // not in the ring -> ErrUnknownKey
 	tampered, _ := json.Marshal(env)
 
@@ -136,7 +138,8 @@ func TestTamperedAlgRejected(t *testing.T) {
 	sealed, _ := signer.Seal([]byte("data"))
 
 	var env SignedEnvelope
-	json.Unmarshal(sealed, &env)
+	err := json.Unmarshal(sealed, &env)
+	assert.Nil(t, err)
 	env.Alg = "none" // downgrade attempt
 	tampered, _ := json.Marshal(env)
 
@@ -150,7 +153,8 @@ func TestTamperedVersionRejected(t *testing.T) {
 	sealed, _ := signer.Seal([]byte("data"))
 
 	var env SignedEnvelope
-	json.Unmarshal(sealed, &env)
+	err := json.Unmarshal(sealed, &env)
+	assert.Nil(t, err)
 	env.Version = 99
 	tampered, _ := json.Marshal(env)
 
@@ -164,7 +168,8 @@ func TestTamperedSignatureRejected(t *testing.T) {
 	sealed, _ := signer.Seal([]byte("data"))
 
 	var env SignedEnvelope
-	json.Unmarshal(sealed, &env)
+	err := json.Unmarshal(sealed, &env)
+	assert.Nil(t, err)
 	env.Signature[0] ^= 0xff // flip a bit
 	tampered, _ := json.Marshal(env)
 
@@ -247,7 +252,8 @@ func TestModePermissiveRejectsBadSignature(t *testing.T) {
 	signer, verifier := newKeyPair(t, "key-1", ModePermissive)
 	sealed, _ := signer.Seal([]byte("data"))
 	var env SignedEnvelope
-	json.Unmarshal(sealed, &env)
+	err := json.Unmarshal(sealed, &env)
+	assert.Nil(t, err)
 	env.Signature[0] ^= 0xff
 	tampered, _ := json.Marshal(env)
 
@@ -266,7 +272,7 @@ func TestModeRequireRejectsUnsigned(t *testing.T) {
 
 func TestRequireEmptyRingIsError(t *testing.T) {
 	if _, err := NewVerifier(ModeRequire, nil); err == nil {
-		t.Fatalf("expected error for require mode with empty ring")
+		t.Fatal("expected error for require mode with empty ring")
 	}
 }
 
@@ -279,28 +285,28 @@ func TestParseMode(t *testing.T) {
 		}
 	}
 	if _, err := ParseMode("bogus"); err == nil {
-		t.Fatalf("expected error for bogus mode")
+		t.Fatal("expected error for bogus mode")
 	}
 }
 
 func TestNewSignerRejectsBadKey(t *testing.T) {
 	if _, err := NewSigner("", "AAAA"); err == nil {
-		t.Fatalf("expected error for empty kid")
+		t.Fatal("expected error for empty kid")
 	}
 	if _, err := NewSigner("k", "not-base64!!!"); err == nil {
-		t.Fatalf("expected error for bad base64")
+		t.Fatal("expected error for bad base64")
 	}
 	if _, err := NewSigner("k", base64.StdEncoding.EncodeToString([]byte("too short"))); err == nil {
-		t.Fatalf("expected error for wrong key length")
+		t.Fatal("expected error for wrong key length")
 	}
 }
 
 func TestNewVerifierRejectsBadPublicKey(t *testing.T) {
 	if _, err := NewVerifier(ModePermissive, map[string]string{"k": "not-base64!!!"}); err == nil {
-		t.Fatalf("expected error for bad base64 public key")
+		t.Fatal("expected error for bad base64 public key")
 	}
 	if _, err := NewVerifier(ModePermissive, map[string]string{"k": base64.StdEncoding.EncodeToString([]byte("short"))}); err == nil {
-		t.Fatalf("expected error for wrong public key length")
+		t.Fatal("expected error for wrong public key length")
 	}
 }
 

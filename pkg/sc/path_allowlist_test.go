@@ -107,8 +107,8 @@ func TestCheckPathAllowed_LocalSymlinkEscape(t *testing.T) {
 	assert.Error(t, CheckInputPathAllowed([]string{inDir}, filepath.Join(dirLink, "secret.csv")), "file under a symlinked-out dir must be denied")
 
 	// Sanity: a real (non-symlinked) file inside the allowed dir is still permitted.
-	real := mustWrite(t, filepath.Join(inDir, "real.csv"))
-	assert.NoError(t, CheckInputPathAllowed([]string{inDir}, real))
+	realcsv := mustWrite(t, filepath.Join(inDir, "real.csv"))
+	assert.NoError(t, CheckInputPathAllowed([]string{inDir}, realcsv))
 }
 
 // TestCheckPathAllowed_FileSchemeEntry verifies that a local base dir written as a file:// URL entry
