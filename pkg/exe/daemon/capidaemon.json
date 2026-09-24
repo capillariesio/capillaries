@@ -46,15 +46,15 @@
     "allowed_schemes": ["file", "http", "https", "s3"],
     "allow_private_hosts": true,
     "input_paths": [
-      "/tmp/capi_in",
-      "file:///tmp/capi_cfg",
+      "/tmp/capi_in/",
+      "file:///tmp/capi_cfg/",
       "https://raw.githubusercontent.com/capillariesio/capillaries/",
-      "s3://$CAPILLARIES_AWS_TESTBUCKET/capi_in/",
-      "s3://$CAPILLARIES_AWS_TESTBUCKET/capi_cfg/"
+      "s3://capillaries-testbucket/capi_in/",
+      "s3://capillaries-testbucket/capi_cfg/"
     ],
     "output_paths": [
-      "/tmp/capi_out",
-      "s3://$CAPILLARIES_AWS_TESTBUCKET/capi_out/"
+      "/tmp/capi_out/",
+      "s3://capillaries-testbucket/capi_out/"
     ]
   },
   "custom_processors": {
