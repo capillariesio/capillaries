@@ -401,7 +401,7 @@ func runCreateTableRelForBatch(envConfig *env.EnvConfig,
 			sc.FieldRefs{sc.KeyTokenFieldRef()},
 			sc.FieldRefs{sc.IdxKeyFieldRef()})
 
-		keysToFindChunks := splitKeysIntoChunks(allKeysToFind, MaxKeysForSelectInCondition)
+		keysToFindChunks := splitKeysIntoChunks(allKeysToFind, envConfig.Daemon.MaxPartitionKeysInSelect)
 		for _, keysToFind := range keysToFindChunks {
 			var idxPageState []byte
 			rightIdxPageIdx := 0
@@ -450,7 +450,7 @@ func runCreateTableRelForBatch(envConfig *env.EnvConfig,
 						lookupNodeRunId,
 						node.Lookup.RightLookupReadBatchSize,
 						rightPageState,
-						getFirstIntsFromSet(rightRowidsToFind, MaxKeysForSelectInCondition))
+						getFirstIntsFromSet(rightRowidsToFind, envConfig.Daemon.MaxPartitionKeysInSelect))
 					if err != nil {
 						instr.cancelDrainer(fmt.Errorf("cannot select batch from right-side table, node %s: %s", node.Name, err.Error()))
 						return bs, instr.waitForDrainer()

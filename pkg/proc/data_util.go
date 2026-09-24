@@ -14,11 +14,6 @@ import (
 
 const MaxAmazonKeyspacesBatchLen int = 30
 
-//	IN() for partition key, so make it <10 to avoid Cassandra quorum mechanism kicked in
-//
-// Amazon Keyspaces allows up to 100
-const MaxKeysForSelectInCondition int = 5
-
 func getFirstIntsFromSet(intSet map[int64]struct{}, cnt int) []int64 {
 	intSliceLen := cnt
 	if intSliceLen > len(intSet) {

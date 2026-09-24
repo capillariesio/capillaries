@@ -72,7 +72,8 @@
       "mode": "permissive",
       "public_keys": {"dummy-key-do-not-use-in-production-see-msgsig-test-go-for-details": "5tqw/Q6L9+sCUljNDTG3mhHY+vOOVWKI0EsPop8OSkg="}
     },
-    "thread_pool_size": 2
+    "thread_pool_size": 2,
+    "max_partition_keys_in_select": 10
   },
   "log": {
     "level": "debug",

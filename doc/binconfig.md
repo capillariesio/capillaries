@@ -124,11 +124,19 @@ Map of key ids (multiple keys can be used for rotation). For example: `{"key-1":
 Default: empty
 
 ### thread_pool_size
+
 Number of threads processing messages consumed by the binary. Choose this setting according to your hardware environment specifics.
 
 Default: 5 threads
 
+### max_partition_keys_in_select
+
+Max number of partition keys used in SELECT queries for specific keys in index tables and SELECT queries for specific rowids in data tables - both extensively used in [lookup](./glossary.md#lookup) processors. Google "optimal number of partition keys in cassandra select query" for details.
+
+Default: 5
+
 ## zap_config
+
 Directly deserialized to [zap.Config](https://pkg.go.dev/go.uber.org/zap#Config)
 
 ## webapi
