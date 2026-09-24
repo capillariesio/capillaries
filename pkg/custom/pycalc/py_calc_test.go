@@ -1,8 +1,11 @@
 package pycalc
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
+	"os/exec"
 	"regexp"
 	"strings"
 	"testing"
@@ -429,4 +432,26 @@ func TestPythonResultToRowsetValueFailures(t *testing.T) {
 	assert.Contains(t, err.Error(), "bool field_bool1, unexpected type string(aaa)")
 	_, err = pythonResultToRowsetValue(&sc.FieldRef{TableName: "p", FieldName: "bad_field", FieldType: evalcapi.FieldTypeUnknown}, "")
 	assert.Contains(t, err.Error(), "unexpected field type unknown, bad_field, string()")
+}
+
+// This test simulates func (procDef *PyCalcProcessorDef) Run()
+func noooooooTestPyCalcDefCalculatorNsjail(t *testing.T) {
+	cmdCtx, cancel := context.WithTimeout(context.Background(), 1000*time.Second)
+	defer cancel()
+
+	p := exec.CommandContext(cmdCtx, "/usr/local/bin/nsjail", "-Mo", "--chroot", "/", "--user", "99999", "--group", "99999", "-R", "/usr", "-R", "/lib", "-R", "/lib64", "-R", "/bin", "-R", "/sbin", "--", "/usr/bin/python3", "-u", "-")
+
+	// Supply our calculation code to Python as stdin
+	p.Stdin = strings.NewReader("print(123+123)")
+
+	var stdout, stderr bytes.Buffer
+	p.Stdout = &stdout
+	p.Stderr = &stderr
+	err := p.Run()
+	assert.Nil(t, err)
+	rawOutput := stdout.String()
+	rawErrors := stderr.String()
+
+	assert.Contains(t, rawErrors, "Executing '/usr/bin/python3'")
+	assert.Equal(t, "246\n", rawOutput)
 }

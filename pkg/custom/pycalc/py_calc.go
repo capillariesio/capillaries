@@ -57,7 +57,7 @@ func (procDef *PyCalcProcessorDef) GetFieldRefs() *sc.FieldRefs {
 }
 
 func harvestCallExp(callExp *ast.CallExpr, sigMap map[string]struct{}) error {
-	// This expression is a python fuction call.
+	// This expression is a python function call.
 	// Build a func_name(arg,arg,...) signature for it to check our Python code later
 	funIdentExp, ok := callExp.Fun.(*ast.Ident)
 	if !ok {
