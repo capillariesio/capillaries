@@ -30,6 +30,10 @@ output "output_daemon_thread_pool_size" {
   value = local.daemon_thread_pool_size
 }
 
+output "output_daemon_max_partition_keys_in_select" {
+  value = var.daemon_max_partition_keys_in_select
+}
+
 output "output_daemon_writer_workers" {
   value = var.daemon_writer_workers
 }

@@ -493,6 +493,12 @@ variable "daemon_thread_pool_factor" {
 	default     = 3
 }
 
+variable "daemon_max_partition_keys_in_select" {
+	type        = number
+	description= "Max number of partition key in SELECTS for keys in index tables and rowids in data tables"
+	default     = 50
+}
+
 variable "daemon_writer_workers" {
 	type        = number
 	description= "12 is good for benchmarking, probably lower for production"

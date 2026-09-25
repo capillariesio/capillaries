@@ -3,6 +3,7 @@ package wfdb
 import (
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/db"
@@ -55,6 +56,16 @@ func GetNextRunCounter(logger *l.CapiLogger, cqlSession gocqlshims.Session, keys
 
 		// Try incrementing
 		newRunId := lastRunId + 1
+		// Run ids are int16 everywhere (RunIdSuffix, message RunId, etc.). Once the counter
+		// passes 32767 the int16(newRunId) cast below wraps to a negative value and eventually
+		// reuses ids, silently overlapping different runs' per-run data/idx tables. Fail loudly
+		// instead of wrapping.
+		if newRunId > math.MaxInt16 {
+			return 0, fmt.Errorf("run counter exhausted for keyspace %s: reached the maximum of %d runs", keyspace, math.MaxInt16)
+		}
+		// The If(...) makes this an atomic compare-and-set (LWT). It is the entire anti-collision
+		// mechanism: drop it for a plain UPDATE and two concurrent callers can read the same
+		// last_run and both claim the same new run id. On a lost race isApplied is false and we retry.
 		q = (&cql.QueryBuilder{}).
 			Keyspace(keyspace).
 			Write("last_run", newRunId).

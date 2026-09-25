@@ -51,6 +51,13 @@ func runReadFileForBatch(envConfig *env.EnvConfig, logger *l.CapiLogger, pCtx *c
 		return bs, fmt.Errorf("cannot parse file url %s: %s", filePath, err.Error())
 	}
 
+	// Confine the input to the operator-approved allowlist (local dirs and/or remote prefixes). The
+	// script author controls file_reader "urls", so this prevents a run from reading arbitrary files
+	// or remote objects the daemon can reach (local-file disclosure / SSRF). No-op when unset.
+	if err := sc.CheckInputPathAllowed(envConfig.AccessPolicy.InputPaths, filePath); err != nil {
+		return bs, fmt.Errorf("cannot read file %s: %s", filePath, err.Error())
+	}
+
 	bs.Src = filePath
 	bs.Dst = node.TableCreator.Name + cql.RunIdSuffix(pCtx.Msg.RunId)
 

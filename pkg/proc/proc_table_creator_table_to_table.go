@@ -83,6 +83,10 @@ func runCreateTableForBatch(envConfig *env.EnvConfig,
 		curStartLeftToken = lastRetrievedLeftToken
 		curStartLeftTokenRowIds = endTokenRowIds
 
+		// The ONLY valid termination is an empty read. selectBatchFromTableByToken can under-fill
+		// a page mid-stream (its inclusive token boundary + epilogue-skip drops shared-token rows
+		// that were already handled), so a "if rsIn.RowCount < leftBatchSize { break }" optimization
+		// would silently drop all remaining source rows and still report the batch as successful.
 		if rsIn.RowCount == 0 {
 			break
 		}

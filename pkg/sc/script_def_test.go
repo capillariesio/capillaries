@@ -134,7 +134,7 @@ const plainScriptJson string = `
 		},
 		"distinct_table1": {
 			"type": "distinct_table",
-			"rerun_policy": "fail",
+			"rerun_policy": "rerun",
 			"r": {
 				"table": "table1",
 				"expected_batches_total": 100
@@ -1048,15 +1048,28 @@ func testUniqueIndexesFieldRefs(t *testing.T, scriptDef *ScriptDef) {
 	}
 }
 
-func TestUniqueIndexesFieldRefsJson(t *testing.T) {
+func testAllIndexesFieldRefs(t *testing.T, scriptDef *ScriptDef) {
+	fileReaderNodeDef := scriptDef.ScriptNodes["read_table2"]
+	fieldRefs := fileReaderNodeDef.GetAllIndexesFieldRefs()
+	assert.Equal(t, 1, len(*fieldRefs))
+	if len(*fieldRefs) == 1 {
+		assert.Equal(t, "table2", (*fieldRefs)[0].TableName)
+		assert.Equal(t, "field_string2", (*fieldRefs)[0].FieldName)
+		assert.Equal(t, evalcapi.FieldTypeString, (*fieldRefs)[0].FieldType)
+	}
+}
+
+func TestIndexesFieldRefsJson(t *testing.T) {
 	scriptDef := &ScriptDef{}
 	assert.Nil(t, scriptDef.Deserialize([]byte(plainScriptJson), ScriptJson, nil, nil, "", nil))
 	testUniqueIndexesFieldRefs(t, scriptDef)
+	testAllIndexesFieldRefs(t, scriptDef)
 }
 
-func TestUniqueIndexesFieldRefsYaml(t *testing.T) {
+func TestIndexesFieldRefsYaml(t *testing.T) {
 	scriptDef := jsonToYamlToScriptDef(t)
 	testUniqueIndexesFieldRefs(t, scriptDef)
+	testAllIndexesFieldRefs(t, scriptDef)
 }
 
 func testAffectedNodes(t *testing.T, scriptDef *ScriptDef) {
@@ -1176,17 +1189,17 @@ func TestDistinct(t *testing.T) {
 	err := scriptDef.Deserialize(
 		[]byte(strings.Replace(plainScriptJson, `"rerun_policy": "fail"`, `"rerun_policy": "rerun"`, 1)), ScriptJson,
 		nil, nil, "", nil)
-	assert.Contains(t, err.Error(), "distinct_table node must have fail policy")
+	assert.Nil(t, err)
 
 	scriptDef = &ScriptDef{}
 	err = scriptDef.Deserialize(
 		[]byte(strings.Replace(plainScriptJson, `"idx_distinct_table1_field_int1": "unique(field_int1)"`, `"idx_bad_non_unique": "non_unique(field_int1)"`, 1)), ScriptJson,
 		nil, nil, "", nil)
-	assert.Contains(t, err.Error(), "expected exactly one unique idx definition")
+	assert.Contains(t, err.Error(), "expected exactly one unique idx definition, found none")
 
 	scriptDef = &ScriptDef{}
 	err = scriptDef.Deserialize(
-		[]byte(strings.Replace(plainScriptJson, `"idx_distinct_table1_field_int1": "unique(field_int1)"`, `"idx_distinct_table1_field_int1": "unique(field_int1)", "idx_bad_extra_unique": "unique(field_string1)"`, 1)), ScriptJson,
+		[]byte(strings.Replace(plainScriptJson, `"idx_distinct_table1_field_int1": "unique(field_int1)"`, `"idx_distinct_table1_field_int1": "unique(field_int1)", "idx_distinct_table1_field_int1_evil_twin": "unique(field_int1)"`, 1)), ScriptJson,
 		nil, nil, "", nil)
-	assert.Contains(t, err.Error(), "expected exactly one unique idx definition")
+	assert.Contains(t, err.Error(), "expected exactly one unique idx definition, found at least two")
 }

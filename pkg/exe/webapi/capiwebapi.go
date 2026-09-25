@@ -206,7 +206,7 @@ func (h *UrlHandler) getNodeDesc(cqlSession gocqlshims.Session, keyspace string,
 
 	// Now we have script URL, load it
 
-	script, _, err := sc.NewScriptFromFiles(h.Env.CaPath, h.Env.PrivateKeys, runProps.ScriptUrl, runProps.ScriptParamsUrl, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
+	script, _, err := sc.NewScriptFromFiles(&h.Env.AccessPolicy.FetchPolicy, h.Env.CaPath, h.Env.PrivateKeys, runProps.ScriptUrl, runProps.ScriptParamsUrl, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
 	if err != nil {
 		return "", err
 	}
@@ -426,7 +426,9 @@ func (h *UrlHandler) ksRunNodeBatchHistory(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	runId, err := strconv.Atoi(runIdString)
+	// Parse as a 16-bit int: run ids are int16, so reject anything that would otherwise
+	// silently truncate (e.g. /run/65537 aliasing to run 1, /run/32768 to -32768).
+	runId, err := strconv.ParseInt(runIdString, 10, 16)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -482,7 +484,9 @@ func (h *UrlHandler) ksRunNodeHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	runId, err := strconv.Atoi(runIdString)
+	// Parse as a 16-bit int: run ids are int16, so reject anything that would otherwise
+	// silently truncate (e.g. /run/65537 aliasing to run 1, /run/32768 to -32768).
+	runId, err := strconv.ParseInt(runIdString, 10, 16)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -537,7 +541,9 @@ func (h *UrlHandler) ksRunViz(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	runId, err := strconv.Atoi(runIdString)
+	// Parse as a 16-bit int: run ids are int16, so reject anything that would otherwise
+	// silently truncate (e.g. /run/65537 aliasing to run 1, /run/32768 to -32768).
+	runId, err := strconv.ParseInt(runIdString, 10, 16)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return
@@ -551,7 +557,7 @@ func (h *UrlHandler) ksRunViz(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Now we have script URL, load it
-	scriptDef, _, err := sc.NewScriptFromFiles(h.Env.CaPath, h.Env.PrivateKeys, runProps.ScriptUrl, runProps.ScriptParamsUrl, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
+	scriptDef, _, err := sc.NewScriptFromFiles(&h.Env.AccessPolicy.FetchPolicy, h.Env.CaPath, h.Env.PrivateKeys, runProps.ScriptUrl, runProps.ScriptParamsUrl, h.Env.CustomProcessorDefFactoryInstance, h.Env.CustomProcessorsSettings)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 	}
@@ -617,7 +623,12 @@ func (h *UrlHandler) ksStartRun(w http.ResponseWriter, r *http.Request) {
 	if h.Env.MqType == string(mq.MqClientCapimq) {
 		mqProducer = mq.NewCapimqProducer(h.Env.CapiMqClient.URL)
 	} else {
-		mqProducer = mq.NewAmqp10Producer(h.Env.Amqp10.URL, h.Env.Amqp10.Address)
+		signer, err := h.Env.Webapi.MessageSign.NewSigner()
+		if err != nil {
+			WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, fmt.Errorf("cannot configure message signer: %s", err.Error()), http.StatusInternalServerError)
+			return
+		}
+		mqProducer = mq.NewAmqp10Producer(h.Env.Amqp10.URL, h.Env.Amqp10.Address, signer)
 	}
 
 	err = mqProducer.Open()
@@ -690,7 +701,9 @@ func (h *UrlHandler) ksStopRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	runId, err := strconv.Atoi(runIdString)
+	// Parse as a 16-bit int: run ids are int16, so reject anything that would otherwise
+	// silently truncate (e.g. /run/65537 aliasing to run 1, /run/32768 to -32768).
+	runId, err := strconv.ParseInt(runIdString, 10, 16)
 	if err != nil {
 		WriteApiError(h.L, &h.Env.Webapi, r, w, r.URL.Path, err, http.StatusInternalServerError)
 		return

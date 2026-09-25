@@ -324,6 +324,9 @@ func toDecimal2(colName string, colData string, colDef *FileReaderColumnDef, col
 func (frDef *FileReaderDef) ReadCsvLineToValuesMap(line *[]string, colVars eval.VarValuesMap) error {
 	colVars[ReaderAlias] = map[string]any{}
 	for colName, colDef := range frDef.Columns {
+		if colDef.Csv.SrcColIdx < 0 || colDef.Csv.SrcColIdx >= len(*line) {
+			return fmt.Errorf("cannot read column %s: source column index %d is out of range, csv line has only %d field(s)", colName, colDef.Csv.SrcColIdx, len(*line))
+		}
 		colData := (*line)[colDef.Csv.SrcColIdx]
 		switch colDef.Type {
 		case evalcapi.FieldTypeString:

@@ -88,6 +88,7 @@ type TableInserter struct {
 	DrainerDoneSignal            chan error
 	DataStats                    writeStats
 	IdxStats                     writeStats
+	QueryPerformer               db.TableInserterQueryPerformer
 }
 
 type TableRecordItem struct {
@@ -156,10 +157,10 @@ func createInserterAndStartWorkers(logger *l.CapiLogger, envConfig *env.EnvConfi
 		RecordWrittenStatuses:        make(chan error, envConfig.Cassandra.WriterWorkers),
 		MachineHash:                  int64(stringHash.Sum64()),
 		NumWorkers:                   envConfig.Cassandra.WriterWorkers,
-		RecordsSent:                  0,    // Total number of records added to RecordsIn
-		RecordsProcessed:             0,    // Total number of records read from RecordWrittenStatuses
-		DoesNotExistPauseMillis:      2000, // 2000 + 4000 + 8000 + 16000 + 32000
-		OperationTimedOutPauseMillis: 200,  // millis 200 + 400 + 800 + 1600 + 3200 = 6200
+		RecordsSent:                  0,                                                    // Total number of records added to RecordsIn
+		RecordsProcessed:             0,                                                    // Total number of records read from RecordWrittenStatuses
+		DoesNotExistPauseMillis:      pCtx.TableInserterProps.DoesNotExistPauseMillis,      // 2000, 5 retries: 2000 + 4000 + 8000 + 16000 + 32000
+		OperationTimedOutPauseMillis: pCtx.TableInserterProps.OperationTimedOutPauseMillis, // 200, 5 retries: 200 + 400 + 800 + 1600 + 3200 = 6200
 		ExpBackoffFactorMultiplier:   2,
 		MaxDbProblemRetries:          5,
 		MaxDuplicateRetries:          5,
@@ -167,7 +168,9 @@ func createInserterAndStartWorkers(logger *l.CapiLogger, envConfig *env.EnvConfi
 		DrainerCancelSignal:          make(chan error, 1),
 		DrainerCompleteSignal:        make(chan error, 1),
 		DrainerDoneSignal:            make(chan error, 1),
+		QueryPerformer:               pCtx.TableInserterProps.QueryPerformer, // The only reason we have it is testability
 	}
+
 	maxInsertionTimeForDoesNotExistMs := cql.SumOfExpBackoffDelaysMs(instr.DoesNotExistPauseMillis, instr.ExpBackoffFactorMultiplier, instr.MaxDbProblemRetries)
 	maxInsertionTimeForOperationTimeoutMs := cql.SumOfExpBackoffDelaysMs(instr.OperationTimedOutPauseMillis, instr.ExpBackoffFactorMultiplier, instr.MaxDbProblemRetries)
 	instr.MaxAllowedRowInsertionTimeMs = maxInsertionTimeForDoesNotExistMs
@@ -249,7 +252,7 @@ func (instr *TableInserter) startDrainer() {
 					}
 				}
 			case <-timeoutChannel:
-				err = fmt.Errorf("got a timeout while draining, records sent %d, processed %d", instr.RecordsSent, instr.RecordsProcessed)
+				err = fmt.Errorf("got a timeout while draining, records sent %d, processed %d, timeout %d ms", instr.RecordsSent, instr.RecordsProcessed, instr.MaxAllowedRowInsertionTimeMs)
 				errorsFound = append(errorsFound, err.Error())
 			case err = <-instr.DrainerCancelSignal:
 				errorsFound = append(errorsFound, err.Error())
@@ -362,35 +365,15 @@ func newIdxQueryBuilder(keyspace string) (*cql.QueryBuilder, error) {
 	return idxQb, nil
 }
 
-type PreparedQuery struct {
-	Qb    *cql.QueryBuilder
-	Query string
-}
-
 func (instr *TableInserter) tableNameWithSuffix(tableName string) string {
 	return fmt.Sprintf("%s%s", tableName, cql.RunIdSuffix(instr.PCtx.Msg.RunId))
 }
 
-// TEST ONLY
-// type TestScenario int
-// const (
-// 	TestDataDoesNotExist TestScenario = iota
-// 	TestDataOperationTimedOut
-// 	TestDataSerious
-// 	TestDataNotApplied
-// 	TestIdxDoesNotExist
-// 	TestIdxOperationTimedOut
-// 	TestIdxSerious
-// 	TestIdxNotAppliedSamePresentFirstRun
-// 	TestIdxNotAppliedSamePresentSecondRun
-// 	TestIdxNotAppliedDiffPresent
-// )
-// const CurrentTestScenario TestScenario = TestDataDoesNotExist
-
 var ErrDuplicateRowid = errors.New("duplicate rowid")
 var ErrDuplicateKey = errors.New("duplicate key")
+var ErrMismatchedKey = errors.New("mismatched key")
 
-func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, tableRecordItems []TableRecordItem, rowid int64, pq *PreparedQuery) error {
+func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, tableRecordItems []TableRecordItem, rowid int64, pq *cql.PreparedQuery) error {
 	logger.PushF("proc.insertDataRecordWithRowid")
 	defer logger.PopF()
 
@@ -422,50 +405,20 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, tabl
 		}
 	}
 
+	// rowid=111
+	if err := pq.Qb.WritePreparedValue("rowid", rowid); err != nil {
+		return fmt.Errorf("cannot write rowid to prepared query: %s", err.Error())
+	}
+	// returns "field1":123, "field2":456
+	preparedDataQueryParams, err := pq.Qb.InsertRunParams()
+	if err != nil {
+		return fmt.Errorf("cannot generate insert params for prepared query %s: %s", pq.Query, err.Error())
+	}
+
 	for retryCount := 0; retryCount < instr.MaxDbProblemRetries; retryCount++ {
-		// rowid=111
-		if err := pq.Qb.WritePreparedValue("rowid", rowid); err != nil {
-			return fmt.Errorf("cannot write rowid to prepared query: %s", err.Error())
-		}
-
-		// returns "field1":123, "field2":456
-		preparedDataQueryParams, err := pq.Qb.InsertRunParams()
-		if err != nil {
-			return fmt.Errorf("cannot generate insert params for prepared query %s: %s", pq.Query, err.Error())
-		}
-
-		existingDataRow := map[string]any{}
-		var isApplied bool
 		writeStart := nanotime()
-		isApplied, err = instr.PCtx.CqlSession.Query(pq.Query, preparedDataQueryParams...).MapScanCAS(existingDataRow)
+		existingDataRow, isApplied, err := instr.QueryPerformer.PerformInsertDataRecordWithRowid(instr.PCtx.CqlSession, pq, preparedDataQueryParams, retryCount)
 		instr.DataStats.AddSample(nanotime() - writeStart)
-
-		// TEST ONLY (comment out pq.Qb.InsertRunParams() and instr.PCtx.CqlSession.Query() above)
-		// var err error
-		// if dataRetryCount == 0 {
-		// 	instr.DoesNotExistPause = 100      // speed things up for testing
-		// 	instr.OperationTimedOutPause = 100 // speed things up for testing
-		// 	if CurrentTestScenario == TestDataDoesNotExist {
-		// 		// log: will wait for table ... to be created, table retry count 0, got does not exist
-		// 		// retry and succeed
-		// 		err = fmt.Errorf("does not exist")
-		// 	} else if CurrentTestScenario == TestDataOperationTimedOut {
-		// 		// log: cluster overloaded (Operation timed out), will wait for ...ms before writing to data table ... again, table retry count 0
-		// 		// retry and succeed
-		// 		err = fmt.Errorf("Operation timed out")
-		// 	} else if CurrentTestScenario == TestDataSerious {
-		// 		// UI: some serious error; cannot write to data table
-		// 		// give up immediately and report failure
-		// 		err = fmt.Errorf("some serious error")
-		// 	} else if CurrentTestScenario == TestDataNotApplied {
-		// 		// log: duplicate rowid not written [INSERT INTO ...], existing record [...], table retry count 0
-		// 		 // retry with new rowid and succeed
-		// 		isApplied = false
-		// 	}
-		// } else {
-		// 	preparedDataQueryParams, _ := pq.Qb.InsertRunParams()
-		// 	isApplied, err = instr.PCtx.CqlSession.Query(pq.Query, preparedDataQueryParams...).MapScanCAS(existingDataRow)
-		// }
 
 		if err == nil {
 			if isApplied {
@@ -473,12 +426,12 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, tabl
 				return nil
 			}
 
-			// This rowid is already in the db, time to panic. But this is not the end of the world if we are working with distinct_table, so log a warning, not an error
-			logger.WarnCtx(instr.PCtx, "duplicate rowid not written [%s], existing record [%v], table retry count %d reached, giving up", pq.Query, existingDataRow, retryCount)
+			// This rowid is already in the db, time to panic. But this is not the end of the world, so log a warning, not an error
+			logger.WarnCtx(instr.PCtx, "duplicate rowid not written [%s], existing record [%v], table retry count %d", pq.Query, existingDataRow, retryCount)
 			errorToReturn = fmt.Errorf("cannot write to data table, got rowid duplicate [%s]: %w", pq.Query, ErrDuplicateRowid)
 			break
 		}
-		if strings.Contains(err.Error(), "table ") && strings.Contains(err.Error(), "does not exist") {
+		if strings.Contains(err.Error(), cql.ErrorDoesNotExist) {
 			// There is a chance this table is brand new and table schema was not propagated to all Cassandra nodes
 			if retryCount >= instr.MaxDbProblemRetries-1 {
 				errorToReturn = fmt.Errorf("cannot write to data table %s after %d attempts, apparently, table schema still not propagated to all nodes: %s", instr.tableNameWithSuffix(instr.TableCreator.Name), retryCount+1, err.Error())
@@ -487,7 +440,7 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, tabl
 			logger.WarnCtx(instr.PCtx, "will wait for table %s to be created, table retry count %d, got %s", instr.tableNameWithSuffix(instr.TableCreator.Name), retryCount, err.Error())
 			// TODO: come up with a better waiting strategy (exp backoff, at least)
 			time.Sleep(time.Duration(instr.DoesNotExistPauseMillis) * time.Millisecond)
-		} else if strings.Contains(err.Error(), "Operation timed out") {
+		} else if strings.Contains(err.Error(), cql.ErrorOperationTimedOut) {
 			// The cluster is overloaded, slow down
 			if retryCount >= instr.MaxDbProblemRetries-1 {
 				errorToReturn = fmt.Errorf("cannot write to data table %s after %d attempts and %dms, still getting timeouts: %s", instr.tableNameWithSuffix(instr.TableCreator.Name), retryCount+1, cql.SumOfExpBackoffDelaysMs(instr.OperationTimedOutPauseMillis, instr.ExpBackoffFactorMultiplier, retryCount), err.Error())
@@ -496,7 +449,7 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, tabl
 			logger.WarnCtx(instr.PCtx, "cluster overloaded (%s), will wait for %dms before writing to data table %s again, table retry count %d", err.Error(), instr.OperationTimedOutPauseMillis*curDataExpBackoffFactor, instr.tableNameWithSuffix(instr.TableCreator.Name), retryCount)
 			time.Sleep(time.Duration(instr.OperationTimedOutPauseMillis*curDataExpBackoffFactor) * time.Millisecond)
 			curDataExpBackoffFactor *= instr.ExpBackoffFactorMultiplier
-		} else if strings.Contains(err.Error(), "Operation failed - received 0 responses and 1 failures") {
+		} else if strings.Contains(err.Error(), cql.ErrorAmazonKeyspacesZeroResponses) {
 			// Saw this from Amazon Keyspaces, slow down
 			if retryCount >= instr.MaxDbProblemRetries-1 {
 				errorToReturn = fmt.Errorf("cannot write to data table %s after %d attempts and %dms, still getting zero responses: %s", instr.tableNameWithSuffix(instr.TableCreator.Name), retryCount+1, cql.SumOfExpBackoffDelaysMs(instr.OperationTimedOutPauseMillis, instr.ExpBackoffFactorMultiplier, retryCount), err.Error())
@@ -530,7 +483,7 @@ func (instr *TableInserter) insertDataRecordWithRowid(logger *l.CapiLogger, tabl
 	return errorToReturn
 }
 
-func (instr *TableInserter) insertDataRecord(logger *l.CapiLogger, tableRecordItems []TableRecordItem, pq *PreparedQuery, rowidRand *rand.Rand) (int64, error) {
+func (instr *TableInserter) insertDataRecord(logger *l.CapiLogger, tableRecordItems []TableRecordItem, pq *cql.PreparedQuery, rowidRand *rand.Rand) (int64, error) {
 	logger.PushF("proc.insertDataRecord")
 	defer logger.PopF()
 
@@ -558,7 +511,7 @@ func (instr *TableInserter) insertDataRecord(logger *l.CapiLogger, tableRecordIt
 	return curRowid, errorToReturn
 }
 
-func (instr *TableInserter) insertIdxRecordWithRowid(logger *l.CapiLogger, idxName string, idxUniqueness sc.IdxUniqueness, idxKey string, curRowid int64, pq *PreparedQuery) error {
+func (instr *TableInserter) insertIdxRecordWithRowid(logger *l.CapiLogger, idxName string, idxUniqueness sc.IdxUniqueness, idxKey string, curRowid int64, pq *cql.PreparedQuery) error {
 	logger.PushF("proc.insertIdxRecordWithRowid")
 	defer logger.PopF()
 
@@ -602,90 +555,42 @@ func (instr *TableInserter) insertIdxRecordWithRowid(logger *l.CapiLogger, idxNa
 
 	var errorToReturn error
 	for retryCount := 0; retryCount < instr.MaxDbProblemRetries; retryCount++ {
-		existingIdxRow := map[string]any{}
-		var isApplied = true
 
 		writeStart := nanotime()
-		if idxUniqueness == sc.IdxUnique {
-			// Unique idx assumed, check isApplied
-			isApplied, err = instr.PCtx.CqlSession.Query(pq.Query, preparedIdxQueryParams...).MapScanCAS(existingIdxRow)
-		} else {
-			// No uniqueness assumed, just insert
-			err = instr.PCtx.CqlSession.Query(pq.Query, preparedIdxQueryParams...).Exec()
-		}
+		existingIdxRow, retryCount, isApplied, err := instr.QueryPerformer.PerformInsertIdxRecordWithRowid(idxUniqueness, instr.PCtx.CqlSession, pq, preparedIdxQueryParams, retryCount)
 		instr.IdxStats.AddSample(nanotime() - writeStart)
-
-		// TEST ONLY (comment out if idxUniqueness == sc.IdxUnique {...} else {...} above)
-		// var err error
-		// if idxRetryCount == 0 {
-		// 	instr.DoesNotExistPause = 100      // speed things up for testing
-		// 	instr.OperationTimedOutPause = 100 // speed things up for testing
-		// 	if CurrentTestScenario == TestIdxDoesNotExist {
-		// 		// log: will wait for idx table ... to be created, table retry count 0, got does not exist
-		// 		// retry and succeed
-		// 		err = fmt.Errorf("does not exist")
-		// 	} else if CurrentTestScenario == TestIdxOperationTimedOut {
-		// 		// log: cluster overloaded (Operation timed out), will wait for ...ms before writing to idx table ... again, table retry count 0
-		// 		// retry and succeed
-		// 		err = fmt.Errorf("Operation timed out")
-		// 	} else if CurrentTestScenario == TestIdxSerious {
-		// 		// UI: some serious error; cannot insert idx record
-		// 		// give up immediately and report failure
-		// 		err = fmt.Errorf("some serious error")
-		// 	} else if CurrentTestScenario == TestIdxNotAppliedSamePresentFirstRun {
-		// 		// UI: cannot write duplicate index key [INSERT INTO ...] and proper rowid with ... on retry 0
-		// 		// give up immediately and report failure
-		// 		isApplied = false
-		// 		existingIdxRow["key"] = idxKey
-		// 		existingIdxRow["rowid"] = curRowid
-		// 	} else if CurrentTestScenario == TestIdxNotAppliedSamePresentSecondRun {
-		// 		// log: duplicate idx record found ... on retry 1 when writing ..., assuming this retry was successful, proceeding as usual
-		// 		// consider it a success
-		// 		// Simulate first successful attempt:
-		// 		if idxUniqueness == sc.IdxUnique {
-		// 			isApplied, err = instr.PCtx.CqlSession.Query(pq.Query, preparedIdxQueryParams...).MapScanCAS(existingIdxRow)
-		// 		} else {
-		// 			err = instr.PCtx.CqlSession.Query(pq.Query, preparedIdxQueryParams...).Exec()
-		// 		}
-		// 		idxRetryCount = 1 // Pretend it is a second attempt, which makes the key/rowid coincidence legit
-		// 		isApplied = false
-		// 		existingIdxRow["key"] = idxKey
-		// 		existingIdxRow["rowid"] = curRowid
-		// 	} else if CurrentTestScenario == TestIdxNotAppliedDiffPresent {
-		// 		// UI: cannot write duplicate index key ... with ... on retry 0, existing record [...], rowid is different
-		// 		// give up immediately and report failure
-		// 		isApplied = false
-		// 		existingIdxRow["key"] = idxKey
-		// 		existingIdxRow["rowid"] = curRowid + 1
-		// 	}
-		// } else {
-		// 	if idxUniqueness == sc.IdxUnique {
-		// 		isApplied, err = instr.PCtx.CqlSession.Query(pq.Query, preparedIdxQueryParams...).MapScanCAS(existingIdxRow)
-		// 	} else {
-		// 		err = instr.PCtx.CqlSession.Query(pq.Query, preparedIdxQueryParams...).Exec()
-		// 	}
-		// }
 
 		if err == nil {
 			if !isApplied {
-				if existingIdxRow["key"] != idxKey || existingIdxRow["rowid"] != curRowid {
-					// We screwed up, a record with this key and different rowid is already there, report everything we can
-					errorToReturn = fmt.Errorf("cannot write duplicate index key [%s] with %s,%d on retry %d, existing record [%v], rowid is different, throwing error %w", pq.Query, idxKey, curRowid, retryCount, existingIdxRow, ErrDuplicateKey)
+				if existingIdxRow["key"] == idxKey && existingIdxRow["rowid"] != curRowid {
+					// This is a unique idx, so no key duplicates for different rowids allowed. Throw ErrDuplicateKey.
+					errorToReturn = fmt.Errorf("cannot write duplicate unique index key [%s] with %s,%d on retry %d, existing record [%v], throwing error %w", pq.Query, idxKey, curRowid, retryCount, existingIdxRow, ErrDuplicateKey)
 					break
 				}
+
+				if existingIdxRow["key"] != idxKey && existingIdxRow["rowid"] == curRowid {
+					// Unexpected. A record with this rowid and and a different key is already there. Does not make sense.
+					errorToReturn = fmt.Errorf("cannot write index key [%s] with %s,%d on retry %d, existing record [%v], throwing error %w", pq.Query, idxKey, curRowid, retryCount, existingIdxRow, ErrMismatchedKey)
+					break
+				}
+
+				// At this point, key and rowid both match existing record
+
 				if retryCount == 0 {
-					// This is the first attempt, and the record we neeed is already there (key and rowid are the same). Doesn't sound right.
+					// This is the first attempt, and the record we need is already there (key and rowid are the same). Doesn't sound right.
+					// Unless it's a DISTINCT table procesor, where it's ok: calling code will catch the ErrDuplicateKey and handle it gracefully, see
+					// insertDistinctIdxAndDataRecords(), "else if errors.Is(errInsertIdx, ErrDuplicateKey)"" part.
 					errorToReturn = fmt.Errorf("cannot write duplicate index key [%s] and proper rowid with %s,%d on retry %d, existing record [%v], assuming it was some other writer, throwing error %w", pq.Query, idxKey, curRowid, retryCount, existingIdxRow, ErrDuplicateKey)
 					break
 				}
-				// Assuming Cassandra managed to insert the record on the previous attempt but returned an error
+				// Assuming Cassandra managed to insert the record on the previous attempt but returned an error (don't ask me how this may happen, but, apparently, it may)
 				logger.WarnCtx(instr.PCtx, "duplicate idx record found (%s) in idx %s on retry %d when writing (%d,'%s'), assuming this retry was successful, proceeding as usual", idxName, existingIdxRow, retryCount, curRowid, idxKey)
 			}
 			// Success or not - we are done
 			return nil
 		}
 
-		if strings.Contains(err.Error(), "does not exist") {
+		if strings.Contains(err.Error(), cql.ErrorDoesNotExist) {
 			// There is a chance this table is brand new and table schema was not propagated to all Cassandra nodes
 			if retryCount >= instr.MaxDbProblemRetries-1 {
 				errorToReturn = fmt.Errorf("cannot write to idx table %s after %d attempts, apparently, table schema still not propagated to all nodes: %s", instr.tableNameWithSuffix(idxName), retryCount+1, err.Error())
@@ -694,7 +599,7 @@ func (instr *TableInserter) insertIdxRecordWithRowid(logger *l.CapiLogger, idxNa
 			logger.WarnCtx(instr.PCtx, "will wait for idx table %s to be created, table retry count %d, got %s", instr.tableNameWithSuffix(idxName), retryCount, err.Error())
 			// TODO: come up with a better waiting strategy (exp backoff, at least)
 			time.Sleep(time.Duration(instr.DoesNotExistPauseMillis) * time.Millisecond)
-		} else if strings.Contains(err.Error(), "Operation timed out") {
+		} else if strings.Contains(err.Error(), cql.ErrorOperationTimedOut) {
 			// The cluster is overloaded, slow down
 			if retryCount >= instr.MaxDbProblemRetries-1 {
 				errorToReturn = fmt.Errorf("cannot write to idx table %s after %d attempts and %dms, still getting timeout: %s", instr.tableNameWithSuffix(idxName), retryCount+1, cql.SumOfExpBackoffDelaysMs(instr.OperationTimedOutPauseMillis, instr.ExpBackoffFactorMultiplier, retryCount), err.Error())
@@ -703,7 +608,7 @@ func (instr *TableInserter) insertIdxRecordWithRowid(logger *l.CapiLogger, idxNa
 			logger.WarnCtx(instr.PCtx, "cluster overloaded (%s), will wait for %dms before writing to idx table %s again, table retry count %d", err.Error(), instr.OperationTimedOutPauseMillis*curIdxExpBackoffFactor, instr.tableNameWithSuffix(idxName), retryCount)
 			time.Sleep(time.Duration(instr.OperationTimedOutPauseMillis*curIdxExpBackoffFactor) * time.Millisecond)
 			curIdxExpBackoffFactor *= instr.ExpBackoffFactorMultiplier
-		} else if strings.Contains(err.Error(), "Operation failed - received 0 responses and 1 failures") {
+		} else if strings.Contains(err.Error(), cql.ErrorAmazonKeyspacesZeroResponses) {
 			// Saw this from Amazon Keyspaces, slow down
 			if retryCount >= instr.MaxDbProblemRetries-1 {
 				errorToReturn = fmt.Errorf("cannot write to idx table %s after %d attempts and %dms, still getting zero responses: %s", instr.tableNameWithSuffix(idxName), retryCount+1, cql.SumOfExpBackoffDelaysMs(instr.OperationTimedOutPauseMillis, instr.ExpBackoffFactorMultiplier, retryCount), err.Error())
@@ -723,7 +628,7 @@ func (instr *TableInserter) insertIdxRecordWithRowid(logger *l.CapiLogger, idxNa
 	return errorToReturn
 }
 
-func (instr *TableInserter) insertDistinctIdxAndDataRecords(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, tableRecordItems []TableRecordItem, idxName string, keyValue string, pdq *PreparedQuery, piq *PreparedQuery, rowidRand *rand.Rand) (int64, error) {
+func (instr *TableInserter) insertDistinctIdxAndDataRecords(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, tableRecordItems []TableRecordItem, idxName string, keyValue string, pdq *cql.PreparedQuery, piq *cql.PreparedQuery, rowidRand *rand.Rand) (int64, error) {
 	logger.PushF("proc.insertDistinctIdxAndDataRecords")
 	defer logger.PopF()
 
@@ -739,18 +644,44 @@ func (instr *TableInserter) insertDistinctIdxAndDataRecords(logger *l.CapiLogger
 			if !errors.Is(errInsertData, ErrDuplicateRowid) {
 				return curRowid, errInsertData
 			}
-			// Delete inserted idx record before trying another rowid
-			errDelete := deleteIdxRecordByKey(pCtx, idxName, []string{keyValue})
+			// Delete inserted idx record before trying another rowid.
+			// This delete-before-retry ordering is load-bearing: the idx insert already
+			// claimed keyValue, so without removing it the next attempt's idx insert would
+			// fail ErrDuplicateKey and we would treat the key as "already done" and silently
+			// lose this data row.
+			errDelete := deleteIdxRecordByKey(pCtx, idxName, keyValue)
 			if errDelete != nil {
 				return curRowid, errDelete
 			}
 			logger.InfoCtx(pCtx, "cannot insert duplicate rowid on %d attempt: key %s, rowid %d", retryCount, keyValue, curRowid)
+			// Draw a fresh rowid before retrying. Reusing curRowid would deterministically hit
+			// the same data-row duplicate again (the colliding data row is still there), burning
+			// every retry until we give up and lose the record.
+			rowidRand.Seed(newSeed(instr.MachineHash))
+			curRowid = rowidRand.Int63()
 		} else if errors.Is(errInsertIdx, ErrDuplicateKey) {
-			// ErrDuplicateKey is ok, this means we already have a distinct record, nothing to do here
-			logger.DebugCtx(pCtx, "already have a distinct record, nothing to do here: key %s, rowid %d", keyValue, curRowid)
-			return curRowid, nil
+			// A distinct idx record with this key already exists. Normally that means the record was
+			// fully written (idx + data) and there is nothing to do. But it could also be an ORPHAN
+			// idx record left by a crash between the idx insert and the data insert on a previous
+			// attempt - in that case returning success here would permanently lose the data row.
+			// Verify the idx record points to a live data row; if not, delete the orphan and retry.
+			dataRowExists, errCheck := selectDataRowidByIdxKey(pCtx, idxName, instr.TableCreator.Name, keyValue)
+			if errCheck != nil {
+				return curRowid, errCheck
+			}
+			if dataRowExists {
+				logger.DebugCtx(pCtx, "already have a distinct record, nothing to do here: key %s, rowid %d", keyValue, curRowid)
+				return curRowid, nil
+			}
+			// Orphan idx record: the data row it points to is missing. Delete the stale idx record and retry.
+			logger.WarnCtx(pCtx, "found orphan distinct idx record for key %s (idx present, data row missing), deleting it and retrying", keyValue)
+			if errDelete := deleteIdxRecordByKey(pCtx, idxName, keyValue); errDelete != nil {
+				return curRowid, errDelete
+			}
+			continue
 		} else if retryCount < instr.MaxDuplicateRetries-1 {
 			rowidRand.Seed(newSeed(instr.MachineHash))
+			curRowid = rowidRand.Int63()
 		} else {
 			// Some serious error
 			return curRowid, errInsertIdx
@@ -762,7 +693,7 @@ func (instr *TableInserter) insertDistinctIdxAndDataRecords(logger *l.CapiLogger
 	return curRowid, errorToReport
 }
 
-func (instr *TableInserter) insertIdxRecordsForIndexes(logger *l.CapiLogger, writeItem *WriteChannelItem, idxNameToSkip string, newRowid int64, piq *PreparedQuery) error {
+func (instr *TableInserter) insertIdxRecordsForIndexes(logger *l.CapiLogger, writeItem *WriteChannelItem, idxNameToSkip string, newRowid int64, piq *cql.PreparedQuery) error {
 	for _, ikmi := range writeItem.IndexKeyItems {
 		if idxNameToSkip != "" && ikmi.IdxName == idxNameToSkip {
 			continue
@@ -787,8 +718,8 @@ func (instr *TableInserter) tableInserterWorker(logger *l.CapiLogger, pCtx *ctx.
 	// Assuming machine hashes are different for all daemon machines!
 	rowidRand := rand.New(rand.NewSource(newSeed(instr.MachineHash)))
 
-	pdq := PreparedQuery{}
-	piq := PreparedQuery{}
+	pdq := cql.PreparedQuery{}
+	piq := cql.PreparedQuery{}
 
 	logger.DebugCtx(pCtx, "started reading from RecordsIn")
 

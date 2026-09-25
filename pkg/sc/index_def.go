@@ -86,7 +86,7 @@ func (idxDef *IdxDef) parseComponentExpr(fldExp *ast.Expr, fieldRefs *FieldRefs)
 	case *ast.CallExpr:
 		identExp, ok := typedFldExp.Fun.(*ast.Ident)
 		if !ok {
-			return fmt.Errorf("cannot parse order component func expression, field %s is not an ident", identExp.Name)
+			return fmt.Errorf("cannot parse order component func expression, field %v is not an ident", fldExp)
 		}
 		fieldRef, ok := fieldRefs.FindByFieldName(identExp.Name)
 		if !ok {

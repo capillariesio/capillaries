@@ -177,7 +177,7 @@ The daemon consumes all messages from the [processor queue](#processor-queue).
 
 For example, the stock daemon coming as part of the Capillaries source code uses:
 - queue name ([handler_executable_type](binconfig.md#handler_executable_type)): "capi_daemon"
-- exchange name ([exchange](#exchange)):"capillaries"
+- exchange name:"capillaries"
  
 Third-party daemons may use other names for either/both queue and exchange, but in this case, the developers are in charge of creating all correspondent RabbitMQ infrastructure for that queue name, including [dead-letter-exchange](qna.md#dead-letter-exchange).
 
@@ -248,7 +248,7 @@ Parquet types supported by Parquet Reader (from Parquet to Capillaries/Go):
 
 Defines how table writer saves values to the target table.
 
-`expression`: [Go expression](#go-expression), can use reader (`r.*`), lookup (`l.*`), and custom processor (`p.*`) fields
+`expression`: [Go expression](#go-expressions), can use reader (`r.*`), lookup (`l.*`), and custom processor (`p.*`) fields
 
 `type`: one of the [supported types](#supported-types)
 
@@ -264,7 +264,7 @@ Defines how file writer saves values to the target file (CSV, Parquet).
 
 `type`: one of the [supported types](#supported-types)
 
-`expression`: [Go expression](#go-expression), can use reader fields only (`r.*`)
+`expression`: [Go expression](#go-expressions), can use reader fields only (`r.*`)
 
 ### CSV-specific writer column properties
 
@@ -305,7 +305,7 @@ where order_expression is an [order expression](#order-expression).
 A unique index enforces key uniqueness on the database level. Key uniqueness does not affect lookup behaviour.
 
 ## Order expression
-Used in [index definitions](#index-definition), [top/order](scriptconfig.md#wtop) and [dependency policy event_priority_order](#event_priority_order) settings. Syntax:
+Used in [index definitions](#index-definition), [top/order](scriptconfig.md#wtop) and [dependency policy](./scriptconfig.md#dependency_policy) event_priority_order settings. Syntax:
 ```
 [<field_name>([case_modifier|sort_modifier,...]),...]
 ```

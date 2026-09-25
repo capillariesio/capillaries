@@ -1,0 +1,2 @@
+deal_name,wa_original_interest_rate_by_original_upb,min_original_interest_rate,max_original_interest_rate,wa_borrower_credit_score_at_origination_by_original_upb,min_borrower_credit_score_at_origination,max_borrower_credit_score_at_origination,total_original_upb,total_original_upb_paid_off_ratio,total_upb_at_issuance,total_loans,total_original_loan_term_30y,avg_payments_behind_ratio,total_paid_off_amount,avg_paid_off_ratio
+CAS 2023 R08 G1,5.56,2.75,7.25,755.40,619,823,322726000.00,0.02,315268553.71,1000,993,0.00,7457446.29,0.02

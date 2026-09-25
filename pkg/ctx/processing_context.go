@@ -13,6 +13,32 @@ import (
 
 type HeartbeatCallbackFunc func(string)
 
+type TestScenarioType int
+
+// const (
+// 	TestProduction TestScenarioType = iota
+// 	// Data table: not exist, timeout, serious, not applied
+// 	TestDataDoesNotExist
+// 	TestDataOperationTimedOut
+// 	TestDataSerious
+// 	TestDataNotApplied
+// 	// Idx table: not exist, timeout, serious, not applied
+// 	TestIdxDoesNotExist
+// 	TestIdxOperationTimedOut
+// 	TestIdxSerious
+// 	TestIdxNotAppliedSamePresentFirstRun
+// 	TestIdxNotAppliedSamePresentSecondRun
+// 	TestIdxNotAppliedDiffPresent
+// 	// Generic process batch error
+// 	TestProcessDataBatchError
+// )
+
+type TableInserterProperties struct {
+	QueryPerformer               db.TableInserterQueryPerformer
+	DoesNotExistPauseMillis      int64
+	OperationTimedOutPauseMillis int64
+}
+
 type MessageProcessingContext struct {
 	Msg                     wfmodel.Message
 	CqlSession              gocqlshims.Session
@@ -28,6 +54,16 @@ type MessageProcessingContext struct {
 	LastHeartbeatSentTs     int64
 	HeartbeatIntervalMillis int64
 	HeartbeatCallback       HeartbeatCallbackFunc
+	// TestScenario            TestScenarioType
+	TableInserterProps TableInserterProperties
+}
+
+func CreateProductionTableInserterProperties() TableInserterProperties {
+	return TableInserterProperties{
+		QueryPerformer:               &db.TableInserterQueryPerformerProduction{},
+		DoesNotExistPauseMillis:      2000, // 2000, 5 retries: 2000 + 4000 + 8000 + 16000 + 32000
+		OperationTimedOutPauseMillis: 200,  // 200, 5 retries: 200 + 400 + 800 + 1600 + 3200 = 6200
+	}
 }
 
 func (pCtx *MessageProcessingContext) DbConnect(envConfig *env.EnvConfig) error {

@@ -63,6 +63,13 @@ func RowidFieldRef(tableName string) FieldRef {
 		FieldType: evalcapi.FieldTypeInt}
 }
 
+func BatchIdxFieldRef(tableName string) FieldRef {
+	return FieldRef{
+		TableName: tableName,
+		FieldName: "batch_idx",
+		FieldType: evalcapi.FieldTypeInt}
+}
+
 func RowidTokenFieldRef() FieldRef {
 	return FieldRef{
 		TableName: "db_system",

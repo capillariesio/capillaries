@@ -17,7 +17,7 @@ import (
 )
 
 const ProhibitedKeyspaceNameRegex = "^system"
-const AllowedKeyspaceNameRegex = "[a-zA-Z0-9_]+"
+const AllowedKeyspaceNameRegex = "^[a-zA-Z0-9_]+$"
 
 // Used by Webapi to ignore Cassandra system keyspaces
 func IsSystemKeyspaceName(keyspace string) bool {

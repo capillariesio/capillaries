@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/dpc"
@@ -17,6 +18,10 @@ import (
 	"github.com/capillariesio/capillaries/pkg/wfdb"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 	"go.uber.org/zap"
+)
+
+const (
+	ErrorNotProcessingAbandonedBatch string = "not processing this abandoned batch, check re-run policy for this script node"
 )
 
 func checkDependencyNodesReady(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext) (sc.ReadyToRunNodeCmdType, int16, int16, int, int, error) {
@@ -170,6 +175,10 @@ func updateNodeStatusFromBatches(logger *l.CapiLogger, pCtx *ctx.MessageProcessi
 
 		err := wfdb.SetNodeStatus(pCtx.CqlSession, &pCtx.Msg, totalNodeStatus, comment)
 		if err != nil {
+			if strings.Contains(err.Error(), cql.ErrorCannotUpsertDuplicate) {
+				logger.WarnCtx(pCtx, "cannot set node status to %d, it's already there", totalNodeStatus)
+				return wfmodel.NodeBatchNone, nil
+			}
 			return wfmodel.NodeBatchNone, err
 		}
 	} else {
@@ -238,10 +247,10 @@ func refreshNodeAndRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingCo
 	return nil
 }
 
-func initCtxScript(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, caPath string, privateKeys map[string]string, msg *wfmodel.Message, customProcFactory sc.CustomProcessorDefFactory, customProcSettings map[string]json.RawMessage) FurtherProcessingCmd {
+func initCtxScript(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, fetchPolicy *sc.FetchPolicy, caPath string, privateKeys map[string]string, msg *wfmodel.Message, customProcFactory sc.CustomProcessorDefFactory, customProcSettings map[string]json.RawMessage) FurtherProcessingCmd {
 	var initProblem sc.ScriptInitProblemType
 	var err error
-	pCtx.Script, initProblem, err = sc.NewScriptFromFiles(caPath, privateKeys, msg.ScriptURL, msg.ScriptParamsURL, customProcFactory, customProcSettings)
+	pCtx.Script, initProblem, err = sc.NewScriptFromFiles(fetchPolicy, caPath, privateKeys, msg.ScriptURL, msg.ScriptParamsURL, customProcFactory, customProcSettings)
 	if initProblem == sc.ScriptInitNoProblem {
 		return FurtherProcessingProceed
 	}
@@ -267,6 +276,14 @@ const (
 	FurtherProcessingProceed FurtherProcessingCmd = iota
 	FurtherProcessingAck
 	FurtherProcessingRetry
+)
+
+type FurtherProcessingBatchScenario int
+
+const (
+	FurtherProcessingBatchNone FurtherProcessingBatchScenario = iota
+	FurtherProcessingBatchClean
+	FurtherProcessingBatchWasAbadoned
 )
 
 func checkRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, msg *wfmodel.Message, runStatus wfmodel.RunStatusType) FurtherProcessingCmd {
@@ -315,62 +332,48 @@ func checkRunStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, ms
 	}
 }
 
-func checkLastBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, msg *wfmodel.Message, lastBatchStatus wfmodel.NodeBatchStatusType, lastBatchTs time.Time) FurtherProcessingCmd {
+func checkLastBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, msg *wfmodel.Message, lastBatchStatus wfmodel.NodeBatchStatusType, lastBatchTs time.Time) (FurtherProcessingCmd, FurtherProcessingBatchScenario) {
 	switch lastBatchStatus {
 	case wfmodel.NodeBatchFail, wfmodel.NodeBatchSuccess:
 		logger.WarnCtx(pCtx, "will not process batch %s, it has been already processed (processor crashed after processing it and before marking as success/fail?) with status %d(%s)", msg.FullBatchId(), lastBatchStatus, wfmodel.NodeBatchStatusToString(lastBatchStatus))
 		if err := refreshNodeAndRunStatus(logger, pCtx); err != nil && db.IsDbConnError(err) {
-			return FurtherProcessingRetry
+			return FurtherProcessingRetry, FurtherProcessingBatchNone
 		}
-		return FurtherProcessingAck
+		return FurtherProcessingAck, FurtherProcessingBatchNone
 
 	case wfmodel.NodeBatchStart:
 		// This run/node/batch has been already picked up by another processor that presumably crashed before marking success/fail
 		switch pCtx.CurrentScriptNode.RerunPolicy {
 		case sc.NodeRerun:
-			// We cannot be 100% sure that no other worker is currently handling this batch.
+			// We cannot be 100% sure that no other worker is currently handling this batch: what if the mq declared it abandoned, but it actually completed?
 			// Do our best: give that worker some time to complete.
 			durationToWaitMore := time.Until(lastBatchTs.Add(time.Duration(pCtx.CurrentScriptNode.MaxBatchProcessingTime) * time.Millisecond))
 
 			if durationToWaitMore > 0 {
 				logger.WarnCtx(pCtx, "will wait for another %dms until %dms timeout, some other instance may still be handling this batch", durationToWaitMore.Milliseconds(), pCtx.CurrentScriptNode.MaxBatchProcessingTime)
-				return FurtherProcessingRetry
+				return FurtherProcessingRetry, FurtherProcessingBatchNone
 			}
-
-			logger.WarnCtx(pCtx, "grace period %dms for potential other client is over, we will clean up and re-rocess", pCtx.CurrentScriptNode.MaxBatchProcessingTime)
-			if deleteErr := proc.DeleteDataAndUniqueIndexesByBatchIdx(logger, pCtx); deleteErr != nil {
-				if db.IsDbConnError(deleteErr) {
-					return FurtherProcessingRetry
-				}
-				comment := fmt.Sprintf("cannot clean up leftovers of the previous processing of batch %s, giving up, will try to set batch status to failed: %s", pCtx.Msg.FullBatchId(), deleteErr.Error())
-				logger.ErrorCtx(pCtx, "%s", comment)
-				if setBatchStatusErr := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeBatchFail, comment); setBatchStatusErr != nil {
-					logger.ErrorCtx(pCtx, "cannot set batch status: %s", setBatchStatusErr.Error())
-				}
-				return FurtherProcessingAck
-			}
-
-			// Clean up successful, process this batch anew
-			return FurtherProcessingProceed
+			// Clean up and process this batch anew
+			return FurtherProcessingProceed, FurtherProcessingBatchWasAbadoned
 
 		case sc.NodeFail:
-			logger.ErrorCtx(pCtx, "will not rerun %s, rerun policy says we have to fail", pCtx.Msg.FullBatchId())
-			return FurtherProcessingAck
+			logger.ErrorCtx(pCtx, "will not rerun abandoned %s, rerun policy says we have to fail", pCtx.Msg.FullBatchId())
+			return FurtherProcessingAck, FurtherProcessingBatchWasAbadoned
 
 		default:
 			logger.ErrorCtx(pCtx, "unexpected rerun policy %s, looks like dev error", pCtx.CurrentScriptNode.RerunPolicy)
-			return FurtherProcessingAck
+			return FurtherProcessingAck, FurtherProcessingBatchWasAbadoned
 		}
 
 	case wfmodel.NodeBatchRunStopReceived:
 		// Stop was signaled, do not try to handle this batch anymore, call it a success
-		return FurtherProcessingAck
+		return FurtherProcessingAck, FurtherProcessingBatchNone
 	case wfmodel.NodeBatchNone:
 		// Happy path
-		return FurtherProcessingProceed
+		return FurtherProcessingProceed, FurtherProcessingBatchClean
 	default:
 		logger.ErrorCtx(pCtx, "unexpected batch %s status %d", pCtx.Msg.FullBatchId(), lastBatchStatus)
-		return FurtherProcessingAck
+		return FurtherProcessingAck, FurtherProcessingBatchNone
 	}
 }
 
@@ -400,7 +403,17 @@ func checkDependencyNogoOrWait(logger *l.CapiLogger, pCtx *ctx.MessageProcessing
 }
 
 // Used by Daemon and Toolbelt
-func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wfmodel.Message, heartbeatInterval int64, heartbeatCallback ctx.HeartbeatCallbackFunc) mq.AcknowledgerCmd {
+// ProcessDataBatchMsg handles one batch message. The step ordering below is load-bearing:
+//  1. run-status check BEFORE loading the script - a stopped run must not be retried forever
+//     just because the script URL is temporarily unreachable.
+//  2. checkLastBatchStatus (dedup) BEFORE any processing - a redelivered message for an already
+//     completed batch must be acked without re-running it, or it duplicates data.
+//  3. SetBatchStatus(success) AFTER the work completes - moving it earlier makes a batch look done
+//     though nothing ran (silent data loss). The crash window after the work but before this
+//     SetBatchStatus is exactly what the rerun-cleanup delete (DeleteDataAndUniqueIndexesByBatchIdx)
+//     exists to clean up; the window between SetBatchStatus(success) and refreshNodeAndRunStatus
+//     self-heals because node/run status is re-derived by folding batch history.
+func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wfmodel.Message, heartbeatInterval int64, heartbeatCallback ctx.HeartbeatCallbackFunc, tableInserterProps ctx.TableInserterProperties) mq.AcknowledgerCmd {
 	logger.PushF("api.ProcessDataBatchMsg")
 	defer logger.PopF()
 
@@ -414,7 +427,9 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wf
 		ZapMsgAgeMillis:         zap.Int64("age", time.Now().UnixMilli()-msg.Ts),
 		LastHeartbeatSentTs:     0, // And this is true
 		HeartbeatIntervalMillis: heartbeatInterval,
-		HeartbeatCallback:       heartbeatCallback}
+		HeartbeatCallback:       heartbeatCallback,
+		TableInserterProps:      tableInserterProps,
+	}
 
 	// Check run status first. If it's stopped, don't even bother getting the script etc. If we try to get the script first,
 	// and it's not available, we may end up handling this batch forever even after the run is stopped by the operator
@@ -450,7 +465,7 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wf
 	}
 
 	// Script/params must be valid
-	furtherProcCmd = initCtxScript(logger, pCtx, envConfig.CaPath, envConfig.PrivateKeys, msg, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
+	furtherProcCmd = initCtxScript(logger, pCtx, &envConfig.AccessPolicy.FetchPolicy, envConfig.CaPath, envConfig.PrivateKeys, msg, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
 	switch furtherProcCmd {
 	case FurtherProcessingRetry:
 		return mq.AcknowledgerCmdRetry
@@ -482,12 +497,59 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wf
 	}
 
 	// Check if this run/node/batch has been handled already
-	furtherProcCmd = checkLastBatchStatus(logger, pCtx, msg, lastBatchStatus, lastBatchTs)
+	var furtherProcBatchScenario FurtherProcessingBatchScenario
+	furtherProcCmd, furtherProcBatchScenario = checkLastBatchStatus(logger, pCtx, msg, lastBatchStatus, lastBatchTs)
 	switch furtherProcCmd {
 	case FurtherProcessingRetry:
 		return mq.AcknowledgerCmdRetry
 	case FurtherProcessingAck:
+		if furtherProcBatchScenario == FurtherProcessingBatchWasAbadoned {
+			// Either RerunPolicy == NodeFail was activated, or some unexpected policy encountered for this abandoned batch. In any case: mark batch and node as failed.
+			err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeBatchFail, ErrorNotProcessingAbandonedBatch)
+			if err != nil {
+				if db.IsDbConnError(err) {
+					return mq.AcknowledgerCmdRetry
+				} else if !strings.Contains(err.Error(), cql.ErrorCannotUpsertDuplicate) {
+					logger.ErrorCtx(pCtx, "unexpected: cannot set batch status to Fail for abandoned batch: %s", err.Error())
+					return mq.AcknowledgerCmdAck
+				}
+			}
+			err = refreshNodeAndRunStatus(logger, pCtx)
+			if err != nil && db.IsDbConnError(err) {
+				return mq.AcknowledgerCmdRetry
+			}
+		}
 		return mq.AcknowledgerCmdAck
+
+	case FurtherProcessingProceed:
+		if furtherProcBatchScenario == FurtherProcessingBatchWasAbadoned {
+			logger.WarnCtx(pCtx, "grace period %dms for potential other client is over, we will clean up and re-process", pCtx.CurrentScriptNode.MaxBatchProcessingTime)
+			if deleteErr := proc.DeleteDataAndUniqueIndexesByBatchIdx(logger, pCtx); deleteErr != nil {
+				if db.IsDbConnError(deleteErr) {
+					return mq.AcknowledgerCmdRetry
+				}
+				comment := fmt.Sprintf("cannot clean up leftovers of the previous processing of batch %s, giving up, will try to set batch status to failed: %s", pCtx.Msg.FullBatchId(), deleteErr.Error())
+				logger.ErrorCtx(pCtx, "%s", comment)
+				if setBatchStatusErr := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeBatchFail, comment); setBatchStatusErr != nil {
+					logger.ErrorCtx(pCtx, "cannot set batch status: %s", setBatchStatusErr.Error())
+				}
+				return mq.AcknowledgerCmdAck
+			}
+		}
+	default:
+		err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeBatchFail, fmt.Sprintf("unknown processor cmd from checkLastBatchStatus: %d", furtherProcCmd))
+		if err != nil {
+			if db.IsDbConnError(err) {
+				return mq.AcknowledgerCmdRetry
+			} else if !strings.Contains(err.Error(), cql.ErrorCannotUpsertDuplicate) {
+				logger.ErrorCtx(pCtx, "unknown processor cmd from checkLastBatchStatus %d, and cannot set batch status to failed because of an error: %s", furtherProcCmd, err.Error())
+				return mq.AcknowledgerCmdAck
+			}
+		}
+		err = refreshNodeAndRunStatus(logger, pCtx)
+		if err != nil && db.IsDbConnError(err) {
+			return mq.AcknowledgerCmdRetry
+		}
 	}
 
 	// At this point, we are assuming this batch processing either never started or was started and then abandoned
@@ -532,28 +594,36 @@ func ProcessDataBatchMsg(envConfig *env.EnvConfig, logger *l.CapiLogger, msg *wf
 		if db.IsDbConnError(err) {
 			return mq.AcknowledgerCmdRetry
 		}
-		return mq.AcknowledgerCmdAck
+		// Node status is a key field, so "cannot upsert duplicate" is perfectly fine: some other batch handler already added this record
+		if !strings.Contains(err.Error(), cql.ErrorCannotUpsertDuplicate) {
+			logger.ErrorCtx(pCtx, "unexpected: cannot set node status, unknown error %s", err.Error())
+			return mq.AcknowledgerCmdAck
+		}
 	}
 
-	// Set batch status to "started" (no concurrency expected here, so do not bother reading it first)
+	// Set batch status to "started" (not much concurrency expected here, so do not bother reading it first)
 
 	if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeBatchStart, ""); err != nil {
 		if db.IsDbConnError(err) {
 			return mq.AcknowledgerCmdRetry
 		}
-		return mq.AcknowledgerCmdAck
+
+		if !strings.Contains(err.Error(), cql.ErrorCannotUpsertDuplicate) {
+			logger.ErrorCtx(pCtx, "unexpected: cannot set batch status, unknown error %s", err.Error())
+			return mq.AcknowledgerCmdAck
+		}
+
+		// Duplicate: this may be a valid case if we have just picked up a batch that was started by a worker who suddenly died.
+		if furtherProcBatchScenario != FurtherProcessingBatchWasAbadoned {
+			// This batch is hopeless, mark it as failed
+			if err := wfdb.SetBatchStatus(logger, pCtx, wfmodel.NodeBatchFail, "unexpected: batch status is wfmodel.NodeBatchStart (got a duplicate error), but the batch was not abandoned"); err != nil {
+				logger.ErrorCtx(pCtx, "cannot set batch status to fail: %s", err.Error())
+			}
+			return mq.AcknowledgerCmdAck
+		}
 	}
 
 	batchStatus, batchStats, batchErr := proc.CallAppropriateProcessorForBatch(envConfig, logger, pCtx, readerNodeRunId, lookupNodeRunId)
-
-	// TODO: test only!!!
-	// if pCtx.BatchInfo.TargetNodeName == "order_item_date_inner" && pCtx.BatchInfo.BatchIdx == 3 {
-	// 	rnd := rand.New(rand.NewSource(time.Now().UnixMilli()))
-	// 	if rnd.Float32() < .5 {
-	// 		logger.InfoCtx(pCtx, "safeProcessBatch: test error")
-	// 		return mq.AcknowledgerCmdRetry
-	// 	}
-	// }
 
 	if batchErr != nil {
 		logger.ErrorCtx(pCtx, "safeProcessBatch: %s", batchErr.Error())

@@ -107,7 +107,9 @@ A. Update 2025: version 1.1.25 adds support for Amazon Keyspaces. As of 2025, th
 - [Amazon Keyspaces pagination](https://docs.aws.amazon.com/keyspaces/latest/devguide/paginating-results.html) may return fewer records than requested, so Capillaries should watch pagestate closely
 For a sample Amazon Keyspaces configuration, see [Amazon Keyspaces POC TerraForm deployment scripts](https://github.com/capillariesio/capillaries-experimental/tree/main/amazon_keyspaces).
 
-WARNING: please keep in mind that without setting read/write capacity units, Amazon Keyspaces may be extremely slow, and with those capacity units specified - extremely expensive; exercise extreme caution when setting them. In general, Amazon Keyspaces database has a chance be more cost-efficient for longer-term data storage (months), and low read/write traffic. Cassandra cluster can be more cost-efficient for short-lived data (hours) and high rate of reads and writes. Capillaries definitely falls into the latter cathegory.   
+WARNING: please keep in mind that without setting read/write capacity units, Amazon Keyspaces may be extremely slow, and with those capacity units specified - extremely expensive; exercise extreme caution when setting them. In general, Amazon Keyspaces database has a chance be more cost-efficient for longer-term data storage (months), and low read/write traffic. Cassandra cluster can be more cost-efficient for short-lived data (hours) and high rate of reads and writes. Capillaries definitely falls into the latter cathegory.
+
+As of Sep 2026, Amazon Keyspaces-specific code is still in the codebase, but it is not tested and it is not guaranteed to work. TBH, I do not see much value in supporting a database engine with pricing structure that does not make sense for a write-heavy scenario like Capillaries.
 
 ## What's next?
 
@@ -125,9 +127,9 @@ A. Here are some, in no particular order:
 
 5. Python formulas. (a) Need a strategy to mitigate potential security threats introduced by py_calc. SELinux/AppArmor? (b) Consider generic lambda functions?
 
-6. Keep an eye on Azure/AWS/GCP progress with Cassandra-compatible databases (latency!) and message queue offerings. Update 2025: version 1.1.25 works with Amazon RabbitMQ AMQP 0.9.1 broker and Amazon Keyspaces. Update 2025: Capillaries 1.2 drops support for AMQP 0.9.1 and adds support for AMQP 1.0. 
+6. Keep an eye on Azure/AWS/GCP progress with Cassandra-compatible databases (latency!) and message queue offerings. Update 2025: version 1.1.25 works with Amazon RabbitMQ AMQP 0.9.1 broker and Amazon Keyspaces. Update 2025: Capillaries 1.2 drops support for AMQP 0.9.1 and adds support for AMQP 1.0. Update 2026: Capillaries code for Amazon Keyspaces [is not actively maintained](./qna.md#cassandra-in-the-cloud). 
 
-7. Select distinct field values from a table: it can be implemented easily using a set, but it will not scale and it will be limited by the size of the map. Alternatively, it can be implemented using Cassandra features, but it will require Capillaries to support tables without [rowid](glossary.md#rowid) (so the unique values are stored in a partitioning key field). Update March 2024: done, see [distinct_table](./glossary.md#distinct_table) node.
+7. Select distinct field values from a table: it can be implemented easily using a set, but it will not scale and it will be limited by the size of the map. Alternatively, it can be implemented using Cassandra features, but it will require Capillaries to support tables without [rowid](glossary.md#rowid) (so the unique values are stored in a partition key field). Update March 2024: done, see [distinct_table](./glossary.md#distinct_table) node.
 
 8. Keep adding support for Go library functions
 

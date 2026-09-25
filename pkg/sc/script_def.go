@@ -123,6 +123,13 @@ func (scriptDef *ScriptDef) Deserialize(jsonOrYamlBytesScript []byte, scriptType
 		return fmt.Errorf("%s", strings.Join(foundErrors, "; "))
 	}
 
+	// The remaining passes MUST run in this order; each consumes state produced by the previous one,
+	// and getting it wrong does NOT fail loudly - it validates against empty/partial state and
+	// silently accepts an illegal script:
+	//   buildTableCreatorNodeMap / buildIndexNodeMap -> resolveReader (sets node.TableReader.TableCreator)
+	//   -> resolveLookup (needs the reader's TableCreator) -> checkFieldUsageInCreator (validates l.*
+	//   usages against lookup refs that only exist after resolveLookup) -> evalCreatorAndLookupExpressionsAndCheckType.
+
 	// Table -> node map, to look for ord and lkp indexes, for those nodes that create tables
 	if err := scriptDef.buildTableCreatorNodeMap(); err != nil {
 		return err
@@ -226,9 +233,6 @@ func (scriptDef *ScriptDef) checkFieldUsageInCreator(node *ScriptNodeDef) error 
 	var processorFieldRefs *FieldRefs
 	if node.HasCustomProcessor() {
 		processorFieldRefs = node.CustomProcessor.GetFieldRefs()
-		if err != nil {
-			return fmt.Errorf("cannot resolve processor field refs: [%s]", err.Error())
-		}
 	}
 
 	var lookupFieldRefs *FieldRefs

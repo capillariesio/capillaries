@@ -125,7 +125,12 @@ func SingleBatchHistoryRowsToLastBatchStatus(rows []map[string]any, fields []str
 			return NodeBatchNone, time.Unix(0, 0), fmt.Errorf("cannot deserialize batch history row %v: %s", r, err.Error())
 		}
 
-		if rec.Ts.After(lastTs) {
+		// toTimestamp(now()) is only millisecond-resolution, so a fast batch's "start" and
+		// terminal ("success"/"fail"/...) events can land in the same ms. A strict ts compare
+		// would then let whichever row Cassandra returns first win - reporting "start" (looks
+		// still-running) even though the batch finished. Break ts ties by status priority
+		// (the NodeBatch* constants are ordered so terminal states outrank start).
+		if rec.Ts.After(lastTs) || (rec.Ts.Equal(lastTs) && NodeBatchStatusType(rec.Status) > lastStatus) {
 			lastTs = rec.Ts
 			lastStatus = NodeBatchStatusType(rec.Status)
 		}

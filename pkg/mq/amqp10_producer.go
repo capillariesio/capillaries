@@ -9,6 +9,7 @@ import (
 	"time"
 
 	amqp10 "github.com/Azure/go-amqp"
+	"github.com/capillariesio/capillaries/pkg/msgsig"
 	"github.com/capillariesio/capillaries/pkg/wfmodel"
 )
 
@@ -19,15 +20,19 @@ const Amqp10ProducerSendTimeout time.Duration = 2000
 type Amqp10Producer struct {
 	url     string
 	address string
+	signer  *msgsig.Signer // nil means send unsigned messages (legacy)
 	conn    *amqp10.Conn
 	session *amqp10.Session
 	sender  *amqp10.Sender
 }
 
-func NewAmqp10Producer(url string, address string) *Amqp10Producer {
+// NewAmqp10Producer creates a producer. A non-nil signer wraps every outgoing message in a
+// signed envelope; a nil signer sends the bare message bytes (legacy behavior).
+func NewAmqp10Producer(url string, address string, signer *msgsig.Signer) *Amqp10Producer {
 	return &Amqp10Producer{
 		url:     url,
 		address: address,
+		signer:  signer,
 	}
 }
 
@@ -76,6 +81,13 @@ func (p *Amqp10Producer) Send(msg *wfmodel.Message) error {
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
 		return fmt.Errorf("cannot send, error when serializing msg: %s", err.Error())
+	}
+
+	if p.signer != nil {
+		msgBytes, err = p.signer.Seal(msgBytes)
+		if err != nil {
+			return fmt.Errorf("cannot send, error when signing msg: %s", err.Error())
+		}
 	}
 
 	sendCtx, sendCancel := context.WithTimeout(context.Background(), Amqp10ProducerSendTimeout*time.Millisecond)

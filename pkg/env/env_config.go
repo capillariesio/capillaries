@@ -19,6 +19,7 @@ type EnvConfig struct {
 	Log                               LogConfig                    `json:"log"`
 	CaPath                            string                       `json:"ca_path" env:"CAPI_CA_PATH, overwrite"`           // Used for HTTP, host's CA dir if empty
 	PrivateKeys                       map[string]string            `json:"private_keys" env:"CAPI_PRIVATE_KEYS, overwrite"` // Used for SFTP only
+	AccessPolicy                      sc.AccessPolicy              `json:"access_policy,omitempty"`                         // Governs external resource access: scheme/SSRF gate (embedded FetchPolicy) plus file_reader input and file_creator output location allowlists
 	Daemon                            DaemonConfig                 `json:"daemon,omitempty"`
 	Webapi                            WebapiConfig                 `json:"webapi,omitempty"`
 	CustomProcessorsSettings          map[string]json.RawMessage   `json:"custom_processors"`
@@ -44,6 +45,10 @@ func (ec *EnvConfig) Deserialize(ctx context.Context, jsonBytes []byte) error {
 
 	if ec.Daemon.ThreadPoolSize <= 0 || ec.Daemon.ThreadPoolSize > 100 {
 		ec.Daemon.ThreadPoolSize = 5
+	}
+
+	if ec.Daemon.MaxPartitionKeysInSelect <= 0 || ec.Daemon.MaxPartitionKeysInSelect > 100 {
+		ec.Daemon.MaxPartitionKeysInSelect = 50
 	}
 
 	if ec.CapiMqBroker.DeadAfterNoHeartbeatTimeout <= 100 || ec.CapiMqBroker.DeadAfterNoHeartbeatTimeout > 3600000 { // [100ms,1hr]

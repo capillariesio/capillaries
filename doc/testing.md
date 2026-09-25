@@ -1,6 +1,6 @@
 # Testing
 
-## Unit tests and code coverage
+## Unit tests
 
 To run all unit tests:
 
@@ -8,13 +8,18 @@ To run all unit tests:
 ./test_unit.sh
 ```
 
-Code coverage:
+Code coverage report will be generated, watch the messages.
+
+## API tests
+
+These tests exercise the ProcessDataBatchMsg call and use [gocqlmem](https://github.com/capillariesio/gocqlmem) db engine to mimic Cassandra. They take a while to run:
 
 ```
-./test_coverage.sh
+./test_api.sh
 ```
 
-and open /var/tmp/capillaries.html in a web browser.
+Code coverage report will be generated, watch the messages.
+
 
 ## Integration tests
 
@@ -23,7 +28,7 @@ Some integration tests use data and config files stored in S3. Make sure you hav
 To run all integration tests, make sure you have RabbitMQ/ActiveMQ, Casandra and Capillaries Daemon running (either in Docker containers or as regular applications), test data is present (see ./copy_demo_data.sh) and run:
 
 ```
-./test_integration.sh
+./test_integration.sh <short|long>
 ```
 
 There is a number of extensive integration tests that cover a big part of Capillaries script, database, and workflow functionality:

@@ -61,6 +61,8 @@ func SetBatchStatus(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, st
 		Write("thread", logger.ZapThread.Integer)
 	if len(comment) > 0 {
 		qb.Write("comment", comment)
+	} else {
+		qb.Write("comment", "")
 	}
 
 	q := qb.InsertUnpreparedQuery(wfmodel.TableNameBatchHistory, cql.IfExistsOverwrite)

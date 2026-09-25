@@ -23,8 +23,6 @@ const (
 	CassandraEngineAmazonKeyspaces
 )
 
-const ErrorPrefixDb string = "dberror:"
-
 func GetCreateTableCql(t reflect.Type, keyspace string, tableName string) string {
 	columnDefs := make([]string, t.NumField())
 	keyDefs := make([]string, t.NumField())
@@ -63,13 +61,13 @@ func WrapDbErrorWithQuery(msg string, query string, dbErr error) error {
 	if len(query) > 500 {
 		query = query[:500]
 	}
-	return fmt.Errorf("%s, query:%s, %s%s", msg, query, ErrorPrefixDb, dbErr.Error())
+	return fmt.Errorf("%s, query:%s, %s%s", msg, query, cql.ErrorPrefixDb, dbErr.Error())
 }
 
 func IsDbConnError(err error) bool {
-	return strings.Contains(err.Error(), ErrorPrefixDb+gocql.ErrNoConnections.Error()) ||
-		strings.Contains(err.Error(), ErrorPrefixDb+"EOF") ||
-		strings.Contains(err.Error(), ErrorPrefixDb+"gocql: heartbeat failed")
+	return strings.Contains(err.Error(), cql.ErrorPrefixDb+gocql.ErrNoConnections.Error()) ||
+		strings.Contains(err.Error(), cql.ErrorPrefixDb+"EOF") ||
+		strings.Contains(err.Error(), cql.ErrorPrefixDb+"gocql: heartbeat failed")
 }
 
 func createWfTable(cqlSession gocqlshims.Session, keyspace string, t reflect.Type, tableName string) error {

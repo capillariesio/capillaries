@@ -75,21 +75,89 @@ Proper `ca_path` setting is crucial for running HTTPS version of Capillaries [ta
 
 If ca_path is empty, Go uses the host's root CA set (/usr/ssl/certs etc).
 
+## access_policy
+
+AccessPolicy is the single place that governs which external resources the framework may touch. It embeds FetchPolicy (the scheme + SSRF host gate applied to the script URL, the params URL, and the file URLs embedded in a script, enforced at load time) and adds the run-time location allowlists that confine where file_reader may read from (InputPaths) and file_creator may write to (OutputPaths).
+
+### fetch_policy
+
+This section allows checking script and script params URL schemes and hosts.
+
+#### allowed_schemes
+
+Prevents Capillaries from trying to read arbitrary local files like `/etc/passwd` or cloud-based files like `http://169.254.169.254/latest/meta-data`.
+
+Default: ["file", "http", "https", "s3"] (very permissive, revisit before using in prod)
+
+#### allow_private_hosts
+
+Prevents Capillaries from trying to read from private networks: http://10.0.0.1/
+
+Default: true (very permissive, revisit before using in prod)
+
+### input_paths
+
+Prefixes for the URLs allowed for reading
+
+### output_paths
+
+Prefixes for the URLs allowed for writing. Used by [Daemon](glossary.md#daemon), not used by [Webapi](glossary.md#webapi) (Webapi does not write results to files).
+
 ## daemon
 
-This section is required by [Webapi](glossary.md#daemon) only.
+This section is required by [Daemon](glossary.md#daemon) only.
+
+### message_verify
+
+Message signature verification config.
+
+#### mode
+
+off | permissive | require
+
+Default: empty (off, no signature is checked)
+
+#### public_keys
+
+Map of key ids (multiple keys can be used for rotation). For example: `{"key-1": "<base64-encoded pub key 1>", "key-2": "<base64-encoded pub key 2>"}`
+
+Default: empty
 
 ### thread_pool_size
+
 Number of threads processing messages consumed by the binary. Choose this setting according to your hardware environment specifics.
 
 Default: 5 threads
 
+### max_partition_keys_in_select
+
+Max number of partition keys used in SELECT queries for specific keys in index tables and SELECT queries for specific rowids in data tables - both extensively used in [lookup](./glossary.md#lookup) processors. Google "optimal number of partition keys in cassandra select query" for details.
+
+Default: 50
+
 ## zap_config
+
 Directly deserialized to [zap.Config](https://pkg.go.dev/go.uber.org/zap#Config)
 
 ## webapi
 
-This section is required by [Webapi](glossary.md#webapi) only.
+This section is required by [Webapi](glossary.md#webapi) only. Some parts of it (message signing) also used by the toolbelt. 
+
+### message_sign
+
+Message signing configuration
+
+#### active_kid
+
+Currently used key id. If empty, the message is not signed and is sent as raw wfmodel.Message, instead of msgsig.SignedEnvelope. The receiving part (the daemon) can handle both scenarios.
+
+Default: empty (no message signing)
+
+#### private_key
+
+Base64-encoded private key.
+
+Default: empty (no message signing)
 
 ### webapi_port
 Webapi uses this port for incomig HTTP requests.

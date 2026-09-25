@@ -42,9 +42,24 @@
     "url":"http://localhost:7654",
     "heartbeat_interval": 1000
   },
+  "access_policy": {
+    "allowed_schemes": ["file", "http", "https", "s3"],
+    "allow_private_hosts": true,
+    "input_paths": [
+      "/tmp/capi_in/",
+      "file:///tmp/capi_cfg/",
+      "https://raw.githubusercontent.com/capillariesio/capillaries/",
+      "s3://capillaries-testbucket/capi_in/",
+      "s3://capillaries-testbucket/capi_cfg/"
+    ],
+    "output_paths": [
+      "/tmp/capi_out/",
+      "s3://capillaries-testbucket/capi_out/"
+    ]
+  },
   "custom_processors": {
     "py_calc": {
-      "python_interpreter_path": "python",
+      "python_interpreter_path": "python3",
       "python_interpreter_params": [
         "-u",
         "-"
@@ -53,7 +68,12 @@
     "tag_and_denormalize": {}
   },
   "daemon": {
-    "thread_pool_size": 2
+    "message_verify": {
+      "mode": "permissive",
+      "public_keys": {"dummy-key-do-not-use-in-production-see-msgsig-test-go-for-details": "5tqw/Q6L9+sCUljNDTG3mhHY+vOOVWKI0EsPop8OSkg="}
+    },
+    "thread_pool_size": 2,
+    "max_partition_keys_in_select": 50
   },
   "log": {
     "level": "debug",

@@ -10,7 +10,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.1.18
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.100.0
 	github.com/capillariesio/capigraph v1.0.1
-	github.com/capillariesio/gocqlmem v1.0.0
+	github.com/capillariesio/gocqlmem v1.0.1
 	github.com/fraugster/parquet-go v0.12.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
@@ -26,6 +26,8 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
 )
+
+// replace github.com/capillariesio/gocqlmem => ../gocqlmem
 
 require (
 	github.com/aws/aws-sdk-go-v2/service/signin v1.0.10 // indirect
@@ -58,6 +60,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/kr/fs v0.1.0 // indirect
+	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/twmb/murmur3 v1.1.8 // indirect
 	go.uber.org/multierr v1.11.0 // indirect

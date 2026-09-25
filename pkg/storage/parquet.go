@@ -206,6 +206,32 @@ func ParquetReadString(val any, se *pgparquet.SchemaElement) (string, error) {
 	return string(typedVal), nil
 }
 
+// parquetTimestampToTime converts a raw millis/micros/nanos timestamp value to a UTC time.Time.
+// Modern writers (pyarrow/pandas default) emit only LogicalType.TIMESTAMP without the legacy
+// ConvertedType, so we must read the unit from LogicalType first and treat ConvertedType as a fallback.
+func parquetTimestampToTime(rawVal int64, se *pgparquet.SchemaElement) (time.Time, error) {
+	if se.LogicalType != nil && se.LogicalType.TIMESTAMP != nil && se.LogicalType.TIMESTAMP.Unit != nil {
+		unit := se.LogicalType.TIMESTAMP.Unit
+		switch {
+		case unit.MILLIS != nil:
+			return time.UnixMilli(rawVal).In(time.UTC), nil
+		case unit.MICROS != nil:
+			return time.UnixMicro(rawVal).In(time.UTC), nil
+		case unit.NANOS != nil:
+			return time.Unix(0, rawVal).In(time.UTC), nil
+		}
+	}
+	if se.ConvertedType != nil {
+		switch *se.ConvertedType {
+		case pgparquet.ConvertedType_TIMESTAMP_MILLIS:
+			return time.UnixMilli(rawVal).In(time.UTC), nil
+		case pgparquet.ConvertedType_TIMESTAMP_MICROS:
+			return time.UnixMicro(rawVal).In(time.UTC), nil
+		}
+	}
+	return sc.DefaultDateTime(), fmt.Errorf("cannot read parquet datetime, unsupported timestamp unit/converted type, schema %v", se)
+}
+
 func ParquetReadDateTime(val any, se *pgparquet.SchemaElement) (time.Time, error) {
 	if !isParquetDateTime(se) && !isParquetInt96Date(se) && !isParquetInt32Date(se) {
 		return sc.DefaultDateTime(), fmt.Errorf("cannot read parquet datetime, schema %v", se)
@@ -220,24 +246,10 @@ func ParquetReadDateTime(val any, se *pgparquet.SchemaElement) (time.Time, error
 			return time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC).AddDate(0, 0, int(typedVal)).In(time.UTC), nil
 		}
 
-		switch *se.ConvertedType {
-		case pgparquet.ConvertedType_TIMESTAMP_MILLIS:
-			return time.UnixMilli(int64(typedVal)).In(time.UTC), nil
-		case pgparquet.ConvertedType_TIMESTAMP_MICROS:
-			return time.UnixMicro(int64(typedVal)).In(time.UTC), nil
-		default:
-			return sc.DefaultDateTime(), fmt.Errorf("cannot read parquet datetime from int32, unsupported converted type, schema %v", se)
-		}
+		return parquetTimestampToTime(int64(typedVal), se)
 
 	case int64:
-		switch *se.ConvertedType {
-		case pgparquet.ConvertedType_TIMESTAMP_MILLIS:
-			return time.UnixMilli(typedVal).In(time.UTC), nil
-		case pgparquet.ConvertedType_TIMESTAMP_MICROS:
-			return time.UnixMicro(typedVal).In(time.UTC), nil
-		default:
-			return sc.DefaultDateTime(), fmt.Errorf("cannot read parquet datetime from int64, unsupported converted type, schema %v", se)
-		}
+		return parquetTimestampToTime(typedVal, se)
 
 	case [12]byte:
 		// Deprecated parquet int96 timestamp

@@ -37,7 +37,7 @@ func StartRun(envConfig *env.EnvConfig, logger *l.CapiLogger, mqSender mq.MqProd
 		return 0, err
 	}
 
-	script, _, err := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, scriptFilePath, paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
+	script, _, err := sc.NewScriptFromFiles(&envConfig.AccessPolicy.FetchPolicy, envConfig.CaPath, envConfig.PrivateKeys, scriptFilePath, paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
 	if err != nil {
 		return 0, err
 	}

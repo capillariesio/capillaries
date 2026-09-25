@@ -1,6 +1,7 @@
 package wfmodel
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 	"strings"
@@ -160,29 +161,18 @@ func NodeHistoryRowsToEvents(rows []map[string]any) ([]*NodeHistoryEvent, error)
 	nodeEvents = appendNodeEventsFromMap(nodeFailMap, nodeEvents)
 	nodeEvents = appendNodeEventsFromMap(nodeStopMap, nodeEvents)
 
+	// Must be a valid total order: equal elements have to compare 0, otherwise slices.SortFunc
+	// gets an inconsistent comparator (the previous code returned -1 for fully-equal elements)
+	// and may sort unpredictably. Tie-break all the way down to script_node/status so the
+	// ordering is deterministic for the status fold below.
 	slices.SortFunc(nodeEvents, func(l, r *NodeHistoryEvent) int {
-		switch {
-		case l.Ts.Before(r.Ts):
-			return -1
-		case l.Ts.After(r.Ts):
-			return 1
-		default:
-			switch {
-			case l.RunId < r.RunId:
-				return -1
-			case l.RunId > r.RunId:
-				return 1
-			default:
-				switch {
-				case l.WrittenByBatchIdx < r.WrittenByBatchIdx:
-					return -1
-				case l.WrittenByBatchIdx > r.WrittenByBatchIdx:
-					return 1
-				default:
-					return -1
-				}
-			}
-		}
+		return cmp.Or(
+			l.Ts.Compare(r.Ts),
+			cmp.Compare(l.RunId, r.RunId),
+			cmp.Compare(l.WrittenByBatchIdx, r.WrittenByBatchIdx),
+			cmp.Compare(l.ScriptNode, r.ScriptNode),
+			cmp.Compare(l.Status, r.Status),
+		)
 	})
 
 	return nodeEvents, nil

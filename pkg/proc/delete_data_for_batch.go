@@ -2,41 +2,34 @@ package proc
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/db"
-	"github.com/capillariesio/capillaries/pkg/evalcapi"
 	"github.com/capillariesio/capillaries/pkg/l"
 	"github.com/capillariesio/capillaries/pkg/sc"
 )
 
 const HarvestForDeleteRowsetSize = 1000 // Do not let users tweak it, maybe too sensitive
 
-func initRowidsAndKeysToDelete(rowCount int, indexesMap sc.IdxDefMap) ([]int64, map[string][]string) {
-	rowIdsToDelete := make([]int64, rowCount)
-	uniqueKeysToDeleteMap := map[string][]string{} // unique_idx_name -> list_of_keys_to_delete
-	for idxName, idxDef := range indexesMap {
-		if idxDef.Uniqueness == sc.IdxUnique {
-			uniqueKeysToDeleteMap[idxName] = make([]string, rowCount)
-		}
-	}
-	return rowIdsToDelete, uniqueKeysToDeleteMap
-}
-
-func populateUniqueKeysToDeleteMap(uniqueKeysToDeleteMap map[string][]string, indexesMap sc.IdxDefMap, rowIdsToDeleteCount int, tableRecord map[string]any) error {
+func populateUniqueKeysToDeleteMap(uniqueKeysToDeleteMap map[string][]*keyRowidPair, indexesMap sc.IdxDefMap, rowIdsToDeleteCount int, tableRecord map[string]any, rowid int64) error {
 	for idxName, idxDef := range indexesMap {
 		if _, ok := uniqueKeysToDeleteMap[idxName]; ok {
 			var err error
-			uniqueKeysToDeleteMap[idxName][rowIdsToDeleteCount], err = sc.BuildKey(tableRecord, idxDef)
+			var pair keyRowidPair
+			pair.rowid = rowid
+			pair.key, err = sc.BuildKey(tableRecord, idxDef)
 			if err != nil {
 				return fmt.Errorf("while deleting previous batch attempt leftovers, cannot build a key for index %s from [%v]: %s", idxName, tableRecord, err.Error())
 			}
-			if len(uniqueKeysToDeleteMap[idxName][rowIdsToDeleteCount]) == 0 {
+			if len(pair.key) == 0 {
 				return fmt.Errorf("invalid empty key calculated for %v", tableRecord)
 			}
+			uniqueKeysToDeleteMap[idxName][rowIdsToDeleteCount] = &pair
 		}
 	}
 	return nil
@@ -62,6 +55,7 @@ func deleteDataRecordByRowid(pCtx *ctx.MessageProcessingContext, rowids []int64)
 			}
 		}
 	} else {
+		// TODO: consider splitting it to avoid massive IN() on a partition key that may kick in quorum mechanism
 		q := (&cql.QueryBuilder{}).
 			Keyspace(pCtx.Msg.DataKeyspace).
 			CondInInt("rowid", rowids).
@@ -71,6 +65,11 @@ func deleteDataRecordByRowid(pCtx *ctx.MessageProcessingContext, rowids []int64)
 		}
 	}
 	return nil
+}
+
+type keyRowidPair struct {
+	key   string
+	rowid int64
 }
 
 // To test it, see comments in the end of RunCreateTableRelForBatch
@@ -83,18 +82,30 @@ func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.Messag
 		return nil
 	}
 
-	logger.WarnCtx(pCtx, "deleting data records for %s...", pCtx.Msg.FullBatchId())
+	keysToDeleteMap := map[string][]*keyRowidPair{} // idx_name -> list_of_key+rowid_pair_to_delete
+	for idxName := range pCtx.CurrentScriptNode.TableCreator.Indexes {
+		keysToDeleteMap[idxName] = nil
+	}
+	logger.WarnCtx(pCtx, "deleting data and idx records for %s, %d indexes detected: [%s]", pCtx.Msg.FullBatchId(), len(keysToDeleteMap), strings.Join(slices.Collect(maps.Keys(keysToDeleteMap)), ","))
 
 	deleteStartTime := time.Now()
+	totalDataRowsDeleted := 0
+	totalIdxRowsDeleted := 0
 
-	// Retrieve ALL records from data table (we cannot filter by batch_idx, this is Cassandra),
-	// retrieve all fields that are involved in building unique indexes.
-	// It may take a while, but there is no other way.
-	uniqueIdxFieldRefs := pCtx.CurrentScriptNode.GetUniqueIndexesFieldRefs()
+	// IMPORTANT!
+	// Here, we potentially have to select ALL rows (not just rows added for this batch), which may take forever.
+	// If we want to select by batch_idx only, we should make it partition key.
+	// but in this case, we will not be able to use token(rowid), which we heavily rely on when going through data records (see selectBatchFromTableByToken).
+	// And if we add rowid to the partition key to be able to query rows by token(batch_idx,rowid), then we lose the possibility to query just be batch_idx
+	// because Cassandra cannot filter by partial partition key.
+	// So, for a billion-rows scenarios, resort to the no-rerun policy, and re-run the whole node when needed.
+
+	// retrieve all fields that are involved in building unique indexes, and batch_idx - we will manually filter by it
+	idxFieldRefs := pCtx.CurrentScriptNode.GetAllIndexesFieldRefs()
 	rs := NewRowsetFromFieldRefs(
 		sc.FieldRefs{sc.RowidFieldRef(pCtx.CurrentScriptNode.TableCreator.Name)},
-		*uniqueIdxFieldRefs,
-		sc.FieldRefs{sc.FieldRef{TableName: pCtx.CurrentScriptNode.TableCreator.Name, FieldName: "batch_idx", FieldType: evalcapi.FieldTypeInt}})
+		*idxFieldRefs,
+		sc.FieldRefs{sc.BatchIdxFieldRef(pCtx.CurrentScriptNode.TableCreator.Name)})
 
 	var pageState []byte
 	var err error
@@ -115,7 +126,10 @@ func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.Messag
 		}
 
 		// Prepare the storage for rowids and keys
-		rowIdsToDelete, uniqueKeysToDeleteMap := initRowidsAndKeysToDelete(rs.RowCount, pCtx.CurrentScriptNode.TableCreator.Indexes)
+		rowIdsToDelete := make([]int64, rs.RowCount)
+		for uniqueIdxName := range keysToDeleteMap {
+			keysToDeleteMap[uniqueIdxName] = make([]*keyRowidPair, rs.RowCount)
+		}
 
 		rowIdsToDeleteCount := 0
 		for rowIdx := 0; rowIdx < rs.RowCount; rowIdx++ {
@@ -137,49 +151,56 @@ func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.Messag
 			}
 
 			// For each idx, build the key and add it to the uniqueKeysToDeleteMap
-			if err := populateUniqueKeysToDeleteMap(uniqueKeysToDeleteMap,
+			if err := populateUniqueKeysToDeleteMap(keysToDeleteMap,
 				pCtx.CurrentScriptNode.TableCreator.Indexes,
 				rowIdsToDeleteCount,
-				tableRecord); err != nil {
+				tableRecord,
+				rowId); err != nil {
 				return err
 			}
 			rowIdsToDeleteCount++
 		}
 
 		if rowIdsToDeleteCount > 0 {
-
 			// Trim unused empty rowid slots
 			rowIdsToDelete = rowIdsToDelete[:rowIdsToDeleteCount]
 
+			// Ordering matters for crash recovery: delete INDEX records by key FIRST, then DATA records by rowid.
+			// If we crash between the two, we are left with orphan DATA rows (which the full data-table scan above
+			// will find and clean up on the next rerun) rather than orphan INDEX rows (which point to data rows that
+			// no longer exist and cannot be discovered by scanning the data table, permanently breaking uniqueness).
+			for idxName, idxKeysToDelete := range keysToDeleteMap {
+				// Trim unused empty key slots
+				trimmedIdxKeysToDelete := idxKeysToDelete[:rowIdsToDeleteCount]
+
+				logger.DebugCtx(pCtx, "deleting %d idx %s records for %s: %v", len(trimmedIdxKeysToDelete), idxName, pCtx.Msg.FullBatchId(), trimmedIdxKeysToDelete)
+				if err := deleteIdxRecordByKeyAndRowid(pCtx, idxName, trimmedIdxKeysToDelete); err != nil {
+					return err
+				}
+				totalIdxRowsDeleted += len(trimmedIdxKeysToDelete)
+			}
+
 			// Delete data records by rowid
-			logger.DebugCtx(pCtx, "deleting %d data records from %s: %v", len(rowIdsToDelete), pCtx.Msg.FullBatchId(), rowIdsToDelete)
+			logger.DebugCtx(pCtx, "deleting %d data records for %s: %v", len(rowIdsToDelete), pCtx.Msg.FullBatchId(), rowIdsToDelete)
 			if err := deleteDataRecordByRowid(pCtx, rowIdsToDelete); err != nil {
 				return err
 			}
-
-			// Delete index records by key
-			logger.InfoCtx(pCtx, "deleted %d records from data table for %s, now will delete from %d indexes", len(rowIdsToDelete), pCtx.Msg.FullBatchId(), len(uniqueKeysToDeleteMap))
-			for idxName, idxKeysToDelete := range uniqueKeysToDeleteMap {
-				// Trim unused empty key slots
-				trimmedIdxKeysToDelete := idxKeysToDelete[:rowIdsToDeleteCount]
-				logger.DebugCtx(pCtx, "deleting %d idx %s records from %d/%s idx %s for batch_idx %d: '%s'", len(rowIdsToDelete), idxName, pCtx.Msg.RunId, pCtx.Msg.TargetNodeName, idxName, pCtx.Msg.BatchIdx, strings.Join(trimmedIdxKeysToDelete, `','`))
-				if err := deleteIdxRecordByKey(pCtx, idxName, trimmedIdxKeysToDelete); err != nil {
-					return err
-				}
-			}
-
-			// TODO: assuming Delete won't interfere with paging used above;
-			// do we need to reset the pageState? After all, we have deleted some records from that table.
-			// On the other hand, if we reset it, we will have to walk through thousands of rows that do not belong to this batch, again.
+			totalDataRowsDeleted += len(rowIdsToDelete)
 		}
 
 		// Amazon Keyspaces: do not rely on the retrieved row count, use pagestate
-		if len(pageState) == 0 {
+		if pCtx.CassandraEngine == db.CassandraEngineAmazonKeyspaces && len(pageState) == 0 {
 			break
 		}
+
+		// Reset pageState, DELETE above messed with it. Yes, we will have to walk through many rows from other batches AGAIN, but this is the price we have to pay
+		if rowIdsToDeleteCount > 0 {
+			pageState = []byte{}
+		}
+
 	}
 
-	logger.DebugCtx(pCtx, "deleted data records for %s, elapsed %v", pCtx.Msg.FullBatchId(), time.Since(deleteStartTime))
+	logger.WarnCtx(pCtx, "deleted %d data and %d idx records for %s, elapsed %v", totalDataRowsDeleted, totalIdxRowsDeleted, pCtx.Msg.FullBatchId(), time.Since(deleteStartTime))
 
 	return nil
 }

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/api"
+	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/custom/pycalc"
 	"github.com/capillariesio/capillaries/pkg/custom/taganddenormalize"
 	"github.com/capillariesio/capillaries/pkg/db"
@@ -114,7 +115,7 @@ func validateScript(envConfig *env.EnvConfig) int {
 		return 0
 	}
 
-	script, _, err := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, *scriptFilePath, *paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
+	script, _, err := sc.NewScriptFromFiles(&envConfig.AccessPolicy.FetchPolicy, envConfig.CaPath, envConfig.PrivateKeys, *scriptFilePath, *paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
@@ -151,7 +152,12 @@ func startRun(envConfig *env.EnvConfig, logger *l.CapiLogger) int {
 	if envConfig.MqType == string(mq.MqClientCapimq) {
 		mqProducer = mq.NewCapimqProducer(envConfig.CapiMqClient.URL)
 	} else {
-		mqProducer = mq.NewAmqp10Producer(envConfig.Amqp10.URL, envConfig.Amqp10.Address)
+		signer, err := envConfig.Webapi.MessageSign.NewSigner()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "cannot configure message signer: %s\n", err.Error())
+			return 1
+		}
+		mqProducer = mq.NewAmqp10Producer(envConfig.Amqp10.URL, envConfig.Amqp10.Address, signer)
 	}
 
 	err = mqProducer.Open()
@@ -311,7 +317,7 @@ func getTableCql(envConfig *env.EnvConfig) int {
 		return 0
 	}
 
-	script, _, err := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, *scriptFilePath, *paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
+	script, _, err := sc.NewScriptFromFiles(&envConfig.AccessPolicy.FetchPolicy, envConfig.CaPath, envConfig.PrivateKeys, *scriptFilePath, *paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
@@ -340,7 +346,7 @@ func getRunStatusDiagram(envConfig *env.EnvConfig) int {
 		return 1
 	}
 
-	script, _, err := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, *scriptFilePath, *paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
+	script, _, err := sc.NewScriptFromFiles(&envConfig.AccessPolicy.FetchPolicy, envConfig.CaPath, envConfig.PrivateKeys, *scriptFilePath, *paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
@@ -412,7 +418,8 @@ func checkQueueConnectivity(envConfig *env.EnvConfig) int {
 	var mqUrl string
 	var mqProducer mq.MqProducer
 	if envConfig.Amqp10.URL != "" && envConfig.Amqp10.Address != "" {
-		mqProducer = mq.NewAmqp10Producer(envConfig.Amqp10.URL, envConfig.Amqp10.Address)
+		// Connectivity check only - no messages are sent, so no signer is needed.
+		mqProducer = mq.NewAmqp10Producer(envConfig.Amqp10.URL, envConfig.Amqp10.Address, nil)
 		mqUrl = envConfig.Amqp10.URL
 	} else if envConfig.CapiMqClient.URL != "" {
 		mqProducer = mq.NewCapimqProducer(envConfig.CapiMqClient.URL)
@@ -661,7 +668,7 @@ func runNode(envConfig *env.EnvConfig, logger *l.CapiLogger, nodeName string, ru
 	logger.PushF("toolbelt.runNode")
 	defer logger.PopF()
 
-	script, _, err := sc.NewScriptFromFiles(envConfig.CaPath, envConfig.PrivateKeys, scriptFilePath, paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
+	script, _, err := sc.NewScriptFromFiles(&envConfig.AccessPolicy.FetchPolicy, envConfig.CaPath, envConfig.PrivateKeys, scriptFilePath, paramsFilePath, envConfig.CustomProcessorDefFactoryInstance, envConfig.CustomProcessorsSettings)
 	if err != nil {
 		return 0, err
 	}
@@ -737,7 +744,7 @@ func runNode(envConfig *env.EnvConfig, logger *l.CapiLogger, nodeName string, ru
 			BatchIdx:        int16(i),
 			BatchesTotal:    int16(len(intervals))}
 
-		if acknowledgerCmd := api.ProcessDataBatchMsg(envConfig, logger, &msg, 0, nil); acknowledgerCmd != mq.AcknowledgerCmdAck {
+		if acknowledgerCmd := api.ProcessDataBatchMsg(envConfig, logger, &msg, 0, nil, ctx.CreateProductionTableInserterProperties()); acknowledgerCmd != mq.AcknowledgerCmdAck {
 			return 0, fmt.Errorf("processor returned acknowledgerCmd %d, assuming failure, check the logs", acknowledgerCmd)
 		}
 		logger.Info("BatchComplete: [%d,%d], %.3fs", intervals[i][0], intervals[i][1], time.Since(now).Seconds())

@@ -100,11 +100,13 @@ func (instr *FileInserter) csvFileInserterWorker(logger *l.CapiLogger) {
 					stringVal = assertedVal.Format(instr.FileCreator.Columns[i].Csv.Format)
 				case decimal.Decimal:
 					stringVal = fmt.Sprintf(instr.FileCreator.Columns[i].Csv.Format, assertedVal.StringFixed(2))
+				case string:
+					stringVal = strings.ReplaceAll(assertedVal, `"`, `""`)
 				default:
 					stringVal = fmt.Sprintf(instr.FileCreator.Columns[i].Csv.Format, batch.Rows[rowIdx][i])
 				}
 
-				isQuote := strings.Contains(stringVal, ",")
+				isQuote := strings.Contains(stringVal, ",") || strings.Contains(stringVal, "\"")
 				if isQuote {
 					b.WriteString("\"")
 				}

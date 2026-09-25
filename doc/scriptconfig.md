@@ -56,7 +56,7 @@ Default: dependency policy marked as [is_default](#is_default)
 [Node](glossary.md#script-node) description
 
 ### rerun_policy
-- rerun: let the daemon (same instance or another) execute this batch again (default)
+- rerun: let the daemon (same instance or another) execute this batch again (default); please note that batch clean-up requires full table data traversal (not just batch rows), so if your node creates a table with, say a million data rows consider "fail" rerun policy for such node and manually re-running runs instead  
 - fail: give up and mark this node as failed
 
 With policy set to "rerun", batch re-run happens automatically when the binary handling the message loses connection to the message broker after a message is consumed, but before it is acknowledged. In such a case, the message broker re-routes the message again, and it ends up being consumed by another (or by the same) message handler binary. In this scenario, the handler that handles the re-routed message needs to make sure that there are no leftovers of the first message handler activity in [data tables](glossary.md#data-table) and [index tables](glossary.md#index-table).
@@ -169,7 +169,7 @@ File writer only: array of file writer [column definitions](glossary.md#file-wri
 
 #### w.having
 
-[Go expression](glossary.md#go-expression) used as a filter before the row/line is about to be written to the target table/file. Allows writer (`w.*`) fields (for table writer) and columns (for file writers) only (no `r.*` or `p.*` fields allowed).
+[Go expression](glossary.md#go-expressions) used as a filter before the row/line is about to be written to the target table/file. Allows writer (`w.*`) fields (for table writer) and columns (for file writers) only (no `r.*` or `p.*` fields allowed).
 
 #### w.table_options
 

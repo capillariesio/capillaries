@@ -5,9 +5,9 @@ source ../common/util.sh
 quick_or_big=$1
 fs_or_s3=$2
 
-if [[ "$quick_or_big" != "quick" && "$quick_or_big" != "big" || \
+if [[ "$quick_or_big" != "quick" && "$quick_or_big" != "big" && "$quick_or_big" != "api" || \
   "$fs_or_s3" != "fs" && "$fs_or_s3" != "s3" ]]; then
-  echo $(basename "$0") requires 2 parameters:  'quick|big' 'fs|s3'
+  echo $(basename "$0") requires 2 parameters:  'quick|big|api' 'fs|s3'
   exit 1
 fi
 
@@ -63,16 +63,26 @@ if [[ "$quick_or_big" = "big" ]]; then
 
   echo "Copying out files to "$outDir
   cp ../../data/out/fannie_mae/fannie_mae_bigtest/* $outDir/
-else
+elif [[ "$quick_or_big" = "quick" ]]; then
   echo "Copying config files to "$cfgDir
   cp ../../data/cfg/fannie_mae/script.json $cfgDir/
   cp ../../data/cfg/fannie_mae/script_params_quick_*.json $cfgDir/
 
   echo "Copying in files to "$inDir
-  cp ../../data/in/fannie_mae/* $inDir/
+  cp ../../data/in/fannie_mae/fannie_mae_quicktest/* $inDir/
 
   echo "Copying out files to "$outDir
   cp ../../data/out/fannie_mae/fannie_mae_quicktest/* $outDir/
+elif [[ "$quick_or_big" = "api" ]]; then
+  echo "Copying config files to "$cfgDir
+  cp ../../data/cfg/fannie_mae/script_api.json $cfgDir/
+  cp ../../data/cfg/fannie_mae/script_params_api.json $cfgDir/
+
+  echo "Copying in files to "$inDir
+  cp ../../data/in/fannie_mae/fannie_mae_apitest/* $inDir/
+
+  echo "Copying out files to "$outDir
+  cp ../../data/out/fannie_mae/fannie_mae_apitest/* $outDir/
 fi
 
 if [[ "$fs_or_s3" == "s3" ]]; then
