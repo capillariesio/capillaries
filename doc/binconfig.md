@@ -133,7 +133,7 @@ Default: 5 threads
 
 Max number of partition keys used in SELECT queries for specific keys in index tables and SELECT queries for specific rowids in data tables - both extensively used in [lookup](./glossary.md#lookup) processors. Google "optimal number of partition keys in cassandra select query" for details.
 
-Default: 5
+Default: 50
 
 ## zap_config
 
