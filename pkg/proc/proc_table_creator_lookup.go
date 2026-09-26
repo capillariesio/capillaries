@@ -260,7 +260,7 @@ func checkRunCreateTableRelForBatchSanity(node *sc.ScriptNodeDef, readerNodeRunI
 	return nil
 }
 
-// runRelLookupForLeftPageParallel performs the lookup for a single left-side page (rsLeft).
+// processLookupsForKeys performs the lookup for a single left-side page (rsLeft).
 //
 // It replaces the former "split keys into chunks + IN(...) paged selects" approach with two nested,
 // size-limited goroutine pools:
@@ -282,7 +282,7 @@ func checkRunCreateTableRelForBatchSanity(node *sc.ScriptNodeDef, readerNodeRunI
 //
 // It returns the number of non-grouped rows written during the lookup (grouped and childless
 // left-join rows are written by the caller afterwards, single-threaded).
-func runRelLookupForLeftPageParallel(
+func processLookupsForKeys(
 	envConfig *env.EnvConfig,
 	logger *l.CapiLogger,
 	pCtx *ctx.MessageProcessingContext,
@@ -296,38 +296,23 @@ func runRelLookupForLeftPageParallel(
 	eCtxMap map[int64]map[string]*eval.EvalCtx,
 	instr *TableInserter) (int64, error) {
 
-	logger.PushF("proc.runRelLookupForLeftPageParallel")
+	logger.PushF("proc.processLookupsForKeys")
 	defer logger.PopF()
 
 	cancelCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// First error wins; it also cancels cancelCtx so all workers wind down promptly.
-	// var firstErr error
-	// var errOnce sync.Once
-	// setErr := func(err error) {
-	// 	errOnce.Do(func() {
-	// 		firstErr = err
-	// 		cancel()
-	// 	})
-	// }
-
-	var inserterMu sync.Mutex // Serializes instr.add path and rowsWritten
 	var rowsWritten int64
 
-	var heartbeatMu sync.Mutex // pCtx.SendHeartbeat mutates pCtx state, guard concurrent callers
-	sendHeartbeat := func() {
-		heartbeatMu.Lock()
-		pCtx.SendHeartbeat()
-		heartbeatMu.Unlock()
-	}
-
 	// processRightDataRow handles one data-table row (0 or 1 per rowid), reusing the exact same
-	// grouped vs non-grouped logic as the sequential implementation. keyMu serializes access to this
-	// key's eCtxMap/leftRowFoundRightLookup entries.
-	processRightDataRow := func(workerLogger *l.CapiLogger, rsRight *Rowset, leftRowIdxs []int, keyMu *sync.Mutex) error {
+	// grouped vs non-grouped logic as the sequential implementation.
+	processRightDataRow := func(workerLogger *l.CapiLogger, rsRight *Rowset, leftRowIdxs []int) error {
 		workerLogger.PushF("proc.runRelLookupForLeftPageParallel.processRightDataRow")
 		defer workerLogger.PopF()
+
+		// if pCtx.Msg.BatchIdx == 0 {
+		// 	return errors.New("processRightDataRow fake error 2")
+		// }
 
 		rightRowIdx := 0
 
@@ -343,8 +328,6 @@ func runRelLookupForLeftPageParallel(
 		if node.Lookup.IsGroup {
 			// Find correspondent rows from rsLeft, merge left and right and call group eval
 			// eCtxMap[leftRowid] for each output field, but do not write them yet - there may be more.
-			keyMu.Lock()
-			defer keyMu.Unlock()
 			for _, leftRowIdx := range leftRowIdxs {
 				leftRowFoundRightLookup[leftRowIdx] = true
 				if err := evalRowGroupedFields(node.TableCreator.Fields, rsLeft, leftRowIdx, rsRight, rightRowIdx, eCtxMap); err != nil {
@@ -357,9 +340,7 @@ func runRelLookupForLeftPageParallel(
 		// Non-group, and the right row was found for the parent left row(s).
 		// Find correspondent rows from rsLeft, merge left and right and call row-level eval.
 		for _, leftRowIdx := range leftRowIdxs {
-			keyMu.Lock()
 			leftRowFoundRightLookup[leftRowIdx] = true
-			keyMu.Unlock()
 
 			tableRecord, err := produceNonGroupedTableRecordForLeftWithChildren(node, rsLeft, leftRowIdx, rsRight, rightRowIdx)
 			if err != nil {
@@ -368,12 +349,10 @@ func runRelLookupForLeftPageParallel(
 
 			// Help GC
 			indexKeyMap := map[string]string{}
-			inserterMu.Lock()
 			err = checkHavingAddRecordAndSaveBatchIfNeeded(workerLogger, node, tableRecord, indexKeyMap, instr)
 			if err == nil {
 				rowsWritten++
 			}
-			inserterMu.Unlock()
 			if err != nil {
 				return fmt.Errorf("cannot checkHavingAddRecordAndSaveBatchIfNeeded, node %s: %s", node.Name, err.Error())
 			}
@@ -381,13 +360,13 @@ func runRelLookupForLeftPageParallel(
 		return nil
 	}
 
-	// handleKey pages through all rowids of a single key and dispatches them to a per-key inner pool.
-	handleKey := func(workerLogger *l.CapiLogger, rsIdx *Rowset, key string) error {
-		workerLogger.PushF("proc.runRelLookupForLeftPageParallel.handleKey")
+	// processKey pages through all rowids of a single key and dispatches them to a per-key inner pool.
+	processKey := func(workerLogger *l.CapiLogger, rsIdx *Rowset, key string) error {
+		workerLogger.PushF("proc.runRelLookupForLeftPageParallel.processKey")
 		defer workerLogger.PopF()
 
 		leftRowIdxs := keyToLeftRowIdxMap[key]
-		var keyMu sync.Mutex // Serializes this key's eCtxMap/leftRowFoundRightLookup access
+		var processRightDataRowMux sync.Mutex // Serializes this key's eCtxMap/leftRowFoundRightLookup access
 
 		var firstSelectRightRowErr error
 		var firstSelectRightRowErrMux sync.Mutex
@@ -405,7 +384,6 @@ func runRelLookupForLeftPageParallel(
 
 			if err := rsSingleRight.InitRows(1); err != nil {
 				firstSelectRightRowErr = err
-				cancel()
 				break
 			}
 
@@ -415,12 +393,9 @@ func runRelLookupForLeftPageParallel(
 				defer logger.Close()
 
 				for rowid := range rowidCh {
-					select {
-					case <-cancelCtx.Done():
-						return
-					default:
+					if firstSelectRightRowErr != nil {
+						break
 					}
-
 					if err := selectDataRowByRowid(logger, pCtx, rs, node.Lookup.TableCreator.Name, lookupNodeRunId, rowid); err != nil {
 						firstSelectRightRowErrMux.Lock()
 						if firstSelectRightRowErr == nil {
@@ -429,7 +404,10 @@ func runRelLookupForLeftPageParallel(
 						firstSelectRightRowErrMux.Unlock()
 					} else {
 						if rs.RowCount > 0 {
-							if err := processRightDataRow(logger, rs, leftRowIdxs, &keyMu); err != nil {
+							processRightDataRowMux.Lock()
+							err = processRightDataRow(logger, rs, leftRowIdxs)
+							processRightDataRowMux.Unlock()
+							if err != nil {
 								firstSelectRightRowErrMux.Lock()
 								if firstSelectRightRowErr == nil {
 									firstSelectRightRowErr = fmt.Errorf("cannot process right data row %s/%d, node %s: %s", key, rowid, node.Name, err.Error())
@@ -445,12 +423,6 @@ func runRelLookupForLeftPageParallel(
 		var pageState []byte
 		var selectRowidsByKeyError error
 		for {
-			select {
-			case <-cancelCtx.Done():
-				break
-			default:
-			}
-
 			var err error
 			pageState, err = selectRowidsFromIdxTablePagedByKey(workerLogger, pCtx, rsIdx, node.Lookup.IndexName, lookupNodeRunId, node.Lookup.IdxReadBatchSize, pageState, key)
 			if err != nil {
@@ -460,14 +432,11 @@ func runRelLookupForLeftPageParallel(
 
 			for i := 0; i < rsIdx.RowCount; i++ {
 				rowid := *((*rsIdx.Rows[i])[rsIdx.FieldsByFieldName["rowid"]].(*int64))
-				select {
-				case rowidCh <- rowid:
-				case <-cancelCtx.Done():
-					break
-				}
+				rowidCh <- rowid
 			}
 
-			sendHeartbeat()
+			// This function is thread-safe
+			pCtx.SendHeartbeat()
 
 			// For Cassandra we could rely on rsIdx.RowCount, but for Amazon Keyspaces gocql returns
 			// only a fraction of records page after page until page state is empty.
@@ -519,17 +488,13 @@ func runRelLookupForLeftPageParallel(
 			rsIdx := NewRowsetFromFieldRefs(sc.FieldRefs{sc.RowidFieldRef(node.Lookup.IndexName)})
 
 			for key := range keysCh {
-				select {
-				case <-cancelCtx.Done():
-					return
-				default:
-				}
-				if err := handleKey(logger, rsIdx, key); err != nil {
+				if err := processKey(logger, rsIdx, key); err != nil {
 					firstHandleKeyErrMux.Lock()
 					if firstHandleKeyErr == nil {
 						firstHandleKeyErr = err
 					}
 					firstHandleKeyErrMux.Unlock()
+					break
 				}
 			}
 		}(l.NewLoggerFromLogger(logger))
@@ -645,7 +610,7 @@ func runCreateTableRelForBatch(envConfig *env.EnvConfig,
 		// the concurrency model. Non-grouped rows are written inside; grouped and childless left-join
 		// rows are written by the single-threaded epilogue below.
 		lookupStartTime := time.Now()
-		rowsWrittenInLookup, err := runRelLookupForLeftPageParallel(envConfig,
+		rowsWrittenInLookup, err := processLookupsForKeys(envConfig,
 			logger,
 			pCtx,
 			node,

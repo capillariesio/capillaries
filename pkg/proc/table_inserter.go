@@ -69,6 +69,7 @@ type TableInserter struct {
 	PCtx                         *ctx.MessageProcessingContext
 	TableCreator                 *sc.TableCreatorDef
 	RecordsIn                    chan WriteChannelItem // Channel to pass records from the main function like RunCreateTableForBatch, usig add(), to TableInserter
+	RecordsInMux                 sync.Mutex
 	RecordWrittenStatuses        chan error
 	MachineHash                  int64
 	NumWorkers                   int
@@ -251,9 +252,16 @@ func (instr *TableInserter) startDrainer() {
 			case <-timeoutChannel:
 				err = fmt.Errorf("got a timeout while draining, records sent %d, processed %d, timeout %d ms", instr.RecordsSent, instr.RecordsProcessed, instr.MaxAllowedRowInsertionTimeMs)
 				errorsFound = append(errorsFound, err.Error())
+				// Not all records that we were planning for were sent to inserter.
+				// Now select all while instr.RecordsSent > instr.RecordsProcessed and finish
+				stillSending = false
 			case err = <-instr.DrainerCancelSignal:
 				errorsFound = append(errorsFound, err.Error())
+				// Not all records that we were planning for were sent to inserter.
+				// Now select all while instr.RecordsSent > instr.RecordsProcessed and finish
+				stillSending = false
 			case <-instr.DrainerDoneSignal:
+				// All records that we were planning for were sent to inserter.
 				// Now select all while instr.RecordsSent > instr.RecordsProcessed and finish
 				stillSending = false
 			}
@@ -326,9 +334,11 @@ func (instr *TableInserter) buildIndexKeys(tableRecord TableRecord, indexKeyMap 
 
 func (instr *TableInserter) add(tableRecord TableRecord, indexKeyMap map[string]string) {
 
+	instr.RecordsInMux.Lock()
 	// Do not reuse maps, make GC's job easier
 	instr.RecordsIn <- WriteChannelItem{TableRecordItems: buildTableRecordItems(tableRecord), IndexKeyItems: buildIndexKeyItems(indexKeyMap)}
 	instr.RecordsSent++
+	instr.RecordsInMux.Unlock()
 }
 
 func newDataQueryBuilder(keyspace string, tableRecordItems []TableRecordItem, batchIdx int16) (*cql.QueryBuilder, error) {

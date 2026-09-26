@@ -26,6 +26,10 @@ func selectDataRowByRowid(logger *l.CapiLogger,
 	logger.PushF("proc.selectDataRowByRowid")
 	defer logger.PopF()
 
+	// if pCtx.Msg.BatchIdx == 0 {
+	// 	return errors.New("selectDataRowByRowid fake error 1")
+	// }
+
 	// rowid is unique -> zero or one row; keep the rowset statically sized to a single row
 	if err := rs.InitRows(1); err != nil {
 		return err
@@ -155,6 +159,10 @@ func selectRowidsFromIdxTablePagedByKey(logger *l.CapiLogger,
 
 	logger.PushF("proc.selectRowidsFromIdxTablePagedByKey")
 	defer logger.PopF()
+
+	// if pCtx.Msg.BatchIdx == 0 {
+	// 	return []byte{}, errors.New("selectRowidsFromIdxTablePagedByKey fake error 3")
+	// }
 
 	if err := rs.InitRows(batchSize); err != nil {
 		return nil, err
