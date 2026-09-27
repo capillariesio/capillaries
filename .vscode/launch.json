@@ -81,6 +81,25 @@
             ]
         },
         {
+            "name": "Generate lookup bigtest heavykey data",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "cwd": "${workspaceFolder}/test/code/lookup",
+            "program": "${workspaceFolder}/test/code/lookup/generate_data.go",
+            "args": [
+                "-formats=parquet",
+                "-items=100000",
+                "-products=100",
+                "-sellers=200",
+                "-script_params_path=/tmp/capi_cfg/lookup_bigtest/script_params_big_fs_one.json",
+                "-in_root=/tmp/capi_in/lookup_bigtest",
+                "-out_root=/tmp/capi_out/lookup_bigtest",
+                "-split_orders=1",
+                "-split_items=100"
+            ]
+        },
+        {
             "name": "Daemon",
             "type": "go",
             "request": "launch",
