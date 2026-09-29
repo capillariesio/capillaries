@@ -4,10 +4,13 @@ source ../common/util.sh
 
 quick_or_big=$1
 fs_or_s3=$2
+light_or_heavy=$3
 
+echo $1 $2 $3
 if [[ "$quick_or_big" != "quick" && "$quick_or_big" != "big" || \
-  "$fs_or_s3" != "fs" && "$fs_or_s3" != "s3" ]]; then
-  echo $(basename "$0") requires 2 parameters:  'quick|big' 'fs|s3'
+  "$fs_or_s3" != "fs" && "$fs_or_s3" != "s3" || \
+  "$light_or_heavy" != "light" && "$light_or_heavy" != "heavy" ]]; then
+  echo $(basename "$0") requires 3 parameters:  'quick|big' 'fs|s3' 'light|heavy'
   exit 1
 fi
 
@@ -51,7 +54,7 @@ if [[ "$quick_or_big" = "big" ]]; then
 
   echo "Generating bigtest data from quicktest data..."
   # 100k items is a decent "quick" bigtest
-  go run ./generate_data.go -formats=parquet -items=100000 -products=100 -sellers=200 -script_params_path=$cfgDir/script_params_big_fs_one.json -in_root=$inDir -out_root=$outDir -split_orders=10 -split_items=100
+  go run ./generate_data.go -formats=parquet -items=100000 -products=100 -sellers=200 -keyweight=$light_or_heavy -script_params_path=$cfgDir/script_params_big_fs_one.json -in_root=$inDir -out_root=$outDir -split_orders=10 -split_items=100
   if [ "$?" -ne "0" ]; then
     exit 1
   fi

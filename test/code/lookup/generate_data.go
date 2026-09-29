@@ -93,17 +93,70 @@ type ScriptParams struct {
 	DefaultOrderItemValue          decimal.Decimal
 }
 
+func createCsvOrdersFile(finalFilePath string) *os.File {
+	fCsv, err := os.Create(finalFilePath + ".csv")
+	if err != nil {
+		log.Fatalf("cannot create in file [%s]: %s", finalFilePath, err.Error())
+	}
+	if _, err := fCsv.WriteString("order_id,customer_id,order_status,order_purchase_timestamp,order_approved_at,order_delivered_carrier_date,order_delivered_customer_date,order_estimated_delivery_date\n"); err != nil {
+		log.Fatalf("cannot write file [%s] header line: [%s]", finalFilePath, err.Error())
+	}
+	return fCsv
+}
+
+func createParquetOrderFile(finalFilePath string) (*os.File, *storage.ParquetWriter) {
+	fParquet, err := os.Create(finalFilePath + ".parquet")
+	if err != nil {
+		log.Fatalf("cannot create in file [%s]: %s", finalFilePath, err.Error())
+	}
+	parquetWriter, err := storage.NewParquetWriter(fParquet, sc.ParquetCodecGzip)
+	if err != nil {
+		log.Fatalf("cannot create parquet writer: %s", err.Error())
+	}
+	if err := parquetWriter.AddColumn("order_id", evalcapi.FieldTypeString); err != nil {
+		log.Fatalf("cannot add column order_id %s", err.Error())
+	}
+	if err := parquetWriter.AddColumn("customer_id", evalcapi.FieldTypeString); err != nil {
+		log.Fatalf("%s", err.Error())
+	}
+	if err := parquetWriter.AddColumn("order_status", evalcapi.FieldTypeString); err != nil {
+		log.Fatalf("%s", err.Error())
+	}
+	if err := parquetWriter.AddColumn("order_purchase_timestamp", evalcapi.FieldTypeDateTime); err != nil {
+		log.Fatalf("%s", err.Error())
+	}
+	if err := parquetWriter.AddColumn("order_approved_at", evalcapi.FieldTypeDateTime); err != nil {
+		log.Fatalf("%s", err.Error())
+	}
+	if err := parquetWriter.AddColumn("order_delivered_carrier_date", evalcapi.FieldTypeDateTime); err != nil {
+		log.Fatalf("%s", err.Error())
+	}
+	if err := parquetWriter.AddColumn("order_delivered_customer_date", evalcapi.FieldTypeDateTime); err != nil {
+		log.Fatalf("%s", err.Error())
+	}
+	if err := parquetWriter.AddColumn("order_estimated_delivery_date", evalcapi.FieldTypeDateTime); err != nil {
+		log.Fatalf("%s", err.Error())
+	}
+	// Test only
+	// if err := w.AddColumn("is_sent", evalcapi.FieldTypeBool); err != nil {
+	// 	log.Fatalf("%s", err.Error())
+	// }
+	return fParquet, parquetWriter
+}
+
 func shuffleAndSaveInOrders(inOrders []*Order, totalChunks int, basePath string, formats string) {
 	rnd := rand.New(rand.NewSource((time.Now().Unix() << 32) + time.Now().UnixMilli()))
 
-	for i := 0; i < len(inOrders); i++ {
-		j := i
-		for j == i {
-			j = rnd.Intn(len(inOrders))
+	if len(inOrders) > 1 {
+		for i := 0; i < len(inOrders); i++ {
+			j := i
+			for j == i {
+				j = rnd.Intn(len(inOrders))
+			}
+			tmp := inOrders[i]
+			inOrders[i] = inOrders[j]
+			inOrders[j] = tmp
 		}
-		tmp := inOrders[i]
-		inOrders[i] = inOrders[j]
-		inOrders[j] = tmp
 	}
 
 	chunkSize := len(inOrders)
@@ -116,7 +169,6 @@ func shuffleAndSaveInOrders(inOrders []*Order, totalChunks int, basePath string,
 	var parquetWriter *storage.ParquetWriter
 	chunkLineCount := 0
 	chunkIdx := 0
-	var err error
 	for itemIdx, item := range inOrders {
 		if chunkLineCount == 0 {
 			finalFilePath := basePath
@@ -125,52 +177,55 @@ func shuffleAndSaveInOrders(inOrders []*Order, totalChunks int, basePath string,
 			}
 
 			if strings.Contains(formats, "csv") {
-				fCsv, err = os.Create(finalFilePath + ".csv")
-				if err != nil {
-					log.Fatalf("cannot create in file [%s]: %s", finalFilePath, err.Error())
-				}
-				if _, err := fCsv.WriteString("order_id,customer_id,order_status,order_purchase_timestamp,order_approved_at,order_delivered_carrier_date,order_delivered_customer_date,order_estimated_delivery_date\n"); err != nil {
-					log.Fatalf("cannot write file [%s] header line: [%s]", finalFilePath, err.Error())
-				}
+				// fCsv, err = os.Create(finalFilePath + ".csv")
+				// if err != nil {
+				// 	log.Fatalf("cannot create in file [%s]: %s", finalFilePath, err.Error())
+				// }
+				// if _, err := fCsv.WriteString("order_id,customer_id,order_status,order_purchase_timestamp,order_approved_at,order_delivered_carrier_date,order_delivered_customer_date,order_estimated_delivery_date\n"); err != nil {
+				// 	log.Fatalf("cannot write file [%s] header line: [%s]", finalFilePath, err.Error())
+				// }
+				fCsv = createCsvOrdersFile(finalFilePath)
 			}
 
 			if strings.Contains(formats, "parquet") {
-				fParquet, err = os.Create(finalFilePath + ".parquet")
-				if err != nil {
-					log.Fatalf("cannot create in file [%s]: %s", finalFilePath, err.Error())
-				}
-				parquetWriter, err = storage.NewParquetWriter(fParquet, sc.ParquetCodecGzip)
-				if err != nil {
-					log.Fatalf("cannot create parquet writer: %s", err.Error())
-				}
-				if err := parquetWriter.AddColumn("order_id", evalcapi.FieldTypeString); err != nil {
-					log.Fatalf("cannot add column order_id %s", err.Error())
-				}
-				if err := parquetWriter.AddColumn("customer_id", evalcapi.FieldTypeString); err != nil {
-					log.Fatalf("%s", err.Error())
-				}
-				if err := parquetWriter.AddColumn("order_status", evalcapi.FieldTypeString); err != nil {
-					log.Fatalf("%s", err.Error())
-				}
-				if err := parquetWriter.AddColumn("order_purchase_timestamp", evalcapi.FieldTypeDateTime); err != nil {
-					log.Fatalf("%s", err.Error())
-				}
-				if err := parquetWriter.AddColumn("order_approved_at", evalcapi.FieldTypeDateTime); err != nil {
-					log.Fatalf("%s", err.Error())
-				}
-				if err := parquetWriter.AddColumn("order_delivered_carrier_date", evalcapi.FieldTypeDateTime); err != nil {
-					log.Fatalf("%s", err.Error())
-				}
-				if err := parquetWriter.AddColumn("order_delivered_customer_date", evalcapi.FieldTypeDateTime); err != nil {
-					log.Fatalf("%s", err.Error())
-				}
-				if err := parquetWriter.AddColumn("order_estimated_delivery_date", evalcapi.FieldTypeDateTime); err != nil {
-					log.Fatalf("%s", err.Error())
-				}
-				// Test only
-				// if err := w.AddColumn("is_sent", evalcapi.FieldTypeBool); err != nil {
+				fParquet, parquetWriter = createParquetOrderFile(finalFilePath)
+
+				// fParquet, err = os.Create(finalFilePath + ".parquet")
+				// if err != nil {
+				// 	log.Fatalf("cannot create in file [%s]: %s", finalFilePath, err.Error())
+				// }
+				// parquetWriter, err = storage.NewParquetWriter(fParquet, sc.ParquetCodecGzip)
+				// if err != nil {
+				// 	log.Fatalf("cannot create parquet writer: %s", err.Error())
+				// }
+				// if err := parquetWriter.AddColumn("order_id", evalcapi.FieldTypeString); err != nil {
+				// 	log.Fatalf("cannot add column order_id %s", err.Error())
+				// }
+				// if err := parquetWriter.AddColumn("customer_id", evalcapi.FieldTypeString); err != nil {
 				// 	log.Fatalf("%s", err.Error())
 				// }
+				// if err := parquetWriter.AddColumn("order_status", evalcapi.FieldTypeString); err != nil {
+				// 	log.Fatalf("%s", err.Error())
+				// }
+				// if err := parquetWriter.AddColumn("order_purchase_timestamp", evalcapi.FieldTypeDateTime); err != nil {
+				// 	log.Fatalf("%s", err.Error())
+				// }
+				// if err := parquetWriter.AddColumn("order_approved_at", evalcapi.FieldTypeDateTime); err != nil {
+				// 	log.Fatalf("%s", err.Error())
+				// }
+				// if err := parquetWriter.AddColumn("order_delivered_carrier_date", evalcapi.FieldTypeDateTime); err != nil {
+				// 	log.Fatalf("%s", err.Error())
+				// }
+				// if err := parquetWriter.AddColumn("order_delivered_customer_date", evalcapi.FieldTypeDateTime); err != nil {
+				// 	log.Fatalf("%s", err.Error())
+				// }
+				// if err := parquetWriter.AddColumn("order_estimated_delivery_date", evalcapi.FieldTypeDateTime); err != nil {
+				// 	log.Fatalf("%s", err.Error())
+				// }
+				// // Test only
+				// // if err := w.AddColumn("is_sent", evalcapi.FieldTypeBool); err != nil {
+				// // 	log.Fatalf("%s", err.Error())
+				// // }
 			}
 		}
 
@@ -217,6 +272,23 @@ func shuffleAndSaveInOrders(inOrders []*Order, totalChunks int, basePath string,
 			chunkLineCount = 0
 			chunkIdx++
 		}
+	}
+
+	for chunkIdx <= totalChunks {
+		finalFilePath := fmt.Sprintf("%s_%02d", basePath, chunkIdx)
+
+		if strings.Contains(formats, "csv") {
+			fCsv = createCsvOrdersFile(finalFilePath)
+			fCsv.Close()
+		}
+
+		if strings.Contains(formats, "parquet") {
+			fParquet, parquetWriter = createParquetOrderFile(finalFilePath)
+			parquetWriter.FileWriter.AddData(map[string]interface{}{}) // Write this, otherwise the file is invalid, don't ask me why
+			parquetWriter.Close()
+			fParquet.Close()
+		}
+		chunkIdx++
 	}
 }
 
@@ -449,9 +521,9 @@ func sortAndSaveGroup(items []*GroupItem, fileBase string, formats string) {
 				return 1
 			default:
 				switch {
-				case l.OrderId > l.OrderId:
+				case l.OrderId > r.OrderId:
 					return -1
-				case l.OrderId < l.OrderId:
+				case l.OrderId < r.OrderId:
 					return 1
 				default:
 					return -0
@@ -555,6 +627,9 @@ func sortAndSaveGroup(items []*GroupItem, fileBase string, formats string) {
 	}
 }
 
+const keyweightLight string = "light"
+const keyweightHeavy string = "heavy"
+
 func main() {
 	defaultProductId := ""
 	defaultSellerId := ""
@@ -565,6 +640,7 @@ func main() {
 	outRoot := flag.String("out_root", "/tmp/capi_out/lookup_quicktest", "Root dir for out files")
 	totalItems := flag.Int("items", 1000, "Total number of order items to generate")
 	totalSellers := flag.Int("sellers", 20, "Total number of sellers to generate")
+	keyweight := flag.String("keyweight", "light", "Keys - light (up to 4 items per order) or heavy (all items in one order)")
 	maxProductsPerSeller := flag.Int("products", 10, "Max number of products per seller to generate")
 	splitOrders := flag.Int("split_orders", 1, "Number of in order files to generate")
 	splitOrderItems := flag.Int("split_items", 1, "Number of in order item files to generate")
@@ -576,6 +652,10 @@ func main() {
 	fileOutNoGroupLeftOuterPath := *outRoot + "/order_item_date_left_outer_baseline"
 	fileOutGroupInnerPath := *outRoot + "/order_date_value_grouped_inner_baseline"
 	fileOutGroupLeftOuterPath := *outRoot + "/order_date_value_grouped_left_outer_baseline"
+
+	if *keyweight != keyweightLight && *keyweight != keyweightHeavy {
+		log.Fatalf("keyweight parameter must be light or heavy")
+	}
 
 	// Read script params file to get cutoff dates and other params
 	fScriptParamsFile, err := os.Open(*scriptParamsPath)
@@ -643,7 +723,10 @@ func main() {
 	for itemIdx < *totalItems {
 		// Generate random order data
 		orderId := randomId(rnd)
-		projectedItemsInOrder := rnd.Intn(5) // There may be [0,4] items in order
+		projectedItemsInOrder := *totalItems
+		if *keyweight == keyweightLight {
+			projectedItemsInOrder = rnd.Intn(5) // There may be [0,4] items in order
+		}
 		orderStatus := "invoiced"
 		orderPurchaseTs := time.Date(2016, 1, 1, 0, 0, 0, 0, time.UTC).Add(time.Duration(rnd.Intn(100000000) * int(time.Second)))
 		orderEstimateDeliveryTs := orderPurchaseTs.Add(time.Duration(rnd.Intn(100000) * int(time.Second)))

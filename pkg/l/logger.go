@@ -123,21 +123,13 @@ func NewLoggerFromEnvConfig(envConfig *env.EnvConfig, version string) (*CapiLogg
 	return &l, nil
 }
 
-func NewLoggerFromLogger(srcLogger *CapiLogger) (*CapiLogger, error) {
-	l := CapiLogger{
-		// SavedZapConfig:      srcLogger.SavedZapConfig,
+func NewLoggerFromLogger(srcLogger *CapiLogger) *CapiLogger {
+	return &CapiLogger{
 		AtomicThreadCounter: srcLogger.AtomicThreadCounter,
 		ZapMachine:          srcLogger.ZapMachine,
 		ZapFunction:         zap.String("f", ""),
 		ZapThread:           zap.Int64("t", atomic.AddInt64(srcLogger.AtomicThreadCounter, 1)),
 		ZapLogger:           srcLogger.ZapLogger}
-
-	// var err error
-	// l.ZapLogger, err = srcLogger.SavedZapConfig.Build()
-	// if err != nil {
-	// 	return nil, fmt.Errorf("cannot build l from l: %s", err.Error())
-	// }
-	return &l, nil
 }
 
 func (l *CapiLogger) Close() {

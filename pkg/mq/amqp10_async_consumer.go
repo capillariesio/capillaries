@@ -327,16 +327,10 @@ func (dc *Amqp10AsyncConsumer) acknowledgerWorker(logger *l.CapiLogger, acknowle
 }
 
 func (dc *Amqp10AsyncConsumer) Start(logger *l.CapiLogger, listenerChannel chan *wfmodel.Message, acknowledgerChannel chan AknowledgerToken) error {
-	listenerLogger, err := l.NewLoggerFromLogger(logger)
-	if err != nil {
-		return err
-	}
+	listenerLogger := l.NewLoggerFromLogger(logger)
 	go dc.listenerWorker(listenerLogger, listenerChannel)
 
-	acknowledgerLogger, err := l.NewLoggerFromLogger(logger)
-	if err != nil {
-		return err
-	}
+	acknowledgerLogger := l.NewLoggerFromLogger(logger)
 	go dc.acknowledgerWorker(acknowledgerLogger, acknowledgerChannel)
 
 	return nil

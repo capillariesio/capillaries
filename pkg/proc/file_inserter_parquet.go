@@ -36,10 +36,7 @@ func (instr *FileInserter) createParquetFileAndStartWorker(logger *l.CapiLogger,
 
 	f.Close()
 
-	newLogger, err := l.NewLoggerFromLogger(logger)
-	if err != nil {
-		return err
-	}
+	newLogger := l.NewLoggerFromLogger(logger)
 	go instr.parquetFileInserterWorker(newLogger, codec)
 
 	return nil

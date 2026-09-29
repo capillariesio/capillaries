@@ -47,8 +47,12 @@ func (ec *EnvConfig) Deserialize(ctx context.Context, jsonBytes []byte) error {
 		ec.Daemon.ThreadPoolSize = 5
 	}
 
-	if ec.Daemon.MaxPartitionKeysInSelect <= 0 || ec.Daemon.MaxPartitionKeysInSelect > 100 {
-		ec.Daemon.MaxPartitionKeysInSelect = 50
+	if ec.Daemon.LookupKeyWorkers <= 0 || ec.Daemon.LookupKeyWorkers > 1000 {
+		ec.Daemon.LookupKeyWorkers = 5
+	}
+
+	if ec.Daemon.LookupRowidWorkers <= 0 || ec.Daemon.LookupRowidWorkers > 1000 {
+		ec.Daemon.LookupRowidWorkers = 5
 	}
 
 	if ec.CapiMqBroker.DeadAfterNoHeartbeatTimeout <= 100 || ec.CapiMqBroker.DeadAfterNoHeartbeatTimeout > 3600000 { // [100ms,1hr]

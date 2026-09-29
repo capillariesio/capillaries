@@ -87,10 +87,6 @@ linters:
         text: use of `fmt.Print(|f|ln)` forbidden by pattern
         linters: [ forbidigo]
 
-      - path: pkg\/proc\/proc_table_creator_lookup\.go
-        text: function runCreateTableRelForBatch has (cyclomatic|cognitive) complexity
-        linters: [ revive ]
-
       - path: pkg\/eval\/eval_ctx\.go
         text: function \(\*EvalCtx\)\.Eval has (cognitive|cyclomatic) complexity
         linters: [ revive ]
@@ -98,5 +94,10 @@ linters:
       - path: pkg\/api\/message_handler\.go
         text: function ProcessDataBatchMsg has (cognitive|cyclomatic) complexity
         linters: [ revive ]
+
+      - path: pkg\/proc\/proc_table_creator_lookup\.go
+        text: function processLookupsForKeys has (cognitive|cyclomatic) complexity
+        linters: [ revive ]
+         
 
         

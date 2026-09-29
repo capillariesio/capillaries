@@ -161,11 +161,7 @@ func main() {
 			// Lock one slot in the semaphore
 			sem <- 1
 
-			deliveryHandlerLogger, err := l.NewLoggerFromLogger(logger)
-			if err != nil {
-				logger.Error("cannot create logger for delivery handler thread: %s", err.Error())
-				log.Fatalf("%s", err.Error())
-			}
+			deliveryHandlerLogger := l.NewLoggerFromLogger(logger)
 
 			// envConfig.ThreadPoolSize goroutines run simultaneously
 			go func(innerLogger *l.CapiLogger, wfmodelMsg *wfmodel.Message, acknowledgerChannel chan mq.AknowledgerToken) {

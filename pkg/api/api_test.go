@@ -251,6 +251,10 @@ func startTestRun(t *testing.T, scn scenario, ksSuffix string, writerWorkers int
 				AllowedSchemes: []string{sc.FetchUrlSchemeFile},
 			},
 		},
+		Daemon: env.DaemonConfig{
+			LookupKeyWorkers:   5,
+			LookupRowidWorkers: 5,
+		},
 	}
 	sc.ScriptDefCache = sc.NewScriptDefCache()
 	NodeDependencyReadynessCache = NewNodeDependencyReadynessCache()

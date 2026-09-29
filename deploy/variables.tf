@@ -493,10 +493,16 @@ variable "daemon_thread_pool_factor" {
 	default     = 3
 }
 
-variable "daemon_max_partition_keys_in_select" {
+variable "daemon_lookup_key_workers" {
 	type        = number
-	description= "Max number of partition key in SELECTS for keys in index tables and rowids in data tables"
-	default     = 50
+	description= "Goroutines spawned to find keys in idx table on lookups; consider fine-tuning according to the daemon CPU capacity and the number of Cassandra nodes"
+	default     = 5
+}
+
+variable "daemon_lookup_rowid_workers" {
+	type        = number
+	description= "Goroutines spawned to find rowids by key in data table on lookups; consider fine-tuning according to the daemon CPU capacity and the number of Cassandra nodes"
+	default     = 5
 }
 
 variable "daemon_writer_workers" {
@@ -521,8 +527,10 @@ locals {
 											[format("'localhost:%s'",var.webapi_prometheus_exporter_port), format("'localhost:%s'", var.capimq_prometheus_exporter_port) ],
 											[ for i in range(var.number_of_daemons) : format("'10.5.0.1%02s:%s'", i+1, var.daemon_prometheus_exporter_port) ])) // webapi, capimq and daemon go exporters
 	daemon_thread_pool_size    = ceil(var.cpu_count_map[var.daemon_instance_type] * var.daemon_thread_pool_factor )
-	daemon_gomemlimit_gb       = ceil(var.instance_memory_map[var.daemon_instance_type] * 0.75 ) // Let daemon use half of RAM, GOGC=100 will probably take it to 70%, and we also need some memory to run Python
-	webapi_gomemlimit_gb       = ceil(var.instance_memory_map[var.bastion_instance_type] / 2 )
+	// Let daemon use half of RAM, GOGC=100 will probably take it to 70%, and we also need some memory to run Python
+	// Fight the temptation to raise it to, say, 75% - there may be not enough room for Python
+	daemon_gomemlimit_gb       = ceil(var.instance_memory_map[var.daemon_instance_type] * 0.50 ) 
+	webapi_gomemlimit_gb       = ceil(var.instance_memory_map[var.bastion_instance_type] * 0.50 )
 } 
 
 # These should match names in artifacts_download.sh, artifacts_upload.sh

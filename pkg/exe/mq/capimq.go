@@ -394,10 +394,7 @@ func main() {
 
 	waitGroup.Add(1)
 	returnDeadStopping := false
-	returnedDeadStoppingLogger, err := l.NewLoggerFromLogger(logger)
-	if err != nil {
-		log.Fatalf("%s", err.Error())
-	}
+	returnedDeadStoppingLogger := l.NewLoggerFromLogger(logger)
 	defer returnedDeadStoppingLogger.Close()
 
 	go func(innerLogger *l.CapiLogger) {

@@ -1,8 +1,10 @@
 package proc
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/cql"
@@ -42,19 +44,6 @@ func buildKeysToFindInTheLookupIndex(rsLeft *Rowset, scriptNodeLookup sc.LookupD
 	}
 
 	return keysToFind, keyToLeftRowIdxMap, nil
-}
-
-func getRightRowidsToFind(rsIdx *Rowset) (map[int64]struct{}, map[int64]string) {
-	// Build a map of right-row-id -> key
-	rightRowIdToKeyMap := map[int64]string{}
-	rowidsToFind := map[int64]struct{}{}
-	for rowIdx := 0; rowIdx < rsIdx.RowCount; rowIdx++ {
-		rightRowId := *((*rsIdx.Rows[rowIdx])[rsIdx.FieldsByFieldName["rowid"]].(*int64))
-		key := *((*rsIdx.Rows[rowIdx])[rsIdx.FieldsByFieldName["key"]].(*string))
-		rightRowIdToKeyMap[rightRowId] = key
-		rowidsToFind[rightRowId] = struct{}{}
-	}
-	return rowidsToFind, rightRowIdToKeyMap
 }
 
 func setupEvalCtxForGroup(node *sc.ScriptNodeDef, rsLeft *Rowset) (map[int64]map[string]*eval.EvalCtx, error) {
@@ -271,25 +260,249 @@ func checkRunCreateTableRelForBatchSanity(node *sc.ScriptNodeDef, readerNodeRunI
 	return nil
 }
 
-func splitKeysIntoChunks(allKeys []string, chunkSize int) [][]string {
-	chunkCount := len(allKeys) / chunkSize
-	if len(allKeys)%chunkSize > 0 {
-		chunkCount++
+// processLookupsForKeys performs the lookup for a single left-side page (rsLeft).
+//
+// It replaces the former "split keys into chunks + IN(...) paged selects" approach with two nested,
+// size-limited goroutine pools:
+//
+//   - An outer pool (envConfig.Daemon.LookupKeyWorkers, default 20) whose workers each take one key
+//     from allKeysToFind and page through ALL key/rowid records for that key in the idx table
+//     (partition key "key" - potentially millions of rowids).
+//   - For every rowid found, an inner pool per key worker (envConfig.Daemon.LookupRowidWorkers,
+//     default 10) retrieves the single data-table record by rowid (rowid is unique -> zero or one
+//     row) and handles it exactly like the sequential implementation did: lookup filter, then the
+//     grouped (IsGroup) vs non-grouped logic.
+//
+// Shared state is protected as follows:
+//   - eCtxMap and leftRowFoundRightLookup for a given key are only touched under that key's keyMu.
+//     Since every left row maps to exactly one key (see buildKeysToFindInTheLookupIndex), different
+//     keys operate on disjoint left rows, so a per-key mutex fully isolates them.
+//   - instr.add (and the rowsWritten counter) are serialized by inserterMu, because TableInserter's
+//     RecordsSent bookkeeping and RecordsIn channel send are not safe for concurrent producers.
+//
+// It returns the number of non-grouped rows written during the lookup (grouped and childless
+// left-join rows are written by the caller afterwards, single-threaded).
+func processLookupsForKeys(
+	envConfig *env.EnvConfig,
+	logger *l.CapiLogger,
+	pCtx *ctx.MessageProcessingContext,
+	node *sc.ScriptNodeDef,
+	lookupNodeRunId int16,
+	srcRightFieldRefs sc.FieldRefs,
+	allKeysToFind []string,
+	keyToLeftRowIdxMap map[string][]int,
+	rsLeft *Rowset,
+	leftRowFoundRightLookup []bool,
+	eCtxMap map[int64]map[string]*eval.EvalCtx,
+	instr *TableInserter) (int64, error) {
+
+	logger.PushF("proc.processLookupsForKeys")
+	defer logger.PopF()
+
+	cancelCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var rowsWritten int64
+
+	// processRightDataRow handles one data-table row (0 or 1 per rowid), reusing the exact same
+	// grouped vs non-grouped logic as the sequential implementation.
+	processRightDataRow := func(workerLogger *l.CapiLogger, rsRight *Rowset, leftRowIdxs []int) error {
+		workerLogger.PushF("proc.runRelLookupForLeftPageParallel.processRightDataRow")
+		defer workerLogger.PopF()
+
+		// if pCtx.Msg.BatchIdx == 0 {
+		// 	return errors.New("processRightDataRow fake error 2")
+		// }
+
+		rightRowIdx := 0
+
+		lookupFilterOk, err := checkLookupFilter(&node.Lookup, rsRight, rightRowIdx)
+		if err != nil {
+			return fmt.Errorf("cannot check lookup filter, node %s: %s", node.Name, err.Error())
+		}
+		if !lookupFilterOk {
+			// Skip this right row
+			return nil
+		}
+
+		if node.Lookup.IsGroup {
+			// Find correspondent rows from rsLeft, merge left and right and call group eval
+			// eCtxMap[leftRowid] for each output field, but do not write them yet - there may be more.
+			for _, leftRowIdx := range leftRowIdxs {
+				leftRowFoundRightLookup[leftRowIdx] = true
+				if err := evalRowGroupedFields(node.TableCreator.Fields, rsLeft, leftRowIdx, rsRight, rightRowIdx, eCtxMap); err != nil {
+					return fmt.Errorf("cannot eval grouped fields, node %s: %s", node.Name, err.Error())
+				}
+			}
+			return nil
+		}
+
+		// Non-group, and the right row was found for the parent left row(s).
+		// Find correspondent rows from rsLeft, merge left and right and call row-level eval.
+		for _, leftRowIdx := range leftRowIdxs {
+			leftRowFoundRightLookup[leftRowIdx] = true
+
+			tableRecord, err := produceNonGroupedTableRecordForLeftWithChildren(node, rsLeft, leftRowIdx, rsRight, rightRowIdx)
+			if err != nil {
+				return fmt.Errorf("cannot produceNonGroupedTableRecordForLeftWithChildren, node %s: %s", node.Name, err.Error())
+			}
+
+			// Help GC
+			indexKeyMap := map[string]string{}
+			err = checkHavingAddRecordAndSaveBatchIfNeeded(workerLogger, node, tableRecord, indexKeyMap, instr)
+			if err == nil {
+				rowsWritten++
+			}
+			if err != nil {
+				return fmt.Errorf("cannot checkHavingAddRecordAndSaveBatchIfNeeded, node %s: %s", node.Name, err.Error())
+			}
+		}
+		return nil
 	}
 
-	keysChunks := make([][]string, chunkCount)
-	keyIdx := 0
-	for chunkIdx := range keysChunks {
-		keysChunks[chunkIdx] = make([]string, 0)
+	// processKey pages through all rowids of a single key and dispatches them to a per-key inner pool.
+	processKey := func(workerLogger *l.CapiLogger, rsIdx *Rowset, key string) error {
+		workerLogger.PushF("proc.runRelLookupForLeftPageParallel.processKey")
+		defer workerLogger.PopF()
+
+		leftRowIdxs := keyToLeftRowIdxMap[key]
+		var processRightDataRowMux sync.Mutex // Serializes this key's eCtxMap/leftRowFoundRightLookup access
+
+		var firstSelectRightRowErr error
+		var firstSelectRightRowErrMux sync.Mutex
+
+		// Inner pool: retrieve data rows by rowid in parallel
+		rowidCh := make(chan int64)
+		var rowidWg sync.WaitGroup
+		for r := 0; r < envConfig.Daemon.LookupRowidWorkers; r++ {
+			rowidWg.Add(1)
+
+			// Own data rowset, statically sized to a single row (rowid is unique), reused across rowids
+			rsSingleRight := NewRowsetFromFieldRefs(
+				sc.FieldRefs{sc.RowidFieldRef(node.Lookup.TableCreator.Name)},
+				srcRightFieldRefs)
+
+			if err := rsSingleRight.InitRows(1); err != nil {
+				firstSelectRightRowErr = err
+				break
+			}
+
+			go func(logger *l.CapiLogger, rs *Rowset) {
+				defer rowidWg.Done()
+				logger.PushF(fmt.Sprintf("proc.runRelLookupForLeftPageParallel.rowidWorker_%0d", r))
+				defer logger.Close()
+
+				for rowid := range rowidCh {
+					if firstSelectRightRowErr != nil {
+						break
+					}
+					if err := selectDataRowByRowid(logger, pCtx, rs, node.Lookup.TableCreator.Name, lookupNodeRunId, rowid); err != nil {
+						firstSelectRightRowErrMux.Lock()
+						if firstSelectRightRowErr == nil {
+							firstSelectRightRowErr = fmt.Errorf("cannot select data row by key/rowid %s/%d, node %s: %s", key, rowid, node.Name, err.Error())
+						}
+						firstSelectRightRowErrMux.Unlock()
+					} else {
+						if rs.RowCount > 0 {
+							processRightDataRowMux.Lock()
+							err = processRightDataRow(logger, rs, leftRowIdxs)
+							processRightDataRowMux.Unlock()
+							if err != nil {
+								firstSelectRightRowErrMux.Lock()
+								if firstSelectRightRowErr == nil {
+									firstSelectRightRowErr = fmt.Errorf("cannot process right data row %s/%d, node %s: %s", key, rowid, node.Name, err.Error())
+								}
+								firstSelectRightRowErrMux.Unlock()
+							}
+						}
+					}
+				}
+			}(l.NewLoggerFromLogger(workerLogger), rsSingleRight)
+		}
+
+		var pageState []byte
+		var selectRowidsByKeyError error
 		for {
-			keysChunks[chunkIdx] = append(keysChunks[chunkIdx], allKeys[keyIdx])
-			keyIdx++
-			if keyIdx == len(allKeys) || keyIdx%chunkSize == 0 {
+			var err error
+			pageState, err = selectRowidsFromIdxTablePagedByKey(workerLogger, pCtx, rsIdx, node.Lookup.IndexName, lookupNodeRunId, node.Lookup.IdxReadBatchSize, pageState, key)
+			if err != nil {
+				selectRowidsByKeyError = fmt.Errorf("cannot select idx rowids by key, node %s: %s", node.Name, err.Error())
+				break
+			}
+
+			for i := 0; i < rsIdx.RowCount; i++ {
+				rowid := *((*rsIdx.Rows[i])[rsIdx.FieldsByFieldName["rowid"]].(*int64))
+				rowidCh <- rowid
+			}
+
+			// This function is thread-safe
+			pCtx.SendHeartbeat()
+
+			// For Cassandra we could rely on rsIdx.RowCount, but for Amazon Keyspaces gocql returns
+			// only a fraction of records page after page until page state is empty.
+			if len(pageState) == 0 {
 				break
 			}
 		}
+
+		// Page through all key/rowid records for this key and feed the inner pool.
+		close(rowidCh)
+		rowidWg.Wait()
+
+		if selectRowidsByKeyError != nil {
+			return selectRowidsByKeyError
+		}
+
+		if firstSelectRightRowErr != nil {
+			return firstSelectRightRowErr
+		}
+
+		return nil
 	}
-	return keysChunks
+
+	// Feed keys to the outer key-worker pool.
+	keysCh := make(chan string)
+	go func() {
+		defer close(keysCh)
+		for _, key := range allKeysToFind {
+			select {
+			case keysCh <- key:
+			case <-cancelCtx.Done():
+				return
+			}
+		}
+	}()
+
+	var firstHandleKeyErr error
+	var firstHandleKeyErrMux sync.Mutex
+	var keyWorkersWg sync.WaitGroup
+	for w := 0; w < envConfig.Daemon.LookupKeyWorkers; w++ {
+		keyWorkersWg.Add(1)
+		go func(logger *l.CapiLogger) {
+			defer keyWorkersWg.Done()
+
+			logger.PushF(fmt.Sprintf("proc.runRelLookupForLeftPageParallel.keyWorker_%0d", w))
+			defer logger.Close()
+
+			// Own idx rowset (rowid only), reused across the keys this worker handles and their pages
+			rsIdx := NewRowsetFromFieldRefs(sc.FieldRefs{sc.RowidFieldRef(node.Lookup.IndexName)})
+
+			for key := range keysCh {
+				if err := processKey(logger, rsIdx, key); err != nil {
+					firstHandleKeyErrMux.Lock()
+					if firstHandleKeyErr == nil {
+						firstHandleKeyErr = err
+					}
+					firstHandleKeyErrMux.Unlock()
+					break
+				}
+			}
+		}(l.NewLoggerFromLogger(logger))
+	}
+
+	keyWorkersWg.Wait()
+
+	return rowsWritten, firstHandleKeyErr
 }
 
 func runCreateTableRelForBatch(envConfig *env.EnvConfig,
@@ -391,155 +604,31 @@ func runCreateTableRelForBatch(envConfig *env.EnvConfig,
 			return bs, instr.waitForDrainer()
 		}
 
-		lookupFieldRefs := sc.FieldRefs{}
-		lookupFieldRefs.AppendWithFilter(node.TableCreator.UsedInHavingFields, node.Lookup.TableCreator.Name)
-		lookupFieldRefs.AppendWithFilter(node.TableCreator.UsedInTargetExpressionsFields, node.Lookup.TableCreator.Name)
+		// Process all lookup keys for this left page using nested, size-limited goroutine pools:
+		// an outer pool per key (paging all rowids from the idx table by partition key "key"), and
+		// an inner pool per key retrieving each data-table record by rowid. See the function doc for
+		// the concurrency model. Non-grouped rows are written inside; grouped and childless left-join
+		// rows are written by the single-threaded epilogue below.
+		lookupStartTime := time.Now()
+		rowsWrittenInLookup, err := processLookupsForKeys(envConfig,
+			logger,
+			pCtx,
+			node,
+			lookupNodeRunId,
+			srcRightFieldRefs,
+			allKeysToFind,
+			keyToLeftRowIdxMap,
+			rsLeft,
+			leftRowFoundRightLookup,
+			eCtxMap,
+			instr)
+		if err != nil {
+			instr.cancelDrainer(fmt.Errorf("cannot run parallel rel lookup, node %s: %s", node.Name, err.Error()))
+			return bs, instr.waitForDrainer()
+		}
+		bs.RowsWritten += int(rowsWrittenInLookup)
 
-		// Select from idx table by keys
-		rsIdx := NewRowsetFromFieldRefs(
-			sc.FieldRefs{sc.RowidFieldRef(node.Lookup.IndexName)},
-			sc.FieldRefs{sc.KeyTokenFieldRef()},
-			sc.FieldRefs{sc.IdxKeyFieldRef()})
-
-		keysToFindChunks := splitKeysIntoChunks(allKeysToFind, envConfig.Daemon.MaxPartitionKeysInSelect)
-		for _, keysToFind := range keysToFindChunks {
-			var idxPageState []byte
-			rightIdxPageIdx := 0
-			for {
-				selectIdxBatchStartTime := time.Now()
-				idxPageState, err = selectBatchFromIdxTablePaged(logger,
-					pCtx,
-					rsIdx,
-					node.Lookup.IndexName,
-					lookupNodeRunId,
-					node.Lookup.IdxReadBatchSize,
-					idxPageState,
-					&keysToFind)
-				if err != nil {
-					instr.cancelDrainer(fmt.Errorf("cannot select batch from idx table, node %s: %s", node.Name, err.Error()))
-					return bs, instr.waitForDrainer()
-				}
-
-				if rsIdx.RowCount == 0 {
-					break
-				}
-
-				// Build a map of right-row-id -> key
-				rightRowidsToFind, rightRowIdToKeyMap := getRightRowidsToFind(rsIdx)
-
-				logger.DebugCtx(pCtx, "selectBatchFromIdxTablePaged: leftPageIdx %d, rightIdxPageIdx %d, queried %d keys in %.3fs, retrieved %d right rowids", leftPageIdx, rightIdxPageIdx, len(allKeysToFind), time.Since(selectIdxBatchStartTime).Seconds(), len(rightRowidsToFind))
-
-				keyToFindRowIdsMap := map[int64]struct{}{}
-
-				// Select from right table by rowid
-				rsRight := NewRowsetFromFieldRefs(
-					sc.FieldRefs{sc.RowidFieldRef(node.Lookup.TableCreator.Name)},
-					sc.FieldRefs{sc.RowidTokenFieldRef()},
-					srcRightFieldRefs)
-
-				rightDataAttemptIdx := 0
-				for {
-					// We will keep resetting page state because we will keep shrinking rightRowidsToFind
-					// Let's keep uisng paging in case there are too many ids to retrieve
-					var rightPageState []byte
-					selectBatchStartTime := time.Now()
-					_, err = selectBatchFromDataTablePaged(logger,
-						pCtx,
-						rsRight,
-						node.Lookup.TableCreator.Name,
-						lookupNodeRunId,
-						node.Lookup.RightLookupReadBatchSize,
-						rightPageState,
-						getFirstIntsFromSet(rightRowidsToFind, envConfig.Daemon.MaxPartitionKeysInSelect))
-					if err != nil {
-						instr.cancelDrainer(fmt.Errorf("cannot select batch from right-side table, node %s: %s", node.Name, err.Error()))
-						return bs, instr.waitForDrainer()
-					}
-
-					logger.DebugCtx(pCtx, "selectBatchFromDataTablePaged: leftPageIdx %d, rightIdxPageIdx %d, rightDataAttemptIdx %d, queried %d rowids in %.3fs, retrieved %d rowids", leftPageIdx, rightIdxPageIdx, rightDataAttemptIdx, len(rightRowidsToFind), time.Since(selectBatchStartTime).Seconds(), rsRight.RowCount)
-
-					if rsRight.RowCount == 0 {
-						break
-					}
-
-					// Help GC
-					var indexKeyMap = map[string]string{}
-					var tableRecord map[string]any
-					for rightRowIdx := 0; rightRowIdx < rsRight.RowCount; rightRowIdx++ {
-						rightRowId := *((*rsRight.Rows[rightRowIdx])[rsRight.FieldsByFieldName["rowid"]].(*int64))
-						rightRowKey := rightRowIdToKeyMap[rightRowId]
-
-						if _, ok := keyToFindRowIdsMap[rightRowId]; ok {
-							logger.DebugCtx(pCtx, "selectBatchFromDataTablePaged: isKeyInQuestionInKeysToFind got rowid in data %d", rightRowId)
-						}
-
-						// Remove this right rowid from the set, we do not need it anymore.
-						delete(rightRowidsToFind, rightRowId)
-
-						// Check filter condition if needed
-						lookupFilterOk, err := checkLookupFilter(&node.Lookup, rsRight, rightRowIdx)
-						if err != nil {
-							instr.cancelDrainer(fmt.Errorf("cannot check lookup filter, node %s: %s", node.Name, err.Error()))
-							return bs, instr.waitForDrainer()
-						}
-
-						if !lookupFilterOk {
-							// Skip this right row
-							continue
-						}
-
-						if node.Lookup.IsGroup {
-							// Find correspondent row from rsLeft, merge left and right and
-							// call group eval eCtxMap[leftRowid] for each output field,
-							// but do not write them yet - there may be more
-							for _, leftRowIdx := range keyToLeftRowIdxMap[rightRowKey] {
-
-								leftRowFoundRightLookup[leftRowIdx] = true
-								if err := evalRowGroupedFields(node.TableCreator.Fields, rsLeft, leftRowIdx, rsRight, rightRowIdx, eCtxMap); err != nil {
-									instr.cancelDrainer(fmt.Errorf("cannot eval grouped fields, node %s: %s", node.Name, err.Error()))
-									return bs, instr.waitForDrainer()
-								}
-							}
-						} else {
-							// Non-group, and the right row was found for the parent left row.
-							// Find correspondent row from rsLeft, merge left and right and call row-level eval
-							for _, leftRowIdx := range keyToLeftRowIdxMap[rightRowKey] {
-
-								leftRowFoundRightLookup[leftRowIdx] = true
-
-								tableRecord, err = produceNonGroupedTableRecordForLeftWithChildren(node, rsLeft, leftRowIdx, rsRight, rightRowIdx)
-								if err != nil {
-									instr.cancelDrainer(fmt.Errorf("cannot produceNonGroupedTableRecordForLeftWithChildren, node %s: %s", node.Name, err.Error()))
-									return bs, instr.waitForDrainer()
-								}
-
-								if err = checkHavingAddRecordAndSaveBatchIfNeeded(logger, node, tableRecord, indexKeyMap, instr); err != nil {
-									instr.cancelDrainer(fmt.Errorf("cannot checkHavingAddRecordAndSaveBatchIfNeeded, node %s: %s", node.Name, err.Error()))
-									return bs, instr.waitForDrainer()
-								}
-								bs.RowsWritten++
-
-							} // non-group result row written
-						} // group case handled
-					} // for each found right row
-
-					// No more ids in the IN condition, we are done retrieving right-side rowids
-					if len(rightRowidsToFind) == 0 {
-						break
-					}
-
-					rightDataAttemptIdx++
-					instr.PCtx.SendHeartbeat() // Hopefully, calling heartbeat this often is enough
-				} // for each data page
-
-				// For Cassandra, we can rely on rsIdx.RowCount. But for Amazon Keyspaces, gocql returns only a fraction of records page after page, until page state is empty
-				// if rsIdx.RowCount < node.Lookup.IdxReadBatchSize || len(idxPageState) == 0 {
-				if len(idxPageState) == 0 {
-					break
-				}
-				rightIdxPageIdx++
-			} // for each idx page
-		} // for each 100-key chunk
+		logger.DebugCtx(pCtx, "runRelLookupForLeftPageParallel: leftPageIdx %d, processed %d keys in %.3fs, wrote %d non-grouped rows", leftPageIdx, len(allKeysToFind), time.Since(lookupStartTime).Seconds(), rowsWrittenInLookup)
 
 		// For grouped - group
 		// For non-grouped left join - add empty left-side (those who have right counterpart were alredy hendled above)

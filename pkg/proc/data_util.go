@@ -9,66 +9,50 @@ import (
 	"github.com/capillariesio/capillaries/pkg/ctx"
 	"github.com/capillariesio/capillaries/pkg/db"
 	"github.com/capillariesio/capillaries/pkg/l"
-	"github.com/capillariesio/gocqlmem/gocqlshims"
 )
 
 const MaxAmazonKeyspacesBatchLen int = 30
 
-func getFirstIntsFromSet(intSet map[int64]struct{}, cnt int) []int64 {
-	intSliceLen := cnt
-	if intSliceLen > len(intSet) {
-		intSliceLen = len(intSet)
-	}
-	intSlice := make([]int64, intSliceLen)
-	i := 0
-	for v := range intSet {
-		intSlice[i] = v
-		i++
-		if i == intSliceLen {
-			break
-		}
-	}
-	return intSlice
-}
-
-func selectBatchFromDataTablePaged(logger *l.CapiLogger,
+// selectDataRowByRowid retrieves a single data-table record by its unique rowid using a prepared
+// query with a single partition key parameter (rowid = ?). Because rowid is unique, at most one row
+// is returned, so no paging is needed. The rowset stays statically sized to a single row.
+func selectDataRowByRowid(logger *l.CapiLogger,
 	pCtx *ctx.MessageProcessingContext,
 	rs *Rowset,
 	tableName string,
 	lookupNodeRunId int16,
-	batchSize int,
-	pageState []byte,
-	rowids []int64) ([]byte, error) {
+	rowid int64) error {
 
-	logger.PushF("proc.selectBatchFromDataTablePaged")
+	logger.PushF("proc.selectDataRowByRowid")
 	defer logger.PopF()
 
-	if err := rs.InitRows(batchSize); err != nil {
-		return nil, err
+	// if pCtx.Msg.BatchIdx == 0 {
+	// 	return errors.New("selectDataRowByRowid fake error 1")
+	// }
+
+	// rowid is unique -> zero or one row; keep the rowset statically sized to a single row
+	if err := rs.InitRows(1); err != nil {
+		return err
 	}
 
 	qb := cql.QueryBuilder{}
+	// Prepared query with a single partition key parameter: SELECT ... FROM data WHERE rowid = ?
 	q := qb.
 		Keyspace(pCtx.Msg.DataKeyspace).
-		CondInPrepared("rowid"). // This is a right-side lookup table, select by rowid
+		CondPrepared("rowid", "=").
 		SelectRun(tableName, lookupNodeRunId, *rs.GetFieldNames())
 
-	var iter gocqlshims.Iter
 	selectRetryIdx := 0
 	curSelectExpBackoffFactor := 1
-	var nextPageState []byte
 	for {
-		iter = pCtx.CqlSession.Query(q, rowids).PageSize(batchSize).PageState(pageState).Iter()
+		iter := pCtx.CqlSession.Query(q, rowid).Iter()
 		if iter.Err() != nil {
-			return nil, db.WrapDbErrorWithQuery("cannot create iterator", q, iter.Err())
+			return db.WrapDbErrorWithQuery("cannot create iterator", q, iter.Err())
 		}
-
-		nextPageState = iter.PageState()
 
 		dbWarnings := iter.Warnings()
 		if len(dbWarnings) > 0 {
-			// TODO: figure out what those warnigs can be, never saw one
-			logger.WarnCtx(pCtx, "got warnigs while selecting %d rows from %s%s: %s", batchSize, tableName, cql.RunIdSuffix(lookupNodeRunId), strings.Join(dbWarnings, ";"))
+			logger.WarnCtx(pCtx, "got warnings while selecting data row from %s%s by rowid %d: %s", tableName, cql.RunIdSuffix(lookupNodeRunId), rowid, strings.Join(dbWarnings, ";"))
 		}
 
 		rs.RowCount = 0
@@ -76,16 +60,11 @@ func selectBatchFromDataTablePaged(logger *l.CapiLogger,
 		scanner := iter.Scanner()
 		for scanner.Next() {
 			if rs.RowCount >= len(rs.Rows) {
-				return nil, fmt.Errorf("unexpected data row retrieved, exceeding rowset size %d", len(rs.Rows))
+				return fmt.Errorf("unexpected data row retrieved by rowid %d, exceeding rowset size %d", rowid, len(rs.Rows))
 			}
 			if err := scanner.Scan(*rs.Rows[rs.RowCount]...); err != nil {
-				return nil, db.WrapDbErrorWithQuery("cannot scan paged data row", q, err)
+				return db.WrapDbErrorWithQuery("cannot scan data row by rowid", q, err)
 			}
-			// We assume gocql creates only UTC timestamps, so this is not needed.
-			// If we ever catch a ts stored in our tables with a non-UTC tz, or gocql returning a non-UTC tz - investigate it. Sanitizing is the last resort and should be avoided.
-			// if err := rs.SanitizeScannedDatetimesToUtc(rs.RowCount); err != nil {
-			// 	return nil, db.WrapDbErrorWithQuery("cannot sanitize datetimes", q, err)
-			// }
 			rs.RowCount++
 		}
 
@@ -98,16 +77,15 @@ func selectBatchFromDataTablePaged(logger *l.CapiLogger,
 		isTimedOut := strings.Contains(err.Error(), cql.ErrorOperationTimedOut)
 		isInconsistentAndStillRetrying := strings.Contains(err.Error(), cql.ErrorCannotAchieveConsistencyLevel) && selectRetryIdx < 3
 		if !isTimedOut && !isInconsistentAndStillRetrying {
-			// The error was not a timeout, and not "inconsistent" while retrying, so it's either some unknown error or the number of retries is too high
-			return nil, db.WrapDbErrorWithQuery(fmt.Sprintf("paged data scanner cannot select %d rows from %s%s after %d attempts; another worker may retry this batch later, but, if some unique idx records has been written already by current worker, the next worker handling this batch will throw an error on them and there is nothing we can do about it;", batchSize, tableName, cql.RunIdSuffix(lookupNodeRunId), selectRetryIdx+1), q, err)
+			return db.WrapDbErrorWithQuery(fmt.Sprintf("data-by-rowid scanner cannot select from %s%s by rowid %d after %d attempts", tableName, cql.RunIdSuffix(lookupNodeRunId), rowid, selectRetryIdx+1), q, err)
 		}
-		logger.WarnCtx(pCtx, "cannot select %d rows from %s%s on retry %d, getting timeout/consistency error (%s), will wait for %dms and retry", batchSize, tableName, cql.RunIdSuffix(lookupNodeRunId), selectRetryIdx, err.Error(), 10*curSelectExpBackoffFactor)
+		logger.WarnCtx(pCtx, "cannot select data row from %s%s by rowid %d on retry %d, getting timeout/consistency error (%s), will wait for %dms and retry", tableName, cql.RunIdSuffix(lookupNodeRunId), rowid, selectRetryIdx, err.Error(), 10*curSelectExpBackoffFactor)
 		time.Sleep(time.Duration(10*curSelectExpBackoffFactor) * time.Millisecond)
 		curSelectExpBackoffFactor *= 2
 		selectRetryIdx++
 	}
 
-	return nextPageState, nil
+	return nil
 }
 
 // Used only in DeleteDataAndUniqueIndexesByBatchIdx
@@ -166,52 +144,80 @@ func selectBatchPagedAllRowids(logger *l.CapiLogger,
 	return nextPageState, nil
 }
 
-func selectBatchFromIdxTablePaged(logger *l.CapiLogger,
+// selectRowidsFromIdxTablePagedByKey retrieves a page of idx-table records for a single lookup key
+// using a prepared query with a single partition key parameter (key = ?). A key may map to a huge
+// number of rowids (potentially millions), so the caller pages through the results by feeding back
+// the returned page state until it is empty. The rowset stays statically sized to batchSize.
+func selectRowidsFromIdxTablePagedByKey(logger *l.CapiLogger,
 	pCtx *ctx.MessageProcessingContext,
 	rs *Rowset,
-	tableName string,
+	idxName string,
 	lookupNodeRunId int16,
 	batchSize int,
 	pageState []byte,
-	keysToFind *[]string) ([]byte, error) {
+	key string) ([]byte, error) {
 
-	logger.PushF("proc.selectBatchFromIdxTablePaged")
+	logger.PushF("proc.selectRowidsFromIdxTablePagedByKey")
 	defer logger.PopF()
+
+	// if pCtx.Msg.BatchIdx == 0 {
+	// 	return []byte{}, errors.New("selectRowidsFromIdxTablePagedByKey fake error 3")
+	// }
 
 	if err := rs.InitRows(batchSize); err != nil {
 		return nil, err
 	}
 
 	qb := cql.QueryBuilder{}
+	// Prepared query with a single partition key parameter: SELECT ... FROM idx WHERE key = ?
 	q := qb.Keyspace(pCtx.Msg.DataKeyspace).
-		CondInPrepared("key"). // This is an index table, select only selected keys
-		SelectRun(tableName, lookupNodeRunId, *rs.GetFieldNames())
+		CondPrepared("key", "=").
+		SelectRun(idxName, lookupNodeRunId, *rs.GetFieldNames())
 
-	iter := pCtx.CqlSession.Query(q, *keysToFind).PageSize(batchSize).PageState(pageState).Iter()
-	if iter.Err() != nil {
-		return nil, db.WrapDbErrorWithQuery("cannot create iterator", q, iter.Err())
-	}
-	nextPageState := iter.PageState()
-
-	dbWarnings := iter.Warnings()
-	if len(dbWarnings) > 0 {
-		logger.WarnCtx(pCtx, "%s", strings.Join(dbWarnings, ";"))
-	}
-
-	rs.RowCount = 0
-
-	scanner := iter.Scanner()
-	for scanner.Next() {
-		if rs.RowCount >= len(rs.Rows) {
-			return nil, fmt.Errorf("unexpected idx row retrieved, exceeding rowset size %d", len(rs.Rows))
+	selectRetryIdx := 0
+	curSelectExpBackoffFactor := 1
+	var nextPageState []byte
+	for {
+		iter := pCtx.CqlSession.Query(q, key).PageSize(batchSize).PageState(pageState).Iter()
+		if iter.Err() != nil {
+			return nil, db.WrapDbErrorWithQuery("cannot create iterator", q, iter.Err())
 		}
-		if err := scanner.Scan(*rs.Rows[rs.RowCount]...); err != nil {
-			return nil, db.WrapDbErrorWithQuery("cannot scan idx row", q, err)
+
+		nextPageState = iter.PageState()
+
+		dbWarnings := iter.Warnings()
+		if len(dbWarnings) > 0 {
+			logger.WarnCtx(pCtx, "got warnings while selecting %d idx rowids from %s%s by key: %s", batchSize, idxName, cql.RunIdSuffix(lookupNodeRunId), strings.Join(dbWarnings, ";"))
 		}
-		rs.RowCount++
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, db.WrapDbErrorWithQuery("idx scanner error", q, err)
+
+		rs.RowCount = 0
+
+		scanner := iter.Scanner()
+		for scanner.Next() {
+			if rs.RowCount >= len(rs.Rows) {
+				return nil, fmt.Errorf("unexpected idx row retrieved, exceeding rowset size %d", len(rs.Rows))
+			}
+			if err := scanner.Scan(*rs.Rows[rs.RowCount]...); err != nil {
+				return nil, db.WrapDbErrorWithQuery("cannot scan paged idx rowid", q, err)
+			}
+			rs.RowCount++
+		}
+
+		err := scanner.Err()
+		if err == nil {
+			// No more retries needed
+			break
+		}
+
+		isTimedOut := strings.Contains(err.Error(), cql.ErrorOperationTimedOut)
+		isInconsistentAndStillRetrying := strings.Contains(err.Error(), cql.ErrorCannotAchieveConsistencyLevel) && selectRetryIdx < 3
+		if !isTimedOut && !isInconsistentAndStillRetrying {
+			return nil, db.WrapDbErrorWithQuery(fmt.Sprintf("paged idx scanner cannot select %d rowids from %s%s by key after %d attempts", batchSize, idxName, cql.RunIdSuffix(lookupNodeRunId), selectRetryIdx+1), q, err)
+		}
+		logger.WarnCtx(pCtx, "cannot select %d idx rowids from %s%s by key on retry %d, getting timeout/consistency error (%s), will wait for %dms and retry", batchSize, idxName, cql.RunIdSuffix(lookupNodeRunId), selectRetryIdx, err.Error(), 10*curSelectExpBackoffFactor)
+		time.Sleep(time.Duration(10*curSelectExpBackoffFactor) * time.Millisecond)
+		curSelectExpBackoffFactor *= 2
+		selectRetryIdx++
 	}
 
 	return nextPageState, nil

@@ -73,7 +73,8 @@
       "public_keys": {"dummy-key-do-not-use-in-production-see-msgsig-test-go-for-details": "5tqw/Q6L9+sCUljNDTG3mhHY+vOOVWKI0EsPop8OSkg="}
     },
     "thread_pool_size": 2,
-    "max_partition_keys_in_select": 50
+    "lookup_key_workers": 5,
+    "lookup_rowid_workers": 5
   },
   "log": {
     "level": "debug",

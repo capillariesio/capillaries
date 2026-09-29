@@ -54,10 +54,7 @@ func (instr *FileInserter) createCsvFileAndStartWorker(logger *l.CapiLogger, u *
 
 	f.Close()
 
-	newLogger, err := l.NewLoggerFromLogger(logger)
-	if err != nil {
-		return err
-	}
+	newLogger := l.NewLoggerFromLogger(logger)
 	go instr.csvFileInserterWorker(newLogger)
 
 	return nil
