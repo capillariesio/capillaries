@@ -125,15 +125,21 @@ Default: empty
 
 ### thread_pool_size
 
-Number of threads processing messages consumed by the binary. Choose this setting according to your hardware environment specifics.
+Number of threads processing messages consumed by the binary. Choose this setting according to your hardware environment specifics. In general: one thread per daemon core is conservative, three threads per core is aggressive.
 
 Default: 5 threads
 
-### max_partition_keys_in_select
+### lookup_key_workers
 
-Max number of partition keys used in SELECT queries for specific keys in index tables and SELECT queries for specific rowids in data tables - both extensively used in [lookup](./glossary.md#lookup) processors. Google "optimal number of partition keys in cassandra select query" for details.
+Number of key/rowid pairs queried simultaneosly against the index table on a [lookup](./glossary.md#lookup). Instead of `SELECT key, rowid FROM idx_table WHERE key IN (key1,ke2,...)` which is an Cassandra anti-pattern (`key` is a partition key), lookup processor spawns a number of workers that retrieve key/rowid pairs (there can be zero, one or many) for each key separately.
 
-Default: 50
+Default: 5
+
+### lookup_rowid_workers
+
+After key/rowid pairs for a selected key are retrieved (see [lookup_key_workers](#lookup_key_workers) above) from the index table, lookup processor spawns a number of workers that retrieve data rows for each rowid retrieved (exactly one data row per rowid). This is the proper way tot retrieve multiple records by a partition key (and rowid is the partition key for each data table).
+
+Default: 5
 
 ## zap_config
 
@@ -149,7 +155,7 @@ Message signing configuration
 
 #### active_kid
 
-Currently used key id. If empty, the message is not signed and is sent as raw wfmodel.Message, instead of msgsig.SignedEnvelope. The receiving part (the daemon) can handle both scenarios.
+Currently used key id. If empty, the message is not signed and is sent as raw wfmodel.Message, instead of msgsig.SignedEnvelope. The receiving part (the [Daemon](glossary.md#daemon)) can handle both scenarios.
 
 Default: empty (no message signing)
 
