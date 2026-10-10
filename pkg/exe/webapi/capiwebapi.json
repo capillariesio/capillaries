@@ -42,7 +42,7 @@
     "url":"http://localhost:7654",
     "heartbeat_interval": 1000
   },
-  "webapi": {
+    "webapi": {
     "message_sign": {
       "active_kid": "dummy-key-do-not-use-in-production-see-msgsig-test-go-for-details",
       "private_key": "MR91SD8QblIm25yuuF1hHfzZ1mn89NwgjTMGQ2g7Gr4="

@@ -51,7 +51,7 @@ After successfully running `terraform apply`, you will have a vpc with:
 
 ![](./doc/deployment.svg)
 
-[This animation](https://capillaries.io/i/capi-animation.svg) explains how data flows between components in detail.
+[This animation](https://capillaries.top/i/capi-animation.svg) explains how data flows between components in detail.
 
 Store the bastion/jumphost address returned by Terraform in this environment variable:
  ```

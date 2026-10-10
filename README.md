@@ -1,11 +1,11 @@
-# <img src="doc/logo.svg" alt="logo" width="60"/> <a href="https://capillaries.io">Capillaries</a> <div style="float:right;"> [![coveralls](https://coveralls.io/repos/github/capillariesio/capillaries/badge.svg?branch=main)](https://coveralls.io/github/capillariesio/capillaries?branch=main) [![Go Reference](https://pkg.go.dev/badge/github.com/capillariesio/capillaries.svg)](https://pkg.go.dev/github.com/capillariesio/capillaries) [![Verified by InfraScan](https://img.shields.io/badge/Verified_by-SolDevelo_InfraScan-0052cc?style=flat&logo=security)](https://github.com/soldevelo/infrascan) [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/capillariesio/capillaries/main/LICENSE)</div>
+# <img src="doc/logo.svg" alt="logo" width="60"/> <a href="https://capillaries.top">Capillaries</a> <div style="float:right;"> [![coveralls](https://coveralls.io/repos/github/capillariesio/capillaries/badge.svg?branch=main)](https://coveralls.io/github/capillariesio/capillaries?branch=main) [![Go Reference](https://pkg.go.dev/badge/github.com/capillariesio/capillaries.svg)](https://pkg.go.dev/github.com/capillariesio/capillaries) [![Verified by InfraScan](https://img.shields.io/badge/Verified_by-SolDevelo_InfraScan-0052cc?style=flat&logo=security)](https://github.com/soldevelo/infrascan) [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/capillariesio/capillaries/main/LICENSE)</div>
 
 
 Capillaries is a data processing framework that:
 - addresses scalability issues and manages intermediate data storage, enabling users to focus on data transforms and quality control;
 - bridges the gap between distributed, scalable data processing/integration solutions and the necessity to produce enriched, customer-ready, production-quality, human-curated data within SLA time limits.
 
-This is a GitHub readme. More details and a blog at https://capillaries.io.
+This is a GitHub readme. More details and a blog at https://capillaries.top.
 
 ## Why Capillaries?
 ![Capillaries: before and after](doc/beforeafter.png)
@@ -81,8 +81,8 @@ Cassandra read/write statistics and some Daemon/Webapi metrics collected by Prom
 
 ## Further steps
 
-### Blog at <a href="https://capillaries.io/blog">capillaries.io</a>
-For more details about this particular demo, see Capillaries blog: [Use Capillaries to calculate ARK portfolio performance](https://capillaries.io/blog/2023-04-08-portfolio/index.html). To learn how this demo runs on a bigger dataset with 14 million transactions, see [Capillaries: ARK portfolio performance calculation at scale](https://capillaries.io/blog/2023-11-15-portfolio-scale/index.html).
+### Blog at <a href="https://capillaries.top/blog">capillaries.top</a>
+For more details about this particular demo, see Capillaries blog: [Use Capillaries to calculate ARK portfolio performance](https://capillaries.top/blog/2023-04-08-portfolio/index.html). To learn how this demo runs on a bigger dataset with 14 million transactions, see [Capillaries: ARK portfolio performance calculation at scale](https://capillaries.top/blog/2023-11-15-portfolio-scale/index.html).
 
 ### Further introduction
 For more details about getting started, see [Getting started](doc/started.md).
@@ -108,7 +108,7 @@ See [Terraform script](./deploy/README.md) that creates Capillaries deployment i
 ### [Capillaries API](doc/api.md)
 ### [Glossary](doc/glossary.md)
 ### [Q & A](doc/qna.md)
-### [Capillaries blog](https://capillaries.io/blog/index.html)
+### [Capillaries blog](https://capillaries.top/blog/index.html)
 ### [MIT License](LICENSE)
 
 (C) 2022-2026 KH (kleines.hertz[at]protonmail.com)
