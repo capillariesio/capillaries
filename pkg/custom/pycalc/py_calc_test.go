@@ -274,8 +274,8 @@ func testCalculator(t *testing.T, scriptDef *sc.ScriptDef) {
 	_, err = pyCalcProcDef.analyseExecError(codeBase, "", "rawErrors", errors.New("exit status"))
 	assert.Equal(t, "interpreter returned an error (probably syntax), see log for details: rawErrors", err.Error())
 
-	_, err = pyCalcProcDef.analyseExecError(codeBase, "", "unknown raw errors", errors.New("unexpected error"))
-	assert.Equal(t, "unexpected calculation errors: unknown raw errors", err.Error())
+	_, err = pyCalcProcDef.analyseExecError(codeBase, "", "unknown raw errors", errors.New("unexpected calculator error"))
+	assert.Equal(t, "unexpected calculation errors, calculator returned [unexpected calculator error]: unknown raw errors", err.Error())
 
 	// Interpreter ok, analyse output
 

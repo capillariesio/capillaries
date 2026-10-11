@@ -416,7 +416,7 @@ func (procDef *PyCalcProcessorDef) analyseExecError(codeBase string, rawOutput s
 		// fmt.Println(fullErrorInfo)
 		return fullErrorInfo, fmt.Errorf("interpreter returned an error (probably syntax), see log for details: %s", rawErrors)
 	}
-	return "", fmt.Errorf("unexpected calculation errors: %s", rawErrors)
+	return "", fmt.Errorf("unexpected calculation errors, calculator returned [%s]: %s", err.Error(), rawErrors)
 }
 
 const pyCalcFlushBufferSize int = 1000
