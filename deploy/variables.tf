@@ -9,12 +9,12 @@ variable "arch" {
 
 variable "bastion_instance_type" {
 	type        = string
-    default     = "c7g.large"
+    default     = "c8g.large"
 }
 
 variable "daemon_instance_type" {
 	type        = string
-    default     = "c7g.large"
+    default     = "c8g.large"
 }
 
 variable "number_of_daemons" {
@@ -25,7 +25,7 @@ variable "number_of_daemons" {
 variable "cassandra_instance_type" {
 	type        = string
 	description = "Make sure it's in the nvme_regex_map list"
-    default     = "c7gd.2xlarge"
+    default     = "c8gd.2xlarge"
 }
 
 variable "number_of_cassandra_hosts" {
@@ -273,7 +273,7 @@ variable "capillaries_tf_deploy_temp_bucket_name" {
 
 variable "daemon_gogc" {
 	type        = number
-	description = "GOGC env var for daemon, usually 100"
+	description = "GOGC env var for daemon, usually 100; after reducing daemon_thread_pool_factor from 3 to 2 things got better, so maybe it's ok to make GOCG 100 again"
     default     = 25
 }
 
@@ -404,21 +404,21 @@ variable "daemon_instance_gomemlimit_ratio_map" {
   description = "GOMEMLIMIT ratio for each instance type, this is mostly empiric; lower the ratio if you start seeing OOMs caused by Python"
   default = {
 	// Daemon
-	"c6a.large"    = 0.60 // of 4 GiB
-    "c6a.xlarge"   = 0.65 // of 8 GiB
-    "c6a.2xlarge"  = 0.70 // of 16 GiB
+	"c6a.large"    = 0.75 // of 4 GiB
+    "c6a.xlarge"   = 0.75 // of 8 GiB
+    "c6a.2xlarge"  = 0.75 // of 16 GiB
     "c6a.4xlarge"  = 0.75 // of 32 GiB
 	"c6a.8xlarge"  = 0.75 // of 64 GiB
-	"c7g.medium"   = 0.60 // of 2 GiB
-	"c7g.large"    = 0.75 // of 4 GiB Oct 2026 Python OOM on 0.75, ok at 0.75 with GOGC=25
+	"c7g.medium"   = 0.75 // of 2 GiB
+	"c7g.large"    = 0.75 // of 4 GiB Oct 2026 Python OOM on 0.75, ok at 0.75 with GOGC=25, on 0.90 GOGC=25 it OOMs on reading from file
     "c7g.xlarge"   = 0.75 // of 8 GiB Oct 2026 Python OOM on 0.75 GOGC100,50, on 0.70 GOGC=100, even with malloc, but ok at 0.75 with GOGC=25
-    "c7g.2xlarge"  = 0.90 // of 16 GiB ?
-    "c7g.4xlarge"  = 0.90 // of 32 GiB ?
+    "c7g.2xlarge"  = 0.75 // of 16 GiB ?
+    "c7g.4xlarge"  = 0.75 // of 32 GiB ?
     "c7g.8xlarge"  = 0.75 // of 64 GiB
-	"c8g.medium"   = 0.55 // of 2 GiB
-	"c8g.large"    = 0.60 // of 4 GiB
-    "c8g.xlarge"   = 0.65 // of 8 GiB
-    "c8g.2xlarge"  = 0.70 // of 16 GiB
+	"c8g.medium"   = 0.75 // of 2 GiB
+	"c8g.large"    = 0.75 // of 4 GiB
+    "c8g.xlarge"   = 0.75 // of 8 GiB
+    "c8g.2xlarge"  = 0.75 // of 16 GiB
     "c8g.4xlarge"  = 0.75 // of 32 GiB
     "c8g.8xlarge"  = 0.75 // of 64 GiB
   }
@@ -516,26 +516,26 @@ variable "amqp10_user_pass"{
 
 variable "daemon_thread_pool_factor" {
 	type        = number
-	description= "Worker threads per Daemon CPU: 1.0 very conservative, 3 pretty aggressive - good for benchmarking"
-	default     = 3
+	description= "Worker threads per Daemon CPU: 1.0 very conservative, 3 pretty aggressive - good for benchmarking, but Python may OOM"
+	default     = 2
 }
 
 variable "daemon_lookup_key_workers" {
 	type        = number
 	description= "Goroutines spawned to find keys in idx table on lookups; consider fine-tuning according to the daemon CPU capacity and the number of Cassandra nodes"
-	default     = 5
+	default     = 6
 }
 
 variable "daemon_lookup_rowid_workers" {
 	type        = number
 	description= "Goroutines spawned to find rowids by key in data table on lookups; consider fine-tuning according to the daemon CPU capacity and the number of Cassandra nodes"
-	default     = 5
+	default     = 6
 }
 
 variable "daemon_writer_workers" {
 	type        = number
 	description= "12 is good for benchmarking, probably lower for production"
-	default     = 12
+	default     = 16
 }
 
 locals {
