@@ -12,6 +12,7 @@ require (
 	github.com/capillariesio/capigraph v1.0.1
 	github.com/capillariesio/gocqlmem v1.0.2
 	github.com/fraugster/parquet-go v0.12.0
+	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/pkg/sftp v1.13.11
