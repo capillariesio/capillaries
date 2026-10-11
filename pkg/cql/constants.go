@@ -23,4 +23,5 @@ const (
 	ErrorCannotUpsertDuplicate         string = "dberror:cannot upsert duplicate"
 	ErrorPrefixDb                      string = "dberror:"
 	ErrorCannotAchieveConsistencyLevel string = "Cannot achieve consistency level"
+	ErrorNoResponseWithinTimeout       string = "no response received from cassandra within timeout period" // Saw this on aws.arm64.c8g.8 8 nodes
 )
