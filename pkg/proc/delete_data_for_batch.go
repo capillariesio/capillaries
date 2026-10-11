@@ -151,11 +151,12 @@ func DeleteDataAndUniqueIndexesByBatchIdx(logger *l.CapiLogger, pCtx *ctx.Messag
 			}
 
 			// For each idx, build the key and add it to the uniqueKeysToDeleteMap
-			if err := populateUniqueKeysToDeleteMap(keysToDeleteMap,
+			err = populateUniqueKeysToDeleteMap(keysToDeleteMap,
 				pCtx.CurrentScriptNode.TableCreator.Indexes,
 				rowIdsToDeleteCount,
 				tableRecord,
-				rowId); err != nil {
+				rowId)
+			if err != nil {
 				return err
 			}
 			rowIdsToDeleteCount++

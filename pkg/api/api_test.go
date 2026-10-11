@@ -203,9 +203,16 @@ var fannieMaeScenario = scenario{
 func (s scenario) outPath(base string) string      { return s.outDir + "/" + base + ".csv" }
 func (s scenario) baselinePath(base string) string { return s.outDir + "/" + base + "_baseline.csv" }
 
-func (s scenario) removeOutputs() {
+func (s scenario) removeOutputs(t *testing.T) {
 	for _, f := range s.outFiles {
-		os.Remove(s.outPath(f))
+		_, err := os.Stat(s.outPath(f))
+		if err == nil {
+			err := os.Remove(s.outPath(f))
+			assert.Nil(t, err, fmt.Sprintf("cannot remove file %s: %v", f, err))
+		} else if !errors.Is(err, os.ErrNotExist) {
+			// Unexpected error
+			assert.Nil(t, err, fmt.Sprintf("cannot remove file %s, unexpected stat error: %v", f, err))
+		}
 	}
 }
 
@@ -237,7 +244,7 @@ type testRun struct {
 // startTestRun cleans outputs, starts a run for the given scenario and asserts
 // it entered RunStart. Callers should `defer r.cleanup()`.
 func startTestRun(t *testing.T, scn scenario, ksSuffix string, writerWorkers int) *testRun {
-	scn.removeOutputs()
+	scn.removeOutputs(t)
 
 	ks := "ks_" + ksSuffix
 	ec := env.EnvConfig{

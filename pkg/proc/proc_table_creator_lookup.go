@@ -216,7 +216,7 @@ func produceNonGroupedTableRecordForCheldlessLeft(node *sc.ScriptNodeDef, rsLeft
 	return tableRecord, nil
 }
 
-func checkHavingAddRecordAndSaveBatchIfNeeded(logger *l.CapiLogger, node *sc.ScriptNodeDef, tableRecord map[string]any, indexKeyMap map[string]string, instr *TableInserter) error {
+func checkHavingAddRecordAndSaveBatchIfNeeded(logger *l.CapiLogger, node *sc.ScriptNodeDef, tableRecord map[string]any, indexKeyMap map[string]string, instr *TableInserter) (int, error) {
 	logger.PushF("proc.checkHavingAddRecordAndSaveBatchIfNeeded")
 	defer logger.PopF()
 
@@ -224,19 +224,19 @@ func checkHavingAddRecordAndSaveBatchIfNeeded(logger *l.CapiLogger, node *sc.Scr
 	// Check table creator having
 	inResult, err := node.TableCreator.CheckTableRecordHavingCondition(tableRecord)
 	if err != nil {
-		return fmt.Errorf("cannot check having condition [%s], table record [%v]: [%s]", node.TableCreator.RawHaving, tableRecord, err.Error())
+		return 0, fmt.Errorf("cannot check having condition [%s], table record [%v]: [%s]", node.TableCreator.RawHaving, tableRecord, err.Error())
 	}
 
 	if inResult {
 		err = instr.buildIndexKeys(tableRecord, indexKeyMap)
 		if err != nil {
-			return fmt.Errorf("cannot build index keys for %s: [%s]", node.TableCreator.Name, err.Error())
+			return 0, fmt.Errorf("cannot build index keys for %s: [%s]", node.TableCreator.Name, err.Error())
 		}
 		instr.add(tableRecord, indexKeyMap)
 		rowsWritten++
 	}
 
-	return nil
+	return rowsWritten, nil
 }
 
 func checkRunCreateTableRelForBatchSanity(node *sc.ScriptNodeDef, readerNodeRunId int16, lookupNodeRunId int16) error {
@@ -349,9 +349,9 @@ func processLookupsForKeys(
 
 			// Help GC
 			indexKeyMap := map[string]string{}
-			err = checkHavingAddRecordAndSaveBatchIfNeeded(workerLogger, node, tableRecord, indexKeyMap, instr)
+			havingAddRecords, err := checkHavingAddRecordAndSaveBatchIfNeeded(workerLogger, node, tableRecord, indexKeyMap, instr)
 			if err == nil {
-				rowsWritten++
+				rowsWritten += int64(havingAddRecords)
 			}
 			if err != nil {
 				return fmt.Errorf("cannot checkHavingAddRecordAndSaveBatchIfNeeded, node %s: %s", node.Name, err.Error())
@@ -649,11 +649,12 @@ func runCreateTableRelForBatch(envConfig *env.EnvConfig,
 					continue
 				}
 
-				if err = checkHavingAddRecordAndSaveBatchIfNeeded(logger, node, tableRecord, indexKeyMap, instr); err != nil {
+				havingAddRecords, err := checkHavingAddRecordAndSaveBatchIfNeeded(logger, node, tableRecord, indexKeyMap, instr)
+				if err != nil {
 					instr.cancelDrainer(fmt.Errorf("cannot Group checkHavingAddRecordAndSaveBatchIfNeeded, node %s: %s", node.Name, err.Error()))
 					return bs, instr.waitForDrainer()
 				}
-				bs.RowsWritten++
+				bs.RowsWritten += havingAddRecords
 			}
 		} else if node.Lookup.LookupJoin == sc.LookupJoinLeft {
 
@@ -676,11 +677,12 @@ func runCreateTableRelForBatch(envConfig *env.EnvConfig,
 					return bs, instr.waitForDrainer()
 				}
 
-				if err = checkHavingAddRecordAndSaveBatchIfNeeded(logger, node, tableRecord, indexKeyMap, instr); err != nil {
+				havingAddRecords, err := checkHavingAddRecordAndSaveBatchIfNeeded(logger, node, tableRecord, indexKeyMap, instr)
+				if err != nil {
 					instr.cancelDrainer(fmt.Errorf("cannot JoinLeft checkHavingAddRecordAndSaveBatchIfNeeded, node %s: %s", node.Name, err.Error()))
 					return bs, instr.waitForDrainer()
 				}
-				bs.RowsWritten++
+				bs.RowsWritten += havingAddRecords
 			}
 		}
 

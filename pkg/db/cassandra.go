@@ -300,12 +300,13 @@ func newCassandraGocqlSession(envConfig *env.EnvConfig, keyspace string, createK
 			}
 
 			if cassandraEngine == CassandraEngineAmazonKeyspaces {
-				if checkTableErr := VerifyAmazonKeyspacesTablesReady(genericSession, keyspace, []string{
+				checkTableErr := VerifyAmazonKeyspacesTablesReady(genericSession, keyspace, []string{
 					wfmodel.TableNameBatchHistory,
 					wfmodel.TableNameNodeHistory,
 					wfmodel.TableNameRunHistory,
 					wfmodel.TableNameRunProperties,
-					wfmodel.TableNameRunCounter}); checkTableErr != nil {
+					wfmodel.TableNameRunCounter})
+				if checkTableErr != nil {
 					return nil, cassandraEngine, checkTableErr
 				}
 			}

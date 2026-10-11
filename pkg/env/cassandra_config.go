@@ -1,6 +1,6 @@
 package env
 
-import "encoding/json"
+import "encoding/json/v2"
 
 // This was not tested outside of the EnableHostVerification=false scenario
 type SslOptions struct {
@@ -25,7 +25,7 @@ type CassandraConfig struct {
 	DisableInitialHostLookup  bool        `json:"disable_initial_host_lookup" env:"CAPI_CASSANDRA_DISABLE_INITIAL_HOST_LOOKUP, overwrite"` // gocql.ClusterConfig.DisableInitialHostLookup default false
 }
 
-func (c *CassandraConfig) ShallowCopy() CassandraConfig {
+func (c CassandraConfig) ShallowCopy() CassandraConfig {
 	return CassandraConfig{
 		Hosts:                     c.Hosts,
 		Port:                      c.Port,
@@ -41,7 +41,9 @@ func (c *CassandraConfig) ShallowCopy() CassandraConfig {
 		DisableInitialHostLookup:  c.DisableInitialHostLookup,
 	}
 }
-func (c *CassandraConfig) MarshalJSON() ([]byte, error) {
+
+// Obfuscate username and password
+func (c CassandraConfig) MarshalJSON() ([]byte, error) {
 	safeCopy := c.ShallowCopy()
 	if len(safeCopy.Username) > 0 {
 		safeCopy.Username = "..."

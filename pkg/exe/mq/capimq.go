@@ -151,15 +151,15 @@ func (h *UrlHandlerInstance) qBulk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	now := time.Now().UnixMilli()
+	nowMilli := time.Now().UnixMilli()
 	internalMsgs := make([]*capimq.CapimqInternalMessage, len(msgs))
 	for i := range len(msgs) {
 		internalMsgs[i] = &capimq.CapimqInternalMessage{
 			Id:                   msgs[i].Id,
 			CapimqWaitRetryGroup: msgs[i].CapimqWaitRetryGroup,
-			Ts:                   now,
-			Heartbeat:            now,
-			DeliverAfter:         now,
+			Ts:                   nowMilli,
+			Heartbeat:            nowMilli,
+			DeliverAfter:         nowMilli,
 			Data:                 msgs[i].Data,
 			ClaimComment:         "",
 		}

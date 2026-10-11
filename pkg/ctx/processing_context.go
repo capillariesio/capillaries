@@ -83,9 +83,9 @@ func (pCtx *MessageProcessingContext) DbConnect(envConfig *env.EnvConfig) error 
 func (pCtx *MessageProcessingContext) SendHeartbeat() {
 	if pCtx.HeartbeatCallback != nil && pCtx.HeartbeatIntervalMillis > 0 {
 		pCtx.HeartbeatCallbackMutex.Lock()
-		now := time.Now().UnixMilli()
-		if pCtx.LastHeartbeatSentTs+pCtx.HeartbeatIntervalMillis < now {
-			pCtx.LastHeartbeatSentTs = now
+		nowMilli := time.Now().UnixMilli()
+		if pCtx.LastHeartbeatSentTs+pCtx.HeartbeatIntervalMillis < nowMilli {
+			pCtx.LastHeartbeatSentTs = nowMilli
 			pCtx.HeartbeatCallback(pCtx.Msg.Id)
 		}
 		pCtx.HeartbeatCallbackMutex.Unlock()
