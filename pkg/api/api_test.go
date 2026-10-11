@@ -76,12 +76,12 @@ func readCSV(filename string) ([][]string, error) {
 func compareCsvs(file1 string, file2 string) error {
 	a, err := readCSV(file1)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot read file1 %s: %s", file1, err.Error())
 	}
 
 	b, err := readCSV(file2)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot read file2 %s: %s", file2, err.Error())
 	}
 
 	maxRows := len(a)
