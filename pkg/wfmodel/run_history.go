@@ -147,7 +147,7 @@ func RunHistoryRowsToEvents(rows []map[string]any) ([]*RunHistoryEvent, error) {
 
 func RunHistoryEventsToLifespanMap(events []*RunHistoryEvent) (RunLifespanMap, error) {
 	runLifespanMap := RunLifespanMap{}
-	emptyUnix := time.Time{}.Unix()
+	emptyUnixSec := time.Time{}.Unix()
 	for _, e := range events {
 		if e.Status == RunStart {
 			runLifespanMap[e.RunId] = &RunLifespan{RunId: e.RunId, StartTs: e.Ts, StartComment: e.Comment, FinalStatus: RunStart, CompletedTs: time.Time{}, StoppedTs: time.Time{}}
@@ -156,13 +156,13 @@ func RunHistoryEventsToLifespanMap(events []*RunHistoryEvent) (RunLifespanMap, e
 			if !ok {
 				return nil, fmt.Errorf("unexpected sequence of run status events: %v", events)
 			}
-			if e.Status == RunComplete && runLifespanMap[e.RunId].CompletedTs.Unix() == emptyUnix {
+			if e.Status == RunComplete && runLifespanMap[e.RunId].CompletedTs.Unix() == emptyUnixSec {
 				runLifespanMap[e.RunId].CompletedTs = e.Ts
 				runLifespanMap[e.RunId].CompletedComment = e.Comment
-				if runLifespanMap[e.RunId].StoppedTs.Unix() == emptyUnix {
+				if runLifespanMap[e.RunId].StoppedTs.Unix() == emptyUnixSec {
 					runLifespanMap[e.RunId].FinalStatus = RunComplete // If it was not stopped so far, consider it complete
 				}
-			} else if e.Status == RunStop && runLifespanMap[e.RunId].StoppedTs.Unix() == emptyUnix {
+			} else if e.Status == RunStop && runLifespanMap[e.RunId].StoppedTs.Unix() == emptyUnixSec {
 				runLifespanMap[e.RunId].StoppedTs = e.Ts
 				runLifespanMap[e.RunId].StoppedComment = e.Comment
 				runLifespanMap[e.RunId].FinalStatus = RunStop // Stop always wins as final status, it may be sign for dependency checker to declare results invalid (depending on the rules)

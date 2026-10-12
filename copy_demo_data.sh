@@ -14,7 +14,7 @@ chmod 777 /tmp/capi_out
 chmod 777 /tmp/capi_log
 
 pushd test/code/lookup
-./1_create_data.sh quick fs
+./1_create_data.sh quick fs light
 popd
 
 pushd test/code/py_calc

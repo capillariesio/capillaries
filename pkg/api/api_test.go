@@ -9,6 +9,7 @@ They test db-level Cassandra conditions, hence the somewhat comlex  TableInserte
 import (
 	"encoding/csv"
 	"encoding/json"
+	"encoding/json/jsontext"
 	"errors"
 	"fmt"
 	"io"
@@ -76,12 +77,12 @@ func readCSV(filename string) ([][]string, error) {
 func compareCsvs(file1 string, file2 string) error {
 	a, err := readCSV(file1)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot read file1 %s: %s", file1, err.Error())
 	}
 
 	b, err := readCSV(file2)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot read file2 %s: %s", file2, err.Error())
 	}
 
 	maxRows := len(a)
@@ -142,9 +143,9 @@ func (f *TestProcessorDefFactory) Create(processorType string) (sc.CustomProcess
 	}
 }
 
-func getTestProcessorSettings() map[string]json.RawMessage {
+func getTestProcessorSettings() map[string]jsontext.Value {
 	jsonData := []byte(`{"py_calc": {"python_interpreter_path": "python", "python_interpreter_params": ["-u", "-"]}, "tag_and_denormalize": {}}`)
-	var result map[string]json.RawMessage
+	var result map[string]jsontext.Value
 	err := json.Unmarshal(jsonData, &result)
 	if err != nil {
 		panic(err)
@@ -203,9 +204,16 @@ var fannieMaeScenario = scenario{
 func (s scenario) outPath(base string) string      { return s.outDir + "/" + base + ".csv" }
 func (s scenario) baselinePath(base string) string { return s.outDir + "/" + base + "_baseline.csv" }
 
-func (s scenario) removeOutputs() {
+func (s scenario) removeOutputs(t *testing.T) {
 	for _, f := range s.outFiles {
-		os.Remove(s.outPath(f))
+		_, err := os.Stat(s.outPath(f))
+		if err == nil {
+			err := os.Remove(s.outPath(f))
+			assert.Nil(t, err, fmt.Sprintf("cannot remove file %s: %v", f, err))
+		} else if !errors.Is(err, os.ErrNotExist) {
+			// Unexpected error
+			assert.Nil(t, err, fmt.Sprintf("cannot remove file %s, unexpected stat error: %v", f, err))
+		}
 	}
 }
 
@@ -237,7 +245,7 @@ type testRun struct {
 // startTestRun cleans outputs, starts a run for the given scenario and asserts
 // it entered RunStart. Callers should `defer r.cleanup()`.
 func startTestRun(t *testing.T, scn scenario, ksSuffix string, writerWorkers int) *testRun {
-	scn.removeOutputs()
+	scn.removeOutputs(t)
 
 	ks := "ks_" + ksSuffix
 	ec := env.EnvConfig{

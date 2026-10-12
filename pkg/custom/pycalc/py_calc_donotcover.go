@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -30,6 +31,10 @@ func (procDef *PyCalcProcessorDef) Run(logger *l.CapiLogger, pCtx *ctx.MessagePr
 	defer cancel()
 
 	p := exec.CommandContext(cmdCtx, procDef.EnvSettings.InterpreterPath, procDef.EnvSettings.InterpreterParams...)
+
+	if len(procDef.EnvSettings.InterpreterVariables) > 0 {
+		p.Env = append(os.Environ(), procDef.EnvSettings.InterpreterVariables...)
+	}
 
 	// Supply our calculation code to Python as stdin
 	p.Stdin = strings.NewReader(codeBase)

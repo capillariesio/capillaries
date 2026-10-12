@@ -28,8 +28,8 @@ if [[ "$fs_or_s3" = "s3" ]]; then
   fi
 fi
 
+cmdDiff="go run ../parquet/capiparquet.go"
 if [[ "$quick_or_big" = "big" ]]; then
-  cmdDiff="go run ../parquet/capiparquet.go"
   if ! $cmdDiff diff $outDir/deal_seller_summaries_baseline.parquet $outDir/deal_seller_summaries.parquet ||
     ! $cmdDiff diff $outDir/deal_summaries_baseline.parquet $outDir/deal_summaries.parquet; then
     echo -e "\033[0;31m fannie_mae_bigtest $fs_or_s3 diff FAILED\e[0m"
@@ -39,7 +39,7 @@ if [[ "$quick_or_big" = "big" ]]; then
   fi
 else
   if ! $cmdDiff diff $outDir/deal_seller_summaries_baseline.parquet $outDir/deal_seller_summaries.parquet ||
-    ! $cmdDiff diff $outDir/loan_smrs_clcltd.parquet $outDir/loan_smrs_clcltd.parquet ||
+    ! $cmdDiff diff $outDir/loan_smrs_clcltd_baseline.parquet $outDir/loan_smrs_clcltd.parquet ||
     ! $cmdDiff diff $outDir/deal_summaries_baseline.parquet $outDir/deal_summaries.parquet; then
     echo -e "\033[0;31m fannie_mae_quicktest $fs_or_s3 FAILED\e[0m"
     exit 1

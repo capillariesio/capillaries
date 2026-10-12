@@ -2,7 +2,8 @@ package env
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -22,7 +23,7 @@ type EnvConfig struct {
 	AccessPolicy                      sc.AccessPolicy              `json:"access_policy,omitempty"`                         // Governs external resource access: scheme/SSRF gate (embedded FetchPolicy) plus file_reader input and file_creator output location allowlists
 	Daemon                            DaemonConfig                 `json:"daemon,omitempty"`
 	Webapi                            WebapiConfig                 `json:"webapi,omitempty"`
-	CustomProcessorsSettings          map[string]json.RawMessage   `json:"custom_processors"`
+	CustomProcessorsSettings          map[string]jsontext.Value    `json:"custom_processors"`
 	CustomProcessorDefFactoryInstance sc.CustomProcessorDefFactory `json:"-"`
 	MqType                            string                       `json:"mq_type,omitempty" env:"CAPI_MQ_TYPE, overwrite"`
 	CapiMqClient                      CapiMqClientConfig           `json:"capimq_client,omitempty"`

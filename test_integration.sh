@@ -10,9 +10,9 @@ fi
 if [[ "$short_or_long_or_s3_or_all" = "short" || "$short_or_long_or_s3_or_all" = "all" ]]; then
 	pushd ./test/code/lookup
 	# 13 s
-	./test.sh quick local fs one
+	./test.sh quick local fs one light
 	# 2+7=9 s
-	./test.sh quick local fs multi
+	./test.sh quick local fs multi light
 	popd
 
 	pushd ./test/code/py_calc
@@ -44,29 +44,29 @@ fi
 
 if [[ "$short_or_long_or_s3_or_all" = "long" || "$short_or_long_or_s3_or_all" = "all" ]]; then
 	pushd ./test/code/lookup
-	# 4 threads total: 114 s capimq one 120
+	# 4 threads total: 105 s capimq one 120
 	./test.sh big local fs one light
-	# 4 threads total: 29+84
+	# 4 threads total: 26+75
 	./test.sh big local fs multi light
 	popd
 
 	pushd ./test/code/portfolio
-	# 4 threads total: one 97 s multi 55+9+10+19 capimq one 74
+	# 4 threads total: one 97 s multi 54+4+10+18 capimq one 74
 	./test.sh quick local fs multi
 	popd
 
 	pushd ./test/code/lookup
-	# 4 threads total: 19+65
+	# 4 threads total: 17+13
 	./test.sh big local fs multi heavy
 	popd
 
 	pushd ./test/code/fannie_mae
-	# 4 threads total: one 149 293 270 246 s, multi 20+22+107+27+74 capimq one 137 multi 17+21+2+21+77=138
+	# 4 threads total: multi 20+25+131+25+53
 	./test.sh quick local fs multi
 	popd
 
 	pushd ./test/code/global_affairs
-	# 4 threads total: one 46 s multi 0+0+1+2+27=30
+	# 4 threads total: one 46 s multi 1+1+1+3+17=23
 	./test.sh quick local fs multi
 	popd
 fi

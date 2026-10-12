@@ -3,6 +3,7 @@ package taganddenormalize
 import (
 	"context"
 	"encoding/json"
+	"encoding/json/jsontext"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -39,7 +40,7 @@ func (procDef *TagAndDenormalizeProcessorDef) GetUsedInTargetExpressionsFields()
 	return &procDef.UsedInCriteriaFields
 }
 
-func (procDef *TagAndDenormalizeProcessorDef) Deserialize(raw json.RawMessage, _ json.RawMessage, scriptType sc.ScriptType, caPath string, privateKeys map[string]string) error {
+func (procDef *TagAndDenormalizeProcessorDef) Deserialize(raw jsontext.Value, _ jsontext.Value, scriptType sc.ScriptType, caPath string, privateKeys map[string]string) error {
 	var err error
 	switch scriptType {
 	case sc.ScriptJson:

@@ -60,6 +60,7 @@
   "custom_processors": {
     "py_calc": {
       "python_interpreter_path": "python3",
+      "python_interpreter_variables": [],
       "python_interpreter_params": [
         "-u",
         "-"

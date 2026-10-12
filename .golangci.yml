@@ -76,7 +76,7 @@ linters:
     rules:
 
       - path: pkg\/xfer\/ssh\.go
-        text: "SA1019: x509.IsEncryptedPEMBlock|SA1019: x509.DecryptPEMBlock"
+        text: "SA1019"
         linters: [ staticcheck ]
 
       - path: .+\.go
@@ -99,5 +99,11 @@ linters:
         text: function processLookupsForKeys has (cognitive|cyclomatic) complexity
         linters: [ revive ]
          
+      - path: pkg\/proc\/table_inserter\.go
+        text: insertDataRecordWithRowid has cognitive complexity
+        linters: [ revive ]
 
+      - path: pkg\/env\/cassandra_config\.go
+        text: "S1016: should convert c"
+        linters: [ staticcheck ]
         

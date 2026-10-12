@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"encoding/json/jsontext"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -28,9 +29,10 @@ type PyCalcEnvSettings struct {
 	// Windows: `python` or `C:\Users\%USERNAME%\AppData\Local\Programs\Python\Python310\python.exe`
 	// WSL: `python` or `/mnt/c/Users/myusername/AppData/Local/Programs/Python/Python310/python.exe`
 	// Linux: `python`
-	InterpreterPath   string   `json:"python_interpreter_path" env:"CAPI_PYCALC_INTERPRETER_PATH, overwrite"`     // Python binary full path or name (if in PATH)
-	InterpreterParams []string `json:"python_interpreter_params" env:"CAPI_PYCALC_INTERPRETER_PARAMS, overwrite"` // Usually: ["-u", "-"]. -u is essential: without it, we will not see stdout/stderr in the timeout scenario
-	ExecutionTimeout  int      `json:"execution_timeout" env:"CAPI_PYCALC_EXECUTION_TIMEOUT, overwrite"`          // Default 5000 milliseconds
+	InterpreterPath      string   `json:"python_interpreter_path" env:"CAPI_PYCALC_INTERPRETER_PATH, overwrite"`           // Python binary full path or name (if in PATH)
+	InterpreterVariables []string `json:"python_interpreter_variables" env:"CAPI_PYCALC_INTERPRETER_VARIABLES, overwrite"` // PYTHONMALLOC=malloc
+	InterpreterParams    []string `json:"python_interpreter_params" env:"CAPI_PYCALC_INTERPRETER_PARAMS, overwrite"`       // Usually: ["-u", "-"]. -u is essential: without it, we will not see stdout/stderr in the timeout scenario
+	ExecutionTimeout     int      `json:"execution_timeout" env:"CAPI_PYCALC_EXECUTION_TIMEOUT, overwrite"`                // Default 5000 milliseconds
 }
 
 // All processor settings, stored in Capillaries scripts, root values coming from node
@@ -78,7 +80,7 @@ func harvestCallExp(callExp *ast.CallExpr, sigMap map[string]struct{}) error {
 	return nil
 }
 
-func (procDef *PyCalcProcessorDef) Deserialize(raw json.RawMessage, customProcSettings json.RawMessage, scriptType sc.ScriptType, caPath string, privateKeys map[string]string) error {
+func (procDef *PyCalcProcessorDef) Deserialize(raw jsontext.Value, customProcSettings jsontext.Value, scriptType sc.ScriptType, caPath string, privateKeys map[string]string) error {
 	if err := sc.JsonOrYamlUnmarshal(scriptType, raw, procDef); err != nil {
 		return fmt.Errorf("cannot unmarshal py_calc processor def: %s", err.Error())
 	}
@@ -406,8 +408,8 @@ func (procDef *PyCalcProcessorDef) analyseExecError(codeBase string, rawOutput s
 	} else if strings.Contains(err.Error(), "exit status") {
 		// err.Error():'exit status 1', cmdCtx.Err():'%!s(<nil>)'
 		// Python interpreter reported an error: there was a syntax error in the codebase and no results were returned
-		fullErrorInfo := fmt.Sprintf("interpreter returned an error (probably syntax):\n%s %v\n%s\n%s\n%s",
-			procDef.EnvSettings.InterpreterPath, procDef.EnvSettings.InterpreterParams,
+		fullErrorInfo := fmt.Sprintf("interpreter returned an error (probably syntax):\n%v %s %v\n%s\n%s\n%s",
+			procDef.EnvSettings.InterpreterVariables, procDef.EnvSettings.InterpreterPath, procDef.EnvSettings.InterpreterParams,
 			rawOutput,
 			rawErrors,
 			getErrorLineNumberInfo(&codeBase, rawErrors))
@@ -415,7 +417,7 @@ func (procDef *PyCalcProcessorDef) analyseExecError(codeBase string, rawOutput s
 		// fmt.Println(fullErrorInfo)
 		return fullErrorInfo, fmt.Errorf("interpreter returned an error (probably syntax), see log for details: %s", rawErrors)
 	}
-	return "", fmt.Errorf("unexpected calculation errors: %s", rawErrors)
+	return "", fmt.Errorf("unexpected calculation errors, calculator returned [%s]: %s", err.Error(), rawErrors)
 }
 
 const pyCalcFlushBufferSize int = 1000

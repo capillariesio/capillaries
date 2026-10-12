@@ -9,12 +9,12 @@ variable "arch" {
 
 variable "bastion_instance_type" {
 	type        = string
-    default     = "c7g.large"
+    default     = "c8g.large"
 }
 
 variable "daemon_instance_type" {
 	type        = string
-    default     = "c7g.large"
+    default     = "c8g.large"
 }
 
 variable "number_of_daemons" {
@@ -25,7 +25,7 @@ variable "number_of_daemons" {
 variable "cassandra_instance_type" {
 	type        = string
 	description = "Make sure it's in the nvme_regex_map list"
-    default     = "c7gd.2xlarge"
+    default     = "c8gd.2xlarge"
 }
 
 variable "number_of_cassandra_hosts" {
@@ -272,9 +272,9 @@ variable "capillaries_tf_deploy_temp_bucket_name" {
 }
 
 variable "daemon_gogc" {
-	type        = string
-	description = "GOGC env var for daemon, usually 100"
-    default     = "100"
+	type        = number
+	description = "GOGC env var for daemon, usually 100; after reducing daemon_thread_pool_factor from 3 to 2 things got better, so maybe it's ok to make GOCG 100 again"
+    default     = 25
 }
 
 variable "webapi_prometheus_exporter_port" {
@@ -397,6 +397,33 @@ variable "instance_memory_map" {
   }
 }
 
+// If you let daemon use half of RAM, GOGC=100 will probably take it to 70%, and we also need some memory to run Python
+// Fight the temptation to raise it above 75% - there may be not enough room for Python
+variable "daemon_instance_gomemlimit_ratio_map" {
+  type = map(number)
+  description = "GOMEMLIMIT ratio for each instance type, this is mostly empiric; lower the ratio if you start seeing OOMs caused by Python"
+  default = {
+	// Daemon
+	"c6a.large"    = 0.75 // of 4 GiB
+    "c6a.xlarge"   = 0.75 // of 8 GiB
+    "c6a.2xlarge"  = 0.75 // of 16 GiB
+    "c6a.4xlarge"  = 0.75 // of 32 GiB
+	"c6a.8xlarge"  = 0.75 // of 64 GiB
+	"c7g.medium"   = 0.75 // of 2 GiB
+	"c7g.large"    = 0.75 // of 4 GiB Oct 2026 Python OOM on 0.75, ok at 0.75 with GOGC=25, on 0.90 GOGC=25 it OOMs on reading from file
+    "c7g.xlarge"   = 0.75 // of 8 GiB Oct 2026 Python OOM on 0.75 GOGC100,50, on 0.70 GOGC=100, even with malloc, but ok at 0.75 with GOGC=25
+    "c7g.2xlarge"  = 0.75 // of 16 GiB ?
+    "c7g.4xlarge"  = 0.75 // of 32 GiB ?
+    "c7g.8xlarge"  = 0.75 // of 64 GiB
+	"c8g.medium"   = 0.75 // of 2 GiB
+	"c8g.large"    = 0.75 // of 4 GiB
+    "c8g.xlarge"   = 0.75 // of 8 GiB
+    "c8g.2xlarge"  = 0.75 // of 16 GiB
+    "c8g.4xlarge"  = 0.75 // of 32 GiB
+    "c8g.8xlarge"  = 0.75 // of 64 GiB
+  }
+}
+
 variable "nvme_regex_map" {
   type = map(string)
   default = {
@@ -489,26 +516,26 @@ variable "amqp10_user_pass"{
 
 variable "daemon_thread_pool_factor" {
 	type        = number
-	description= "Worker threads per Daemon CPU: 1.0 very conservative, 3 pretty aggressive - good for benchmarking"
-	default     = 3
+	description= "Worker threads per Daemon CPU: 1.0 very conservative, 3 pretty aggressive - good for benchmarking, but Python may OOM"
+	default     = 2
 }
 
 variable "daemon_lookup_key_workers" {
 	type        = number
 	description= "Goroutines spawned to find keys in idx table on lookups; consider fine-tuning according to the daemon CPU capacity and the number of Cassandra nodes"
-	default     = 5
+	default     = 6
 }
 
 variable "daemon_lookup_rowid_workers" {
 	type        = number
 	description= "Goroutines spawned to find rowids by key in data table on lookups; consider fine-tuning according to the daemon CPU capacity and the number of Cassandra nodes"
-	default     = 5
+	default     = 6
 }
 
 variable "daemon_writer_workers" {
 	type        = number
 	description= "12 is good for benchmarking, probably lower for production"
-	default     = 12
+	default     = 16
 }
 
 locals {
@@ -527,10 +554,9 @@ locals {
 											[format("'localhost:%s'",var.webapi_prometheus_exporter_port), format("'localhost:%s'", var.capimq_prometheus_exporter_port) ],
 											[ for i in range(var.number_of_daemons) : format("'10.5.0.1%02s:%s'", i+1, var.daemon_prometheus_exporter_port) ])) // webapi, capimq and daemon go exporters
 	daemon_thread_pool_size    = ceil(var.cpu_count_map[var.daemon_instance_type] * var.daemon_thread_pool_factor )
-	// Let daemon use half of RAM, GOGC=100 will probably take it to 70%, and we also need some memory to run Python
-	// Fight the temptation to raise it to, say, 75% - there may be not enough room for Python
-	daemon_gomemlimit_gb       = ceil(var.instance_memory_map[var.daemon_instance_type] * 0.50 ) 
-	webapi_gomemlimit_gb       = ceil(var.instance_memory_map[var.bastion_instance_type] * 0.50 )
+	daemon_gomemlimit_gb       = ceil(var.instance_memory_map[var.daemon_instance_type] * var.daemon_instance_gomemlimit_ratio_map[var.daemon_instance_type]*100) / 100
+	daemon_gomemlimit_mb       = ceil(local.daemon_gomemlimit_gb * 1024)
+	webapi_gomemlimit_gb       = ceil(var.instance_memory_map[var.bastion_instance_type] * 0.50 * 100) / 100 // Leave some room for RabbitMQ, nginx etc
 } 
 
 # These should match names in artifacts_download.sh, artifacts_upload.sh

@@ -149,7 +149,7 @@ func (mb *MessageBroker) ReturnDead(deadTimeoutMillis int64) []string {
 }
 
 func (mb *MessageBroker) QBulk(msgs []*CapimqInternalMessage) error {
-	ts := time.Now().UnixMilli()
+	tsMilli := time.Now().UnixMilli()
 
 	mb.QMutex.Lock()
 
@@ -160,8 +160,8 @@ func (mb *MessageBroker) QBulk(msgs []*CapimqInternalMessage) error {
 	}
 
 	for _, msg := range msgs {
-		msg.Ts = ts
-		msg.DeliverAfter = ts
+		msg.Ts = tsMilli
+		msg.DeliverAfter = tsMilli
 		msg.Heartbeat = 0
 		mb.Q = append(mb.Q, msg)
 	}
@@ -175,14 +175,14 @@ func (mb *MessageBroker) QBulk(msgs []*CapimqInternalMessage) error {
 }
 
 func (mb *MessageBroker) Claim(claimComment string) (*CapimqInternalMessage, error) {
-	now := time.Now().UnixMilli()
+	nowMilli := time.Now().UnixMilli()
 	mb.QMutex.Lock()
 	if len(mb.Q) == 0 {
 		mb.QMutex.Unlock()
 		return nil, nil
 	}
 	// The earliest item is at the head of the slice.
-	if mb.Q[0].DeliverAfter > now {
+	if mb.Q[0].DeliverAfter > nowMilli {
 		// All messages are postponed for time later than now, nothing to return
 		mb.QMutex.Unlock()
 		return nil, nil
@@ -192,7 +192,7 @@ func (mb *MessageBroker) Claim(claimComment string) (*CapimqInternalMessage, err
 	mb.Q = mb.Q[1:]
 	mb.QMutex.Unlock()
 
-	msg.Heartbeat = now
+	msg.Heartbeat = nowMilli
 	msg.ClaimComment = claimComment
 
 	mb.WipMutex.Lock()
