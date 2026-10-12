@@ -2,6 +2,7 @@ package sc
 
 import (
 	"encoding/json"
+	"encoding/json/jsontext"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -114,17 +115,17 @@ type ScriptNodeDef struct {
 	HandlerExeType         string          `json:"handler_exe_type,omitempty" yaml:"handler_exe_type,omitempty"`
 	MaxBatchProcessingTime int             `json:"max_batch_processing_time,omitempty" yaml:"max_batch_processing_time,omitempty"`
 
-	RawReader   json.RawMessage `json:"r" yaml:"r"` // This depends on tfm type
+	RawReader   jsontext.Value `json:"r" yaml:"r"` // This depends on tfm type
 	TableReader TableReaderDef
 	FileReader  FileReaderDef
 
 	Lookup LookupDef `json:"l" yaml:"l"`
 
-	RawProcessorDef json.RawMessage    `json:"p" yaml:"p"` // This depends on tfm type
+	RawProcessorDef jsontext.Value     `json:"p" yaml:"p"` // This depends on tfm type
 	CustomProcessor CustomProcessorDef // Also should implement CustomProcessorRunner
 
-	RawWriter            json.RawMessage `json:"w" yaml:"w"` // This depends on tfm type
-	DependencyPolicyName string          `json:"dependency_policy" yaml:"dependency_policy"`
+	RawWriter            jsontext.Value `json:"w" yaml:"w"` // This depends on tfm type
+	DependencyPolicyName string         `json:"dependency_policy" yaml:"dependency_policy"`
 	TableCreator         TableCreatorDef
 	TableUpdater         TableUpdaterDef
 	FileCreator          FileCreatorDef
@@ -214,7 +215,7 @@ func (node *ScriptNodeDef) initCreator() error {
 	return nil
 }
 
-func (node *ScriptNodeDef) initCustomProcessor(customProcessorDefFactory CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage, scriptType ScriptType, caPath string, privateKeys map[string]string) error {
+func (node *ScriptNodeDef) initCustomProcessor(customProcessorDefFactory CustomProcessorDefFactory, customProcessorsSettings map[string]jsontext.Value, scriptType ScriptType, caPath string, privateKeys map[string]string) error {
 	if node.HasCustomProcessor() {
 		if customProcessorDefFactory == nil {
 			return errors.New("undefined custom processor factory")
@@ -239,7 +240,7 @@ func (node *ScriptNodeDef) initCustomProcessor(customProcessorDefFactory CustomP
 	return nil
 }
 
-func (node *ScriptNodeDef) Deserialize(customProcessorDefFactory CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage, scriptType ScriptType, caPath string, privateKeys map[string]string) error {
+func (node *ScriptNodeDef) Deserialize(customProcessorDefFactory CustomProcessorDefFactory, customProcessorsSettings map[string]jsontext.Value, scriptType ScriptType, caPath string, privateKeys map[string]string) error {
 	foundErrors := make([]string, 0)
 
 	if err := ValidateNodeType(node.Type); err != nil {

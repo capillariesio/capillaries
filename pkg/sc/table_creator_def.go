@@ -2,6 +2,7 @@ package sc
 
 import (
 	"encoding/json"
+	"encoding/json/jsontext"
 	"fmt"
 	"go/ast"
 	"math"
@@ -74,7 +75,7 @@ func (tcDef *TableCreatorDef) GetFieldRefsWithAlias(useTableAlias string) *Field
 	return &fieldRefs
 }
 
-func (tcDef *TableCreatorDef) Deserialize(rawWriter json.RawMessage) error {
+func (tcDef *TableCreatorDef) Deserialize(rawWriter jsontext.Value) error {
 	var err error
 	if err = json.Unmarshal(rawWriter, tcDef); err != nil {
 		return fmt.Errorf("cannot unmarshal table creator: %s", err.Error())

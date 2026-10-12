@@ -25,8 +25,11 @@ type CassandraConfig struct {
 	DisableInitialHostLookup  bool        `json:"disable_initial_host_lookup" env:"CAPI_CASSANDRA_DISABLE_INITIAL_HOST_LOOKUP, overwrite"` // gocql.ClusterConfig.DisableInitialHostLookup default false
 }
 
-func (c CassandraConfig) ShallowCopy() CassandraConfig {
-	return CassandraConfig{
+// Define an alias to avoid MarshalJSON->Marshal recursion
+type CassandraConfigObfuscated CassandraConfig
+
+func (c CassandraConfig) ShallowCopy() CassandraConfigObfuscated {
+	return CassandraConfigObfuscated{
 		Hosts:                     c.Hosts,
 		Port:                      c.Port,
 		Username:                  c.Username,

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"encoding/json/jsontext"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -79,7 +80,7 @@ func harvestCallExp(callExp *ast.CallExpr, sigMap map[string]struct{}) error {
 	return nil
 }
 
-func (procDef *PyCalcProcessorDef) Deserialize(raw json.RawMessage, customProcSettings json.RawMessage, scriptType sc.ScriptType, caPath string, privateKeys map[string]string) error {
+func (procDef *PyCalcProcessorDef) Deserialize(raw jsontext.Value, customProcSettings jsontext.Value, scriptType sc.ScriptType, caPath string, privateKeys map[string]string) error {
 	if err := sc.JsonOrYamlUnmarshal(scriptType, raw, procDef); err != nil {
 		return fmt.Errorf("cannot unmarshal py_calc processor def: %s", err.Error())
 	}

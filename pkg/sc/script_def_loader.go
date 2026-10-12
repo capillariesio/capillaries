@@ -1,7 +1,7 @@
 package sc
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
 	"fmt"
 	"regexp"
 	"strings"
@@ -31,7 +31,7 @@ func NewScriptFromFileBytes(
 	scriptParamsUrl string,
 	jsonOrYamlBytesParams []byte,
 	customProcessorDefFactoryInstance CustomProcessorDefFactory,
-	customProcessorsSettings map[string]json.RawMessage) (*ScriptDef, ScriptInitProblemType, error) {
+	customProcessorsSettings map[string]jsontext.Value) (*ScriptDef, ScriptInitProblemType, error) {
 	// Make sure parameters are in canonical format: {param_name|param_type}
 	jsonOrYamlScriptString := string(jsonOrYamlBytesScript)
 

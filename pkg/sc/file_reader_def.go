@@ -2,6 +2,7 @@ package sc
 
 import (
 	"encoding/json"
+	"encoding/json/jsontext"
 	"errors"
 	"fmt"
 	"strconv"
@@ -101,7 +102,7 @@ func (frDef *FileReaderDef) getCsvColumnIndexingMode() (FileColumnIndexingMode, 
 
 }
 
-func (frDef *FileReaderDef) Deserialize(rawReader json.RawMessage) error {
+func (frDef *FileReaderDef) Deserialize(rawReader jsontext.Value) error {
 	foundErrors := make([]string, 0, 2)
 
 	// Unmarshal

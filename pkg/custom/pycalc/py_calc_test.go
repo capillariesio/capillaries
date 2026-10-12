@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"encoding/json/jsontext"
 	"errors"
 	"os/exec"
 	"regexp"
@@ -209,7 +210,7 @@ func jsonToYamlToScriptDef(t *testing.T) *sc.ScriptDef {
 	assert.Nil(t, err)
 
 	scriptDef := &sc.ScriptDef{}
-	err = scriptDef.Deserialize(scriptYamlBytes, sc.ScriptYaml, &PyCalcTestTestProcessorDefFactory{}, map[string]json.RawMessage{"py_calc": []byte(envSettingsJson)}, "", nil)
+	err = scriptDef.Deserialize(scriptYamlBytes, sc.ScriptYaml, &PyCalcTestTestProcessorDefFactory{}, map[string]jsontext.Value{"py_calc": []byte(envSettingsJson)}, "", nil)
 	assert.Nil(t, err)
 
 	return scriptDef
@@ -374,7 +375,7 @@ bla
 
 func TestPyCalcDefCalculatorJson(t *testing.T) {
 	scriptDef := &sc.ScriptDef{}
-	assert.Nil(t, scriptDef.Deserialize([]byte(scriptJson), sc.ScriptJson, &PyCalcTestTestProcessorDefFactory{}, map[string]json.RawMessage{"py_calc": []byte(envSettingsJson)}, "", nil))
+	assert.Nil(t, scriptDef.Deserialize([]byte(scriptJson), sc.ScriptJson, &PyCalcTestTestProcessorDefFactory{}, map[string]jsontext.Value{"py_calc": []byte(envSettingsJson)}, "", nil))
 	testCalculator(t, scriptDef)
 }
 
@@ -388,29 +389,29 @@ func TestPyCalcDefBadScript(t *testing.T) {
 	scriptDef := &sc.ScriptDef{}
 	err := scriptDef.Deserialize(
 		[]byte(strings.Replace(scriptJson, `"having": "w.taxed_field_decimal > 10"`, `"having": "p.taxed_field_int1 > 10"`, 1)), sc.ScriptJson,
-		&PyCalcTestTestProcessorDefFactory{}, map[string]json.RawMessage{"py_calc": []byte(envSettingsJson)}, "", nil)
+		&PyCalcTestTestProcessorDefFactory{}, map[string]jsontext.Value{"py_calc": []byte(envSettingsJson)}, "", nil)
 	assert.Contains(t, err.Error(), "prohibited field p.taxed_field_int1")
 
 	err = scriptDef.Deserialize(
 		[]byte(strings.Replace(scriptJson, `increase_by_ten_percent(r.field_int1)`, `bad_func(r.field_int1)`, 1)), sc.ScriptJson,
-		&PyCalcTestTestProcessorDefFactory{}, map[string]json.RawMessage{"py_calc": []byte(envSettingsJson)}, "", nil)
+		&PyCalcTestTestProcessorDefFactory{}, map[string]jsontext.Value{"py_calc": []byte(envSettingsJson)}, "", nil)
 	assert.Contains(t, err.Error(), "function def 'bad_func(arg)' not found in Python file")
 
 	re := regexp.MustCompile(`"python_code_urls": \[[^\]]+\]`)
 	err = scriptDef.Deserialize(
 		[]byte(re.ReplaceAllString(scriptJson, `"python_code_urls":[123]`)), sc.ScriptJson,
-		&PyCalcTestTestProcessorDefFactory{}, map[string]json.RawMessage{"py_calc": []byte(envSettingsJson)}, "", nil)
+		&PyCalcTestTestProcessorDefFactory{}, map[string]jsontext.Value{"py_calc": []byte(envSettingsJson)}, "", nil)
 	assert.Contains(t, err.Error(), "cannot unmarshal py_calc processor def")
 
 	re = regexp.MustCompile(`"python_interpreter_path": "[^"]+"`)
 	err = scriptDef.Deserialize(
 		[]byte(scriptJson), sc.ScriptJson,
-		&PyCalcTestTestProcessorDefFactory{}, map[string]json.RawMessage{"py_calc": []byte(re.ReplaceAllString(envSettingsJson, `"python_interpreter_path": 123`))}, "", nil)
+		&PyCalcTestTestProcessorDefFactory{}, map[string]jsontext.Value{"py_calc": []byte(re.ReplaceAllString(envSettingsJson, `"python_interpreter_path": 123`))}, "", nil)
 	assert.Contains(t, err.Error(), "cannot unmarshal py_calc processor env settings")
 
 	err = scriptDef.Deserialize(
 		[]byte(scriptJson), sc.ScriptJson,
-		&PyCalcTestTestProcessorDefFactory{}, map[string]json.RawMessage{"py_calc": []byte(re.ReplaceAllString(envSettingsJson, `"python_interpreter_path": ""`))}, "", nil)
+		&PyCalcTestTestProcessorDefFactory{}, map[string]jsontext.Value{"py_calc": []byte(re.ReplaceAllString(envSettingsJson, `"python_interpreter_path": ""`))}, "", nil)
 	assert.Contains(t, err.Error(), "py_calc interpreter path cannot be empty")
 
 }

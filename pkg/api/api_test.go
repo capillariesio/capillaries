@@ -9,6 +9,7 @@ They test db-level Cassandra conditions, hence the somewhat comlex  TableInserte
 import (
 	"encoding/csv"
 	"encoding/json"
+	"encoding/json/jsontext"
 	"errors"
 	"fmt"
 	"io"
@@ -142,9 +143,9 @@ func (f *TestProcessorDefFactory) Create(processorType string) (sc.CustomProcess
 	}
 }
 
-func getTestProcessorSettings() map[string]json.RawMessage {
+func getTestProcessorSettings() map[string]jsontext.Value {
 	jsonData := []byte(`{"py_calc": {"python_interpreter_path": "python", "python_interpreter_params": ["-u", "-"]}, "tag_and_denormalize": {}}`)
-	var result map[string]json.RawMessage
+	var result map[string]jsontext.Value
 	err := json.Unmarshal(jsonData, &result)
 	if err != nil {
 		panic(err)

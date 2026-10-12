@@ -1,7 +1,7 @@
 package sc
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
 	"fmt"
 	"go/ast"
 
@@ -77,7 +77,7 @@ func NewFieldRefsFromNodeEvent() *FieldRefs {
 	}
 }
 
-func (polDef *DependencyPolicyDef) Deserialize(rawPol json.RawMessage, scriptType ScriptType) error {
+func (polDef *DependencyPolicyDef) Deserialize(rawPol jsontext.Value, scriptType ScriptType) error {
 	if err := JsonOrYamlUnmarshal(scriptType, rawPol, polDef); err != nil {
 		return fmt.Errorf("cannot unmarshal dependency policy: [%s]", err.Error())
 	}

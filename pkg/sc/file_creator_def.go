@@ -2,6 +2,7 @@ package sc
 
 import (
 	"encoding/json"
+	"encoding/json/jsontext"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -112,7 +113,7 @@ func (creatorDef *FileCreatorDef) HasTop() bool {
 	return len(strings.TrimSpace(creatorDef.Top.RawOrder)) > 0
 }
 
-func (creatorDef *FileCreatorDef) Deserialize(rawWriter json.RawMessage) error {
+func (creatorDef *FileCreatorDef) Deserialize(rawWriter jsontext.Value) error {
 	if err := json.Unmarshal(rawWriter, creatorDef); err != nil {
 		return fmt.Errorf("cannot unmarshal file creator: [%s]", err.Error())
 	}

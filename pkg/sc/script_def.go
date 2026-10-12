@@ -1,7 +1,7 @@
 package sc
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
 	"errors"
 	"fmt"
 	"strings"
@@ -25,8 +25,8 @@ const (
 )
 
 type ScriptDef struct {
-	ScriptNodes           map[string]*ScriptNodeDef  `json:"nodes" yaml:"nodes"`
-	RawDependencyPolicies map[string]json.RawMessage `json:"dependency_policies" yaml:"dependency_policies"`
+	ScriptNodes           map[string]*ScriptNodeDef `json:"nodes" yaml:"nodes"`
+	RawDependencyPolicies map[string]jsontext.Value `json:"dependency_policies" yaml:"dependency_policies"`
 	TableCreatorNodeMap   map[string](*ScriptNodeDef)
 	IndexNodeMap          map[string](*ScriptNodeDef)
 }
@@ -103,7 +103,7 @@ func (scriptDef *ScriptDef) checkDependencyPolicyUsage(scriptType ScriptType) er
 	return nil
 }
 
-func (scriptDef *ScriptDef) Deserialize(jsonOrYamlBytesScript []byte, scriptType ScriptType, customProcessorDefFactory CustomProcessorDefFactory, customProcessorsSettings map[string]json.RawMessage, caPath string, privateKeys map[string]string) error {
+func (scriptDef *ScriptDef) Deserialize(jsonOrYamlBytesScript []byte, scriptType ScriptType, customProcessorDefFactory CustomProcessorDefFactory, customProcessorsSettings map[string]jsontext.Value, caPath string, privateKeys map[string]string) error {
 
 	if err := JsonOrYamlUnmarshal(scriptType, jsonOrYamlBytesScript, &scriptDef); err != nil {
 		return fmt.Errorf("cannot unmarshal script: [%s]", err.Error())
