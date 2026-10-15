@@ -5,13 +5,13 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"net"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
 )
 
 func signerFromPem(pemBytes []byte, password []byte) (ssh.Signer, error) {
@@ -80,20 +80,28 @@ func parsePemBlock(block *pem.Block) (any, error) {
 	}
 }
 
+// Used only when downloading/uploading SFP files
 func NewSshClientConfig(user string, privateKeyPath string, privateKeyPassword string) (*ssh.ClientConfig, error) {
-	keyPath := privateKeyPath
-	if strings.HasPrefix(keyPath, "~/") {
+	if strings.HasPrefix(privateKeyPath, "~/") {
 		homeDir, _ := os.UserHomeDir()
-		keyPath = filepath.Join(homeDir, keyPath[2:])
+		privateKeyPath = filepath.Join(homeDir, privateKeyPath[2:])
 	}
-	pemBytes, err := os.ReadFile(keyPath)
+	pemBytes, err := os.ReadFile(privateKeyPath)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read private key file %s: %s", keyPath, err.Error())
+		return nil, fmt.Errorf("cannot read private key file %s: %s", privateKeyPath, err.Error())
 	}
 
 	signer, err := signerFromPem(pemBytes, []byte(privateKeyPassword))
 	if err != nil {
 		return nil, err
+	}
+
+	home, _ := os.UserHomeDir()
+	knownHostsPath := filepath.Join(home, ".ssh", "known_hosts")
+
+	hostKeyCallback, err := knownhosts.New(knownHostsPath)
+	if err != nil {
+		return nil, fmt.Errorf("cannot load known_hosts: %s", err.Error())
 	}
 
 	return &ssh.ClientConfig{
@@ -102,9 +110,6 @@ func NewSshClientConfig(user string, privateKeyPath string, privateKeyPassword s
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(signer),
 		},
-		HostKeyCallback: func(_ string, _ net.Addr, _ ssh.PublicKey) error {
-			// use known_hosts file if you care about host validation
-			return nil
-		},
+		HostKeyCallback: hostKeyCallback,
 	}, nil
 }
