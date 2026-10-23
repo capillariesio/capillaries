@@ -87,7 +87,7 @@ func readAndInsert(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, tab
 				return bs, err
 			}
 
-			fileRecord, err := instr.FileCreator.CalculateFileRecordFromSrcVars(vars)
+			fileRecord, nullColumnIndexes, err := instr.FileCreator.CalculateFileRecordFromSrcVars(vars)
 			if err != nil {
 				return bs, fmt.Errorf("cannot populate file record from [%v]: [%s]", vars, err.Error())
 			}
@@ -109,6 +109,10 @@ func readAndInsert(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, tab
 				key, err := sc.BuildKey(keyVars, &instr.FileCreator.Top.OrderIdxDef)
 				if err != nil {
 					return bs, fmt.Errorf("cannot build top key for [%v]: [%s]", vars, err.Error())
+				}
+				// Replace column values with NULLs if needed
+				for _, nullColIdx := range nullColumnIndexes {
+					fileRecord[nullColIdx] = nil
 				}
 				heap.Push(&topHeap, &FileRecordHeapItem{FileRecord: &fileRecord, Key: key})
 				if len(topHeap) > instr.FileCreator.Top.Limit {

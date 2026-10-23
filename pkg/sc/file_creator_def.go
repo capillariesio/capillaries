@@ -36,13 +36,15 @@ type WriteParquetColumnSettings struct {
 }
 
 type WriteFileColumnDef struct {
-	RawExpression    string                     `json:"expression" yaml:"expression"`
-	Name             string                     `json:"name"` // To be used in Having
-	Type             evalcapi.TableFieldType    `json:"type"` // To be checked when checking expressions and to be used in Having
-	Csv              WriteCsvColumnSettings     `json:"csv,omitempty"`
-	Parquet          WriteParquetColumnSettings `json:"parquet,omitempty"`
-	ParsedExpression ast.Expr                   `json:"-"`
-	UsedFields       FieldRefs                  `json:"-"`
+	RawExpression               string                     `json:"expression" yaml:"expression"`
+	Name                        string                     `json:"name"` // To be used in Having
+	Type                        evalcapi.TableFieldType    `json:"type"` // To be checked when checking expressions and to be used in Having
+	Csv                         WriteCsvColumnSettings     `json:"csv,omitempty"`
+	Parquet                     WriteParquetColumnSettings `json:"parquet,omitempty"`
+	ParsedExpression            ast.Expr                   `json:"-"`
+	UsedFields                  FieldRefs                  `json:"-"`
+	WriteNullIfRawExpression    string                     `json:"write_null_if_expression" yaml:"write_null_if_expression"`
+	WriteNullIfParsedExpression ast.Expr                   `json:"-"`
 }
 
 type TopDef struct {
@@ -142,8 +144,20 @@ func (creatorDef *FileCreatorDef) Deserialize(rawWriter jsontext.Value) error {
 	// Columns
 	for i := 0; i < len(creatorDef.Columns); i++ {
 		colDef := &creatorDef.Columns[i]
-		if (*colDef).ParsedExpression, err = ParseRawGolangExpressionStringAndHarvestFieldRefs((*colDef).RawExpression, &(*colDef).UsedFields); err != nil {
-			return fmt.Errorf("cannot parse column expression [%s]: [%s]", (*colDef).RawExpression, err.Error())
+
+		// Parse column expression to write
+		if colDef.ParsedExpression, err = ParseRawGolangExpressionStringAndHarvestFieldRefs(colDef.RawExpression, &(*colDef).UsedFields); err != nil {
+			return fmt.Errorf("cannot parse column expression [%s]: [%s]", colDef.RawExpression, err.Error())
+		}
+
+		// Parse condition that signals to write NULL
+		if len(colDef.WriteNullIfRawExpression) > 0 {
+			if len(colDef.Parquet.ColumnName) == 0 {
+				return fmt.Errorf("cannot parse write_null_if expression [%s]: this attribute is allowed only for parquet writer", (*colDef).WriteNullIfRawExpression)
+			}
+			if colDef.WriteNullIfParsedExpression, err = ParseRawGolangExpressionStringAndHarvestFieldRefs(colDef.WriteNullIfRawExpression, &(*colDef).UsedFields); err != nil {
+				return fmt.Errorf("cannot parse write_null_if expression [%s]: [%s]", colDef.WriteNullIfRawExpression, err.Error())
+			}
 		}
 		if !evalcapi.IsValidFieldType(colDef.Type) {
 			return fmt.Errorf("invalid column type [%s]", colDef.Type)
@@ -169,13 +183,34 @@ func (creatorDef *FileCreatorDef) Deserialize(rawWriter jsontext.Value) error {
 	return nil
 }
 
-func (creatorDef *FileCreatorDef) CalculateFileRecordFromSrcVars(srcVars eval.VarValuesMap) ([]any, error) {
+func (creatorDef *FileCreatorDef) CalculateFileRecordFromSrcVars(srcVars eval.VarValuesMap) ([]any, []int, error) {
 	foundErrors := make([]string, 0, 2)
 
 	fileRecord := make([]any, len(creatorDef.Columns))
+	nullColumnIndexes := make([]int, 0)
 
 	for colIdx := 0; colIdx < len(creatorDef.Columns); colIdx++ {
 		eCtx := eval.NewPlainEvalCtx(evalcapi.CapillariesEvalFunctions, evalcapi.CapillariesEvalConstants, srcVars)
+
+		// Check if we have to write a NULL
+		if creatorDef.Columns[colIdx].WriteNullIfParsedExpression != nil {
+			valVolatile, err := eCtx.Eval(creatorDef.Columns[colIdx].WriteNullIfParsedExpression)
+			if err != nil {
+				foundErrors = append(foundErrors, fmt.Sprintf("cannot evaluate write_null_ if expression for column %s: [%s]", creatorDef.Columns[colIdx].Name, err.Error()))
+				continue
+			}
+			valBool, ok := valVolatile.(bool)
+			if !ok {
+				foundErrors = append(foundErrors, fmt.Sprintf("cannot evaluate non-bool write_null_ if expression for column %s", creatorDef.Columns[colIdx].Name))
+				continue
+			}
+			if valBool {
+				// Write NULL to this column. Proceed with calculating it though: CheckFileRecordHavingCondition needs the actual value, not the NULL
+				nullColumnIndexes = append(nullColumnIndexes, colIdx)
+			}
+		}
+
+		// Proceed with calculating column value
 		eCtx.SetRoundDec(2) // decimal2
 		valVolatile, err := eCtx.Eval(creatorDef.Columns[colIdx].ParsedExpression)
 		if err != nil {
@@ -188,9 +223,9 @@ func (creatorDef *FileCreatorDef) CalculateFileRecordFromSrcVars(srcVars eval.Va
 	}
 
 	if len(foundErrors) > 0 {
-		return nil, fmt.Errorf("%s", strings.Join(foundErrors, "; "))
+		return nil, nil, fmt.Errorf("%s", strings.Join(foundErrors, "; "))
 	}
-	return fileRecord, nil
+	return fileRecord, nullColumnIndexes, nil
 }
 
 func (creatorDef *FileCreatorDef) CheckFileRecordHavingCondition(fileRecord []any) (bool, error) {

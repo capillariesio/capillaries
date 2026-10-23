@@ -60,7 +60,7 @@ if [[ "$quick_or_big" = "big" ]]; then
   fi
 else
   echo "Copying config files to "$cfgDir
-  cp ../../data/cfg/lookup/script_quick.yaml $cfgDir/
+  cp ../../data/cfg/lookup/script_quick_*.yaml $cfgDir/
   cp ../../data/cfg/lookup/script_params_quick_*.yaml $cfgDir/
 
   echo "Copying in files to "$inDir

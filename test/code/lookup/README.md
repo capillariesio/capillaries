@@ -28,6 +28,7 @@ go run capitoolbelt.go validate_script -script_file=../../../test/data/cfg/looku
 - [file_table](../../../doc/glossary.md#file_table) read from single file
 - [table_file](../../../doc/glossary.md#table_file) with [top/limit/order](../../../doc/scriptconfig.md#wtop)
 - single-run (test_one_run.sh) and multi-run (test_two_runs.sh) script execution
+- `quick ... parquet` tests `write_null_if_expression` Parquet writer attribute
 
 Multi-run test simulates the scenario when an operator validates loaded order and order item data before proceeding with joining orders with order items.
 

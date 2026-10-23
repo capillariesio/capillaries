@@ -114,6 +114,7 @@ func (fieldRefs *FieldRefs) contributeUnresolved(tableName string, fieldName str
 		}
 	}
 
+	// For now, use FieldTypeUnknown. Later, checkAllowed() will populate it
 	*fieldRefs = append(*fieldRefs, FieldRef{TableName: tableName, FieldName: fieldName, FieldType: evalcapi.FieldTypeUnknown})
 }
 

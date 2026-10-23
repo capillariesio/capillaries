@@ -1,7 +1,7 @@
 #!/bin/bash
 
 keyspace="lookup_quicktest_local_fs_execnodes"
-scriptFile=/tmp/capi_cfg/lookup_quicktest/script_quick.yaml
+scriptFile=/tmp/capi_cfg/lookup_quicktest/script_quick_csv.yaml
 paramsFile=/tmp/capi_cfg/lookup_quicktest/script_params_quick_fs_one.yaml
 
 SECONDS=0

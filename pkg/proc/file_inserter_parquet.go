@@ -45,6 +45,11 @@ func (instr *FileInserter) createParquetFileAndStartWorker(logger *l.CapiLogger,
 func (instr *FileInserter) generateMapToAdd(batch *WriteFileBatch, rowIdx int) (map[string]any, error) {
 	d := map[string]any{}
 	for i := 0; i < len(instr.FileCreator.Columns); i++ {
+		if batch.Rows[rowIdx][i] == nil {
+			// Write a NULL
+			d[instr.FileCreator.Columns[i].Parquet.ColumnName] = nil
+			continue
+		}
 		switch instr.FileCreator.Columns[i].Type {
 		case evalcapi.FieldTypeString:
 			typedValue, ok := batch.Rows[rowIdx][i].(string)

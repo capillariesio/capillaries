@@ -80,6 +80,9 @@ func timeStr(ts time.Time) string {
 	}
 }
 
+// This generates quick parquet files
+// go run ./generate_data.go -formats=parquet -items=1000 -products=10 -sellers=5 -keyweight=light -script_params_path=../../data/cfg/lookup/script_params_big_fs_one.json -in_root=/tmp/capi_in/lookup_quicktest -out_root=/tmp/capi_out/lookup_quicktest -split_orders=2 -split_items=2
+
 type ScriptParams struct {
 	StartDateString                string `json:"start_date"`
 	EndDateString                  string `json:"end_date"`

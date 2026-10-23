@@ -6,12 +6,14 @@ quick_or_big=$1
 local_or_cloud=$2
 fs_or_s3=$3
 one_or_multi_or_execnodes=$4
+csv_or_parquet=$5
 
 if [[ "$quick_or_big" != "quick" && "$quick_or_big" != "big" || \
   "$local_or_cloud" != "local" && "$local_or_cloud" != "cloud" || \
   "$fs_or_s3" != "fs" && "$fs_or_s3" != "s3" || \
-  "$one_or_multi_or_execnodes" != "one" && "$one_or_multi_or_execnodes" != "multi" && "$one_or_multi_or_execnodes" != "execnodes" ]]; then
-  echo $(basename "$0") requires 4 parameters:  'quick|big' 'local|cloud' 'fs|s3' 'one|multi|execnodes'
+  "$one_or_multi_or_execnodes" != "one" && "$one_or_multi_or_execnodes" != "multi" && "$one_or_multi_or_execnodes" != "execnodes" || \
+  "$csv_or_parquet" != "csv" && "$csv_or_parquet" != "parquet" ]]; then
+  echo $(basename "$0") requires 5 parameters:  'quick|big' 'local|cloud' 'fs|s3' 'one|multi|execnodes' 'csv|parquet'
   exit 1
 fi
 
@@ -22,7 +24,7 @@ fi
 dataDirName=lookup_${quick_or_big}test
 outDir=/tmp/capi_out/$dataDirName
 
-if [[ "$quick_or_big" = "big" ]]; then
+if [[ "$csv_or_parquet" = "parquet" ]]; then
   rm -f $outDir/*_inner.parquet $outDir/*_outer.parquet
 else
   rm -f $outDir/*_inner.csv $outDir/*_outer.csv
