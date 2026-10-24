@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/capillariesio/capillaries/pkg/l"
+	"github.com/capillariesio/capillaries/pkg/sc"
 	"github.com/capillariesio/capillaries/pkg/xfer"
 	"github.com/shopspring/decimal"
 )
@@ -99,9 +100,12 @@ func (instr *FileInserter) csvFileInserterWorker(logger *l.CapiLogger) {
 					stringVal = fmt.Sprintf(instr.FileCreator.Columns[i].Csv.Format, assertedVal.StringFixed(2))
 				case string:
 					stringVal = strings.ReplaceAll(assertedVal, `"`, `""`)
-				case nil:
-					// Should never end up here - CSV writer cannot write NULLs, but anyways
-					stringVal = "NULL"
+				case sc.FileCreatorNull:
+					if len(instr.FileCreator.Csv.NullValue) > 0 {
+						stringVal = instr.FileCreator.Csv.NullValue
+					} else {
+						stringVal = ""
+					}
 				default:
 					stringVal = fmt.Sprintf(instr.FileCreator.Columns[i].Csv.Format, batch.Rows[rowIdx][i])
 				}

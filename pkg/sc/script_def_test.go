@@ -2,6 +2,7 @@ package sc
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -176,6 +177,7 @@ const plainScriptJson string = `
 						},
 						"name": "field_int1",
 						"expression": "r.field_int1",
+						"write_null_if_expression": "r.field_int1 == 999",
 						"type": "int"
 					},
 					{
@@ -785,14 +787,16 @@ func testCreatorCalculateOutput(t *testing.T, scriptDef *ScriptDef) {
 	// File creator: calculate columns
 
 	var cols []any
+	var nullColumnIndexes []int
 	vars = eval.VarValuesMap{"r": {"field_int1": int64(1), "field_string1": "a", "total_value": decimal.NewFromInt(1), "item_count": int64(1)}}
-	cols, _ = scriptDef.ScriptNodes["file_totals"].FileCreator.CalculateFileRecordFromSrcVars(vars)
+	cols, nullColumnIndexes, _ = scriptDef.ScriptNodes["file_totals"].FileCreator.CalculateFileRecordFromSrcVars(vars)
 	assert.Equal(t, 4, len(cols))
 	if len(cols) == 4 {
 		assert.Equal(t, int64(1), cols[0])
 		assert.Equal(t, "a", cols[1])
 		assert.True(t, decimal.NewFromInt(1).Equal(cols[2].(decimal.Decimal)))
 		assert.Equal(t, int64(1), cols[3])
+		assert.Equal(t, "[]", fmt.Sprintf("%v", nullColumnIndexes))
 	}
 
 	// File creator: bad column expression, tweak decimal2()
@@ -801,17 +805,68 @@ func testCreatorCalculateOutput(t *testing.T, scriptDef *ScriptDef) {
 		[]byte(strings.Replace(plainScriptJson, `decimal2(r.total_value)`, `decimal2(r.total_value`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Contains(t, err.Error(), "[cannot parse column expression [decimal2(r.total_value]")
+
+}
+
+func testCreatorCalculateOutputWithNulls(t *testing.T, scriptDef *ScriptDef) {
+	var err error
+	var vars eval.VarValuesMap
+
+	var cols []any
+	var nullColumnIndexes []int
+
+	// Involve NULLs
+	vars = eval.VarValuesMap{"r": {"field_int1": int64(999), "field_string1": "a", "total_value": decimal.NewFromInt(1), "item_count": int64(1)}}
+	cols, nullColumnIndexes, err = scriptDef.ScriptNodes["file_totals"].FileCreator.CalculateFileRecordFromSrcVars(vars)
+	assert.Equal(t, 4, len(cols))
+	if len(cols) == 4 {
+		assert.Equal(t, int64(999), cols[0])
+		assert.Equal(t, "a", cols[1])
+		assert.True(t, decimal.NewFromInt(1).Equal(cols[2].(decimal.Decimal)))
+		assert.Equal(t, int64(1), cols[3])
+		assert.Equal(t, "[0]", fmt.Sprintf("%v", nullColumnIndexes))
+	}
+
+	// bad write_null_if expression, tweak r.field_int1 == 999
+
+	err = scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `r.field_int1 == 999`, `r.field_int1 +`, 1)), ScriptJson,
+		nil, nil, "", nil)
+	assert.Contains(t, err.Error(), "cannot parse write_null_if expression [r.field_int1 +]: [strict parsing error: [1:15: expected operand, found 'EOF")
+
+	// write_null_if expression of wrong type, tweak r.field_int1 == 999
+
+	err = scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `r.field_int1 == 999`, `r.field_int1 + 1`, 1)), ScriptJson,
+		nil, nil, "", nil)
+	assert.Nil(t, err)
+	cols, nullColumnIndexes, err = scriptDef.ScriptNodes["file_totals"].FileCreator.CalculateFileRecordFromSrcVars(vars)
+	assert.Contains(t, err.Error(), "cannot evaluate non-bool write_null_ if expression for column field_int1")
+
+	// write_null_if expression cannot be evaluated, tweak r.field_int1 == 999
+
+	err = scriptDef.Deserialize(
+		[]byte(strings.Replace(plainScriptJson, `r.field_int1 == 999`, `r.field_int1 + r.field_string1`, 1)), ScriptJson,
+		nil, nil, "", nil)
+	assert.Nil(t, err)
+	cols, nullColumnIndexes, err = scriptDef.ScriptNodes["file_totals"].FileCreator.CalculateFileRecordFromSrcVars(vars)
+	assert.Contains(t, err.Error(), "cannot evaluate write_null_ if expression for column field_int1: [cannot perform binary arithmetic op, incompatible arg types '999(int64)' + 'a(string)' ]")
+
 }
 
 func TestCreatorCalculateOutputJson(t *testing.T) {
 	scriptDef := &ScriptDef{}
 	assert.Nil(t, scriptDef.Deserialize([]byte(plainScriptJson), ScriptJson, nil, nil, "", nil))
 	testCreatorCalculateOutput(t, scriptDef)
+	assert.Nil(t, scriptDef.Deserialize([]byte(plainScriptJson), ScriptJson, nil, nil, "", nil))
+	testCreatorCalculateOutputWithNulls(t, scriptDef)
 }
 
 func TestCreatorCalculateOutputYaml(t *testing.T) {
 	scriptDef := jsonToYamlToScriptDef(t)
 	testCreatorCalculateOutput(t, scriptDef)
+	scriptDef = jsonToYamlToScriptDef(t)
+	testCreatorCalculateOutputWithNulls(t, scriptDef)
 }
 
 func testLookup(t *testing.T, scriptDef *ScriptDef) {

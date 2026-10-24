@@ -55,11 +55,14 @@ type TopDef struct {
 
 type CsvCreatorSettings struct {
 	Separator string `json:"separator" yaml:"separator"`
+	NullValue string `json:"null_value" yaml:"null_value"`
 }
 
 type ParquetCreatorSettings struct {
 	Codec ParquetCodecType `json:"codec" yaml:"codec"`
 }
+
+type FileCreatorNull struct{}
 
 type FileCreatorDef struct {
 	UrlTemplate                   string                 `json:"url_template" yaml:"url_template"`
@@ -150,11 +153,8 @@ func (creatorDef *FileCreatorDef) Deserialize(rawWriter jsontext.Value) error {
 			return fmt.Errorf("cannot parse column expression [%s]: [%s]", colDef.RawExpression, err.Error())
 		}
 
-		// Parse condition that signals to write NULL
+		// Parse condition that signals to write NULL to the output file
 		if len(colDef.WriteNullIfRawExpression) > 0 {
-			if len(colDef.Parquet.ColumnName) == 0 {
-				return fmt.Errorf("cannot parse write_null_if expression [%s]: this attribute is allowed only for parquet writer", (*colDef).WriteNullIfRawExpression)
-			}
 			if colDef.WriteNullIfParsedExpression, err = ParseRawGolangExpressionStringAndHarvestFieldRefs(colDef.WriteNullIfRawExpression, &(*colDef).UsedFields); err != nil {
 				return fmt.Errorf("cannot parse write_null_if expression [%s]: [%s]", colDef.WriteNullIfRawExpression, err.Error())
 			}
@@ -205,13 +205,14 @@ func (creatorDef *FileCreatorDef) CalculateFileRecordFromSrcVars(srcVars eval.Va
 				continue
 			}
 			if valBool {
-				// Write NULL to this column. Proceed with calculating it though: CheckFileRecordHavingCondition needs the actual value, not the NULL
+				// Write NULL to this column. Proceed with calculating it though:
+				// CheckFileRecordHavingCondition and BuildKey in the caller need the actual value, not the NULL
 				nullColumnIndexes = append(nullColumnIndexes, colIdx)
 			}
 		}
 
 		// Proceed with calculating column value
-		eCtx.SetRoundDec(2) // decimal2
+		eCtx.SetRoundDec(2) // Assuming this is decimal2. Revisit when we decide to introduce decimal3, decimal etc
 		valVolatile, err := eCtx.Eval(creatorDef.Columns[colIdx].ParsedExpression)
 		if err != nil {
 			foundErrors = append(foundErrors, fmt.Sprintf("cannot evaluate expression for column %s: [%s]", creatorDef.Columns[colIdx].Name, err.Error()))

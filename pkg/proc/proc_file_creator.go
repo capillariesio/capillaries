@@ -110,15 +110,20 @@ func readAndInsert(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, tab
 				if err != nil {
 					return bs, fmt.Errorf("cannot build top key for [%v]: [%s]", vars, err.Error())
 				}
-				// Replace column values with NULLs if needed
+				// CheckFileRecordHavingCondition and BuildKey are done with calculating values in fileRecord,
+				// now it is safe to replace column values with NULLs if the user asked for it
 				for _, nullColIdx := range nullColumnIndexes {
-					fileRecord[nullColIdx] = nil
+					fileRecord[nullColIdx] = sc.FileCreatorNull{}
 				}
 				heap.Push(&topHeap, &FileRecordHeapItem{FileRecord: &fileRecord, Key: key})
 				if len(topHeap) > instr.FileCreator.Top.Limit {
 					heap.Pop(&topHeap)
 				}
 			} else {
+				// No ordering needed. Replace column values with NULLs if the user asked for it
+				for _, nullColIdx := range nullColumnIndexes {
+					fileRecord[nullColIdx] = sc.FileCreatorNull{}
+				}
 				instr.add(fileRecord)
 				bs.RowsWritten++
 			}
@@ -132,7 +137,6 @@ func readAndInsert(logger *l.CapiLogger, pCtx *ctx.MessageProcessingContext, tab
 		if err := instr.checkWorkerOutputForErrors(); err != nil {
 			return bs, fmt.Errorf("cannot save record batch from %s to %s(temp %s): [%s]", tableName, instr.FinalFileUrl, instr.TempFilePath, err.Error())
 		}
-
 	} // for each source table batch
 
 	if instr.FileCreator.HasTop() {

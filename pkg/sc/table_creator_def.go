@@ -207,7 +207,7 @@ func CalculateFieldValue(fieldName string, fieldDef *WriteTableFieldDef, srcVars
 	var eCtx *eval.EvalCtx
 	var err error
 	eCtx = eval.NewPlainEvalCtx(evalcapi.CapillariesEvalFunctions, evalcapi.CapillariesEvalConstants, srcVars)
-	eCtx.SetRoundDec(2) // decimal2
+	eCtx.SetRoundDec(2) // Assuming this is decimal2. Revisit when we decide to introduce decimal3, decimal etc
 	valVolatile, err := eCtx.Eval(fieldDef.ParsedExpression)
 	if err != nil {
 		return nil, fmt.Errorf("cannot evaluate expression for field %s: [%s]", fieldName, err.Error())

@@ -101,6 +101,9 @@ func (eCtx *EvalCtx) SetVars(vars VarValuesMap) {
 	eCtx.evalVars = vars
 }
 
+// For now, when we have only decimal2, this is fine.
+// But when we introduce, say, decimal4, there will be a question:
+// if a formula involves decimal2 and decimal4, what rounding rule should we use? 2 or 4?
 func (eCtx *EvalCtx) SetRoundDec(roundDec int32) {
 	eCtx.roundDec = roundDec
 }

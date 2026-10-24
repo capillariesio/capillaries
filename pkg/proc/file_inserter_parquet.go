@@ -45,50 +45,51 @@ func (instr *FileInserter) createParquetFileAndStartWorker(logger *l.CapiLogger,
 func (instr *FileInserter) generateMapToAdd(batch *WriteFileBatch, rowIdx int) (map[string]any, error) {
 	d := map[string]any{}
 	for i := 0; i < len(instr.FileCreator.Columns); i++ {
-		if batch.Rows[rowIdx][i] == nil {
+		// Before even getting column type, check if the user want us to write a NULL
+		if _, ok := batch.Rows[rowIdx][i].(sc.FileCreatorNull); ok {
 			// Write a NULL
 			d[instr.FileCreator.Columns[i].Parquet.ColumnName] = nil
-			continue
-		}
-		switch instr.FileCreator.Columns[i].Type {
-		case evalcapi.FieldTypeString:
-			typedValue, ok := batch.Rows[rowIdx][i].(string)
-			if !ok {
-				return nil, fmt.Errorf("cannot convert column %s value [%v] to Parquet string", instr.FileCreator.Columns[i].Parquet.ColumnName, batch.Rows[rowIdx][i])
+		} else {
+			switch instr.FileCreator.Columns[i].Type {
+			case evalcapi.FieldTypeString:
+				typedValue, ok := batch.Rows[rowIdx][i].(string)
+				if !ok {
+					return nil, fmt.Errorf("cannot convert column %s value [%v] to Parquet string", instr.FileCreator.Columns[i].Parquet.ColumnName, batch.Rows[rowIdx][i])
+				}
+				d[instr.FileCreator.Columns[i].Parquet.ColumnName] = typedValue
+			case evalcapi.FieldTypeInt:
+				typedValue, ok := batch.Rows[rowIdx][i].(int64)
+				if !ok {
+					return nil, fmt.Errorf("cannot convert column %s value [%v] to Parquet int64", instr.FileCreator.Columns[i].Parquet.ColumnName, batch.Rows[rowIdx][i])
+				}
+				d[instr.FileCreator.Columns[i].Parquet.ColumnName] = typedValue
+			case evalcapi.FieldTypeFloat:
+				typedValue, ok := batch.Rows[rowIdx][i].(float64)
+				if !ok {
+					return nil, fmt.Errorf("cannot convert column %s value [%v] to Parquet float64", instr.FileCreator.Columns[i].Parquet.ColumnName, batch.Rows[rowIdx][i])
+				}
+				d[instr.FileCreator.Columns[i].Parquet.ColumnName] = typedValue
+			case evalcapi.FieldTypeBool:
+				typedValue, ok := batch.Rows[rowIdx][i].(bool)
+				if !ok {
+					return nil, fmt.Errorf("cannot convert column %s value [%v] to Parquet bool", instr.FileCreator.Columns[i].Parquet.ColumnName, batch.Rows[rowIdx][i])
+				}
+				d[instr.FileCreator.Columns[i].Parquet.ColumnName] = typedValue
+			case evalcapi.FieldTypeDecimal2:
+				typedValue, ok := batch.Rows[rowIdx][i].(decimal.Decimal)
+				if !ok {
+					return nil, fmt.Errorf("cannot convert column %s value [%v] to Parquet decimal", instr.FileCreator.Columns[i].Parquet.ColumnName, batch.Rows[rowIdx][i])
+				}
+				d[instr.FileCreator.Columns[i].Parquet.ColumnName] = storage.ParquetWriterDecimal2(typedValue)
+			case evalcapi.FieldTypeDateTime:
+				typedValue, ok := batch.Rows[rowIdx][i].(time.Time)
+				if !ok {
+					return nil, fmt.Errorf("cannot convert column %s value [%v] to Parquet datetime", instr.FileCreator.Columns[i].Parquet.ColumnName, batch.Rows[rowIdx][i])
+				}
+				d[instr.FileCreator.Columns[i].Parquet.ColumnName] = storage.ParquetWriterMilliTs(typedValue)
+			default:
+				return nil, fmt.Errorf("cannot convert column %s value [%v] to Parquet: unsupported type", instr.FileCreator.Columns[i].Parquet.ColumnName, batch.Rows[rowIdx][i])
 			}
-			d[instr.FileCreator.Columns[i].Parquet.ColumnName] = typedValue
-		case evalcapi.FieldTypeInt:
-			typedValue, ok := batch.Rows[rowIdx][i].(int64)
-			if !ok {
-				return nil, fmt.Errorf("cannot convert column %s value [%v] to Parquet int64", instr.FileCreator.Columns[i].Parquet.ColumnName, batch.Rows[rowIdx][i])
-			}
-			d[instr.FileCreator.Columns[i].Parquet.ColumnName] = typedValue
-		case evalcapi.FieldTypeFloat:
-			typedValue, ok := batch.Rows[rowIdx][i].(float64)
-			if !ok {
-				return nil, fmt.Errorf("cannot convert column %s value [%v] to Parquet float64", instr.FileCreator.Columns[i].Parquet.ColumnName, batch.Rows[rowIdx][i])
-			}
-			d[instr.FileCreator.Columns[i].Parquet.ColumnName] = typedValue
-		case evalcapi.FieldTypeBool:
-			typedValue, ok := batch.Rows[rowIdx][i].(bool)
-			if !ok {
-				return nil, fmt.Errorf("cannot convert column %s value [%v] to Parquet bool", instr.FileCreator.Columns[i].Parquet.ColumnName, batch.Rows[rowIdx][i])
-			}
-			d[instr.FileCreator.Columns[i].Parquet.ColumnName] = typedValue
-		case evalcapi.FieldTypeDecimal2:
-			typedValue, ok := batch.Rows[rowIdx][i].(decimal.Decimal)
-			if !ok {
-				return nil, fmt.Errorf("cannot convert column %s value [%v] to Parquet decimal", instr.FileCreator.Columns[i].Parquet.ColumnName, batch.Rows[rowIdx][i])
-			}
-			d[instr.FileCreator.Columns[i].Parquet.ColumnName] = storage.ParquetWriterDecimal2(typedValue)
-		case evalcapi.FieldTypeDateTime:
-			typedValue, ok := batch.Rows[rowIdx][i].(time.Time)
-			if !ok {
-				return nil, fmt.Errorf("cannot convert column %s value [%v] to Parquet datetime", instr.FileCreator.Columns[i].Parquet.ColumnName, batch.Rows[rowIdx][i])
-			}
-			d[instr.FileCreator.Columns[i].Parquet.ColumnName] = storage.ParquetWriterMilliTs(typedValue)
-		default:
-			return nil, fmt.Errorf("cannot convert column %s value [%v] to Parquet: unsupported type", instr.FileCreator.Columns[i].Parquet.ColumnName, batch.Rows[rowIdx][i])
 		}
 	}
 

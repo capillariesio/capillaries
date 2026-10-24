@@ -191,7 +191,7 @@ func evalExpressionWithFieldRefsAndCheckType(exp ast.Expr, fieldRefs FieldRefs, 
 			if err != nil {
 				return err
 			}
-			eCtx.SetRoundDec(2) // decimal2
+			eCtx.SetRoundDec(2) // Assuming this is decimal2. Revisit when we decide to introduce decimal3, decimal etc
 		} else {
 			eCtx = eval.NewPlainEvalCtx(evalcapi.CapillariesEvalFunctions, evalcapi.CapillariesEvalConstants, varValuesMap)
 		}
