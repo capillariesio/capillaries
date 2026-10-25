@@ -254,7 +254,7 @@ func (scriptDef *ScriptDef) checkFieldUsageInCreator(node *ScriptNodeDef) error 
 	// Lookup
 	if node.HasLookup() && node.Lookup.UsesFilter() {
 		// Having: allow only lookup table, prohibit src and tgt
-		if err := checkAllowed(&node.Lookup.UsedInFilterFields, JoinFieldRefs(srcFieldRefs, targetFieldRefs), lookupFieldRefs); err != nil {
+		if err := checkAllowedAndResolveFieldTypes(&node.Lookup.UsedInFilterFields, JoinFieldRefs(srcFieldRefs, targetFieldRefs), lookupFieldRefs); err != nil {
 			foundErrors = append(foundErrors, fmt.Sprintf("invalid field in lookup filter [%s], only fields from the lookup table [%s](alias %s) are allowed: [%s]", node.Lookup.RawFilter, node.Lookup.TableCreator.Name, LookupAlias, err.Error()))
 		}
 	}
@@ -263,12 +263,12 @@ func (scriptDef *ScriptDef) checkFieldUsageInCreator(node *ScriptNodeDef) error 
 	if node.HasTableCreator() {
 		srcLkpCustomFieldRefs := JoinFieldRefs(srcFieldRefs, lookupFieldRefs, processorFieldRefs)
 		// Having: allow tgt fields, prohibit src, lkp
-		if err := checkAllowed(&node.TableCreator.UsedInHavingFields, srcLkpCustomFieldRefs, targetFieldRefs); err != nil {
+		if err := checkAllowedAndResolveFieldTypes(&node.TableCreator.UsedInHavingFields, srcLkpCustomFieldRefs, targetFieldRefs); err != nil {
 			foundErrors = append(foundErrors, fmt.Sprintf("invalid field in table creator 'having' condition: [%s]; only target (w.*) fields allowed, reader (r.*) and lookup (l.*) fields are prohibited", err.Error()))
 		}
 		// Tgt expressions: allow src iterator table (or src file), lkp, custom processor, prohibit target
 		// TODO: aggregate functions cannot include fields from group field list
-		if err := checkAllowed(&node.TableCreator.UsedInTargetExpressionsFields, targetFieldRefs, srcLkpCustomFieldRefs); err != nil {
+		if err := checkAllowedAndResolveFieldTypes(&node.TableCreator.UsedInTargetExpressionsFields, targetFieldRefs, srcLkpCustomFieldRefs); err != nil {
 			foundErrors = append(foundErrors, fmt.Sprintf("invalid field(s) in target table field expression: [%s]", err.Error()))
 		}
 	}
@@ -276,13 +276,13 @@ func (scriptDef *ScriptDef) checkFieldUsageInCreator(node *ScriptNodeDef) error 
 	// File creator
 	if node.HasFileCreator() {
 		// Having: allow tgt fields, prohibit src
-		if err := checkAllowed(&node.FileCreator.UsedInHavingFields, srcFieldRefs, targetFieldRefs); err != nil {
+		if err := checkAllowedAndResolveFieldTypes(&node.FileCreator.UsedInHavingFields, srcFieldRefs, targetFieldRefs); err != nil {
 			foundErrors = append(foundErrors, fmt.Sprintf("invalid field in file creator 'having' condition: [%s]", err.Error()))
 		}
 
 		// Tgt expressions: allow src, prohibit target fields
 		// TODO: aggregate functions cannot include fields from group field list
-		if err := checkAllowed(&node.FileCreator.UsedInTargetExpressionsFields, targetFieldRefs, srcFieldRefs); err != nil {
+		if err := checkAllowedAndResolveFieldTypes(&node.FileCreator.UsedInTargetExpressionsFields, targetFieldRefs, srcFieldRefs); err != nil {
 			foundErrors = append(foundErrors, fmt.Sprintf("invalid field in target file field expression: [%s]", err.Error()))
 		}
 	}
@@ -307,7 +307,7 @@ func (scriptDef *ScriptDef) checkFieldUsageInCustomProcessorCreator(node *Script
 	procTgtFieldRefs := node.CustomProcessor.GetFieldRefs()
 
 	// In processor fields, we are allowed to use only reader and processor fields ("r" and "p")
-	if err := checkAllowed(node.CustomProcessor.GetUsedInTargetExpressionsFields(), nil, JoinFieldRefs(srcFieldRefs, procTgtFieldRefs)); err != nil {
+	if err := checkAllowedAndResolveFieldTypes(node.CustomProcessor.GetUsedInTargetExpressionsFields(), nil, JoinFieldRefs(srcFieldRefs, procTgtFieldRefs)); err != nil {
 		return fmt.Errorf("invalid field(s) in target table field expression: [%s]", err.Error())
 	}
 

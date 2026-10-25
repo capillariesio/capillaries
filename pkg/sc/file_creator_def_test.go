@@ -22,6 +22,7 @@ const nodeCfgCsvJson string = `
 			},
 			"name": "field_string1",
 			"expression": "r.field_string1",
+			"write_null_if_expression": "r.field_string1 == \"\"",
 			"type": "string"
 		}
 	]
@@ -38,6 +39,7 @@ const nodeCfgParquetJson string = `
 			},
 			"name": "field_string1",
 			"expression": "r.field_string1",
+			"write_null_if_expression": "r.field_string1 == \"\"",
 			"type": "string"
 		}
 	]

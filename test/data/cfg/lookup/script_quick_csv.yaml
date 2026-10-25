@@ -339,6 +339,8 @@
         top: 
           order: "order_id(asc),order_item_id(asc)"
         url_template: "{dir_out}/order_item_date_left_outer.csv"
+        csv:
+          null_value: "null"
         columns: 
           - 
             csv: 
@@ -353,6 +355,7 @@
               format: "%05d"
             name: "order_item_id"
             expression: "r.order_item_id"
+            write_null_if_expression: "r.order_item_id == 999"
             type: "int"
           - 
             csv: 
@@ -466,6 +469,8 @@
         top: 
           order: "total_value(desc),order_purchase_timestamp(desc),order_id(desc)"
         url_template: "{dir_out}/order_date_value_grouped_left_outer.csv"
+        csv:
+          null_value: "null"
         columns: 
           - 
             csv: 
@@ -494,6 +499,7 @@
               format: "%s"
             name: "avg_value"
             expression: "r.avg_value"
+            write_null_if_expression: "r.item_count == 0"
             type: "decimal2"
           - 
             csv: 

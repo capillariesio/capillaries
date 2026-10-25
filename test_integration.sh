@@ -10,9 +10,11 @@ fi
 if [[ "$short_or_long_or_s3_or_all" = "short" || "$short_or_long_or_s3_or_all" = "all" ]]; then
 	pushd ./test/code/lookup
 	# 13 s
-	./test.sh quick local fs one light
+	./test.sh quick local fs one light csv
 	# 2+7=9 s
-	./test.sh quick local fs multi light
+	./test.sh quick local fs multi light csv
+	# One multi for parquet, to test writing NULLs 4+14=18 s
+	./test.sh quick local fs multi light parquet
 	popd
 
 	pushd ./test/code/py_calc
@@ -45,9 +47,9 @@ fi
 if [[ "$short_or_long_or_s3_or_all" = "long" || "$short_or_long_or_s3_or_all" = "all" ]]; then
 	pushd ./test/code/lookup
 	# 4 threads total: 105 s capimq one 120
-	./test.sh big local fs one light
+	./test.sh big local fs one light parquet
 	# 4 threads total: 26+75
-	./test.sh big local fs multi light
+	./test.sh big local fs multi light parquet
 	popd
 
 	pushd ./test/code/portfolio
@@ -57,7 +59,7 @@ if [[ "$short_or_long_or_s3_or_all" = "long" || "$short_or_long_or_s3_or_all" = 
 
 	pushd ./test/code/lookup
 	# 4 threads total: 17+13
-	./test.sh big local fs multi heavy
+	./test.sh big local fs multi heavy parquet
 	popd
 
 	pushd ./test/code/fannie_mae
@@ -89,7 +91,7 @@ if [[ "$short_or_long_or_s3_or_all" = "s3" || "$short_or_long_or_s3_or_all" = "a
 
 	pushd ./test/code/lookup
 	# 10 s
-	./test.sh quick local s3 multi
+	./test.sh quick local s3 multi csv
 	popd
 
 	pushd ./test/code/fannie_mae

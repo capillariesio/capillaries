@@ -628,3 +628,29 @@ func TestReadBool(t *testing.T) {
 	_, err = testReader(confWithFormat, srcLineTrue)
 	assertErrorPrefix(t, `cannot read bool column col_1, data 'True': format 'some_format' was specified, but bool fields do not accept format specifier, remove this setting`, err.Error())
 }
+
+func TestReadIntNull(t *testing.T) {
+	confTemplate := `
+	{
+		"urls": [""],
+		"csv":{
+			"hdr_line_idx": 0,
+			"first_data_line_idx": 1,
+			"null_value": "null"
+		},
+		"columns":  {
+			"col_1": {
+				"csv":{
+					"col_format": "%d",
+					"col_idx": 1
+				},
+				"col_default_value":"123",
+				"col_type": "int"
+			}
+		}
+	}`
+
+	colRecord, err := testReader(confTemplate, []string{"", "null", ""})
+	assert.Nil(t, err)
+	assert.Equal(t, int64(123), colRecord[ReaderAlias]["col_1"])
+}

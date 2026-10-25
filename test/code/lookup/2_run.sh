@@ -6,12 +6,14 @@ quick_or_big=$1
 local_or_cloud=$2
 fs_or_s3=$3
 one_or_multi=$4
+csv_or_parquet=$5
 
 if [[ "$quick_or_big" != "quick" && "$quick_or_big" != "big" || \
   "$local_or_cloud" != "local" && "$local_or_cloud" != "cloud" || \
   "$fs_or_s3" != "fs" && "$fs_or_s3" != "s3" || \
-  "$one_or_multi" != "one" && "$one_or_multi" != "multi" ]]; then
-  echo $(basename "$0") requires 4 parameters:  'quick|big' 'local|cloud' 'fs|s3' 'one|multi'
+  "$one_or_multi" != "one" && "$one_or_multi" != "multi" || \
+  "$csv_or_parquet" != "csv" && "$csv_or_parquet" != "parquet" ]]; then
+  echo $(basename "$0") requires 5 parameters:  'quick|big' 'local|cloud' 'fs|s3' 'one|multi' 'csv|parquet'
   exit 1
 fi
 
@@ -29,7 +31,7 @@ if [[ "$fs_or_s3" = "s3" ]]; then
     scriptFile=s3://$CAPILLARIES_AWS_TESTBUCKET/capi_cfg/$dataDirName/script_big.json
     paramsFile=s3://$CAPILLARIES_AWS_TESTBUCKET/capi_cfg/$dataDirName/script_params_big_s3_${one_or_multi}.json
   else
-    scriptFile=s3://$CAPILLARIES_AWS_TESTBUCKET/capi_cfg/$dataDirName/script_quick.yaml
+    scriptFile=s3://$CAPILLARIES_AWS_TESTBUCKET/capi_cfg/$dataDirName/script_quick_${csv_or_parquet}.yaml
     paramsFile=s3://$CAPILLARIES_AWS_TESTBUCKET/capi_cfg/$dataDirName/script_params_quick_s3_${one_or_multi}.yaml
   fi
 else
@@ -37,7 +39,7 @@ else
     scriptFile=/tmp/capi_cfg/$dataDirName/script_big.json
     paramsFile=/tmp/capi_cfg/$dataDirName/script_params_big_fs_${one_or_multi}.json
   else
-    scriptFile=/tmp/capi_cfg/$dataDirName/script_quick.yaml
+    scriptFile=/tmp/capi_cfg/$dataDirName/script_quick_${csv_or_parquet}.yaml
     paramsFile=/tmp/capi_cfg/$dataDirName/script_params_quick_fs_${one_or_multi}.yaml
   fi
 fi

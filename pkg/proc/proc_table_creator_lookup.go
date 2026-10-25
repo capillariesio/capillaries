@@ -62,7 +62,7 @@ func setupEvalCtxForGroup(node *sc.ScriptNodeDef, rsLeft *Rowset) (map[int64]map
 					if newCtxErr != nil {
 						return nil, fmt.Errorf("cannot initialize ctx for group calc: %s", newCtxErr.Error())
 					}
-					newCtx.SetRoundDec(2) // decimal2
+					newCtx.SetRoundDec(2) // Assuming this is decimal2. Revisit when we decide to introduce decimal3, decimal etc
 				} else {
 					newCtx = eval.NewPlainEvalCtx(evalcapi.CapillariesEvalFunctions, evalcapi.CapillariesEvalConstants, nil)
 				}

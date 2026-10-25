@@ -1,0 +1,523 @@
+---
+  nodes: 
+    read_orders:
+      max_batch_processing_time: 100
+      type: "file_table"
+      desc: "Load order data from parquet file"
+      r: 
+        urls: 
+          - "{dir_in}/olist_orders_dataset.parquet"
+        columns: 
+          col_order_id: 
+            parquet: 
+              col_name: "order_id"
+            col_type: "string"
+          col_order_status: 
+            parquet: 
+              col_name: "order_status"
+            col_type: "string"
+          col_order_purchase_timestamp: 
+            parquet: 
+              col_name: "order_purchase_timestamp"
+            col_type: "datetime"
+      w: 
+        name: "orders"
+        having: "w.order_purchase_timestamp >= time.Parse(\"2006-01-02 15:04:05\",\"{start_date}\") && w.order_purchase_timestamp <= time.Parse(\"2006-01-02 15:04:05\",\"{end_date}\")"
+        fields: 
+          order_id: 
+            expression: "r.col_order_id"
+            type: "string"
+          order_status: 
+            expression: "r.col_order_status"
+            type: "string"
+          order_purchase_timestamp: 
+            expression: "r.col_order_purchase_timestamp"
+            type: "datetime"
+        indexes: 
+          idx_orders_order_id_to_check_uniq: "unique(order_id(case_sensitive))"
+    read_order_items: 
+      max_batch_processing_time: 100
+      type: "file_table"
+      desc: "Load order item data from parquet file"
+      r: 
+        urls: 
+          - "{dir_in}/olist_order_items_dataset.parquet"
+        columns: 
+          col_order_id: 
+            parquet: 
+              col_name: order_id
+            col_type: "string"
+          col_order_item_id: 
+            parquet: 
+              col_name: order_item_id
+            col_type: "int"
+          col_product_id: 
+            parquet: 
+              col_name: product_id
+            col_type: "string"
+          col_seller_id: 
+            parquet: 
+              col_name: seller_id
+            col_type: "string"
+          col_shipping_limit_date: 
+            parquet: 
+              col_name: shipping_limit_date
+            col_type: "datetime"
+          col_price: 
+            parquet: 
+              col_name: price
+            col_type: "decimal2"
+          col_freight_value: 
+            parquet: 
+              col_name: freight_value
+            col_type: "decimal2"
+      w: 
+        name: "order_items"
+        having: null
+        fields: 
+          order_id: 
+            expression: "r.col_order_id"
+            type: "string"
+          order_item_id: 
+            expression: "r.col_order_item_id"
+            type: "int"
+          product_id: 
+            expression: "r.col_product_id"
+            type: "string"
+          seller_id: 
+            expression: "r.col_seller_id"
+            type: "string"
+          shipping_limit_date: 
+            expression: "r.col_shipping_limit_date"
+            type: "datetime"
+          value: 
+            expression: "r.col_price+r.col_freight_value"
+            type: "decimal2"
+        indexes: 
+          idx_order_items_order_id: "non_unique(order_id(case_sensitive))"
+    order_item_date_inner: 
+      max_batch_processing_time: 100
+      type: "table_lookup_table"
+      start_policy: "{manual_if_multi|string}"
+      desc: "For each order, look up order items and perform inner join without grouping or aggregation"
+      r: 
+        table: "orders"
+        expected_batches_total: "{lookup_node_batches_total|number}"
+      l: 
+        index_name: "idx_order_items_order_id"
+        join_on: "r.order_id"
+        group: false
+        join_type: "inner"
+      w: 
+        name: "order_item_date_inner"
+        fields: 
+          order_id: 
+            expression: "r.order_id"
+            type: "string"
+          order_purchase_timestamp: 
+            expression: "r.order_purchase_timestamp"
+            type: "datetime"
+          order_item_id: 
+            expression: "l.order_item_id"
+            type: "int"
+          product_id: 
+            expression: "l.product_id"
+            type: "string"
+          seller_id: 
+            expression: "l.seller_id"
+            type: "string"
+          shipping_limit_date: 
+            expression: "l.shipping_limit_date"
+            type: "datetime"
+          value: 
+            expression: "l.value"
+            type: "decimal2"
+    order_item_date_left_outer: 
+      max_batch_processing_time: 100
+      type: "table_lookup_table"
+      start_policy: "{manual_if_multi|string}"
+      desc: "For each order, look up order items and perform left outer join without grouping or aggregation"
+      r: 
+        table: "orders"
+        expected_batches_total: "{lookup_node_batches_total|number}"
+      l: 
+        index_name: "idx_order_items_order_id"
+        join_on: "r.order_id"
+        group: false
+        join_type: "left"
+      w: 
+        name: "order_item_date_left_outer"
+        fields: 
+          order_id: 
+            expression: "r.order_id"
+            type: "string"
+          order_purchase_timestamp: 
+            expression: "r.order_purchase_timestamp"
+            type: "datetime"
+          order_item_id: 
+            expression: "l.order_item_id"
+            default_value: "{default_order_item_id}"
+            type: "int"
+          product_id: 
+            expression: "l.product_id"
+            type: "string"
+          seller_id: 
+            expression: "l.seller_id"
+            type: "string"
+          shipping_limit_date: 
+            expression: "l.shipping_limit_date"
+            default_value: "{default_shipping_limit_date}"
+            type: "datetime"
+          value: 
+            expression: "l.value"
+            default_value: "{default_order_item_value}"
+            type: "decimal2"
+    order_date_value_grouped_inner: 
+      max_batch_processing_time: 100
+      type: "table_lookup_table"
+      start_policy: "{manual_if_multi|string}"
+      desc: "For each order, look up order items and perform inner join with grouping and aggregation"
+      r: 
+        table: "orders"
+        expected_batches_total: "{lookup_node_batches_total|number}"
+      l: 
+        index_name: "idx_order_items_order_id"
+        join_on: "r.order_id"
+        group: true
+        join_type: "inner"
+      w: 
+        name: "order_date_value_grouped_inner"
+        fields: 
+          order_id: 
+            expression: "r.order_id"
+            type: "string"
+          order_purchase_timestamp: 
+            expression: "r.order_purchase_timestamp"
+            type: "datetime"
+          total_value: 
+            expression: "sum(l.value)"
+            type: "decimal2"
+          avg_value: 
+            expression: "avg(l.value)"
+            type: "decimal2"
+          min_value: 
+            expression: "min(l.value)"
+            type: "decimal2"
+          max_value: 
+            expression: "max(l.value)"
+            type: "decimal2"
+          min_product_id: 
+            expression: "min(l.product_id)"
+            type: "string"
+          max_product_id: 
+            expression: "max(l.product_id)"
+            type: "string"
+          item_count: 
+            expression: "count()"
+            type: "int"
+    order_date_value_grouped_left_outer: 
+      max_batch_processing_time: 100
+      type: "table_lookup_table"
+      start_policy: "{manual_if_multi|string}"
+      desc: "For each order, look up order items and perform left outer join with grouping and aggregation"
+      r: 
+        table: "orders"
+        expected_batches_total: "{lookup_node_batches_total|number}"
+      l: 
+        index_name: "idx_order_items_order_id"
+        join_on: "r.order_id"
+        group: true
+        join_type: "left"
+      w: 
+        name: "order_date_value_grouped_left_outer"
+        fields: 
+          order_id: 
+            expression: "r.order_id"
+            type: "string"
+          order_purchase_timestamp: 
+            expression: "r.order_purchase_timestamp"
+            type: "datetime"
+          total_value: 
+            expression: "sum(l.value)"
+            type: "decimal2"
+          avg_value: 
+            expression: "avg(l.value)"
+            type: "decimal2"
+          min_value: 
+            expression: "min(l.value)"
+            type: "decimal2"
+          max_value: 
+            expression: "max(l.value)"
+            type: "decimal2"
+          min_product_id: 
+            expression: "min(l.product_id)"
+            type: "string"
+          max_product_id: 
+            expression: "max(l.product_id)"
+            type: "string"
+          item_count: 
+            expression: "count()"
+            type: "int"
+    file_order_item_date_inner: 
+      max_batch_processing_time: 100
+      type: "table_file"
+      desc: "Write the results of inner join without grouping to CSV file"
+      r: 
+        table: "order_item_date_inner"
+      w: 
+        top: 
+          order: "order_id(asc),order_item_id(asc)"
+        url_template: "{dir_out}/order_item_date_inner.parquet"
+        columns: 
+          - 
+            parquet: 
+              column_name: "order_id"
+            name: "order_id"
+            expression: "r.order_id"
+            type: "string"
+          - 
+            parquet: 
+              column_name: "order_item_id"
+            name: "order_item_id"
+            expression: "r.order_item_id"
+            type: "int"
+          - 
+            parquet: 
+              column_name: "product_id"
+            name: "product_id"
+            expression: "r.product_id"
+            type: "string"
+          - 
+            parquet: 
+              column_name: "seller_id"
+            name: "seller_id"
+            expression: "r.seller_id"
+            type: "string"
+          - 
+            parquet: 
+              column_name: "shipping_limit_date"
+            name: "shipping_limit_date"
+            expression: "r.shipping_limit_date"
+            type: "datetime"
+          - 
+            parquet: 
+              column_name: "value"
+            name: "value"
+            expression: "r.value"
+            type: "decimal2"
+    file_order_item_date_left_outer: 
+      max_batch_processing_time: 100
+      type: "table_file"
+      desc: "Write the results of left oter join without grouping to CSV file"
+      r: 
+        table: "order_item_date_left_outer"
+      w: 
+        top: 
+          order: "order_id(asc),order_item_id(asc)"
+        url_template: "{dir_out}/order_item_date_left_outer.parquet"
+        columns: 
+          - 
+            parquet: 
+              column_name: "order_id"
+            name: "order_id"
+            expression: "r.order_id"
+            type: "string"
+          - 
+            parquet: 
+              column_name: "order_item_id"
+            name: "order_item_id"
+            expression: "r.order_item_id"
+            write_null_if_expression: "r.order_item_id == 999"
+            type: "int"
+          - 
+            parquet: 
+              column_name: "product_id"
+            name: "product_id"
+            expression: "r.product_id"
+            type: "string"
+          - 
+            parquet: 
+              column_name: "seller_id"
+            name: "seller_id"
+            expression: "r.seller_id"
+            type: "string"
+          - 
+            parquet: 
+              column_name: "shipping_limit_date"
+            name: "shipping_limit_date"
+            expression: "r.shipping_limit_date"
+            write_null_if_expression: "r.order_item_id == 999"
+            type: "datetime"
+          - 
+            parquet: 
+              column_name: "value"
+            name: "value"
+            expression: "r.value"
+            type: "decimal2"
+    file_order_date_value_grouped_inner: 
+      max_batch_processing_time: 100
+      type: "table_file"
+      desc: "Write the results of inner join with grouping to CSV file"
+      r: 
+        table: "order_date_value_grouped_inner"
+      w: 
+        top: 
+          order: "total_value(desc),order_purchase_timestamp(desc),order_id(desc)"
+        url_template: "{dir_out}/order_date_value_grouped_inner.parquet"
+        columns: 
+          - 
+            parquet: 
+              column_name: "total_value"
+            name: "total_value"
+            expression: "r.total_value"
+            type: "decimal2"
+          - 
+            parquet: 
+              column_name: "order_purchase_timestamp"
+            name: "order_purchase_timestamp"
+            expression: "r.order_purchase_timestamp"
+            type: "datetime"
+          - 
+            parquet: 
+              column_name: "order_id"
+            name: "order_id"
+            expression: "r.order_id"
+            type: "string"
+          - 
+            parquet: 
+              column_name: "avg_value"
+            name: "avg_value"
+            expression: "r.avg_value"
+            write_null_if_expression: "r.item_count == 0"
+            type: "decimal2"
+          - 
+            parquet: 
+              column_name: "min_value"
+            name: "min_value"
+            expression: "r.min_value"
+            type: "decimal2"
+          - 
+            parquet: 
+              column_name: "max_value"
+            name: "max_value"
+            expression: "r.max_value"
+            type: "decimal2"
+          - 
+            parquet: 
+              column_name: "min_product_id"
+            name: "min_product_id"
+            expression: "r.min_product_id"
+            type: "string"
+          - 
+            parquet: 
+              column_name: "max_product_id"
+            name: "max_product_id"
+            expression: "r.max_product_id"
+            type: "string"
+          - 
+            parquet: 
+              column_name: "item_count"
+            name: "item_count"
+            expression: "r.item_count"
+            type: "int"
+    file_order_date_value_grouped_left_outer: 
+      max_batch_processing_time: 100
+      type: "table_file"
+      desc: "Write the results of left outer join with grouping to CSV file"
+      r: 
+        table: "order_date_value_grouped_left_outer"
+      w: 
+        top: 
+          order: "total_value(desc),order_purchase_timestamp(desc),order_id(desc)"
+        url_template: "{dir_out}/order_date_value_grouped_left_outer.parquet"
+        columns: 
+          - 
+            parquet: 
+              column_name: "total_value"
+            name: "total_value"
+            expression: "r.total_value"
+            type: "decimal2"
+          - 
+            parquet: 
+              column_name: "order_purchase_timestamp"
+            name: "order_purchase_timestamp"
+            expression: "r.order_purchase_timestamp"
+            type: "datetime"
+          - 
+            parquet: 
+              column_name: "order_id"
+            name: "order_id"
+            expression: "r.order_id"
+            type: "string"
+          - 
+            parquet: 
+              column_name: "avg_value"
+            name: "avg_value"
+            expression: "r.avg_value"
+            write_null_if_expression: "r.item_count == 0"
+            type: "decimal2"
+          - 
+            parquet: 
+              column_name: "min_value"
+            name: "min_value"
+            expression: "r.min_value"
+            type: "decimal2"
+          - 
+            parquet: 
+              column_name: "max_value"
+            name: "max_value"
+            expression: "r.max_value"
+            type: "decimal2"
+          - 
+            parquet: 
+              column_name: "min_product_id"
+            name: "min_product_id"
+            expression: "r.min_product_id"
+            type: "string"
+          - 
+            parquet: 
+              column_name: "max_product_id"
+            name: "max_product_id"
+            expression: "r.max_product_id"
+            type: "string"
+          - 
+            parquet: 
+              column_name: "item_count"
+            name: "item_count"
+            expression: "r.item_count"
+            type: "int"
+  dependency_policies: 
+    current_active_first_stopped_nogo: 
+      is_default: true
+      event_priority_order: "run_is_current(desc), run_id(desc)"
+      rules: 
+        - 
+          cmd: "go"
+          expression: "nrs.run_is_current == true && nrs.run_status == wfmodel.RunStart && nrs.node_status == wfmodel.NodeBatchSuccess"
+        - 
+          cmd: "wait"
+          expression: "nrs.run_is_current == true && (nrs.run_status == wfmodel.RunStart || nrs.run_status == wfmodel.RunNone) && nrs.node_status == wfmodel.NodeBatchNone"
+        - 
+          cmd: "wait"
+          expression: "nrs.run_is_current == true && (nrs.run_status == wfmodel.RunStart || nrs.run_status == wfmodel.RunNone) && nrs.node_status == wfmodel.NodeBatchStart"
+        - 
+          cmd: "nogo"
+          expression: "nrs.run_is_current == true && nrs.run_status == wfmodel.RunStart && nrs.node_status == wfmodel.NodeBatchFail"
+        - 
+          cmd: "go"
+          expression: "nrs.run_is_current == false && nrs.run_status == wfmodel.RunStart && nrs.node_status == wfmodel.NodeBatchSuccess"
+        - 
+          cmd: "wait"
+          expression: "nrs.run_is_current == false && (nrs.run_status == wfmodel.RunStart || nrs.run_status == wfmodel.RunNone) && nrs.node_status == wfmodel.NodeBatchNone"
+        - 
+          cmd: "wait"
+          expression: "nrs.run_is_current == false && (nrs.run_status == wfmodel.RunStart || nrs.run_status == wfmodel.RunNone) && nrs.node_status == wfmodel.NodeBatchStart"
+        - 
+          cmd: "go"
+          expression: "nrs.run_is_current == false && nrs.run_status == wfmodel.RunComplete && nrs.node_status == wfmodel.NodeBatchSuccess"
+        - 
+          cmd: "nogo"
+          expression: "nrs.run_is_current == false && nrs.run_status == wfmodel.RunComplete && nrs.node_status == wfmodel.NodeBatchFail"
+        - 
+          cmd: "nogo"
+          expression: "nrs.run_is_current == false && nrs.run_status == wfmodel.RunStop"

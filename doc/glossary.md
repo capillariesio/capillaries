@@ -264,7 +264,9 @@ Defines how file writer saves values to the target file (CSV, Parquet).
 
 `type`: one of the [supported types](#supported-types)
 
-`expression`: [Go expression](#go-expressions), can use reader fields only (`r.*`)
+`expression`: [Go expression](#go-expressions) of the final value to be written, can use reader fields only (`r.*`)
+
+`write_null_if_expression`: [Go expression](#go-expressions), if TRUE a NULL value will be written.
 
 ### CSV-specific writer column properties
 

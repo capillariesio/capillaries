@@ -152,13 +152,18 @@ func createInserterAndStartWorkers(logger *l.CapiLogger, envConfig *env.EnvConfi
 		return nil, err
 	}
 
+	numWorkers := envConfig.Cassandra.WriterWorkers
+	if numWorkers == 0 {
+		numWorkers = 5 // Default
+	}
+
 	instr := &TableInserter{
 		PCtx:                         pCtx,
 		TableCreator:                 tableCreator,
-		RecordsIn:                    make(chan WriteChannelItem, envConfig.Cassandra.WriterWorkers),
-		RecordWrittenStatuses:        make(chan error, envConfig.Cassandra.WriterWorkers),
+		RecordsIn:                    make(chan WriteChannelItem, numWorkers),
+		RecordWrittenStatuses:        make(chan error, numWorkers),
 		MachineHash:                  int64(stringHash.Sum64()),
-		NumWorkers:                   envConfig.Cassandra.WriterWorkers,
+		NumWorkers:                   numWorkers,
 		RecordsSent:                  0,                                                    // Total number of records added to RecordsIn
 		RecordsProcessed:             0,                                                    // Total number of records read from RecordWrittenStatuses
 		DoesNotExistPauseMillis:      pCtx.TableInserterProps.DoesNotExistPauseMillis,      // 2000, 5 retries: 2000 + 4000 + 8000 + 16000 + 32000

@@ -103,7 +103,12 @@ linters:
         text: insertDataRecordWithRowid has cognitive complexity
         linters: [ revive ]
 
+      - path: pkg\/proc\/proc_file_creator\.go
+        text: function readAndInsert has cognitive complexity
+        linters: [ revive ]
+
       - path: pkg\/env\/cassandra_config\.go
         text: "S1016: should convert c"
         linters: [ staticcheck ]
+
         

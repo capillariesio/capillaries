@@ -25,7 +25,7 @@ type ParquetReaderColumnSettings struct {
 }
 
 type FileReaderColumnDef struct {
-	DefaultValue string                      `json:"col_default_value,omitempty" yaml:"col_default_value,omitempty"` // Optional. If omitted, zero value is used
+	DefaultValue string                      `json:"col_default_value,omitempty" yaml:"col_default_value,omitempty"` // Optional. If omitted, zero value is used. This is the value Capillaries puts instead of supplied NULLs.
 	Type         evalcapi.TableFieldType     `json:"col_type" yaml:"col_type"`
 	Csv          CsvReaderColumnSettings     `json:"csv,omitempty" yaml:"csv,omitempty"`
 	Parquet      ParquetReaderColumnSettings `json:"parquet,omitempty" yaml:"parquet,omitempty"`
@@ -35,6 +35,7 @@ type CsvReaderSettings struct {
 	SrcFileHdrLineIdx       int                    `json:"hdr_line_idx" yaml:"hdr_line_idx"`
 	SrcFileFirstDataLineIdx int                    `json:"first_data_line_idx,omitempty" yaml:"first_data_line_idx,omitempty"`
 	Separator               string                 `json:"separator,omitempty" yaml:"separator,omitempty"`
+	NullValue               string                 `json:"null_value,omitempty" yaml:"null_value,omitempty"`
 	ColumnIndexingMode      FileColumnIndexingMode `json:"-"`
 }
 
@@ -329,6 +330,14 @@ func (frDef *FileReaderDef) ReadCsvLineToValuesMap(line *[]string, colVars eval.
 			return fmt.Errorf("cannot read column %s: source column index %d is out of range, csv line has only %d field(s)", colName, colDef.Csv.SrcColIdx, len(*line))
 		}
 		colData := (*line)[colDef.Csv.SrcColIdx]
+
+		// Check for NULL
+		if len(frDef.Csv.NullValue) > 0 {
+			if colData == frDef.Csv.NullValue {
+				// Make column empty, which will trigger the "default value" mechanism
+				colData = ""
+			}
+		}
 		switch colDef.Type {
 		case evalcapi.FieldTypeString:
 			if err := toString(colName, colData, colDef, colVars); err != nil {
