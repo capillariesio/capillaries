@@ -114,7 +114,7 @@ func (fieldRefs *FieldRefs) contributeUnresolved(tableName string, fieldName str
 		}
 	}
 
-	// For now, use FieldTypeUnknown. Later, checkAllowed() will populate it
+	// For now, use FieldTypeUnknown. Later, checkAllowedAndResolveFieldTypes() will populate it
 	*fieldRefs = append(*fieldRefs, FieldRef{TableName: tableName, FieldName: fieldName, FieldType: evalcapi.FieldTypeUnknown})
 }
 
@@ -224,7 +224,7 @@ func (fieldRefs *FieldRefs) FindByFieldName(fieldName string) (*FieldRef, bool) 
 	return nil, false
 }
 
-func checkAllowed(fieldRefsToCheck *FieldRefs, prohibitedFieldRefs *FieldRefs, allowedFieldRefs *FieldRefs) error {
+func checkAllowedAndResolveFieldTypes(fieldRefsToCheck *FieldRefs, prohibitedFieldRefs *FieldRefs, allowedFieldRefs *FieldRefs) error {
 	if fieldRefsToCheck == nil {
 		return nil
 	}
