@@ -22,19 +22,47 @@ As is, passed to gocql.PasswordAuthenticator
 As is, passed to gocql.PasswordAuthenticator
 
 ### keyspace_replication_config
-The string passed to `CREATE KEYSPACE IF NOT EXISTS <keyspace_name> WITH REPLICATION = ...` when a [keyspace](glossary.md#keyspace) is created
+The string passed to `CREATE KEYSPACE IF NOT EXISTS <keyspace_name> WITH REPLICATION = ...` when a [keyspace](glossary.md#keyspace) is created. No default value, cannot be empty.
 
 ### writer_workers
-Capillaries processors that write to [data tables](glossary.md#data-table) produce data at a rate much higher than a single-thread code writing to Cassandra can handle. Capillaries inserts into data and index from multiple threads, and the number of those threads is specified here. 10 threads may be considered conservative, 50 threads is aggressive. Choose these settings according to your hardware environment specifics. 
+
+Capillaries processors that write to [data tables](glossary.md#data-table) produce data at a rate much higher than a single-thread code writing to Cassandra can handle. Capillaries inserts into data and index from multiple threads, and the number of those threads is specified here. 10 threads may be considered conservative, 50 threads is aggressive. Choose these settings according to your hardware environment specifics.
+
+Default: 5
 
 ### num_conns
+
 Passed to gocql.ClusterConfig.NumConns
+
+Default: 2
 
 ### timeout
 Milliseconds, passed to gocql.ClusterConfig.Timeout. It is expected to be larger than write_request_timeout_in_ms/read_request_timeout_in_ms set in cassandra.yaml, otherwise it may be trigger before Cassandra coordinator has a chance to handle therequest.
 
+Default: 600ms
+
 ### connect_timeout
 Milliseconds, passed to gocql.ClusterConfig.ConnectTimeout
+
+Default: 600ms
+
+### ssl_opts
+
+gocql.SslOptions
+
+Default: empty
+
+### consistency
+
+gocql.ClusterConfig..Consistency, Amazon Keyspaces requires LOCAL_QUORUM
+
+Default: QUORUM
+
+### disable_initial_host_lookup
+
+gocql.ClusterConfig.DisableInitialHostLookup
+
+Default: false
 
 ## amqp10
 AMQP 1.0 message queue settings
@@ -43,12 +71,13 @@ AMQP 1.0 message queue settings
 AMQP 1.0 url, for example `amqp://guest:guest@127.0.0.1:5672`
 
 ### address
-AMQP 1.0 address by the daemon/toolbelt, Capillaries uses `/queues/capidaemon` for RabbitMQ and `capillaries` for ActiveMQ 
+AMQP 1.0 address by the daemon/toolbelt, Capillaries uses `/queues/capidaemon` for RabbitMQ and `capillaries` for ActiveMQ Classic and Artemis.
 
 ### retry_method
-AMQP 1.0 call used to return message to the queue, can be either `release` or `reject`
+AMQP 1.0 call used to return message to the queue, can be either `release` (ActiveMQ Artemis) or `reject` (RabbitMQ, ActiveMQ Classic).
 
 ## private_keys
+
 Username->private_key_file_path map used for [SFTP](./glossary.md#sftp-uris) upload and download. For example, if anything in your [script configuration](./glossary.md#script) or [API](./api.md) call parameters (like script_file or script_params URIs) points to `sftp://ubuntu@somehost/some/file/path`, you will need an entry like this:
 `ubuntu -> /local/path/to/ubuntu_user_private_key` in your:
 - [Daemon](./glossary.md#daemon) capidaemon.json [env config file](./binconfig.md#toolbelt-daemon-and-webapi-configuration) (if this sftp URI points to data or configuration files)

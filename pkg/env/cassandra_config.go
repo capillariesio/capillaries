@@ -15,11 +15,11 @@ type CassandraConfig struct {
 	Port                      int         `json:"port" env:"CAPI_CASSANDRA_PORT, overwrite"`                                               // 9142 for Amazon Keyspaces, 9042 for regular Cassandra
 	Username                  string      `json:"username" env:"CAPI_CASSANDRA_USERNAME, overwrite"`                                       // Cassandra user name
 	Password                  string      `json:"password" env:"CAPI_CASSANDRA_PASSWORD, overwrite"`                                       // Cassandra user password
+	KeyspaceReplicationConfig string      `json:"keyspace_replication_config" env:"CAPI_CASSANDRA_KEYSPACE_REPLICATION_CONFIG, overwrite"` // "{ 'class' : 'NetworkTopologyStrategy', 'datacenter1' : 1 }" for Cassandra" or "{ 'class' : 'SingleRegionStrategy'}" for Amazon Keyspaces
 	WriterWorkers             int         `json:"writer_workers" env:"CAPI_CASSANDRA_WRITER_WORKERS, overwrite"`                           // 20 is conservative, 80 is very aggressive
 	NumConns                  int         `json:"num_conns" env:"CAPI_CASSANDRA_NUM_CONNS, overwrite"`                                     // gocql.ClusterConfig.NumConns default is 2, don't make it too high
 	Timeout                   int         `json:"timeout" env:"CAPI_CASSANDRA_TIMEOUT, overwrite"`                                         // in ms, set it to 5s, gocql default 600ms is way too aggressive for heavy writes by multiple workers
 	ConnectTimeout            int         `json:"connect_timeout" env:"CAPI_CASSANDRA_CONNECT_TIMEOUT, overwrite"`                         // in ms, set it to 1s, gocql default 600ms may be ok, but let's stay on the safe side
-	KeyspaceReplicationConfig string      `json:"keyspace_replication_config" env:"CAPI_CASSANDRA_KEYSPACE_REPLICATION_CONFIG, overwrite"` // "{ 'class' : 'NetworkTopologyStrategy', 'datacenter1' : 1 }" for Cassandra" or "{ 'class' : 'SingleRegionStrategy'}" for Amazon Keyspaces
 	SslOpts                   *SslOptions `json:"ssl_opts"`
 	Consistency               string      `json:"consistency" env:"CAPI_CASSANDRA_CONSISTENCY, overwrite"`                                 // gocql.ClusterConfig..Consistency, Amazon Keyspaces requires LOCAL_QUORUM, gocql default is QUORUM
 	DisableInitialHostLookup  bool        `json:"disable_initial_host_lookup" env:"CAPI_CASSANDRA_DISABLE_INITIAL_HOST_LOOKUP, overwrite"` // gocql.ClusterConfig.DisableInitialHostLookup default false

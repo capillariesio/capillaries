@@ -129,9 +129,10 @@ func main() {
 		if err != nil {
 			log.Fatalf("no ack method for Amqp10 configured, expected %s or %s ", mq.RetryMethodRelease, mq.RetryMethodReject)
 		}
-		if envConfig.Amqp10.MinCreditWindow == 0 {
-			envConfig.Amqp10.MinCreditWindow = uint32(envConfig.Daemon.ThreadPoolSize)
-		}
+		// Not used
+		// if envConfig.Amqp10.MinCreditWindow == 0 {
+		// 	envConfig.Amqp10.MinCreditWindow = uint32(envConfig.Daemon.ThreadPoolSize)
+		// }
 		verifier, err := envConfig.Daemon.MessageVerify.NewVerifier()
 		if err != nil {
 			log.Fatalf("cannot configure message verifier: %s", err.Error())

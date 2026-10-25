@@ -140,6 +140,8 @@ CSV reader only: first data line index
 #### r.csv.separator
 CSV reader only: field separator, default is comma
 
+#### r.csv.null_value
+CSV reader only: string used as NULL value in the source CSV, default: empty string.
 
 ### w - writer
 
@@ -187,6 +189,9 @@ File writer only. Specifies  the URI of the target file(s). Supported schemes:
 
 #### w.csv.separator
 CSV writer only: field separator, default is comma
+
+#### w.csv.null_value
+String to use as NULL value in the CSV, default: empty string
 
 #### w.parquet.codec
 Parquet writer only: 'gzip' (default), 'snappy' or 'uncompressed'
