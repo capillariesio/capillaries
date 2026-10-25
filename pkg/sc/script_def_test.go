@@ -817,7 +817,7 @@ func testCreatorCalculateOutputWithNulls(t *testing.T, scriptDef *ScriptDef) {
 
 	// Involve NULLs
 	vars = eval.VarValuesMap{"r": {"field_int1": int64(999), "field_string1": "a", "total_value": decimal.NewFromInt(1), "item_count": int64(1)}}
-	cols, nullColumnIndexes, err = scriptDef.ScriptNodes["file_totals"].FileCreator.CalculateFileRecordFromSrcVars(vars)
+	cols, nullColumnIndexes, _ = scriptDef.ScriptNodes["file_totals"].FileCreator.CalculateFileRecordFromSrcVars(vars)
 	assert.Equal(t, 4, len(cols))
 	if len(cols) == 4 {
 		assert.Equal(t, int64(999), cols[0])
@@ -840,7 +840,7 @@ func testCreatorCalculateOutputWithNulls(t *testing.T, scriptDef *ScriptDef) {
 		[]byte(strings.Replace(plainScriptJson, `r.field_int1 == 999`, `r.field_int1 + 1`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Nil(t, err)
-	cols, nullColumnIndexes, err = scriptDef.ScriptNodes["file_totals"].FileCreator.CalculateFileRecordFromSrcVars(vars)
+	_, _, err = scriptDef.ScriptNodes["file_totals"].FileCreator.CalculateFileRecordFromSrcVars(vars)
 	assert.Contains(t, err.Error(), "cannot evaluate non-bool write_null_ if expression for column field_int1")
 
 	// write_null_if expression cannot be evaluated, tweak r.field_int1 == 999
@@ -849,7 +849,7 @@ func testCreatorCalculateOutputWithNulls(t *testing.T, scriptDef *ScriptDef) {
 		[]byte(strings.Replace(plainScriptJson, `r.field_int1 == 999`, `r.field_int1 + r.field_string1`, 1)), ScriptJson,
 		nil, nil, "", nil)
 	assert.Nil(t, err)
-	cols, nullColumnIndexes, err = scriptDef.ScriptNodes["file_totals"].FileCreator.CalculateFileRecordFromSrcVars(vars)
+	_, _, err = scriptDef.ScriptNodes["file_totals"].FileCreator.CalculateFileRecordFromSrcVars(vars)
 	assert.Contains(t, err.Error(), "cannot evaluate write_null_ if expression for column field_int1: [cannot perform binary arithmetic op, incompatible arg types '999(int64)' + 'a(string)' ]")
 
 }
